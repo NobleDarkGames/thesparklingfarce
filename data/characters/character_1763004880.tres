@@ -1,10 +1,18 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://b8hjcppvfqtsd"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=4 format=3 uid="uid://b8hjcppvfqtsd"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_7ocj1"]
+[ext_resource type="Resource" uid="uid://dsd002k0tafkj" path="res://data/classes/class_1763004486.tres" id="1_bq5wl"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_bq5wl"]
 
 [resource]
 script = ExtResource("1_7ocj1")
-character_name = "New Character"
+character_name = "Ted"
+character_class = ExtResource("1_bq5wl")
 base_hp = 20
 base_mp = 10
+hp_growth = 45
+mp_growth = 45
+strength_growth = 25
+defense_growth = 55
+agility_growth = 45
+intelligence_growth = 45

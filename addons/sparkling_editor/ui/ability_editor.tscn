@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c8vqm9k8xi41m"]
+[gd_scene load_steps=2 format=3 uid="uid://c8vqnak8xi41m"]
 
 [ext_resource type="Script" path="res://addons/sparkling_editor/ui/ability_editor.gd" id="1_ability_editor"]
 
