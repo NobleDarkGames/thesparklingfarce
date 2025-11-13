@@ -38,8 +38,9 @@ func _setup_ui() -> void:
 		push_error("TabContainer not found in scene!")
 		return
 
-	# Set minimum size on the root panel to prevent collapse
-	custom_minimum_size = Vector2(800, 400)
+	# Set minimum width to prevent collapse, but allow vertical scaling
+	# Note: Minimum height removed to fix vertical overflow in bottom panel
+	custom_minimum_size = Vector2(800, 0)
 
 	# Make tabs more visible with custom theme overrides
 	tab_container.add_theme_font_size_override("font_size", 14)
@@ -57,6 +58,9 @@ func _setup_ui() -> void:
 	_create_dialogue_editor_tab()
 	_create_battle_editor_tab()
 
+	# Debug: Log main panel and TabContainer sizing
+	call_deferred("_debug_main_panel_sizes")
+
 
 func _create_overview_tab() -> void:
 	var overview: VBoxContainer = VBoxContainer.new()
@@ -66,6 +70,10 @@ func _create_overview_tab() -> void:
 	title.text = "The Sparkling Farce - Content Editor"
 	title.add_theme_font_size_override("font_size", 24)
 	overview.add_child(title)
+
+	# Wrap description in ScrollContainer to prevent it from forcing large height
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var description: RichTextLabel = RichTextLabel.new()
 	description.bbcode_enabled = true
@@ -94,9 +102,11 @@ This editor allows you to create content for your tactical RPG game without writ
 4. Create items for characters to equip
 
 For more information, check the documentation in the user_content folder."""
-	description.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	description.fit_content = true
-	overview.add_child(description)
+
+	scroll.add_child(description)
+	overview.add_child(scroll)
 
 	tab_container.add_child(overview)
 
@@ -135,8 +145,18 @@ func _on_tab_changed(tab_index: int) -> void:
 	pass
 
 
-func _debug_final_sizes() -> void:
-	print("=== AFTER LAYOUT ===")
-	print("Main panel FINAL size: ", size)
+func _debug_main_panel_sizes() -> void:
+	print("=== MAIN PANEL DEBUG ===")
+	print("Main panel size: ", size)
+	print("Main panel custom_minimum_size: ", custom_minimum_size)
+	print("Main panel anchors: (", anchor_left, ", ", anchor_top, ", ", anchor_right, ", ", anchor_bottom, ")")
+	print("Main panel offsets: (", offset_left, ", ", offset_top, ", ", offset_right, ", ", offset_bottom, ")")
+	print("Main panel size_flags: h=", size_flags_horizontal, " v=", size_flags_vertical)
 	print("Main panel parent: ", get_parent().get_class() if get_parent() else "null")
-	print("TabContainer FINAL size: ", tab_container.size if tab_container else "null")
+	if get_parent():
+		print("Main panel parent size: ", get_parent().size)
+	print("TabContainer size: ", tab_container.size if tab_container else "null")
+	print("TabContainer custom_minimum_size: ", tab_container.custom_minimum_size if tab_container else "null")
+	print("TabContainer anchors: (", tab_container.anchor_left if tab_container else "null", ", ", tab_container.anchor_top if tab_container else "null", ", ", tab_container.anchor_right if tab_container else "null", ", ", tab_container.anchor_bottom if tab_container else "null", ")")
+	print("TabContainer use_hidden_tabs_for_min_size: ", tab_container.use_hidden_tabs_for_min_size if tab_container else "null")
+	print("========================")

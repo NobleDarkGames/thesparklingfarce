@@ -22,4 +22,4 @@ offset_right = 0.0
 offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
-use_hidden_tabs_for_min_size = true
+use_hidden_tabs_for_min_size = false

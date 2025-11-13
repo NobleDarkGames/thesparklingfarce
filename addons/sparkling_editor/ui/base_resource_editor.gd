@@ -70,9 +70,12 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _setup_base_ui() -> void:
-	# Note: TabContainer children - use anchor for width, NOT height (prevents massive height issue)
+	# Note: TabContainer children must use anchors to fill available space
+	# Using full anchors to stretch both horizontally and vertically
 	anchor_right = 1.0
-	# Don't set anchor_bottom - causes massive height
+	anchor_bottom = 1.0
+	offset_right = 0.0
+	offset_bottom = 0.0
 
 	var hsplit: HSplitContainer = HSplitContainer.new()
 	# HSplitContainer uses anchors to fill the parent Control
@@ -152,10 +155,16 @@ func _setup_base_ui() -> void:
 
 func _debug_sizes(hsplit: HSplitContainer, left: Control, right: Control) -> void:
 	print("  [", resource_type_name, "] ROOT CONTROL size: ", size)
+	print("  [", resource_type_name, "] ROOT CONTROL custom_minimum_size: ", custom_minimum_size)
+	print("  [", resource_type_name, "] ROOT CONTROL anchors: (", anchor_left, ", ", anchor_top, ", ", anchor_right, ", ", anchor_bottom, ")")
+	print("  [", resource_type_name, "] ROOT CONTROL offsets: (", offset_left, ", ", offset_top, ", ", offset_right, ", ", offset_bottom, ")")
 	print("  [", resource_type_name, "] ROOT CONTROL parent: ", get_parent().get_class() if get_parent() else "null")
+	print("  [", resource_type_name, "] ROOT CONTROL parent size: ", get_parent().size if get_parent() else "null")
 	print("  [", resource_type_name, "] HSplit size: ", hsplit.size, " split_offset: ", hsplit.split_offset)
+	print("  [", resource_type_name, "] HSplit custom_minimum_size: ", hsplit.custom_minimum_size)
 	print("  [", resource_type_name, "] Left panel size: ", left.size)
-	print("  [", resource_type_name, "] Right panel size: ", right.size)
+	print("  [", resource_type_name, "] Right panel (ScrollContainer) size: ", right.size)
+	print("  [", resource_type_name, "] Right panel custom_minimum_size: ", right.custom_minimum_size)
 	print("  [", resource_type_name, "] HSplit children count: ", hsplit.get_child_count())
 
 
