@@ -1,12 +1,8 @@
 @tool
-extends Control
+extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 
 ## Item Editor UI
 ## Allows browsing and editing ItemData resources
-
-var item_list: ItemList
-var item_detail: VBoxContainer
-var current_item: ItemData
 
 var name_edit: LineEdit
 var item_type_option: OptionButton
@@ -41,68 +37,13 @@ var sell_price_spin: SpinBox
 
 
 func _ready() -> void:
-	_setup_ui()
-	_refresh_item_list()
+	resource_directory = "res://data/items/"
+	resource_type_name = "Item"
+	super._ready()
 
 
-func _setup_ui() -> void:
-	# Use size flags for proper editor panel expansion (no anchors needed)
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	var hsplit: HSplitContainer = HSplitContainer.new()
-	hsplit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hsplit.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	add_child(hsplit)
-
-	# Left side: Item list
-	var left_panel: VBoxContainer = VBoxContainer.new()
-	left_panel.custom_minimum_size.x = 250
-
-	var list_label: Label = Label.new()
-	list_label.text = "Items"
-	list_label.add_theme_font_size_override("font_size", 16)
-	left_panel.add_child(list_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Use Tools > Create New Item\nto get started"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
-	left_panel.add_child(help_label)
-
-	item_list = ItemList.new()
-	item_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	item_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	item_list.custom_minimum_size = Vector2(200, 200)
-	item_list.item_selected.connect(_on_item_selected)
-	left_panel.add_child(item_list)
-
-	var create_button: Button = Button.new()
-	create_button.text = "Create New Item"
-	create_button.pressed.connect(_on_create_new_item)
-	left_panel.add_child(create_button)
-
-	var refresh_button: Button = Button.new()
-	refresh_button.text = "Refresh List"
-	refresh_button.pressed.connect(_refresh_item_list)
-	left_panel.add_child(refresh_button)
-
-	hsplit.add_child(left_panel)
-
-	# Right side: Item details
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(400, 0)
-
-	item_detail = VBoxContainer.new()
-	item_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var detail_label: Label = Label.new()
-	detail_label.text = "Item Details"
-	detail_label.add_theme_font_size_override("font_size", 18)
-	item_detail.add_child(detail_label)
-
+## Override: Create the item-specific detail form
+func _create_detail_form() -> void:
 	# Basic info section
 	_add_basic_info_section()
 
@@ -118,23 +59,151 @@ func _setup_ui() -> void:
 	# Economy section
 	_add_economy_section()
 
-	# Button container for Save and Delete
-	var button_container: HBoxContainer = HBoxContainer.new()
+	# Add the button container at the end
+	detail_panel.add_child(button_container)
 
-	var save_button: Button = Button.new()
-	save_button.text = "Save Changes"
-	save_button.pressed.connect(_save_current_item)
-	button_container.add_child(save_button)
 
-	var delete_button: Button = Button.new()
-	delete_button.text = "Delete Item"
-	delete_button.pressed.connect(_delete_current_item)
-	button_container.add_child(delete_button)
+## Override: Load item data from resource into UI
+func _load_resource_data() -> void:
+	var item: ItemData = current_resource as ItemData
+	if not item:
+		return
 
-	item_detail.add_child(button_container)
+	name_edit.text = item.item_name
+	item_type_option.selected = item.item_type
+	equipment_type_edit.text = item.equipment_type
+	durability_spin.value = item.durability
+	description_edit.text = item.description
 
-	scroll.add_child(item_detail)
-	hsplit.add_child(scroll)
+	# Stat modifiers
+	hp_mod_spin.value = item.hp_modifier
+	mp_mod_spin.value = item.mp_modifier
+	str_mod_spin.value = item.strength_modifier
+	def_mod_spin.value = item.defense_modifier
+	agi_mod_spin.value = item.agility_modifier
+	int_mod_spin.value = item.intelligence_modifier
+	luk_mod_spin.value = item.luck_modifier
+
+	# Weapon properties
+	attack_power_spin.value = item.attack_power
+	attack_range_spin.value = item.attack_range
+	hit_rate_spin.value = item.hit_rate
+	crit_rate_spin.value = item.critical_rate
+
+	# Consumable properties
+	usable_battle_check.button_pressed = item.usable_in_battle
+	usable_field_check.button_pressed = item.usable_on_field
+
+	# Economy
+	buy_price_spin.value = item.buy_price
+	sell_price_spin.value = item.sell_price
+
+	# Update section visibility
+	_on_item_type_changed(item.item_type)
+
+
+## Override: Save UI data to resource
+func _save_resource_data() -> void:
+	var item: ItemData = current_resource as ItemData
+	if not item:
+		return
+
+	# Update item data from UI
+	item.item_name = name_edit.text
+	item.item_type = item_type_option.selected
+	item.equipment_type = equipment_type_edit.text
+	item.durability = int(durability_spin.value)
+	item.description = description_edit.text
+
+	# Update stat modifiers
+	item.hp_modifier = int(hp_mod_spin.value)
+	item.mp_modifier = int(mp_mod_spin.value)
+	item.strength_modifier = int(str_mod_spin.value)
+	item.defense_modifier = int(def_mod_spin.value)
+	item.agility_modifier = int(agi_mod_spin.value)
+	item.intelligence_modifier = int(int_mod_spin.value)
+	item.luck_modifier = int(luk_mod_spin.value)
+
+	# Update weapon properties
+	item.attack_power = int(attack_power_spin.value)
+	item.attack_range = int(attack_range_spin.value)
+	item.hit_rate = int(hit_rate_spin.value)
+	item.critical_rate = int(crit_rate_spin.value)
+
+	# Update consumable properties
+	item.usable_in_battle = usable_battle_check.button_pressed
+	item.usable_on_field = usable_field_check.button_pressed
+
+	# Update economy
+	item.buy_price = int(buy_price_spin.value)
+	item.sell_price = int(sell_price_spin.value)
+
+
+## Override: Validate resource before saving
+func _validate_resource() -> Dictionary:
+	var item: ItemData = current_resource as ItemData
+	if not item:
+		return {valid = false, errors = ["Invalid resource type"]}
+
+	var errors: Array[String] = []
+
+	if item.item_name.strip_edges().is_empty():
+		errors.append("Item name cannot be empty")
+
+	if item.buy_price < 0:
+		errors.append("Buy price cannot be negative")
+
+	if item.sell_price < 0:
+		errors.append("Sell price cannot be negative")
+
+	return {valid = errors.is_empty(), errors = errors}
+
+
+## Override: Check for references before deletion
+func _check_resource_references(resource_to_check: Resource) -> Array[String]:
+	var item_to_check: ItemData = resource_to_check as ItemData
+	if not item_to_check:
+		return []
+
+	var references: Array[String] = []
+
+	# Check all characters for references to this item in their equipment arrays
+	var dir: DirAccess = DirAccess.open("res://data/characters/")
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".tres"):
+				var character: CharacterData = load("res://data/characters/" + file_name)
+				if character:
+					if item_to_check in character.starting_equipment:
+						references.append("res://data/characters/" + file_name)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	# TODO: In Phase 2+, also check shop inventories, treasure chests, etc.
+
+	return references
+
+
+## Override: Create a new item with defaults
+func _create_new_resource() -> Resource:
+	var new_item: ItemData = ItemData.new()
+	new_item.item_name = "New Item"
+	new_item.item_type = ItemData.ItemType.WEAPON
+	new_item.durability = -1
+	new_item.buy_price = 100
+	new_item.sell_price = 50
+
+	return new_item
+
+
+## Override: Get the display name from an item resource
+func _get_resource_display_name(resource: Resource) -> String:
+	var item: ItemData = resource as ItemData
+	if item:
+		return item.item_name
+	return "Unnamed Item"
 
 
 func _add_basic_info_section() -> void:
@@ -211,7 +280,7 @@ func _add_basic_info_section() -> void:
 	description_edit.custom_minimum_size.y = 80
 	section.add_child(description_edit)
 
-	item_detail.add_child(section)
+	detail_panel.add_child(section)
 
 
 func _add_stat_modifiers_section() -> void:
@@ -230,7 +299,7 @@ func _add_stat_modifiers_section() -> void:
 	int_mod_spin = _create_modifier_editor("Intelligence:", section)
 	luk_mod_spin = _create_modifier_editor("Luck:", section)
 
-	item_detail.add_child(section)
+	detail_panel.add_child(section)
 
 
 func _add_weapon_section() -> void:
@@ -297,7 +366,7 @@ func _add_weapon_section() -> void:
 	crit_container.add_child(crit_rate_spin)
 	weapon_section.add_child(crit_container)
 
-	item_detail.add_child(weapon_section)
+	detail_panel.add_child(weapon_section)
 
 
 func _add_consumable_section() -> void:
@@ -321,7 +390,7 @@ func _add_consumable_section() -> void:
 	note_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	consumable_section.add_child(note_label)
 
-	item_detail.add_child(consumable_section)
+	detail_panel.add_child(consumable_section)
 
 
 func _add_economy_section() -> void:
@@ -360,7 +429,7 @@ func _add_economy_section() -> void:
 	sell_container.add_child(sell_price_spin)
 	section.add_child(sell_container)
 
-	item_detail.add_child(section)
+	detail_panel.add_child(section)
 
 
 func _create_modifier_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
@@ -389,184 +458,3 @@ func _on_item_type_changed(index: int) -> void:
 
 	weapon_section.visible = (item_type == ItemData.ItemType.WEAPON)
 	consumable_section.visible = (item_type == ItemData.ItemType.CONSUMABLE)
-
-
-func _refresh_item_list() -> void:
-	item_list.clear()
-
-	var dir: DirAccess = DirAccess.open("res://data/items/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var item: ItemData = load("res://data/items/" + file_name)
-				if item:
-					item_list.add_item(item.item_name)
-					item_list.set_item_metadata(item_list.item_count - 1, "res://data/items/" + file_name)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-
-
-func _on_item_selected(index: int) -> void:
-	var path: String = item_list.get_item_metadata(index)
-	# Load and duplicate to make it editable (load() returns read-only cached resource)
-	var loaded_item: ItemData = load(path)
-	current_item = loaded_item.duplicate(true)
-	# Keep the original path so we can save to the same location
-	current_item.take_over_path(path)
-	_load_item_data()
-
-
-func _load_item_data() -> void:
-	if not current_item:
-		return
-
-	name_edit.text = current_item.item_name
-	item_type_option.selected = current_item.item_type
-	equipment_type_edit.text = current_item.equipment_type
-	durability_spin.value = current_item.durability
-	description_edit.text = current_item.description
-
-	# Stat modifiers
-	hp_mod_spin.value = current_item.hp_modifier
-	mp_mod_spin.value = current_item.mp_modifier
-	str_mod_spin.value = current_item.strength_modifier
-	def_mod_spin.value = current_item.defense_modifier
-	agi_mod_spin.value = current_item.agility_modifier
-	int_mod_spin.value = current_item.intelligence_modifier
-	luk_mod_spin.value = current_item.luck_modifier
-
-	# Weapon properties
-	attack_power_spin.value = current_item.attack_power
-	attack_range_spin.value = current_item.attack_range
-	hit_rate_spin.value = current_item.hit_rate
-	crit_rate_spin.value = current_item.critical_rate
-
-	# Consumable properties
-	usable_battle_check.button_pressed = current_item.usable_in_battle
-	usable_field_check.button_pressed = current_item.usable_on_field
-
-	# Economy
-	buy_price_spin.value = current_item.buy_price
-	sell_price_spin.value = current_item.sell_price
-
-	# Update section visibility
-	_on_item_type_changed(current_item.item_type)
-
-
-func _save_current_item() -> void:
-	if not current_item:
-		push_warning("No item selected")
-		return
-
-	# Update item data from UI
-	current_item.item_name = name_edit.text
-	current_item.item_type = item_type_option.selected
-	current_item.equipment_type = equipment_type_edit.text
-	current_item.durability = int(durability_spin.value)
-	current_item.description = description_edit.text
-
-	# Update stat modifiers
-	current_item.hp_modifier = int(hp_mod_spin.value)
-	current_item.mp_modifier = int(mp_mod_spin.value)
-	current_item.strength_modifier = int(str_mod_spin.value)
-	current_item.defense_modifier = int(def_mod_spin.value)
-	current_item.agility_modifier = int(agi_mod_spin.value)
-	current_item.intelligence_modifier = int(int_mod_spin.value)
-	current_item.luck_modifier = int(luk_mod_spin.value)
-
-	# Update weapon properties
-	current_item.attack_power = int(attack_power_spin.value)
-	current_item.attack_range = int(attack_range_spin.value)
-	current_item.hit_rate = int(hit_rate_spin.value)
-	current_item.critical_rate = int(crit_rate_spin.value)
-
-	# Update consumable properties
-	current_item.usable_in_battle = usable_battle_check.button_pressed
-	current_item.usable_on_field = usable_field_check.button_pressed
-
-	# Update economy
-	current_item.buy_price = int(buy_price_spin.value)
-	current_item.sell_price = int(sell_price_spin.value)
-
-	# Save to file
-	var path: String = item_list.get_item_metadata(item_list.get_selected_items()[0])
-	var err: Error = ResourceSaver.save(current_item, path)
-	if err != OK:
-		push_error("Failed to save item: " + str(err))
-
-
-func _on_create_new_item() -> void:
-	# Create a new item
-	var new_item: ItemData = ItemData.new()
-	new_item.item_name = "New Item"
-	new_item.item_type = ItemData.ItemType.WEAPON
-
-	# Generate unique filename
-	var timestamp: int = Time.get_unix_time_from_system()
-	var filename: String = "item_%d.tres" % timestamp
-	var full_path: String = "res://data/items/" + filename
-
-	# Save the resource
-	var err: Error = ResourceSaver.save(new_item, full_path)
-	if err == OK:
-		# Force Godot to rescan filesystem and reload the resource
-		EditorInterface.get_resource_filesystem().scan()
-		# Wait a frame for the scan to complete, then refresh
-		await get_tree().process_frame
-		_refresh_item_list()
-	else:
-		push_error("Failed to create item: " + str(err))
-
-
-func _delete_current_item() -> void:
-	if not current_item:
-		return
-
-	# Check if this item is referenced by characters
-	var references: Array[String] = _check_item_references(current_item)
-	if references.size() > 0:
-		push_error("Cannot delete item '%s': Referenced by %d character(s)" % [current_item.item_name, references.size()])
-		return
-
-	# Get the file path
-	var selected_items: PackedInt32Array = item_list.get_selected_items()
-	if selected_items.size() == 0:
-		return
-
-	var path: String = item_list.get_item_metadata(selected_items[0])
-
-	# Delete the file
-	var dir: DirAccess = DirAccess.open(path.get_base_dir())
-	if dir:
-		var err: Error = dir.remove(path)
-		if err == OK:
-			current_item = null
-			_refresh_item_list()
-		else:
-			push_error("Failed to delete item file: " + str(err))
-	else:
-		push_error("Failed to access directory for deletion")
-
-
-func _check_item_references(item_to_check: ItemData) -> Array[String]:
-	var references: Array[String] = []
-
-	# Check all characters for references to this item in their equipment arrays
-	var dir: DirAccess = DirAccess.open("res://data/characters/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var character: CharacterData = load("res://data/characters/" + file_name)
-				if character:
-					if item_to_check in character.starting_equipment:
-						references.append("res://data/characters/" + file_name)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-
-	# TODO: In Phase 2+, also check shop inventories, treasure chests, etc.
-
-	return references

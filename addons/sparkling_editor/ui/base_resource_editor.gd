@@ -179,6 +179,12 @@ func _on_save() -> void:
 		push_warning("No " + resource_type_name.to_lower() + " selected")
 		return
 
+	# Check if we have a selected item
+	var selected_items: PackedInt32Array = resource_list.get_selected_items()
+	if selected_items.size() == 0:
+		push_warning("No " + resource_type_name.to_lower() + " selected in list")
+		return
+
 	# Validate first
 	var validation: Dictionary = _validate_resource()
 	if not validation.valid:
@@ -192,7 +198,7 @@ func _on_save() -> void:
 	_save_resource_data()
 
 	# Save to file
-	var path: String = resource_list.get_item_metadata(resource_list.get_selected_items()[0])
+	var path: String = resource_list.get_item_metadata(selected_items[0])
 	var err: Error = ResourceSaver.save(current_resource, path)
 	if err == OK:
 		_refresh_list()
