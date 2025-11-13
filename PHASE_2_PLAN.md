@@ -157,54 +157,62 @@ Allows editing of `DialogueData` resources (conversations, cutscenes).
 
 ---
 
-#### 3. Battle Editor 🔴 COMPLEX - SAVE FOR LAST
-**Complexity**: Very High
-**Estimated Lines**: ~450-500 (using base class)
+#### 3. Battle Editor ✅ COMPLETE
+**Complexity**: High (reduced with better separation of concerns)
+**Estimated Lines**: ~400-450 (using base class)
 
 Allows editing of `BattleData` resources (tactical battle scenarios).
 
+**Design Philosophy - Separation of Concerns**:
+- **BattleData**: Scenario configuration (enemies, conditions, rewards, dialogue)
+- **Map Scene**: Spatial data (grid size, spawn points, terrain)
+- Maps are reusable; battles configure WHO fights and HOW to win
+
 **Features**:
-- Grid-based map configuration
-- Visual grid editor with drag-and-drop
-- Unit placement (Player, Enemy, Neutral)
+- Map scene selection
+- Enemy/Neutral unit configuration with per-unit AI
 - Victory/Defeat condition builder
 - Dialogue integration
-- Environmental settings
+- Environmental settings (weather, time of day)
 - Reward configuration
 
 **UI Sections**:
 1. Basic Information (name, description)
-2. Map Configuration
-   - Grid size (width x height)
-   - Terrain type selection (future: visual editor)
-3. Unit Placement **← Most Complex**
-   - List of placed units
-   - Position (x, y) input
-   - Team selection (Player/Enemy/Neutral)
-   - CharacterData reference dropdown
-   - AI behavior selection
-4. Victory/Defeat Conditions
-   - Condition type dropdowns
-   - Turn limit, unit counts, etc.
-5. Dialogue Integration
+2. Map Selection (PackedScene reference)
+3. Enemy Forces **← Dynamic List**
+   - CharacterData dropdown per enemy
+   - Position (x, y) input per enemy
+   - AI behavior dropdown per enemy (aggressive, defensive, patrol, stationary, support)
+   - Add/Remove buttons
+4. Neutral/NPC Forces **← Dynamic List**
+   - CharacterData dropdown per neutral
+   - Position (x, y) input per neutral
+   - AI behavior dropdown per neutral
+   - Add/Remove buttons
+5. Victory Conditions
+   - Condition type dropdown
+   - Conditional fields (boss index, turn count, position, protect index)
+6. Defeat Conditions
+   - Condition type dropdown
+   - Conditional fields (turn limit, unit dies index)
+7. Battle Flow & Dialogue
    - Pre-battle, victory, defeat dialogues
-   - Turn-based triggers
-6. Environment & Rewards
-   - Weather, time of day
-   - XP, gold, item drops
+   - Turn dialogues (Phase 3 placeholder)
+8. Environment (weather, time of day)
+9. Audio (Phase 3 placeholders)
+10. Rewards (XP, gold, items - item list in Phase 3)
 
-**Challenges**:
-- **Grid visualization** - Need to show the battlefield
-- **Drag-and-drop unit placement** - Complex UI interaction
-- **Terrain editing** - May defer to Phase 3
-- **Condition builder** - Multiple condition types with different parameters
-- **Unit list management** - Add/remove/edit units in a list
+**Data Structure**:
+- Uses `Array[Dictionary]` for enemies/neutrals (consistent with DialogueData pattern)
+- Each dictionary: `{character: CharacterData, position: Vector2i, ai_behavior: String}`
+- Per-unit AI behaviors instead of global settings
 
 **Approach**:
-- Start with simple form-based editing (no visual grid)
-- Add list of units with position coordinates
-- Phase 3: Add visual grid editor with drag-and-drop
-- Phase 3: Add terrain painting tools
+- Form-based editing (no visual grid in Phase 2)
+- Dynamic list management (similar to dialogue_editor)
+- Phase 3: Visual grid editor with drag-and-drop
+- Phase 3: Map scene visual preview
+- Phase 3: Turn-based dialogue triggers
 
 **Reference Checking**:
 - Cannot check (battles are top-level scenarios)

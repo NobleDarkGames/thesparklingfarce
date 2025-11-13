@@ -99,7 +99,8 @@ func _setup_base_ui() -> void:
 
 	resource_list = ItemList.new()
 	resource_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	resource_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Don't use SIZE_EXPAND_FILL vertically - just set a fixed height
+	resource_list.custom_minimum_size = Vector2(0, 150)  # Fixed height to keep buttons visible
 	resource_list.item_selected.connect(_on_resource_selected)
 	left_panel.add_child(resource_list)
 

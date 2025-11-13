@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7xqnak8xi41b"]
+
+[ext_resource type="Script" path="res://addons/sparkling_editor/ui/battle_editor.gd" id="1_battle_editor"]
+
+[node name="Battles" type="Control"]
+script = ExtResource("1_battle_editor")

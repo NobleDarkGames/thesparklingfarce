@@ -25,40 +25,30 @@ enum DefeatCondition {
 @export_multiline var battle_description: String = ""
 
 @export_group("Map Configuration")
+## Map scene contains grid dimensions, spawn points, and terrain
 @export var map_scene: PackedScene
-@export var grid_width: int = 20
-@export var grid_height: int = 15
-## Tile size in pixels
-@export var tile_size: int = 32
-
-@export_group("Player Forces")
-@export var player_units: Array[CharacterData] = []
-@export var player_positions: Array[Vector2i] = []
-## Maximum number of units player can deploy
-@export var max_player_units: int = 12
-## Can player choose deployment positions?
-@export var allow_custom_deployment: bool = false
 
 @export_group("Enemy Forces")
-@export var enemy_units: Array[CharacterData] = []
-@export var enemy_positions: Array[Vector2i] = []
-## Enemy AI behavior ("aggressive", "defensive", "patrol")
-@export var enemy_ai_behavior: String = "aggressive"
+## Array of dictionaries: {character: CharacterData, position: Vector2i, ai_behavior: String}
+## AI behaviors: "aggressive", "defensive", "patrol", "stationary", "support"
+@export var enemies: Array[Dictionary] = []
 
 @export_group("Neutral/NPC Forces")
-@export var neutral_units: Array[CharacterData] = []
-@export var neutral_positions: Array[Vector2i] = []
+## Array of dictionaries: {character: CharacterData, position: Vector2i, ai_behavior: String}
+## AI behaviors: "aggressive", "defensive", "patrol", "stationary", "support"
+@export var neutrals: Array[Dictionary] = []
 
 @export_group("Victory Conditions")
 @export var victory_condition: VictoryCondition = VictoryCondition.DEFEAT_ALL_ENEMIES
 @export var victory_target_position: Vector2i = Vector2i.ZERO
-@export var victory_target_unit: CharacterData
+@export var victory_boss_index: int = -1  ## Which enemy is the boss (for DEFEAT_BOSS)
+@export var victory_protect_index: int = -1  ## Which neutral to protect (for PROTECT_UNIT)
 @export var victory_turn_count: int = 0
 @export var custom_victory_script: GDScript
 
 @export_group("Defeat Conditions")
-@export var defeat_condition: DefeatCondition = DefeatCondition.ALL_UNITS_DEFEATED
-@export var defeat_target_unit: CharacterData
+@export var defeat_condition: DefeatCondition = DefeatCondition.LEADER_DEFEATED
+@export var defeat_protect_index: int = -1  ## Which neutral must survive (for UNIT_DIES)
 @export var defeat_turn_limit: int = 0
 @export var custom_defeat_script: GDScript
 
@@ -89,39 +79,67 @@ enum DefeatCondition {
 @export var time_of_day: String = "day"
 
 
-## Validate unit positions match unit counts
-func validate_unit_placement() -> bool:
-	if player_units.size() != player_positions.size():
-		push_error("BattleData: player_units and player_positions size mismatch")
-		return false
-	if enemy_units.size() != enemy_positions.size():
-		push_error("BattleData: enemy_units and enemy_positions size mismatch")
-		return false
-	if neutral_units.size() != neutral_positions.size():
-		push_error("BattleData: neutral_units and neutral_positions size mismatch")
-		return false
+## Validate enemy dictionary structure
+func validate_enemies() -> bool:
+	for i in range(enemies.size()):
+		var enemy: Dictionary = enemies[i]
+		if not 'character' in enemy or enemy.character == null:
+			push_error("BattleData: Enemy %d missing character" % i)
+			return false
+		if not 'position' in enemy:
+			push_error("BattleData: Enemy %d missing position" % i)
+			return false
+		if not 'ai_behavior' in enemy or enemy.ai_behavior == "":
+			push_error("BattleData: Enemy %d missing ai_behavior" % i)
+			return false
 	return true
 
 
-## Check if position is within grid bounds
-func is_valid_position(pos: Vector2i) -> bool:
-	return pos.x >= 0 and pos.x < grid_width and pos.y >= 0 and pos.y < grid_height
+## Validate neutral dictionary structure
+func validate_neutrals() -> bool:
+	for i in range(neutrals.size()):
+		var neutral: Dictionary = neutrals[i]
+		if not 'character' in neutral or neutral.character == null:
+			push_error("BattleData: Neutral %d missing character" % i)
+			return false
+		if not 'position' in neutral:
+			push_error("BattleData: Neutral %d missing position" % i)
+			return false
+		if not 'ai_behavior' in neutral or neutral.ai_behavior == "":
+			push_error("BattleData: Neutral %d missing ai_behavior" % i)
+			return false
+	return true
 
 
-## Validate all unit positions are within bounds
-func validate_positions() -> bool:
-	for pos in player_positions:
-		if not is_valid_position(pos):
-			push_error("BattleData: Invalid player position: " + str(pos))
-			return false
-	for pos in enemy_positions:
-		if not is_valid_position(pos):
-			push_error("BattleData: Invalid enemy position: " + str(pos))
-			return false
-	for pos in neutral_positions:
-		if not is_valid_position(pos):
-			push_error("BattleData: Invalid neutral position: " + str(pos))
-			return false
+## Validate victory condition configuration
+func validate_victory_condition() -> bool:
+	match victory_condition:
+		VictoryCondition.DEFEAT_BOSS:
+			if victory_boss_index < 0 or victory_boss_index >= enemies.size():
+				push_error("BattleData: Invalid victory_boss_index: %d" % victory_boss_index)
+				return false
+		VictoryCondition.SURVIVE_TURNS:
+			if victory_turn_count <= 0:
+				push_error("BattleData: victory_turn_count must be > 0")
+				return false
+		VictoryCondition.PROTECT_UNIT:
+			if victory_protect_index < 0 or victory_protect_index >= neutrals.size():
+				push_error("BattleData: Invalid victory_protect_index: %d" % victory_protect_index)
+				return false
+	return true
+
+
+## Validate defeat condition configuration
+func validate_defeat_condition() -> bool:
+	match defeat_condition:
+		DefeatCondition.TURN_LIMIT:
+			if defeat_turn_limit <= 0:
+				push_error("BattleData: defeat_turn_limit must be > 0")
+				return false
+		DefeatCondition.UNIT_DIES:
+			if defeat_protect_index < 0 or defeat_protect_index >= neutrals.size():
+				push_error("BattleData: Invalid defeat_protect_index: %d" % defeat_protect_index)
+				return false
 	return true
 
 
@@ -137,11 +155,15 @@ func validate() -> bool:
 	if battle_name.is_empty():
 		push_error("BattleData: battle_name is required")
 		return false
-	if grid_width < 1 or grid_height < 1:
-		push_error("BattleData: grid dimensions must be positive")
+	if map_scene == null:
+		push_error("BattleData: map_scene is required")
 		return false
-	if not validate_unit_placement():
+	if not validate_enemies():
 		return false
-	if not validate_positions():
+	if not validate_neutrals():
+		return false
+	if not validate_victory_condition():
+		return false
+	if not validate_defeat_condition():
 		return false
 	return true

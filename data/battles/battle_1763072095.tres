@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BattleData" load_steps=3 format=3 uid="uid://2m51ud5a6uv4"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_ldcmp"]
+[ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="2_ydfj7"]
+
+[resource]
+script = ExtResource("2_ydfj7")
+battle_name = "New Battle"
+battle_description = "Enter battle description"
