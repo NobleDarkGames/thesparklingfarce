@@ -20,8 +20,7 @@ var tab_container: TabContainer
 
 
 func _init() -> void:
-	name = "SparklingEditorMainPanel"
-	# Call setup in _init since _ready might not be called for editor plugins
+	# Editor plugins don't reliably call _ready, so we use _init with deferred setup
 	call_deferred("_setup_ui")
 
 
@@ -30,19 +29,15 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
+	# Get the TabContainer from the scene
+	tab_container = get_node("TabContainer")
 
-	# For editor panels: use size flags, not anchors or hardcoded sizes
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if not tab_container:
+		push_error("TabContainer not found in scene!")
+		return
 
-	# Set a reasonable minimum size
-	custom_minimum_size = Vector2(800, 500)
-
-	# Create tab container
-	tab_container = TabContainer.new()
-	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tab_container.custom_minimum_size = Vector2(800, 0)
+	# Set minimum size on the root panel to prevent collapse
+	custom_minimum_size = Vector2(800, 400)
 
 	# Make tabs more visible with custom theme overrides
 	tab_container.add_theme_font_size_override("font_size", 14)
@@ -50,8 +45,6 @@ func _setup_ui() -> void:
 
 	# Connect to tab changed signal for debugging
 	tab_container.tab_changed.connect(_on_tab_changed)
-
-	add_child(tab_container)
 
 	# Create editor tabs - Overview first so it shows by default
 	_create_overview_tab()
@@ -130,3 +123,10 @@ func _create_dialogue_editor_tab() -> void:
 
 func _on_tab_changed(tab_index: int) -> void:
 	pass
+
+
+func _debug_final_sizes() -> void:
+	print("=== AFTER LAYOUT ===")
+	print("Main panel FINAL size: ", size)
+	print("Main panel parent: ", get_parent().get_class() if get_parent() else "null")
+	print("TabContainer FINAL size: ", tab_container.size if tab_container else "null")

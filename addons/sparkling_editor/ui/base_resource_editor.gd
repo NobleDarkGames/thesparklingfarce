@@ -25,6 +25,7 @@ var available_resources: Array[Resource] = []
 
 
 func _ready() -> void:
+	print("base_resource_editor _ready called for: ", resource_type_name)
 	_setup_base_ui()
 	_create_detail_form()
 	_refresh_list()
@@ -69,17 +70,21 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _setup_base_ui() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Note: TabContainer children - use anchor for width, NOT height (prevents massive height issue)
+	anchor_right = 1.0
+	# Don't set anchor_bottom - causes massive height
 
 	var hsplit: HSplitContainer = HSplitContainer.new()
-	hsplit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hsplit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# HSplitContainer uses anchors to fill the parent Control
+	hsplit.anchor_right = 1.0
+	hsplit.anchor_bottom = 1.0
+	hsplit.split_offset = 300  # Default split position - left panel gets ~300px
 	add_child(hsplit)
 
 	# Left side: Resource list
 	var left_panel: VBoxContainer = VBoxContainer.new()
-	left_panel.custom_minimum_size.x = 250
+	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var list_label: Label = Label.new()
 	list_label.text = resource_type_name + "s"
@@ -95,7 +100,6 @@ func _setup_base_ui() -> void:
 	resource_list = ItemList.new()
 	resource_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	resource_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	resource_list.custom_minimum_size = Vector2(200, 200)
 	resource_list.item_selected.connect(_on_resource_selected)
 	left_panel.add_child(resource_list)
 
@@ -115,7 +119,7 @@ func _setup_base_ui() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(400, 0)
+	scroll.custom_minimum_size = Vector2(400, 0)  # Ensure right panel has minimum width
 
 	detail_panel = VBoxContainer.new()
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -140,6 +144,18 @@ func _setup_base_ui() -> void:
 
 	scroll.add_child(detail_panel)
 	hsplit.add_child(scroll)
+
+	# Debug - use call_deferred to check sizes after layout
+	call_deferred("_debug_sizes", hsplit, left_panel, scroll)
+
+
+func _debug_sizes(hsplit: HSplitContainer, left: Control, right: Control) -> void:
+	print("  [", resource_type_name, "] ROOT CONTROL size: ", size)
+	print("  [", resource_type_name, "] ROOT CONTROL parent: ", get_parent().get_class() if get_parent() else "null")
+	print("  [", resource_type_name, "] HSplit size: ", hsplit.size, " split_offset: ", hsplit.split_offset)
+	print("  [", resource_type_name, "] Left panel size: ", left.size)
+	print("  [", resource_type_name, "] Right panel size: ", right.size)
+	print("  [", resource_type_name, "] HSplit children count: ", hsplit.get_child_count())
 
 
 func _refresh_list() -> void:
