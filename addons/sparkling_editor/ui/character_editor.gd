@@ -88,6 +88,7 @@ func _setup_ui() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(400, 0)
 
 	character_detail = VBoxContainer.new()
 	character_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -106,11 +107,20 @@ func _setup_ui() -> void:
 	# Growth rates section
 	_add_growth_rates_section()
 
-	# Save button
+	# Button container for Save and Delete
+	var button_container: HBoxContainer = HBoxContainer.new()
+
 	var save_button: Button = Button.new()
 	save_button.text = "Save Changes"
 	save_button.pressed.connect(_save_current_character)
-	character_detail.add_child(save_button)
+	button_container.add_child(save_button)
+
+	var delete_button: Button = Button.new()
+	delete_button.text = "Delete Character"
+	delete_button.pressed.connect(_delete_current_character)
+	button_container.add_child(delete_button)
+
+	character_detail.add_child(button_container)
 
 	scroll.add_child(character_detail)
 	hsplit.add_child(scroll)
@@ -294,7 +304,11 @@ func _refresh_character_list() -> void:
 
 func _on_character_selected(index: int) -> void:
 	var path: String = character_list.get_item_metadata(index)
-	current_character = load(path)
+	# Load and duplicate to make it editable (load() returns read-only cached resource)
+	var loaded_character: CharacterData = load(path)
+	current_character = loaded_character.duplicate(true)
+	# Keep the original path so we can save to the same location
+	current_character.take_over_path(path)
 	_load_character_data()
 
 
@@ -370,9 +384,7 @@ func _save_current_character() -> void:
 	# Save to file
 	var path: String = character_list.get_item_metadata(character_list.get_selected_items()[0])
 	var err: Error = ResourceSaver.save(current_character, path)
-	if err == OK:
-		print("Character saved successfully")
-	else:
+	if err != OK:
 		push_error("Failed to save character: " + str(err))
 
 
@@ -392,7 +404,6 @@ func _on_create_new_character() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_character, full_path)
 	if err == OK:
-		print("Created new character at ", full_path)
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
@@ -400,3 +411,42 @@ func _on_create_new_character() -> void:
 		_refresh_character_list()
 	else:
 		push_error("Failed to create character: " + str(err))
+
+
+func _delete_current_character() -> void:
+	if not current_character:
+		return
+
+	# Check if this character is referenced in battles/dialogues
+	var references: Array[String] = _check_character_references(current_character)
+	if references.size() > 0:
+		push_error("Cannot delete character '%s': Referenced by %d resource(s)" % [current_character.character_name, references.size()])
+		return
+
+	# Get the file path
+	var selected_items: PackedInt32Array = character_list.get_selected_items()
+	if selected_items.size() == 0:
+		return
+
+	var path: String = character_list.get_item_metadata(selected_items[0])
+
+	# Delete the file
+	var dir: DirAccess = DirAccess.open(path.get_base_dir())
+	if dir:
+		var err: Error = dir.remove(path)
+		if err == OK:
+			current_character = null
+			_refresh_character_list()
+		else:
+			push_error("Failed to delete character file: " + str(err))
+	else:
+		push_error("Failed to access directory for deletion")
+
+
+func _check_character_references(character_to_check: CharacterData) -> Array[String]:
+	var references: Array[String] = []
+
+	# TODO: In Phase 2+, check battles and dialogues for references to this character
+	# For now, allow deletion
+
+	return references

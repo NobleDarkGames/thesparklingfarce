@@ -73,6 +73,7 @@ func _setup_ui() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(400, 0)
 
 	class_detail = VBoxContainer.new()
 	class_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -94,11 +95,20 @@ func _setup_ui() -> void:
 	# Promotion section
 	_add_promotion_section()
 
-	# Save button
+	# Button container for Save and Delete
+	var button_container: HBoxContainer = HBoxContainer.new()
+
 	var save_button: Button = Button.new()
 	save_button.text = "Save Changes"
 	save_button.pressed.connect(_save_current_class)
-	class_detail.add_child(save_button)
+	button_container.add_child(save_button)
+
+	var delete_button: Button = Button.new()
+	delete_button.text = "Delete Class"
+	delete_button.pressed.connect(_delete_current_class)
+	button_container.add_child(delete_button)
+
+	class_detail.add_child(button_container)
 
 	scroll.add_child(class_detail)
 	hsplit.add_child(scroll)
@@ -241,35 +251,25 @@ func _add_promotion_section() -> void:
 
 
 func _refresh_class_list() -> void:
-	print("[ClassEditor] Refreshing class list...")
 	class_list.clear()
 	available_classes.clear()
 
 	var dir: DirAccess = DirAccess.open("res://data/classes/")
 	if dir:
-		print("[ClassEditor] Directory opened successfully")
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
-		var file_count: int = 0
 		while file_name != "":
-			print("[ClassEditor] Found file: ", file_name)
 			if file_name.ends_with(".tres"):
 				var full_path: String = "res://data/classes/" + file_name
-				print("[ClassEditor] Loading class from: ", full_path)
 				var class_data: ClassData = load(full_path)
 				if class_data:
-					print("[ClassEditor] Loaded class: ", class_data.display_name)
 					class_list.add_item(class_data.display_name)
 					class_list.set_item_metadata(class_list.item_count - 1, full_path)
 					available_classes.append(class_data)
-					file_count += 1
-				else:
-					print("[ClassEditor] Failed to load class from: ", full_path)
 			file_name = dir.get_next()
 		dir.list_dir_end()
-		print("[ClassEditor] Total classes loaded: ", file_count)
 	else:
-		print("[ClassEditor] Failed to open directory: res://data/classes/")
+		push_error("Failed to open directory: res://data/classes/")
 
 	# Update promotion class dropdown
 	_update_promotion_options()
@@ -285,7 +285,11 @@ func _update_promotion_options() -> void:
 
 func _on_class_selected(index: int) -> void:
 	var path: String = class_list.get_item_metadata(index)
-	current_class = load(path)
+	# Load and duplicate to make it editable (load() returns read-only cached resource)
+	var loaded_class: ClassData = load(path)
+	current_class = loaded_class.duplicate(true)
+	# Keep the original path so we can save to the same location
+	current_class.take_over_path(path)
 	_load_class_data()
 
 
@@ -338,25 +342,26 @@ func _save_current_class() -> void:
 	else:
 		current_class.promotion_class = null
 
-	# Update weapon types
-	current_class.equippable_weapon_types.clear()
+	# Update weapon types - create new array to avoid read-only issues
+	var new_weapon_types: Array[String] = []
 	for child in weapon_types_container.get_children():
 		if child is CheckBox and child.button_pressed:
 			var type_name: String = child.get_meta("equipment_type")
-			current_class.equippable_weapon_types.append(type_name)
+			new_weapon_types.append(type_name)
+	current_class.equippable_weapon_types = new_weapon_types
 
-	# Update armor types
-	current_class.equippable_armor_types.clear()
+	# Update armor types - create new array to avoid read-only issues
+	var new_armor_types: Array[String] = []
 	for child in armor_types_container.get_children():
 		if child is CheckBox and child.button_pressed:
 			var type_name: String = child.get_meta("equipment_type")
-			current_class.equippable_armor_types.append(type_name)
+			new_armor_types.append(type_name)
+	current_class.equippable_armor_types = new_armor_types
 
 	# Save to file
 	var path: String = class_list.get_item_metadata(class_list.get_selected_items()[0])
 	var err: Error = ResourceSaver.save(current_class, path)
 	if err == OK:
-		print("Class saved successfully")
 		_refresh_class_list()
 	else:
 		push_error("Failed to save class: " + str(err))
@@ -376,7 +381,6 @@ func _on_create_new_class() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_class, full_path)
 	if err == OK:
-		print("Created new class at ", full_path)
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
@@ -384,3 +388,54 @@ func _on_create_new_class() -> void:
 		_refresh_class_list()
 	else:
 		push_error("Failed to create class: " + str(err))
+
+
+func _delete_current_class() -> void:
+	if not current_class:
+		return
+
+	# Check if this class is referenced by any characters
+	var references: Array[String] = _check_class_references(current_class)
+	if references.size() > 0:
+		push_error("Cannot delete class '%s': Referenced by %d character(s)" % [current_class.display_name, references.size()])
+		return
+
+	# Get the file path
+	var selected_items: PackedInt32Array = class_list.get_selected_items()
+	if selected_items.size() == 0:
+		return
+
+	var path: String = class_list.get_item_metadata(selected_items[0])
+
+	# Delete the file
+	var dir: DirAccess = DirAccess.open(path.get_base_dir())
+	if dir:
+		var err: Error = dir.remove(path)
+		if err == OK:
+			current_class = null
+			_refresh_class_list()
+		else:
+			push_error("Failed to delete class file: " + str(err))
+	else:
+		push_error("Failed to access directory for deletion")
+
+
+func _check_class_references(class_to_check: ClassData) -> Array[String]:
+	var references: Array[String] = []
+
+	# Check all characters for references to this class
+	var dir: DirAccess = DirAccess.open("res://data/characters/")
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".tres"):
+				var character: CharacterData = load("res://data/characters/" + file_name)
+				if character and character.character_class == class_to_check:
+					references.append("res://data/characters/" + file_name)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	# TODO: In Phase 2+, also check battles, dialogues, etc.
+
+	return references

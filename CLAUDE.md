@@ -16,6 +16,8 @@ Always use strict typing, and not the "walrus" operator.
 
 Whenever you're checking for the existence of a key in  dictionary, do not use "if dict.has('key')", instead use "if 'key' in dict"
 
+Otherwise, use this guide everywhere:  https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_styleguide.html
+
 ## IMPORTANT
 Do not generate markdown documentation unless specifically requested to do so.
 

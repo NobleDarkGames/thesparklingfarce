@@ -93,6 +93,7 @@ func _setup_ui() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(400, 0)
 
 	item_detail = VBoxContainer.new()
 	item_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -117,11 +118,20 @@ func _setup_ui() -> void:
 	# Economy section
 	_add_economy_section()
 
-	# Save button
+	# Button container for Save and Delete
+	var button_container: HBoxContainer = HBoxContainer.new()
+
 	var save_button: Button = Button.new()
 	save_button.text = "Save Changes"
 	save_button.pressed.connect(_save_current_item)
-	item_detail.add_child(save_button)
+	button_container.add_child(save_button)
+
+	var delete_button: Button = Button.new()
+	delete_button.text = "Delete Item"
+	delete_button.pressed.connect(_delete_current_item)
+	button_container.add_child(delete_button)
+
+	item_detail.add_child(button_container)
 
 	scroll.add_child(item_detail)
 	hsplit.add_child(scroll)
@@ -400,7 +410,11 @@ func _refresh_item_list() -> void:
 
 func _on_item_selected(index: int) -> void:
 	var path: String = item_list.get_item_metadata(index)
-	current_item = load(path)
+	# Load and duplicate to make it editable (load() returns read-only cached resource)
+	var loaded_item: ItemData = load(path)
+	current_item = loaded_item.duplicate(true)
+	# Keep the original path so we can save to the same location
+	current_item.take_over_path(path)
 	_load_item_data()
 
 
@@ -479,9 +493,7 @@ func _save_current_item() -> void:
 	# Save to file
 	var path: String = item_list.get_item_metadata(item_list.get_selected_items()[0])
 	var err: Error = ResourceSaver.save(current_item, path)
-	if err == OK:
-		print("Item saved successfully")
-	else:
+	if err != OK:
 		push_error("Failed to save item: " + str(err))
 
 
@@ -499,7 +511,6 @@ func _on_create_new_item() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_item, full_path)
 	if err == OK:
-		print("Created new item at ", full_path)
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
@@ -507,3 +518,55 @@ func _on_create_new_item() -> void:
 		_refresh_item_list()
 	else:
 		push_error("Failed to create item: " + str(err))
+
+
+func _delete_current_item() -> void:
+	if not current_item:
+		return
+
+	# Check if this item is referenced by characters
+	var references: Array[String] = _check_item_references(current_item)
+	if references.size() > 0:
+		push_error("Cannot delete item '%s': Referenced by %d character(s)" % [current_item.item_name, references.size()])
+		return
+
+	# Get the file path
+	var selected_items: PackedInt32Array = item_list.get_selected_items()
+	if selected_items.size() == 0:
+		return
+
+	var path: String = item_list.get_item_metadata(selected_items[0])
+
+	# Delete the file
+	var dir: DirAccess = DirAccess.open(path.get_base_dir())
+	if dir:
+		var err: Error = dir.remove(path)
+		if err == OK:
+			current_item = null
+			_refresh_item_list()
+		else:
+			push_error("Failed to delete item file: " + str(err))
+	else:
+		push_error("Failed to access directory for deletion")
+
+
+func _check_item_references(item_to_check: ItemData) -> Array[String]:
+	var references: Array[String] = []
+
+	# Check all characters for references to this item in their equipment arrays
+	var dir: DirAccess = DirAccess.open("res://data/characters/")
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".tres"):
+				var character: CharacterData = load("res://data/characters/" + file_name)
+				if character:
+					if item_to_check in character.starting_equipment:
+						references.append("res://data/characters/" + file_name)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	# TODO: In Phase 2+, also check shop inventories, treasure chests, etc.
+
+	return references
