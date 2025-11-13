@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://dk7w1m8xqh3yk"]
+
+[ext_resource type="Script" path="res://addons/sparkling_editor/ui/main_panel.gd" id="1_main_panel"]
+
+[node name="SparklingEditorMainPanel" type="Control"]
+custom_minimum_size = Vector2(800, 500)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_main_panel")

@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3 uid="uid://dsd002k0tafkj"]
+
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_hgdgw"]
+
+[resource]
+script = ExtResource("1_hgdgw")
+display_name = "New Class"

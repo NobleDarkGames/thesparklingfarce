@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/ability_data.gd" id="1_template"]
+
+[resource]
+script = ExtResource("1_template")
+ability_name = "Heal"
+ability_type = 1
+target_type = 1
+min_range = 1
+max_range = 1
+area_of_effect = 0
+mp_cost = 5
+hp_cost = 0
+power = 20
+accuracy = 100
+status_effects = Array[String]([])
+effect_duration = 0
+effect_chance = 100
+animation_name = "heal"
+description = "Restores HP to a single ally."

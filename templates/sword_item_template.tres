@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/item_data.gd" id="1_template"]
+
+[resource]
+script = ExtResource("1_template")
+item_name = "Iron Sword"
+item_type = 0
+equipment_type = "sword"
+durability = 50
+hp_modifier = 0
+mp_modifier = 0
+strength_modifier = 5
+defense_modifier = 0
+agility_modifier = 0
+intelligence_modifier = 0
+luck_modifier = 0
+attack_power = 15
+attack_range = 1
+hit_rate = 90
+critical_rate = 5
+usable_in_battle = false
+usable_on_field = false
+buy_price = 500
+sell_price = 250
+description = "A standard iron sword. Reliable and sturdy."
