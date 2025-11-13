@@ -149,24 +149,6 @@ func _setup_base_ui() -> void:
 	scroll.add_child(detail_panel)
 	hsplit.add_child(scroll)
 
-	# Debug - use call_deferred to check sizes after layout
-	call_deferred("_debug_sizes", hsplit, left_panel, scroll)
-
-
-func _debug_sizes(hsplit: HSplitContainer, left: Control, right: Control) -> void:
-	print("  [", resource_type_name, "] ROOT CONTROL size: ", size)
-	print("  [", resource_type_name, "] ROOT CONTROL custom_minimum_size: ", custom_minimum_size)
-	print("  [", resource_type_name, "] ROOT CONTROL anchors: (", anchor_left, ", ", anchor_top, ", ", anchor_right, ", ", anchor_bottom, ")")
-	print("  [", resource_type_name, "] ROOT CONTROL offsets: (", offset_left, ", ", offset_top, ", ", offset_right, ", ", offset_bottom, ")")
-	print("  [", resource_type_name, "] ROOT CONTROL parent: ", get_parent().get_class() if get_parent() else "null")
-	print("  [", resource_type_name, "] ROOT CONTROL parent size: ", get_parent().size if get_parent() else "null")
-	print("  [", resource_type_name, "] HSplit size: ", hsplit.size, " split_offset: ", hsplit.split_offset)
-	print("  [", resource_type_name, "] HSplit custom_minimum_size: ", hsplit.custom_minimum_size)
-	print("  [", resource_type_name, "] Left panel size: ", left.size)
-	print("  [", resource_type_name, "] Right panel (ScrollContainer) size: ", right.size)
-	print("  [", resource_type_name, "] Right panel custom_minimum_size: ", right.custom_minimum_size)
-	print("  [", resource_type_name, "] HSplit children count: ", hsplit.get_child_count())
-
 
 func _refresh_list() -> void:
 	resource_list.clear()
