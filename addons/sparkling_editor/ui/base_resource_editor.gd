@@ -225,6 +225,13 @@ func _on_create_new() -> void:
 		# Wait a frame for the scan to complete, then refresh
 		await get_tree().process_frame
 		_refresh_list()
+
+		# Auto-select the newly created resource
+		for i in range(resource_list.item_count):
+			if resource_list.get_item_metadata(i) == full_path:
+				resource_list.select(i)
+				_on_resource_selected(i)
+				break
 	else:
 		push_error("Failed to create " + resource_type_name.to_lower() + ": " + str(err))
 

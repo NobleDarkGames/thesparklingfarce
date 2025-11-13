@@ -8,11 +8,13 @@ const CharacterEditorScene: PackedScene = preload("res://addons/sparkling_editor
 const ClassEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/class_editor.tscn")
 const ItemEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/item_editor.tscn")
 const AbilityEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/ability_editor.tscn")
+const DialogueEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/dialogue_editor.tscn")
 
 var character_editor: Control
 var class_editor: Control
 var item_editor: Control
 var ability_editor: Control
+var dialogue_editor: Control
 
 var tab_container: TabContainer
 
@@ -57,6 +59,7 @@ func _setup_ui() -> void:
 	_create_character_editor_tab()
 	_create_item_editor_tab()
 	_create_ability_editor_tab()
+	_create_dialogue_editor_tab()
 
 
 func _create_overview_tab() -> void:
@@ -118,6 +121,11 @@ func _create_item_editor_tab() -> void:
 func _create_ability_editor_tab() -> void:
 	ability_editor = AbilityEditorScene.instantiate()
 	tab_container.add_child(ability_editor)
+
+
+func _create_dialogue_editor_tab() -> void:
+	dialogue_editor = DialogueEditorScene.instantiate()
+	tab_container.add_child(dialogue_editor)
 
 
 func _on_tab_changed(tab_index: int) -> void:
