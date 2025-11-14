@@ -4,8 +4,8 @@
 ## This creates a procedural tilemap with a checkerboard pattern.
 extends Node2D
 
-## Size of the test map in tiles
-@export var map_size: Vector2i = Vector2i(40, 30)
+## Size of the test map in tiles (will be calculated from viewport)
+var map_size: Vector2i = Vector2i(40, 30)
 
 ## TileMapLayer reference
 var _ground_layer: TileMapLayer = null
@@ -18,6 +18,16 @@ func _ready() -> void:
 	if not _ground_layer:
 		push_error("TestBattle: Could not find GroundLayer")
 		return
+
+	# Calculate map size based on viewport to fill screen
+	var viewport_size: Vector2 = get_viewport_rect().size
+	map_size = Vector2i(
+		int(viewport_size.x / 32) + 4,  # Add extra tiles for margin
+		int(viewport_size.y / 32) + 4
+	)
+
+	print("Viewport size: ", viewport_size)
+	print("Map size in tiles: ", map_size)
 
 	# Generate test map
 	_generate_test_map()

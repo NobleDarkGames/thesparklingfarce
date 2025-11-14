@@ -20,7 +20,7 @@ enum FollowMode {
 @export var follow_mode: FollowMode = FollowMode.NONE
 
 ## Speed of camera interpolation (higher = faster)
-@export_range(1.0, 20.0, 0.5) var follow_speed: float = 8.0
+@export_range(1.0, 20.0, 0.5) var follow_speed: float = 4.0
 
 ## Enable smooth camera movement (lerp) or instant snap
 @export var smooth_movement: bool = true
