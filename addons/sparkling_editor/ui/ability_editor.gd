@@ -33,6 +33,7 @@ var animation_edit: LineEdit
 
 func _ready() -> void:
 	resource_directory = "res://data/abilities/"
+	resource_type_id = "ability"
 	resource_type_name = "Ability"
 	super._ready()
 

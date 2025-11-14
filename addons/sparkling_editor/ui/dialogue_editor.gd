@@ -27,6 +27,7 @@ var text_sound_note_label: Label
 
 func _ready() -> void:
 	resource_directory = "res://data/dialogues/"
+	resource_type_id = "dialogue"
 	resource_type_name = "Dialogue"
 	super._ready()
 

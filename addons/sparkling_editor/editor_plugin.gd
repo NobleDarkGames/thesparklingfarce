@@ -23,12 +23,6 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	print("Sparkling Editor: Cleaning up...")
 
-	# Remove any leftover menu items (in case they exist from previous versions)
-	remove_tool_menu_item("Create New Character")
-	remove_tool_menu_item("Create New Class")
-	remove_tool_menu_item("Create New Item")
-	remove_tool_menu_item("Create New Ability")
-
 	# Remove the panel
 	if main_panel:
 		remove_control_from_bottom_panel(main_panel)

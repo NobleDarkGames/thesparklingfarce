@@ -4,11 +4,15 @@ extends Control
 ## Base class for all resource editors (Classes, Characters, Items, etc.)
 ## Provides common functionality for list management, save/delete/refresh operations
 
-# Directory where resources are stored (override in child class)
+# Directory where resources are stored (legacy - kept for backward compatibility)
 var resource_directory: String = ""
 
 # Resource type name for display (override in child class)
 var resource_type_name: String = "Resource"
+
+# Resource type for ModRegistry lookup (override in child class)
+# Values: "character", "class", "item", "ability", "dialogue", "battle"
+var resource_type_id: String = ""
 
 # UI Components (created by base class)
 var resource_list: ItemList
@@ -25,7 +29,6 @@ var available_resources: Array[Resource] = []
 
 
 func _ready() -> void:
-	print("base_resource_editor _ready called for: ", resource_type_name)
 	_setup_base_ui()
 	_create_detail_form()
 	_refresh_list()
@@ -154,13 +157,36 @@ func _refresh_list() -> void:
 	resource_list.clear()
 	available_resources.clear()
 
-	var dir: DirAccess = DirAccess.open(resource_directory)
+	# Use ModRegistry if available and resource_type_id is set
+	if resource_type_id != "" and ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if not active_mod:
+			push_warning("No active mod set in ModLoader")
+			return
+
+		# Get directory for this resource type in active mod
+		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+		if resource_type_id in resource_dirs:
+			var dir_path: String = resource_dirs[resource_type_id]
+			_scan_directory_for_resources(dir_path)
+		else:
+			push_error("Resource type '%s' not found in mod directories" % resource_type_id)
+	# Fallback to legacy directory scanning
+	elif resource_directory != "":
+		_scan_directory_for_resources(resource_directory)
+	else:
+		push_error("No resource_type_id or resource_directory set")
+
+
+## Scan a directory for .tres resource files and populate the list
+func _scan_directory_for_resources(dir_path: String) -> void:
+	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir:
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
 		while file_name != "":
 			if file_name.ends_with(".tres"):
-				var full_path: String = resource_directory + file_name
+				var full_path: String = dir_path.path_join(file_name)
 				var resource: Resource = load(full_path)
 				if resource:
 					resource_list.add_item(_get_resource_display_name(resource))
@@ -169,7 +195,7 @@ func _refresh_list() -> void:
 			file_name = dir.get_next()
 		dir.list_dir_end()
 	else:
-		push_error("Failed to open directory: " + resource_directory)
+		push_error("Failed to open directory: " + dir_path)
 
 
 func _on_resource_selected(index: int) -> void:
@@ -220,10 +246,26 @@ func _on_create_new() -> void:
 		push_error("Failed to create new " + resource_type_name.to_lower())
 		return
 
+	# Determine save directory
+	var save_dir: String = ""
+	if resource_type_id != "" and ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+			save_dir = resource_dirs.get(resource_type_id, "")
+
+	# Fallback to legacy directory
+	if save_dir == "":
+		save_dir = resource_directory
+
+	if save_dir == "":
+		push_error("No save directory available for " + resource_type_name.to_lower())
+		return
+
 	# Generate unique filename
 	var timestamp: int = Time.get_unix_time_from_system()
 	var filename: String = resource_type_name.to_lower() + "_%d.tres" % timestamp
-	var full_path: String = resource_directory + filename
+	var full_path: String = save_dir.path_join(filename)
 
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)

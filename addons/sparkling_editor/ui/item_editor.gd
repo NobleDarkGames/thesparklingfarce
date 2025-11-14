@@ -38,6 +38,7 @@ var sell_price_spin: SpinBox
 
 func _ready() -> void:
 	resource_directory = "res://data/items/"
+	resource_type_id = "item"
 	resource_type_name = "Item"
 	super._ready()
 

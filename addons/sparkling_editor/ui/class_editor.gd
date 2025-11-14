@@ -17,6 +17,7 @@ var armor_types_container: VBoxContainer
 func _ready() -> void:
 	resource_directory = "res://data/classes/"
 	resource_type_name = "Class"
+	resource_type_id = "class"
 	super._ready()
 
 

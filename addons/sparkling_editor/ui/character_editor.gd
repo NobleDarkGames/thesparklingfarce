@@ -33,6 +33,7 @@ var available_classes: Array[ClassData] = []
 func _ready() -> void:
 	resource_directory = "res://data/characters/"
 	resource_type_name = "Character"
+	resource_type_id = "character"
 	super._ready()
 	_load_available_classes()
 

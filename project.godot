@@ -15,6 +15,10 @@ config/description="A tactical RPG platform inspired by Shining Force"
 config/version="0.1.0"
 config/features=PackedStringArray("4.5", "Forward Plus")
 
+[autoload]
+
+ModLoader="*res://core/mod_system/mod_loader.gd"
+
 [debug]
 
 gdscript/warnings/untyped_declaration=2
@@ -40,6 +44,7 @@ folder_colors={
 "res://assets/": "blue",
 "res://core/": "red",
 "res://data/": "green",
+"res://mods/": "teal",
 "res://templates/": "yellow",
 "res://user_content/": "orange"
 }

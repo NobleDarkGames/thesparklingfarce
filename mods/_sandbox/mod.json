@@ -1,0 +1,16 @@
+{
+  "id": "sandbox",
+  "name": "Development Sandbox",
+  "version": "1.0.0",
+  "author": "Sparkling Farce Team",
+  "description": "Testing and development sandbox for experimental content. Components here are tested before being moved to the base game mod.",
+  "godot_version": "4.5",
+  "dependencies": [],
+  "load_priority": 100,
+  "content": {
+    "data_path": "data/",
+    "assets_path": "assets/"
+  },
+  "overrides": [],
+  "tags": ["development", "testing", "sandbox"]
+}

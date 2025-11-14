@@ -53,6 +53,7 @@ const AI_BEHAVIORS: Array[String] = ["aggressive", "defensive", "patrol", "stati
 
 func _ready() -> void:
 	resource_directory = "res://data/battles/"
+	resource_type_id = "battle"
 	resource_type_name = "Battle"
 	super._ready()
 

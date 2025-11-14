@@ -19,6 +19,8 @@ var dialogue_editor: Control
 var battle_editor: Control
 
 var tab_container: TabContainer
+var mod_selector: OptionButton
+var mod_info_label: Label
 
 
 func _init() -> void:
@@ -42,12 +44,18 @@ func _setup_ui() -> void:
 	# Note: Minimum height removed to fix vertical overflow in bottom panel
 	custom_minimum_size = Vector2(800, 0)
 
+	# IMPORTANT: Change TabContainer anchors to not fill full height
+	# This makes room for the mod selector panel above it
+	tab_container.anchor_bottom = 1.0
+	tab_container.offset_top = 40  # Leave space for mod selector (40px)
+	tab_container.offset_bottom = 0
+
+	# Add mod selector UI at the top
+	_create_mod_selector_ui()
+
 	# Make tabs more visible with custom theme overrides
 	tab_container.add_theme_font_size_override("font_size", 14)
 	tab_container.add_theme_constant_override("side_margin", 10)
-
-	# Connect to tab changed signal for debugging
-	tab_container.tab_changed.connect(_on_tab_changed)
 
 	# Create editor tabs - Overview first so it shows by default
 	_create_overview_tab()
@@ -138,5 +146,123 @@ func _create_battle_editor_tab() -> void:
 	tab_container.add_child(battle_editor)
 
 
-func _on_tab_changed(tab_index: int) -> void:
-	pass
+func _create_mod_selector_ui() -> void:
+	# Create container for mod selector (above TabContainer)
+	var mod_panel: PanelContainer = PanelContainer.new()
+	mod_panel.name = "ModSelectorPanel"
+
+	# Position it at the top
+	mod_panel.anchor_right = 1.0
+	mod_panel.offset_bottom = 40  # 40px tall
+	mod_panel.size_flags_horizontal = Control.SIZE_FILL
+
+	# Insert before TabContainer
+	var tab_index: int = tab_container.get_index()
+	add_child(mod_panel)
+	move_child(mod_panel, tab_index)
+
+	var hbox: HBoxContainer = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+	mod_panel.add_child(hbox)
+
+	# Label
+	var label: Label = Label.new()
+	label.text = "Active Mod:"
+	label.add_theme_font_size_override("font_size", 14)
+	hbox.add_child(label)
+
+	# Mod selector dropdown
+	mod_selector = OptionButton.new()
+	mod_selector.custom_minimum_size = Vector2(200, 0)
+	mod_selector.item_selected.connect(_on_mod_selected)
+	hbox.add_child(mod_selector)
+
+	# Mod info label
+	mod_info_label = Label.new()
+	mod_info_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	mod_info_label.add_theme_font_size_override("font_size", 12)
+	mod_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(mod_info_label)
+
+	# Refresh button
+	var refresh_button: Button = Button.new()
+	refresh_button.text = "Refresh Mods"
+	refresh_button.pressed.connect(_on_refresh_mods)
+	hbox.add_child(refresh_button)
+
+	# Populate mod list
+	_refresh_mod_list()
+
+
+func _refresh_mod_list() -> void:
+	if not mod_selector:
+		return
+
+	mod_selector.clear()
+
+	if not ModLoader:
+		push_warning("ModLoader not available")
+		return
+
+	var mods: Array[ModManifest] = ModLoader.get_all_mods()
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	var active_index: int = 0
+
+	for i in range(mods.size()):
+		var mod: ModManifest = mods[i]
+		mod_selector.add_item(mod.mod_name, i)
+		mod_selector.set_item_metadata(i, mod.mod_id)
+
+		if active_mod and mod.mod_id == active_mod.mod_id:
+			active_index = i
+
+	# Select the active mod
+	if mods.size() > 0:
+		mod_selector.select(active_index)
+		_update_mod_info(active_index)
+
+
+func _on_mod_selected(index: int) -> void:
+	var mod_id: String = mod_selector.get_item_metadata(index)
+
+	if ModLoader and ModLoader.set_active_mod(mod_id):
+		_update_mod_info(index)
+		_refresh_all_editors()
+	else:
+		push_error("Failed to set active mod: " + mod_id)
+
+
+func _update_mod_info(index: int) -> void:
+	if not mod_info_label or not mod_selector:
+		return
+
+	var mod_id: String = mod_selector.get_item_metadata(index)
+	var mod: ModManifest = ModLoader.get_mod(mod_id)
+
+	if mod:
+		mod_info_label.text = "v%s by %s | Priority: %d" % [mod.version, mod.author, mod.load_priority]
+	else:
+		mod_info_label.text = ""
+
+
+func _on_refresh_mods() -> void:
+	if ModLoader:
+		ModLoader.reload_mods()
+		_refresh_mod_list()
+		_refresh_all_editors()
+
+
+func _refresh_all_editors() -> void:
+	# Refresh all editor lists to show content from active mod
+	if character_editor and character_editor.has_method("_refresh_list"):
+		character_editor._refresh_list()
+	if class_editor and class_editor.has_method("_refresh_list"):
+		class_editor._refresh_list()
+	if item_editor and item_editor.has_method("_refresh_list"):
+		item_editor._refresh_list()
+	if ability_editor and ability_editor.has_method("_refresh_list"):
+		ability_editor._refresh_list()
+	if dialogue_editor and dialogue_editor.has_method("_refresh_list"):
+		dialogue_editor._refresh_list()
+	if battle_editor and battle_editor.has_method("_refresh_list"):
+		battle_editor._refresh_list()

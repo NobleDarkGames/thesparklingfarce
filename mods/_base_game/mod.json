@@ -1,0 +1,16 @@
+{
+  "id": "base_game",
+  "name": "The Sparkling Farce - Base Game",
+  "version": "1.0.0",
+  "author": "Sparkling Farce Team",
+  "description": "The base game content for The Sparkling Farce tactical RPG platform. Contains core characters, classes, items, and battle scenarios.",
+  "godot_version": "4.5",
+  "dependencies": [],
+  "load_priority": 0,
+  "content": {
+    "data_path": "data/",
+    "assets_path": "assets/"
+  },
+  "overrides": [],
+  "tags": ["base", "official", "core"]
+}
