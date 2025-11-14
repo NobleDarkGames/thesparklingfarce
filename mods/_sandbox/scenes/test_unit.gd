@@ -1,16 +1,20 @@
-## Test scene for Unit + GridManager integration
+## Test scene for Unit + GridManager + InputManager integration
 ##
-## Creates test units and allows clicking to move them
+## Tests Shining Force-style turn-based battle system
 extends Node2D
 
-# Preload Unit class
+# Preload scenes
 const UnitScript: GDScript = preload("res://core/components/unit.gd")
+const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
+const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
 
 var _ground_layer: TileMapLayer = null
 var _highlight_layer: TileMapLayer = null
 var _highlight_visuals: Dictionary = {}  # {Vector2i: ColorRect}
 var _test_unit: Node2D = null  # Unit type
 var _enemy_unit: Node2D = null  # Unit type
+var _action_menu: Control = null  # Action menu UI
+var _grid_cursor: Node2D = null  # Grid cursor visual
 
 
 func _ready() -> void:
@@ -39,7 +43,6 @@ func _ready() -> void:
 
 	# Spawn player unit
 	_test_unit = _spawn_unit(player_character, Vector2i(3, 5), "player", "aggressive")
-	_test_unit.show_selection()  # Show player unit as selected by default
 
 	# Spawn enemy unit
 	_enemy_unit = _spawn_unit(enemy_character, Vector2i(10, 5), "enemy", "aggressive")
@@ -47,9 +50,39 @@ func _ready() -> void:
 	print("\n=== Unit Test Scene Ready ===")
 	print("Player unit: %s" % _test_unit.get_stats_summary())
 	print("Enemy unit: %s" % _enemy_unit.get_stats_summary())
-	print("\nClick to move Hero")
-	print("Press SPACE to attack enemy")
-	print("Press ESC to quit")
+
+	# Setup action menu UI BEFORE starting battle
+	_action_menu = ActionMenuScene.instantiate()
+	$UI.add_child(_action_menu)
+	InputManager.set_action_menu(_action_menu)
+
+	# Setup grid cursor
+	_grid_cursor = GridCursorScene.instantiate()
+	$Map.add_child(_grid_cursor)
+	_grid_cursor.hide_cursor()  # Hidden until player turn
+	InputManager.grid_cursor = _grid_cursor
+
+	# Set path preview parent (use Map node for path visuals)
+	InputManager.path_preview_parent = $Map
+
+	# Connect to TurnManager signals BEFORE starting battle
+	TurnManager.player_turn_started.connect(_on_player_turn_started)
+	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
+	TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
+	TurnManager.battle_ended.connect(_on_battle_ended)
+
+	# Start turn-based battle (this will emit signals immediately)
+	var all_units: Array[Node2D] = [_test_unit, _enemy_unit]
+	TurnManager.start_battle(all_units)
+
+	print("\n=== Controls ===")
+	print("Arrow keys = Move cursor")
+	print("Click/Enter = Confirm movement")
+	print("ESC/B = Cancel movement")
+	print("Arrow keys = Navigate action menu")
+	print("Enter = Confirm action")
+	print("1-4 = Quick select action")
+	print("ESC = Quit")
 
 
 func _generate_test_map() -> void:
@@ -125,19 +158,15 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 
 
 func _process(_delta: float) -> void:
-	# Quit on ESC
-	if Input.is_action_just_pressed("ui_cancel"):
+	# Quit on ESC (when not in a menu)
+	if Input.is_action_just_pressed("ui_cancel") and not _action_menu.visible:
 		get_tree().quit()
 
-	# Attack test on SPACE
-	if Input.is_action_just_pressed("ui_select"):
-		if _test_unit and _enemy_unit and _test_unit.is_alive() and _enemy_unit.is_alive():
-			_test_attack()
-
-	# Keep camera centered on active unit (Hero for now)
+	# Keep camera centered on active unit
 	var camera: Camera2D = $Camera
-	if camera and _test_unit and _test_unit.is_alive():
-		camera.position = _test_unit.position
+	var active_unit: Node2D = TurnManager.get_active_unit()
+	if camera and active_unit and active_unit.is_alive():
+		camera.position = active_unit.position
 
 	# Update debug label
 	var mouse_world: Vector2 = get_global_mouse_position()
@@ -145,8 +174,8 @@ func _process(_delta: float) -> void:
 
 	var debug_label: Label = $UI/HUD/DebugLabel
 	if debug_label:
-		debug_label.text = "Unit Test Scene\n"
-		debug_label.text += "Mouse Cell: %s\n" % mouse_cell
+		debug_label.text = "Shining Force Battle Test\n"
+		debug_label.text += "Mouse: %s\n" % mouse_cell
 		if _test_unit and _test_unit.is_alive():
 			debug_label.text += "Hero: %s\n" % _test_unit.get_stats_summary()
 		else:
@@ -155,18 +184,15 @@ func _process(_delta: float) -> void:
 			debug_label.text += "Goblin: %s\n" % _enemy_unit.get_stats_summary()
 		else:
 			debug_label.text += "Goblin: DEAD\n"
-		debug_label.text += "\nClick = Move Hero"
-		debug_label.text += "\nSPACE = Attack"
-		debug_label.text += "\nESC = Quit"
+
+		# Show current turn state
+		if active_unit:
+			debug_label.text += "\nActive: %s" % active_unit.get_display_name()
+		else:
+			debug_label.text += "\nActive: None"
 
 
-func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			if _test_unit and _test_unit.is_alive():
-				var mouse_world: Vector2 = get_global_mouse_position()
-				var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
-				_try_move_unit(target_cell)
+# Input is now handled by InputManager, no longer needed here
 
 
 func _show_highlights(cells: Array[Vector2i], color: Color) -> void:
@@ -195,67 +221,43 @@ func _clear_highlights() -> void:
 	_highlight_visuals.clear()
 
 
-func _try_move_unit(target_cell: Vector2i) -> void:
-	if not GridManager.is_within_bounds(target_cell):
-		print("Target out of bounds")
-		return
+# Movement and combat now handled by InputManager
 
-	print("\n=== Moving Unit ===")
 
-	# Get movement range
-	var movement_range: int = _test_unit.character_data.character_class.movement_range
+## TurnManager signal handlers
+func _on_player_turn_started(unit: Node2D) -> void:
+	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
+	unit.show_selection()
+
+	# Show movement range
+	var movement_range: int = unit.character_data.character_class.movement_range
 	var walkable_cells: Array[Vector2i] = GridManager.get_walkable_cells(
-		_test_unit.grid_position,
+		unit.grid_position,
 		movement_range,
-		_test_unit.character_data.character_class.movement_type
+		unit.character_data.character_class.movement_type
 	)
+	_show_highlights(walkable_cells, Color(0.3, 0.5, 1.0, 0.4))  # Blue highlights for movement
 
-	# Check if target is walkable
-	if target_cell not in walkable_cells:
-		print("Target not reachable (movement range: %d)" % movement_range)
-		# Show walkable cells for feedback (blue, semi-transparent)
-		_show_highlights(walkable_cells, Color(0.3, 0.5, 1.0, 0.4))
-		return
-
-	# Find path
-	var path: Array[Vector2i] = GridManager.find_path(
-		_test_unit.grid_position,
-		target_cell,
-		_test_unit.character_data.character_class.movement_type
-	)
-
-	if path.is_empty():
-		print("No path found")
-		return
-
-	print("Path: %s" % path)
-
-	# Move unit (in real game, this would be animated)
-	_test_unit.move_to(target_cell)
-
-	# Show path briefly (yellow, semi-transparent)
-	_show_highlights(path, Color(1.0, 1.0, 0.3, 0.5))
+	# Start InputManager for player turn
+	InputManager.start_player_turn(unit)
 
 
-func _test_attack() -> void:
-	print("\n=== Testing Combat ===")
+func _on_enemy_turn_started(unit: Node2D) -> void:
+	print("\n>>> ENEMY'S TURN: %s <<<" % unit.get_display_name())
+	unit.show_selection()
+	# AI will be implemented later, for now turn ends automatically
 
-	# Check distance
-	var distance: int = GridManager.get_distance(_test_unit.grid_position, _enemy_unit.grid_position)
-	print("Distance: %d" % distance)
 
-	if distance > 1:
-		print("Enemy too far to attack (melee range only)")
-		return
+func _on_unit_turn_ended(unit: Node2D) -> void:
+	print(">>> Turn ended for: %s <<<" % unit.get_display_name())
+	unit.hide_selection()
+	_clear_highlights()
 
-	# Calculate damage (simple formula for now)
-	var damage: int = maxi(1, _test_unit.stats.strength - _enemy_unit.stats.defense)
-	print("%s attacks %s for %d damage!" % [_test_unit.get_display_name(), _enemy_unit.get_display_name(), damage])
 
-	# Apply damage
-	_enemy_unit.take_damage(damage)
-
-	# If enemy died, clear highlights
-	if _enemy_unit.is_dead():
-		print("Enemy defeated!")
-		_clear_highlights()
+func _on_battle_ended(victory: bool) -> void:
+	print("\n========== BATTLE OVER ==========")
+	if victory:
+		print("YOU WIN!")
+	else:
+		print("YOU LOSE!")
+	print("Press ESC to quit")

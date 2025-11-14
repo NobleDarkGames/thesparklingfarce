@@ -37,6 +37,9 @@ var ai_behavior: String = "aggressive"
 var has_moved: bool = false
 var has_acted: bool = false
 
+## Turn priority (calculated by TurnManager based on AGI)
+var turn_priority: float = 0.0
+
 ## References to child nodes (set by scene structure)
 @onready var sprite: ColorRect = $Sprite2D
 @onready var selection_indicator: ColorRect = $SelectionIndicator

@@ -58,7 +58,7 @@ func setup_grid(p_grid: Grid, p_tilemap: TileMapLayer) -> void:
 func _setup_astar() -> void:
 	_astar = AStarGrid2D.new()
 	_astar.region = Rect2i(Vector2i.ZERO, grid.grid_size)
-	_astar.cell_size = Vector2(grid.cell_size, grid.cell_size)
+	_astar.cell_size = Vector2(1, 1)  # Keep AStar in grid coordinates, not world coordinates
 	_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER  # 4-directional movement only
 	_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 	_astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
@@ -86,6 +86,10 @@ func set_terrain_cost(tile_id: int, movement_type: int, cost: int) -> void:
 func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 	if not grid.is_within_bounds(cell):
 		return MAX_TERRAIN_COST
+
+	# If no tilemap or tileset, return default cost (for test scenes with visual grid)
+	if not tilemap or not tilemap.tile_set:
+		return DEFAULT_TERRAIN_COST
 
 	# Get tile data from tilemap
 	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
