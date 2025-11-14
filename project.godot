@@ -14,10 +14,21 @@ config/name="The Sparkling Farce"
 config/description="A tactical RPG platform inspired by Shining Force"
 config/version="0.1.0"
 config/features=PackedStringArray("4.5", "Forward Plus")
+run/main_scene="res://mods/_sandbox/scenes/test_battle.tscn"
 
 [autoload]
 
 ModLoader="*res://core/mod_system/mod_loader.gd"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+window/stretch/scale_mode="integer"
 
 [debug]
 
@@ -45,6 +56,12 @@ folder_colors={
 "res://core/": "red",
 "res://data/": "green",
 "res://mods/": "teal",
+"res://scenes/": "pink",
 "res://templates/": "yellow",
 "res://user_content/": "orange"
 }
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+2d/snap_2d_transforms_to_pixel=true
