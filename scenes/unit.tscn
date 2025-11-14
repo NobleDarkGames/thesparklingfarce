@@ -1,0 +1,46 @@
+[gd_scene load_steps=3 format=3 uid="uid://unit_scene_main"]
+
+[ext_resource type="Script" path="res://core/components/unit.gd" id="1_unit"]
+[ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="2_font"]
+
+[node name="Unit" type="Node2D"]
+script = ExtResource("1_unit")
+
+[node name="Sprite2D" type="ColorRect" parent="."]
+texture_filter = 1
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+color = Color(0.5, 0.5, 0.5, 1)
+
+[node name="SelectionIndicator" type="ColorRect" parent="."]
+visible = false
+offset_left = -14.0
+offset_top = -14.0
+offset_right = 14.0
+offset_bottom = 14.0
+color = Color(1, 1, 0, 0.6)
+
+[node name="NameLabel" type="Label" parent="."]
+texture_filter = 1
+offset_left = -20.0
+offset_top = -26.0
+offset_right = 20.0
+offset_bottom = -18.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+text = "Unit"
+horizontal_alignment = 1
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+offset_left = -14.0
+offset_top = 14.0
+offset_right = 14.0
+offset_bottom = 16.0
+max_value = 100.0
+value = 100.0
+show_percentage = false
