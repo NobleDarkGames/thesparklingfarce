@@ -166,109 +166,245 @@ func calculate_from_character(character: CharacterData) -> void:
 
 ---
 
-### Step 3: TurnManager System (Week 2, Part 1)
+### Step 3: TurnManager System (Week 2, Part 1) - SHINING FORCE STYLE
 
-**Purpose**: Manage turn order, phases, and action flow
+**Purpose**: Manage individual turn order based on AGI (Shining Force system)
+
+**IMPORTANT**: Shining Force does NOT use Fire Emblem-style phases. Instead, units take turns individually in an AGI-based queue, with player and enemy units intermixed.
 
 **Files to Create**:
-1. `core/systems/turn_manager.gd` - Turn order and phase management
+1. `core/systems/turn_manager.gd` - AGI-based turn queue management
 
-**Turn System Design** (Phase-based like Fire Emblem/Shining Force):
+**Turn System Design** (Individual Turn Order like Shining Force):
 ```
 Turn Structure:
-1. Player Phase
-   - Select unit
-   - Move unit (optional)
-   - Select action (Attack, Item, Wait, etc.)
-   - Confirm action
-   - Next unit or End Turn
-2. Enemy Phase
-   - AI processes each enemy unit
-   - Moves and attacks automatically
-3. Repeat
+1. Calculate turn order for ALL units (player + enemy) based on AGI
+2. Sort into turn queue (highest AGI first)
+3. Pop next unit from queue:
+   - If player unit: Wait for player input
+   - If enemy unit: Run AI immediately
+4. After unit acts: Next unit's turn
+5. When queue empty: Start new turn cycle (recalculate AGI)
+
+Example Turn Queue:
+1. Enemy Mage (AGI 15, rolled high)     ← AI acts
+2. Player Hero (AGI 12, rolled high)    ← Player controls
+3. Player Knight (AGI 10, average)      ← Player controls (must wait)
+4. Enemy Goblin (AGI 8, rolled low)     ← AI acts
+5. Player Healer (AGI 7, rolled low)    ← Player controls (must wait)
+...queue empties → recalculate → new turn cycle
 ```
 
 **Turn Manager Features**:
-- `start_battle(player_units: Array[Unit], enemy_units: Array[Unit])` - Initialize
-- `start_phase(phase: Phase)` - Begin player/enemy phase
-- `get_active_units()` - Get units that can still act this turn
-- `select_unit(unit: Unit)` - Mark unit as active
-- `unit_action(unit: Unit, action: Dictionary)` - Execute unit action
-- `end_unit_turn(unit: Unit)` - Mark unit as done
-- `end_phase()` - Transition to next phase
+- `start_battle(all_units: Array[Unit])` - Initialize with ALL units
+- `calculate_turn_order()` - Sort units by randomized AGI
+- `get_next_unit()` - Pop next unit from queue
+- `start_unit_turn(unit: Unit)` - Begin unit's turn
+- `end_unit_turn(unit: Unit)` - Finish unit's turn, advance queue
+- `is_turn_cycle_complete()` - Check if queue is empty
+- `start_new_turn_cycle()` - Increment turn counter, recalculate order
 - `check_victory_conditions()` - Check battle end
 - `check_defeat_conditions()` - Check battle loss
 
-**Phases**:
+**AGI-Based Turn Priority** (Shining Force II formula):
 ```gdscript
-enum Phase {
-	PLAYER_TURN,
-	ENEMY_TURN,
-	NEUTRAL_TURN,  # For civilians, NPCs
-	BATTLE_END
-}
+func calculate_turn_priority(unit: Unit) -> float:
+	var base_agi: float = unit.stats.agility
+	# Randomize AGI: 87.5% to 112.5% of base value
+	var random_mult: float = randf_range(0.875, 1.125)
+	# Add small random offset: -1, 0, or +1
+	var random_offset: float = randi_range(-1, 1)
+	return (base_agi * random_mult) + random_offset
+
+func calculate_turn_order() -> void:
+	turn_queue.clear()
+
+	# Calculate priority for each unit
+	for unit in all_units:
+		if not unit.is_alive():
+			continue
+		unit.turn_priority = calculate_turn_priority(unit)
+
+	# Sort by priority (highest first)
+	turn_queue = all_units.duplicate()
+	turn_queue.sort_custom(func(a, b): return a.turn_priority > b.turn_priority)
+
+	# Tie-breaker: Player units go first if AGI equal
+	# (handled automatically by stable sort)
+```
+
+**Turn Flow**:
+```gdscript
+func start_unit_turn(unit: Unit) -> void:
+	active_unit = unit
+	unit.start_turn()
+
+	if unit.is_player_unit():
+		# Wait for player input through InputManager
+		emit_signal("player_turn_started", unit)
+		InputManager.set_state(InputState.MOVING_UNIT)
+	else:
+		# Run AI immediately
+		emit_signal("enemy_turn_started", unit)
+		await AIController.process_enemy_turn(unit)
+		end_unit_turn(unit)
+
+func end_unit_turn(unit: Unit) -> void:
+	unit.end_turn()
+	unit.has_moved = false  # Reset for next turn cycle
+	unit.has_acted = false
+
+	emit_signal("unit_turn_ended", unit)
+
+	# Get next unit
+	if turn_queue.is_empty():
+		start_new_turn_cycle()
+	else:
+		var next_unit: Unit = turn_queue.pop_front()
+		start_unit_turn(next_unit)
+
+func start_new_turn_cycle() -> void:
+	turn_number += 1
+	emit_signal("turn_cycle_started", turn_number)
+
+	# Recalculate turn order with new AGI randomization
+	calculate_turn_order()
+
+	# Start first unit's turn
+	if not turn_queue.is_empty():
+		var first_unit: Unit = turn_queue.pop_front()
+		start_unit_turn(first_unit)
+```
+
+**Key Properties**:
+```gdscript
+var all_units: Array[Unit] = []        # All units in battle
+var turn_queue: Array[Unit] = []       # Current turn order
+var active_unit: Unit = null           # Unit currently acting
+var turn_number: int = 1               # Overall turn counter
 ```
 
 **Turn Manager Signals**:
-- `phase_started(phase: Phase)`
-- `phase_ended(phase: Phase)`
-- `unit_selected(unit: Unit)`
-- `unit_turn_ended(unit: Unit)`
-- `battle_ended(victory: bool)`
+- `turn_cycle_started(turn_number: int)` - New turn cycle begins
+- `player_turn_started(unit: Unit)` - Player unit's turn
+- `enemy_turn_started(unit: Unit)` - Enemy unit's turn
+- `unit_turn_ended(unit: Unit)` - Unit finished acting
+- `battle_ended(victory: bool)` - Battle concluded
+
+**Special Rules** (Shining Force mechanics):
+- Boss units with AGI > 128 can act multiple times per cycle (Phase 4)
+- Tie-breaking: Player units go first when AGI values match
+- Turn order recalculates every cycle (creates variety)
 
 **Testing**:
-- Create simple test battle with 2 player units, 2 enemy units
-- Player phase: Select units manually, end turn
-- Enemy phase: Log which units would act
-- Verify turn cycling works correctly
+- Create battle with mixed AGI values (player AGI 5,7,12 / enemy AGI 6,8,10)
+- Verify turn order is AGI-based, not faction-based
+- Check player/enemy units intermix in queue
+- Test turn cycle completion and recalculation
+- Verify AGI randomization creates variance
 
 ---
 
-### Step 4: InputManager & Player Control (Week 2, Part 2)
+### Step 4: InputManager & Player Control (Week 2, Part 2) - SHINING FORCE STYLE
 
-**Purpose**: Handle player input during battles (cursor, unit selection, menu navigation)
+**Purpose**: Handle player input for the ACTIVE unit only (Shining Force model)
+
+**IMPORTANT**: In Shining Force, you can ONLY control the unit whose turn it is. No selecting from all units - TurnManager decides which unit acts next.
 
 **Files to Create**:
-1. `core/systems/input_manager.gd` - Input handling for tactical battles
+1. `core/systems/input_manager.gd` - Input handling for active unit
 2. `scenes/ui/cursor.tscn` - Grid cursor visual
 3. `scenes/ui/action_menu.tscn` - Action selection menu
 
 **Input Manager Features**:
+- Control ONLY the active unit (provided by TurnManager)
 - Grid cursor with keyboard/gamepad movement
 - Mouse click support for cell selection
 - Menu navigation (action menu, targeting)
-- Input state machine (SelectUnit → MoveUnit → SelectAction → SelectTarget)
+- Input state machine (MoveUnit → SelectAction → SelectTarget → Execute)
 
 **Input States**:
 ```gdscript
 enum InputState {
-	WAITING,           # Not player's turn
-	SELECTING_UNIT,    # Choose which unit to control
-	MOVING_UNIT,       # Show movement range, choose destination
-	SELECTING_ACTION,  # Attack, Item, Wait, etc.
-	TARGETING,         # Choose target for attack/ability
-	CONFIRMING,        # Confirm action before executing
+	WAITING,           # Not player's turn (enemy/AI acting)
+	MOVING_UNIT,       # Show movement range, choose destination for ACTIVE unit
+	SELECTING_ACTION,  # Attack, Magic, Item, Stay menu
+	TARGETING,         # Choose target for attack/spell
+	CONFIRMING,        # Confirm action before executing (optional)
 	ANIMATING          # Wait for animations to finish
 }
 ```
 
+**Shining Force Turn Flow** (Per Active Unit):
+```gdscript
+# When TurnManager activates a player unit:
+signal player_turn_started(unit: Unit)
+
+func on_player_turn_started(unit: Unit) -> void:
+	active_unit = unit
+	set_state(InputState.MOVING_UNIT)
+
+	# 1. MOVING_UNIT state
+	# - Show movement range highlights
+	# - Show unit stats in UI
+	# - Cursor automatically positioned on unit
+	# - Player moves cursor to select destination
+	# - Click/confirm to move unit
+	# - Unit moves → transition to SELECTING_ACTION
+
+	# 2. SELECTING_ACTION state
+	# - Open action menu at unit position
+	# - Options: Attack, Magic, Item, Stay
+	# - Attack only shown if enemies in range
+	# - Select action → transition to TARGETING (or execute Stay)
+
+	# 3. TARGETING state (if Attack/Magic selected)
+	# - Show attack/spell range
+	# - Cursor on valid targets
+	# - Select target
+	# - Execute action → transition to WAITING
+
+	# 4. WAITING state
+	# - Turn complete, TurnManager advances to next unit
+	# - If next unit is player: repeat from step 1
+	# - If next unit is enemy: AI acts automatically
+```
+
+**Key Constraint**: You can ONLY control the active unit. You cannot:
+- Select a different player unit
+- Move multiple units before committing
+- "Undo" movement (commitment is immediate in Shining Force)
+
 **Cursor Features**:
 - Sprite at grid position (32×32, pixel-perfect)
 - Smooth interpolation between cells
-- Hover info (show unit stats when over unit)
+- Hover info (show unit stats when over unit/enemy)
 - Visual feedback (color change for valid/invalid cells)
+- Auto-centers on active unit at turn start
 
-**Action Menu**:
-- Simple button list: Attack, Wait, (Item, Ability in Phase 4)
-- Context-aware (disable Attack if no enemies in range)
-- Keyboard/gamepad navigation
-- Cancel returns to previous state
+**Action Menu** (Shining Force style):
+- Appears AFTER movement
+- Simple vertical list: Attack, Magic, Item, Stay
+- Context-aware:
+  - Attack only if enemies in weapon range
+  - Magic only for spellcasters
+  - Item always available
+  - Stay always available (ends turn)
+- Keyboard/gamepad navigation (up/down, confirm/cancel)
+- Cancel returns to previous state (can re-move if haven't acted)
+
+**Movement/Action Separation**:
+- In Shining Force, movement happens FIRST, then action menu
+- Cannot attack without moving first (even if staying in place)
+- This is different from Fire Emblem (which allows attack-only)
 
 **Testing**:
-- Move cursor with arrow keys and mouse
-- Select unit, show movement range
-- Select destination, move unit
-- Open action menu, select "Wait"
+- Start battle, wait for player unit's turn
+- Verify only active unit is controllable
+- Move unit, confirm action menu appears
+- Select "Attack", verify targeting works
+- Select "Stay", verify turn ends and next unit activates
+- Verify enemy turns happen automatically (AI)
 
 ---
 
