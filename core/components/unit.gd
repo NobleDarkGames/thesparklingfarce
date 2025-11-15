@@ -47,6 +47,12 @@ var turn_priority: float = 0.0
 @onready var health_bar: ProgressBar = $HealthBar
 
 
+func _ready() -> void:
+	# Update visuals after nodes are ready
+	_update_visual()
+	_update_health_bar()
+
+
 ## Initialize unit from CharacterData
 func initialize(p_character_data: CharacterData, p_faction: String = "neutral", p_ai_behavior: String = "aggressive") -> void:
 	if p_character_data == null:
@@ -81,6 +87,10 @@ func initialize(p_character_data: CharacterData, p_faction: String = "neutral", 
 
 ## Update sprite based on character data
 func _update_visual() -> void:
+	# If sprite isn't ready yet, defer until _ready()
+	if not is_node_ready():
+		return
+
 	if not sprite:
 		return
 

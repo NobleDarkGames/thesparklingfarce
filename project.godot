@@ -22,6 +22,7 @@ ModLoader="*res://core/mod_system/mod_loader.gd"
 GridManager="*res://core/systems/grid_manager.gd"
 TurnManager="*res://core/systems/turn_manager.gd"
 InputManager="*res://core/systems/input_manager.gd"
+BattleManager="*res://core/systems/battle_manager.gd"
 
 [debug]
 

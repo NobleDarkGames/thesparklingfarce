@@ -426,7 +426,10 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 ## Select action from menu
 func _select_action(action: String) -> void:
 	current_action = action
-	emit_signal("action_selected", active_unit, action)
+
+	# Convert to lowercase for BattleManager (internal representation)
+	var action_lower: String = action.to_lower()
+	emit_signal("action_selected", active_unit, action_lower)
 
 	print("InputManager: Action selected: %s" % action)
 
@@ -481,35 +484,23 @@ func _select_target(target: Node2D) -> void:
 
 ## Execute action on target
 func _execute_action_on_target(target: Node2D) -> void:
-	match current_action:
-		"Attack":
-			_execute_attack(target)
-		"Magic":
-			# TODO: Cast spell
-			pass
+	# NOTE: We do NOT execute actions here - just signal what was selected
+	# BattleManager handles all action execution
+	# The signal was already emitted in _select_target()
 
-	_complete_turn()
-
-
-## Execute attack
-func _execute_attack(target: Node2D) -> void:
-	print("InputManager: %s attacks %s" % [active_unit.get_display_name(), target.get_display_name()])
-
-	# Simple damage calculation
-	var damage: int = maxi(1, active_unit.stats.strength - target.stats.defense)
-	target.take_damage(damage)
+	# State transition is now handled by BattleManager
+	# (it will call end_turn when action completes)
+	set_state(InputState.EXECUTING)
 
 
 ## Execute action without target
 func _execute_action() -> void:
-	match current_action:
-		"Stay":
-			print("InputManager: %s waits" % active_unit.get_display_name())
-		"Item":
-			# TODO: Handle item menu
-			print("InputManager: Item menu would open here")
+	# NOTE: We do NOT execute actions here - just signal what was selected
+	# BattleManager handles all action execution
+	# The signal was already emitted in _select_action()
 
-	_complete_turn()
+	# For Stay action, BattleManager will end turn immediately
+	set_state(InputState.EXECUTING)
 
 
 ## Complete turn and notify TurnManager
@@ -529,6 +520,15 @@ func _complete_turn() -> void:
 	TurnManager.end_unit_turn(unit)
 
 
-## Cleanup
+## Cleanup - called by BattleManager when action execution is complete
 func end_player_turn() -> void:
+	set_state(InputState.WAITING)
+
+
+## Reset to waiting state (called by TurnManager/BattleManager)
+func reset_to_waiting() -> void:
+	active_unit = null
+	walkable_cells.clear()
+	available_actions.clear()
+	current_action = ""
 	set_state(InputState.WAITING)
