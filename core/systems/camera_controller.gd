@@ -101,6 +101,10 @@ func _update_camera_limits() -> void:
 
 
 func _process(delta: float) -> void:
+	# Early return for NONE mode
+	if follow_mode == FollowMode.NONE:
+		return
+
 	# Update target based on follow mode
 	match follow_mode:
 		FollowMode.CURSOR:
@@ -109,8 +113,6 @@ func _process(delta: float) -> void:
 			_follow_active_unit()
 		FollowMode.TARGET_POSITION:
 			pass  # Target is set externally via set_target_position()
-		FollowMode.NONE:
-			return
 
 	# Move camera toward target
 	_update_camera_position(delta)

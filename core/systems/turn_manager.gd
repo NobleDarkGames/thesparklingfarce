@@ -4,6 +4,12 @@
 ## based on their agility stats. No separate phases - one unit acts at a time.
 extends Node
 
+# Turn priority calculation constants (Shining Force II formula)
+const AGI_VARIANCE_MIN: float = 0.875
+const AGI_VARIANCE_MAX: float = 1.125
+const AGI_OFFSET_MIN: int = -1
+const AGI_OFFSET_MAX: int = 1
+
 ## Signals for turn events
 signal turn_cycle_started(turn_number: int)
 signal player_turn_started(unit: Node2D)
@@ -58,10 +64,10 @@ func calculate_turn_priority(unit: Node2D) -> float:
 	var base_agi: float = unit.stats.agility if unit.stats else 5.0
 
 	# Randomize AGI: 87.5% to 112.5% of base value
-	var random_mult: float = randf_range(0.875, 1.125)
+	var random_mult: float = randf_range(AGI_VARIANCE_MIN, AGI_VARIANCE_MAX)
 
 	# Add small random offset: -1, 0, or +1
-	var random_offset: float = float(randi_range(-1, 1))
+	var random_offset: float = float(randi_range(AGI_OFFSET_MIN, AGI_OFFSET_MAX))
 
 	var priority: float = (base_agi * random_mult) + random_offset
 

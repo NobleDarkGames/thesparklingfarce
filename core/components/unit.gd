@@ -7,16 +7,21 @@ extends Node2D
 
 # No preload needed - use load() in initialize()
 
+# Faction visual colors (placeholder until sprites are implemented)
+const COLOR_PLAYER: Color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
+const COLOR_ENEMY: Color = Color(1.0, 0.2, 0.2, 1.0)  # Bright red
+const COLOR_NEUTRAL: Color = Color(1.0, 1.0, 0.2, 1.0)  # Bright yellow
+
 ## Signals for battle events
 signal moved(from: Vector2i, to: Vector2i)
 signal attacked(target: Node2D, damage: int)  # Changed from Unit to Node2D
 signal damaged(amount: int)
 signal healed(amount: int)
 signal died()
-signal turn_started()
-signal turn_ended()
-signal status_effect_added(effect_type: String)
-signal status_effect_removed(effect_type: String)
+signal turn_began()
+signal turn_finished()
+signal status_effect_applied(effect_type: String)
+signal status_effect_cleared(effect_type: String)
 
 ## Source character data
 @export var character_data: CharacterData = null
@@ -102,11 +107,11 @@ func _update_visual() -> void:
 	var placeholder_color: Color = Color.GRAY
 	match faction:
 		"player":
-			placeholder_color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
+			placeholder_color = COLOR_PLAYER
 		"enemy":
-			placeholder_color = Color(1.0, 0.2, 0.2, 1.0)  # Bright red
+			placeholder_color = COLOR_ENEMY
 		"neutral":
-			placeholder_color = Color(1.0, 1.0, 0.2, 1.0)  # Bright yellow
+			placeholder_color = COLOR_NEUTRAL
 
 	sprite.color = placeholder_color
 
@@ -247,13 +252,13 @@ func is_dead() -> bool:
 func start_turn() -> void:
 	has_moved = false
 	has_acted = false
-	emit_signal("turn_started")
+	turn_began.emit()
 	print("%s turn started" % character_data.character_name)
 
 
 ## End turn
 func end_turn() -> void:
-	emit_signal("turn_ended")
+	turn_finished.emit()
 	print("%s turn ended" % character_data.character_name)
 
 
