@@ -83,14 +83,14 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "Warrior"
 
 [node name="LevelLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "Lv 1"
 horizontal_alignment = 2
 
@@ -98,7 +98,7 @@ horizontal_alignment = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "ALLY"
 horizontal_alignment = 1
 
