@@ -25,10 +25,10 @@ func execute(unit: Node2D, context: Dictionary) -> void:
 
 	print("AIAggressive: %s targeting %s" % [unit.get_display_name(), target.get_display_name()])
 
-	# If already in attack range, attack immediately
+	# If already in attack range, attack (with brief delay for player to see decision)
 	if is_in_attack_range(unit, target):
 		print("AIAggressive: Target in range, attacking")
-		attack_target(unit, target)
+		_pending_attack_target = target  # Store for delayed execution
 		return
 
 	# Move toward target
@@ -62,6 +62,11 @@ func execute_async(unit: Node2D, context: Dictionary) -> void:
 	_stored_movement_tween = null
 	_pending_attack_target = null
 
+	# Get delay settings from context
+	var delays: Dictionary = context.get("ai_delays", {})
+	var delay_after_movement: float = delays.get("after_movement", 0.5)
+	var delay_before_attack: float = delays.get("before_attack", 0.3)
+
 	print("DEBUG [TO REMOVE]: AIAggressive execute_async called for %s" % unit.character_data.character_name)  # DEBUG: TO REMOVE
 
 	# Run the synchronous logic
@@ -73,8 +78,16 @@ func execute_async(unit: Node2D, context: Dictionary) -> void:
 		await _stored_movement_tween.finished
 		print("DEBUG [TO REMOVE]: Movement animation finished for %s" % unit.character_data.character_name)  # DEBUG: TO REMOVE
 
-	# Now execute the pending attack after movement completes
+		# Add delay after movement completes
+		if delay_after_movement > 0 and _pending_attack_target:
+			await unit.get_tree().create_timer(delay_after_movement).timeout
+
+	# Execute pending attack (either after movement or immediate)
 	if _pending_attack_target:
-		print("AIAggressive: Movement complete, now attacking")
+		# Brief pause before initiating attack (gives player time to see enemy decision)
+		if delay_before_attack > 0:
+			await unit.get_tree().create_timer(delay_before_attack).timeout
+
+		print("AIAggressive: Executing attack")
 		attack_target(unit, _pending_attack_target)
 		_pending_attack_target = null

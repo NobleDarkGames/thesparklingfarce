@@ -239,8 +239,12 @@ func _on_enter_targeting() -> void:
 
 
 func _on_enter_executing() -> void:
-	# Action is executing, wait for completion
-	pass
+	# Action is executing, clear all highlights and cursor
+	GridManager.clear_highlights()
+
+	# Hide cursor during execution
+	if grid_cursor:
+		grid_cursor.hide_cursor()
 
 
 ## Process input based on current state

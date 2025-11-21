@@ -9,6 +9,11 @@ extends Node
 ## - Delegates decision-making to unit's AIBrain resource
 ## - Handles turn completion after AI executes
 
+## Configurable delays for enemy actions (in seconds)
+@export var delay_before_turn_start: float = 0.5  # Pause before enemy starts thinking
+@export var delay_after_movement: float = 0.5      # Pause after moving before attacking
+@export var delay_before_attack: float = 0.3       # Brief pause before initiating attack
+
 ## Called by TurnManager when enemy/neutral unit's turn starts
 func process_enemy_turn(unit: Node2D) -> void:
 	if not unit:
@@ -23,8 +28,18 @@ func process_enemy_turn(unit: Node2D) -> void:
 
 	print("\nAIController: Processing turn for %s" % unit.get_display_name())
 
+	# Delay before enemy starts acting (gives player time to see whose turn it is)
+	if delay_before_turn_start > 0:
+		await get_tree().create_timer(delay_before_turn_start).timeout
+
 	# Build context for AI decision-making
 	var context: Dictionary = _build_ai_context()
+
+	# Pass delay settings to AI brain via context
+	context["ai_delays"] = {
+		"after_movement": delay_after_movement,
+		"before_attack": delay_before_attack,
+	}
 
 	# Execute AI brain if available
 	if unit.ai_brain:
