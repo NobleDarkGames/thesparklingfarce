@@ -1,10 +1,12 @@
-[gd_scene load_steps=6 format=3 uid="uid://test_unit_scene"]
+[gd_scene load_steps=8 format=3 uid="uid://test_unit_scene"]
 
 [ext_resource type="Script" path="res://mods/_sandbox/scenes/test_unit.gd" id="1_script"]
 [ext_resource type="Script" path="res://core/systems/camera_controller.gd" id="2_camera"]
 [ext_resource type="Script" path="res://core/resources/grid.gd" id="3_grid"]
 [ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="4_font"]
 [ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="5_highlight"]
+[ext_resource type="PackedScene" uid="uid://active_unit_stats_panel" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
+[ext_resource type="PackedScene" uid="uid://terrain_info_panel" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
 
 [sub_resource type="TileSet" id="TileSet_test"]
 tile_size = Vector2i(32, 32)
@@ -50,11 +52,17 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
+[node name="ActiveUnitStatsPanel" parent="UI/HUD" instance=ExtResource("6_stats")]
+layout_mode = 1
+
+[node name="TerrainInfoPanel" parent="UI/HUD" instance=ExtResource("7_terrain")]
+layout_mode = 1
+
 [node name="DebugLabel" type="Label" parent="UI/HUD"]
 texture_filter = 1
 layout_mode = 0
 offset_left = 8.0
-offset_top = 8.0
+offset_top = 70.0
 offset_right = 300.0
 offset_bottom = 150.0
 theme_override_fonts/font = ExtResource("4_font")

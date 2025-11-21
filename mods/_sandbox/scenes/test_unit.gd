@@ -32,6 +32,8 @@ var _test_unit: Node2D = null  # Unit type
 var _enemy_unit: Node2D = null  # Unit type
 var _action_menu: Control = null  # Action menu UI
 var _grid_cursor: Node2D = null  # Grid cursor visual
+var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
+var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
 
 
 func _ready() -> void:
@@ -85,6 +87,10 @@ func _ready() -> void:
 
 	# Set path preview parent (use Map node for path visuals)
 	InputManager.path_preview_parent = $Map
+
+	# Get reference to stats panels
+	_stats_panel = $UI/HUD/ActiveUnitStatsPanel
+	_terrain_panel = $UI/HUD/TerrainInfoPanel
 
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
@@ -267,6 +273,11 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
+	# Show stats and terrain panels
+	_stats_panel.show_unit_stats(unit)
+	var unit_cell: Vector2i = unit.grid_position
+	_terrain_panel.show_terrain_info(unit_cell)
+
 	# GridManager now handles highlights via TileMapLayer (called by InputManager)
 	# Start InputManager for player turn
 	InputManager.start_player_turn(unit)
@@ -275,12 +286,21 @@ func _on_player_turn_started(unit: Node2D) -> void:
 func _on_enemy_turn_started(unit: Node2D) -> void:
 	print("\n>>> ENEMY'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
-	# AI will be implemented later, for now turn ends automatically
+
+	# Show stats and terrain panels for enemy turn (optional)
+	_stats_panel.show_unit_stats(unit)
+	var unit_cell: Vector2i = unit.grid_position
+	_terrain_panel.show_terrain_info(unit_cell)
 
 
 func _on_unit_turn_ended(unit: Node2D) -> void:
 	print(">>> Turn ended for: %s <<<" % unit.get_display_name())
 	unit.hide_selection()
+
+	# Hide stats and terrain panels
+	_stats_panel.hide_stats()
+	_terrain_panel.hide_terrain_info()
+
 	# GridManager now handles clearing highlights
 
 

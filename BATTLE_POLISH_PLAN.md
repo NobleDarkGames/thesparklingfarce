@@ -35,17 +35,18 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [x] Test highlight visibility and clearing
   - [x] Remove debug print statements
 
-- [ ] **HP3: Active Unit Stats Display**
-  - [ ] Create ActiveUnitStatsPanel UI scene
-  - [ ] Add unit name, portrait placeholder, HP/MP bars
-  - [ ] Position panel at top-right of screen
-  - [ ] Create TerrainInfoPanel UI scene
-  - [ ] Position terrain panel at top-left of screen
-  - [ ] Connect to TurnManager.unit_turn_started signal
-  - [ ] Update stats panel when unit's turn begins
-  - [ ] Display terrain effects from current cell
-  - [ ] Add smooth show/hide transitions
-  - [ ] Test with different units and terrain types
+- [x] **HP3: Active Unit Stats Display** ✅ COMPLETED
+  - [x] Create ActiveUnitStatsPanel UI scene
+  - [x] Add unit name, HP/MP bars with values, combat stats
+  - [x] Position panel at top-right of screen
+  - [x] Create TerrainInfoPanel UI scene
+  - [x] Position terrain panel at top-left of screen
+  - [x] Connect to TurnManager signals in test scene
+  - [x] Update stats panel when unit's turn begins
+  - [x] Display terrain name and effects
+  - [x] Add smooth show/hide transitions with fade
+  - [x] Fix tween conflicts to prevent stale state
+  - [x] Test with different units and terrain types
 
 ### Medium Priority (User Experience)
 - [ ] **MP1: Streamline Movement Confirmation**
@@ -1225,3 +1226,68 @@ The system automatically uses custom art if provided, otherwise falls back to po
 2. Movement: Blue highlights show walkable range automatically
 3. Move next to enemy and select "Attack"
 4. Observe: Red tiles show attack range, yellow tile highlights the enemy
+
+---
+
+### HP3: Active Unit Stats Display - ✅ COMPLETED & TESTED
+
+**Implementation Date:** November 21, 2025
+
+**Files Created:**
+- `scenes/ui/active_unit_stats_panel.tscn` - Stats display panel UI
+- `scenes/ui/active_unit_stats_panel.gd` - Stats panel script
+- `scenes/ui/terrain_info_panel.tscn` - Terrain info panel UI
+- `scenes/ui/terrain_info_panel.gd` - Terrain panel script
+
+**Files Modified:**
+- `mods/_sandbox/scenes/test_unit.tscn` - Added both panels to HUD
+- `mods/_sandbox/scenes/test_unit.gd` - Connected panels to turn signals
+
+**Key Implementation Details:**
+
+1. **ActiveUnitStatsPanel (Top-Right)**
+   - Shows unit name (bold, 20pt)
+   - HP bar with value (red gradient, "25/30" format)
+   - MP bar with value (blue gradient, "10/15" format)
+   - Combat stats grid (STR, DEF, AGI, INT, LUK)
+   - Semi-transparent dark background with border
+   - Fade in/out animations (0.2s duration)
+
+2. **TerrainInfoPanel (Top-Left)**
+   - Shows terrain name ("Plains", "Forest", etc.)
+   - Shows terrain effects ("No effect", "DEF +1", etc.)
+   - Matching visual style to stats panel
+   - Fade in/out animations (0.2s duration)
+
+3. **Signal Integration**
+   - Connected to `TurnManager.player_turn_started` signal
+   - Connected to `TurnManager.enemy_turn_started` signal
+   - Connected to `TurnManager.unit_turn_ended` signal
+   - Panels show for both player and enemy turns
+   - Automatically hide when turn ends
+
+**Bug Fixed:**
+- **Issue:** Panels sometimes didn't appear on player turns (stale tween state)
+- **Root Cause:** Multiple tweens running simultaneously without cleanup
+- **Solution:** Added `_current_tween` tracking and kill existing tweens before starting new ones
+- **Result:** Panels now reliably appear on every turn
+
+**Testing Results:**
+- ✅ Stats panel appears at top-right when turn starts
+- ✅ All stats display correct values (name, HP, MP, STR, DEF, AGI, INT, LUK)
+- ✅ HP bar shows red gradient with correct fill proportion
+- ✅ MP bar shows blue gradient with correct fill proportion
+- ✅ Terrain panel appears at top-left
+- ✅ Terrain shows "Plains" with "No effect" (default terrain)
+- ✅ Panels fade in smoothly (0.2s animation)
+- ✅ Panels fade out smoothly when turn ends
+- ✅ Panels work correctly for both Hero and Goblin
+- ✅ No tween conflicts across multiple turns
+- ✅ Stats update correctly when unit takes damage
+
+**How to Test:**
+1. Run scene: `mods/_sandbox/scenes/test_unit.tscn`
+2. Observe top-right: Hero's stats panel appears with full information
+3. Observe top-left: "Plains / No effect" terrain panel appears
+4. Complete turn: Panels fade out
+5. Next turn: Panels reappear with updated stats (if damage was taken)
