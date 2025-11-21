@@ -226,7 +226,7 @@ func _spawn_all_units() -> void:
 
 
 ## Spawn units from array of dictionaries
-## Format: [{character: CharacterData, position: Vector2i, ai_behavior: String}, ...]
+## Format: [{character: CharacterData, position: Vector2i, ai_brain: AIBrain}, ...]
 func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 	var units: Array[Node2D] = []
 
@@ -242,14 +242,14 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 
 		var character_data: Resource = data.character
 		var grid_pos: Vector2i = data.position
-		var ai_behavior: String = data.get("ai_behavior", "aggressive")
+		var ai_brain: Resource = data.get("ai_brain", null)
 
 		# Instantiate unit
 		var unit: Node2D = UNIT_SCENE.instantiate()
 
-		# Initialize unit with character data, faction, and AI behavior
+		# Initialize unit with character data, faction, and AI brain
 		if unit.has_method("initialize"):
-			unit.initialize(character_data, faction, ai_behavior)
+			unit.initialize(character_data, faction, ai_brain)
 		else:
 			push_error("BattleManager: Unit scene missing initialize() method")
 			unit.queue_free()
@@ -330,6 +330,12 @@ func _execute_stay(unit: Node2D) -> void:
 	TurnManager.end_unit_turn(unit)
 
 
+## Execute attack from AI (called by AIBrain)
+## This is the public API for AI brains to trigger attacks
+func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
+	_execute_attack(attacker, defender)
+
+
 ## Execute Attack action
 func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	print("\nBattleManager: Executing attack - %s -> %s" % [
@@ -387,8 +393,10 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	# Wait for animations
 	await get_tree().create_timer(1.0).timeout
 
-	# Reset InputManager to waiting state
-	InputManager.reset_to_waiting()
+	# Reset InputManager to waiting state ONLY if this unit is still the active unit
+	# (prevents race condition where next turn has already started during the await)
+	if TurnManager.active_unit == attacker:
+		InputManager.reset_to_waiting()
 
 	# End attacker's turn
 	TurnManager.end_unit_turn(attacker)

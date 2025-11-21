@@ -41,11 +41,15 @@ func _ready() -> void:
 	var player_character: CharacterData = _create_test_character("Hero", 15, 10, 8, 7, 6, 5, 4)
 	var enemy_character: CharacterData = _create_test_character("Goblin", 12, 5, 6, 4, 5, 3, 3)
 
-	# Spawn player unit
-	_test_unit = _spawn_unit(player_character, Vector2i(3, 5), "player", "aggressive")
+	# Create AI brains (load at runtime)
+	var AIAggressiveClass: GDScript = load("res://mods/base_game/ai_brains/ai_aggressive.gd")
+	var aggressive_ai: Resource = AIAggressiveClass.new()
 
-	# Spawn enemy unit
-	_enemy_unit = _spawn_unit(enemy_character, Vector2i(10, 5), "enemy", "aggressive")
+	# Spawn player unit (no AI brain for player)
+	_test_unit = _spawn_unit(player_character, Vector2i(3, 5), "player", null)
+
+	# Spawn enemy unit with aggressive AI
+	_enemy_unit = _spawn_unit(enemy_character, Vector2i(10, 5), "enemy", aggressive_ai)
 
 	print("\n=== Unit Test Scene Ready ===")
 	print("Player unit: %s" % _test_unit.get_stats_summary())
@@ -65,6 +69,17 @@ func _ready() -> void:
 	# Set path preview parent (use Map node for path visuals)
 	InputManager.path_preview_parent = $Map
 
+	# Setup BattleManager with scene references
+	BattleManager.setup(self, $Units)
+
+	# Populate BattleManager unit arrays (needed for AI to find targets)
+	BattleManager.player_units = [_test_unit]
+	BattleManager.enemy_units = [_enemy_unit]
+	BattleManager.all_units = [_test_unit, _enemy_unit]
+
+	# Connect to BattleManager signals for visual feedback
+	BattleManager.combat_resolved.connect(_on_combat_resolved)
+
 	# Connect to TurnManager signals BEFORE starting battle
 	TurnManager.player_turn_started.connect(_on_player_turn_started)
 	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
@@ -74,6 +89,12 @@ func _ready() -> void:
 	# Start turn-based battle (this will emit signals immediately)
 	var all_units: Array[Node2D] = [_test_unit, _enemy_unit]
 	TurnManager.start_battle(all_units)
+
+	# Connect InputManager signals to BattleManager (for combat execution)
+	if not InputManager.action_selected.is_connected(BattleManager._on_action_selected):
+		InputManager.action_selected.connect(BattleManager._on_action_selected)
+	if not InputManager.target_selected.is_connected(BattleManager._on_target_selected):
+		InputManager.target_selected.connect(BattleManager._on_target_selected)
 
 	print("\n=== Controls ===")
 	print("Arrow keys = Move cursor")
@@ -136,13 +157,13 @@ func _create_test_character(p_name: String, hp: int, mp: int, str_val: int, def_
 	return character
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai: String) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
 	# Load unit scene
 	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
 	var unit: Node2D = unit_scene.instantiate()
 
-	# Initialize with character data
-	unit.initialize(character, p_faction, p_ai)
+	# Initialize with character data and AI brain
+	unit.initialize(character, p_faction, p_ai_brain)
 
 	# Set grid position
 	unit.grid_position = cell
@@ -261,3 +282,14 @@ func _on_battle_ended(victory: bool) -> void:
 	else:
 		print("YOU LOSE!")
 	print("Press ESC to quit")
+
+
+func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
+	print("Test scene: Combat resolved - %s -> %s: %d damage (hit: %s, crit: %s)" % [
+		attacker.get_display_name(),
+		defender.get_display_name(),
+		damage,
+		hit,
+		crit
+	])
+	# TODO: Show damage numbers (Phase 3)

@@ -29,13 +29,17 @@ enum DefeatCondition {
 @export var map_scene: PackedScene
 
 @export_group("Enemy Forces")
-## Array of dictionaries: {character: CharacterData, position: Vector2i, ai_behavior: String}
-## AI behaviors: "aggressive", "defensive", "patrol", "stationary", "support"
+## Array of dictionaries with these fields:
+## - character: CharacterData (required)
+## - position: Vector2i (required)
+## - ai_brain: AIBrain (required) - Resource reference to AI behavior
 @export var enemies: Array[Dictionary] = []
 
 @export_group("Neutral/NPC Forces")
-## Array of dictionaries: {character: CharacterData, position: Vector2i, ai_behavior: String}
-## AI behaviors: "aggressive", "defensive", "patrol", "stationary", "support"
+## Array of dictionaries with these fields:
+## - character: CharacterData (required)
+## - position: Vector2i (required)
+## - ai_brain: AIBrain (required) - Resource reference to AI behavior
 @export var neutrals: Array[Dictionary] = []
 
 @export_group("Victory Conditions")
@@ -89,8 +93,8 @@ func validate_enemies() -> bool:
 		if not 'position' in enemy:
 			push_error("BattleData: Enemy %d missing position" % i)
 			return false
-		if not 'ai_behavior' in enemy or enemy.ai_behavior == "":
-			push_error("BattleData: Enemy %d missing ai_behavior" % i)
+		if not 'ai_brain' in enemy or enemy.ai_brain == null:
+			push_error("BattleData: Enemy %d missing ai_brain" % i)
 			return false
 	return true
 
@@ -105,8 +109,8 @@ func validate_neutrals() -> bool:
 		if not 'position' in neutral:
 			push_error("BattleData: Neutral %d missing position" % i)
 			return false
-		if not 'ai_behavior' in neutral or neutral.ai_behavior == "":
-			push_error("BattleData: Neutral %d missing ai_behavior" % i)
+		if not 'ai_brain' in neutral or neutral.ai_brain == null:
+			push_error("BattleData: Neutral %d missing ai_brain" % i)
 			return false
 	return true
 

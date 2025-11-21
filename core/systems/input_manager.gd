@@ -26,6 +26,9 @@ signal turn_cancelled()  # Player wants to redo movement
 var current_state: InputState = InputState.WAITING
 var active_unit: Node2D = null
 
+## Turn session ID to prevent stale signals from previous turns
+var _turn_session_id: int = 0
+
 ## Movement tracking
 var movement_start_position: Vector2i = Vector2i.ZERO
 var current_cursor_position: Vector2i = Vector2i.ZERO
@@ -51,16 +54,36 @@ var path_visuals: Array[Node2D] = []
 func set_action_menu(menu: Control) -> void:
 	action_menu = menu
 
-	# Connect signals
+	# Connect signals (we'll manage connection lifecycle per turn)
 	if not action_menu.action_selected.is_connected(_on_action_menu_selected):
 		action_menu.action_selected.connect(_on_action_menu_selected)
 	if not action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
 		action_menu.menu_cancelled.connect(_on_action_menu_cancelled)
 
 
+## Disconnect action menu signals (called when turn ends)
+func _disconnect_action_menu_signals() -> void:
+	if action_menu:
+		if action_menu.action_selected.is_connected(_on_action_menu_selected):
+			action_menu.action_selected.disconnect(_on_action_menu_selected)
+		if action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
+			action_menu.menu_cancelled.disconnect(_on_action_menu_cancelled)
+
+
+## Reconnect action menu signals (called when player turn starts)
+func _reconnect_action_menu_signals() -> void:
+	if action_menu:
+		if not action_menu.action_selected.is_connected(_on_action_menu_selected):
+			action_menu.action_selected.connect(_on_action_menu_selected)
+		if not action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
+			action_menu.menu_cancelled.connect(_on_action_menu_cancelled)
+
+
 ## Handle action menu selection signal
 func _on_action_menu_selected(action: String) -> void:
-	_select_action(action)
+	# Capture current session ID at the time of signal emission
+	var signal_session_id: int = _turn_session_id
+	_select_action(action, signal_session_id)
 
 
 ## Handle action menu cancellation signal
@@ -75,6 +98,15 @@ func start_player_turn(unit: Node2D) -> void:
 	if not unit:
 		push_error("InputManager: Cannot start turn with null unit")
 		return
+
+	# Increment turn session ID to invalidate any queued signals from previous turns
+	_turn_session_id += 1
+	print("InputManager: New turn session ID: %d" % _turn_session_id)
+
+	# IMPORTANT: Disconnect first to clear any queued signals, THEN reconnect fresh
+	# No await needed - disconnecting immediately clears the signal queue
+	_disconnect_action_menu_signals()
+	_reconnect_action_menu_signals()
 
 	active_unit = unit
 	movement_start_position = unit.grid_position
@@ -104,6 +136,12 @@ func start_player_turn(unit: Node2D) -> void:
 func set_state(new_state: InputState) -> void:
 	var old_state: InputState = current_state
 	current_state = new_state
+
+	# Debug: Print stack trace when transitioning to WAITING unexpectedly
+	if new_state == InputState.WAITING and old_state == InputState.EXPLORING_MOVEMENT:
+		print("InputManager: WARNING - Unexpected transition from EXPLORING_MOVEMENT to WAITING!")
+		print("Stack trace:")
+		print_stack()
 
 	match new_state:
 		InputState.WAITING:
@@ -424,7 +462,38 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 
 
 ## Select action from menu
-func _select_action(action: String) -> void:
+func _select_action(action: String, signal_session_id: int) -> void:
+	print("InputManager: _select_action called with action='%s', state=%s, active_unit=%s, signal_session=%d, current_session=%d" % [
+		action,
+		InputState.keys()[current_state],
+		"null" if active_unit == null else active_unit.get_display_name(),
+		signal_session_id,
+		_turn_session_id
+	])
+
+	# Guard: Check if this signal is from a previous turn (stale)
+	if signal_session_id != _turn_session_id:
+		push_warning("InputManager: Ignoring STALE action selection '%s' from session %d (current session: %d)" % [
+			action,
+			signal_session_id,
+			_turn_session_id
+		])
+		return
+
+	# Guard: Only process actions when in correct state AND we have an active unit
+	if current_state != InputState.SELECTING_ACTION or active_unit == null:
+		push_warning("InputManager: Ignoring action selection '%s' in state %s (active_unit: %s)" % [
+			action,
+			InputState.keys()[current_state],
+			"null" if active_unit == null else active_unit.get_display_name()
+		])
+		return
+
+	# Additional safety: Only process if active unit is a player unit
+	if not active_unit.is_player_unit():
+		push_warning("InputManager: Ignoring action selection '%s' for non-player unit %s" % [action, active_unit.get_display_name()])
+		return
+
 	current_action = action
 
 	# Convert to lowercase for BattleManager (internal representation)
@@ -527,6 +596,9 @@ func end_player_turn() -> void:
 
 ## Reset to waiting state (called by TurnManager/BattleManager)
 func reset_to_waiting() -> void:
+	# Disconnect action menu to prevent stale signals
+	_disconnect_action_menu_signals()
+
 	active_unit = null
 	walkable_cells.clear()
 	available_actions.clear()

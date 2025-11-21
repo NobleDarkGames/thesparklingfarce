@@ -188,6 +188,11 @@ func _update_selection_visual() -> void:
 
 ## Confirm current selection
 func _confirm_selection() -> void:
+	# Safety: Don't emit signals if menu is not visible
+	if not visible:
+		print("ActionMenu: Ignoring confirmation while menu is hidden")
+		return
+
 	var selected_action: String = menu_items[selected_index]["action"]
 
 	print("ActionMenu: _confirm_selection called, selected_index=%d, action=%s" % [selected_index, selected_action])

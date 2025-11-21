@@ -141,13 +141,10 @@ func start_unit_turn(unit: Node2D) -> void:
 		print("Waiting for player input...")
 		# InputManager will handle from here
 	else:
-		# Enemy/AI unit - process immediately
+		# Enemy/AI unit - delegate to AIController
 		emit_signal("enemy_turn_started", unit)
-		print("AI processing...")
-		# For now, just end turn immediately (AI will be implemented in Week 3)
-		# TODO: Replace with actual AI in Step 7
-		await get_tree().create_timer(0.5).timeout  # Brief pause for visibility
-		end_unit_turn(unit)
+		print("Delegating to AIController...")
+		await AIController.process_enemy_turn(unit)
 
 
 ## End the current unit's turn
