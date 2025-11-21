@@ -8,6 +8,7 @@ signal action_selected(action: String)
 signal menu_cancelled()
 
 ## Menu items
+@onready var move_label: Label = $VBoxContainer/MoveButton
 @onready var attack_label: Label = $VBoxContainer/AttackButton
 @onready var magic_label: Label = $VBoxContainer/MagicButton
 @onready var item_label: Label = $VBoxContainer/ItemButton
@@ -32,6 +33,7 @@ func _ready() -> void:
 
 	# Build menu item array
 	menu_items = [
+		{"label": move_label, "action": "Move"},
 		{"label": attack_label, "action": "Attack"},
 		{"label": magic_label, "action": "Magic"},
 		{"label": item_label, "action": "Item"},
@@ -58,6 +60,8 @@ func show_menu(actions: Array[String], default_action: String = "") -> void:
 		_select_action_by_name(default_action)
 	elif "Attack" in available_actions:
 		_select_action_by_name("Attack")
+	elif "Move" in available_actions:
+		_select_action_by_name("Move")
 	else:
 		_select_action_by_name("Stay")
 

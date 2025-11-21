@@ -9,11 +9,12 @@ extends Node
 
 ## Input state machine
 enum InputState {
-	WAITING,           # Not player's turn
-	EXPLORING_MOVEMENT, # Freely exploring movement options (can cancel)
-	SELECTING_ACTION,  # Action menu open (Attack/Magic/Item/Stay)
-	TARGETING,         # Selecting target for attack/spell
-	EXECUTING,         # Action executing (animations, etc.)
+	WAITING,            # Not player's turn
+	WAITING_FOR_COMMAND, # Player's turn, waiting for initial command (action menu or movement)
+	EXPLORING_MOVEMENT,  # Freely exploring movement options (can cancel)
+	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Stay)
+	TARGETING,           # Selecting target for attack/spell
+	EXECUTING,           # Action executing (animations, etc.)
 }
 
 ## Signals
@@ -112,7 +113,7 @@ func start_player_turn(unit: Node2D) -> void:
 	movement_start_position = unit.grid_position
 	current_cursor_position = unit.grid_position
 
-	# Calculate walkable cells
+	# Calculate walkable cells (but don't show them yet)
 	if unit.character_data and unit.character_data.character_class:
 		var movement_range: int = unit.character_data.character_class.movement_range
 		var movement_type: int = unit.character_data.character_class.movement_type
@@ -124,12 +125,12 @@ func start_player_turn(unit: Node2D) -> void:
 	else:
 		walkable_cells = []
 
-	# Start in movement exploration mode
-	set_state(InputState.EXPLORING_MOVEMENT)
+	# Start waiting for player command (Shining Force style: action menu comes first)
+	set_state(InputState.WAITING_FOR_COMMAND)
 
 	print("InputManager: Player turn started for %s at %s" % [unit.get_display_name(), movement_start_position])
-	print("InputManager: %d walkable cells" % walkable_cells.size())
-	print("InputManager: Ready to receive input - click or use arrow keys to move")
+	print("InputManager: %d walkable cells available" % walkable_cells.size())
+	print("InputManager: Press Enter/Space to open action menu")
 
 
 ## Change input state
@@ -146,6 +147,8 @@ func set_state(new_state: InputState) -> void:
 	match new_state:
 		InputState.WAITING:
 			_on_enter_waiting()
+		InputState.WAITING_FOR_COMMAND:
+			_on_enter_waiting_for_command()
 		InputState.EXPLORING_MOVEMENT:
 			_on_enter_exploring_movement()
 		InputState.SELECTING_ACTION:
@@ -166,6 +169,18 @@ func _on_enter_waiting() -> void:
 	active_unit = null
 	walkable_cells.clear()
 	available_actions.clear()
+
+
+func _on_enter_waiting_for_command() -> void:
+	# Position cursor on unit, but don't show movement highlights yet
+	current_cursor_position = active_unit.grid_position
+
+	# Show cursor at unit position
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.show_cursor()
+
+	# Don't show movement highlights - waiting for player to press Enter for menu
 
 
 func _on_enter_exploring_movement() -> void:
@@ -195,7 +210,7 @@ func _on_enter_selecting_action() -> void:
 	_clear_path_preview()
 
 	# Calculate available actions based on context
-	_calculate_available_actions()
+	available_actions = _get_available_actions()
 
 	# Show action menu
 	_show_action_menu()
@@ -207,6 +222,20 @@ func _on_enter_targeting() -> void:
 
 	# Show valid targets based on selected action
 	_show_targeting_range()
+
+	# Position cursor on nearest valid target
+	var valid_targets: Array[Vector2i] = _get_valid_target_cells(1)  # TODO: Get actual weapon range
+	if not valid_targets.is_empty():
+		# Start cursor on first valid target
+		current_cursor_position = valid_targets[0]
+	else:
+		# No valid targets, position on unit
+		current_cursor_position = active_unit.grid_position
+
+	# Show cursor at target position
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.show_cursor()
 
 
 func _on_enter_executing() -> void:
@@ -222,12 +251,22 @@ func _input(event: InputEvent) -> void:
 			print("InputManager: Received input in state %s" % InputState.keys()[current_state])
 
 	match current_state:
+		InputState.WAITING_FOR_COMMAND:
+			_handle_waiting_for_command_input(event)
 		InputState.EXPLORING_MOVEMENT:
 			_handle_movement_input(event)
 		InputState.SELECTING_ACTION:
 			_handle_action_menu_input(event)
 		InputState.TARGETING:
 			_handle_targeting_input(event)
+
+
+## Handle waiting for command input (initial state - opens action menu)
+func _handle_waiting_for_command_input(event: InputEvent) -> void:
+	# Enter key opens action menu (Shining Force style)
+	if event.is_action_pressed("ui_accept"):
+		print("InputManager: Opening action menu")
+		_open_initial_action_menu()
 
 
 ## Handle movement exploration input
@@ -320,25 +359,29 @@ func _cancel_movement() -> void:
 
 
 ## Calculate which actions are available
-func _calculate_available_actions() -> void:
-	available_actions.clear()
+func _get_available_actions() -> Array[String]:
+	var actions: Array[String] = []
+
+	# Move - always available (lets player choose to move or not)
+	actions.append("Move")
 
 	# Attack - only if enemies in range
 	var enemies_in_range: bool = _check_enemies_in_range()
 	if enemies_in_range:
-		available_actions.append("Attack")
+		actions.append("Attack")
 
 	# Magic - only if unit has spells
 	if active_unit.character_data and _has_spells():
-		available_actions.append("Magic")
+		actions.append("Magic")
 
 	# Item - always available
-	available_actions.append("Item")
+	actions.append("Item")
 
-	# Stay - always available
-	available_actions.append("Stay")
+	# Stay - always available (ends turn without moving)
+	actions.append("Stay")
 
-	print("InputManager: Available actions: ", available_actions)
+	print("InputManager: Available actions: ", actions)
+	return actions
 
 
 ## Check if enemies are in attack range
@@ -401,6 +444,25 @@ func _move_cursor(offset: Vector2i) -> void:
 	print("InputManager: Cursor moved to %s" % current_cursor_position)
 
 
+## Move targeting cursor by offset (for attack/spell targeting)
+func _move_targeting_cursor(offset: Vector2i) -> void:
+	var new_pos: Vector2i = current_cursor_position + offset
+
+	# Check if new position is within bounds
+	if not GridManager.is_within_bounds(new_pos):
+		print("InputManager: Targeting cursor cannot move to %s (out of bounds)" % new_pos)
+		return
+
+	# Update cursor position (allow moving to any valid grid cell during targeting)
+	current_cursor_position = new_pos
+
+	# Update cursor visual
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+
+	print("InputManager: Targeting cursor moved to %s" % current_cursor_position)
+
+
 ## Update path preview from unit to cursor
 func _update_path_preview() -> void:
 	# Clear old path
@@ -457,6 +519,15 @@ func _clear_path_preview() -> void:
 
 
 ## Show action menu
+## Open action menu as first command (before movement)
+func _open_initial_action_menu() -> void:
+	# Calculate available actions without requiring movement first
+	available_actions = _get_available_actions()
+
+	# Transition to action selection state
+	set_state(InputState.SELECTING_ACTION)
+
+
 func _show_action_menu() -> void:
 	if not action_menu:
 		push_warning("InputManager: No action menu reference set")
@@ -528,6 +599,9 @@ func _select_action(action: String, signal_session_id: int) -> void:
 	print("InputManager: Action selected: %s" % action)
 
 	match action:
+		"Move":
+			# Enter movement exploration mode
+			set_state(InputState.EXPLORING_MOVEMENT)
 		"Attack":
 			set_state(InputState.TARGETING)
 		"Magic":
@@ -536,14 +610,21 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			# TODO: Open item menu
 			_execute_action()
 		"Stay":
+			# End turn without moving
 			_execute_action()
 
 
-## Cancel action menu and return to movement
+## Cancel action menu and return to previous state
 func _cancel_action_menu() -> void:
-	print("InputManager: Canceling action menu, returning to movement")
-	_cancel_movement()
-	set_state(InputState.EXPLORING_MOVEMENT)
+	print("InputManager: Canceling action menu")
+
+	# If unit hasn't moved, return to WAITING_FOR_COMMAND
+	# If unit has moved, return to EXPLORING_MOVEMENT
+	if not active_unit.has_moved:
+		set_state(InputState.WAITING_FOR_COMMAND)
+	else:
+		_cancel_movement()
+		set_state(InputState.EXPLORING_MOVEMENT)
 
 
 ## Get valid target cells based on action and range
@@ -593,7 +674,7 @@ func _show_targeting_range() -> void:
 		GridManager.highlight_targets(valid_targets)
 
 
-## Handle targeting input (placeholder)
+## Handle targeting input
 func _handle_targeting_input(event: InputEvent) -> void:
 	# Mouse click to select target
 	if event is InputEventMouseButton:
@@ -604,6 +685,22 @@ func _handle_targeting_input(event: InputEvent) -> void:
 			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
 			if target:
 				_select_target(target)
+
+	# Keyboard: Arrow keys to move targeting cursor
+	if event.is_action_pressed("ui_up"):
+		_move_targeting_cursor(Vector2i(0, -1))
+	elif event.is_action_pressed("ui_down"):
+		_move_targeting_cursor(Vector2i(0, 1))
+	elif event.is_action_pressed("ui_left"):
+		_move_targeting_cursor(Vector2i(-1, 0))
+	elif event.is_action_pressed("ui_right"):
+		_move_targeting_cursor(Vector2i(1, 0))
+
+	# Accept key to confirm target selection
+	if event.is_action_pressed("ui_accept"):
+		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		if target:
+			_select_target(target)
 
 	# Cancel targeting
 	if event.is_action_pressed("ui_cancel"):

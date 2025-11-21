@@ -54,6 +54,12 @@ offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="MoveButton" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+text = "Move"
+
 [node name="AttackButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
