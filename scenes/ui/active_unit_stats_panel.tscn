@@ -75,6 +75,33 @@ theme_override_font_sizes/font_size = 16
 text = "Hero"
 horizontal_alignment = 1
 
+[node name="InfoRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ClassLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "Warrior"
+
+[node name="LevelLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "Lv 1"
+horizontal_alignment = 2
+
+[node name="FactionLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "ALLY"
+horizontal_alignment = 1
+
 [node name="HPContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 4

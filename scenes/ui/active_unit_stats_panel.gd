@@ -6,6 +6,9 @@ class_name ActiveUnitStatsPanel
 extends PanelContainer
 
 @onready var unit_name_label: Label = %UnitNameLabel
+@onready var class_label: Label = %ClassLabel
+@onready var level_label: Label = %LevelLabel
+@onready var faction_label: Label = %FactionLabel
 @onready var hp_bar: ProgressBar = %HPBar
 @onready var hp_value: Label = %HPValue
 @onready var mp_bar: ProgressBar = %MPBar
@@ -38,6 +41,18 @@ func show_unit_stats(unit: Node2D) -> void:
 
 	# Update name
 	unit_name_label.text = unit.character_data.character_name
+
+	# Update class and level
+	class_label.text = unit.character_data.character_class.display_name
+	level_label.text = "Lv %d" % unit.stats.level
+
+	# Show faction (ALLY or ENEMY)
+	if unit.is_player_unit():
+		faction_label.text = "ALLY"
+		faction_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))  # Light blue
+	else:
+		faction_label.text = "ENEMY"
+		faction_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))  # Light red
 
 	# Update HP
 	hp_bar.max_value = unit.stats.max_hp

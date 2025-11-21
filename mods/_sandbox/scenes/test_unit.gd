@@ -100,6 +100,9 @@ func _ready() -> void:
 	# Set camera reference in InputManager for inspection mode
 	InputManager.camera = _camera
 
+	# Set stats panel reference in InputManager (used for both active unit and inspection)
+	InputManager.stats_panel = _stats_panel
+
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
 
@@ -216,9 +219,9 @@ func _process(_delta: float) -> void:
 
 	# Keep camera centered on active unit (except in inspection mode)
 	# In inspection mode, InputManager controls the camera to follow cursor
+	var camera: Camera2D = $Camera
+	var active_unit: Node2D = TurnManager.get_active_unit()
 	if InputManager.current_state != InputManager.InputState.INSPECTING:
-		var camera: Camera2D = $Camera
-		var active_unit: Node2D = TurnManager.get_active_unit()
 		if camera and active_unit and active_unit.is_alive():
 			camera.position = active_unit.position
 
@@ -236,8 +239,7 @@ func _process(_delta: float) -> void:
 			debug_label.text += "Hero: DEAD\n"
 		if _enemy_unit and _enemy_unit.is_alive():
 			debug_label.text += "Goblin: %s\n" % _enemy_unit.get_stats_summary()
-		else:
-			debug_label.text += "Goblin: DEAD\n"
+		else:			debug_label.text += "Goblin: DEAD\n"
 
 		# Show current turn state
 		if active_unit:

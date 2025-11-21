@@ -45,6 +45,7 @@ var action_menu: Control = null  # Will be set by battle scene
 var battle_scene: Node = null  # Reference to battle scene for UI access
 var grid_cursor: Node2D = null  # Visual cursor for grid movement
 var path_preview_parent: Node2D = null  # Parent node for path visuals
+var stats_panel: Control = null  # ActiveUnitStatsPanel for both active unit and inspection
 
 ## Path preview
 var current_path: Array[Vector2i] = []
@@ -189,10 +190,17 @@ func _on_enter_inspecting() -> void:
 	if grid_cursor:
 		grid_cursor.show_cursor()
 
+	# Update inspector for unit at current cursor position (if any)
+	_update_unit_inspector()
+
 	print("InputManager: Entering INSPECTING mode - cursor free to roam")
 
 
 func _on_enter_exploring_movement() -> void:
+	# Show active unit stats when exiting inspection mode
+	if stats_panel and active_unit:
+		stats_panel.show_unit_stats(active_unit)
+
 	# Show movement range highlights
 	if not walkable_cells.is_empty():
 		_show_movement_range()
@@ -559,6 +567,9 @@ func _move_free_cursor(offset: Vector2i) -> void:
 	if camera:
 		camera.move_to_cell(current_cursor_position)
 
+	# Update unit inspector panel based on what's under cursor
+	_update_unit_inspector()
+
 	print("InputManager: Free cursor moved to %s" % current_cursor_position)
 
 
@@ -868,8 +879,28 @@ func reset_to_waiting() -> void:
 	# Disconnect action menu to prevent stale signals
 	_disconnect_action_menu_signals()
 
+	# Hide stats panel
+	if stats_panel:
+		stats_panel.hide_stats()
+
 	active_unit = null
 	walkable_cells.clear()
 	available_actions.clear()
 	current_action = ""
 	set_state(InputState.WAITING)
+
+
+## Update stats panel based on cursor position during inspection
+func _update_unit_inspector() -> void:
+	if not stats_panel:
+		return
+
+	# Check what's under the cursor
+	var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+
+	if unit_at_cursor:
+		# Show stats for this unit (player or enemy)
+		stats_panel.show_unit_stats(unit_at_cursor)
+	else:
+		# No unit under cursor, hide stats
+		stats_panel.hide_stats()
