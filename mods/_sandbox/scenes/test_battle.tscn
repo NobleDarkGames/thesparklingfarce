@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3 uid="uid://bicpm7m231ctp"]
+
+[ext_resource type="PackedScene" uid="uid://b8yqv3j2xh3mc" path="res://scenes/battle_scene.tscn" id="1_base"]
+[ext_resource type="Script" path="res://mods/_sandbox/scenes/test_battle_setup.gd" id="2_setup"]
+
+[sub_resource type="TileSet" id="TileSet_test"]
+tile_size = Vector2i(32, 32)
+
+[node name="TestBattle" instance=ExtResource("1_base")]
+script = ExtResource("2_setup")
+
+[node name="GroundLayer" parent="Map" index="0"]
+tile_set = SubResource("TileSet_test")
+
+[node name="Camera" parent="." index="4"]
+follow_mode = 1

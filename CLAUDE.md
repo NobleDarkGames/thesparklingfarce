@@ -22,4 +22,4 @@ Otherwise, use this guide everywhere:  https://docs.godotengine.org/en/stable/tu
 Do not generate markdown documentation unless specifically requested to do so.
 
 When dealing with Git, it's ok to add files to staging, but DO NOT commit to the repo without my explicit instructions to do so.  
-
+- Staging is fine, but never commit to git without explicit instructions

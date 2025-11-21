@@ -14,7 +14,8 @@
 ## Controls:
 ## - Arrow Keys: Move cursor during your turn
 ## - Enter/Space: Confirm movement (opens action menu)
-## - Escape: Cancel/go back
+## - Backspace/X: Cancel/go back/free cursor inspect (B button)
+## - Q: Quit test scene
 ## - Action Menu: Arrow keys to select, Enter to confirm
 ##
 ## Tests Shining Force-style turn-based battle system
@@ -125,12 +126,12 @@ func _ready() -> void:
 
 	print("\n=== Controls ===")
 	print("Arrow keys = Move cursor")
-	print("Click/Enter = Confirm movement")
-	print("ESC/B = Cancel movement")
+	print("Enter/Space/Z = Confirm position / Open action menu")
+	print("Backspace/X = Free cursor inspect mode (B button)")
 	print("Arrow keys = Navigate action menu")
-	print("Enter = Confirm action")
-	print("1-4 = Quick select action")
-	print("ESC = Quit")
+	print("Enter/Space/Z = Confirm action")
+	print("Backspace/X in menu = Cancel and return to movement")
+	print("Q = Quit")
 
 
 func _generate_test_map() -> void:
@@ -206,8 +207,8 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 
 
 func _process(_delta: float) -> void:
-	# Quit on ESC (when not in a menu)
-	if Input.is_action_just_pressed("ui_cancel") and not _action_menu.visible:
+	# Quit on Q key (changed from ESC/Backspace to avoid conflict with B button functionality)
+	if Input.is_key_pressed(KEY_Q):
 		get_tree().quit()
 
 	# Keep camera centered on active unit
@@ -320,7 +321,7 @@ func _on_battle_ended(victory: bool) -> void:
 		print("YOU WIN!")
 	else:
 		print("YOU LOSE!")
-	print("Press ESC to quit")
+	print("Press Q to quit")
 
 
 func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
