@@ -78,6 +78,7 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [x] Make AI execution async to wait for movement animations
   - [x] Fix enemy attack timing (deferred until movement completes)
   - [x] Test with units at various map positions
+  - [x] **ENHANCEMENT**: Implement path-following movement (units follow A* route cell-by-cell)
 
 - [ ] **MP4: Basic Sound Effects**
   - [ ] Create audio/ directory structure
@@ -1294,6 +1295,17 @@ The system automatically uses custom art if provided, otherwise falls back to po
 4. Complete turn: Panels fade out
 5. Next turn: Panels reappear with updated stats (if damage was taken)
 
+**Space Optimization Enhancement (November 21, 2025):**
+- Reduced panel width from 180px to 140px (22% smaller)
+- Converted HP/MP from vertical stacks to horizontal inline layout
+- Reorganized combat stats into 2 compact horizontal rows:
+  - Row 1: `STR: 8  DEF: 7  AGI: 6`
+  - Row 2: `INT: 5  LUK: 4`
+- Reduced all margins (8px → 6px) and spacing (4px → 2px)
+- Font size optimizations (name: 20→16pt, labels: 14→12pt, values: 12→10pt)
+- HP/MP bars smaller (height: 16→12px, width: 150→60px with expansion)
+- Result: Significantly reduced screen real estate while maintaining readability
+
 ---
 
 ### MP3: Smooth Camera and Character Movement - ✅ COMPLETED & TESTED
@@ -1374,9 +1386,17 @@ The system automatically uses custom art if provided, otherwise falls back to po
 5. Watch Goblin slide toward Hero, pause, then attack
 6. Verify no instant teleportation occurs
 
+**Path-Following Movement Enhancement (November 21, 2025):**
+- Added `Unit.move_along_path()` method for cell-by-cell movement
+- Units now animate through each cell of their A* pathfinding route
+- Applies to both player-controlled and AI-controlled units
+- Tween chains create smooth sequential animations
+- Each step duration calculated dynamically based on distance
+- Grid occupation only updated at start/end (not intermediate cells)
+- Fallback to direct movement if pathfinding fails
+
 **Future Enhancements:**
 - Easy to switch interpolation types in Inspector
-- Can add path-following movement along multiple cells
 - Can implement camera shake on attacks
 - Can add unit sprite bobbing/rotation during movement
 - Structure supports bezier curves and custom easing functions
