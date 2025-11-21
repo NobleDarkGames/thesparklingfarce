@@ -36,6 +36,22 @@ extends Resource
 @export_group("Lore")
 @export_multiline var biography: String = ""
 
+@export_group("Battle Configuration")
+## Category helps organize characters in the editor and determines default behavior
+## "player" - Playable characters (heroes, party members)
+## "enemy" - Standard enemy units (can be spawned multiple times)
+## "boss" - Unique boss enemies (usually spawned once)
+## "neutral" - Non-combatant or ally NPCs
+@export_enum("player", "enemy", "boss", "neutral") var unit_category: String = "player"
+
+## If false, this is a template that can be used multiple times in battles (like "Goblin")
+## If true, this is a unique character that should only appear once (like "Max" or "Kane")
+@export var is_unique: bool = true
+
+## Default AI behavior for this unit when used as an enemy
+## Can be overridden in BattleData on a per-instance basis
+@export var default_ai_brain: AIBrain = null
+
 
 ## Get base stat value by name
 func get_base_stat(stat_name: String) -> int:

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Goblin"
+movement_range = 4
+movement_type = 0
+promotion_level = 0
+equippable_weapon_types = Array[String](["knife", "club"])
+equippable_armor_types = Array[String](["light"])

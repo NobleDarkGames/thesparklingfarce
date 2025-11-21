@@ -226,6 +226,10 @@ func _on_mod_selected(index: int) -> void:
 	var mod_id: String = mod_selector.get_item_metadata(index)
 
 	if ModLoader and ModLoader.set_active_mod(mod_id):
+		# Notify all editors that the active mod changed
+		if EditorEventBus:
+			EditorEventBus.active_mod_changed.emit(mod_id)
+
 		_update_mod_info(index)
 		_refresh_all_editors()
 	else:
@@ -248,6 +252,11 @@ func _update_mod_info(index: int) -> void:
 func _on_refresh_mods() -> void:
 	if ModLoader:
 		ModLoader.reload_mods()
+
+		# Notify all editors that mods were reloaded
+		if EditorEventBus:
+			EditorEventBus.mods_reloaded.emit()
+
 		_refresh_mod_list()
 		_refresh_all_editors()
 

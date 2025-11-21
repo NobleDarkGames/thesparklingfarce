@@ -58,9 +58,24 @@ func _ready() -> void:
 	GridManager.setup_grid(grid_resource, _ground_layer)
 	GridManager.set_highlight_layer(_highlight_layer)
 
-	# Create test character data
-	var player_character: CharacterData = _create_test_character("Hero", 15, 10, 8, 7, 6, 5, 4)
-	var enemy_character: CharacterData = _create_test_character("Goblin", 12, 5, 6, 4, 5, 3, 3)
+	# Load character data from editor-created resources
+	# This demonstrates loading data created in the Sparkling Editor
+	#
+	# Method 1: Direct path loading (simple, hardcoded)
+	var player_character: CharacterData = load("res://mods/_base_game/data/characters/character_1763004880.tres")  # Ted
+	if not player_character:
+		push_error("Failed to load Ted character! Falling back to programmatic creation.")
+		player_character = _create_test_character("Hero", 15, 10, 8, 7, 6, 5, 4)
+
+	# Method 2: Using ModLoader registry (recommended for flexibility)
+	# var player_character: CharacterData = ModLoader.registry.get_resource("character", "character_1763004880", "base_game")
+	# This allows for mod overrides and is more flexible
+
+	# Load enemy from editor (now uses the Goblin template!)
+	var enemy_character: CharacterData = load("res://mods/_base_game/data/characters/character_goblin.tres")
+	if not enemy_character:
+		push_error("Failed to load Goblin character! Falling back to programmatic creation.")
+		enemy_character = _create_test_character("Goblin", 12, 5, 6, 4, 5, 3, 3)
 
 	# Create AI brains (load at runtime)
 	var AIAggressiveClass: GDScript = load("res://mods/base_game/ai_brains/ai_aggressive.gd")

@@ -4,12 +4,19 @@ extends EditorPlugin
 ## Main plugin for The Sparkling Farce content editor
 
 const MainPanelScene: PackedScene = preload("res://addons/sparkling_editor/ui/main_panel.tscn")
+const EditorEventBus: GDScript = preload("res://addons/sparkling_editor/editor_event_bus.gd")
 
 var main_panel: Control
+var event_bus: Node
 
 
 func _enter_tree() -> void:
 	print("Sparkling Editor: Initializing...")
+
+	# Create and register the EditorEventBus as an autoload
+	event_bus = EditorEventBus.new()
+	event_bus.name = "EditorEventBus"
+	add_autoload_singleton("EditorEventBus", "res://addons/sparkling_editor/editor_event_bus.gd")
 
 	# Instantiate the main panel from scene
 	main_panel = MainPanelScene.instantiate()
@@ -27,3 +34,6 @@ func _exit_tree() -> void:
 	if main_panel:
 		remove_control_from_bottom_panel(main_panel)
 		main_panel.queue_free()
+
+	# Remove the event bus autoload
+	remove_autoload_singleton("EditorEventBus")

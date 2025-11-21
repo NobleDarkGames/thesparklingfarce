@@ -235,6 +235,10 @@ func _on_save() -> void:
 	var path: String = resource_list.get_item_metadata(selected_items[0])
 	var err: Error = ResourceSaver.save(current_resource, path)
 	if err == OK:
+		# Notify other editors that a resource was saved
+		if EditorEventBus:
+			EditorEventBus.notify_resource_saved(resource_type_id, path, current_resource)
+
 		_refresh_list()
 	else:
 		push_error("Failed to save " + resource_type_name.to_lower() + ": " + str(err))
@@ -270,6 +274,10 @@ func _on_create_new() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
+		# Notify other editors that a resource was created
+		if EditorEventBus:
+			EditorEventBus.notify_resource_created(resource_type_id, full_path, new_resource)
+
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
@@ -308,6 +316,10 @@ func _on_delete() -> void:
 	if dir:
 		var err: Error = dir.remove(path)
 		if err == OK:
+			# Notify other editors that a resource was deleted
+			if EditorEventBus:
+				EditorEventBus.notify_resource_deleted(resource_type_id, path)
+
 			current_resource = null
 			_refresh_list()
 		else:

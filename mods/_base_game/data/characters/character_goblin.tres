@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://cfk8p3yh1n0qx"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/classes/class_goblin.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+character_name = "Goblin"
+character_class = ExtResource("2")
+base_hp = 12
+base_mp = 5
+base_strength = 6
+base_defense = 4
+base_agility = 5
+base_intelligence = 3
+base_luck = 3
+starting_level = 1
+hp_growth = 40
+mp_growth = 20
+strength_growth = 35
+defense_growth = 30
+agility_growth = 40
+intelligence_growth = 15
+luck_growth = 25
+biography = "A weak goblin enemy. Often found in groups."
+unit_category = "enemy"
+is_unique = false

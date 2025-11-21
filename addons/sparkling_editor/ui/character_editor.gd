@@ -9,6 +9,11 @@ var class_option: OptionButton
 var level_spin: SpinBox
 var bio_edit: TextEdit
 
+# Battle configuration fields
+var category_option: OptionButton
+var is_unique_check: CheckBox
+var default_ai_option: OptionButton
+
 # Stat editors
 var hp_spin: SpinBox
 var mp_spin: SpinBox
@@ -28,6 +33,8 @@ var int_growth_slider: HSlider
 var luk_growth_slider: HSlider
 
 var available_classes: Array[ClassData] = []
+var available_ai_brains: Array[AIBrain] = []
+var current_filter: String = "all"  # "all", "player", "enemy", "boss", "neutral"
 
 
 func _ready() -> void:
@@ -37,11 +44,41 @@ func _ready() -> void:
 	super._ready()
 	_load_available_classes()
 
+	# Listen for class changes from other editor tabs via EditorEventBus
+	if EditorEventBus:
+		EditorEventBus.resource_saved.connect(_on_resource_event)
+		EditorEventBus.resource_created.connect(_on_resource_event)
+		EditorEventBus.resource_deleted.connect(_on_resource_deleted_event)
+
+
+## Override: Refresh the editor when mod changes or new resources are created
+func _refresh_list() -> void:
+	super._refresh_list()
+	# Also reload the class dropdown when refreshing
+	_load_available_classes()
+
+
+## Handle resource saved/created events from EditorEventBus
+func _on_resource_event(res_type: String, res_id: String, resource: Resource) -> void:
+	# Reload class dropdown when any class is saved or created
+	if res_type == "class":
+		_load_available_classes()
+
+
+## Handle resource deleted events from EditorEventBus
+func _on_resource_deleted_event(res_type: String, res_id: String) -> void:
+	# Reload class dropdown when any class is deleted
+	if res_type == "class":
+		_load_available_classes()
+
 
 ## Override: Create the character-specific detail form
 func _create_detail_form() -> void:
 	# Basic info section
 	_add_basic_info_section()
+
+	# Battle configuration section
+	_add_battle_configuration_section()
 
 	# Stats section
 	_add_stats_section()
@@ -62,6 +99,24 @@ func _load_resource_data() -> void:
 	name_edit.text = character.character_name
 	level_spin.value = character.starting_level
 	bio_edit.text = character.biography
+
+	# Set battle configuration
+	var category_index: int = category_option.get_item_index(character.unit_category)
+	if category_index >= 0:
+		category_option.select(category_index)
+	else:
+		category_option.select(0)  # Default to "player"
+
+	is_unique_check.button_pressed = character.is_unique
+
+	# Set default AI brain
+	if character.default_ai_brain:
+		for i in range(available_ai_brains.size()):
+			if available_ai_brains[i] == character.default_ai_brain:
+				default_ai_option.select(i + 1)
+				break
+	else:
+		default_ai_option.select(0)  # (None)
 
 	# Set class
 	if character.character_class:
@@ -99,6 +154,20 @@ func _save_resource_data() -> void:
 	character.character_name = name_edit.text
 	character.starting_level = int(level_spin.value)
 	character.biography = bio_edit.text
+
+	# Update battle configuration
+	var selected_category_idx: int = category_option.selected
+	if selected_category_idx >= 0:
+		character.unit_category = category_option.get_item_text(selected_category_idx)
+
+	character.is_unique = is_unique_check.button_pressed
+
+	# Update default AI brain
+	var ai_index: int = default_ai_option.selected - 1
+	if ai_index >= 0 and ai_index < available_ai_brains.size():
+		character.default_ai_brain = available_ai_brains[ai_index]
+	else:
+		character.default_ai_brain = null
 
 	# Update class
 	var class_index: int = class_option.selected - 1
@@ -235,6 +304,67 @@ func _add_basic_info_section() -> void:
 	detail_panel.add_child(section)
 
 
+func _add_battle_configuration_section() -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Battle Configuration"
+	section_label.add_theme_font_size_override("font_size", 14)
+	section.add_child(section_label)
+
+	# Unit Category
+	var category_container: HBoxContainer = HBoxContainer.new()
+	var category_label: Label = Label.new()
+	category_label.text = "Unit Category:"
+	category_label.custom_minimum_size.x = 120
+	category_container.add_child(category_label)
+
+	category_option = OptionButton.new()
+	category_option.add_item("player", 0)
+	category_option.add_item("enemy", 1)
+	category_option.add_item("boss", 2)
+	category_option.add_item("neutral", 3)
+	category_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	category_container.add_child(category_option)
+	section.add_child(category_container)
+
+	# Is Unique
+	var unique_container: HBoxContainer = HBoxContainer.new()
+	var unique_label: Label = Label.new()
+	unique_label.text = "Is Unique:"
+	unique_label.custom_minimum_size.x = 120
+	unique_container.add_child(unique_label)
+
+	is_unique_check = CheckBox.new()
+	is_unique_check.button_pressed = true
+	is_unique_check.text = "This is a unique character (not a reusable template)"
+	unique_container.add_child(is_unique_check)
+	section.add_child(unique_container)
+
+	# Default AI Brain
+	var ai_container: HBoxContainer = HBoxContainer.new()
+	var ai_label: Label = Label.new()
+	ai_label.text = "Default AI:"
+	ai_label.custom_minimum_size.x = 120
+	ai_container.add_child(ai_label)
+
+	default_ai_option = OptionButton.new()
+	default_ai_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ai_container.add_child(default_ai_option)
+	section.add_child(ai_container)
+
+	var ai_help: Label = Label.new()
+	ai_help.text = "AI used when this character is an enemy (can override in Battle Editor)"
+	ai_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	ai_help.add_theme_font_size_override("font_size", 10)
+	section.add_child(ai_help)
+
+	detail_panel.add_child(section)
+
+	# Load available AI brains after creating the dropdown
+	_load_available_ai_brains()
+
+
 func _add_stats_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
@@ -322,15 +452,61 @@ func _load_available_classes() -> void:
 	class_option.clear()
 	class_option.add_item("(None)", 0)
 
-	var dir: DirAccess = DirAccess.open("res://data/classes/")
+	# Use ModLoader to get the correct directory for the active mod
+	var class_dir: String = ""
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+			if "class" in resource_dirs:
+				class_dir = resource_dirs["class"]
+
+	# Fallback to legacy path if ModLoader unavailable
+	if class_dir == "":
+		class_dir = "res://data/classes/"
+
+	var dir: DirAccess = DirAccess.open(class_dir)
 	if dir:
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
 		while file_name != "":
 			if file_name.ends_with(".tres"):
-				var class_data: ClassData = load("res://data/classes/" + file_name)
+				var class_data: ClassData = load(class_dir.path_join(file_name))
 				if class_data:
 					available_classes.append(class_data)
 					class_option.add_item(class_data.display_name, available_classes.size())
 			file_name = dir.get_next()
 		dir.list_dir_end()
+	else:
+		push_warning("Character Editor: Could not open class directory: " + class_dir)
+
+
+func _load_available_ai_brains() -> void:
+	available_ai_brains.clear()
+	default_ai_option.clear()
+	default_ai_option.add_item("(None)", 0)
+
+	# Scan for AI brain files in mods
+	var ai_dirs: Array[String] = [
+		"res://mods/base_game/ai_brains/",
+		"res://mods/_base_game/ai_brains/",
+		"res://core/ai/"  # Future location for built-in AI
+	]
+
+	for ai_dir in ai_dirs:
+		var dir: DirAccess = DirAccess.open(ai_dir)
+		if dir:
+			dir.list_dir_begin()
+			var file_name: String = dir.get_next()
+			while file_name != "":
+				if file_name.ends_with(".gd") and not file_name.begins_with("."):
+					var ai_script: GDScript = load(ai_dir.path_join(file_name))
+					if ai_script:
+						# Create an instance to get the class name/type
+						var ai_instance: AIBrain = ai_script.new()
+						if ai_instance:
+							var display_name: String = file_name.get_basename().replace("ai_", "").capitalize()
+							available_ai_brains.append(ai_instance)
+							default_ai_option.add_item(display_name, available_ai_brains.size())
+				file_name = dir.get_next()
+			dir.list_dir_end()
