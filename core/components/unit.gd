@@ -29,6 +29,10 @@ signal status_effect_cleared(effect_type: String)
 ## Runtime stats
 var stats: RefCounted = null  # UnitStats instance
 
+## Movement animation settings
+var movement_speed: float = 200.0  # Pixels per second
+var _movement_tween: Tween = null
+
 ## Grid position
 var grid_position: Vector2i = Vector2i.ZERO
 
@@ -144,8 +148,8 @@ func move_to(target_cell: Vector2i) -> void:
 	# Update internal position
 	grid_position = target_cell
 
-	# Update world position
-	position = GridManager.cell_to_world(target_cell)
+	# Animate movement to new position
+	_animate_movement_to(target_cell)
 
 	# Mark as moved this turn
 	has_moved = true
@@ -154,6 +158,33 @@ func move_to(target_cell: Vector2i) -> void:
 	moved.emit(old_position, target_cell)
 
 	print("%s moved from %s to %s" % [character_data.character_name, old_position, target_cell])
+
+
+## Animate smooth movement to target cell
+func _animate_movement_to(target_cell: Vector2i) -> Tween:
+	# Kill any existing movement tween
+	if _movement_tween and _movement_tween.is_valid():
+		_movement_tween.kill()
+		_movement_tween = null
+
+	# Get target world position
+	var target_position: Vector2 = GridManager.cell_to_world(target_cell)
+
+	# Calculate distance and duration
+	var distance: float = position.distance_to(target_position)
+	var duration: float = distance / movement_speed
+
+	print("DEBUG [TO REMOVE]: %s animating movement over %.2fs (distance: %.1f)" % [character_data.character_name, duration, distance])  # DEBUG: TO REMOVE
+
+	# Create tween for smooth movement
+	_movement_tween = create_tween()
+	_movement_tween.set_trans(Tween.TRANS_LINEAR)
+	_movement_tween.set_ease(Tween.EASE_IN_OUT)
+
+	# Animate position
+	_movement_tween.tween_property(self, "position", target_position, duration)
+
+	return _movement_tween
 
 
 ## Take damage from attack

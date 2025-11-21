@@ -19,11 +19,22 @@ enum FollowMode {
 
 @export var follow_mode: FollowMode = FollowMode.NONE
 
-## Speed of camera interpolation (higher = faster)
-@export_range(1.0, 20.0, 0.5) var follow_speed: float = 4.0
+## Duration of camera movement in seconds
+@export_range(0.1, 3.0, 0.1) var movement_duration: float = 0.6
 
-## Enable smooth camera movement (lerp) or instant snap
+## Enable smooth camera movement (tween) or instant snap
 @export var smooth_movement: bool = true
+
+## Interpolation type for camera movement
+enum InterpolationType {
+	LINEAR,        ## Simple linear interpolation (lerp)
+	EASE_IN,       ## Slow start, fast end
+	EASE_OUT,      ## Fast start, slow end
+	EASE_IN_OUT,   ## Slow start and end, fast middle
+	CUBIC          ## Smooth cubic curve
+}
+
+@export var interpolation_type: InterpolationType = InterpolationType.LINEAR
 
 ## Dead zone - cursor must be this far from screen center before camera moves
 ## Measured in pixels at base resolution (640x360)
@@ -40,6 +51,9 @@ var _tilemap: TileMapLayer = null
 
 ## Cache for map bounds
 var _map_bounds: Rect2i = Rect2i()
+
+## Current movement tween
+var _movement_tween: Tween = null
 
 
 func _ready() -> void:
@@ -100,22 +114,10 @@ func _update_camera_limits() -> void:
 	_map_bounds = Rect2i(map_origin, map_pixel_size)
 
 
-func _process(delta: float) -> void:
-	# Early return for NONE mode
-	if follow_mode == FollowMode.NONE:
-		return
-
-	# Update target based on follow mode
-	match follow_mode:
-		FollowMode.CURSOR:
-			_follow_cursor()
-		FollowMode.ACTIVE_UNIT:
-			_follow_active_unit()
-		FollowMode.TARGET_POSITION:
-			pass  # Target is set externally via set_target_position()
-
-	# Move camera toward target
-	_update_camera_position(delta)
+func _process(_delta: float) -> void:
+	# Note: Camera movement is now handled by tweens, not per-frame updates
+	# This process function is kept for potential future cursor following
+	pass
 
 
 ## Follow cursor with dead zone
@@ -138,22 +140,60 @@ func _follow_active_unit() -> void:
 	pass
 
 
-## Update camera position with smooth interpolation or instant snap
-func _update_camera_position(delta: float) -> void:
-	if smooth_movement:
-		# Smooth interpolation
-		position = position.lerp(_target_position, follow_speed * delta)
-		# Snap to pixel to prevent sub-pixel rendering
-		position = position.floor()
-	else:
-		# Instant snap
-		position = _target_position.floor()
-
-
 ## Set target position for camera to move to
 func set_target_position(target: Vector2) -> void:
 	_target_position = target
 	follow_mode = FollowMode.TARGET_POSITION
+
+	# Kill any existing tween
+	if _movement_tween and _movement_tween.is_valid():
+		_movement_tween.kill()
+		_movement_tween = null
+
+	if not smooth_movement:
+		# Instant snap
+		position = _target_position.floor()
+		return
+
+	# Create new tween for smooth movement
+	_movement_tween = create_tween()
+
+	# Set transition type based on interpolation setting
+	match interpolation_type:
+		InterpolationType.LINEAR:
+			_movement_tween.set_trans(Tween.TRANS_LINEAR)
+		InterpolationType.EASE_IN:
+			_movement_tween.set_trans(Tween.TRANS_QUAD)
+			_movement_tween.set_ease(Tween.EASE_IN)
+		InterpolationType.EASE_OUT:
+			_movement_tween.set_trans(Tween.TRANS_QUAD)
+			_movement_tween.set_ease(Tween.EASE_OUT)
+		InterpolationType.EASE_IN_OUT:
+			_movement_tween.set_trans(Tween.TRANS_QUAD)
+			_movement_tween.set_ease(Tween.EASE_IN_OUT)
+		InterpolationType.CUBIC:
+			_movement_tween.set_trans(Tween.TRANS_CUBIC)
+			_movement_tween.set_ease(Tween.EASE_IN_OUT)
+
+	# Tween to target position
+	_movement_tween.tween_property(self, "position", _target_position, movement_duration)
+
+	# Snap to pixel after tween completes to prevent sub-pixel rendering
+	_movement_tween.tween_callback(func() -> void: position = position.floor())
+
+
+## Follow a specific unit smoothly
+func follow_unit(unit: Node2D) -> void:
+	"""Move camera to center on the given unit's position."""
+	if not unit:
+		push_warning("CameraController: Cannot follow null unit")
+		return
+
+	# Get unit's world position
+	var unit_position: Vector2 = unit.global_position
+
+	# Set as target and enable target position mode
+	set_target_position(unit_position)
 
 
 ## Move camera to grid cell (centered)

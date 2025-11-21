@@ -34,6 +34,7 @@ var _action_menu: Control = null  # Action menu UI
 var _grid_cursor: Node2D = null  # Grid cursor visual
 var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
 var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
+var _camera: CameraController = null  # Camera controller
 
 
 func _ready() -> void:
@@ -91,6 +92,9 @@ func _ready() -> void:
 	# Get reference to stats panels
 	_stats_panel = $UI/HUD/ActiveUnitStatsPanel
 	_terrain_panel = $UI/HUD/TerrainInfoPanel
+
+	# Get reference to camera
+	_camera = $Camera
 
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
@@ -273,6 +277,9 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
+	# Move camera to active unit
+	_camera.follow_unit(unit)
+
 	# Show stats and terrain panels
 	_stats_panel.show_unit_stats(unit)
 	var unit_cell: Vector2i = unit.grid_position
@@ -286,6 +293,9 @@ func _on_player_turn_started(unit: Node2D) -> void:
 func _on_enemy_turn_started(unit: Node2D) -> void:
 	print("\n>>> ENEMY'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
+
+	# Move camera to active unit
+	_camera.follow_unit(unit)
 
 	# Show stats and terrain panels for enemy turn (optional)
 	_stats_panel.show_unit_stats(unit)

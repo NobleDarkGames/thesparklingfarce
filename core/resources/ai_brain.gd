@@ -20,6 +20,25 @@ func execute(unit: Node2D, context: Dictionary) -> void:
 	push_error("AIBrain.execute() must be overridden by subclass: %s" % get_class())
 
 
+## Async version of execute - waits for movement animations to complete
+## Override this in subclasses for async behavior, or keep execute() for backwards compatibility
+func execute_async(unit: Node2D, context: Dictionary) -> void:
+	print("DEBUG [TO REMOVE]: execute_async called for %s" % unit.character_data.character_name)  # DEBUG: TO REMOVE
+
+	# Default implementation calls the synchronous execute() and waits
+	execute(unit, context)
+
+	print("DEBUG [TO REMOVE]: After execute(), checking tween. Tween exists: %s, is_valid: %s" % [unit._movement_tween != null, unit._movement_tween.is_valid() if unit._movement_tween else false])  # DEBUG: TO REMOVE
+
+	# If unit has a movement tween, wait for it
+	if unit._movement_tween and unit._movement_tween.is_valid():
+		print("DEBUG [TO REMOVE]: Waiting for %s movement animation to finish" % unit.character_data.character_name)  # DEBUG: TO REMOVE
+		await unit._movement_tween.finished
+		print("DEBUG [TO REMOVE]: Movement animation finished for %s" % unit.character_data.character_name)  # DEBUG: TO REMOVE
+	else:
+		print("DEBUG [TO REMOVE]: No movement tween to wait for (unit didn't move or instant movement)" % unit.character_data.character_name)  # DEBUG: TO REMOVE
+
+
 ## Helper: Get all player units from context
 func get_player_units(context: Dictionary) -> Array[Node2D]:
 	if "player_units" in context:

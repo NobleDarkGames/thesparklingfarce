@@ -29,16 +29,10 @@ func process_enemy_turn(unit: Node2D) -> void:
 	# Execute AI brain if available
 	if unit.ai_brain:
 		print("AIController: Using AI brain: %s" % unit.ai_brain.get_class())
-		unit.ai_brain.execute(unit, context)
+		await unit.ai_brain.execute_async(unit, context)
 	else:
 		# No AI brain assigned - log warning
 		push_warning("AIController: Unit %s has no ai_brain assigned, ending turn" % unit.get_display_name())
-
-	# AI execution is synchronous for Phase 3
-	# Phase 4 may add async animations requiring await
-
-	# Small delay for visibility during testing
-	await get_tree().create_timer(0.3).timeout
 
 	# End turn (only if not already ended by BattleManager during attack)
 	# This handles cases where AI doesn't attack (movement only, or stationary with no targets)
