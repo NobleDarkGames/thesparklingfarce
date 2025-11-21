@@ -206,6 +206,9 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 
 
 ## Update A* grid weights based on movement type
+## NOTE: This iterates the entire grid (O(width * height)) on each pathfinding call.
+## For current grid sizes (10x10 to 20x11), this is acceptable performance.
+## Future optimization: Cache A* weights per movement type, invalidate only on occupation changes.
 func _update_astar_weights(movement_type: int) -> void:
 	for x in range(grid.grid_size.x):
 		for y in range(grid.grid_size.y):
