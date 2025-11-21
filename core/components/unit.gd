@@ -61,6 +61,10 @@ func _ready() -> void:
 	_update_visual()
 	_update_health_bar()
 
+	# Update name if character data already set
+	if character_data and name_label:
+		name_label.text = character_data.character_name
+
 
 ## Initialize unit from CharacterData
 func initialize(
