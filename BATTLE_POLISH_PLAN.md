@@ -3,6 +3,30 @@
 
 This document outlines the implementation plan for polishing The Sparkling Farce's battle system to better match Shining Force's mechanics and UI.
 
+**Last Updated:** November 21, 2025
+
+---
+
+## Recent Session Summary (November 21, 2025)
+
+### Completed Features:
+1. **Shining Force Turn Flow** - Action menu appears BEFORE movement, allowing attacks/items without moving
+2. **Keyboard/Gamepad Targeting** - Full cursor support for targeting enemies with arrow keys
+3. **Enemy AI Delays** - Configurable pauses (0.5s turn start, 0.5s after movement, 0.3s before attack)
+4. **UI Improvements** - Stats panel compacted, pixel font clarity improved (16pt standard)
+5. **Path-Following Movement** - Units animate cell-by-cell along A* routes instead of diagonal lines
+6. **Character Names** - Units display actual names ("Hero", "Goblin") instead of "Unit"
+7. **Bug Fixes** - Attack range highlights clear properly, action menu includes "Move" option
+
+### Key Files Modified:
+- `core/systems/input_manager.gd` - Turn flow, keyboard targeting, highlight cleanup
+- `core/systems/ai_controller.gd` - Configurable AI delays
+- `mods/base_game/ai_brains/ai_aggressive.gd` - Delay integration
+- `scenes/ui/action_menu.*` - Added "Move" button
+- `scenes/ui/active_unit_stats_panel.tscn` - Compact horizontal layout, 16pt fonts
+- `scenes/ui/terrain_info_panel.tscn` - Font clarity improvements
+- `core/components/unit.gd` - Name label display fix
+
 ---
 
 ## Progress Checklist
@@ -1394,6 +1418,22 @@ The system automatically uses custom art if provided, otherwise falls back to po
 - Each step duration calculated dynamically based on distance
 - Grid occupation only updated at start/end (not intermediate cells)
 - Fallback to direct movement if pathfinding fails
+
+**Enemy AI Delays (November 21, 2025):**
+- Added configurable delays to `AIController` (@export variables)
+  - `delay_before_turn_start`: 0.5s - Pause when enemy turn begins
+  - `delay_after_movement`: 0.5s - Pause after repositioning
+  - `delay_before_attack`: 0.3s - Pause before executing attack
+- Delays passed to AI brains via context dictionary
+- Makes enemy actions feel deliberate and gives players time to understand decisions
+- All delays adjustable in Inspector for fine-tuning
+
+**Turn Order System Note:**
+- Uses Shining Force II priority formula: `Priority = AGI × Random(0.875 to 1.125) + Random(-1, 0, 1)`
+- Turn order has intentional randomness - higher AGI units can sometimes go second
+- This is authentic Shining Force behavior, adds tactical unpredictability
+- Priority recalculated each turn cycle
+- No disk I/O involved - variance is purely RNG-based
 
 **Future Enhancements:**
 - Easy to switch interpolation types in Inspector
