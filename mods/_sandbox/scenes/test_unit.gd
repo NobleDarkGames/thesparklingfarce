@@ -97,6 +97,9 @@ func _ready() -> void:
 	# Get reference to camera
 	_camera = $Camera
 
+	# Set camera reference in InputManager for inspection mode
+	InputManager.camera = _camera
+
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
 
@@ -211,11 +214,13 @@ func _process(_delta: float) -> void:
 	if Input.is_key_pressed(KEY_Q):
 		get_tree().quit()
 
-	# Keep camera centered on active unit
-	var camera: Camera2D = $Camera
-	var active_unit: Node2D = TurnManager.get_active_unit()
-	if camera and active_unit and active_unit.is_alive():
-		camera.position = active_unit.position
+	# Keep camera centered on active unit (except in inspection mode)
+	# In inspection mode, InputManager controls the camera to follow cursor
+	if InputManager.current_state != InputManager.InputState.INSPECTING:
+		var camera: Camera2D = $Camera
+		var active_unit: Node2D = TurnManager.get_active_unit()
+		if camera and active_unit and active_unit.is_alive():
+			camera.position = active_unit.position
 
 	# Update debug label
 	var mouse_world: Vector2 = get_global_mouse_position()

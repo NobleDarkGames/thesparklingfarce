@@ -50,6 +50,11 @@ var path_preview_parent: Node2D = null  # Parent node for path visuals
 var current_path: Array[Vector2i] = []
 var path_visuals: Array[Node2D] = []
 
+## Continuous input handling
+var _input_delay: float = 0.0
+const INPUT_DELAY_INITIAL: float = 0.3  # Delay before repeat starts
+const INPUT_DELAY_REPEAT: float = 0.1   # Delay between repeats
+
 
 ## Set action menu reference and connect signals
 func set_action_menu(menu: Control) -> void:
@@ -251,6 +256,42 @@ func _on_enter_executing() -> void:
 		grid_cursor.hide_cursor()
 
 
+## Handle continuous key presses (for cursor movement when held)
+func _process(delta: float) -> void:
+	# Only handle continuous input in movement and inspection modes
+	if current_state != InputState.EXPLORING_MOVEMENT and current_state != InputState.INSPECTING:
+		return
+
+	# Check if any directional key is held
+	var direction: Vector2i = Vector2i.ZERO
+	if Input.is_action_pressed("ui_up"):
+		direction.y = -1
+	elif Input.is_action_pressed("ui_down"):
+		direction.y = 1
+	elif Input.is_action_pressed("ui_left"):
+		direction.x = -1
+	elif Input.is_action_pressed("ui_right"):
+		direction.x = 1
+
+	# If a direction is held, handle with delay
+	if direction != Vector2i.ZERO:
+		# Only process if delay has expired
+		if _input_delay > 0.0:
+			_input_delay -= delta
+		else:
+			# Move cursor
+			if current_state == InputState.EXPLORING_MOVEMENT:
+				_move_cursor(direction)
+			elif current_state == InputState.INSPECTING:
+				_move_free_cursor(direction)
+
+			# Set repeat delay (faster after initial delay)
+			_input_delay = INPUT_DELAY_REPEAT
+	else:
+		# No direction held, reset delay to 0 (next press will be immediate via _input)
+		_input_delay = 0.0
+
+
 ## Process input based on current state
 func _input(event: InputEvent) -> void:
 	# Debug: Show that we're receiving input
@@ -274,12 +315,16 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 	# Arrow keys move cursor freely (no restrictions)
 	if event.is_action_pressed("ui_up"):
 		_move_free_cursor(Vector2i(0, -1))
+		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
 	elif event.is_action_pressed("ui_down"):
 		_move_free_cursor(Vector2i(0, 1))
+		_input_delay = INPUT_DELAY_INITIAL
 	elif event.is_action_pressed("ui_left"):
 		_move_free_cursor(Vector2i(-1, 0))
+		_input_delay = INPUT_DELAY_INITIAL
 	elif event.is_action_pressed("ui_right"):
 		_move_free_cursor(Vector2i(1, 0))
+		_input_delay = INPUT_DELAY_INITIAL
 
 	# Accept key: Check what's under cursor
 	if event.is_action_pressed("ui_accept"):
@@ -323,12 +368,16 @@ func _handle_movement_input(event: InputEvent) -> void:
 	# Keyboard: Arrow keys to move cursor
 	if event.is_action_pressed("ui_up"):
 		_move_cursor(Vector2i(0, -1))
+		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
 	elif event.is_action_pressed("ui_down"):
 		_move_cursor(Vector2i(0, 1))
+		_input_delay = INPUT_DELAY_INITIAL
 	elif event.is_action_pressed("ui_left"):
 		_move_cursor(Vector2i(-1, 0))
+		_input_delay = INPUT_DELAY_INITIAL
 	elif event.is_action_pressed("ui_right"):
 		_move_cursor(Vector2i(1, 0))
+		_input_delay = INPUT_DELAY_INITIAL
 
 	# Accept key - Opens action menu (moved or not)
 	# AUTHENTIC SF: Can press A/C at starting position to act without moving
@@ -505,6 +554,10 @@ func _move_free_cursor(offset: Vector2i) -> void:
 	# Update cursor visual
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
+
+	# Move camera to follow cursor in inspection mode
+	if camera:
+		camera.move_to_cell(current_cursor_position)
 
 	print("InputManager: Free cursor moved to %s" % current_cursor_position)
 
