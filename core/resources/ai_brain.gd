@@ -122,14 +122,19 @@ func move_toward_target(unit: Node2D, target_position: Vector2i) -> bool:
 	if path.is_empty():
 		return false
 
-	# Move as close as possible within movement range
-	var destination: Vector2i = path[mini(movement_range, path.size() - 1)]
+	# Trim path to movement range (path includes starting position)
+	var max_path_length: int = mini(movement_range + 1, path.size())
+	var trimmed_path: Array[Vector2i] = path.slice(0, max_path_length)
+
+	# Get final destination from trimmed path
+	var destination: Vector2i = trimmed_path[trimmed_path.size() - 1]
 
 	# Don't "move" if already at destination
 	if destination == unit.grid_position:
 		return false
 
-	unit.move_to(destination)
+	# Move along the full path (animates through each cell)
+	unit.move_along_path(trimmed_path)
 	return true
 
 

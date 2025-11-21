@@ -48,7 +48,7 @@ texture_filter = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -180.0
+offset_left = -140.0
 offset_top = 8.0
 offset_right = -8.0
 offset_bottom = 8.0
@@ -58,42 +58,41 @@ script = ExtResource("1_script")
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
 [node name="UnitNameLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 16
 text = "Hero"
 horizontal_alignment = 1
 
-[node name="HSeparator1" type="HSeparator" parent="MarginContainer/VBoxContainer"]
+[node name="HPContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-
-[node name="HPContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 4
 
 [node name="HPLabel" type="Label" parent="MarginContainer/VBoxContainer/HPContainer"]
+custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "HP:"
 
 [node name="HPBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/HPContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 16)
+custom_minimum_size = Vector2(60, 12)
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 10
 theme_override_styles/background = SubResource("StyleBoxFlat_hp")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
 max_value = 30.0
@@ -102,28 +101,31 @@ show_percentage = false
 
 [node name="HPValue" type="Label" parent="MarginContainer/VBoxContainer/HPContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 10
 text = "25/30"
 horizontal_alignment = 2
 
-[node name="MPContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="MPContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 4
 
 [node name="MPLabel" type="Label" parent="MarginContainer/VBoxContainer/MPContainer"]
+custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "MP:"
 
 [node name="MPBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/MPContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 16)
+custom_minimum_size = Vector2(60, 12)
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 10
 theme_override_styles/background = SubResource("StyleBoxFlat_mp")
 theme_override_styles/fill = SubResource("StyleBoxFlat_mp_fill")
 max_value = 15.0
@@ -132,87 +134,91 @@ show_percentage = false
 
 [node name="MPValue" type="Label" parent="MarginContainer/VBoxContainer/MPContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 10
 text = "10/15"
 horizontal_alignment = 2
 
-[node name="HSeparator2" type="HSeparator" parent="MarginContainer/VBoxContainer"]
+[node name="QuickStats" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
+theme_override_constants/separation = 0
 
-[node name="QuickStats" type="GridContainer" parent="MarginContainer/VBoxContainer"]
+[node name="Row1" type="HBoxContainer" parent="MarginContainer/VBoxContainer/QuickStats"]
 layout_mode = 2
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 2
-columns = 2
+theme_override_constants/separation = 8
 
-[node name="STRLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="STRLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "STR:"
 
-[node name="STRValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="STRValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "12"
-horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = "8"
 
-[node name="DEFLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="DEFLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "DEF:"
 
-[node name="DEFValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="DEFValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "10"
-horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = "7"
 
-[node name="AGILabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="AGILabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "AGI:"
 
-[node name="AGIValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="AGIValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "15"
-horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = "6"
 
-[node name="INTLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="Row2" type="HBoxContainer" parent="MarginContainer/VBoxContainer/QuickStats"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="INTLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "INT:"
 
-[node name="INTValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="INTValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "8"
-horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = "5"
 
-[node name="LUKLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="LUKLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "LUK:"
 
-[node name="LUKValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats"]
+[node name="LUKValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 14
-text = "5"
-horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = "4"

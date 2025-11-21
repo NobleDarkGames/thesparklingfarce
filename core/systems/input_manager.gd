@@ -277,7 +277,20 @@ func _try_move_to_cell(target_cell: Vector2i) -> void:
 	print("InputManager: Moving unit to %s" % target_cell)
 
 	if target_cell != active_unit.grid_position:
-		active_unit.move_to(target_cell)
+		# Calculate the full path from current position to target
+		var movement_type: int = active_unit.character_data.character_class.movement_type
+		var path: Array[Vector2i] = GridManager.find_path(
+			active_unit.grid_position,
+			target_cell,
+			movement_type
+		)
+
+		# Move along the path (animates through each cell)
+		if not path.is_empty():
+			active_unit.move_along_path(path)
+		else:
+			push_warning("InputManager: No path found to %s, using direct movement" % target_cell)
+			active_unit.move_to(target_cell)
 
 	# Movement confirmed, open action menu
 	movement_confirmed.emit(active_unit, target_cell)

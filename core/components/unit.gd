@@ -129,8 +129,9 @@ func _update_health_bar() -> void:
 	health_bar.value = stats.current_hp
 
 
-## Move unit to new grid position
+## Move unit to new grid position (direct movement, no path following)
 ## Does NOT handle pathfinding - caller must validate path
+## NOTE: Prefer move_along_path() for visible path following
 func move_to(target_cell: Vector2i) -> void:
 	if not GridManager.is_within_bounds(target_cell):
 		push_error("Unit: Cannot move to %s (out of bounds)" % target_cell)
@@ -160,6 +161,49 @@ func move_to(target_cell: Vector2i) -> void:
 	print("%s moved from %s to %s" % [character_data.character_name, old_position, target_cell])
 
 
+## Move unit along a pathfinding path, animating through each cell
+## Path should include the starting position as first element
+func move_along_path(path: Array[Vector2i]) -> void:
+	if path.is_empty():
+		push_warning("Unit: Cannot move along empty path")
+		return
+
+	if path.size() == 1:
+		# Path only contains current position, no movement needed
+		return
+
+	var start_cell: Vector2i = path[0]
+	var end_cell: Vector2i = path[path.size() - 1]
+
+	# Validate end position
+	if not GridManager.is_within_bounds(end_cell):
+		push_error("Unit: Cannot move to %s (out of bounds)" % end_cell)
+		return
+
+	if GridManager.is_cell_occupied(end_cell):
+		push_error("Unit: Cannot move to %s (occupied)" % end_cell)
+		return
+
+	var old_position: Vector2i = grid_position
+
+	# Update GridManager occupation (only at start and end)
+	GridManager.move_unit(self, old_position, end_cell)
+
+	# Update internal position to final destination
+	grid_position = end_cell
+
+	# Animate movement along the full path
+	_animate_movement_along_path(path)
+
+	# Mark as moved this turn
+	has_moved = true
+
+	# Emit signal
+	moved.emit(old_position, end_cell)
+
+	print("%s moved from %s to %s along %d-cell path" % [character_data.character_name, old_position, end_cell, path.size()])
+
+
 ## Animate smooth movement to target cell
 func _animate_movement_to(target_cell: Vector2i) -> Tween:
 	# Kill any existing movement tween
@@ -183,6 +227,36 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 
 	# Animate position
 	_movement_tween.tween_property(self, "position", target_position, duration)
+
+	return _movement_tween
+
+
+## Animate movement along a path, stepping through each cell
+func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
+	# Kill any existing movement tween
+	if _movement_tween and _movement_tween.is_valid():
+		_movement_tween.kill()
+		_movement_tween = null
+
+	# Create tween for the entire path
+	_movement_tween = create_tween()
+	_movement_tween.set_trans(Tween.TRANS_LINEAR)
+	_movement_tween.set_ease(Tween.EASE_IN_OUT)
+
+	# Animate through each cell in the path (skip first cell as it's the current position)
+	for i in range(1, path.size()):
+		var cell: Vector2i = path[i]
+		var target_position: Vector2 = GridManager.cell_to_world(cell)
+
+		# Calculate duration for this step based on distance
+		var current_pos: Vector2 = GridManager.cell_to_world(path[i - 1]) if i > 0 else position
+		var distance: float = current_pos.distance_to(target_position)
+		var duration: float = distance / movement_speed
+
+		# Chain the movement to this cell
+		_movement_tween.tween_property(self, "position", target_position, duration)
+
+	print("DEBUG [TO REMOVE]: %s animating along %d-cell path" % [character_data.character_name, path.size()])
 
 	return _movement_tween
 
