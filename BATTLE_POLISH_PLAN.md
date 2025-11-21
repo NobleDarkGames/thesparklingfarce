@@ -68,14 +68,16 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [ ] Add visual indicator when in inspection mode
   - [ ] Test during player and enemy turns
 
-- [ ] **MP3: Camera Auto-Following**
-  - [ ] Implement CameraController.follow_unit() method
-  - [ ] Connect to TurnManager.player_turn_started signal
-  - [ ] Connect to TurnManager.enemy_turn_started signal
-  - [ ] Add smooth camera transition to active unit
-  - [ ] Ensure camera respects map boundaries
-  - [ ] Add configurable follow speed setting
-  - [ ] Test with units at various map positions
+- [x] **MP3: Smooth Camera and Character Movement** ✅ COMPLETED
+  - [x] Implement CameraController.follow_unit() method
+  - [x] Connect to TurnManager.player_turn_started signal
+  - [x] Connect to TurnManager.enemy_turn_started signal
+  - [x] Add smooth camera transition to active unit (0.6s tween-based)
+  - [x] Add flexible interpolation types (LINEAR, EASE_IN, EASE_OUT, EASE_IN_OUT, CUBIC)
+  - [x] Implement smooth character movement (speed-based tweens)
+  - [x] Make AI execution async to wait for movement animations
+  - [x] Fix enemy attack timing (deferred until movement completes)
+  - [x] Test with units at various map positions
 
 - [ ] **MP4: Basic Sound Effects**
   - [ ] Create audio/ directory structure
@@ -1291,3 +1293,90 @@ The system automatically uses custom art if provided, otherwise falls back to po
 3. Observe top-left: "Plains / No effect" terrain panel appears
 4. Complete turn: Panels fade out
 5. Next turn: Panels reappear with updated stats (if damage was taken)
+
+---
+
+### MP3: Smooth Camera and Character Movement - ✅ COMPLETED & TESTED
+
+**Implementation Date:** November 21, 2025
+
+**Files Modified:**
+- `core/systems/camera_controller.gd` - Tween-based camera movement system
+- `core/components/unit.gd` - Speed-based character movement animation
+- `core/systems/ai_controller.gd` - Async AI execution
+- `core/resources/ai_brain.gd` - Async execution base class
+- `mods/base_game/ai_brains/ai_aggressive.gd` - Deferred attack pattern
+- `mods/_sandbox/scenes/test_unit.gd` - Camera following integration
+
+**Key Implementation Details:**
+
+1. **Camera Movement (Tween-Based)**
+   - Replaced delta-based lerp with fixed-duration tweens
+   - Default duration: 0.6 seconds (configurable 0.1-3.0s)
+   - `movement_duration` parameter replaces `follow_speed`
+   - Added `follow_unit(unit)` method for turn-based following
+   - Interpolation type enum for future curve experiments:
+     - LINEAR (current default)
+     - EASE_IN (quadratic, slow start)
+     - EASE_OUT (quadratic, slow end)
+     - EASE_IN_OUT (smoothstep)
+     - CUBIC (smooth quintic curve)
+   - Camera automatically pans to active unit on turn start
+   - Respects map boundaries via camera limits
+
+2. **Character Movement (Speed-Based)**
+   - Movement speed: 200 pixels/second (configurable)
+   - Duration calculated automatically: `distance / speed`
+   - Uses LINEAR transition with EASE_IN_OUT for natural feel
+   - Example: 128px move = 0.64s animation
+   - Applies to all units (player and AI-controlled)
+   - Tween cleanup prevents conflicts
+   - Returns tween reference for async waiting
+
+3. **Async AI Execution**
+   - AIController now awaits `execute_async()` instead of `execute()`
+   - AIBrain base class provides `execute_async()` default implementation
+   - Waits for unit movement tween to complete before returning
+   - Removed fixed 0.3s delay (movement duration is dynamic)
+
+4. **Deferred Attack Pattern (AIAggressive)**
+   - Stores `_pending_attack_target` during execute()
+   - Stores `_stored_movement_tween` reference
+   - Overrides `execute_async()` to wait for movement
+   - Executes attack **after** movement animation completes
+   - Prevents visual bug where attack happened during movement
+
+**Problem Solved:**
+- **Before:** Camera and units teleported instantly between positions
+- **After:** Smooth, visible transitions with proper timing
+- **AI Issue Fixed:** Attacks no longer execute during movement animation
+
+**Testing Results:**
+- ✅ Camera pans smoothly to Hero (0.6s, noticeable movement)
+- ✅ Hero slides to new position (0.64s for 4-cell move @ 200px/s)
+- ✅ Camera pans smoothly to Goblin on enemy turn
+- ✅ Goblin slides toward target (duration varies by distance)
+- ✅ Goblin waits for movement to complete before attacking
+- ✅ Attack executes after arrival, not during movement
+- ✅ No teleportation or instant transitions
+- ✅ All animations fluid and natural-looking
+
+**Debug Statements (marked "DEBUG [TO REMOVE]"):**
+- Movement duration logging in `Unit._animate_movement_to()`
+- Async flow tracking in `AIBrain.execute_async()`
+- Tween state checking in `AIAggressive.execute_async()`
+
+**How to Test:**
+1. Run scene: `mods/_sandbox/scenes/test_unit.tscn`
+2. Observe camera smoothly pan to Hero over 0.6 seconds
+3. Move Hero and watch smooth sliding animation
+4. End turn and observe camera pan to Goblin
+5. Watch Goblin slide toward Hero, pause, then attack
+6. Verify no instant teleportation occurs
+
+**Future Enhancements:**
+- Easy to switch interpolation types in Inspector
+- Can add path-following movement along multiple cells
+- Can implement camera shake on attacks
+- Can add unit sprite bobbing/rotation during movement
+- Structure supports bezier curves and custom easing functions
