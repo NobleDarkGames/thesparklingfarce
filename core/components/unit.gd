@@ -163,19 +163,21 @@ func take_damage(damage: int) -> void:
 		return
 
 	# Apply damage
-	var died: bool = stats.take_damage(damage)
+	var unit_died: bool = stats.take_damage(damage)
 
 	# Update health bar
 	_update_health_bar()
 
 	# Emit signal
-	emit_signal("damaged", damage)
+	damaged.emit(damage)
 
 	print("%s takes %d damage (HP: %d/%d)" % [character_data.character_name, damage, stats.current_hp, stats.max_hp])
 
-	# Check if died
-	if died:
-		_handle_death()
+	# Emit death signal if unit died (let BattleManager handle the visuals)
+	if unit_died:
+		print("%s has died!" % character_data.character_name)
+		GridManager.clear_cell_occupied(grid_position)
+		died.emit()
 
 
 ## Heal HP
@@ -233,9 +235,11 @@ func process_status_effects() -> void:
 	# Update health bar
 	_update_health_bar()
 
-	# Check if died from status effects
+	# Emit death signal if died from status effects (let BattleManager handle the visuals)
 	if not still_alive:
-		_handle_death()
+		print("%s has died from status effects!" % character_data.character_name)
+		GridManager.clear_cell_occupied(grid_position)
+		died.emit()
 
 
 ## Check if unit is alive
@@ -289,23 +293,13 @@ func hide_selection() -> void:
 		selection_indicator.visible = false
 
 
-## Handle unit death
+## Handle unit death (DEPRECATED - death visuals now handled by BattleManager)
+## This method is kept for backwards compatibility but no longer creates tweens
 func _handle_death() -> void:
 	print("%s has died!" % character_data.character_name)
-
-	# Clear from GridManager
 	GridManager.clear_cell_occupied(grid_position)
-
-	# Emit death signal
-	emit_signal("died")
-
-	# Visual feedback (fade out)
-	var tween: Tween = create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.5)
-	await tween.finished
-
-	# Remove from scene (BattleManager will handle cleanup)
-	# Don't queue_free here - let BattleManager do it
+	died.emit()
+	# Note: BattleManager is responsible for death visuals and cleanup
 
 
 ## Get unit display name (for UI)

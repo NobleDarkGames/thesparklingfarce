@@ -267,6 +267,10 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 			unit.queue_free()
 			continue
 
+		# Connect to unit death signal
+		if unit.has_signal("died"):
+			unit.died.connect(_on_unit_died.bind(unit))
+
 		units.append(unit)
 		emit_signal("unit_spawned", unit)
 
@@ -374,19 +378,15 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 	print("  → HIT! %d damage (%d%% hit chance)" % [damage, hit_chance])
 
-	# Apply damage
-	defender_stats.current_hp -= damage
-	defender_stats.current_hp = maxi(0, defender_stats.current_hp)
-
-	if defender.has_signal("damaged"):
-		defender.emit_signal("damaged", damage)
+	# Apply damage using Unit's method (which will handle death automatically)
+	if defender.has_method("take_damage"):
+		defender.take_damage(damage)
+	else:
+		# Fallback: apply damage directly
+		defender_stats.current_hp -= damage
+		defender_stats.current_hp = maxi(0, defender_stats.current_hp)
 
 	emit_signal("combat_resolved", attacker, defender, damage, hit, crit)
-
-	# Check if defender died
-	if defender_stats.current_hp <= 0:
-		print("  → %s was defeated!" % defender.get_display_name())
-		_handle_unit_death(defender)
 
 	# TODO: Counterattack (Phase 4)
 
@@ -402,14 +402,9 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	TurnManager.end_unit_turn(attacker)
 
 
-## Handle unit death
-func _handle_unit_death(unit: Node2D) -> void:
-	if unit.has_signal("died"):
-		unit.emit_signal("died")
-
-	# Mark unit as dead
-	if unit.has_method("set_alive"):
-		unit.set_alive(false)
+## Handle unit death - called when unit.died signal is emitted
+func _on_unit_died(unit: Node2D) -> void:
+	print("BattleManager: Handling death of %s" % unit.get_display_name())
 
 	# Visual feedback (fade out)
 	if "modulate" in unit:
@@ -419,6 +414,23 @@ func _handle_unit_death(unit: Node2D) -> void:
 
 	# Unit stays in scene but is marked dead
 	# TurnManager will skip dead units
+	# Note: GridManager already cleared by Unit before emitting signal
+
+
+## Handle unit death (direct call - RARELY NEEDED)
+## In most cases, Unit.take_damage() will automatically emit the died signal.
+## This is only needed for special cases like instant death effects.
+func _handle_unit_death(unit: Node2D) -> void:
+	# Check if unit is actually dead
+	if unit.has_method("is_dead") and not unit.is_dead():
+		return
+
+	# Manually trigger death if needed (Unit should emit died signal itself normally)
+	if unit.has_method("_handle_death"):
+		unit._handle_death()  # This will emit died signal
+	else:
+		# Fallback: call our handler directly
+		_on_unit_died(unit)
 
 
 ## Handle battle end
