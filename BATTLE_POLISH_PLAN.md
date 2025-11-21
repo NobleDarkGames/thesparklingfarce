@@ -21,17 +21,19 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [x] Implement CombatAnimationData resource for easy art replacement
   - [ ] Test with various unit combinations (READY FOR MANUAL TESTING)
 
-- [ ] **HP2: Movement/Attack Range Highlights**
-  - [ ] Add Highlights TileMapLayer to map template
-  - [ ] Create highlight tileset (blue, red, yellow tiles)
-  - [ ] Implement GridManager.show_movement_range()
-  - [ ] Implement GridManager.show_attack_range()
-  - [ ] Implement GridManager.clear_highlights()
-  - [ ] Connect to InputManager states
-  - [ ] Show blue tiles in EXPLORING_MOVEMENT state
-  - [ ] Show red tiles when hovering over Attack action
-  - [ ] Show yellow tiles for selected target
-  - [ ] Test highlight visibility and clearing
+- [x] **HP2: Movement/Attack Range Highlights** ✅ COMPLETED
+  - [x] Add Highlights TileMapLayer to map template
+  - [x] Create highlight tileset (blue, red, yellow tiles)
+  - [x] Implement GridManager.show_movement_range()
+  - [x] Implement GridManager.show_attack_range()
+  - [x] Implement GridManager.clear_highlights()
+  - [x] Connect to InputManager states
+  - [x] Show blue tiles in EXPLORING_MOVEMENT state
+  - [x] Show red tiles when entering Attack targeting
+  - [x] Show yellow tiles for valid targets
+  - [x] Fix z-index issue (highlights were rendering below ground)
+  - [x] Test highlight visibility and clearing
+  - [x] Remove debug print statements
 
 - [ ] **HP3: Active Unit Stats Display**
   - [ ] Create ActiveUnitStatsPanel UI scene
@@ -1159,3 +1161,67 @@ The system automatically uses custom art if provided, otherwise falls back to po
 - ✅ Screen properly cleans up and returns to battlefield
 - ✅ HP bars update correctly
 - ✅ Placeholder graphics look intentional and polished
+
+---
+
+### HP2: Movement/Attack Range Highlights - ✅ COMPLETED & TESTED
+
+**Implementation Date:** November 20-21, 2025
+
+**Files Created:**
+- `assets/tiles/highlight_blue.png` - Semi-transparent blue tile (32x32)
+- `assets/tiles/highlight_red.png` - Semi-transparent red/coral tile (32x32)
+- `assets/tiles/highlight_yellow.png` - Semi-transparent yellow tile (32x32)
+- `assets/tilesets/highlight_tileset.tres` - TileSet with three color sources
+
+**Files Modified:**
+- `core/systems/grid_manager.gd` - Added highlight methods and constants
+- `core/systems/input_manager.gd` - Integrated highlights with state machine
+- `mods/_sandbox/scenes/test_unit.tscn` - Added HighlightLayer with z_index=1
+- `mods/_sandbox/scenes/test_unit.gd` - Removed old ColorRect-based highlight system
+
+**Key Implementation Details:**
+
+1. **Three-Color Highlight System**
+   - Blue (source_id=0): Movement range
+   - Red/Coral (source_id=1): Attack range
+   - Yellow/Orange (source_id=2): Valid targets
+   - Semi-transparent (50% opacity) to show terrain underneath
+
+2. **GridManager Methods Added**
+   ```gdscript
+   const HIGHLIGHT_BLUE: int = 0
+   const HIGHLIGHT_RED: int = 1
+   const HIGHLIGHT_YELLOW: int = 2
+
+   func show_movement_range(from: Vector2i, movement_range: int, movement_type: int)
+   func show_attack_range(from: Vector2i, weapon_range: int)
+   func highlight_targets(target_cells: Array[Vector2i])
+   func clear_highlights()
+   ```
+
+3. **InputManager Integration**
+   - `_on_enter_exploring_movement()`: Shows blue movement range
+   - `_on_enter_selecting_action()`: Clears highlights (action menu open)
+   - `_on_enter_targeting()`: Shows red attack range + yellow targets
+   - `_get_valid_target_cells()`: Filters enemy units in weapon range
+
+**Bug Found & Fixed:**
+- **Issue:** Red and yellow highlights were being set in the TileMapLayer but not visible
+- **Root Cause:** HighlightLayer had no z_index set, defaulting to 0, causing rendering order issues
+- **Solution:** Added `z_index = 1` to HighlightLayer in test_unit.tscn
+- **Debug Process:** Added comprehensive debug logging to trace execution flow and confirm cells were being set correctly
+
+**Testing Results:**
+- ✅ Blue movement highlights display correctly at turn start
+- ✅ Red attack range highlights display when "Attack" is selected
+- ✅ Yellow target highlights overlay red tiles on valid enemy positions
+- ✅ Highlights clear properly when returning to action menu or ending turn
+- ✅ Highlights respect grid bounds and don't appear on invalid cells
+- ✅ System works with melee range (1 cell Manhattan distance)
+
+**How to Test:**
+1. Run scene: `mods/_sandbox/scenes/test_unit.tscn`
+2. Movement: Blue highlights show walkable range automatically
+3. Move next to enemy and select "Attack"
+4. Observe: Red tiles show attack range, yellow tile highlights the enemy

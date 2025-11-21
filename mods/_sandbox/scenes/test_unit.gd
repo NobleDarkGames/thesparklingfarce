@@ -267,15 +267,7 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
-	# Show movement range
-	var movement_range: int = unit.character_data.character_class.movement_range
-	var walkable_cells: Array[Vector2i] = GridManager.get_walkable_cells(
-		unit.grid_position,
-		movement_range,
-		unit.character_data.character_class.movement_type
-	)
-	_show_highlights(walkable_cells, Color(0.3, 0.5, 1.0, 0.4))  # Blue highlights for movement
-
+	# GridManager now handles highlights via TileMapLayer (called by InputManager)
 	# Start InputManager for player turn
 	InputManager.start_player_turn(unit)
 
@@ -289,7 +281,7 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 func _on_unit_turn_ended(unit: Node2D) -> void:
 	print(">>> Turn ended for: %s <<<" % unit.get_display_name())
 	unit.hide_selection()
-	_clear_highlights()
+	# GridManager now handles clearing highlights
 
 
 func _on_battle_ended(victory: bool) -> void:

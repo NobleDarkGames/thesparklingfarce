@@ -91,6 +91,10 @@ func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 	if not tilemap or not tilemap.tile_set:
 		return DEFAULT_TERRAIN_COST
 
+	# If tileset has no sources, return default cost (empty tileset in test scenes)
+	if tilemap.tile_set.get_source_count() == 0:
+		return DEFAULT_TERRAIN_COST
+
 	# Get tile data from tilemap
 	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
 	if tile_data == null:
@@ -272,6 +276,11 @@ func set_highlight_layer(layer: TileMapLayer) -> void:
 	print("GridManager: Highlight layer set")
 
 
+## Highlight constants for tile source IDs
+const HIGHLIGHT_BLUE: int = 0    # Movement range
+const HIGHLIGHT_RED: int = 1     # Attack range
+const HIGHLIGHT_YELLOW: int = 2  # Target selection
+
 ## Highlight cells with a specific color (for movement range, attack range, etc.)
 ## Colors: 0 = movement (blue), 1 = attack (red), 2 = target (yellow)
 func highlight_cells(cells: Array[Vector2i], color_type: int = 0) -> void:
@@ -279,12 +288,48 @@ func highlight_cells(cells: Array[Vector2i], color_type: int = 0) -> void:
 		push_warning("GridManager: No highlight layer set. Call set_highlight_layer() first.")
 		return
 
+	var color_name: String = ["blue", "red", "yellow"][color_type] if color_type < 3 else "unknown"
+	print("GridManager: Highlighting %d cells with color %s (type %d)" % [cells.size(), color_name, color_type])
+
 	for cell in cells:
 		if grid.is_within_bounds(cell):
-			# Use atlas_coords to represent different colors
-			# This assumes your tileset has highlight tiles at different positions
-			var atlas_coords: Vector2i = Vector2i(color_type, 0)
-			_highlight_layer.set_cell(cell, 0, atlas_coords)
+			# Use source_id to select the correct colored tile
+			# source_id corresponds to: 0=blue, 1=red, 2=yellow
+			_highlight_layer.set_cell(cell, color_type, Vector2i(0, 0))
+
+
+## Show movement range (blue tiles)
+func show_movement_range(from: Vector2i, movement_range: int, movement_type: int) -> void:
+	"""Highlight all walkable cells from a position in blue."""
+	clear_highlights()
+	var walkable_cells: Array[Vector2i] = get_walkable_cells(from, movement_range, movement_type)
+	highlight_cells(walkable_cells, HIGHLIGHT_BLUE)
+
+
+## Show attack range (red tiles)
+func show_attack_range(from: Vector2i, weapon_range: int) -> void:
+	"""Highlight all cells within attack range in red."""
+	if _highlight_layer == null:
+		push_warning("GridManager: Cannot show attack range - no highlight layer set")
+		return
+
+	# Calculate cells in range using Manhattan distance
+	var attack_cells: Array[Vector2i] = []
+	for x in range(-weapon_range, weapon_range + 1):
+		for y in range(-weapon_range, weapon_range + 1):
+			var target_cell := Vector2i(from.x + x, from.y + y)
+			var distance: int = abs(x) + abs(y)
+			if distance > 0 and distance <= weapon_range and grid.is_within_bounds(target_cell):
+				attack_cells.append(target_cell)
+
+	print("GridManager: Showing attack range from %s with range %d - %d cells" % [from, weapon_range, attack_cells.size()])
+	highlight_cells(attack_cells, HIGHLIGHT_RED)
+
+
+## Highlight specific target cells (yellow tiles)
+func highlight_targets(target_cells: Array[Vector2i]) -> void:
+	"""Highlight specific cells as valid targets in yellow."""
+	highlight_cells(target_cells, HIGHLIGHT_YELLOW)
 
 
 ## Clear all cell highlights

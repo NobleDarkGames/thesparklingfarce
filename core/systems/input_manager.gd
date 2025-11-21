@@ -186,6 +186,9 @@ func _on_enter_exploring_movement() -> void:
 
 
 func _on_enter_selecting_action() -> void:
+	# Clear movement highlights
+	GridManager.clear_highlights()
+
 	# Hide cursor and path (movement is locked in)
 	if grid_cursor:
 		grid_cursor.hide_cursor()
@@ -199,6 +202,9 @@ func _on_enter_selecting_action() -> void:
 
 
 func _on_enter_targeting() -> void:
+	# Clear movement highlights
+	GridManager.clear_highlights()
+
 	# Show valid targets based on selected action
 	_show_targeting_range()
 
@@ -347,11 +353,17 @@ func _has_spells() -> bool:
 	return false
 
 
-## Show movement range highlights (placeholder)
+## Show movement range highlights
 func _show_movement_range() -> void:
-	# TODO: Implement visual highlight system
-	# For now, this is handled by test scene
-	pass
+	"""Show blue movement range highlights."""
+	if not active_unit:
+		return
+
+	var unit_cell: Vector2i = active_unit.grid_position
+	var movement_range: int = active_unit.character_data.character_class.movement_range
+	var movement_type: int = active_unit.character_data.character_class.movement_type
+
+	GridManager.show_movement_range(unit_cell, movement_range, movement_type)
 
 
 ## Move cursor by offset and update visuals
@@ -521,10 +533,51 @@ func _cancel_action_menu() -> void:
 	set_state(InputState.EXPLORING_MOVEMENT)
 
 
-## Show targeting range (placeholder)
+## Get valid target cells based on action and range
+func _get_valid_target_cells(weapon_range: int) -> Array[Vector2i]:
+	var valid_cells: Array[Vector2i] = []
+
+	if current_action == "Attack":
+		# Get all cells in weapon range
+		var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range(
+			active_unit.grid_position,
+			weapon_range
+		)
+
+		# Filter to only cells with enemy units
+		for cell in cells_in_range:
+			var occupant: Node2D = GridManager.get_unit_at_cell(cell)
+			if occupant and occupant.is_enemy_unit():
+				valid_cells.append(cell)
+
+	elif current_action == "Magic":
+		# TODO: Implement spell targeting when spell system exists
+		pass
+
+	return valid_cells
+
+
+## Show targeting range and valid targets
 func _show_targeting_range() -> void:
-	# TODO: Implement targeting visual
+	if not active_unit:
+		return
+
 	print("InputManager: Showing targeting range for %s" % current_action)
+
+	# Get weapon range (default to 1 for melee)
+	# TODO: Get from equipped weapon when equipment system exists
+	var weapon_range: int = 1
+
+	print("InputManager: Unit position: %s, weapon range: %d" % [active_unit.grid_position, weapon_range])
+
+	# Show red attack range tiles
+	GridManager.show_attack_range(active_unit.grid_position, weapon_range)
+
+	# Find and highlight valid targets in yellow
+	var valid_targets: Array[Vector2i] = _get_valid_target_cells(weapon_range)
+	print("InputManager: Valid targets found: %d at cells: %s" % [valid_targets.size(), valid_targets])
+	if not valid_targets.is_empty():
+		GridManager.highlight_targets(valid_targets)
 
 
 ## Handle targeting input (placeholder)
