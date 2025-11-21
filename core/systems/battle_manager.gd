@@ -38,6 +38,12 @@ var units_parent: Node2D = null
 ## Unit scene template (preload for instantiation)
 const UNIT_SCENE: PackedScene = preload("res://scenes/unit.tscn")
 
+## Combat animation scene (preload for combat displays)
+const COMBAT_ANIM_SCENE: PackedScene = preload("res://scenes/ui/combat_animation_scene.tscn")
+
+## Current combat animation instance
+var combat_anim_instance: CombatAnimationScene = null
+
 
 ## Initialize battle manager with scene references
 func setup(battle_scene: Node, units_container: Node2D) -> void:
@@ -355,43 +361,43 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker_stats, defender_stats)
 
 	# Roll to hit
-	var hit: bool = CombatCalculator.roll_hit(hit_chance)
+	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
 
-	if not hit:
-		print("  → MISS! (%d%% chance)" % hit_chance)
-		combat_resolved.emit(attacker, defender, 0, false, false)
-		# TODO: Show miss animation/text
-		await get_tree().create_timer(0.5).timeout
-		TurnManager.end_unit_turn(attacker)
-		return
+	var damage: int = 0
+	var was_critical: bool = false
 
-	# Calculate damage
-	var damage: int = CombatCalculator.calculate_physical_damage(attacker_stats, defender_stats)
+	if not was_miss:
+		# Calculate damage
+		damage = CombatCalculator.calculate_physical_damage(attacker_stats, defender_stats)
 
-	# Check for critical hit
-	var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker_stats, defender_stats)
-	var crit: bool = CombatCalculator.roll_crit(crit_chance)
+		# Check for critical hit
+		var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker_stats, defender_stats)
+		was_critical = CombatCalculator.roll_crit(crit_chance)
 
-	if crit:
-		damage *= 2
-		print("  → CRITICAL HIT!")
+		if was_critical:
+			damage *= 2
+			print("  → CRITICAL HIT!")
 
-	print("  → HIT! %d damage (%d%% hit chance)" % [damage, hit_chance])
-
-	# Apply damage using Unit's method (which will handle death automatically)
-	if defender.has_method("take_damage"):
-		defender.take_damage(damage)
+		print("  → HIT! %d damage (%d%% hit chance)" % [damage, hit_chance])
 	else:
-		# Fallback: apply damage directly
-		defender_stats.current_hp -= damage
-		defender_stats.current_hp = maxi(0, defender_stats.current_hp)
+		print("  → MISS! (%d%% chance)" % hit_chance)
 
-	combat_resolved.emit(attacker, defender, damage, hit, crit)
+	# Show combat animation
+	await _show_combat_animation(attacker, defender, damage, was_critical, was_miss)
+
+	# Apply damage after animation (if hit)
+	if not was_miss:
+		if defender.has_method("take_damage"):
+			defender.take_damage(damage)
+		else:
+			# Fallback: apply damage directly
+			defender_stats.current_hp -= damage
+			defender_stats.current_hp = maxi(0, defender_stats.current_hp)
+
+	# Emit combat result signal
+	combat_resolved.emit(attacker, defender, damage, not was_miss, was_critical)
 
 	# TODO: Counterattack (Phase 4)
-
-	# Wait for animations
-	await get_tree().create_timer(1.0).timeout
 
 	# Reset InputManager to waiting state ONLY if this unit is still the active unit
 	# (prevents race condition where next turn has already started during the await)
@@ -400,6 +406,47 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 	# End attacker's turn
 	TurnManager.end_unit_turn(attacker)
+
+
+## Show combat animation scene
+func _show_combat_animation(
+	attacker: Node2D,
+	defender: Node2D,
+	damage: int,
+	was_critical: bool,
+	was_miss: bool
+) -> void:
+	# HIDE the battlefield completely (Shining Force style - full screen replacement)
+	if map_instance:
+		map_instance.visible = false
+	if units_parent:
+		units_parent.visible = false
+
+	# Also hide any UI elements
+	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
+	if ui_node:
+		ui_node.visible = false
+
+	# Instantiate combat animation scene as full-screen replacement
+	# (uses CanvasLayer with layer=100 to appear above everything)
+	combat_anim_instance = COMBAT_ANIM_SCENE.instantiate()
+	battle_scene_root.add_child(combat_anim_instance)
+
+	# Play combat animation (scene handles its own fade-in)
+	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss)
+	await combat_anim_instance.animation_complete
+
+	# Clean up combat animation
+	combat_anim_instance.queue_free()
+	combat_anim_instance = null
+
+	# RESTORE the battlefield (Shining Force style - return to tactical view)
+	if map_instance:
+		map_instance.visible = true
+	if units_parent:
+		units_parent.visible = true
+	if ui_node:
+		ui_node.visible = true
 
 
 ## Handle unit death - called when unit.died signal is emitted

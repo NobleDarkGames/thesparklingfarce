@@ -1,8 +1,11 @@
 ## Test map scene script
 ##
+## Purpose: Provides map data for test_full_battle.tscn
 ## This map provides Grid configuration for BattleManager to extract.
 ## This demonstrates the proper separation: map scenes contain Grid info,
 ## not BattleData.
+##
+## Used by: test_full_battle.tscn
 extends Node2D
 
 ## Grid configuration for this map

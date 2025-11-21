@@ -1,4 +1,21 @@
-## Test scene for Unit + GridManager + InputManager integration
+## PRIMARY MANUAL TEST SCENE
+##
+## This is the most complete working battle scene for manual testing.
+## Use this as the basis for future test scenes when appropriate.
+##
+## Features:
+## - Full player-controlled unit with movement and combat
+## - AI-controlled enemy with aggressive behavior
+## - Complete turn-based battle flow (TurnManager + InputManager + BattleManager)
+## - Visual grid with cursor and path preview
+## - Action menu UI with Attack/Stay options
+## - Combat resolution with damage calculation
+##
+## Controls:
+## - Arrow Keys: Move cursor during your turn
+## - Enter/Space: Confirm movement (opens action menu)
+## - Escape: Cancel/go back
+## - Action Menu: Arrow keys to select, Enter to confirm
 ##
 ## Tests Shining Force-style turn-based battle system
 extends Node2D

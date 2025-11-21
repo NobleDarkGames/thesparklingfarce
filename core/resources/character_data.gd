@@ -26,7 +26,8 @@ extends Resource
 
 @export_group("Appearance")
 @export var portrait: Texture2D
-@export var battle_sprite: Texture2D
+@export var battle_sprite: Texture2D  ## Map sprite used on battlefield
+@export var combat_animation_data: CombatAnimationData  ## Combat screen animations (optional - uses placeholder if null)
 
 @export_group("Starting Configuration")
 @export var starting_level: int = 1

@@ -1,6 +1,7 @@
-## Test Full Battle Flow
+## INTEGRATION TEST - BattleData Flow
 ##
-## This scene tests the complete integration:
+## Purpose: Tests BattleData → BattleManager integration
+## This scene tests the complete battle initialization flow:
 ## 1. Create BattleData programmatically
 ## 2. Load map scene
 ## 3. BattleManager extracts Grid from map
@@ -8,6 +9,9 @@
 ## 5. Test turn-based combat
 ##
 ## This validates the proper separation of concerns.
+##
+## Note: Currently has issues. For manual testing, use test_unit.tscn instead.
+## This test is kept for future BattleData system development.
 extends Node2D
 
 ## References

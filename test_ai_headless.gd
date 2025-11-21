@@ -1,0 +1,144 @@
+## AUTOMATED HEADLESS TEST
+##
+## Purpose: Automated AI regression testing without UI
+## This runs AI turns automatically without requiring player input.
+## Used for quick validation that battle systems work correctly.
+##
+## Note: For manual interactive testing, use mods/_sandbox/scenes/test_unit.tscn
+extends Node2D
+
+const UnitScript: GDScript = preload("res://core/components/unit.gd")
+
+var _test_complete: bool = false
+var _turn_count: int = 0
+var _max_turns: int = 10
+
+
+func _ready() -> void:
+	print("\n=== AI Headless Test Starting ===\n")
+
+	# Create minimal TileMapLayer for GridManager
+	var tilemap_layer: TileMapLayer = TileMapLayer.new()
+	var tileset: TileSet = TileSet.new()
+	tilemap_layer.tile_set = tileset
+	add_child(tilemap_layer)
+
+	# Setup minimal grid
+	var grid_resource: Grid = Grid.new()
+	grid_resource.grid_size = Vector2i(10, 10)
+	grid_resource.cell_size = 32
+	GridManager.setup_grid(grid_resource, tilemap_layer)
+
+	# Create test characters
+	var player_character: CharacterData = _create_character("Hero", 20, 10, 10, 8, 7)
+	var enemy_character: CharacterData = _create_character("Goblin", 15, 5, 8, 6, 6)
+
+	# Load AI brain
+	var AIAggressiveClass: GDScript = load("res://mods/base_game/ai_brains/ai_aggressive.gd")
+	var aggressive_ai: Resource = AIAggressiveClass.new()
+
+	# Spawn units
+	var player_unit: Node2D = _spawn_unit(player_character, Vector2i(2, 5), "player", null)
+	var enemy_unit: Node2D = _spawn_unit(enemy_character, Vector2i(7, 5), "enemy", aggressive_ai)
+
+	# Setup BattleManager
+	BattleManager.setup(self, self)
+	BattleManager.player_units = [player_unit]
+	BattleManager.enemy_units = [enemy_unit]
+	BattleManager.all_units = [player_unit, enemy_unit]
+
+	# Connect signals
+	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
+	TurnManager.player_turn_started.connect(_on_player_turn_started)
+	TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
+	TurnManager.battle_ended.connect(_on_battle_ended)
+	BattleManager.combat_resolved.connect(_on_combat_resolved)
+
+	# Start battle
+	var all_units: Array[Node2D] = [player_unit, enemy_unit]
+	TurnManager.start_battle(all_units)
+
+
+func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: int, agi: int) -> CharacterData:
+	var character: CharacterData = CharacterData.new()
+	character.character_name = p_name
+	character.base_hp = hp
+	character.base_mp = mp
+	character.base_strength = str_val
+	character.base_defense = def_val
+	character.base_agility = agi
+	character.base_intelligence = 5
+	character.base_luck = 5
+	character.starting_level = 1
+
+	var basic_class: ClassData = ClassData.new()
+	basic_class.display_name = "Warrior"
+	basic_class.movement_type = ClassData.MovementType.WALKING
+	basic_class.movement_range = 4
+
+	character.character_class = basic_class
+	return character
+
+
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
+	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
+	var unit: Node2D = unit_scene.instantiate()
+	unit.initialize(character, p_faction, p_ai_brain)
+	unit.grid_position = cell
+	unit.position = Vector2(cell.x * 32, cell.y * 32)
+	add_child(unit)
+	return unit
+
+
+func _on_player_turn_started(unit: Node2D) -> void:
+	print("\n[PLAYER TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
+	print("  Stats: %s" % unit.get_stats_summary())
+
+	# Auto-end player turn (we're testing AI, not player input)
+	await get_tree().create_timer(0.1).timeout
+	print("  -> Ending player turn automatically")
+	TurnManager.end_unit_turn(unit)
+
+
+func _on_enemy_turn_started(unit: Node2D) -> void:
+	print("\n[ENEMY TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
+	print("  Stats: %s" % unit.get_stats_summary())
+	# AIController will handle the turn
+
+
+func _on_unit_turn_ended(unit: Node2D) -> void:
+	print("  -> Turn ended for %s" % unit.get_display_name())
+
+
+func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
+	var hit_str: String = "HIT" if hit else "MISS"
+	var crit_str: String = " (CRIT!)" if crit else ""
+	print("  [COMBAT] %s attacks %s: %s for %d damage%s" % [
+		attacker.get_display_name(),
+		defender.get_display_name(),
+		hit_str,
+		damage,
+		crit_str
+	])
+
+
+func _on_battle_ended(victory: bool) -> void:
+	print("\n=== BATTLE ENDED ===")
+	if victory:
+		print("RESULT: Player Victory!")
+	else:
+		print("RESULT: Player Defeat!")
+
+	_test_complete = true
+	await get_tree().create_timer(0.5).timeout
+	print("\n=== AI Test Complete ===")
+	get_tree().quit()
+
+
+func _process(_delta: float) -> void:
+	# Safety: quit after max turns
+	if TurnManager.turn_number > _max_turns and not _test_complete:
+		print("\n=== MAX TURNS REACHED ===")
+		print("Test ran for %d turns without completion" % _max_turns)
+		_test_complete = true
+		get_tree().quit()
