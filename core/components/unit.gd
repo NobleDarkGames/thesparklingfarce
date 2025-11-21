@@ -151,7 +151,7 @@ func move_to(target_cell: Vector2i) -> void:
 	has_moved = true
 
 	# Emit signal
-	emit_signal("moved", old_position, target_cell)
+	moved.emit(old_position, target_cell)
 
 	print("%s moved from %s to %s" % [character_data.character_name, old_position, target_cell])
 
@@ -193,7 +193,7 @@ func heal(amount: int) -> void:
 	_update_health_bar()
 
 	# Emit signal
-	emit_signal("healed", actual_heal)
+	healed.emit(actual_heal)
 
 	print("%s heals %d HP (HP: %d/%d)" % [character_data.character_name, actual_heal, stats.current_hp, stats.max_hp])
 
@@ -204,7 +204,7 @@ func add_status_effect(effect_type: String, duration: int, power: int = 0) -> vo
 		return
 
 	stats.add_status_effect(effect_type, duration, power)
-	emit_signal("status_effect_added", effect_type)
+	status_effect_applied.emit(effect_type)
 	print("%s gains status: %s (duration: %d)" % [character_data.character_name, effect_type, duration])
 
 
@@ -214,7 +214,7 @@ func remove_status_effect(effect_type: String) -> void:
 		return
 
 	stats.remove_status_effect(effect_type)
-	emit_signal("status_effect_removed", effect_type)
+	status_effect_cleared.emit(effect_type)
 	print("%s loses status: %s" % [character_data.character_name, effect_type])
 
 

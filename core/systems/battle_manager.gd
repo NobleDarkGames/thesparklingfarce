@@ -84,7 +84,7 @@ func start_battle(battle_data: Resource) -> void:
 	# if battle_data.pre_battle_dialogue:
 	#     await _show_dialogue(battle_data.pre_battle_dialogue)
 
-	emit_signal("battle_started", battle_data)
+	battle_started.emit(battle_data)
 
 	print("BattleManager: Battle initialized successfully")
 
@@ -272,7 +272,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 			unit.died.connect(_on_unit_died.bind(unit))
 
 		units.append(unit)
-		emit_signal("unit_spawned", unit)
+		unit_spawned.emit(unit)
 
 	return units
 
@@ -359,7 +359,7 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 	if not hit:
 		print("  → MISS! (%d%% chance)" % hit_chance)
-		emit_signal("combat_resolved", attacker, defender, 0, false, false)
+		combat_resolved.emit(attacker, defender, 0, false, false)
 		# TODO: Show miss animation/text
 		await get_tree().create_timer(0.5).timeout
 		TurnManager.end_unit_turn(attacker)
@@ -386,7 +386,7 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 		defender_stats.current_hp -= damage
 		defender_stats.current_hp = maxi(0, defender_stats.current_hp)
 
-	emit_signal("combat_resolved", attacker, defender, damage, hit, crit)
+	combat_resolved.emit(attacker, defender, damage, hit, crit)
 
 	# TODO: Counterattack (Phase 4)
 
@@ -444,7 +444,7 @@ func _on_battle_ended(victory: bool) -> void:
 		print("DEFEAT!")
 	print("========================================\n")
 
-	emit_signal("battle_ended", victory)
+	battle_ended.emit(victory)
 
 	# TODO: Show victory/defeat dialogue
 	# TODO: Award experience/items

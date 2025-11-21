@@ -109,7 +109,7 @@ func calculate_turn_order() -> void:
 ## Start a new turn cycle
 func start_new_turn_cycle() -> void:
 	turn_number += 1
-	emit_signal("turn_cycle_started", turn_number)
+	turn_cycle_started.emit(turn_number)
 
 	print("\n========== TURN %d ==========" % turn_number)
 
@@ -143,12 +143,12 @@ func start_unit_turn(unit: Node2D) -> void:
 
 	if unit.is_player_unit():
 		# Player unit - wait for player input
-		emit_signal("player_turn_started", unit)
+		player_turn_started.emit(unit)
 		print("Waiting for player input...")
 		# InputManager will handle from here
 	else:
 		# Enemy/AI unit - delegate to AIController
-		emit_signal("enemy_turn_started", unit)
+		enemy_turn_started.emit(unit)
 		print("Delegating to AIController...")
 		await AIController.process_enemy_turn(unit)
 
@@ -162,7 +162,7 @@ func end_unit_turn(unit: Node2D) -> void:
 	print("%s's turn ended" % unit.get_display_name())
 
 	unit.end_turn()
-	emit_signal("unit_turn_ended", unit)
+	unit_turn_ended.emit(unit)
 
 	active_unit = null
 
@@ -228,7 +228,7 @@ func _end_battle(victory: bool) -> void:
 	else:
 		print("DEFEAT! All player units lost!")
 
-	emit_signal("battle_ended", victory)
+	battle_ended.emit(victory)
 
 
 ## Get the currently active unit

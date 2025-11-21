@@ -274,7 +274,7 @@ func _try_move_to_cell(target_cell: Vector2i) -> void:
 		active_unit.move_to(target_cell)
 
 	# Movement confirmed, open action menu
-	emit_signal("movement_confirmed", active_unit, target_cell)
+	movement_confirmed.emit(active_unit, target_cell)
 	set_state(InputState.SELECTING_ACTION)
 
 
@@ -297,7 +297,7 @@ func _cancel_movement() -> void:
 	# Clear path preview
 	_clear_path_preview()
 
-	emit_signal("turn_cancelled")
+	turn_cancelled.emit()
 
 
 ## Calculate which actions are available
@@ -498,7 +498,7 @@ func _select_action(action: String, signal_session_id: int) -> void:
 
 	# Convert to lowercase for BattleManager (internal representation)
 	var action_lower: String = action.to_lower()
-	emit_signal("action_selected", active_unit, action_lower)
+	action_selected.emit(active_unit, action_lower)
 
 	print("InputManager: Action selected: %s" % action)
 
@@ -546,7 +546,7 @@ func _handle_targeting_input(event: InputEvent) -> void:
 
 ## Select target for action
 func _select_target(target: Node2D) -> void:
-	emit_signal("target_selected", active_unit, target)
+	target_selected.emit(active_unit, target)
 	print("InputManager: Target selected: %s" % target.get_display_name())
 	_execute_action_on_target(target)
 
