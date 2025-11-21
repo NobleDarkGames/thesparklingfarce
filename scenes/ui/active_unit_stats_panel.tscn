@@ -83,7 +83,7 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "HP:"
 
 [node name="HPBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/HPContainer"]
@@ -92,7 +92,7 @@ custom_minimum_size = Vector2(60, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 16
 theme_override_styles/background = SubResource("StyleBoxFlat_hp")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
 max_value = 30.0
@@ -104,7 +104,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 16
 text = "25/30"
 horizontal_alignment = 2
 
@@ -116,7 +116,7 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "MP:"
 
 [node name="MPBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/MPContainer"]
@@ -125,7 +125,7 @@ custom_minimum_size = Vector2(60, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 16
 theme_override_styles/background = SubResource("StyleBoxFlat_mp")
 theme_override_styles/fill = SubResource("StyleBoxFlat_mp_fill")
 max_value = 15.0
@@ -137,7 +137,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 16
 text = "10/15"
 horizontal_alignment = 2
 
@@ -152,7 +152,7 @@ theme_override_constants/separation = 8
 [node name="STRLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "STR:"
 
 [node name="STRValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
@@ -160,13 +160,13 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "8"
 
 [node name="DEFLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "DEF:"
 
 [node name="DEFValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
@@ -174,13 +174,13 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "7"
 
 [node name="AGILabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "AGI:"
 
 [node name="AGIValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
@@ -188,7 +188,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "6"
 
 [node name="Row2" type="HBoxContainer" parent="MarginContainer/VBoxContainer/QuickStats"]
@@ -198,7 +198,7 @@ theme_override_constants/separation = 8
 [node name="INTLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "INT:"
 
 [node name="INTValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
@@ -206,13 +206,13 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "5"
 
 [node name="LUKLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "LUK:"
 
 [node name="LUKValue" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
@@ -220,5 +220,5 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "4"
