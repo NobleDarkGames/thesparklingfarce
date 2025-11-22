@@ -83,6 +83,7 @@ func initialize(
 	# Create stats
 	var UnitStatsClass: GDScript = load("res://core/components/unit_stats.gd")
 	stats = UnitStatsClass.new()
+	stats.owner_unit = self  # Set reference for level-up callbacks
 	stats.calculate_from_character(character_data)
 
 	# Set visual (placeholder for now)

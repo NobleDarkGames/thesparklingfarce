@@ -23,6 +23,16 @@ var luck: int = 5
 ## Current level
 var level: int = 1
 
+## Experience tracking
+var current_xp: int = 0
+var xp_to_next_level: int = 100
+
+## Support action tracking (for anti-spam system)
+## Dictionary: {action_type: usage_count}
+## Example: {"heal": 3, "buff": 2}
+## Reset at end of each battle
+var support_actions_this_battle: Dictionary = {}
+
 ## Status effects: Array[Dictionary]
 ## Each effect: {type: String, duration: int, power: int}
 ## Types: "poison", "sleep", "stun", "attack_up", "defense_up", etc.
@@ -33,6 +43,9 @@ var character_data: CharacterData = null
 
 ## Reference to source ClassData
 var class_data: ClassData = null
+
+## Reference to owner Unit (needed for level-up callbacks)
+var owner_unit: Node2D = null
 
 
 ## Calculate stats from CharacterData and equipment
@@ -273,3 +286,56 @@ func get_stats_string() -> String:
 		level, current_hp, max_hp, current_mp, max_mp,
 		strength, defense, agility, intelligence, luck
 	]
+
+
+# ============================================================================
+# EXPERIENCE & LEVELING METHODS
+# ============================================================================
+
+## Gain experience points.
+## Automatically triggers level-up if threshold is reached.
+##
+## @param amount: Amount of XP to gain
+func gain_xp(amount: int) -> void:
+	# Check if already max level
+	if ExperienceManager.config and level >= ExperienceManager.config.max_level:
+		return
+
+	current_xp += amount
+
+	# Check for level-up (can happen multiple times if enough XP)
+	var max_level: int = ExperienceManager.config.max_level if ExperienceManager.config else 20
+	while current_xp >= xp_to_next_level and level < max_level:
+		var overflow: int = current_xp - xp_to_next_level
+		current_xp = overflow
+
+		# Trigger level-up via ExperienceManager if we have owner reference
+		if owner_unit != null and is_instance_valid(owner_unit):
+			ExperienceManager._trigger_level_up(owner_unit)
+		else:
+			# Fallback: just increment level without stat growth
+			level += 1
+
+
+## Check if unit can level up.
+##
+## @return: True if XP threshold reached and not at max level
+func can_level_up() -> bool:
+	var max_level: int = ExperienceManager.config.max_level if ExperienceManager.config else 20
+	return current_xp >= xp_to_next_level and level < max_level
+
+
+## Get XP progress to next level (0.0 to 1.0).
+## Useful for progress bars in UI.
+##
+## @return: Progress ratio (0.0 = no progress, 1.0 = ready to level)
+func get_xp_progress() -> float:
+	if xp_to_next_level == 0:
+		return 0.0
+	return float(current_xp) / float(xp_to_next_level)
+
+
+## Reset battle-specific tracking.
+## Called at end of battle to clear support action counts.
+func reset_battle_tracking() -> void:
+	support_actions_this_battle.clear()
