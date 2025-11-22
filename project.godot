@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.5", "Forward Plus")
 [autoload]
 
 ModLoader="*res://core/mod_system/mod_loader.gd"
+AudioManager="*res://core/systems/audio_manager.gd"
 GridManager="*res://core/systems/grid_manager.gd"
 TurnManager="*res://core/systems/turn_manager.gd"
 InputManager="*res://core/systems/input_manager.gd"

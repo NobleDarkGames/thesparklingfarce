@@ -88,6 +88,9 @@ func _reconnect_action_menu_signals() -> void:
 
 ## Handle action menu selection signal
 func _on_action_menu_selected(action: String) -> void:
+	# Play menu selection sound
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+
 	# Capture current session ID at the time of signal emission
 	var signal_session_id: int = _turn_session_id
 	_select_action(action, signal_session_id)
@@ -95,6 +98,9 @@ func _on_action_menu_selected(action: String) -> void:
 
 ## Handle action menu cancellation signal
 func _on_action_menu_cancelled() -> void:
+	# Play menu cancel sound
+	AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
+
 	_cancel_action_menu()
 
 
@@ -536,6 +542,9 @@ func _move_cursor(offset: Vector2i) -> void:
 
 	# Update cursor position
 	current_cursor_position = new_pos
+
+	# Play cursor movement sound
+	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
 
 	# Update cursor visual
 	if grid_cursor:

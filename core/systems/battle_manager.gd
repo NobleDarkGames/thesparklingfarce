@@ -71,6 +71,9 @@ func start_battle(battle_data: Resource) -> void:
 	print("BattleManager: Starting battle - %s" % battle_data.battle_name)
 	print("========================================\n")
 
+	# 0. Set active mod for audio system
+	_initialize_audio()
+
 	# 1. Load map scene (content from mods/)
 	_load_map_scene()
 
@@ -111,6 +114,31 @@ func _validate_battle_data(data: Resource) -> bool:
 		return false
 
 	return true
+
+
+## Initialize audio system with mod path from battle data
+func _initialize_audio() -> void:
+	# Extract mod path from battle data resource path
+	# Example: "res://mods/_sandbox/data/battles/battle_name.tres"
+	var battle_path: String = current_battle_data.resource_path
+
+	# Extract mod directory (format: res://mods/<mod_name>/)
+	var mod_path: String = "res://mods/_sandbox"  # Default fallback
+
+	if battle_path.begins_with("res://mods/"):
+		var path_parts: PackedStringArray = battle_path.split("/")
+		if path_parts.size() >= 3:
+			# path_parts[0] = "res:"
+			# path_parts[1] = ""
+			# path_parts[2] = "mods"
+			# path_parts[3] = "<mod_name>"
+			mod_path = "res://mods/" + path_parts[3]
+
+	print("BattleManager: Setting audio mod path to %s" % mod_path)
+	AudioManager.set_active_mod(mod_path)
+
+	# Start battle music
+	AudioManager.play_music("battle_theme", 1.0)
 
 
 ## Load and instantiate map scene from BattleData
@@ -377,10 +405,17 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 		if was_critical:
 			damage *= 2
 			print("  → CRITICAL HIT!")
+			# Play critical hit sound
+			AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
+		else:
+			# Play normal hit sound
+			AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
 
 		print("  → HIT! %d damage (%d%% hit chance)" % [damage, hit_chance])
 	else:
 		print("  → MISS! (%d%% chance)" % hit_chance)
+		# Play miss sound
+		AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
 
 	# Show combat animation
 	await _show_combat_animation(attacker, defender, damage, was_critical, was_miss)
