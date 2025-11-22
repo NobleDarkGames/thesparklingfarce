@@ -259,13 +259,16 @@ func _process(_delta: float) -> void:
 	if Input.is_key_pressed(KEY_Q):
 		get_tree().quit()
 
-	# Keep camera centered on active unit (except in inspection mode)
-	# In inspection mode, InputManager controls the camera to follow cursor
-	var camera: Camera2D = $Camera
+	# Camera behavior:
+	# - On turn start: CameraController.follow_unit() smoothly pans to new unit
+	# - During unit movement: Follow the moving unit's position (while they're animating)
+	# - In inspection mode: InputManager controls the camera to follow cursor
 	var active_unit: Node2D = TurnManager.get_active_unit()
 	if InputManager.current_state != InputManager.InputState.INSPECTING:
-		if camera and active_unit and active_unit.is_alive():
-			camera.position = active_unit.position
+		if active_unit and active_unit.is_alive():
+			# If unit is currently moving (has active tween), follow them smoothly
+			if active_unit._movement_tween and active_unit._movement_tween.is_valid():
+				_camera.set_target_position(active_unit.position)
 
 	# Update debug label
 	var mouse_world: Vector2 = get_global_mouse_position()

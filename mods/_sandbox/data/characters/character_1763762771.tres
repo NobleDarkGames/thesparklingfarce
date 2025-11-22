@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=4 format=3 uid="uid://dy32d4o3uor15"]
+
+[ext_resource type="Resource" uid="uid://bed1m24rxfrey" path="res://mods/_sandbox/data/classes/class_1763762778.tres" id="1_igv21"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_yikiu"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_igv21"]
+
+[resource]
+script = ExtResource("1_yikiu")
+character_name = "Maggie"
+character_class = ExtResource("1_igv21")
+base_hp = 12
+base_mp = 20
+base_strength = 3
+base_defense = 3
+mp_growth = 35

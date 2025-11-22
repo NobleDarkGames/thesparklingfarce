@@ -15,15 +15,6 @@ extends Resource
 @export var base_intelligence: int = 5
 @export var base_luck: int = 5
 
-@export_group("Growth Rates")
-@export_range(0, 100) var hp_growth: int = 50
-@export_range(0, 100) var mp_growth: int = 50
-@export_range(0, 100) var strength_growth: int = 50
-@export_range(0, 100) var defense_growth: int = 50
-@export_range(0, 100) var agility_growth: int = 50
-@export_range(0, 100) var intelligence_growth: int = 50
-@export_range(0, 100) var luck_growth: int = 50
-
 @export_group("Appearance")
 @export var portrait: Texture2D
 @export var battle_sprite: Texture2D  ## Map sprite used on battlefield
@@ -57,14 +48,6 @@ extends Resource
 func get_base_stat(stat_name: String) -> int:
 	if stat_name in self:
 		return get(stat_name)
-	return 0
-
-
-## Get growth rate by stat name
-func get_growth_rate(stat_name: String) -> int:
-	var growth_key: String = stat_name + "_growth"
-	if growth_key in self:
-		return get(growth_key)
 	return 0
 
 

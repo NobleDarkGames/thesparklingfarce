@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=4 format=3 uid="uid://ckk6isxsbmavb"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_gawho"]
+[ext_resource type="Resource" uid="uid://d3mr4nc200fti" path="res://mods/_sandbox/data/classes/class_1763763716.tres" id="1_jufb1"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_jufb1"]
+
+[resource]
+script = ExtResource("1_gawho")
+character_name = "Huge Rat"
+character_class = ExtResource("1_jufb1")
+base_hp = 20
+base_mp = 10
+unit_category = "enemy"
+is_unique = false

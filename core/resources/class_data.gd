@@ -14,6 +14,17 @@ enum MovementType {
 @export var movement_type: MovementType = MovementType.WALKING
 @export var movement_range: int = 4
 
+@export_group("Growth Rates")
+## Stat growth rates determine how stats increase on level up (0-100%)
+## These rates define the class's growth pattern, matching Shining Force mechanics
+@export_range(0, 100) var hp_growth: int = 50
+@export_range(0, 100) var mp_growth: int = 50
+@export_range(0, 100) var strength_growth: int = 50
+@export_range(0, 100) var defense_growth: int = 50
+@export_range(0, 100) var agility_growth: int = 50
+@export_range(0, 100) var intelligence_growth: int = 50
+@export_range(0, 100) var luck_growth: int = 50
+
 @export_group("Equipment")
 ## Weapon types this class can equip (e.g., "sword", "axe", "bow")
 @export var equippable_weapon_types: Array[String] = []
@@ -60,6 +71,14 @@ func get_abilities_up_to_level(level: int) -> Array[Resource]:
 			if ability != null:
 				abilities.append(ability)
 	return abilities
+
+
+## Get growth rate by stat name (for dynamic access)
+func get_growth_rate(stat_name: String) -> int:
+	var growth_key: String = stat_name + "_growth"
+	if growth_key in self:
+		return get(growth_key)
+	return 0
 
 
 ## Validate that required fields are set

@@ -127,8 +127,10 @@ func _test_character_data() -> void:
 
 	# Create a class first
 	var warrior_class: ClassData = ClassData.new()
-	warrior_class.class_name = "Warrior"
+	warrior_class.display_name = "Warrior"
 	warrior_class.movement_range = 4
+	warrior_class.hp_growth = 80
+	warrior_class.strength_growth = 60
 
 	# Create a character
 	var hero: CharacterData = CharacterData.new()
@@ -136,13 +138,11 @@ func _test_character_data() -> void:
 	hero.character_class = warrior_class
 	hero.base_hp = 20
 	hero.base_strength = 8
-	hero.hp_growth = 80
-	hero.strength_growth = 60
 	hero.starting_level = 1
 
 	_assert(hero.validate(), "Character validation should pass")
 	_assert(hero.get_base_stat("base_hp") == 20, "Base HP should be 20")
-	_assert(hero.get_growth_rate("hp") == 80, "HP growth should be 80")
+	_assert(hero.character_class.get_growth_rate("hp") == 80, "HP growth should be 80 (from class)")
 
 	# Test invalid character
 	var invalid_char: CharacterData = CharacterData.new()

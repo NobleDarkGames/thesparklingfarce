@@ -23,15 +23,6 @@ var agi_spin: SpinBox
 var int_spin: SpinBox
 var luk_spin: SpinBox
 
-# Growth rate editors
-var hp_growth_slider: HSlider
-var mp_growth_slider: HSlider
-var str_growth_slider: HSlider
-var def_growth_slider: HSlider
-var agi_growth_slider: HSlider
-var int_growth_slider: HSlider
-var luk_growth_slider: HSlider
-
 var available_classes: Array[ClassData] = []
 var available_ai_brains: Array[AIBrain] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "boss", "neutral"
@@ -92,9 +83,6 @@ func _create_detail_form() -> void:
 	# Stats section
 	_add_stats_section()
 
-	# Growth rates section
-	_add_growth_rates_section()
-
 	# Add the button container at the end
 	detail_panel.add_child(button_container)
 
@@ -109,8 +97,13 @@ func _load_resource_data() -> void:
 	level_spin.value = character.starting_level
 	bio_edit.text = character.biography
 
-	# Set battle configuration
-	var category_index: int = category_option.get_item_index(character.unit_category)
+	# Set battle configuration - find the matching category index
+	var category_index: int = -1
+	for i in range(category_option.item_count):
+		if category_option.get_item_text(i) == character.unit_category:
+			category_index = i
+			break
+
 	if category_index >= 0:
 		category_option.select(category_index)
 	else:
@@ -142,15 +135,6 @@ func _load_resource_data() -> void:
 	agi_spin.value = character.base_agility
 	int_spin.value = character.base_intelligence
 	luk_spin.value = character.base_luck
-
-	# Set growth rates
-	hp_growth_slider.value = character.hp_growth
-	mp_growth_slider.value = character.mp_growth
-	str_growth_slider.value = character.strength_growth
-	def_growth_slider.value = character.defense_growth
-	agi_growth_slider.value = character.agility_growth
-	int_growth_slider.value = character.intelligence_growth
-	luk_growth_slider.value = character.luck_growth
 
 
 ## Override: Save UI data to resource
@@ -193,15 +177,6 @@ func _save_resource_data() -> void:
 	character.base_agility = int(agi_spin.value)
 	character.base_intelligence = int(int_spin.value)
 	character.base_luck = int(luk_spin.value)
-
-	# Update growth rates
-	character.hp_growth = int(hp_growth_slider.value)
-	character.mp_growth = int(mp_growth_slider.value)
-	character.strength_growth = int(str_growth_slider.value)
-	character.defense_growth = int(def_growth_slider.value)
-	character.agility_growth = int(agi_growth_slider.value)
-	character.intelligence_growth = int(int_growth_slider.value)
-	character.luck_growth = int(luk_growth_slider.value)
 
 
 ## Override: Validate resource before saving
@@ -393,25 +368,6 @@ func _add_stats_section() -> void:
 	detail_panel.add_child(section)
 
 
-func _add_growth_rates_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Growth Rates (%)"
-	section_label.add_theme_font_size_override("font_size", 14)
-	section.add_child(section_label)
-
-	hp_growth_slider = _create_growth_editor("HP Growth:", section)
-	mp_growth_slider = _create_growth_editor("MP Growth:", section)
-	str_growth_slider = _create_growth_editor("STR Growth:", section)
-	def_growth_slider = _create_growth_editor("DEF Growth:", section)
-	agi_growth_slider = _create_growth_editor("AGI Growth:", section)
-	int_growth_slider = _create_growth_editor("INT Growth:", section)
-	luk_growth_slider = _create_growth_editor("LUK Growth:", section)
-
-	detail_panel.add_child(section)
-
-
 func _create_stat_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
 	var container: HBoxContainer = HBoxContainer.new()
 
@@ -428,32 +384,6 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
 
 	parent.add_child(container)
 	return spin
-
-
-func _create_growth_editor(label_text: String, parent: VBoxContainer) -> HSlider:
-	var container: HBoxContainer = HBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = 120
-	container.add_child(label)
-
-	var slider: HSlider = HSlider.new()
-	slider.min_value = 0
-	slider.max_value = 100
-	slider.value = 50
-	slider.step = 5
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	container.add_child(slider)
-
-	var value_label: Label = Label.new()
-	value_label.text = "50%"
-	value_label.custom_minimum_size.x = 50
-	slider.value_changed.connect(func(value: float) -> void: value_label.text = str(int(value)) + "%")
-	container.add_child(value_label)
-
-	parent.add_child(container)
-	return slider
 
 
 func _load_available_classes() -> void:

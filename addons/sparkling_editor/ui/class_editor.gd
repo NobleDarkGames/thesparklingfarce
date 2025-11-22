@@ -10,6 +10,15 @@ var movement_range_spin: SpinBox
 var promotion_level_spin: SpinBox
 var promotion_class_option: OptionButton
 
+# Growth rate editors
+var hp_growth_slider: HSlider
+var mp_growth_slider: HSlider
+var str_growth_slider: HSlider
+var def_growth_slider: HSlider
+var agi_growth_slider: HSlider
+var int_growth_slider: HSlider
+var luk_growth_slider: HSlider
+
 var weapon_types_container: VBoxContainer
 var armor_types_container: VBoxContainer
 
@@ -28,6 +37,9 @@ func _create_detail_form() -> void:
 
 	# Movement section
 	_add_movement_section()
+
+	# Growth rates section
+	_add_growth_rates_section()
 
 	# Equipment section
 	_add_equipment_section()
@@ -49,6 +61,15 @@ func _load_resource_data() -> void:
 	movement_type_option.selected = class_data.movement_type
 	movement_range_spin.value = class_data.movement_range
 	promotion_level_spin.value = class_data.promotion_level
+
+	# Set growth rates
+	hp_growth_slider.value = class_data.hp_growth
+	mp_growth_slider.value = class_data.mp_growth
+	str_growth_slider.value = class_data.strength_growth
+	def_growth_slider.value = class_data.defense_growth
+	agi_growth_slider.value = class_data.agility_growth
+	int_growth_slider.value = class_data.intelligence_growth
+	luk_growth_slider.value = class_data.luck_growth
 
 	# Update promotion class options first
 	_update_promotion_options()
@@ -86,6 +107,15 @@ func _save_resource_data() -> void:
 	class_data.movement_type = movement_type_option.selected
 	class_data.movement_range = int(movement_range_spin.value)
 	class_data.promotion_level = int(promotion_level_spin.value)
+
+	# Update growth rates
+	class_data.hp_growth = int(hp_growth_slider.value)
+	class_data.mp_growth = int(mp_growth_slider.value)
+	class_data.strength_growth = int(str_growth_slider.value)
+	class_data.defense_growth = int(def_growth_slider.value)
+	class_data.agility_growth = int(agi_growth_slider.value)
+	class_data.intelligence_growth = int(int_growth_slider.value)
+	class_data.luck_growth = int(luk_growth_slider.value)
 
 	# Update promotion class
 	var promo_index: int = promotion_class_option.selected - 1
@@ -317,3 +347,54 @@ func _update_promotion_options() -> void:
 		var class_data: ClassData = available_resources[i] as ClassData
 		if class_data:
 			promotion_class_option.add_item(class_data.display_name, i + 1)
+
+
+func _add_growth_rates_section() -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Growth Rates (%) - Shining Force Style"
+	section_label.add_theme_font_size_override("font_size", 14)
+	section.add_child(section_label)
+
+	var help_label: Label = Label.new()
+	help_label.text = "Growth rates determine stat increases on level up. Set per class, not per character."
+	help_label.add_theme_font_size_override("font_size", 10)
+	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
+	section.add_child(help_label)
+
+	hp_growth_slider = _create_growth_editor("HP Growth:", section)
+	mp_growth_slider = _create_growth_editor("MP Growth:", section)
+	str_growth_slider = _create_growth_editor("STR Growth:", section)
+	def_growth_slider = _create_growth_editor("DEF Growth:", section)
+	agi_growth_slider = _create_growth_editor("AGI Growth:", section)
+	int_growth_slider = _create_growth_editor("INT Growth:", section)
+	luk_growth_slider = _create_growth_editor("LUK Growth:", section)
+
+	detail_panel.add_child(section)
+
+
+func _create_growth_editor(label_text: String, parent: VBoxContainer) -> HSlider:
+	var container: HBoxContainer = HBoxContainer.new()
+
+	var label: Label = Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 120
+	container.add_child(label)
+
+	var slider: HSlider = HSlider.new()
+	slider.min_value = 0
+	slider.max_value = 100
+	slider.value = 50
+	slider.step = 5
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	container.add_child(slider)
+
+	var value_label: Label = Label.new()
+	value_label.text = "50%"
+	value_label.custom_minimum_size.x = 50
+	slider.value_changed.connect(func(value: float) -> void: value_label.text = str(int(value)) + "%")
+	container.add_child(value_label)
+
+	parent.add_child(container)
+	return slider

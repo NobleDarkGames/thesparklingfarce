@@ -4,4 +4,6 @@
 
 [resource]
 script = ExtResource("1_nbvln")
-display_name = "New Class"
+display_name = "Hero"
+equippable_weapon_types = Array[String](["sword"])
+equippable_armor_types = Array[String](["light", "heavy"])
