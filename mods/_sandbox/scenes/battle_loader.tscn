@@ -1,0 +1,68 @@
+[gd_scene load_steps=10 format=3 uid="uid://bp8uf7h7njdje"]
+
+[ext_resource type="Script" uid="uid://dt1doo2qfgs2h" path="res://mods/_sandbox/scenes/battle_loader.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bj2so3ypjwmba" path="res://core/systems/camera_controller.gd" id="2_camera"]
+[ext_resource type="Script" uid="uid://ce1g8slrpl07e" path="res://core/resources/grid.gd" id="3_grid"]
+[ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="4_font"]
+[ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="5_highlight"]
+[ext_resource type="PackedScene" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
+[ext_resource type="PackedScene" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
+
+[sub_resource type="TileSet" id="TileSet_test"]
+tile_size = Vector2i(32, 32)
+
+[sub_resource type="Resource" id="Grid_test"]
+script = ExtResource("3_grid")
+
+[node name="BattleLoader" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 10000.0
+offset_bottom = 10000.0
+color = Color(0.15, 0.2, 0.15, 1)
+
+[node name="Map" type="Node2D" parent="."]
+
+[node name="GroundLayer" type="TileMapLayer" parent="Map"]
+tile_set = SubResource("TileSet_test")
+
+[node name="HighlightLayer" type="TileMapLayer" parent="Map"]
+z_index = 1
+tile_set = ExtResource("5_highlight")
+
+[node name="Units" type="Node2D" parent="."]
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(320, 180)
+script = ExtResource("2_camera")
+grid = SubResource("Grid_test")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ActiveUnitStatsPanel" parent="UI/HUD" instance=ExtResource("6_stats")]
+layout_mode = 1
+
+[node name="TerrainInfoPanel" parent="UI/HUD" instance=ExtResource("7_terrain")]
+layout_mode = 1
+
+[node name="DebugLabel" type="Label" parent="UI/HUD"]
+texture_filter = 1
+layout_mode = 0
+offset_left = 8.0
+offset_top = 70.0
+offset_right = 300.0
+offset_bottom = 150.0
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 16
+text = "Unit Test
+Loading..."

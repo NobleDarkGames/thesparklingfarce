@@ -36,6 +36,9 @@ var available_classes: Array[ClassData] = []
 var available_ai_brains: Array[AIBrain] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "boss", "neutral"
 
+# Filter buttons (will be created by _setup_filter_buttons)
+var filter_buttons: Dictionary = {}  # {category: Button}
+
 
 func _ready() -> void:
 	resource_directory = "res://data/characters/"
@@ -43,6 +46,7 @@ func _ready() -> void:
 	resource_type_id = "character"
 	super._ready()
 	_load_available_classes()
+	_setup_filter_buttons()
 
 	# Listen for class changes from other editor tabs via EditorEventBus
 	if EditorEventBus:
@@ -53,7 +57,12 @@ func _ready() -> void:
 
 ## Override: Refresh the editor when mod changes or new resources are created
 func _refresh_list() -> void:
+	# Call parent to load all resources
 	super._refresh_list()
+
+	# Apply current filter
+	_apply_filter()
+
 	# Also reload the class dropdown when refreshing
 	_load_available_classes()
 
@@ -510,3 +519,80 @@ func _load_available_ai_brains() -> void:
 							default_ai_option.add_item(display_name, available_ai_brains.size())
 				file_name = dir.get_next()
 			dir.list_dir_end()
+
+
+func _setup_filter_buttons() -> void:
+	# Find the resource_list from base class to insert buttons before it
+	if not resource_list:
+		return
+
+	var list_parent: VBoxContainer = resource_list.get_parent() as VBoxContainer
+	if not list_parent:
+		return
+
+	var list_index: int = resource_list.get_index()
+
+	# Create filter button container
+	var filter_container: HBoxContainer = HBoxContainer.new()
+	filter_container.add_theme_constant_override("separation", 4)
+
+	# Create filter buttons
+	var categories: Array[String] = ["all", "player", "enemy", "boss", "neutral"]
+	var button_texts: Dictionary = {
+		"all": "All",
+		"player": "Players",
+		"enemy": "Enemies",
+		"boss": "Bosses",
+		"neutral": "Neutrals"
+	}
+
+	for category in categories:
+		var btn: Button = Button.new()
+		btn.text = button_texts[category]
+		btn.toggle_mode = true
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.pressed.connect(_on_filter_changed.bind(category))
+		filter_container.add_child(btn)
+		filter_buttons[category] = btn
+
+	# Set "all" as default selected
+	filter_buttons["all"].button_pressed = true
+
+	# Insert before the resource list
+	list_parent.add_child(filter_container)
+	list_parent.move_child(filter_container, list_index)
+
+
+func _on_filter_changed(category: String) -> void:
+	# Deselect all other buttons
+	for btn_category in filter_buttons.keys():
+		filter_buttons[btn_category].button_pressed = (btn_category == category)
+
+	# Update current filter
+	current_filter = category
+
+	# Apply filter to the list
+	_apply_filter()
+
+
+func _apply_filter() -> void:
+	if current_filter == "all":
+		# Show all items
+		for i in range(resource_list.item_count):
+			resource_list.set_item_disabled(i, false)
+		return
+
+	# Filter based on category
+	for i in range(resource_list.item_count):
+		var path: String = resource_list.get_item_metadata(i)
+		var character: CharacterData = load(path) as CharacterData
+
+		if character:
+			var should_show: bool = (character.unit_category == current_filter)
+			resource_list.set_item_disabled(i, not should_show)
+
+			# Hide disabled items by making them invisible
+			if not should_show:
+				# Add a prefix to visually hide (Godot doesn't have native hide for ItemList items)
+				# Instead, we'll use a different approach: only show matching items
+				pass

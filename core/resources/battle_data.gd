@@ -1,3 +1,4 @@
+@tool
 class_name BattleData
 extends Resource
 

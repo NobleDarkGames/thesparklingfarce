@@ -47,8 +47,8 @@ var time_of_day_option: OptionButton
 var experience_reward_spin: SpinBox
 var gold_reward_spin: SpinBox
 
-# AI Behavior options (used in multiple places)
-const AI_BEHAVIORS: Array[String] = ["aggressive", "defensive", "patrol", "stationary", "support"]
+# AI Behavior tracking
+var available_ai_brains: Array[AIBrain] = []  # Track loaded AI brain instances
 
 
 func _ready() -> void:
@@ -132,9 +132,21 @@ func _add_map_section() -> void:
 	detail_panel.add_child(map_label)
 
 	map_scene_label = Label.new()
-	map_scene_label.text = "Phase 3 - Map scene selection (use Inspector for now)"
+	map_scene_label.text = "(No map selected)"
 	map_scene_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	detail_panel.add_child(map_scene_label)
+
+	# Temporary button to use test_unit map (until Phase 3 map selector)
+	var use_test_map_button: Button = Button.new()
+	use_test_map_button.text = "Use Test Unit Map (Temporary)"
+	use_test_map_button.pressed.connect(_on_use_test_map)
+	detail_panel.add_child(use_test_map_button)
+
+	var note_label: Label = Label.new()
+	note_label.text = "Phase 3: Full map scene browser"
+	note_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	note_label.add_theme_font_size_override("font_size", 10)
+	detail_panel.add_child(note_label)
 
 	_add_separator()
 
@@ -418,8 +430,6 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	enemy_vbox.add_child(ai_label)
 
 	var ai_option: OptionButton = OptionButton.new()
-	for behavior in AI_BEHAVIORS:
-		ai_option.add_item(behavior)
 	enemy_vbox.add_child(ai_option)
 
 	# Track UI elements
@@ -436,6 +446,7 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 
 	# Load character dropdown and set values if provided
 	_update_character_dropdown(character_option)
+	_update_ai_dropdown(ai_option)
 
 	if 'character' in enemy_dict and enemy_dict.character:
 		_select_character_in_dropdown(character_option, enemy_dict.character)
@@ -443,10 +454,8 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 		var pos: Vector2i = enemy_dict.position
 		pos_x_spin.value = pos.x
 		pos_y_spin.value = pos.y
-	if 'ai_behavior' in enemy_dict:
-		var ai_index: int = AI_BEHAVIORS.find(enemy_dict.ai_behavior)
-		if ai_index >= 0:
-			ai_option.selected = ai_index
+	if 'ai_brain' in enemy_dict and enemy_dict.ai_brain:
+		_select_ai_in_dropdown(ai_option, enemy_dict.ai_brain)
 
 
 func _on_remove_enemy(panel: PanelContainer) -> void:
@@ -519,8 +528,6 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	neutral_vbox.add_child(ai_label)
 
 	var ai_option: OptionButton = OptionButton.new()
-	for behavior in AI_BEHAVIORS:
-		ai_option.add_item(behavior)
 	neutral_vbox.add_child(ai_option)
 
 	# Track UI elements
@@ -537,6 +544,7 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 
 	# Load character dropdown and set values if provided
 	_update_character_dropdown(character_option)
+	_update_ai_dropdown(ai_option)
 
 	if 'character' in neutral_dict and neutral_dict.character:
 		_select_character_in_dropdown(character_option, neutral_dict.character)
@@ -544,10 +552,8 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 		var pos: Vector2i = neutral_dict.position
 		pos_x_spin.value = pos.x
 		pos_y_spin.value = pos.y
-	if 'ai_behavior' in neutral_dict:
-		var ai_index: int = AI_BEHAVIORS.find(neutral_dict.ai_behavior)
-		if ai_index >= 0:
-			ai_option.selected = ai_index
+	if 'ai_brain' in neutral_dict and neutral_dict.ai_brain:
+		_select_ai_in_dropdown(ai_option, neutral_dict.ai_brain)
 
 
 func _on_remove_neutral(panel: PanelContainer) -> void:
@@ -572,14 +578,27 @@ func _update_character_dropdown(option: OptionButton) -> void:
 	option.clear()
 	option.add_item("(None)", -1)
 
-	var dir: DirAccess = DirAccess.open("res://data/characters/")
+	# Use ModLoader to get the correct directory for the active mod
+	var character_dir: String = ""
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+			if "character" in resource_dirs:
+				character_dir = resource_dirs["character"]
+
+	# Fallback to legacy path if ModLoader unavailable
+	if character_dir == "":
+		character_dir = "res://data/characters/"
+
+	var dir: DirAccess = DirAccess.open(character_dir)
 	if dir:
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
 		var index: int = 0
 		while file_name != "":
 			if file_name.ends_with(".tres"):
-				var full_path: String = "res://data/characters/" + file_name
+				var full_path: String = character_dir.path_join(file_name)
 				var character: CharacterData = load(full_path)
 				if character:
 					option.add_item(character.character_name, index)
@@ -587,6 +606,8 @@ func _update_character_dropdown(option: OptionButton) -> void:
 					index += 1
 			file_name = dir.get_next()
 		dir.list_dir_end()
+	else:
+		push_warning("Battle Editor: Could not open character directory: " + character_dir)
 
 
 ## Select a character in the dropdown
@@ -596,6 +617,82 @@ func _select_character_in_dropdown(option: OptionButton, character: CharacterDat
 		if metadata == character:
 			option.selected = i
 			return
+
+
+## Load available AI brains from mod directories
+func _load_available_ai_brains() -> void:
+	available_ai_brains.clear()
+
+	# Scan for AI brain files in mods
+	var ai_dirs: Array[String] = [
+		"res://mods/base_game/ai_brains/",
+		"res://mods/_base_game/ai_brains/",
+		"res://core/ai/"  # Future location for built-in AI
+	]
+
+	for ai_dir in ai_dirs:
+		var dir: DirAccess = DirAccess.open(ai_dir)
+		if dir:
+			dir.list_dir_begin()
+			var file_name: String = dir.get_next()
+			while file_name != "":
+				if file_name.ends_with(".gd") and not file_name.begins_with("."):
+					var ai_script: GDScript = load(ai_dir.path_join(file_name))
+					if ai_script:
+						# Create an instance to add to available list
+						var ai_instance: AIBrain = ai_script.new()
+						if ai_instance:
+							available_ai_brains.append(ai_instance)
+				file_name = dir.get_next()
+			dir.list_dir_end()
+
+
+## Update AI dropdown with available AI brains
+func _update_ai_dropdown(option: OptionButton) -> void:
+	option.clear()
+	option.add_item("(None)", -1)
+
+	# Load AI brains if not already loaded
+	if available_ai_brains.is_empty():
+		_load_available_ai_brains()
+
+	# Populate dropdown
+	var index: int = 0
+	for ai_brain in available_ai_brains:
+		var display_name: String = ai_brain.get_script().get_path().get_file().get_basename().replace("ai_", "").capitalize()
+		option.add_item(display_name, index)
+		option.set_item_metadata(index + 1, ai_brain)
+		index += 1
+
+
+## Select an AI brain in the dropdown
+func _select_ai_in_dropdown(option: OptionButton, ai_brain: AIBrain) -> void:
+	if not ai_brain:
+		option.selected = 0
+		return
+
+	for i in range(option.item_count):
+		var metadata: Variant = option.get_item_metadata(i)
+		if metadata and metadata.get_script() == ai_brain.get_script():
+			option.selected = i
+			return
+
+
+## Temporary: Use test_unit map scene
+func _on_use_test_map() -> void:
+	var battle: BattleData = current_resource as BattleData
+	if not battle:
+		return
+
+	# Load the test_unit scene
+	var test_map: PackedScene = load("res://mods/_sandbox/scenes/test_unit.tscn")
+	if test_map:
+		battle.map_scene = test_map
+		map_scene_label.text = "test_unit.tscn (Temporary)"
+		map_scene_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+		print("Battle Editor: Set map to test_unit scene")
+	else:
+		push_error("Battle Editor: Failed to load test_unit map scene")
 
 
 ## Victory condition changed - update conditional UI
@@ -712,6 +809,15 @@ func _load_resource_data() -> void:
 	battle_name_edit.text = battle.battle_name
 	battle_description_edit.text = battle.battle_description
 
+	# Map scene
+	if battle.map_scene:
+		var scene_path: String = battle.map_scene.resource_path
+		map_scene_label.text = scene_path.get_file()
+		map_scene_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+	else:
+		map_scene_label.text = "(No map selected)"
+		map_scene_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+
 	# Clear existing enemies/neutrals UI
 	_clear_enemies_ui()
 	_clear_neutrals_ui()
@@ -795,18 +901,31 @@ func _clear_neutrals_ui() -> void:
 
 ## Update dialogue dropdowns with available dialogues
 func _update_dialogue_dropdowns() -> void:
+	# Use ModLoader to get the correct directory for the active mod
+	var dialogue_dir: String = ""
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+			if "dialogue" in resource_dirs:
+				dialogue_dir = resource_dirs["dialogue"]
+
+	# Fallback to legacy path if ModLoader unavailable
+	if dialogue_dir == "":
+		dialogue_dir = "res://data/dialogues/"
+
 	for option in [pre_battle_dialogue_option, victory_dialogue_option, defeat_dialogue_option]:
 		option.clear()
 		option.add_item("(None)", -1)
 
-		var dir: DirAccess = DirAccess.open("res://data/dialogues/")
+		var dir: DirAccess = DirAccess.open(dialogue_dir)
 		if dir:
 			dir.list_dir_begin()
 			var file_name: String = dir.get_next()
 			var index: int = 0
 			while file_name != "":
 				if file_name.ends_with(".tres"):
-					var full_path: String = "res://data/dialogues/" + file_name
+					var full_path: String = dialogue_dir.path_join(file_name)
 					var dialogue: DialogueData = load(full_path)
 					if dialogue:
 						option.add_item(dialogue.dialogue_title, index)
@@ -814,6 +933,8 @@ func _update_dialogue_dropdowns() -> void:
 						index += 1
 				file_name = dir.get_next()
 			dir.list_dir_end()
+		else:
+			push_warning("Battle Editor: Could not open dialogue directory: " + dialogue_dir)
 
 
 ## Select a dialogue in dropdown
@@ -847,10 +968,15 @@ func _save_resource_data() -> void:
 		if char_index > 0:
 			character = enemy_ui.character_option.get_item_metadata(char_index)
 
+		var ai_index: int = enemy_ui.ai_option.selected
+		var ai_brain: AIBrain = null
+		if ai_index > 0:
+			ai_brain = enemy_ui.ai_option.get_item_metadata(ai_index)
+
 		var enemy_dict: Dictionary = {
 			"character": character,
 			"position": Vector2i(int(enemy_ui.pos_x_spin.value), int(enemy_ui.pos_y_spin.value)),
-			"ai_behavior": AI_BEHAVIORS[enemy_ui.ai_option.selected]
+			"ai_brain": ai_brain
 		}
 		new_enemies.append(enemy_dict)
 	battle.enemies = new_enemies
@@ -863,10 +989,15 @@ func _save_resource_data() -> void:
 		if char_index > 0:
 			character = neutral_ui.character_option.get_item_metadata(char_index)
 
+		var ai_index: int = neutral_ui.ai_option.selected
+		var ai_brain: AIBrain = null
+		if ai_index > 0:
+			ai_brain = neutral_ui.ai_option.get_item_metadata(ai_index)
+
 		var neutral_dict: Dictionary = {
 			"character": character,
 			"position": Vector2i(int(neutral_ui.pos_x_spin.value), int(neutral_ui.pos_y_spin.value)),
-			"ai_behavior": AI_BEHAVIORS[neutral_ui.ai_option.selected]
+			"ai_brain": ai_brain
 		}
 		new_neutrals.append(neutral_dict)
 	battle.neutrals = new_neutrals
@@ -932,16 +1063,16 @@ func _save_resource_data() -> void:
 func _validate_resource() -> Dictionary:
 	var battle: BattleData = current_resource as BattleData
 	if not battle:
-		return {valid = false, errors = ["Invalid resource type"]}
+		return {"valid": false, "errors": ["Invalid resource type"]}
 
 	# Save first to get current UI values
 	_save_resource_data()
 
 	# Use BattleData's built-in validation
 	if not battle.validate():
-		return {valid = false, errors = ["See console for validation errors"]}
+		return {"valid": false, "errors": ["See console for validation errors"]}
 
-	return {valid = true, errors = []}
+	return {"valid": true, "errors": []}
 
 
 ## Override: Check for references before deletion

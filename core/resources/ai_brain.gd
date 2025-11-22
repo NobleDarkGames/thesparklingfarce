@@ -36,7 +36,7 @@ func execute_async(unit: Node2D, context: Dictionary) -> void:
 		await unit._movement_tween.finished
 		print("DEBUG [TO REMOVE]: Movement animation finished for %s" % unit.character_data.character_name)  # DEBUG: TO REMOVE
 	else:
-		print("DEBUG [TO REMOVE]: No movement tween to wait for (unit didn't move or instant movement)" % unit.character_data.character_name)  # DEBUG: TO REMOVE
+		print("DEBUG [TO REMOVE]: No movement tween to wait for %s (unit didn't move or instant movement)" % unit.character_data.character_name)  # DEBUG: TO REMOVE
 
 
 ## Helper: Get all player units from context
