@@ -7,10 +7,10 @@
 [ext_resource type="Script" uid="uid://c2mvw8p5rh1jy" path="res://mods/base_game/ai_brains/ai_stationary.gd" id="3_fv7sc"]
 [ext_resource type="PackedScene" uid="uid://meb2axl5cqb8" path="res://mods/_sandbox/scenes/test_unit.tscn" id="5_w1h23"]
 
-[sub_resource type="Resource" id="Resource_fv7sc"]
+[sub_resource type="Resource" id="Resource_w1h23"]
 script = ExtResource("2_w1h23")
 
-[sub_resource type="Resource" id="Resource_5oe2a"]
+[sub_resource type="Resource" id="Resource_fv7sc"]
 script = ExtResource("3_fv7sc")
 
 [resource]
@@ -19,11 +19,11 @@ battle_name = "The Battle of Noobs"
 battle_description = "Enter battle description"
 map_scene = ExtResource("5_w1h23")
 enemies = Array[Dictionary]([{
-"ai_brain": SubResource("Resource_fv7sc"),
+"ai_brain": SubResource("Resource_w1h23"),
 "character": ExtResource("1_oxiof"),
 "position": Vector2i(10, 10)
 }, {
-"ai_brain": SubResource("Resource_5oe2a"),
+"ai_brain": SubResource("Resource_fv7sc"),
 "character": ExtResource("1_oxiof"),
 "position": Vector2i(10, 12)
 }])

@@ -25,3 +25,5 @@ When dealing with Git, it's ok to add files to staging, but DO NOT commit to the
 - Staging is fine, but never commit to git without explicit instructions
 Again, as I seem to have to keep repeating this, you may add and stage files, but DO NOT COMMIT TO GIT WITHOUT explicit instructions.
 
+## Personality
+Feel free to use humor and nerdy references, particularly from the Star Trek universe.

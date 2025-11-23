@@ -235,8 +235,20 @@ func _create_grid_from_tilemap(tilemap: TileMapLayer) -> Resource:
 
 ## Spawn all units from BattleData
 func _spawn_all_units() -> void:
-	# TODO Phase 4: Spawn player units from saved party
-	# For now, test scenes spawn player units manually
+	# Spawn player units from PartyManager
+	if not PartyManager.is_empty():
+		# Get player spawn point from BattleData or use default
+		var player_spawn_point: Vector2i = Vector2i(2, 2)  # Default position
+		if current_battle_data.get("player_spawn_position") != null:
+			player_spawn_point = current_battle_data.player_spawn_position
+
+		# Get party spawn data from PartyManager
+		var party_spawn_data: Array[Dictionary] = PartyManager.get_battle_spawn_data(player_spawn_point)
+
+		# Spawn the party
+		player_units = _spawn_units(party_spawn_data, "player")
+	else:
+		push_warning("BattleManager: No party members in PartyManager, no player units spawned")
 
 	# Spawn enemy units
 	if current_battle_data.get("enemies") != null:
@@ -323,6 +335,16 @@ func _connect_signals() -> void:
 
 	if not InputManager.target_selected.is_connected(_on_target_selected):
 		InputManager.target_selected.connect(_on_target_selected)
+
+	# ExperienceManager signals
+	if not ExperienceManager.unit_gained_xp.is_connected(_on_unit_gained_xp):
+		ExperienceManager.unit_gained_xp.connect(_on_unit_gained_xp)
+
+	if not ExperienceManager.unit_leveled_up.is_connected(_on_unit_leveled_up):
+		ExperienceManager.unit_leveled_up.connect(_on_unit_leveled_up)
+
+	if not ExperienceManager.unit_learned_ability.is_connected(_on_unit_learned_ability):
+		ExperienceManager.unit_learned_ability.connect(_on_unit_learned_ability)
 
 	print("BattleManager: Signals connected")
 
@@ -432,6 +454,18 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	# Emit combat result signal
 	combat_resolved.emit(attacker, defender, damage, not was_miss, was_critical)
 
+	# Award XP for combat (damage dealt and kill bonus)
+	if not was_miss and damage > 0:
+		# Check if defender died from the attack
+		var got_kill: bool = false
+		if defender.has_method("is_dead"):
+			got_kill = defender.is_dead()
+		elif defender.stats:
+			got_kill = defender.stats.current_hp <= 0
+
+		# Award combat XP to attacker and nearby allies
+		ExperienceManager.award_combat_xp(attacker, defender, damage, got_kill)
+
 	# TODO: Counterattack (Phase 4)
 
 	# Reset InputManager to waiting state ONLY if this unit is still the active unit
@@ -531,6 +565,42 @@ func _on_battle_ended(victory: bool) -> void:
 	# TODO: Show victory/defeat dialogue
 	# TODO: Award experience/items
 	# TODO: Return to overworld
+
+
+## Handle unit gaining XP
+func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
+	print("BattleManager: %s gained %d XP from %s" % [unit.get_display_name(), amount, source])
+	# TODO: Show floating "+X XP" text above unit (Phase 3 or 4)
+
+
+## Handle unit level up
+func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+	print("\n========================================")
+	print("LEVEL UP! %s: Lv %d → Lv %d" % [unit.get_display_name(), old_level, new_level])
+	print("========================================")
+
+	# Print stat increases
+	for stat_name: String in stat_increases:
+		if stat_name == "abilities":
+			continue  # Handled by unit_learned_ability signal
+		var increase: int = stat_increases[stat_name]
+		print("  %s +%d" % [stat_name.to_upper(), increase])
+
+	print("========================================\n")
+
+	# TODO: Show level-up screen UI (Phase 4 or 5)
+	# - Unit portrait
+	# - Level progression
+	# - Stat increases
+	# - Learned abilities
+	# - Continue button
+
+
+## Handle unit learning ability
+func _on_unit_learned_ability(unit: Node2D, ability: Resource) -> void:
+	var ability_name: String = ability.ability_name if ability else "Unknown"
+	print("BattleManager: %s learned %s!" % [unit.get_display_name(), ability_name])
+	# TODO: Show ability learned notification (Phase 4)
 
 
 ## Clean up battle

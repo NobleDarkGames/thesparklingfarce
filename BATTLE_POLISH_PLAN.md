@@ -18,6 +18,8 @@ This document outlines the implementation plan for polishing The Sparkling Farce
 6. **Character Names** - Units display actual names ("Hero", "Goblin") instead of "Unit"
 7. **Bug Fixes** - Attack range highlights clear properly, action menu includes "Move" option
 8. **Audio System** - Complete mod-aware audio infrastructure with automatic SFX/music hooks
+9. **Streamlined Movement** - Cell selection immediately moves character, no confirmation step needed
+10. **Enemy Inspection** - Press B (Backspace/X) to enter free cursor mode, inspect any unit on battlefield
 
 ### Key Files Created:
 - `core/systems/audio_manager.gd` - Audio playback system
@@ -81,24 +83,25 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [x] Test with different units and terrain types
 
 ### Medium Priority (User Experience)
-- [ ] **MP1: Streamline Movement Confirmation**
-  - [ ] Analyze current movement flow in InputManager
-  - [ ] Remove intermediate path preview confirmation step
-  - [ ] Make cell selection immediately move character
-  - [ ] Keep ESC cancel functionality
-  - [ ] Update GridCursor behavior
-  - [ ] Test movement feel and responsiveness
-  - [ ] Ensure action menu appears correctly after move
+- [x] **MP1: Streamline Movement Confirmation** ✅ COMPLETED
+  - [x] Analyze current movement flow in InputManager
+  - [x] Remove intermediate path preview confirmation step
+  - [x] Make cell selection immediately move character
+  - [x] Keep ESC cancel functionality
+  - [x] Update GridCursor behavior
+  - [x] Test movement feel and responsiveness
+  - [x] Ensure action menu appears correctly after move
 
-- [ ] **MP2: Enemy Inspection System**
-  - [ ] Add INSPECTING state to InputManager
-  - [ ] Create InspectionPanel UI scene
-  - [ ] Add hotkey for toggling inspection mode (Tab or I)
-  - [ ] Allow cursor to hover over any unit during inspection
-  - [ ] Display full unit stats in panel
-  - [ ] Show equipment and status effects
-  - [ ] Add visual indicator when in inspection mode
-  - [ ] Test during player and enemy turns
+- [x] **MP2: Enemy Inspection System** ✅ COMPLETED
+  - [x] Add INSPECTING state to InputManager
+  - [x] Stats panel reused for inspection (no separate InspectionPanel needed)
+  - [x] Add hotkey for toggling inspection mode (Backspace/X = sf_cancel button)
+  - [x] Allow cursor to hover over any unit during inspection
+  - [x] Display full unit stats in panel (ActiveUnitStatsPanel)
+  - [x] Show unit stats for both player and enemy units
+  - [x] Add visual indicator when in inspection mode (free cursor movement)
+  - [x] Camera follows cursor in inspection mode
+  - [x] Test during player and enemy turns
 
 - [x] **MP3: Smooth Camera and Character Movement** ✅ COMPLETED
   - [x] Implement CameraController.follow_unit() method

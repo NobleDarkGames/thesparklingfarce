@@ -359,13 +359,13 @@ Total = Base + Ratio Bonus
 
 ## Implementation Status
 
-**Last Updated:** November 21, 2025
+**Last Updated:** November 22, 2025
 
 ### ✅ Phase 1: Foundation - COMPLETED
 
 **Implementation Date:** November 21, 2025
 
-**Status:** All components implemented and tested. Files staged in git.
+**Status:** All components implemented and tested. Files committed.
 
 **Files Created:**
 - `core/resources/experience_config.gd` - Configuration resource (165 lines)
@@ -383,10 +383,46 @@ Total = Base + Ratio Bonus
 - ✅ ExperienceManager autoload initializes successfully
 - ✅ Default ExperienceConfig created on startup
 
+---
+
+### ✅ Phase 2: Combat XP Integration - COMPLETED
+
+**Implementation Date:** November 22, 2025
+
+**Status:** XP awarding fully integrated into BattleManager combat flow.
+
+**Files Modified:**
+- `core/systems/battle_manager.gd` - Integrated XP awarding and level-up notifications
+
+**Changes Made:**
+1. **Combat XP Awarding** (line 435-445)
+   - Calls `ExperienceManager.award_combat_xp()` after each attack
+   - Checks if attack resulted in kill for bonus XP
+   - Awards damage XP proportional to damage dealt
+   - Automatically awards participation XP to nearby allies
+
+2. **Signal Connections** (line 327-336)
+   - Connected to `ExperienceManager.unit_gained_xp` signal
+   - Connected to `ExperienceManager.unit_leveled_up` signal
+   - Connected to `ExperienceManager.unit_learned_ability` signal
+
+3. **Event Handlers** (line 558-592)
+   - `_on_unit_gained_xp()` - Logs XP gains (TODO: floating text)
+   - `_on_unit_leveled_up()` - Prints level-up with stat increases
+   - `_on_unit_learned_ability()` - Logs ability learning
+
+**Testing Results:**
+- ✅ Code integrates cleanly with existing combat flow
+- ✅ XP awarding called at correct point in _execute_attack()
+- ✅ Kill detection works via is_dead() check
+- ✅ Signal handlers properly defined
+- ✅ Console logging provides clear feedback
+- ✅ No compilation errors
+
 **Next Steps:**
-- Proceed to Phase 2: Combat XP Integration
-- Connect BattleManager to ExperienceManager signals
-- Award XP on combat_resolved and unit death
+- Proceed to Phase 3: Support XP Integration (healing, buffs)
+- Add UI feedback for XP gains (floating text)
+- Create level-up screen UI (Phase 4/5)
 
 ---
 
@@ -487,28 +523,35 @@ ExperienceManager="*res://core/systems/experience_manager.gd"
 
 ---
 
-### Phase 2: Combat XP Integration - 🔜 NEXT
+### Phase 2: Combat XP Integration - ✅ COMPLETED
 
-#### 2.1 Track Participation in BattleManager
+#### 2.1 Track Participation in BattleManager - ✅ DONE
 
 **File:** `core/systems/battle_manager.gd` (modify existing)
 
-**Changes:**
-1. In `_execute_attack()` after combat_resolved signal:
-   - Call `ExperienceManager.award_combat_xp()`
-   - Pass attacker, defender, damage_dealt, false (not a kill yet)
+**Implementation:**
+1. In `_execute_attack()` after damage is applied (line 435-445):
+   - Checks if defender died from the attack
+   - Calls `ExperienceManager.award_combat_xp(attacker, defender, damage, got_kill)`
+   - Awards damage XP proportional to HP dealt
+   - Awards kill bonus if defender died
+   - Participation XP automatically awarded to nearby allies
 
-2. In `_on_unit_died()` after death processing:
-   - Call `ExperienceManager.award_combat_xp()` with got_kill=true
-   - Award kill bonus to last attacker
+2. Signal Connections (line 327-336):
+   - Connected to `ExperienceManager.unit_gained_xp`
+   - Connected to `ExperienceManager.unit_leveled_up`
+   - Connected to `ExperienceManager.unit_learned_ability`
 
-3. Connect to ExperienceManager signals:
-   - `unit_leveled_up(unit, old_level, new_level, stat_increases)`
-   - Display level-up notification
+3. Event Handlers (line 558-592):
+   - `_on_unit_gained_xp()` - Logs XP gains
+   - `_on_unit_leveled_up()` - Displays level-up with stat increases
+   - `_on_unit_learned_ability()` - Logs ability learning
 
-#### 2.2 Implement Participation Radius Logic
+#### 2.2 Implement Participation Radius Logic - ✅ DONE
 
 **File:** `core/systems/experience_manager.gd`
+
+**Implementation:** Already complete in Phase 1 (lines 146-177)
 
 **Method:**
 ```gdscript
@@ -532,9 +575,11 @@ func get_units_in_participation_radius(center_unit: Unit) -> Array[Unit]:
     return nearby_allies
 ```
 
-#### 2.3 XP Distribution Logic
+#### 2.3 XP Distribution Logic - ✅ DONE
 
 **File:** `core/systems/experience_manager.gd`
+
+**Implementation:** Already complete in Phase 1 (lines 103-144)
 
 **Method:**
 ```gdscript

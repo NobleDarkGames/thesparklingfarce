@@ -1,39 +1,12 @@
-[gd_scene load_steps=19 format=3 uid="uid://bp8uf7h7njdje"]
+[gd_scene load_steps=10 format=3 uid="uid://p1blu4isq2pj"]
 
-[ext_resource type="Script" uid="uid://dt1doo2qfgs2h" path="res://mods/_sandbox/scenes/battle_loader.gd" id="1_script"]
-[ext_resource type="Script" uid="uid://bgcprqv3bhcbk" path="res://mods/base_game/ai_brains/ai_aggressive.gd" id="2_5rhrm"]
+[ext_resource type="Script" uid="uid://dirogxhavm30h" path="res://mods/_sandbox/scenes/test_xp_system.gd" id="1_script"]
 [ext_resource type="Script" uid="uid://bj2so3ypjwmba" path="res://core/systems/camera_controller.gd" id="2_camera"]
 [ext_resource type="Script" uid="uid://ce1g8slrpl07e" path="res://core/resources/grid.gd" id="3_grid"]
-[ext_resource type="Resource" uid="uid://ckk6isxsbmavb" path="res://mods/_sandbox/data/characters/character_1763763701.tres" id="3_v4a0o"]
 [ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="4_font"]
-[ext_resource type="Script" uid="uid://c2mvw8p5rh1jy" path="res://mods/base_game/ai_brains/ai_stationary.gd" id="4_ms7d4"]
 [ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="5_highlight"]
-[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="5_mpwv4"]
-[ext_resource type="PackedScene" uid="uid://meb2axl5cqb8" path="res://mods/_sandbox/scenes/test_unit.tscn" id="6_bxaxe"]
 [ext_resource type="PackedScene" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
-[ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="7_jpukm"]
 [ext_resource type="PackedScene" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
-
-[sub_resource type="Resource" id="Resource_fv7sc"]
-script = ExtResource("2_5rhrm")
-
-[sub_resource type="Resource" id="Resource_5oe2a"]
-script = ExtResource("4_ms7d4")
-
-[sub_resource type="Resource" id="Resource_5364o"]
-script = ExtResource("7_jpukm")
-battle_name = "The Battle of Noobs"
-battle_description = "Enter battle description"
-map_scene = ExtResource("6_bxaxe")
-enemies = Array[Dictionary]([{
-"ai_brain": SubResource("Resource_fv7sc"),
-"character": ExtResource("3_v4a0o"),
-"position": Vector2i(10, 10)
-}, {
-"ai_brain": SubResource("Resource_5oe2a"),
-"character": ExtResource("3_v4a0o"),
-"position": Vector2i(10, 12)
-}])
 
 [sub_resource type="TileSet" id="TileSet_test"]
 tile_size = Vector2i(32, 32)
@@ -41,9 +14,8 @@ tile_size = Vector2i(32, 32)
 [sub_resource type="Resource" id="Grid_test"]
 script = ExtResource("3_grid")
 
-[node name="BattleLoader" type="Node2D"]
+[node name="TestXPSystem" type="Node2D"]
 script = ExtResource("1_script")
-battle_data = SubResource("Resource_5364o")
 
 [node name="Background" type="ColorRect" parent="."]
 offset_right = 10000.0
