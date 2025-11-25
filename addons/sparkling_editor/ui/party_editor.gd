@@ -1143,13 +1143,16 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 	var metadata_path: String = SAVE_DIRECTORY.path_join(METADATA_FILE)
 
 	# Load existing metadata
-	var all_metadata: Array = []
+	var all_metadata: Array[Dictionary] = []
 	if FileAccess.file_exists(metadata_path):
 		var file: FileAccess = FileAccess.open(metadata_path, FileAccess.READ)
 		if file:
 			var json: JSON = JSON.new()
 			if json.parse(file.get_as_text()) == OK:
-				all_metadata = json.data
+				var metadata_array: Array = json.data
+				for i in range(metadata_array.size()):
+					var meta_dict: Dictionary = metadata_array[i]
+					all_metadata.append(meta_dict)
 			file.close()
 
 	# Find or create metadata for this slot

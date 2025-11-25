@@ -253,11 +253,15 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		luck = data.luck
 	if "equipped_items" in data:
 		equipped_items.clear()
-		for item_dict: Dictionary in data.equipped_items:
+		var items_array: Array = data.equipped_items
+		for i in range(items_array.size()):
+			var item_dict: Dictionary = items_array[i]
 			equipped_items.append(item_dict)
 	if "learned_abilities" in data:
 		learned_abilities.clear()
-		for ability_dict: Dictionary in data.learned_abilities:
+		var abilities_array: Array = data.learned_abilities
+		for i in range(abilities_array.size()):
+			var ability_dict: Dictionary = abilities_array[i]
 			learned_abilities.append(ability_dict)
 	if "is_alive" in data:
 		is_alive = data.is_alive

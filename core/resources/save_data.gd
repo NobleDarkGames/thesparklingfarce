@@ -153,7 +153,9 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		slot_number = data.slot_number
 	if "active_mods" in data:
 		active_mods.clear()
-		for mod_dict: Dictionary in data.active_mods:
+		var mods_array: Array = data.active_mods
+		for i in range(mods_array.size()):
+			var mod_dict: Dictionary = mods_array[i]
 			active_mods.append(mod_dict)
 	if "game_version" in data:
 		game_version = data.game_version
@@ -163,11 +165,15 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		story_flags = data.story_flags.duplicate()
 	if "completed_battles" in data:
 		completed_battles.clear()
-		for battle_id: String in data.completed_battles:
+		var completed_array: Array = data.completed_battles
+		for i in range(completed_array.size()):
+			var battle_id: String = completed_array[i]
 			completed_battles.append(battle_id)
 	if "available_battles" in data:
 		available_battles.clear()
-		for battle_id: String in data.available_battles:
+		var available_array: Array = data.available_battles
+		for i in range(available_array.size()):
+			var battle_id: String = available_array[i]
 			available_battles.append(battle_id)
 	if "max_party_size" in data:
 		max_party_size = data.max_party_size
@@ -175,7 +181,9 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		gold = data.gold
 	if "inventory" in data:
 		inventory.clear()
-		for item_dict: Dictionary in data.inventory:
+		var inventory_array: Array = data.inventory
+		for i in range(inventory_array.size()):
+			var item_dict: Dictionary = inventory_array[i]
 			inventory.append(item_dict)
 	if "total_battles" in data:
 		total_battles = data.total_battles
@@ -191,7 +199,9 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	# Deserialize party members
 	party_members.clear()
 	if "party_members" in data:
-		for char_dict: Dictionary in data.party_members:
+		var party_array: Array = data.party_members
+		for i in range(party_array.size()):
+			var char_dict: Dictionary = party_array[i]
 			var char_save: CharacterSaveData = CharacterSaveData.new()
 			char_save.deserialize_from_dict(char_dict)
 			party_members.append(char_save)
@@ -199,7 +209,9 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	# Deserialize reserve members
 	reserve_members.clear()
 	if "reserve_members" in data:
-		for char_dict: Dictionary in data.reserve_members:
+		var reserve_array: Array = data.reserve_members
+		for i in range(reserve_array.size()):
+			var char_dict: Dictionary = reserve_array[i]
 			var char_save: CharacterSaveData = CharacterSaveData.new()
 			char_save.deserialize_from_dict(char_dict)
 			reserve_members.append(char_save)
