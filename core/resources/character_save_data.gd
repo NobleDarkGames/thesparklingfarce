@@ -1,0 +1,333 @@
+class_name CharacterSaveData
+extends Resource
+
+## CharacterSaveData - Persistent character state for saves
+##
+## Stores character stats, equipment, and abilities that persist across battles.
+## References the base CharacterData template by mod_id + resource_id.
+##
+## Design Philosophy:
+## - CharacterData = Immutable template (base stats, starting level)
+## - CharacterSaveData = Mutable instance (current level, XP, equipment)
+##
+## This allows the same CharacterData template to be used for multiple instances,
+## while also supporting campaign progression where characters level up.
+
+# ============================================================================
+# CHARACTER REFERENCE
+# ============================================================================
+
+## Reference to base CharacterData (mod_id + resource_id)
+## Used to load the original character template from ModRegistry
+@export var character_mod_id: String = ""
+@export var character_resource_id: String = ""
+
+## Fallback data if base CharacterData is missing (mod removed)
+## Allows save to load even if mod is no longer available
+@export var fallback_character_name: String = ""
+@export var fallback_class_name: String = ""
+
+# ============================================================================
+# PERSISTENT STATS (Override CharacterData base stats)
+# ============================================================================
+
+## Current level (after leveling up from battles)
+@export var level: int = 1
+
+## Current experience points
+@export var current_xp: int = 0
+
+## Current and maximum hit points
+@export var current_hp: int = 10
+@export var max_hp: int = 10
+
+## Current and maximum magic points
+@export var current_mp: int = 5
+@export var max_mp: int = 5
+
+## Combat stats (after level-ups and stat growth)
+@export var strength: int = 5
+@export var defense: int = 5
+@export var agility: int = 5
+@export var intelligence: int = 5
+@export var luck: int = 5
+
+# ============================================================================
+# EQUIPMENT (Persistent across battles)
+# ============================================================================
+
+## Equipped items (by mod_id + resource_id)
+## Format: [{slot: String, mod_id: String, item_id: String}]
+## Slots: "weapon", "armor", "accessory_1", "accessory_2"
+@export var equipped_items: Array[Dictionary] = []
+
+# ============================================================================
+# ABILITIES (Learned abilities persist)
+# ============================================================================
+
+## Learned abilities (by mod_id + resource_id)
+## Format: [{mod_id: String, ability_id: String}]
+@export var learned_abilities: Array[Dictionary] = []
+
+# ============================================================================
+# STATUS (For campaign persistence)
+# ============================================================================
+
+## If character is alive (for permadeath scenarios - future feature)
+@export var is_alive: bool = true
+
+## If character is available (not temporarily unavailable due to story)
+@export var is_available: bool = true
+
+## Recruitment chapter (when they joined the party)
+@export var recruitment_chapter: String = ""
+
+
+# ============================================================================
+# INITIALIZATION
+# ============================================================================
+
+## Populate from a CharacterData template
+## Used when starting a new game or recruiting a new character
+## @param character: CharacterData template to copy from
+func populate_from_character_data(character: CharacterData) -> void:
+	if not character:
+		push_error("CharacterSaveData: Cannot populate from null CharacterData")
+		return
+
+	# Get mod_id and resource_id from ModRegistry
+	character_mod_id = _get_mod_id_for_resource(character)
+	character_resource_id = _get_resource_id_for_resource(character)
+
+	# Fallback data
+	fallback_character_name = character.character_name
+	if character.character_class:
+		fallback_class_name = character.character_class.class_name
+	else:
+		fallback_class_name = "Unknown"
+
+	# Copy base stats
+	level = character.starting_level
+	current_xp = 0
+
+	max_hp = character.base_hp
+	current_hp = max_hp
+
+	max_mp = character.base_mp
+	current_mp = max_mp
+
+	strength = character.base_strength
+	defense = character.base_defense
+	agility = character.base_agility
+	intelligence = character.base_intelligence
+	luck = character.base_luck
+
+	# Copy starting equipment
+	equipped_items.clear()
+	for item: ItemData in character.starting_equipment:
+		if item:
+			equipped_items.append({
+				"slot": "weapon",  # TODO: Determine actual slot when equipment system is implemented
+				"mod_id": _get_mod_id_for_resource(item),
+				"item_id": _get_resource_id_for_resource(item)
+			})
+
+	# Start with no learned abilities (will gain through leveling)
+	learned_abilities.clear()
+
+	# Status
+	is_alive = true
+	is_available = true
+	recruitment_chapter = ""
+
+
+## Populate from a Unit instance (in battle)
+## Used when saving during/after a battle
+## @param unit: Unit node with current battle stats
+func populate_from_unit(unit: Unit) -> void:
+	if not unit:
+		push_error("CharacterSaveData: Cannot populate from null Unit")
+		return
+
+	# Get base character reference
+	var char_data: CharacterData = unit.character_data
+	if char_data:
+		character_mod_id = _get_mod_id_for_resource(char_data)
+		character_resource_id = _get_resource_id_for_resource(char_data)
+		fallback_character_name = char_data.character_name
+		if char_data.character_class:
+			fallback_class_name = char_data.character_class.class_name
+	else:
+		push_warning("CharacterSaveData: Unit has no CharacterData reference")
+
+	# Copy current stats from unit
+	if unit.stats:
+		level = unit.stats.level
+		current_xp = unit.stats.current_xp
+
+		current_hp = unit.stats.current_hp
+		max_hp = unit.stats.max_hp
+
+		current_mp = unit.stats.current_mp
+		max_mp = unit.stats.max_mp
+
+		strength = unit.stats.strength
+		defense = unit.stats.defense
+		agility = unit.stats.agility
+		intelligence = unit.stats.intelligence
+		luck = unit.stats.luck
+
+	# TODO: Copy equipped items when equipment system is implemented
+	# TODO: Copy learned abilities when ability learning system is implemented
+
+
+# ============================================================================
+# SERIALIZATION
+# ============================================================================
+
+## Serialize character save data to Dictionary for JSON export
+## @return: Dictionary representation of character data
+func serialize_to_dict() -> Dictionary:
+	return {
+		"character_mod_id": character_mod_id,
+		"character_resource_id": character_resource_id,
+		"fallback_character_name": fallback_character_name,
+		"fallback_class_name": fallback_class_name,
+		"level": level,
+		"current_xp": current_xp,
+		"current_hp": current_hp,
+		"max_hp": max_hp,
+		"current_mp": current_mp,
+		"max_mp": max_mp,
+		"strength": strength,
+		"defense": defense,
+		"agility": agility,
+		"intelligence": intelligence,
+		"luck": luck,
+		"equipped_items": equipped_items.duplicate(),
+		"learned_abilities": learned_abilities.duplicate(),
+		"is_alive": is_alive,
+		"is_available": is_available,
+		"recruitment_chapter": recruitment_chapter
+	}
+
+
+## Deserialize character save data from Dictionary (loaded from JSON)
+## @param data: Dictionary loaded from JSON file
+func deserialize_from_dict(data: Dictionary) -> void:
+	if "character_mod_id" in data:
+		character_mod_id = data.character_mod_id
+	if "character_resource_id" in data:
+		character_resource_id = data.character_resource_id
+	if "fallback_character_name" in data:
+		fallback_character_name = data.fallback_character_name
+	if "fallback_class_name" in data:
+		fallback_class_name = data.fallback_class_name
+	if "level" in data:
+		level = data.level
+	if "current_xp" in data:
+		current_xp = data.current_xp
+	if "current_hp" in data:
+		current_hp = data.current_hp
+	if "max_hp" in data:
+		max_hp = data.max_hp
+	if "current_mp" in data:
+		current_mp = data.current_mp
+	if "max_mp" in data:
+		max_mp = data.max_mp
+	if "strength" in data:
+		strength = data.strength
+	if "defense" in data:
+		defense = data.defense
+	if "agility" in data:
+		agility = data.agility
+	if "intelligence" in data:
+		intelligence = data.intelligence
+	if "luck" in data:
+		luck = data.luck
+	if "equipped_items" in data:
+		equipped_items = data.equipped_items.duplicate()
+	if "learned_abilities" in data:
+		learned_abilities = data.learned_abilities.duplicate()
+	if "is_alive" in data:
+		is_alive = data.is_alive
+	if "is_available" in data:
+		is_available = data.is_available
+	if "recruitment_chapter" in data:
+		recruitment_chapter = data.recruitment_chapter
+
+
+# ============================================================================
+# VALIDATION
+# ============================================================================
+
+## Validate that character save data is complete and valid
+## @return: true if valid, false if corrupted/invalid
+func validate() -> bool:
+	if character_mod_id.is_empty():
+		push_error("CharacterSaveData: character_mod_id is empty")
+		return false
+
+	if character_resource_id.is_empty():
+		push_error("CharacterSaveData: character_resource_id is empty")
+		return false
+
+	if fallback_character_name.is_empty():
+		push_error("CharacterSaveData: fallback_character_name is empty")
+		return false
+
+	if level < 1:
+		push_error("CharacterSaveData: Invalid level: %d" % level)
+		return false
+
+	if max_hp < 1:
+		push_error("CharacterSaveData: Invalid max_hp: %d" % max_hp)
+		return false
+
+	return true
+
+
+# ============================================================================
+# MOD COMPATIBILITY HELPERS
+# ============================================================================
+
+## Get mod_id for a resource by searching ModRegistry
+## @param resource: Resource to find mod_id for
+## @return: mod_id string, or "" if not found
+func _get_mod_id_for_resource(resource: Resource) -> String:
+	if not resource:
+		return ""
+
+	# Search through ModRegistry to find which mod owns this resource
+	var resource_path: String = resource.resource_path
+	if resource_path.is_empty():
+		push_warning("CharacterSaveData: Resource has no resource_path")
+		return ""
+
+	# Extract mod_id from path (e.g., "res://mods/base_game/..." → "base_game")
+	if resource_path.begins_with("res://mods/"):
+		var path_parts: PackedStringArray = resource_path.split("/")
+		if path_parts.size() >= 3:
+			return path_parts[2]  # mods/[mod_id]/...
+
+	push_warning("CharacterSaveData: Could not determine mod_id from path: %s" % resource_path)
+	return ""
+
+
+## Get resource_id for a resource (filename without extension)
+## @param resource: Resource to get ID for
+## @return: resource_id string, or "" if not found
+func _get_resource_id_for_resource(resource: Resource) -> String:
+	if not resource:
+		return ""
+
+	var resource_path: String = resource.resource_path
+	if resource_path.is_empty():
+		push_warning("CharacterSaveData: Resource has no resource_path")
+		return ""
+
+	# Extract filename without extension
+	var filename: String = resource_path.get_file()
+	var resource_id: String = filename.get_basename()
+
+	return resource_id

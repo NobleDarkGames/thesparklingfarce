@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://0cu86w83o56x"]
+
+[ext_resource type="Script" uid="uid://citg5ug0bp8np" path="res://mods/_sandbox/scenes/test_save_system.gd" id="1_test"]
+
+[node name="TestSaveSystem" type="Node"]
+script = ExtResource("1_test")

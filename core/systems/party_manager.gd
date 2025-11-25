@@ -21,7 +21,7 @@ extends Node
 
 ## Current party members (CharacterData resources)
 ## Order matters: first member is leader, spawn order follows array order
-var party_members: Array[Resource] = []
+var party_members: Array[CharacterData] = []
 
 ## Maximum party size (Shining Force allows 12)
 ## For now, we'll use a smaller limit for testing
@@ -56,7 +56,7 @@ func _ready() -> void:
 
 ## Set the entire party at once
 ## @param characters: Array of CharacterData resources
-func set_party(characters: Array[Resource]) -> void:
+func set_party(characters: Array[CharacterData]) -> void:
 	if characters.size() > MAX_PARTY_SIZE:
 		push_warning("PartyManager: Party size (%d) exceeds maximum (%d), truncating" % [
 			characters.size(),
@@ -72,7 +72,7 @@ func set_party(characters: Array[Resource]) -> void:
 ## Add a character to the party
 ## @param character: CharacterData to add
 ## @return: true if added successfully, false if party full
-func add_member(character: Resource) -> bool:
+func add_member(character: CharacterData) -> bool:
 	if party_members.size() >= MAX_PARTY_SIZE:
 		push_warning("PartyManager: Cannot add member, party full (%d/%d)" % [
 			party_members.size(),
@@ -92,7 +92,7 @@ func add_member(character: Resource) -> bool:
 ## Remove a character from the party
 ## @param character: CharacterData to remove
 ## @return: true if removed successfully, false if not found
-func remove_member(character: Resource) -> bool:
+func remove_member(character: CharacterData) -> bool:
 	var index: int = party_members.find(character)
 	if index == -1:
 		push_warning("PartyManager: Cannot remove member, not in party")
@@ -146,7 +146,7 @@ func is_empty() -> bool:
 
 ## Get party leader (first member)
 ## @return: CharacterData of leader, or null if no party
-func get_leader() -> Resource:
+func get_leader() -> CharacterData:
 	if party_members.is_empty():
 		return null
 	return party_members[0]
@@ -166,7 +166,7 @@ func get_battle_spawn_data(spawn_point: Vector2i = Vector2i(2, 2)) -> Array[Dict
 	var spawn_data: Array[Dictionary] = []
 
 	for i in range(party_members.size()):
-		var character: Resource = party_members[i]
+		var character: CharacterData = party_members[i]
 
 		# Calculate position using formation offset
 		var offset: Vector2i = DEFAULT_FORMATION[i] if i < DEFAULT_FORMATION.size() else Vector2i(i % 3, i / 3)
@@ -205,14 +205,90 @@ func get_custom_spawn_data(spawn_positions: Array[Vector2i]) -> Array[Dictionary
 
 
 # ============================================================================
+# SAVE SYSTEM INTEGRATION
+# ============================================================================
+
+## Export party to save data
+## Converts current party members to CharacterSaveData for saving
+## @return: Array of CharacterSaveData representing current party
+func export_to_save() -> Array[CharacterSaveData]:
+	var save_array: Array[CharacterSaveData] = []
+
+	for character_data: CharacterData in party_members:
+		var char_save: CharacterSaveData = CharacterSaveData.new()
+		char_save.populate_from_character_data(character_data)
+		save_array.append(char_save)
+
+	print("PartyManager: Exported %d party members to save data" % save_array.size())
+	return save_array
+
+
+## Import party from save data
+## Loads characters from CharacterSaveData, resolving them from ModRegistry
+## @param saved_characters: Array of CharacterSaveData to load
+func import_from_save(saved_characters: Array[CharacterSaveData]) -> void:
+	party_members.clear()
+
+	for char_save: CharacterSaveData in saved_characters:
+		# Try to resolve CharacterData from ModRegistry
+		var character_data: CharacterData = _resolve_character_from_save(char_save)
+
+		if character_data:
+			party_members.append(character_data)
+			print("PartyManager: Imported character '%s' (Lv.%d)" % [
+				char_save.fallback_character_name,
+				char_save.level
+			])
+		else:
+			push_warning("PartyManager: Failed to import character '%s' from mod '%s'" % [
+				char_save.fallback_character_name,
+				char_save.character_mod_id
+			])
+
+	print("PartyManager: Imported %d/%d party members from save" % [
+		party_members.size(),
+		saved_characters.size()
+	])
+
+
+## Resolve CharacterData from save data
+## Attempts to load character from ModRegistry, with fallback handling
+## @param char_save: CharacterSaveData to resolve
+## @return: CharacterData if found, null if mod missing
+func _resolve_character_from_save(char_save: CharacterSaveData) -> CharacterData:
+	# Try to get from ModRegistry (note: ModRegistry doesn't filter by mod_id in get_resource)
+	var character_data: Resource = ModLoader.registry.get_resource(
+		"character",
+		char_save.character_resource_id
+	)
+
+	if character_data and character_data is CharacterData:
+		return character_data
+
+	# Character not found - mod might be missing
+	if char_save.character_mod_id in ["_base_game", "base_game"]:
+		push_error("PartyManager: CRITICAL - Base game character missing: %s" % char_save.character_resource_id)
+		return null
+
+	# Optional mod character missing
+	push_warning("PartyManager: Character '%s' from mod '%s' not found (mod may be removed)" % [
+		char_save.fallback_character_name,
+		char_save.character_mod_id
+	])
+
+	# TODO Phase 2: Create placeholder character from fallback data
+	# For now, just return null and skip this character
+	return null
+
+
+# ============================================================================
 # FUTURE EXPANSION NOTES
 # ============================================================================
 
 ## TODO Phase 4+: Add these features for full Shining Force experience
 ##
 ## Party Persistence:
-## - Save/load party state across battles
-## - Persist level-ups, XP, equipment changes
+## - Apply saved stats to characters (level, XP, equipment)
 ## - Track which characters have acted in current chapter
 ##
 ## Recruitment:
@@ -226,6 +302,6 @@ func get_custom_spawn_data(spawn_positions: Array[Vector2i]) -> Array[Dictionary
 ## - Pre-battle party selection screen
 ##
 ## Integration:
-## - Link with SaveManager for persistence
+## - Create placeholder characters for missing mods
 ## - Link with DialogueManager for recruitment events
 ## - Link with HeadquartersManager for party management UI
