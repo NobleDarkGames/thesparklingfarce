@@ -1,13 +1,14 @@
 [gd_scene load_steps=3 format=3 uid="uid://cqb5y8h3n4m6p"]
 
 [ext_resource type="Script" path="res://scenes/ui/action_menu.gd" id="1_action_menu"]
-[ext_resource type="FontFile" path="res://assets/fonts/monogram.ttf" id="2_font"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
 
 [node name="ActionMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 120.0
 offset_bottom = 100.0
+theme = ExtResource("2_ui_theme")
 script = ExtResource("1_action_menu")
 
 [node name="Panel" type="ColorRect" parent="."]
@@ -56,30 +57,25 @@ grow_vertical = 2
 
 [node name="MoveButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Move"
 
 [node name="AttackButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Attack"
 
 [node name="MagicButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Magic"
 
 [node name="ItemButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Item"
 
 [node name="StayButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Stay"

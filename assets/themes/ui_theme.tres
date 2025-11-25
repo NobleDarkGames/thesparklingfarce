@@ -1,0 +1,9 @@
+[gd_resource type="Theme" load_steps=2 format=3 uid="uid://cpdx7u62cktq6"]
+
+[ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="1_monogram"]
+
+[resource]
+default_font = ExtResource("1_monogram")
+default_font_size = 16
+Button/font_sizes/font_size = 24
+Label/font_sizes/font_size = 16

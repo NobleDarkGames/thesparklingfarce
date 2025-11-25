@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://active_unit_stats_panel"]
 
 [ext_resource type="Script" path="res://scenes/ui/active_unit_stats_panel.gd" id="1_script"]
-[ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="2_font"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.1, 0.1, 0.15, 0.9)
@@ -54,6 +54,7 @@ offset_right = -8.0
 offset_bottom = 8.0
 grow_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+theme = ExtResource("2_ui_theme")
 script = ExtResource("1_script")
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
@@ -70,7 +71,6 @@ theme_override_constants/separation = 2
 [node name="UnitNameLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Hero"
 horizontal_alignment = 1
@@ -82,14 +82,12 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Warrior"
 
 [node name="LevelLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "Lv 1"
 horizontal_alignment = 2
@@ -97,7 +95,6 @@ horizontal_alignment = 2
 [node name="FactionLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "ALLY"
 horizontal_alignment = 1
@@ -109,7 +106,6 @@ theme_override_constants/separation = 4
 [node name="HPLabel" type="Label" parent="MarginContainer/VBoxContainer/HPContainer"]
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "HP:"
 
@@ -118,7 +114,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(60, 12)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 theme_override_styles/background = SubResource("StyleBoxFlat_hp")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
@@ -130,7 +125,6 @@ show_percentage = false
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "25/30"
 horizontal_alignment = 2
@@ -142,7 +136,6 @@ theme_override_constants/separation = 4
 [node name="MPLabel" type="Label" parent="MarginContainer/VBoxContainer/MPContainer"]
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "MP:"
 
@@ -151,7 +144,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(60, 12)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 theme_override_styles/background = SubResource("StyleBoxFlat_mp")
 theme_override_styles/fill = SubResource("StyleBoxFlat_mp_fill")
@@ -163,7 +155,6 @@ show_percentage = false
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "10/15"
 horizontal_alignment = 2
@@ -178,7 +169,6 @@ theme_override_constants/separation = 8
 
 [node name="STRLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "STR:"
 
@@ -186,13 +176,11 @@ text = "STR:"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "8"
 
 [node name="DEFLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "DEF:"
 
@@ -200,13 +188,11 @@ text = "DEF:"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "7"
 
 [node name="AGILabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row1"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "AGI:"
 
@@ -214,7 +200,6 @@ text = "AGI:"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "6"
 
@@ -224,7 +209,6 @@ theme_override_constants/separation = 8
 
 [node name="INTLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "INT:"
 
@@ -232,13 +216,11 @@ text = "INT:"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "5"
 
 [node name="LUKLabel" type="Label" parent="MarginContainer/VBoxContainer/QuickStats/Row2"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "LUK:"
 
@@ -246,6 +228,5 @@ text = "LUK:"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 text = "4"

@@ -13,13 +13,14 @@ config_version=5
 config/name="The Sparkling Farce"
 config/description="A tactical RPG platform inspired by Shining Force"
 config/version="0.1.0"
-run/main_scene="res://mods/_sandbox/scenes/test_unit.tscn"
+run/main_scene="res://scenes/ui/opening_cinematic.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
 
 [autoload]
 
 ModLoader="*res://core/mod_system/mod_loader.gd"
 SaveManager="*res://core/systems/save_manager.gd"
+SceneManager="*res://core/systems/scene_manager.gd"
 PartyManager="*res://core/systems/party_manager.gd"
 ExperienceManager="*res://core/systems/experience_manager.gd"
 AudioManager="*res://core/systems/audio_manager.gd"
