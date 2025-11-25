@@ -84,7 +84,7 @@ func _setup_base_ui() -> void:
 	# HSplitContainer uses anchors to fill the parent Control
 	hsplit.anchor_right = 1.0
 	hsplit.anchor_bottom = 1.0
-	hsplit.split_offset = 300  # Default split position - left panel gets ~300px
+	hsplit.split_offset = 150  # Default split position - left panel gets ~150px
 	add_child(hsplit)
 
 	# Left side: Resource list

@@ -79,6 +79,10 @@ extends Resource
 ## If character is available (not temporarily unavailable due to story)
 @export var is_available: bool = true
 
+## If this character is the primary Hero/protagonist
+## Hero cannot be removed from party and is always the leader
+@export var is_hero: bool = false
+
 ## Recruitment chapter (when they joined the party)
 @export var recruitment_chapter: String = ""
 
@@ -102,7 +106,7 @@ func populate_from_character_data(character: CharacterData) -> void:
 	# Fallback data
 	fallback_character_name = character.character_name
 	if character.character_class:
-		fallback_class_name = character.character_class.class_name
+		fallback_class_name = character.character_class.display_name
 	else:
 		fallback_class_name = "Unknown"
 
@@ -138,6 +142,7 @@ func populate_from_character_data(character: CharacterData) -> void:
 	# Status
 	is_alive = true
 	is_available = true
+	is_hero = character.is_hero
 	recruitment_chapter = ""
 
 
@@ -156,7 +161,7 @@ func populate_from_unit(unit: Unit) -> void:
 		character_resource_id = _get_resource_id_for_resource(char_data)
 		fallback_character_name = char_data.character_name
 		if char_data.character_class:
-			fallback_class_name = char_data.character_class.class_name
+			fallback_class_name = char_data.character_class.display_name
 	else:
 		push_warning("CharacterSaveData: Unit has no CharacterData reference")
 
@@ -208,6 +213,7 @@ func serialize_to_dict() -> Dictionary:
 		"learned_abilities": learned_abilities.duplicate(),
 		"is_alive": is_alive,
 		"is_available": is_available,
+		"is_hero": is_hero,
 		"recruitment_chapter": recruitment_chapter
 	}
 
@@ -246,13 +252,19 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	if "luck" in data:
 		luck = data.luck
 	if "equipped_items" in data:
-		equipped_items = data.equipped_items.duplicate()
+		equipped_items.clear()
+		for item_dict: Dictionary in data.equipped_items:
+			equipped_items.append(item_dict)
 	if "learned_abilities" in data:
-		learned_abilities = data.learned_abilities.duplicate()
+		learned_abilities.clear()
+		for ability_dict: Dictionary in data.learned_abilities:
+			learned_abilities.append(ability_dict)
 	if "is_alive" in data:
 		is_alive = data.is_alive
 	if "is_available" in data:
 		is_available = data.is_available
+	if "is_hero" in data:
+		is_hero = data.is_hero
 	if "recruitment_chapter" in data:
 		recruitment_chapter = data.recruitment_chapter
 

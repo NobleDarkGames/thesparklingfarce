@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/class_data.gd" id="1_ttobc"]
+
+[resource]
+script = ExtResource("1_ttobc")
+display_name = "Hero"
+movement_range = 5
+hp_growth = 65
+mp_growth = 45
+strength_growth = 60
+defense_growth = 55
+agility_growth = 55
+equippable_weapon_types = Array[String](["sword", "blade"])
+equippable_armor_types = Array[String](["light", "medium"])

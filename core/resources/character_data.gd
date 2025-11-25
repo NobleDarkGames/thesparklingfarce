@@ -39,6 +39,11 @@ extends Resource
 ## If true, this is a unique character that should only appear once (like "Max" or "Kane")
 @export var is_unique: bool = true
 
+## If true, this character is the primary Hero/protagonist
+## Only one hero can exist per party/save slot
+## The hero is always the first member of the player party
+@export var is_hero: bool = false
+
 ## Default AI behavior for this unit when used as an enemy
 ## Can be overridden in BattleData on a per-instance basis
 @export var default_ai_brain: AIBrain = null

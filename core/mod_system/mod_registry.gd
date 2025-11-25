@@ -61,6 +61,30 @@ func get_all_resources(resource_type: String) -> Array[Resource]:
 	return result
 
 
+## Get the hero character (primary protagonist)
+## Returns null if no hero exists or if multiple heroes exist (with warning)
+func get_hero_character() -> CharacterData:
+	if not "character" in _resources_by_type:
+		return null
+
+	var heroes: Array[CharacterData] = []
+	for character: Resource in _resources_by_type["character"].values():
+		var char_data: CharacterData = character as CharacterData
+		if char_data and char_data.is_hero:
+			heroes.append(char_data)
+
+	if heroes.is_empty():
+		return null
+
+	if heroes.size() > 1:
+		push_warning("ModRegistry: Multiple heroes detected! Only one hero should exist. Using first found.")
+		for hero: CharacterData in heroes:
+			var source_mod: String = get_resource_source(hero.resource_path.get_file().get_basename())
+			push_warning("  - Hero '%s' from mod '%s'" % [hero.character_name, source_mod])
+
+	return heroes[0]
+
+
 ## Get all resource IDs of a specific type
 func get_resource_ids(resource_type: String) -> Array[String]:
 	var result: Array[String] = []

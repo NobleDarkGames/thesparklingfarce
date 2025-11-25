@@ -38,7 +38,7 @@ func _ready() -> void:
 	GridManager.set_highlight_layer(_highlight_layer)
 
 	# Create party members
-	var party: Array[Resource] = []
+	var party: Array[CharacterData] = []
 
 	# Member 1: Ted (Fighter - high STR, low INT)
 	var ted: CharacterData = load("res://mods/_base_game/data/characters/character_1763004880.tres")

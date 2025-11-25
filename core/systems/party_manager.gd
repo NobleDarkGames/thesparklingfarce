@@ -66,6 +66,9 @@ func set_party(characters: Array[CharacterData]) -> void:
 	else:
 		party_members = characters.duplicate()
 
+	# Ensure hero is always first
+	_ensure_hero_is_leader()
+
 	print("PartyManager: Party set with %d members" % party_members.size())
 
 
@@ -93,6 +96,11 @@ func add_member(character: CharacterData) -> bool:
 ## @param character: CharacterData to remove
 ## @return: true if removed successfully, false if not found
 func remove_member(character: CharacterData) -> bool:
+	# Prevent removing the hero
+	if character.is_hero:
+		push_error("PartyManager: Cannot remove hero from party! Hero must always be present.")
+		return false
+
 	var index: int = party_members.find(character)
 	if index == -1:
 		push_warning("PartyManager: Cannot remove member, not in party")
@@ -150,6 +158,51 @@ func get_leader() -> CharacterData:
 	if party_members.is_empty():
 		return null
 	return party_members[0]
+
+
+# ============================================================================
+# HERO MANAGEMENT
+# ============================================================================
+
+## Ensure the hero is always at index 0 (leader position)
+## This is called internally whenever the party composition changes
+func _ensure_hero_is_leader() -> void:
+	if party_members.is_empty():
+		return
+
+	# Find the hero in the party
+	var hero_index: int = -1
+	for i in range(party_members.size()):
+		if party_members[i].is_hero:
+			hero_index = i
+			break
+
+	# If hero exists but not at index 0, move them there
+	if hero_index > 0:
+		var hero: CharacterData = party_members[hero_index]
+		party_members.remove_at(hero_index)
+		party_members.insert(0, hero)
+		print("PartyManager: Moved hero '%s' to leader position" % hero.character_name)
+	elif hero_index == -1:
+		push_warning("PartyManager: No hero found in party! This may cause issues.")
+
+
+## Check if the party has a hero
+## @return: true if hero is present in party
+func has_hero() -> bool:
+	for character in party_members:
+		if character.is_hero:
+			return true
+	return false
+
+
+## Get the hero character from the party
+## @return: Hero CharacterData or null if not present
+func get_hero() -> CharacterData:
+	for character in party_members:
+		if character.is_hero:
+			return character
+	return null
 
 
 # ============================================================================
@@ -249,6 +302,9 @@ func import_from_save(saved_characters: Array[CharacterSaveData]) -> void:
 		party_members.size(),
 		saved_characters.size()
 	])
+
+	# Ensure hero is at the front of the party
+	_ensure_hero_is_leader()
 
 
 ## Resolve CharacterData from save data

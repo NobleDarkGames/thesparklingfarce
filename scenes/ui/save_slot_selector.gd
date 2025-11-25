@@ -83,13 +83,28 @@ func _new_game(slot_num: int) -> void:
 			"version": manifest.version
 		})
 
-	# Create default party (for now, just empty - battle scene will populate)
-	# In the future, this would set up the initial party composition
+	# Initialize party with hero character
+	var hero: CharacterData = ModLoader.registry.get_hero_character()
+	if hero:
+		# Create a character save data for the hero
+		# Use the built-in populate method which handles all the details
+		var hero_save: CharacterSaveData = CharacterSaveData.new()
+		hero_save.populate_from_character_data(hero)
+
+		# Add hero to party
+		save_data.party_members.append(hero_save)
+		print("SaveSlotSelector: Added hero '%s' to starting party" % hero.character_name)
+	else:
+		push_warning("SaveSlotSelector: No hero character found! Starting with empty party.")
 
 	# Save the new game
 	var success: bool = SaveManager.save_to_slot(slot_num, save_data)
 	if success:
 		print("SaveSlotSelector: New save created successfully")
+
+		# Initialize PartyManager with the hero
+		PartyManager.import_from_save(save_data.party_members)
+
 		# Go to first battle
 		SceneManager.goto_battle()
 	else:

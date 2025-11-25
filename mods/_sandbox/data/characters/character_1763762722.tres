@@ -11,3 +11,4 @@ character_class = ExtResource("1_m00m4")
 base_hp = 20
 base_mp = 10
 mp_growth = 35
+is_hero = true
