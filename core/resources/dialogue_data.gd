@@ -4,6 +4,26 @@ extends Resource
 ## Represents a dialogue sequence with multiple speakers and lines.
 ## Can include branching choices for player decisions.
 
+## Box positioning options (matches DialogManager.BoxPosition)
+enum BoxPosition {
+	BOTTOM,  ## Bottom of screen (default, story dialogs)
+	TOP,     ## Top of screen (battle dialogs)
+	CENTER,  ## Center of screen (dramatic moments)
+	AUTO     ## Automatically position based on context
+}
+
+## Common emotion presets for portrait variants
+enum Emotion {
+	NEUTRAL,
+	HAPPY,
+	SAD,
+	ANGRY,
+	WORRIED,
+	SURPRISED,
+	DETERMINED,
+	THINKING
+}
+
 ## A single line of dialogue
 class DialogueLine:
 	var speaker_name: String = ""
@@ -56,6 +76,8 @@ class DialogueChoice:
 @export var background: Texture2D
 ## Fade in/out duration
 @export var fade_duration: float = 0.5
+## Dialog box position on screen
+@export var box_position: BoxPosition = BoxPosition.BOTTOM
 
 
 ## Add a line of dialogue
