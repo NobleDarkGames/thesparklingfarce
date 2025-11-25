@@ -29,6 +29,12 @@ enum DefeatCondition {
 ## Map scene contains grid dimensions, spawn points, and terrain
 @export var map_scene: PackedScene
 
+@export_group("Player Forces")
+## Player party to deploy in this battle.
+## If null, uses PartyManager's current party.
+## If set, temporarily loads this party for the battle.
+@export var player_party: PartyData
+
 @export_group("Enemy Forces")
 ## Array of dictionaries with these fields:
 ## - character: CharacterData (required)

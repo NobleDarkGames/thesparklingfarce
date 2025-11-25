@@ -3,11 +3,52 @@
 
 This document outlines the implementation plan for polishing The Sparkling Farce's battle system to better match Shining Force's mechanics and UI.
 
-**Last Updated:** November 21, 2025
+**Last Updated:** November 24, 2025
 
 ---
 
-## Recent Session Summary (November 21, 2025)
+## Recent Session Summary (November 24, 2025)
+
+### Completed Features:
+1. **Party System** - Full party management infrastructure for battle deployment
+   - Created `PartyData` resource for defining reusable party compositions
+   - Implemented Party Editor tab in Sparkling Editor with character selection and formation offsets
+   - Added party selector to Battle Editor for per-battle party assignment
+   - Extended PartyManager with `load_from_party_data()` method
+   - Updated battle_loader to dynamically load parties from BattleData or PartyManager
+   - Registered "party" resource type in ModLoader
+   - Full strict typing compliance throughout
+
+2. **Dynamic Battle Loading** - battle_loader now fully dynamic
+   - Uses PartyManager for player units (no hardcoded test characters)
+   - Loads player party from BattleData.player_party if specified
+   - Falls back to PartyManager's current party for campaign persistence
+   - Supports both per-battle party overrides and persistent campaign party
+
+### Key Files Created:
+- `core/resources/party_data.gd` - PartyData resource with member array and formation offsets
+- `addons/sparkling_editor/ui/party_editor.gd` - Full-featured Party Editor UI
+- `addons/sparkling_editor/ui/party_editor.tscn` - Party Editor scene
+- `mods/_base_game/data/parties/.gitkeep` - Party directory for base game mod
+- `mods/_sandbox/data/parties/.gitkeep` - Party directory for sandbox mod
+
+### Key Files Modified:
+- `core/mod_system/mod_loader.gd` - Registered "party" resource type
+- `core/resources/battle_data.gd` - Added player_party field
+- `core/systems/party_manager.gd` - Added load_from_party_data() method, spawn_point default parameter
+- `addons/sparkling_editor/ui/main_panel.gd` - Registered Party Editor tab
+- `addons/sparkling_editor/ui/battle_editor.gd` - Added player party selector section
+- `mods/_sandbox/scenes/battle_loader.gd` - Dynamic party loading with strict typing
+
+### Technical Notes:
+- All code follows strict typing rules (explicit types for all variables, parameters, and loop iterators)
+- Party system supports both Shining Force-style headquarters roster and per-battle overrides
+- Formation offsets allow custom spawn positioning per character
+- EditorEventBus integration ensures Party Editor updates when characters change
+
+---
+
+## Previous Session Summary (November 21, 2025)
 
 ### Completed Features:
 1. **Shining Force Turn Flow** - Action menu appears BEFORE movement, allowing attacks/items without moving
@@ -149,6 +190,14 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [ ] Update display with current turn number
   - [ ] Add simple styling
 
+### Content Creation & Testing
+- [x] **Party Management System** ✅ COMPLETED (November 24, 2025)
+  - [x] Create PartyData resource structure
+  - [x] Implement Party Editor in Sparkling Editor
+  - [x] Add party selection to Battle Editor
+  - [x] Support both per-battle and campaign-persistent parties
+  - [x] Test party creation and battle deployment
+
 ### Future Phase (Phase 4 Features)
 - [ ] **Magic System**
   - [ ] Implement spell range visualization
@@ -157,12 +206,17 @@ This document outlines the implementation plan for polishing The Sparkling Farce
   - [ ] Add support spells (Heal, Boost, Shield)
   - [ ] Integrate with combat animation screen
 
-- [ ] **Experience and Leveling**
-  - [ ] Show XP gained popup after combat
-  - [ ] Implement level-up detection
-  - [ ] Create level-up animation and stat display
-  - [ ] Grant XP for healing actions
-  - [ ] Integrate with unit progression system
+- [x] **Experience and Leveling** ✅ SYSTEM COMPLETE (Phase 2 - November 22, 2025)
+  - [x] Implement ExperienceManager system
+  - [x] Award XP for damage dealt to enemies
+  - [x] Award kill bonuses for defeating enemies
+  - [x] Award participation XP for nearby allies (within 3 tiles)
+  - [x] Implement level-up detection with stat increases
+  - [x] Create PartyManager for Shining Force-style party management
+  - [x] Integrate with combat system
+  - [ ] Show XP gained popup after combat (UI pending)
+  - [ ] Create level-up animation and stat display (UI pending)
+  - [ ] Grant XP for healing actions (Phase 3 support XP)
 
 - [ ] **Item System**
   - [ ] Implement item usage in battle

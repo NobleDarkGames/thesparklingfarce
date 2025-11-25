@@ -9,6 +9,7 @@ const ClassEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/
 const ItemEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/item_editor.tscn")
 const AbilityEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/ability_editor.tscn")
 const DialogueEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/dialogue_editor.tscn")
+const PartyEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/party_editor.tscn")
 const BattleEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/battle_editor.tscn")
 
 var character_editor: Control
@@ -16,6 +17,7 @@ var class_editor: Control
 var item_editor: Control
 var ability_editor: Control
 var dialogue_editor: Control
+var party_editor: Control
 var battle_editor: Control
 
 var tab_container: TabContainer
@@ -64,6 +66,7 @@ func _setup_ui() -> void:
 	_create_item_editor_tab()
 	_create_ability_editor_tab()
 	_create_dialogue_editor_tab()
+	_create_party_editor_tab()
 	_create_battle_editor_tab()
 
 
@@ -98,6 +101,7 @@ This editor allows you to create content for your tactical RPG game without writ
 • [b]Items:[/b] Create weapons, armor, and consumable items
 • [b]Abilities:[/b] Define skills and spells for combat
 • [b]Dialogues:[/b] Create conversations and cutscenes
+• [b]Parties:[/b] Create and manage party compositions for battles
 • [b]Battles:[/b] Configure tactical battle scenarios with enemies and objectives
 
 [b]Next Steps:[/b]
@@ -139,6 +143,11 @@ func _create_ability_editor_tab() -> void:
 func _create_dialogue_editor_tab() -> void:
 	dialogue_editor = DialogueEditorScene.instantiate()
 	tab_container.add_child(dialogue_editor)
+
+
+func _create_party_editor_tab() -> void:
+	party_editor = PartyEditorScene.instantiate()
+	tab_container.add_child(party_editor)
 
 
 func _create_battle_editor_tab() -> void:
@@ -273,5 +282,7 @@ func _refresh_all_editors() -> void:
 		ability_editor._refresh_list()
 	if dialogue_editor and dialogue_editor.has_method("_refresh_list"):
 		dialogue_editor._refresh_list()
+	if party_editor and party_editor.has_method("_refresh_list"):
+		party_editor._refresh_list()
 	if battle_editor and battle_editor.has_method("_refresh_list"):
 		battle_editor._refresh_list()

@@ -1,12 +1,14 @@
 ## BATTLE DATA LOADER SCENE
 ##
 ## Loads battles created in the Sparkling Editor and executes them.
-## Based on test_unit.gd template with all working mechanisms preserved.
+## Fully dynamic - uses PartyManager for player units and BattleData for enemies/neutrals.
 ##
 ## Features:
 ## - Loads BattleData resources from editor
-## - Spawns player, enemy, and neutral units from battle configuration
+## - Spawns player party from PartyManager
+## - Spawns enemies and neutral units from BattleData
 ## - Complete turn-based battle flow (TurnManager + InputManager + BattleManager)
+## - Full XP system integration (damage, kill, participation, level-ups)
 ## - Visual grid with cursor and path preview
 ## - Action menu UI with Attack/Stay options
 ## - Combat resolution with damage calculation
@@ -71,12 +73,28 @@ func _ready() -> void:
 	GridManager.setup_grid(grid_resource, _ground_layer)
 	GridManager.set_highlight_layer(_highlight_layer)
 
-	# Spawn player units
-	# TODO Phase 3: BattleData should have player_units array with positions
-	# For now, create a test player at a fixed position
-	var test_player_character: CharacterData = _create_test_player()
-	var player_unit: Node2D = _spawn_unit(test_player_character, Vector2i(3, 5), "player", null)
-	_player_units.append(player_unit)
+	# Spawn player units from BattleData or PartyManager
+	print("\n=== Spawning Player Party ===")
+
+	# If battle has specific party, load it temporarily
+	if battle_data.player_party:
+		print("  Loading party from BattleData: %s" % battle_data.player_party.party_name)
+		PartyManager.load_from_party_data(battle_data.player_party)
+
+	# Get spawn data from PartyManager (uses current party)
+	var party_spawn_data: Array[Dictionary] = PartyManager.get_battle_spawn_data()
+
+	if party_spawn_data.is_empty():
+		push_warning("BattleLoader: PartyManager has no party members! Set up party before starting battle.")
+		push_warning("  Either set battle_data.player_party OR configure PartyManager before battle.")
+	else:
+		for spawn_entry: Dictionary in party_spawn_data:
+			var character: CharacterData = spawn_entry.character
+			var position: Vector2i = spawn_entry.position
+
+			var player_unit: Node2D = _spawn_unit(character, position, "player", null)
+			_player_units.append(player_unit)
+			print("  - %s at %s" % [character.character_name, position])
 
 	# Spawn enemy units from BattleData
 	print("\n=== Spawning Enemies ===")
@@ -208,29 +226,6 @@ func _generate_test_map() -> void:
 				_ground_layer.set_cell(Vector2i(x, y), 0, Vector2i(0, 0))
 
 
-func _create_test_player() -> CharacterData:
-	# Temporary: Create a basic player character
-	# Phase 3: BattleData will have player_units array
-	var character: CharacterData = CharacterData.new()
-	character.character_name = "Hero"
-	character.base_hp = 15
-	character.base_mp = 10
-	character.base_strength = 8
-	character.base_defense = 7
-	character.base_agility = 6
-	character.base_intelligence = 5
-	character.base_luck = 4
-	character.starting_level = 1
-
-	# Create a basic class
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Warrior"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 4
-
-	character.character_class = basic_class
-
-	return character
 
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:

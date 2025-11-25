@@ -11,6 +11,9 @@ var battle_description_edit: TextEdit
 # Map
 var map_scene_label: Label
 
+# Player Forces
+var player_party_option: OptionButton
+
 # Enemy Forces
 var enemies_container: VBoxContainer
 var enemies_list: Array[Dictionary] = []  # Track enemy UI elements
@@ -66,7 +69,10 @@ func _create_detail_form() -> void:
 	# Section 2: Map Selection
 	_add_map_section()
 
-	# Section 3: Enemy Forces
+	# Section 3: Player Forces
+	_add_player_forces_section()
+
+	# Section 4: Enemy Forces
 	_add_enemy_forces_section()
 
 	# Section 4: Neutral Forces
@@ -151,7 +157,30 @@ func _add_map_section() -> void:
 	_add_separator()
 
 
-## Section 3: Enemy Forces
+## Section 3: Player Forces
+func _add_player_forces_section() -> void:
+	var section_label: Label = Label.new()
+	section_label.text = "Player Forces"
+	section_label.add_theme_font_size_override("font_size", 14)
+	detail_panel.add_child(section_label)
+
+	var party_label: Label = Label.new()
+	party_label.text = "Player Party:"
+	detail_panel.add_child(party_label)
+
+	player_party_option = OptionButton.new()
+	detail_panel.add_child(player_party_option)
+
+	var party_note: Label = Label.new()
+	party_note.text = "If not set, uses PartyManager's current party"
+	party_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	party_note.add_theme_font_size_override("font_size", 10)
+	detail_panel.add_child(party_note)
+
+	_add_separator()
+
+
+## Section 4: Enemy Forces
 func _add_enemy_forces_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Enemy Forces"
@@ -818,6 +847,10 @@ func _load_resource_data() -> void:
 		map_scene_label.text = "(No map selected)"
 		map_scene_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 
+	# Player party
+	_update_party_dropdown()
+	_select_party_in_dropdown(player_party_option, battle.player_party)
+
 	# Clear existing enemies/neutrals UI
 	_clear_enemies_ui()
 	_clear_neutrals_ui()
@@ -899,6 +932,56 @@ func _clear_neutrals_ui() -> void:
 	neutrals_list.clear()
 
 
+## Update party dropdown with available parties
+func _update_party_dropdown() -> void:
+	# Use ModLoader to get the correct directory for the active mod
+	var party_dir: String = ""
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+			if "party" in resource_dirs:
+				party_dir = resource_dirs["party"]
+
+	# Fallback to legacy path if ModLoader unavailable
+	if party_dir == "":
+		party_dir = "res://data/parties/"
+
+	player_party_option.clear()
+	player_party_option.add_item("(Use PartyManager)", -1)
+
+	var dir: DirAccess = DirAccess.open(party_dir)
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		var index: int = 0
+		while file_name != "":
+			if file_name.ends_with(".tres"):
+				var full_path: String = party_dir.path_join(file_name)
+				var party: PartyData = load(full_path)
+				if party:
+					player_party_option.add_item(party.party_name, index)
+					player_party_option.set_item_metadata(index + 1, party)
+					index += 1
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	else:
+		push_warning("Battle Editor: Could not open party directory: " + party_dir)
+
+
+## Select a party in dropdown
+func _select_party_in_dropdown(option: OptionButton, party: PartyData) -> void:
+	if not party:
+		option.selected = 0
+		return
+
+	for i in range(option.item_count):
+		var metadata: Variant = option.get_item_metadata(i)
+		if metadata == party:
+			option.selected = i
+			return
+
+
 ## Update dialogue dropdowns with available dialogues
 func _update_dialogue_dropdowns() -> void:
 	# Use ModLoader to get the correct directory for the active mod
@@ -959,6 +1042,13 @@ func _save_resource_data() -> void:
 	# Basic info
 	battle.battle_name = battle_name_edit.text
 	battle.battle_description = battle_description_edit.text
+
+	# Player party
+	var party_index: int = player_party_option.selected
+	if party_index > 0:
+		battle.player_party = player_party_option.get_item_metadata(party_index)
+	else:
+		battle.player_party = null
 
 	# Enemies
 	var new_enemies: Array[Dictionary] = []

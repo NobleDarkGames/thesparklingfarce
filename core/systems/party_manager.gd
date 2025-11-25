@@ -109,6 +109,29 @@ func clear_party() -> void:
 	print("PartyManager: Party cleared")
 
 
+## Load party from PartyData resource
+## @param party_data: PartyData resource to load from
+func load_from_party_data(party_data: PartyData) -> void:
+	if not party_data:
+		push_warning("PartyManager: Cannot load from null PartyData")
+		return
+
+	if not party_data.validate():
+		push_error("PartyManager: PartyData '%s' failed validation" % party_data.party_name)
+		return
+
+	party_members.clear()
+
+	for member_dict in party_data.members:
+		if "character" in member_dict and member_dict.character:
+			party_members.append(member_dict.character)
+
+	print("PartyManager: Loaded party '%s' with %d members" % [
+		party_data.party_name,
+		party_members.size()
+	])
+
+
 ## Get party size
 ## @return: Number of characters in party
 func get_party_size() -> int:
@@ -136,10 +159,10 @@ func get_leader() -> Resource:
 ## Get party spawn data for BattleManager
 ## Calculates spawn positions based on spawn point and formation
 ##
-## @param spawn_point: Top-left position where party should spawn
+## @param spawn_point: Top-left position where party should spawn (default: Vector2i(2, 2))
 ## @return: Array of Dictionaries with format:
 ##          [{character: CharacterData, position: Vector2i}, ...]
-func get_battle_spawn_data(spawn_point: Vector2i) -> Array[Dictionary]:
+func get_battle_spawn_data(spawn_point: Vector2i = Vector2i(2, 2)) -> Array[Dictionary]:
 	var spawn_data: Array[Dictionary] = []
 
 	for i in range(party_members.size()):

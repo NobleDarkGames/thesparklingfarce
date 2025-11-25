@@ -14,6 +14,7 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"items": "item",
 	"abilities": "ability",
 	"dialogues": "dialogue",
+	"parties": "party",
 	"battles": "battle"
 }
 
