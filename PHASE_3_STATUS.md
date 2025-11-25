@@ -1,4 +1,56 @@
-# Phase 3 Status - Week 3 Complete + Save System Phase 1 + Mod Priority System
+# Phase 3 Status - Week 3 Complete + Save System Phase 1 + Hero System + Mod Priority System
+
+## Recent Addition: Hero System & Save Slot Party Editor (November 25, 2025)
+
+**Status**: ✅ COMPLETE & CODE REVIEWED
+
+### Hero Character System
+- **is_hero Flag** - Added to CharacterData and CharacterSaveData for protagonist designation
+- **ModRegistry.get_hero_character()** - Validates only one hero exists across all mods
+- **PartyManager Protection** - Hero cannot be removed, always at position 0 (leader)
+- **Character Editor UI** - Checkbox for hero designation with clear labeling
+- **Mr Big Hero Face** - Sandbox mod hero properly configured
+
+### Save Slot Party Editor
+- **Dual-Mode Design** - Template Parties (PartyData) vs Player Party (save slots)
+- **Save Slot Selector** - Dropdown for Slot 1/2/3 with Load/Save buttons
+- **All-Mod Character Loading** - Uses ModRegistry.get_all_resources() to load from all mods
+- **Party Management** - Add/remove/reorder characters with hero protection
+- **Hero Position Enforcement** - _ensure_hero_is_leader() moves hero to index 0
+- **Hero Validation** - Requires hero in party before save
+- **Direct File Access** - Editor-compatible helpers bypass SaveManager autoload
+
+### Technical Implementation
+- Editor tool mode support with _editor_* file access methods
+- Proper type safety in JSON deserialization (per Lt. Claudette review)
+- CharacterSaveData population from CharacterData templates
+- Slot metadata updates on save
+- UI layout improvements (150px split for better visibility)
+
+### Code Review & Fixes
+- **Lt. Claudette Review**: 8.5/10 code quality, 9.5/10 architecture
+- Fixed 3 critical type safety violations in JSON deserialization
+- Applied safe pattern: explicitly handle untyped Arrays from JSON
+- All parser checks passing
+
+### Files Modified
+- `core/resources/character_data.gd` - Added is_hero flag
+- `core/resources/character_save_data.gd` - Hero persistence and type-safe deserialization
+- `core/mod_system/mod_registry.gd` - get_hero_character() with validation
+- `core/systems/party_manager.gd` - Hero protection and _ensure_hero_is_leader()
+- `core/resources/save_data.gd` - Type-safe array deserialization
+- `addons/sparkling_editor/ui/character_editor.gd` - Hero checkbox UI
+- `addons/sparkling_editor/ui/party_editor.gd` - Complete save slot editor
+- `addons/sparkling_editor/ui/base_resource_editor.gd` - Layout improvements
+- `scenes/ui/save_slot_selector.gd` - Hero initialization on new game
+- `mods/_base_game/data/characters/max.tres` - Example hero character
+- `mods/_base_game/data/classes/hero.tres` - Hero class definition
+
+### Game Flow Impact
+New game flow: Main Menu → Select Save Slot → Initialize with Hero → Start Battle
+Hero is automatically added to starting party, ensuring consistent game state.
+
+---
 
 ## Recent Addition: Mod Priority System Enhancement (November 24, 2025)
 
