@@ -1,8 +1,49 @@
 # Dialog System Architecture for The Sparkling Farce
 
-**Status**: ARCHITECTURE COMPLETE - READY FOR IMPLEMENTATION
+**Status**: ✅ PHASES 1-3 COMPLETE & TESTED
 **Date**: November 25, 2025
 **Architect**: Lt. Claudbrain, USS Torvalds
+**Implementation**: Claude Code (Phases 1-3)
+
+---
+
+## Implementation Status
+
+### ✅ Phase 1: Core Dialog System (Complete - Commit 3159628)
+- DialogManager autoload singleton with state machine
+- DialogBox UI with ColorRect borders
+- Text reveal with typewriter effect (30 chars/sec, punctuation pauses)
+- Portrait display system (64x64, pixel-perfect positioning)
+- ModRegistry integration for dialog discovery
+- Continue indicator with blink animation
+- Test scene and test dialog
+
+### ✅ Phase 2: Visual Polish (Complete - Commit 74f49b0)
+- Portrait slide-in animation when speaker changes (0.15s)
+- Dialog box fade-in/fade-out transitions (0.2s)
+- Emotion-aware portrait loading ({speaker}_{emotion}.png pattern)
+- Speaker name yellow highlight on change
+- Text completion glow effect
+- 4 test portrait assets (Max & Anri, neutral & emotion variants)
+
+### ✅ Phase 3: Choice & Branching (Complete - Commit b28688f)
+- ChoiceSelector UI with slide-in animation
+- Keyboard (UP/DOWN/ENTER) and mouse navigation
+- Yellow highlight on selected choice
+- Branching dialog tree support (2-4 choices)
+- 7 test branching dialogs (YES/NO + 3-way Warrior/Mage/Archer)
+- Bug fix: Dialog chaining fade animation conflict resolved
+
+### ⏳ Phase 4: Battle Integration (Planned)
+- BattleManager dialog hooks (pre-battle, victory, defeat, turn dialogs)
+- Input priority handling during battles
+- Dialog positioning based on battle camera
+
+### ⏳ Phase 5: Audio & Story Flags (Planned)
+- Text sound effects per character
+- Background music integration
+- Story flag persistence in SaveManager
+- Conditional dialog based on flags
 
 ---
 

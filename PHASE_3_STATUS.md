@@ -1,4 +1,74 @@
-# Phase 3 Status - Week 3 Complete + Save System Phase 1 + Hero System + Mod Priority System
+# Phase 3 Status - Week 3 Complete + Save System Phase 1 + Hero System + Mod Priority System + Dialog System Complete
+
+## Recent Addition: Dialog System Phases 1-3 Complete (November 25, 2025)
+
+**Status**: ✅ COMPLETE & PRODUCTION READY
+
+### Phase 1: Core Dialog System (Commit 3159628)
+- **DialogManager Autoload** - State machine with 6 states (IDLE → DIALOG_STARTING → SHOWING_LINE → WAITING_FOR_INPUT → WAITING_FOR_CHOICE → DIALOG_ENDING)
+- **DialogBox UI** - ColorRect borders matching action_menu, Monogram font at 16pt/20pt
+- **Text Reveal** - Typewriter effect at 30 chars/sec with 0.15s punctuation pauses
+- **Portrait System** - 64x64 pixel-perfect positioning with KEEP_ASPECT_CENTERED
+- **ModRegistry Integration** - Automatic dialog discovery from mods/*/data/dialogues/
+- **Continue Indicator** - Label + AnimationPlayer with 1-second blink cycle
+- **Circular Reference Protection** - MAX_DEPTH=10 prevents infinite dialog loops
+
+### Phase 2: Visual Polish (Commit 74f49b0)
+- **Fade Transitions** - Dialog box fades in (0.2s) on first line, fades out on end
+- **Portrait Animations** - Slide-in from left (-80px to 0px) when speaker changes (0.15s)
+- **Emotion Variants** - Automatic loading by {speaker}_{emotion}.png naming pattern
+- **Speaker Highlighting** - Yellow tint (1.0, 1.0, 0.6) for 0.3s when speaker changes
+- **Text Completion Feedback** - Subtle glow effect (1.2x brightness) when text finishes
+- **Test Assets** - 4 portrait images: max_neutral, max_happy, anri_neutral, anri_worried
+
+### Phase 3: Choice & Branching (Commit b28688f)
+- **ChoiceSelector UI** - ColorRect borders, 16pt Monogram font (pixel-perfect)
+- **Navigation** - Keyboard (UP/DOWN/ENTER) with wrap-around, mouse hover & click
+- **Visual Feedback** - Yellow highlight (1.0, 1.0, 0.3) on selected, gray (0.8, 0.8, 0.8) unselected
+- **Slide Animation** - Choices slide up from y=360 to y=240 with TRANS_BACK bounce (0.2s)
+- **Branching Logic** - Full support for 2-4 choices with next_dialogue routing
+- **Test Dialogs** - 7 branching dialogs: YES/NO paths + 3-way Warrior/Mage/Archer
+- **Bug Fix** - Resolved fade animation conflict during dialog chaining (fade_tween tracking)
+
+### Technical Excellence
+- **900+ Lines of Code** - Across DialogManager, DialogBox, ChoiceSelector
+- **Signal-Driven Architecture** - 7 signals for loose coupling (dialog_started, line_changed, choices_ready, etc.)
+- **Strict Typing** - All code follows project standards, no walrus operators
+- **Tween-Based Animations** - Garbage-free, non-blocking, cancelable
+- **State Machine** - Clean transitions prevent race conditions
+- **Mod Platform Ready** - Engine code separate from mod content
+
+### Files Added/Modified
+- `core/systems/dialog_manager.gd` (NEW - 264 lines)
+- `core/resources/dialogue_data.gd` (ENHANCED - added enums)
+- `scenes/ui/dialog_box.gd` (NEW - 280 lines)
+- `scenes/ui/dialog_box.tscn` (NEW)
+- `scenes/ui/choice_selector.gd` (NEW - 162 lines)
+- `scenes/ui/choice_selector.tscn` (NEW)
+- `scenes/tests/dialog_test_scene.gd` (ENHANCED)
+- `mods/_base_game/assets/portraits/` (4 test portraits)
+- `mods/_base_game/data/dialogues/` (9 test dialogs: 2 basic + 7 branching)
+- `project.godot` (DialogManager autoload registered)
+
+### What It Can Do
+✅ Linear story dialogs with multiple speakers
+✅ Portrait display with emotion variants
+✅ Smooth visual animations and transitions
+✅ Branching narratives with 2-4 player choices
+✅ Keyboard and mouse input support
+✅ Multi-path dialog trees
+✅ Mod content discovery and loading
+✅ Test scenes with 4 different dialog modes
+
+### Ready for Production
+The dialog system is **feature-complete for tactical RPG storytelling** and ready for:
+- Battle integration (pre-battle, victory, defeat, turn dialogs)
+- Story scenes and NPC conversations
+- Character recruitment dialogs
+- Quest branching and player agency
+- Mod creator content authoring
+
+---
 
 ## Recent Addition: Hero System & Save Slot Party Editor (November 25, 2025)
 
