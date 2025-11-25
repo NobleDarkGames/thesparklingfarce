@@ -14,11 +14,17 @@ const PUNCTUATION_PAUSE: float = 0.15  ## Pause duration at punctuation
 @onready var continue_indicator: Label = $ContentMargin/ContentHBox/DialogVBox/ContinueIndicator
 @onready var blink_animation: AnimationPlayer = $BlinkAnimation
 
+## Animation settings
+const PORTRAIT_SLIDE_DURATION: float = 0.15  ## Portrait slide animation duration
+const DIALOG_FADE_DURATION: float = 0.2  ## Dialog box fade in/out duration
+
 ## Current state
 var is_revealing_text: bool = false
 var visible_characters: float = 0.0
 var full_text: String = ""
 var text_reveal_speed: float = BASE_TEXT_SPEED
+var current_portrait: Texture2D = null  ## Track current portrait for change detection
+var is_first_line: bool = true  ## Track if this is the first line of dialog
 
 
 func _ready() -> void:
@@ -63,32 +69,133 @@ func _input(event: InputEvent) -> void:
 
 ## Called when DialogManager changes line
 func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
-	# Show the dialog box
-	show()
-
-	# Update portrait
-	var portrait: Texture2D = line_data.get("portrait", null)
-	if portrait:
-		portrait_texture_rect.texture = portrait
-		portrait_texture_rect.show()
+	# Fade in dialog box on first line
+	if is_first_line:
+		modulate.a = 0.0
+		show()
+		var fade_tween: Tween = create_tween()
+		fade_tween.tween_property(self, "modulate:a", 1.0, DIALOG_FADE_DURATION)
+		await fade_tween.finished
+		is_first_line = false
 	else:
-		portrait_texture_rect.hide()
+		show()
 
-	# Update speaker name
+	# Update portrait with animation - try emotion variant if not explicitly provided
+	var new_portrait: Texture2D = line_data.get("portrait", null)
+
+	# If no portrait provided, try to load based on speaker name and emotion
+	if not new_portrait:
+		var speaker_name: String = line_data.get("speaker_name", "")
+		var emotion: String = line_data.get("emotion", "neutral")
+		if not speaker_name.is_empty():
+			new_portrait = _try_load_portrait_variant(speaker_name, emotion)
+
+	await _update_portrait(new_portrait)
+
+	# Update speaker name with color modulation
 	var speaker_name: String = line_data.get("speaker_name", "")
 	speaker_label.text = speaker_name
 	speaker_label.visible = not speaker_name.is_empty()
+
+	# Highlight speaker name briefly
+	if not speaker_name.is_empty():
+		speaker_label.modulate = Color(1.0, 1.0, 0.6, 1.0)  ## Yellow tint
+		var speaker_tween: Tween = create_tween()
+		speaker_tween.tween_property(speaker_label, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.3)
 
 	# Start text reveal
 	full_text = line_data.get("text", "")
 	_start_text_reveal()
 
 
+## Try to load portrait variant based on speaker name and emotion
+## Searches for portraits in pattern: {speaker}_{emotion}.png
+## Example: "max_happy.png", "anri_sad.png"
+func _try_load_portrait_variant(speaker_name: String, emotion: String) -> Texture2D:
+	# Normalize speaker name (lowercase, remove spaces)
+	var normalized_speaker: String = speaker_name.to_lower().replace(" ", "_")
+	var normalized_emotion: String = emotion.to_lower()
+
+	# Search pattern: {speaker}_{emotion}.png
+	var portrait_filename: String = "%s_%s.png" % [normalized_speaker, normalized_emotion]
+
+	# Common portrait directories to search
+	var search_paths: Array[String] = [
+		"res://mods/_base_game/assets/portraits/%s" % portrait_filename,
+		"res://assets/portraits/%s" % portrait_filename,
+	]
+
+	# Try each path
+	for path: String in search_paths:
+		if ResourceLoader.exists(path):
+			var portrait: Texture2D = load(path) as Texture2D
+			if portrait:
+				return portrait
+
+	# Fallback: try without emotion (just speaker name)
+	var fallback_filename: String = "%s.png" % normalized_speaker
+	for path: String in search_paths:
+		var fallback_path: String = path.replace(portrait_filename, fallback_filename)
+		if ResourceLoader.exists(fallback_path):
+			var portrait: Texture2D = load(fallback_path) as Texture2D
+			if portrait:
+				return portrait
+
+	# No portrait found
+	return null
+
+
+## Update portrait with slide animation
+func _update_portrait(new_portrait: Texture2D) -> void:
+	# Check if portrait changed
+	var portrait_changed: bool = (new_portrait != current_portrait)
+
+	if new_portrait:
+		if portrait_changed and current_portrait != null:
+			# Slide out old portrait
+			var slide_out_tween: Tween = create_tween()
+			slide_out_tween.tween_property(portrait_texture_rect, "position:x", -80.0, PORTRAIT_SLIDE_DURATION)
+			await slide_out_tween.finished
+
+		# Set new portrait
+		portrait_texture_rect.texture = new_portrait
+		current_portrait = new_portrait
+		portrait_texture_rect.show()
+
+		if portrait_changed:
+			# Start portrait offscreen
+			portrait_texture_rect.position.x = -80.0
+
+			# Slide in new portrait
+			var slide_in_tween: Tween = create_tween()
+			slide_in_tween.tween_property(portrait_texture_rect, "position:x", 0.0, PORTRAIT_SLIDE_DURATION)
+			await slide_in_tween.finished
+	else:
+		# No portrait - hide it
+		if current_portrait != null:
+			var slide_out_tween: Tween = create_tween()
+			slide_out_tween.tween_property(portrait_texture_rect, "position:x", -80.0, PORTRAIT_SLIDE_DURATION)
+			await slide_out_tween.finished
+
+		portrait_texture_rect.hide()
+		current_portrait = null
+
+
 ## Called when dialog ends
 func _on_dialog_ended(dialogue_data: DialogueData) -> void:
+	# Fade out dialog box
+	var fade_tween: Tween = create_tween()
+	fade_tween.tween_property(self, "modulate:a", 0.0, DIALOG_FADE_DURATION)
+	await fade_tween.finished
+
 	hide()
 	continue_indicator.hide()
 	blink_animation.stop()
+
+	# Reset state
+	is_first_line = true
+	current_portrait = null
+	modulate.a = 1.0
 
 
 ## Start revealing text character by character
@@ -133,6 +240,11 @@ func _finish_text_reveal() -> void:
 	is_revealing_text = false
 	visible_characters = float(full_text.length())
 	text_label.visible_characters = -1  ## Show all text
+
+	# Subtle text completion feedback - brief glow effect
+	var glow_tween: Tween = create_tween()
+	glow_tween.tween_property(text_label, "modulate", Color(1.2, 1.2, 1.2, 1.0), 0.1)
+	glow_tween.tween_property(text_label, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.2)
 
 	# Show continue indicator
 	continue_indicator.show()

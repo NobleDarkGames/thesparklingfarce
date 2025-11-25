@@ -11,7 +11,7 @@ func _ready() -> void:
 	# Wait for ModLoader to finish loading
 	await get_tree().process_frame
 
-	test_label.text = "Dialog Test Scene\nPress ENTER to start test dialog"
+	test_label.text = "Dialog Test Scene - Phase 2 Polish\nPress ENTER to start\nPress 1 for basic test, 2 for Phase 2 test"
 
 	# Connect to dialog signals for testing
 	DialogManager.dialog_started.connect(_on_dialog_started)
@@ -24,15 +24,18 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("sf_confirm"):
-		_start_test_dialog()
+		_start_test_dialog("test_dialog")
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_text_submit"):
+		_start_test_dialog("phase2_test_dialog")
 		get_viewport().set_input_as_handled()
 
 
-func _start_test_dialog() -> void:
-	test_label.text = "Starting dialog..."
+func _start_test_dialog(dialog_id: String = "phase2_test_dialog") -> void:
+	test_label.text = "Starting dialog: " + dialog_id
 
-	# Try to start the test dialog
-	var success: bool = DialogManager.start_dialog("test_dialog")
+	# Try to start the specified dialog
+	var success: bool = DialogManager.start_dialog(dialog_id)
 
 	if not success:
 		test_label.text = "ERROR: Failed to start dialog!\nCheck console for details."

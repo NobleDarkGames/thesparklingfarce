@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3 uid="uid://phase2_test_dialog"]
+
+[ext_resource type="Script" path="res://core/resources/dialogue_data.gd" id="1_dialogue_data"]
+
+[resource]
+script = ExtResource("1_dialogue_data")
+dialogue_id = "phase2_test_dialog"
+dialogue_title = "Phase 2 Polish Test"
+lines = Array[Dictionary]([{
+"emotion": "neutral",
+"speaker_name": "Max",
+"text": "Welcome to Phase 2 of the dialog system! Notice the smooth fade-in?"
+}, {
+"emotion": "happy",
+"speaker_name": "Max",
+"text": "My portrait just changed to show I'm happy! The slide animation is smooth, right?"
+}, {
+"emotion": "neutral",
+"speaker_name": "Anri",
+"text": "And now I'm speaking! Watch as my portrait slides in from the left."
+}, {
+"emotion": "worried",
+"speaker_name": "Anri",
+"text": "Oh no! Something's wrong! My emotion changed to worried - see the purple portrait?"
+}, {
+"emotion": "neutral",
+"speaker_name": "Max",
+"text": "Don't worry Anri! Notice the speaker name briefly highlights in yellow when it changes?"
+}, {
+"emotion": "happy",
+"speaker_name": "Max",
+"text": "And when text finishes revealing, there's a subtle glow effect. Pretty slick!"
+}, {
+"emotion": "neutral",
+"speaker_name": "System",
+"text": "Phase 2 features: Portrait slide-in, fade transitions, emotion variants, speaker highlighting, and text completion feedback!"
+}])
+choices = Array[Dictionary]([])
+next_dialogue = null
+auto_advance = false
+advance_delay = 2.0
+background_music = null
+text_sound = null
+background = null
+fade_duration = 0.5
+box_position = 0
