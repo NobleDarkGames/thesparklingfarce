@@ -4,6 +4,14 @@ class_name ModManifest
 
 ## Represents a mod's metadata and configuration
 ## Loaded from mod.json files in the mods/ directory
+##
+## Load Priority Strategy (0-9999):
+##   0-99:      Official game content from core development team
+##   100-8999:  User mods
+##   9000-9999: High priority and total conversion mods
+
+const MIN_PRIORITY: int = 0
+const MAX_PRIORITY: int = 9999
 
 @export var mod_id: String = ""
 @export var mod_name: String = ""
@@ -94,10 +102,16 @@ static func _validate_manifest_data(data: Dictionary) -> bool:
 		push_error("mod.json missing required field: 'name'")
 		return false
 
-	# Validate types if present
-	if "load_priority" in data and not data.load_priority is float and not data.load_priority is int:
-		push_error("mod.json 'load_priority' must be a number")
-		return false
+	# Validate load_priority if present
+	if "load_priority" in data:
+		if not data.load_priority is float and not data.load_priority is int:
+			push_error("mod.json 'load_priority' must be a number")
+			return false
+
+		var priority: int = int(data.load_priority)
+		if priority < MIN_PRIORITY or priority > MAX_PRIORITY:
+			push_error("mod.json 'load_priority' must be between %d and %d (got %d)" % [MIN_PRIORITY, MAX_PRIORITY, priority])
+			return false
 
 	return true
 

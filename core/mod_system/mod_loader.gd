@@ -4,6 +4,14 @@ extends Node
 ## ModLoader - Autoload singleton for managing game mods
 ## Discovers mods in mods/ directory, loads them in priority order,
 ## and populates the ModRegistry with all resources
+##
+## Mod Load Priority Strategy (0-9999):
+##   0-99:      Official game content from core development team
+##   100-8999:  User mods
+##   9000-9999: High priority and total conversion mods
+##
+## When multiple mods share the same priority, they load in alphabetical
+## order by mod_id to ensure consistent cross-platform behavior.
 
 const MODS_DIRECTORY: String = "res://mods/"
 
@@ -143,8 +151,12 @@ func _is_mod_loaded(mod_id: String) -> bool:
 
 
 ## Sort function for mod priority (lower numbers load first)
+## If priorities match, uses alphabetical order by mod_id as tiebreaker
 func _sort_by_priority(a: ModManifest, b: ModManifest) -> bool:
-	return a.load_priority < b.load_priority
+	if a.load_priority != b.load_priority:
+		return a.load_priority < b.load_priority
+	# Tiebreaker: alphabetical by mod_id for consistent cross-platform behavior
+	return a.mod_id < b.mod_id
 
 
 ## Get a mod manifest by ID
@@ -158,6 +170,14 @@ func get_mod(mod_id: String) -> ModManifest:
 ## Get all loaded mods
 func get_all_mods() -> Array[ModManifest]:
 	return loaded_mods.duplicate()
+
+
+## Get all loaded mods in priority order (highest priority first)
+## Useful for checking which mod provides override resources
+func get_mods_by_priority_descending() -> Array[ModManifest]:
+	var mods: Array[ModManifest] = loaded_mods.duplicate()
+	mods.reverse()  # Reverse since loaded_mods is sorted low to high
+	return mods
 
 
 ## Get the currently active mod (for editor)

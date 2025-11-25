@@ -1,4 +1,31 @@
-# Phase 3 Status - Week 3 Complete + Save System Phase 1
+# Phase 3 Status - Week 3 Complete + Save System Phase 1 + Mod Priority System
+
+## Recent Addition: Mod Priority System Enhancement (November 24, 2025)
+
+**Status**: ✅ COMPLETE
+
+### Mod Priority System
+- **Priority Range Validation** - Enforced 0-9999 range with clear strategy
+- **Alphabetical Tiebreaker** - Consistent cross-platform load order for same-priority mods
+- **Comprehensive Documentation** - New MOD_SYSTEM.md with complete mod creation guide
+
+### Priority Strategy
+- **0-99**: Official game content from core development team
+- **100-8999**: User mods and community content
+- **9000-9999**: High-priority and total conversion mods
+
+### Technical Implementation
+- ModManifest validates priority range on load
+- ModLoader sorts with alphabetical fallback for deterministic behavior
+- Added `get_mods_by_priority_descending()` helper for checking overrides
+- Full documentation in MOD_SYSTEM.md
+
+### Files Modified
+- `core/mod_system/mod_manifest.gd` - Added MIN_PRIORITY/MAX_PRIORITY constants and validation
+- `core/mod_system/mod_loader.gd` - Improved sort function with tiebreaker
+- `MOD_SYSTEM.md` - Created comprehensive mod system documentation
+
+---
 
 ## Recent Addition: Save System Phase 1 (November 24, 2025)
 
