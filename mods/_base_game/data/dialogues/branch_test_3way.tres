@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=5 format=3 uid="uid://branch_test_3way"]
+
+[ext_resource type="Script" path="res://core/resources/dialogue_data.gd" id="1_dialogue_data"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_warrior.tres" id="2_warrior"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_mage.tres" id="3_mage"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_archer.tres" id="4_archer"]
+
+[resource]
+script = ExtResource("1_dialogue_data")
+dialogue_id = "branch_test_3way"
+dialogue_title = "Three-Way Choice Test"
+lines = Array[Dictionary]([{
+"emotion": "neutral",
+"speaker_name": "Max",
+"text": "This is a more complex choice test with THREE options!"
+}, {
+"emotion": "neutral",
+"speaker_name": "Anri",
+"text": "Which class appeals to you most in a tactical RPG?"
+}])
+choices = Array[Dictionary]([{
+"choice_text": "Warrior - Strong melee fighter",
+"next_dialogue": ExtResource("2_warrior")
+}, {
+"choice_text": "Mage - Powerful spellcaster",
+"next_dialogue": ExtResource("3_mage")
+}, {
+"choice_text": "Archer - Ranged specialist",
+"next_dialogue": ExtResource("4_archer")
+}])
+next_dialogue = null
+auto_advance = false
+advance_delay = 2.0
+background_music = null
+text_sound = null
+background = null
+fade_duration = 0.5
+box_position = 0

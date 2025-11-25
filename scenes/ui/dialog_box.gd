@@ -25,6 +25,7 @@ var full_text: String = ""
 var text_reveal_speed: float = BASE_TEXT_SPEED
 var current_portrait: Texture2D = null  ## Track current portrait for change detection
 var is_first_line: bool = true  ## Track if this is the first line of dialog
+var fade_tween: Tween = null  ## Track active fade animation to prevent conflicts
 
 
 func _ready() -> void:
@@ -69,16 +70,23 @@ func _input(event: InputEvent) -> void:
 
 ## Called when DialogManager changes line
 func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
-	# Fade in dialog box on first line
-	if is_first_line:
+	# Cancel any existing fade animation
+	if fade_tween:
+		fade_tween.kill()
+		fade_tween = null
+
+	# Fade in dialog box on first line (or if it was hidden)
+	if is_first_line or modulate.a < 0.5:
 		modulate.a = 0.0
 		show()
-		var fade_tween: Tween = create_tween()
+		fade_tween = create_tween()
 		fade_tween.tween_property(self, "modulate:a", 1.0, DIALOG_FADE_DURATION)
 		await fade_tween.finished
+		fade_tween = null
 		is_first_line = false
 	else:
 		show()
+		modulate.a = 1.0  ## Ensure fully visible
 
 	# Update portrait with animation - try emotion variant if not explicitly provided
 	var new_portrait: Texture2D = line_data.get("portrait", null)
@@ -183,19 +191,33 @@ func _update_portrait(new_portrait: Texture2D) -> void:
 
 ## Called when dialog ends
 func _on_dialog_ended(dialogue_data: DialogueData) -> void:
-	# Fade out dialog box
-	var fade_tween: Tween = create_tween()
-	fade_tween.tween_property(self, "modulate:a", 0.0, DIALOG_FADE_DURATION)
-	await fade_tween.finished
+	# Only fade out if we're actually visible (not chaining to another dialog)
+	# Check after a brief delay to see if another dialog started
+	await get_tree().create_timer(0.05).timeout
 
-	hide()
+	# If dialog is still idle after delay, fade out
+	if DialogManager.current_state == DialogManager.State.IDLE:
+		# Cancel any existing fade
+		if fade_tween:
+			fade_tween.kill()
+			fade_tween = null
+
+		# Fade out dialog box
+		fade_tween = create_tween()
+		fade_tween.tween_property(self, "modulate:a", 0.0, DIALOG_FADE_DURATION)
+		await fade_tween.finished
+		fade_tween = null
+
+		hide()
+		modulate.a = 1.0
+
+	# Always clean up UI elements
 	continue_indicator.hide()
 	blink_animation.stop()
 
-	# Reset state
+	# Reset state for next dialog
 	is_first_line = true
 	current_portrait = null
-	modulate.a = 1.0
 
 
 ## Start revealing text character by character

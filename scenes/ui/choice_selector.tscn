@@ -1,0 +1,52 @@
+[gd_scene load_steps=3 format=3 uid="uid://choice_selector_scene"]
+
+[ext_resource type="Script" path="res://scenes/ui/choice_selector.gd" id="1_choice_selector"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
+
+[node name="ChoiceSelector" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 20.0
+offset_top = 240.0
+offset_right = 320.0
+offset_bottom = 340.0
+theme = ExtResource("2_ui_theme")
+script = ExtResource("1_choice_selector")
+
+[node name="Border" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.8, 0.8, 0.9, 1)
+
+[node name="InnerPanel" type="ColorRect" parent="Border"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 0.95)
+
+[node name="ContentMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="ChoiceVBox" type="VBoxContainer" parent="ContentMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4

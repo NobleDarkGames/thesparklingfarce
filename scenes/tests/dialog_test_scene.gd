@@ -11,11 +11,12 @@ func _ready() -> void:
 	# Wait for ModLoader to finish loading
 	await get_tree().process_frame
 
-	test_label.text = "Dialog Test Scene - Phase 2 Polish\nPress ENTER to start\nPress 1 for basic test, 2 for Phase 2 test"
+	test_label.text = "Dialog Test Scene - Phase 3 Choices\n1: Basic | 2: Phase 2 Polish | 3: YES/NO Choice | 4: 3-Way Choice"
 
 	# Connect to dialog signals for testing
 	DialogManager.dialog_started.connect(_on_dialog_started)
 	DialogManager.dialog_ended.connect(_on_dialog_ended)
+	DialogManager.choices_ready.connect(_on_choices_ready)
 
 
 func _input(event: InputEvent) -> void:
@@ -23,11 +24,18 @@ func _input(event: InputEvent) -> void:
 	if DialogManager.is_dialog_active():
 		return
 
-	if event.is_action_pressed("sf_confirm"):
-		_start_test_dialog("test_dialog")
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_text_submit"):
-		_start_test_dialog("phase2_test_dialog")
+	# Test dialog selection with number keys
+	if event is InputEventKey and event.pressed:
+		var key_event: InputEventKey = event as InputEventKey
+		match key_event.keycode:
+			KEY_1:
+				_start_test_dialog("test_dialog")
+			KEY_2:
+				_start_test_dialog("phase2_test_dialog")
+			KEY_3:
+				_start_test_dialog("branch_test_start")
+			KEY_4:
+				_start_test_dialog("branch_test_3way")
 		get_viewport().set_input_as_handled()
 
 
@@ -47,5 +55,10 @@ func _on_dialog_started(dialogue_data: DialogueData) -> void:
 
 
 func _on_dialog_ended(dialogue_data: DialogueData) -> void:
-	test_label.text = "Dialog ended: " + dialogue_data.dialogue_title + "\nPress ENTER to restart"
+	test_label.text = "Dialog ended: " + dialogue_data.dialogue_title + "\nPress 1-4 to test"
 	print("Dialog ended: ", dialogue_data.dialogue_id)
+
+
+func _on_choices_ready(choices: Array[Dictionary]) -> void:
+	test_label.text = "Choices displayed! Use arrow keys or mouse to select."
+	print("Choices ready: ", choices.size(), " options")

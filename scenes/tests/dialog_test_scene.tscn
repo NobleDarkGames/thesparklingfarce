@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://dialog_test_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://dialog_test_scene"]
 
 [ext_resource type="Script" path="res://scenes/tests/dialog_test_scene.gd" id="1_test_script"]
 [ext_resource type="PackedScene" uid="uid://dialog_box_scene" path="res://scenes/ui/dialog_box.tscn" id="2_dialog_box"]
-[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="3_ui_theme"]
+[ext_resource type="PackedScene" uid="uid://choice_selector_scene" path="res://scenes/ui/choice_selector.tscn" id="3_choice_selector"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="4_ui_theme"]
 
 [node name="DialogTestScene" type="Node2D"]
 script = ExtResource("1_test_script")
@@ -19,9 +20,11 @@ offset_left = 20.0
 offset_top = 20.0
 offset_right = 620.0
 offset_bottom = 80.0
-theme = ExtResource("3_ui_theme")
+theme = ExtResource("4_ui_theme")
 theme_override_font_sizes/font_size = 16
 text = "Dialog Test Scene
 Press ENTER to start"
 
 [node name="DialogBox" parent="CanvasLayer" instance=ExtResource("2_dialog_box")]
+
+[node name="ChoiceSelector" parent="CanvasLayer" instance=ExtResource("3_choice_selector")]

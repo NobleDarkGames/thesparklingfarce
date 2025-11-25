@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=4 format=3 uid="uid://branch_test_start"]
+
+[ext_resource type="Script" path="res://core/resources/dialogue_data.gd" id="1_dialogue_data"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_yes.tres" id="2_branch_yes"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_no.tres" id="3_branch_no"]
+
+[resource]
+script = ExtResource("1_dialogue_data")
+dialogue_id = "branch_test_start"
+dialogue_title = "Branching Choice Test"
+lines = Array[Dictionary]([{
+"emotion": "neutral",
+"speaker_name": "Max",
+"text": "Welcome to Phase 3 - the choice system!"
+}, {
+"emotion": "happy",
+"speaker_name": "Max",
+"text": "After this line, you'll see choices appear. Use arrow keys or mouse to select!"
+}, {
+"emotion": "neutral",
+"speaker_name": "Anri",
+"text": "Do you want to see how the YES branch works, or the NO branch?"
+}])
+choices = Array[Dictionary]([{
+"choice_text": "YES - Show me the positive path!",
+"next_dialogue": ExtResource("2_branch_yes")
+}, {
+"choice_text": "NO - I prefer the negative path.",
+"next_dialogue": ExtResource("3_branch_no")
+}])
+next_dialogue = null
+auto_advance = false
+advance_delay = 2.0
+background_music = null
+text_sound = null
+background = null
+fade_duration = 0.5
+box_position = 0

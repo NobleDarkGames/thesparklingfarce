@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3 uid="uid://branch_test_yes"]
+
+[ext_resource type="Script" path="res://core/resources/dialogue_data.gd" id="1_dialogue_data"]
+
+[resource]
+script = ExtResource("1_dialogue_data")
+dialogue_id = "branch_test_yes"
+dialogue_title = "YES Branch"
+lines = Array[Dictionary]([{
+"emotion": "happy",
+"speaker_name": "Max",
+"text": "Great! You chose YES! This is the positive outcome branch."
+}, {
+"emotion": "happy",
+"speaker_name": "Anri",
+"text": "I'm so glad you're being optimistic! Positivity is important in tactical RPGs."
+}, {
+"emotion": "neutral",
+"speaker_name": "Max",
+"text": "The choice system works perfectly! Notice how the dialog flowed seamlessly from your choice?"
+}, {
+"emotion": "neutral",
+"speaker_name": "System",
+"text": "Phase 3 Complete: Choices work! The dialog chain followed your YES selection."
+}])
+choices = Array[Dictionary]([])
+next_dialogue = null
+auto_advance = false
+advance_delay = 2.0
+background_music = null
+text_sound = null
+background = null
+fade_duration = 0.5
+box_position = 0

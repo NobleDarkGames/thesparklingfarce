@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3 uid="uid://branch_test_no"]
+
+[ext_resource type="Script" path="res://core/resources/dialogue_data.gd" id="1_dialogue_data"]
+
+[resource]
+script = ExtResource("1_dialogue_data")
+dialogue_id = "branch_test_no"
+dialogue_title = "NO Branch"
+lines = Array[Dictionary]([{
+"emotion": "worried",
+"speaker_name": "Anri",
+"text": "Oh no, you chose NO! That's the negative path..."
+}, {
+"emotion": "neutral",
+"speaker_name": "Max",
+"text": "It's okay! Every choice leads somewhere. This demonstrates branching perfectly."
+}, {
+"emotion": "worried",
+"speaker_name": "Anri",
+"text": "Sometimes the harder path teaches us more. This is the NO branch result."
+}, {
+"emotion": "neutral",
+"speaker_name": "System",
+"text": "Phase 3 Complete: Choices work! The dialog chain followed your NO selection."
+}])
+choices = Array[Dictionary]([])
+next_dialogue = null
+auto_advance = false
+advance_delay = 2.0
+background_music = null
+text_sound = null
+background = null
+fade_duration = 0.5
+box_position = 0
