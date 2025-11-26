@@ -27,6 +27,11 @@ var campaign_data: Dictionary = {
 	"treasures_found": 0,
 }
 
+## Battle transition data - stores where to return after battle
+var return_scene_path: String = ""
+var return_hero_position: Vector2 = Vector2.ZERO
+var return_hero_grid_position: Vector2i = Vector2i.ZERO
+
 ## Emitted when a story flag changes
 signal flag_changed(flag_name: String, value: bool)
 
@@ -129,3 +134,24 @@ func reset_all() -> void:
 		"battles_won": 0,
 		"treasures_found": 0,
 	}
+	clear_return_data()
+
+
+## Store where to return after battle
+func set_return_data(scene_path: String, hero_pos: Vector2, hero_grid_pos: Vector2i) -> void:
+	return_scene_path = scene_path
+	return_hero_position = hero_pos
+	return_hero_grid_position = hero_grid_pos
+	print("GameState: Stored return data - Scene: %s, Position: %s" % [scene_path, hero_grid_pos])
+
+
+## Check if there's return data available
+func has_return_data() -> bool:
+	return not return_scene_path.is_empty()
+
+
+## Clear return data after using it
+func clear_return_data() -> void:
+	return_scene_path = ""
+	return_hero_position = Vector2.ZERO
+	return_hero_grid_position = Vector2i.ZERO

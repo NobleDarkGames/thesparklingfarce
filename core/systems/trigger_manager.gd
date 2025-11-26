@@ -1,0 +1,306 @@
+extends Node
+## TriggerManager - Autoload singleton for handling map triggers
+##
+## Responsibilities:
+## - Automatically connect to all MapTriggers in the current scene
+## - Handle BATTLE triggers (transition to battle, store return data)
+## - Handle other trigger types (DIALOG, CHEST, DOOR, etc.) in future phases
+## - Coordinate scene transitions with SceneManager
+##
+## Integration points:
+## - MapTrigger: Listens to triggered signals
+## - GameState: Stores return scene/position data
+## - ModLoader: Looks up BattleData by ID
+## - SceneManager: Handles scene transitions
+## - BattleManager: Starts battles with BattleData
+
+## Emitted when returning from battle (for map scenes to handle restoration)
+signal returned_from_battle()
+
+## Track connected triggers to avoid duplicate connections
+var connected_triggers: Array[Node] = []
+
+
+func _ready() -> void:
+	print("TriggerManager: Initializing...")
+
+	# Defer connecting to SceneManager to ensure it's fully initialized
+	call_deferred("_connect_to_scene_manager")
+
+
+## Connect to SceneManager after initialization
+func _connect_to_scene_manager() -> void:
+	if SceneManager:
+		SceneManager.scene_transition_completed.connect(_on_scene_changed)
+		print("TriggerManager: Connected to SceneManager")
+	else:
+		push_error("TriggerManager: SceneManager not found!")
+
+
+## Called when a scene transition completes
+func _on_scene_changed(scene_path: String) -> void:
+	print("TriggerManager: Scene changed to: %s" % scene_path)
+
+	# Clear old connections
+	_disconnect_all_triggers()
+
+	# Wait one frame for scene to fully initialize
+	await get_tree().process_frame
+
+	# Find and connect to all triggers in the new scene
+	_connect_to_scene_triggers()
+
+
+## Find all MapTriggers in the current scene and connect to them
+func _connect_to_scene_triggers() -> void:
+	var root: Window = get_tree().root
+	var current_scene: Node = root.get_child(root.get_child_count() - 1)
+
+	# Recursively find all MapTrigger nodes
+	var triggers: Array[Node] = _find_all_triggers(current_scene)
+
+	print("TriggerManager: Found %d triggers in scene" % triggers.size())
+
+	for trigger in triggers:
+		_connect_trigger(trigger)
+
+
+## Recursively find all MapTrigger nodes in a scene tree
+func _find_all_triggers(node: Node) -> Array[Node]:
+	var triggers: Array[Node] = []
+
+	# Check if this node is a MapTrigger (duck typing - check for trigger_type property)
+	if node.get("trigger_type") != null and node.has_signal("triggered"):
+		triggers.append(node)
+
+	# Recursively check children
+	for child in node.get_children():
+		triggers.append_array(_find_all_triggers(child))
+
+	return triggers
+
+
+## Connect to a single trigger
+func _connect_trigger(trigger: Node) -> void:
+	if trigger in connected_triggers:
+		return  # Already connected
+
+	# Connect to triggered signal
+	if not trigger.triggered.is_connected(_on_trigger_activated):
+		trigger.triggered.connect(_on_trigger_activated)
+		connected_triggers.append(trigger)
+		print("TriggerManager: Connected to trigger: %s (type: %s)" % [
+			trigger.get("trigger_id"),
+			_get_trigger_type_name(trigger.get("trigger_type"))
+		])
+
+
+## Disconnect from all triggers
+func _disconnect_all_triggers() -> void:
+	for trigger in connected_triggers:
+		if is_instance_valid(trigger) and trigger.triggered.is_connected(_on_trigger_activated):
+			trigger.triggered.disconnect(_on_trigger_activated)
+
+	connected_triggers.clear()
+
+
+## Called when any trigger is activated
+func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
+	var trigger_type: int = trigger.get("trigger_type")
+	var trigger_id: String = trigger.get("trigger_id")
+
+	print("TriggerManager: Trigger activated - ID: %s, Type: %s" % [
+		trigger_id,
+		_get_trigger_type_name(trigger_type)
+	])
+
+	# Route to appropriate handler based on type
+	match trigger_type:
+		0:  # MapTrigger.TriggerType.BATTLE
+			_handle_battle_trigger(trigger, player)
+		1:  # MapTrigger.TriggerType.DIALOG
+			_handle_dialog_trigger(trigger, player)
+		2:  # MapTrigger.TriggerType.CHEST
+			_handle_chest_trigger(trigger, player)
+		3:  # MapTrigger.TriggerType.DOOR
+			_handle_door_trigger(trigger, player)
+		4:  # MapTrigger.TriggerType.CUTSCENE
+			_handle_cutscene_trigger(trigger, player)
+		5:  # MapTrigger.TriggerType.TRANSITION
+			_handle_transition_trigger(trigger, player)
+		6:  # MapTrigger.TriggerType.CUSTOM
+			_handle_custom_trigger(trigger, player)
+		_:
+			push_warning("TriggerManager: Unknown trigger type: %d" % trigger_type)
+
+
+## Handle BATTLE trigger - transition to battle scene
+func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var battle_id: String = trigger_data.get("battle_id", "")
+
+	if battle_id.is_empty():
+		push_error("TriggerManager: Battle trigger missing battle_id")
+		return
+
+	print("TriggerManager: Loading battle: %s" % battle_id)
+
+	# Look up BattleData resource from ModLoader
+	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
+
+	if not battle_data:
+		push_error("TriggerManager: Failed to find BattleData for ID: %s" % battle_id)
+		push_error("  Make sure the battle exists in mods/*/data/battles/")
+		return
+
+	# Store return data in GameState
+	var current_scene_path: String = get_tree().current_scene.scene_file_path
+	var hero_position: Vector2 = player.global_position
+	var hero_grid_position: Vector2i = player.get("grid_position") if player.get("grid_position") != null else Vector2i.ZERO
+
+	GameState.set_return_data(current_scene_path, hero_position, hero_grid_position)
+
+	# Transition to battle scene (will load the battle_loader scene)
+	# We need to pass the battle_data to the battle scene somehow
+	# For now, store it in GameState temporarily
+	_current_battle_data = battle_data
+
+	# Use the battle_loader scene from _sandbox
+	SceneManager.change_scene("res://mods/_sandbox/scenes/battle_loader.tscn")
+
+
+## Temporary storage for battle data (will be picked up by battle scene)
+var _current_battle_data: Resource = null
+
+
+## Get the current battle data (called by battle scenes)
+func get_current_battle_data() -> Resource:
+	return _current_battle_data
+
+
+## Clear current battle data
+func clear_current_battle_data() -> void:
+	_current_battle_data = null
+
+
+## Return to map after battle ends
+func return_to_map() -> void:
+	if not GameState.has_return_data():
+		push_warning("TriggerManager: No return data available")
+		return
+
+	var return_scene: String = GameState.return_scene_path
+
+	print("TriggerManager: Returning to map: %s" % return_scene)
+
+	# Clear battle data
+	clear_current_battle_data()
+
+	# Transition back to map (don't clear GameState yet - map will use position data)
+	SceneManager.change_scene(return_scene)
+
+	# Emit signal for map scene to handle restoration
+	# Wait for scene to load first
+	await SceneManager.scene_transition_completed
+	returned_from_battle.emit()
+
+
+## Handle DIALOG trigger - show dialogue
+func _handle_dialog_trigger(trigger: Node, player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var dialog_id: String = trigger_data.get("dialog_id", "")
+
+	if dialog_id.is_empty():
+		push_warning("TriggerManager: Dialog trigger missing dialog_id")
+		return
+
+	print("TriggerManager: Dialog trigger activated: %s" % dialog_id)
+
+	# Look up DialogueData resource
+	var dialogue_data: Resource = ModLoader.registry.get_resource("dialogue", dialog_id)
+
+	if not dialogue_data:
+		push_error("TriggerManager: Failed to find DialogueData for ID: %s" % dialog_id)
+		return
+
+	# Start dialogue
+	DialogManager.start_dialogue(dialogue_data)
+
+
+## Handle CHEST trigger - grant rewards
+func _handle_chest_trigger(trigger: Node, _player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	print("TriggerManager: Chest trigger activated")
+	print("  TODO: Implement chest rewards (Phase 4)")
+	print("  Data: %s" % trigger_data)
+	# TODO: Phase 4 - implement item/gold rewards
+
+
+## Handle DOOR trigger - scene transition
+func _handle_door_trigger(trigger: Node, _player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var destination_scene: String = trigger_data.get("destination_scene", "")
+	var spawn_point: String = trigger_data.get("spawn_point", "")
+
+	if destination_scene.is_empty():
+		push_warning("TriggerManager: Door trigger missing destination_scene")
+		return
+
+	print("TriggerManager: Door trigger - transitioning to: %s (spawn: %s)" % [destination_scene, spawn_point])
+
+	# Store spawn point for destination scene to use
+	if not spawn_point.is_empty():
+		# TODO: Store spawn point in GameState for destination scene to read
+		pass
+
+	# Transition to new scene
+	SceneManager.change_scene(destination_scene)
+
+
+## Handle CUTSCENE trigger
+func _handle_cutscene_trigger(trigger: Node, _player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	print("TriggerManager: Cutscene trigger activated")
+	print("  TODO: Implement cutscene system (Phase 5)")
+	print("  Data: %s" % trigger_data)
+
+
+## Handle TRANSITION trigger - teleport within same scene
+func _handle_transition_trigger(trigger: Node, player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var target_position: Vector2i = trigger_data.get("target_position", Vector2i.ZERO)
+
+	if target_position == Vector2i.ZERO:
+		push_warning("TriggerManager: Transition trigger missing target_position")
+		return
+
+	print("TriggerManager: Transition trigger - teleporting to: %s" % target_position)
+
+	# Teleport player
+	if player.has_method("teleport_to_grid"):
+		player.teleport_to_grid(target_position)
+	else:
+		push_warning("TriggerManager: Player doesn't have teleport_to_grid method")
+
+
+## Handle CUSTOM trigger
+func _handle_custom_trigger(trigger: Node, player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	print("TriggerManager: Custom trigger activated")
+	print("  Data: %s" % trigger_data)
+	# Custom triggers should be handled by game-specific logic
+	# Emit a signal that game scripts can connect to
+	# TODO: Phase 5 - custom trigger system
+
+
+## Get human-readable trigger type name
+func _get_trigger_type_name(type: int) -> String:
+	match type:
+		0: return "BATTLE"
+		1: return "DIALOG"
+		2: return "CHEST"
+		3: return "DOOR"
+		4: return "CUTSCENE"
+		5: return "TRANSITION"
+		6: return "CUSTOM"
+		_: return "UNKNOWN"

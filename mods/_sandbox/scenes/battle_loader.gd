@@ -45,6 +45,12 @@ var _camera: CameraController = null  # Camera controller
 
 
 func _ready() -> void:
+	# Check if TriggerManager has battle data (from map trigger)
+	var trigger_battle_data: Resource = TriggerManager.get_current_battle_data()
+	if trigger_battle_data:
+		print("BattleLoader: Using battle data from TriggerManager")
+		battle_data = trigger_battle_data
+
 	# Validate battle data
 	if not battle_data:
 		push_error("BattleLoader: No battle_data assigned! Set the 'battle_data' export variable in the Inspector.")

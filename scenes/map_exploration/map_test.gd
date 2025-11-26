@@ -21,6 +21,21 @@ var party_followers: Array[Node2D] = []
 func _ready() -> void:
 	print("MapTest: Initializing map exploration test scene")
 
+	# Check if returning from battle
+	if GameState.has_return_data():
+		print("MapTest: Returning from battle - restoring hero position")
+		var return_pos: Vector2i = GameState.return_hero_grid_position
+
+		# Wait one frame for hero to be fully initialized
+		await get_tree().process_frame
+
+		if hero and hero.has_method("teleport_to_grid"):
+			hero.teleport_to_grid(return_pos)
+			print("  Hero restored to grid position: %s" % return_pos)
+
+		# Clear return data after using it
+		GameState.clear_return_data()
+
 	# Setup camera to follow hero
 	if camera and hero:
 		camera.set_follow_target(hero)
@@ -34,12 +49,12 @@ func _ready() -> void:
 		hero.moved_to_tile.connect(_on_hero_moved)
 		hero.interaction_requested.connect(_on_hero_interaction)
 
-	# Connect battle trigger for testing
+	# Note: TriggerManager now handles all trigger connections automatically
+	# No need to manually connect to triggers in map scenes anymore!
+	# But we'll keep the old code for backward compatibility
 	var battle_trigger: Node = get_node_or_null("BattleTrigger")
 	if battle_trigger:
-		battle_trigger.triggered.connect(_on_battle_trigger_activated)
-		battle_trigger.activation_failed.connect(_on_battle_trigger_failed)
-		print("MapTest: Battle trigger connected")
+		print("MapTest: Battle trigger found (will be handled by TriggerManager)")
 
 	print("MapTest: Scene initialized. Use arrow keys to move, Enter/Z to interact")
 

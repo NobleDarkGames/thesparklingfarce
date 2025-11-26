@@ -556,6 +556,8 @@ func _on_battle_ended(victory: bool) -> void:
 	print("\n========================================")
 	if victory:
 		print("VICTORY!")
+		# Increment battles won in campaign data
+		GameState.increment_campaign_data("battles_won")
 	else:
 		print("DEFEAT!")
 	print("========================================\n")
@@ -564,7 +566,15 @@ func _on_battle_ended(victory: bool) -> void:
 
 	# TODO: Show victory/defeat dialogue
 	# TODO: Award experience/items
-	# TODO: Return to overworld
+
+	# Return to map after battle (if we came from a map trigger)
+	if GameState.has_return_data():
+		print("BattleManager: Returning to map...")
+		# Small delay to let players see the victory/defeat message
+		await get_tree().create_timer(2.0).timeout
+		TriggerManager.return_to_map()
+	else:
+		print("BattleManager: No return data - staying in battle scene")
 
 
 ## Handle unit gaining XP

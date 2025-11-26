@@ -44,5 +44,5 @@ script = ExtResource("4_camera")
 position = Vector2(155, 92)
 trigger_id = "test_battle_001"
 trigger_data = {
-"battle_id": "tutorial_battle_001"
+"battle_id": "battle_1763763677"
 }
