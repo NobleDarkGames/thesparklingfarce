@@ -728,7 +728,11 @@ func _show_action_menu() -> void:
 
 	# Position menu near active unit
 	if active_unit:
-		var unit_screen_pos: Vector2 = active_unit.position
+		# Convert unit's world position to screen position
+		# The action menu is in a CanvasLayer (viewport coordinates)
+		# but active_unit.position is in world coordinates
+		var viewport: Viewport = active_unit.get_viewport()
+		var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
 		# Offset to right of unit
 		action_menu.position = unit_screen_pos + Vector2(40, -20)
 
