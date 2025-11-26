@@ -1,0 +1,31 @@
+[gd_resource type="TileSet" load_steps=9 format=3 uid="uid://dsgco58wfm80c"]
+
+[ext_resource type="Texture2D" uid="uid://daok7oiw4e12l" path="res://mods/_base_game/art/tilesets/placeholder/grass.png" id="1_grass"]
+[ext_resource type="Texture2D" uid="uid://4qa8rj8k6ygm" path="res://mods/_base_game/art/tilesets/placeholder/wall.png" id="2_wall"]
+[ext_resource type="Texture2D" uid="uid://3850bwylod6d" path="res://mods/_base_game/art/tilesets/placeholder/water.png" id="3_water"]
+[ext_resource type="Texture2D" uid="uid://d3143x3o14mwx" path="res://mods/_base_game/art/tilesets/placeholder/road.png" id="4_road"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_grass"]
+texture = ExtResource("1_grass")
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_wall"]
+texture = ExtResource("2_wall")
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_water"]
+texture = ExtResource("3_water")
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_road"]
+texture = ExtResource("4_road")
+0:0/0 = 0
+
+[resource]
+physics_layer_0/collision_layer = 1
+sources/0 = SubResource("TileSetAtlasSource_grass")
+sources/1 = SubResource("TileSetAtlasSource_wall")
+sources/2 = SubResource("TileSetAtlasSource_water")
+sources/3 = SubResource("TileSetAtlasSource_road")

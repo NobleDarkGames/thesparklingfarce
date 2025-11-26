@@ -34,6 +34,13 @@ func _ready() -> void:
 		hero.moved_to_tile.connect(_on_hero_moved)
 		hero.interaction_requested.connect(_on_hero_interaction)
 
+	# Connect battle trigger for testing
+	var battle_trigger: Node = get_node_or_null("BattleTrigger")
+	if battle_trigger:
+		battle_trigger.triggered.connect(_on_battle_trigger_activated)
+		battle_trigger.activation_failed.connect(_on_battle_trigger_failed)
+		print("MapTest: Battle trigger connected")
+
 	print("MapTest: Scene initialized. Use arrow keys to move, Enter/Z to interact")
 
 
@@ -54,8 +61,8 @@ func _setup_party_followers() -> void:
 
 		# Add visual components (placeholder colored squares)
 		var sprite_placeholder: ColorRect = ColorRect.new()
-		sprite_placeholder.custom_minimum_size = Vector2(24, 24)
-		sprite_placeholder.position = Vector2(-12, -12)
+		sprite_placeholder.custom_minimum_size = Vector2(12, 12)
+		sprite_placeholder.position = Vector2(-6, -6)
 		sprite_placeholder.color = Color(0.3 + i * 0.2, 0.5, 0.8 - i * 0.2)  # Different colors
 		sprite_placeholder.name = "SpriteVisual"
 		follower.add_child(sprite_placeholder)
@@ -63,7 +70,7 @@ func _setup_party_followers() -> void:
 		# Add collision shape (placeholder)
 		var collision: CollisionShape2D = CollisionShape2D.new()
 		var shape: CircleShape2D = CircleShape2D.new()
-		shape.radius = 8.0
+		shape.radius = 4.0
 		collision.shape = shape
 		collision.name = "CollisionShape2D"
 		follower.add_child(collision)
@@ -90,6 +97,20 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 	print("MapTest: Hero interacting with tile: ", interaction_pos)
 
 	# TODO: Check for NPCs, doors, chests, etc.
+
+
+func _on_battle_trigger_activated(trigger: Node, player: Node2D) -> void:
+	"""Called when battle trigger is activated."""
+	print("MapTest: *** BATTLE TRIGGER ACTIVATED ***")
+	print("  Trigger ID: ", trigger.trigger_id)
+	print("  Battle ID: ", trigger.trigger_data.get("battle_id", "NONE"))
+	print("  Player position: ", player.global_position)
+	print("  Trigger completed: ", GameState.is_trigger_completed(trigger.trigger_id))
+
+
+func _on_battle_trigger_failed(trigger: Node, reason: String) -> void:
+	"""Called when battle trigger activation fails."""
+	print("MapTest: Battle trigger activation FAILED - Reason: ", reason)
 
 
 func _input(event: InputEvent) -> void:

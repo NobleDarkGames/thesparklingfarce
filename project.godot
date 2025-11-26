@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.5", "Forward Plus")
 [autoload]
 
 ModLoader="*res://core/mod_system/mod_loader.gd"
+GameState="*res://core/systems/game_state.gd"
 SaveManager="*res://core/systems/save_manager.gd"
 SceneManager="*res://core/systems/scene_manager.gd"
 PartyManager="*res://core/systems/party_manager.gd"

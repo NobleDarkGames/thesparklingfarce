@@ -11,7 +11,7 @@ signal moved_to_tile(tile_position: Vector2i)
 ## Emitted when hero interacts with something (A button)
 signal interaction_requested(interaction_position: Vector2i)
 
-@export var tile_size: int = 32
+@export var tile_size: int = 16  ## Default for map exploration (battles use 32)
 @export var movement_speed: float = 4.0  ## tiles per second
 @export var position_history_size: int = 20  ## Number of positions to track for followers
 
@@ -30,13 +30,22 @@ var position_history: Array[Vector2] = []
 var sprite: AnimatedSprite2D = null
 var collision_shape: CollisionShape2D = null
 var interaction_ray: RayCast2D = null
+var tile_map: TileMapLayer = null
 
 
 func _ready() -> void:
+	# Add to "hero" group for trigger detection
+	add_to_group("hero")
+
 	# Get optional node references
 	sprite = get_node_or_null("AnimatedSprite2D")
 	collision_shape = get_node_or_null("CollisionShape2D")
 	interaction_ray = get_node_or_null("InteractionRay")
+
+	# Get TileMapLayer reference (sibling node in map scenes)
+	tile_map = get_node_or_null("../TileMapLayer")
+	if not tile_map:
+		push_warning("HeroController: No TileMapLayer found - collision detection disabled")
 
 	# Initialize position
 	grid_position = world_to_grid(global_position)
@@ -155,11 +164,26 @@ func attempt_move(direction: Vector2i) -> bool:
 func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 	"""
 	Check if a tile is walkable using TileMap collision data.
-	For now, we'll use a simple placeholder - this will be connected to TileMap later.
+	Tiles with physics collision are considered impassable (walls, water, etc.)
+	Tiles without physics collision are walkable (grass, roads, etc.)
 	"""
-	# TODO: Check TileMap for collision/walkability
-	# For now, allow all movement (will integrate with TileMap in the scene)
-	return true
+	# If no TileMap reference, allow movement (fallback behavior)
+	if not tile_map:
+		return true
+
+	# Get tile data at the target position
+	var tile_data: TileData = tile_map.get_cell_tile_data(tile_pos)
+
+	# No tile = empty space = walkable
+	if tile_data == null:
+		return true
+
+	# Check if tile has collision polygon on physics layer 0
+	# If it has collision, it's impassable (wall, water, etc.)
+	# If no collision, it's walkable (grass, road, etc.)
+	var has_collision: bool = tile_data.get_collision_polygons_count(0) > 0
+
+	return not has_collision
 
 
 func _check_tile_triggers() -> void:
@@ -222,15 +246,22 @@ func get_historical_position(steps_back: int) -> Vector2:
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
 	"""Convert world position to grid coordinates."""
-	return Vector2i(
-		floori(world_pos.x / tile_size),
-		floori(world_pos.y / tile_size)
-	)
+	# Use TileMapLayer's built-in method if available (recommended)
+	if tile_map:
+		return tile_map.local_to_map(world_pos)
+	else:
+		# Fallback for testing without tilemap
+		return Vector2i(floori(world_pos.x / tile_size), floori(world_pos.y / tile_size))
 
 
 func grid_to_world(grid_pos: Vector2i) -> Vector2:
 	"""Convert grid coordinates to world position (centered on tile)."""
-	return Vector2(grid_pos) * tile_size + Vector2(tile_size, tile_size) * 0.5
+	# Use TileMapLayer's built-in method if available (recommended)
+	if tile_map:
+		return tile_map.map_to_local(grid_pos)
+	else:
+		# Fallback for testing without tilemap
+		return Vector2(grid_pos) * tile_size + Vector2(tile_size, tile_size) * 0.5
 
 
 func teleport_to_grid(new_grid_pos: Vector2i) -> void:

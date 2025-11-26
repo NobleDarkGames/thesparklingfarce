@@ -1,9 +1,9 @@
 {
   "id": "base_game",
   "name": "The Sparkling Farce - Base Game",
-  "version": "1.0.0",
+  "version": "0.2.5",
   "author": "Sparkling Farce Team",
-  "description": "The base game content for The Sparkling Farce tactical RPG platform. Contains core characters, classes, items, and battle scenarios.",
+  "description": "Reference implementation and base content for The Sparkling Farce tactical RPG platform. Demonstrates proper mod structure for tilesets, maps, triggers, characters, classes, items, and battles. Placeholder art should be replaced with final assets.",
   "godot_version": "4.5",
   "dependencies": [],
   "load_priority": 0,
@@ -11,6 +11,25 @@
     "data_path": "data/",
     "assets_path": "assets/"
   },
+  "provides": {
+    "tilesets": ["terrain_placeholder", "interaction_placeholder"],
+    "maps": ["test/*", "campaign/*"],
+    "triggers": ["battle_trigger", "door_trigger", "chest_trigger"],
+    "characters": ["*"],
+    "classes": ["*"],
+    "items": ["*"],
+    "abilities": ["*"],
+    "battles": ["*"],
+    "parties": ["*"],
+    "dialogues": ["*"],
+    "ai_brains": ["*"]
+  },
+  "example_overrides": {
+    "art/tilesets/placeholder/*.png": "Replace with your own tileset art (16x16 tiles)",
+    "tilesets/*.tres": "Create your own TileSet resources or use these as base",
+    "characters/*.tres": "Override base characters or add new ones",
+    "classes/*.tres": "Override base classes or add new ones"
+  },
   "overrides": [],
-  "tags": ["base", "official", "core"]
+  "tags": ["base", "official", "core", "reference"]
 }
