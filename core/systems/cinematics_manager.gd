@@ -54,6 +54,16 @@ var _is_waiting: bool = false
 var _current_command_waits: bool = false
 var _command_completed: bool = false
 
+## Camera control
+var _active_camera: Camera2D = null
+var _camera_tween: Tween = null
+var _camera_original_position: Vector2 = Vector2.ZERO
+var _camera_shake_timer: float = 0.0
+var _camera_shake_intensity: float = 0.0
+
+## Fade overlay
+var _fade_overlay: ColorRect = null
+
 
 func _ready() -> void:
 	# Connect to DialogManager signals
@@ -67,6 +77,23 @@ func _process(delta: float) -> void:
 		_wait_timer -= delta
 		if _wait_timer <= 0.0:
 			_is_waiting = false
+			_command_completed = true
+
+	# Handle camera shake
+	if _camera_shake_timer > 0.0 and _active_camera:
+		_camera_shake_timer -= delta
+
+		# Apply random shake offset
+		var shake_offset: Vector2 = Vector2(
+			randf_range(-_camera_shake_intensity, _camera_shake_intensity),
+			randf_range(-_camera_shake_intensity, _camera_shake_intensity)
+		)
+		_active_camera.offset = shake_offset
+
+		# Check if shake completed
+		if _camera_shake_timer <= 0.0:
+			_active_camera.offset = Vector2.ZERO
+			_camera_shake_timer = 0.0
 			_command_completed = true
 
 	# Continue executing commands if not waiting
@@ -99,6 +126,37 @@ func unregister_actor(actor_id: String) -> void:
 ## Get a registered actor by ID
 func get_actor(actor_id: String) -> CinematicActor:
 	return _registered_actors.get(actor_id, null)
+
+
+## Register a camera for cinematic control
+## The active scene's camera will be auto-detected, but can be set explicitly
+func register_camera(camera: Camera2D) -> void:
+	_active_camera = camera
+	if camera:
+		_camera_original_position = camera.global_position
+
+
+## Auto-detect camera in the current scene
+func _auto_detect_camera() -> void:
+	# Try to find a Camera2D in the current scene
+	var scene_root: Node = get_tree().current_scene
+	if scene_root:
+		_active_camera = _find_camera_recursive(scene_root)
+		if _active_camera:
+			_camera_original_position = _active_camera.global_position
+
+
+## Recursively search for Camera2D
+func _find_camera_recursive(node: Node) -> Camera2D:
+	if node is Camera2D:
+		return node as Camera2D
+
+	for child: Node in node.get_children():
+		var result: Camera2D = _find_camera_recursive(child)
+		if result:
+			return result
+
+	return null
 
 
 ## Play a cinematic by ID (looks up in ModRegistry)
@@ -149,6 +207,10 @@ func play_cinematic_from_resource(cinematic: CinematicData) -> bool:
 	current_cinematic = cinematic
 	current_command_index = 0
 	current_state = State.LOADING
+
+	# Auto-detect camera if not already set
+	if not _active_camera:
+		_auto_detect_camera()
 
 	# Disable player input if requested
 	if cinematic.disable_player_input:
@@ -331,16 +393,51 @@ func _execute_camera_move(command: Dictionary) -> void:
 	var params: Dictionary = command.get("params", {})
 	var target_pos: Vector2 = params.get("target_pos", Vector2.ZERO)
 	var speed: float = params.get("speed", 2.0)
+	var should_wait: bool = params.get("wait", true)
 
-	# TODO: Implement camera movement
-	# For now, just complete immediately
-	push_warning("CinematicsManager: camera_move not yet implemented")
-	_command_completed = true
+	if not _active_camera:
+		push_warning("CinematicsManager: No camera available for camera_move")
+		_command_completed = true
+		return
+
+	# Convert grid position to world position if needed
+	var world_pos: Vector2 = target_pos
+	if params.get("is_grid", false):
+		world_pos = GridManager.grid_to_world(target_pos)
+
+	# Kill any existing camera tween
+	if _camera_tween and _camera_tween.is_valid():
+		_camera_tween.kill()
+		_camera_tween = null
+
+	# Calculate duration based on speed (speed is tiles per second)
+	var distance: float = _active_camera.global_position.distance_to(world_pos)
+	var duration: float = distance / (speed * GridManager.TILE_SIZE)
+	duration = max(duration, 0.1)  # Minimum duration
+
+	# Create tween for smooth camera movement
+	_camera_tween = create_tween()
+	_camera_tween.set_trans(Tween.TRANS_CUBIC)
+	_camera_tween.set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.tween_property(_active_camera, "global_position", world_pos, duration)
+
+	if should_wait:
+		_camera_tween.tween_callback(func() -> void: _command_completed = true)
+	else:
+		_command_completed = true
 
 
 ## Execute camera_follow command
 func _execute_camera_follow(command: Dictionary) -> void:
 	var target: String = command.get("target", "")
+	var params: Dictionary = command.get("params", {})
+	var should_wait: bool = params.get("wait", false)
+	var duration: float = params.get("duration", 0.5)
+
+	if not _active_camera:
+		push_warning("CinematicsManager: No camera available for camera_follow")
+		_command_completed = true
+		return
 
 	var actor: CinematicActor = get_actor(target)
 	if actor == null:
@@ -348,18 +445,45 @@ func _execute_camera_follow(command: Dictionary) -> void:
 		_command_completed = true
 		return
 
-	# TODO: Implement camera follow
-	push_warning("CinematicsManager: camera_follow not yet implemented")
-	_command_completed = true
+	# Get actor's world position
+	var actor_pos: Vector2 = actor.get_world_position()
+
+	# Kill any existing camera tween
+	if _camera_tween and _camera_tween.is_valid():
+		_camera_tween.kill()
+		_camera_tween = null
+
+	# Create tween to move camera to actor
+	_camera_tween = create_tween()
+	_camera_tween.set_trans(Tween.TRANS_CUBIC)
+	_camera_tween.set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.tween_property(_active_camera, "global_position", actor_pos, duration)
+
+	if should_wait:
+		_camera_tween.tween_callback(func() -> void: _command_completed = true)
+	else:
+		_command_completed = true
 
 
 ## Execute camera_shake command
 func _execute_camera_shake(command: Dictionary) -> void:
 	var params: Dictionary = command.get("params", {})
+	var intensity: float = params.get("intensity", 2.0)
+	var duration: float = params.get("duration", 0.5)
+	var should_wait: bool = params.get("wait", false)
 
-	# TODO: Implement camera shake
-	push_warning("CinematicsManager: camera_shake not yet implemented")
-	_command_completed = true
+	if not _active_camera:
+		push_warning("CinematicsManager: No camera available for camera_shake")
+		_command_completed = true
+		return
+
+	# Set shake parameters
+	_camera_shake_intensity = intensity
+	_camera_shake_timer = duration
+
+	if not should_wait:
+		_command_completed = true
+	# else: _process will set _command_completed when shake finishes
 
 
 ## Execute wait command
@@ -374,10 +498,43 @@ func _execute_wait(command: Dictionary) -> void:
 ## Execute fade_screen command
 func _execute_fade_screen(command: Dictionary) -> void:
 	var params: Dictionary = command.get("params", {})
+	var fade_type: String = params.get("fade_type", "out")  # "in" or "out"
+	var duration: float = params.get("duration", 1.0)
+	var color: Color = params.get("color", Color.BLACK)
 
-	# TODO: Implement screen fade
-	push_warning("CinematicsManager: fade_screen not yet implemented")
-	_command_completed = true
+	# Ensure fade overlay exists
+	_ensure_fade_overlay()
+
+	if not _fade_overlay:
+		push_warning("CinematicsManager: Failed to create fade overlay")
+		_command_completed = true
+		return
+
+	# Set initial color based on fade type
+	if fade_type == "in":
+		# Fade in: start opaque, end transparent
+		_fade_overlay.color = Color(color.r, color.g, color.b, 1.0)
+		_fade_overlay.show()
+	else:
+		# Fade out: start transparent, end opaque
+		_fade_overlay.color = Color(color.r, color.g, color.b, 0.0)
+		_fade_overlay.show()
+
+	# Create tween for fade
+	var fade_tween: Tween = create_tween()
+	fade_tween.set_trans(Tween.TRANS_LINEAR)
+
+	if fade_type == "in":
+		# Fade to transparent
+		fade_tween.tween_property(_fade_overlay, "color:a", 0.0, duration)
+		fade_tween.tween_callback(func() -> void:
+			_fade_overlay.hide()
+			_command_completed = true
+		)
+	else:
+		# Fade to opaque
+		fade_tween.tween_property(_fade_overlay, "color:a", 1.0, duration)
+		fade_tween.tween_callback(func() -> void: _command_completed = true)
 
 
 ## Execute play_sound command
@@ -540,3 +697,40 @@ func _disable_player_input() -> void:
 func _enable_player_input() -> void:
 	InputManager.set_input_enabled(_previous_input_state)
 	_player_input_disabled = false
+
+
+## Ensure fade overlay exists in the scene tree
+func _ensure_fade_overlay() -> void:
+	if _fade_overlay:
+		return
+
+	# Get the scene root
+	var scene_root: Node = get_tree().current_scene
+	if not scene_root:
+		push_error("CinematicsManager: No current scene for fade overlay")
+		return
+
+	# Find or create CanvasLayer for fade overlay
+	var canvas_layer: CanvasLayer = null
+	for child: Node in scene_root.get_children():
+		if child is CanvasLayer and child.name == "CinematicOverlay":
+			canvas_layer = child as CanvasLayer
+			break
+
+	if not canvas_layer:
+		canvas_layer = CanvasLayer.new()
+		canvas_layer.name = "CinematicOverlay"
+		canvas_layer.layer = 100  # High layer to be on top
+		scene_root.add_child(canvas_layer)
+
+	# Create fade overlay ColorRect
+	_fade_overlay = ColorRect.new()
+	_fade_overlay.name = "FadeOverlay"
+	_fade_overlay.color = Color(0, 0, 0, 0)
+	_fade_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade_overlay.hide()
+
+	# Make it cover the entire viewport
+	_fade_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	canvas_layer.add_child(_fade_overlay)

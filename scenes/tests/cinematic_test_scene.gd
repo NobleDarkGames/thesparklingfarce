@@ -15,7 +15,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame  # Extra frame for autoloads
 
-	test_label.text = "Cinematic Test Scene - Phase 1\nPress 1: Test Movement Cinematic\nPress ESC: Skip Cinematic"
+	test_label.text = "Cinematic Test Scene - Phase 2\nPress 1: Test Movement | Press 2: Test Camera Features\nPress ESC: Skip Cinematic"
 
 	# Connect to cinematic signals for testing
 	CinematicsManager.cinematic_started.connect(_on_cinematic_started)
@@ -46,6 +46,8 @@ func _input(event: InputEvent) -> void:
 		match key_event.keycode:
 			KEY_1:
 				_start_test_cinematic("test_movement")
+			KEY_2:
+				_start_test_cinematic("test_phase2_camera")
 		get_viewport().set_input_as_handled()
 
 
@@ -65,7 +67,7 @@ func _on_cinematic_started(cinematic_id: String) -> void:
 
 
 func _on_cinematic_ended(cinematic_id: String) -> void:
-	test_label.text = "Cinematic ended: " + cinematic_id + "\nPress 1 to test again"
+	test_label.text = "Cinematic ended: " + cinematic_id + "\nPress 1 or 2 to test again"
 	print("Cinematic ended: ", cinematic_id)
 
 
@@ -74,5 +76,5 @@ func _on_command_executed(command_type: String, command_index: int) -> void:
 
 
 func _on_cinematic_skipped() -> void:
-	test_label.text = "Cinematic skipped!\nPress 1 to test again"
+	test_label.text = "Cinematic skipped!\nPress 1 or 2 to test again"
 	print("Cinematic skipped!")

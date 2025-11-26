@@ -38,3 +38,7 @@ color = Color(0.3, 0.7, 1, 1)
 script = ExtResource("3_cinematic_actor")
 actor_id = "hero"
 default_speed = 3.0
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(320, 180)
+enabled = true
