@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is the Phase 1 implementation of the overworld map exploration system for The Sparkling Farce. It provides grid-based movement with party members following the hero in a snake-like pattern, inspired by Shining Force 2.
+This is the Phase 1-2.5 implementation of the overworld map exploration system for The Sparkling Farce. It provides grid-based movement with party members following the hero in a snake-like pattern, inspired by Shining Force 2, now with full collision detection and trigger systems.
 
 ## Components
 
@@ -66,7 +66,8 @@ godot --path /home/user/dev/sparklingfarce res://scenes/map_exploration/map_test
 
 ## Features Implemented
 
-✅ Grid-based movement (32x32 tiles)
+### Phase 1 - Movement & Following
+✅ Grid-based movement (16x16 tiles for maps, 32x32 for battles)
 ✅ Smooth interpolation between tiles
 ✅ 4-directional input (up, down, left, right)
 ✅ Position history buffer (20 positions)
@@ -76,18 +77,28 @@ godot --path /home/user/dev/sparklingfarce res://scenes/map_exploration/map_test
 ✅ Teleportation system
 ✅ Party data integration
 
+### Phase 2.5 - Collision & Triggers (NEW)
+✅ TileMapLayer collision detection (hero blocked by walls/water)
+✅ Proper 16px tile system with TileSet configuration
+✅ MapTrigger system (Area2D-based with conditional activation)
+✅ GameState autoload (story flags & trigger tracking)
+✅ Battle trigger template (one-shot functionality)
+✅ Story flag conditions (required/forbidden flags)
+✅ Grid positioning using TileMapLayer.map_to_local() methods
+✅ Test map with collision and working triggers
+
 ## What's NOT Yet Implemented
 
 The following features are planned for future phases:
 
-⬜ TileMap collision detection (currently all tiles are walkable)
-⬜ NPC interaction
-⬜ Map trigger zones (battles, events, transitions)
+⬜ NPC interaction (framework ready)
+⬜ Extended trigger types (doors, chests, dialogs - base system complete)
 ⬜ Character sprites and animations
 ⬜ Terrain types and movement costs
 ⬜ Audio feedback (footsteps, interactions)
 ⬜ Map editor tools
-⬜ Save/load map state
+⬜ Scene transition system (Phase 2.5.2)
+⬜ Save/load map state integration with GameState
 
 ## Architecture Notes
 
@@ -129,10 +140,28 @@ godot --headless --path /home/user/dev/sparklingfarce res://scenes/map_explorati
 
 Expected output: All tests passing with movement simulation results.
 
-## Next Steps (Phase 2)
+## Next Steps (Phase 2.5.2 & Beyond)
 
-1. Integrate TileMap collision detection
-2. Add NPC interaction system
-3. Create map trigger zones for battles
-4. Implement character sprites and animations
-5. Build map editor tools
+1. ✅ ~~Integrate TileMap collision detection~~ (COMPLETE)
+2. ✅ ~~Create map trigger zones for battles~~ (COMPLETE)
+3. Scene transition system (battle → map return)
+4. Extended trigger types (doors, chests, NPCs, dialogs)
+5. Add NPC interaction system
+6. Implement character sprites and animations
+7. Build map editor tools
+
+## Phase 2.5 Components
+
+### New Core Systems
+- **game_state.gd** - Story flags, trigger completion, campaign data
+- **map_trigger.gd** - Extensible trigger base class with flag conditions
+
+### New Assets
+- **Placeholder tiles** - 16x16 grass, wall, water, road, door, battle_trigger
+- **TileSets** - terrain_placeholder.tres, interaction_placeholder.tres
+- **Battle trigger** - Reusable trigger scene template
+- **Test map** - collision_test_001.tscn with working collision and triggers
+
+### Documentation
+- **docs/plans/phase-2.5-collision-triggers-plan.md** - Implementation plan
+- **docs/guides/phase-2.5-setup-instructions.md** - Testing & setup guide
