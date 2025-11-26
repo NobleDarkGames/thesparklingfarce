@@ -89,23 +89,38 @@ func _reconnect_action_menu_signals() -> void:
 
 
 ## Handle action menu selection signal
-func _on_action_menu_selected(action: String) -> void:
-	print("InputManager: _on_action_menu_selected() received signal for action='%s', state=%s, session=%d" % [
+## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
+func _on_action_menu_selected(action: String, signal_session_id: int) -> void:
+	print("InputManager: _on_action_menu_selected() received signal for action='%s', signal_session=%d, current_session=%d, state=%s" % [
 		action,
-		InputState.keys()[current_state],
-		_turn_session_id
+		signal_session_id,
+		_turn_session_id,
+		InputState.keys()[current_state]
 	])
 
 	# Play menu selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
-	# Capture current session ID at the time of signal emission
-	var signal_session_id: int = _turn_session_id
+	# Use the session ID that was passed WITH the signal (captured at emission time)
 	_select_action(action, signal_session_id)
 
 
 ## Handle action menu cancellation signal
-func _on_action_menu_cancelled() -> void:
+## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
+func _on_action_menu_cancelled(signal_session_id: int) -> void:
+	print("InputManager: _on_action_menu_cancelled() signal_session=%d, current_session=%d" % [
+		signal_session_id,
+		_turn_session_id
+	])
+
+	# Guard: Reject stale cancel signals from previous turns
+	if signal_session_id != _turn_session_id:
+		push_warning("InputManager: Ignoring STALE cancel signal from session %d (current: %d)" % [
+			signal_session_id,
+			_turn_session_id
+		])
+		return
+
 	# Play menu cancel sound
 	AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 
@@ -340,19 +355,25 @@ func _input(event: InputEvent) -> void:
 
 ## Handle inspecting mode input (free cursor)
 func _handle_inspecting_input(event: InputEvent) -> void:
+	var handled: bool = false
+
 	# Arrow keys move cursor freely (no restrictions)
 	if event.is_action_pressed("ui_up"):
 		_move_free_cursor(Vector2i(0, -1))
 		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
+		handled = true
 	elif event.is_action_pressed("ui_down"):
 		_move_free_cursor(Vector2i(0, 1))
 		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
 	elif event.is_action_pressed("ui_left"):
 		_move_free_cursor(Vector2i(-1, 0))
 		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
 	elif event.is_action_pressed("ui_right"):
 		_move_free_cursor(Vector2i(1, 0))
 		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
 
 	# Accept key: Check what's under cursor
 	if event.is_action_pressed("ui_accept"):
@@ -371,16 +392,24 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 			# Pressed A on empty cell - could open game menu (Map, Speed, etc.)
 			print("InputManager: Empty cell - could open game menu here")
 			# TODO: Implement game menu (Map, Speed settings, etc.)
+		handled = true
 
 	# Cancel returns to movement mode
 	if event.is_action_pressed("sf_cancel"):
 		print("InputManager: Exiting inspect mode, returning to movement")
 		current_cursor_position = active_unit.grid_position
 		set_state(InputState.EXPLORING_MOVEMENT)
+		handled = true
+
+	# Consume input to prevent duplicate processing by other handlers
+	if handled:
+		get_viewport().set_input_as_handled()
 
 
 ## Handle movement exploration input
 func _handle_movement_input(event: InputEvent) -> void:
+	var handled: bool = false
+
 	# Mouse click to select destination
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -392,20 +421,25 @@ func _handle_movement_input(event: InputEvent) -> void:
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 			print("InputManager: Target cell: %s" % target_cell)
 			_try_move_to_cell(target_cell)
+			handled = true
 
 	# Keyboard: Arrow keys to move cursor
 	if event.is_action_pressed("ui_up"):
 		_move_cursor(Vector2i(0, -1))
 		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
+		handled = true
 	elif event.is_action_pressed("ui_down"):
 		_move_cursor(Vector2i(0, 1))
 		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
 	elif event.is_action_pressed("ui_left"):
 		_move_cursor(Vector2i(-1, 0))
 		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
 	elif event.is_action_pressed("ui_right"):
 		_move_cursor(Vector2i(1, 0))
 		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
 
 	# Accept key - Opens action menu (moved or not)
 	# AUTHENTIC SF: Can press A/C at starting position to act without moving
@@ -417,12 +451,17 @@ func _handle_movement_input(event: InputEvent) -> void:
 		else:
 			# Cursor has moved - move unit and open action menu
 			_try_move_to_cell(current_cursor_position)
+		handled = true
 
 	# Cancel key - Enter free cursor inspection mode (B button in SF)
 	if event.is_action_pressed("sf_cancel"):
 		print("InputManager: [BACKSPACE/X PRESSED] Entering inspection mode (free cursor)")
 		set_state(InputState.INSPECTING)
-		return  # Don't process other inputs after state change
+		handled = true
+
+	# Consume input to prevent duplicate processing by other handlers
+	if handled:
+		get_viewport().set_input_as_handled()
 
 
 ## Try to move unit to target cell
@@ -683,8 +722,9 @@ func _show_action_menu() -> void:
 	else:
 		default_action = "Stay"
 
-	# Show menu with available actions
-	action_menu.show_menu(available_actions, default_action)
+	# Show menu with available actions AND current session ID
+	# The session ID will be returned with any signals to prevent stale signals
+	action_menu.show_menu(available_actions, default_action, _turn_session_id)
 
 	# Position menu near active unit
 	if active_unit:
@@ -737,7 +777,20 @@ func _select_action(action: String, signal_session_id: int) -> void:
 
 	# Convert to lowercase for BattleManager (internal representation)
 	var action_lower: String = action.to_lower()
+
+	# CRITICAL: Capture session ID BEFORE emitting signal
+	# The signal handler may synchronously start the next turn, changing our session!
+	var pre_emit_session: int = _turn_session_id
+
 	action_selected.emit(active_unit, action_lower)
+
+	# CRITICAL FIX: The signal handler runs synchronously and may have started the next turn!
+	# If the session ID changed, we must NOT continue - the next turn has already begun!
+	if _turn_session_id != pre_emit_session:
+		print("InputManager: Session changed during signal handling (%d -> %d), aborting _select_action continuation" % [
+			pre_emit_session, _turn_session_id
+		])
+		return
 
 	print("InputManager: Action selected: %s" % action)
 
@@ -816,6 +869,8 @@ func _show_targeting_range() -> void:
 
 ## Handle targeting input
 func _handle_targeting_input(event: InputEvent) -> void:
+	var handled: bool = false
+
 	# Mouse click to select target
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -825,26 +880,37 @@ func _handle_targeting_input(event: InputEvent) -> void:
 			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
 			if target:
 				_select_target(target)
+			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
 	if event.is_action_pressed("ui_up"):
 		_move_targeting_cursor(Vector2i(0, -1))
+		handled = true
 	elif event.is_action_pressed("ui_down"):
 		_move_targeting_cursor(Vector2i(0, 1))
+		handled = true
 	elif event.is_action_pressed("ui_left"):
 		_move_targeting_cursor(Vector2i(-1, 0))
+		handled = true
 	elif event.is_action_pressed("ui_right"):
 		_move_targeting_cursor(Vector2i(1, 0))
+		handled = true
 
 	# Accept key to confirm target selection
 	if event.is_action_pressed("ui_accept"):
 		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
 		if target:
 			_select_target(target)
+		handled = true
 
 	# Cancel targeting
 	if event.is_action_pressed("sf_cancel"):
 		set_state(InputState.SELECTING_ACTION)
+		handled = true
+
+	# Consume input to prevent duplicate processing by other handlers
+	if handled:
+		get_viewport().set_input_as_handled()
 
 
 ## Select target for action

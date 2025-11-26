@@ -3,9 +3,9 @@
 ## Displays available actions (Attack, Magic, Item, Stay) with context-aware highlighting
 extends Control
 
-## Signals
-signal action_selected(action: String)
-signal menu_cancelled()
+## Signals - session_id prevents stale signals from previous turns
+signal action_selected(action: String, session_id: int)
+signal menu_cancelled(session_id: int)
 
 ## Menu items
 @onready var move_label: Label = $VBoxContainer/MoveButton
@@ -20,6 +20,9 @@ var available_actions: Array[String] = []
 ## Current selection
 var selected_index: int = 0
 var menu_items: Array[Dictionary] = []
+
+## Session ID - stored when menu opens, emitted with signals to prevent stale signals
+var _menu_session_id: int = -1
 
 ## Colors
 const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
@@ -43,8 +46,11 @@ func _ready() -> void:
 
 
 ## Show menu with specific available actions
-func show_menu(actions: Array[String], default_action: String = "") -> void:
+## session_id: The turn session ID from InputManager - will be emitted with signals
+func show_menu(actions: Array[String], default_action: String = "", session_id: int = -1) -> void:
 	available_actions = actions
+	_menu_session_id = session_id
+	print("ActionMenu: Storing session_id=%d for this menu instance" % _menu_session_id)
 
 	# Update menu item visibility/colors
 	for item in menu_items:
@@ -88,9 +94,10 @@ func reset_menu() -> void:
 	# Completely disable input processing
 	set_process_input(false)
 
-	# Clear all state
+	# Clear all state including session ID
 	available_actions.clear()
 	selected_index = 0
+	_menu_session_id = -1  # Invalidate session ID
 
 	# Hide menu
 	visible = false
@@ -244,13 +251,20 @@ func _confirm_selection() -> void:
 		return
 
 	print("ActionMenu: Action confirmed: %s" % selected_action)
-	print("ActionMenu: Emitting action_selected signal")
+	print("ActionMenu: Emitting action_selected signal with session_id=%d" % _menu_session_id)
+
+	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
+	# This prevents any state changes from affecting the emission
+	var emit_session_id: int = _menu_session_id
+	action_selected.emit(selected_action, emit_session_id)
 	hide_menu()
-	action_selected.emit(selected_action)
 
 
 ## Cancel menu
 func _cancel_menu() -> void:
-	print("ActionMenu: Menu cancelled")
+	print("ActionMenu: Menu cancelled with session_id=%d" % _menu_session_id)
+
+	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
+	var emit_session_id: int = _menu_session_id
+	menu_cancelled.emit(emit_session_id)
 	hide_menu()
-	emit_signal("menu_cancelled")
