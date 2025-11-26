@@ -148,6 +148,45 @@ This phase addresses the critical gap preventing campaign creation by implementi
 
 ## Upcoming Phases
 
+### 🔜 Phase 2.5.1 - Mod Extensibility Improvements (PLANNED)
+
+**Priority:** Medium
+**Dependencies:** Phase 2.5 complete ✅
+**Target:** Before Phase 4 (Equipment/Magic/Items)
+
+**Strategic Context:**
+This phase addresses 4 critical mod system integration gaps identified by Modro's comprehensive review of Phase 2.5. While the current implementation is functional for base game development, these improvements are essential for supporting total conversion mods and third-party content creators.
+
+**Critical Issues to Address:**
+
+1. **ModLoader Cannot Discover Triggers**
+   - Impact: Modders cannot add new trigger types without editing core code
+   - Solution: Extend ModLoader to scan and register triggers from `mods/*/triggers/`
+
+2. **TriggerType Enum Cannot Be Extended**
+   - Impact: Total conversion mods stuck with base game's trigger types
+   - Solution: String-based type system with mod registration
+
+3. **GameState Flag Namespace Collision**
+   - Impact: Mod A can accidentally overwrite Mod B's story flags
+   - Solution: Namespaced flags like `"mod_name:flag_name"`
+
+4. **Hardcoded TileSet Paths**
+   - Impact: Replacing base tilesets requires editing scene files
+   - Solution: ModLoader provides tileset resolution by logical name
+
+**Expected Improvements:**
+- Moddability score: 6.5/10 → 8.5/10+
+- Trigger extensibility: Hardcoded enum → Fully dynamic
+- Flag isolation: None → Namespace protected
+- Asset override: Manual editing → Declarative (mod.json)
+
+**Estimated Effort:** 8-12 hours
+
+**Detailed Plan:** See `/docs/plans/phase-2.5.1-mod-extensibility-plan.md`
+
+---
+
 ### 🔜 Phase 2.5.2 - Scene Transition System (NEXT)
 
 **Priority:** High
