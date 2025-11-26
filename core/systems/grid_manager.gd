@@ -30,6 +30,16 @@ const DEFAULT_TERRAIN_COST: int = 1
 ## Maximum terrain cost (effectively impassable)
 const MAX_TERRAIN_COST: int = 99
 
+## Default tile size (32x32 pixels) - used when no grid is set
+const DEFAULT_TILE_SIZE: int = 32
+
+
+## Get the current tile size (from grid if available, otherwise default)
+func get_tile_size() -> int:
+	if grid:
+		return grid.cell_size
+	return DEFAULT_TILE_SIZE
+
 
 ## Initialize grid manager with a Grid resource and TileMapLayer
 ## Call this when starting a battle
@@ -364,14 +374,26 @@ func get_cells_in_range(center: Vector2i, range: int) -> Array[Vector2i]:
 
 ## Check if cell is within grid bounds
 func is_within_bounds(cell: Vector2i) -> bool:
-	return grid.is_within_bounds(cell)
+	if grid:
+		return grid.is_within_bounds(cell)
+	else:
+		# Fallback: allow any cell (no bounds checking without a grid)
+		return true
 
 
 ## Convert grid cell to world position
 func cell_to_world(cell: Vector2i) -> Vector2:
-	return grid.map_to_local(cell)
+	if grid:
+		return grid.map_to_local(cell)
+	else:
+		# Fallback: use default tile size for simple conversion
+		return Vector2(cell * DEFAULT_TILE_SIZE) + Vector2.ONE * (DEFAULT_TILE_SIZE / 2)
 
 
 ## Convert world position to grid cell
 func world_to_cell(world_pos: Vector2) -> Vector2i:
-	return grid.local_to_map(world_pos)
+	if grid:
+		return grid.local_to_map(world_pos)
+	else:
+		# Fallback: use default tile size for simple conversion
+		return Vector2i(world_pos / DEFAULT_TILE_SIZE)

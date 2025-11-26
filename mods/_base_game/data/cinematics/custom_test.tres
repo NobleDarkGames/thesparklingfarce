@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="CinematicData" load_steps=2 format=3 uid="uid://custom_test"]
+
+[ext_resource type="Script" path="res://core/resources/cinematic_data.gd" id="1_cinematic_data"]
+
+[resource]
+script = ExtResource("1_cinematic_data")
+cinematic_id = "custom_test"
+cinematic_name = "Your Custom Test"
+description = "A simple test you can modify"
+commands = Array[Dictionary]([{
+"params": {
+"fade_type": "in",
+"duration": 0.5
+},
+"type": "fade_screen"
+}, {
+"params": {
+"path": [[10, 10], [15, 10], [15, 15], [10, 15], [10, 10]],
+"speed": 4.0,
+"wait": true
+},
+"target": "hero",
+"type": "move_entity"
+}, {
+"params": {
+"intensity": 5.0,
+"duration": 1.0,
+"wait": true
+},
+"type": "camera_shake"
+}, {
+"params": {
+"fade_type": "out",
+"duration": 0.5
+},
+"type": "fade_screen"
+}])
+disable_player_input = true
+can_skip = true

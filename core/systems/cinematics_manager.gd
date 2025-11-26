@@ -8,6 +8,7 @@ extends Node
 # Preload custom types to ensure they're available
 const CinematicData: GDScript = preload("res://core/resources/cinematic_data.gd")
 const CinematicActor: GDScript = preload("res://core/components/cinematic_actor.gd")
+const CinematicCommandExecutor: GDScript = preload("res://core/systems/cinematic_command_executor.gd")
 
 ## Cinematic execution states
 enum State {
@@ -42,6 +43,13 @@ var _registered_actors: Dictionary = {}
 var _cinematic_chain_stack: Array[String] = []
 const MAX_CINEMATIC_CHAIN_DEPTH: int = 5
 
+## Command executor registry (command_type -> CinematicCommandExecutor)
+## Mods can register custom executors via register_command_executor()
+var _command_executors: Dictionary = {}
+
+## Currently executing command executor (for async operations)
+var _current_executor: CinematicCommandExecutor = null
+
 ## Player input state
 var _player_input_disabled: bool = false
 var _previous_input_state: bool = false
@@ -60,6 +68,8 @@ var _camera_tween: Tween = null
 var _camera_original_position: Vector2 = Vector2.ZERO
 var _camera_shake_timer: float = 0.0
 var _camera_shake_intensity: float = 0.0
+var _camera_follow_target: Node = null  ## Actor to continuously follow
+var _camera_follow_speed: float = 8.0   ## Camera follow smoothness
 
 ## Fade overlay
 var _fade_overlay: ColorRect = null
@@ -78,6 +88,11 @@ func _process(delta: float) -> void:
 		if _wait_timer <= 0.0:
 			_is_waiting = false
 			_command_completed = true
+
+	# Handle continuous camera follow
+	if _camera_follow_target and _active_camera:
+		var target_pos: Vector2 = _camera_follow_target.get_world_position() if _camera_follow_target.has_method("get_world_position") else _camera_follow_target.global_position
+		_active_camera.global_position = _active_camera.global_position.lerp(target_pos, _camera_follow_speed * delta)
 
 	# Handle camera shake
 	if _camera_shake_timer > 0.0 and _active_camera:
@@ -126,6 +141,35 @@ func unregister_actor(actor_id: String) -> void:
 ## Get a registered actor by ID
 func get_actor(actor_id: String) -> CinematicActor:
 	return _registered_actors.get(actor_id, null)
+
+
+## Register a command executor for a specific command type
+## Mods can use this to add custom cinematic commands without modifying core code
+##
+## Example:
+## [codeblock]
+## CinematicsManager.register_command_executor("custom_effect", MyCustomExecutor.new())
+## [/codeblock]
+func register_command_executor(command_type: String, executor: CinematicCommandExecutor) -> void:
+	if command_type.is_empty():
+		push_error("CinematicsManager: Cannot register executor with empty command_type")
+		return
+
+	if executor == null:
+		push_error("CinematicsManager: Cannot register null executor")
+		return
+
+	if command_type in _command_executors:
+		push_warning("CinematicsManager: Overwriting executor for command type '%s'" % command_type)
+
+	_command_executors[command_type] = executor
+	print("CinematicsManager: Registered executor for command type '%s'" % command_type)
+
+
+## Unregister a command executor
+func unregister_command_executor(command_type: String) -> void:
+	if _command_executors.erase(command_type):
+		print("CinematicsManager: Unregistered executor for command type '%s'" % command_type)
 
 
 ## Register a camera for cinematic control
@@ -251,38 +295,47 @@ func _execute_next_command() -> void:
 	var command_type: String = command.get("type", "")
 	emit_signal("command_executed", command_type, current_command_index)
 
-	match command_type:
-		"move_entity":
-			_execute_move_entity(command)
-		"set_facing":
-			_execute_set_facing(command)
-		"play_animation":
-			_execute_play_animation(command)
-		"show_dialog":
-			_execute_show_dialog(command)
-		"camera_move":
-			_execute_camera_move(command)
-		"camera_follow":
-			_execute_camera_follow(command)
-		"camera_shake":
-			_execute_camera_shake(command)
-		"wait":
-			_execute_wait(command)
-		"fade_screen":
-			_execute_fade_screen(command)
-		"play_sound":
-			_execute_play_sound(command)
-		"play_music":
-			_execute_play_music(command)
-		"spawn_entity":
-			_execute_spawn_entity(command)
-		"despawn_entity":
-			_execute_despawn_entity(command)
-		"set_variable":
-			_execute_set_variable(command)
-		_:
-			push_warning("CinematicsManager: Unknown command type '%s'" % command_type)
+	# Check custom executor registry first (allows mods to add/override commands)
+	if command_type in _command_executors:
+		_current_executor = _command_executors[command_type]
+		var completed: bool = _current_executor.execute(command, self)
+		if completed:
 			_command_completed = true
+		# else: executor will set _command_completed = true when async operation finishes
+	else:
+		# Fallback to built-in commands (will be migrated to executors in Phase 2)
+		match command_type:
+			"move_entity":
+				_execute_move_entity(command)
+			"set_facing":
+				_execute_set_facing(command)
+			"play_animation":
+				_execute_play_animation(command)
+			"show_dialog":
+				_execute_show_dialog(command)
+			"camera_move":
+				_execute_camera_move(command)
+			"camera_follow":
+				_execute_camera_follow(command)
+			"camera_shake":
+				_execute_camera_shake(command)
+			"wait":
+				_execute_wait(command)
+			"fade_screen":
+				_execute_fade_screen(command)
+			"play_sound":
+				_execute_play_sound(command)
+			"play_music":
+				_execute_play_music(command)
+			"spawn_entity":
+				_execute_spawn_entity(command)
+			"despawn_entity":
+				_execute_despawn_entity(command)
+			"set_variable":
+				_execute_set_variable(command)
+			_:
+				push_warning("CinematicsManager: Unknown command type '%s'" % command_type)
+				_command_completed = true
 
 	# Move to next command
 	current_command_index += 1
@@ -403,7 +456,7 @@ func _execute_camera_move(command: Dictionary) -> void:
 	# Convert grid position to world position if needed
 	var world_pos: Vector2 = target_pos
 	if params.get("is_grid", false):
-		world_pos = GridManager.grid_to_world(target_pos)
+		world_pos = GridManager.cell_to_world(Vector2i(target_pos))
 
 	# Kill any existing camera tween
 	if _camera_tween and _camera_tween.is_valid():
@@ -412,7 +465,7 @@ func _execute_camera_move(command: Dictionary) -> void:
 
 	# Calculate duration based on speed (speed is tiles per second)
 	var distance: float = _active_camera.global_position.distance_to(world_pos)
-	var duration: float = distance / (speed * GridManager.TILE_SIZE)
+	var duration: float = distance / (speed * GridManager.get_tile_size())
 	duration = max(duration, 0.1)  # Minimum duration
 
 	# Create tween for smooth camera movement
@@ -433,6 +486,7 @@ func _execute_camera_follow(command: Dictionary) -> void:
 	var params: Dictionary = command.get("params", {})
 	var should_wait: bool = params.get("wait", false)
 	var duration: float = params.get("duration", 0.5)
+	var continuous: bool = params.get("continuous", true)  ## Keep following until explicitly stopped
 
 	if not _active_camera:
 		push_warning("CinematicsManager: No camera available for camera_follow")
@@ -453,16 +507,33 @@ func _execute_camera_follow(command: Dictionary) -> void:
 		_camera_tween.kill()
 		_camera_tween = null
 
-	# Create tween to move camera to actor
-	_camera_tween = create_tween()
-	_camera_tween.set_trans(Tween.TRANS_CUBIC)
-	_camera_tween.set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(_active_camera, "global_position", actor_pos, duration)
+	if continuous:
+		# Enable continuous follow (handled in _process)
+		_camera_follow_target = actor
+		_camera_follow_speed = params.get("speed", 8.0)
 
-	if should_wait:
-		_camera_tween.tween_callback(func() -> void: _command_completed = true)
+		# Do initial move to actor position
+		_camera_tween = create_tween()
+		_camera_tween.set_trans(Tween.TRANS_CUBIC)
+		_camera_tween.set_ease(Tween.EASE_IN_OUT)
+		_camera_tween.tween_property(_active_camera, "global_position", actor_pos, duration)
+
+		if should_wait:
+			_camera_tween.tween_callback(func() -> void: _command_completed = true)
+		else:
+			_command_completed = true
 	else:
-		_command_completed = true
+		# One-time move to actor
+		_camera_follow_target = null
+		_camera_tween = create_tween()
+		_camera_tween.set_trans(Tween.TRANS_CUBIC)
+		_camera_tween.set_ease(Tween.EASE_IN_OUT)
+		_camera_tween.tween_property(_active_camera, "global_position", actor_pos, duration)
+
+		if should_wait:
+			_camera_tween.tween_callback(func() -> void: _command_completed = true)
+		else:
+			_command_completed = true
 
 
 ## Execute camera_shake command
@@ -630,11 +701,20 @@ func _end_cinematic() -> void:
 	if _player_input_disabled:
 		_enable_player_input()
 
+	# Stop camera follow
+	_camera_follow_target = null
+
+	# Reset camera shake
+	if _active_camera:
+		_active_camera.offset = Vector2.ZERO
+	_camera_shake_timer = 0.0
+
 	# Clear current data
 	current_cinematic = null
 	current_command_index = 0
 	_command_completed = false
 	_is_waiting = false
+	_current_executor = null  # Clear executor reference
 
 	emit_signal("cinematic_ended", finished_cinematic.cinematic_id if finished_cinematic else "")
 
@@ -653,6 +733,11 @@ func skip_cinematic() -> void:
 	if current_cinematic and not current_cinematic.can_skip:
 		push_warning("CinematicsManager: Current cinematic cannot be skipped")
 		return
+
+	# Interrupt any active async executor to allow cleanup
+	if _current_executor:
+		_current_executor.interrupt()
+		_current_executor = null
 
 	emit_signal("cinematic_skipped")
 	_end_cinematic()
@@ -688,14 +773,20 @@ func get_current_state() -> State:
 
 ## Disable player input
 func _disable_player_input() -> void:
-	_previous_input_state = InputManager.input_enabled
-	InputManager.set_input_enabled(false)
+	# InputManager is for battles - only try to disable if it has the method
+	if InputManager.has_method("set_input_enabled"):
+		_previous_input_state = InputManager.get("input_enabled") if "input_enabled" in InputManager else true
+		InputManager.set_input_enabled(false)
+
 	_player_input_disabled = true
 
 
 ## Re-enable player input
 func _enable_player_input() -> void:
-	InputManager.set_input_enabled(_previous_input_state)
+	# InputManager is for battles - only try to re-enable if it has the method
+	if InputManager.has_method("set_input_enabled"):
+		InputManager.set_input_enabled(_previous_input_state)
+
 	_player_input_disabled = false
 
 

@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="PartyData" load_steps=2 format=3 uid="uid://destgjpxbmp1h"]
+
+[ext_resource type="Script" uid="uid://cn7pyg3bj3uwd" path="res://core/resources/party_data.gd" id="1_qs4u6"]
+
+[resource]
+script = ExtResource("1_qs4u6")

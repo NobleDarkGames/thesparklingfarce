@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cinematic_registry_test"]
+
+[ext_resource type="Script" path="res://scenes/tests/cinematic_registry_test_headless.gd" id="1"]
+
+[node name="CinematicRegistryTest" type="Node2D"]
+script = ExtResource("1")

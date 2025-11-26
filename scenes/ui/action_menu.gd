@@ -30,6 +30,7 @@ const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
 func _ready() -> void:
 	# Hide by default
 	visible = false
+	set_process_input(false)  # Disable input processing when hidden
 
 	# Build menu item array
 	menu_items = [
@@ -70,12 +71,35 @@ func show_menu(actions: Array[String], default_action: String = "") -> void:
 
 	# Show menu
 	visible = true
+	set_process_input(true)  # Enable input processing when shown
 	print("ActionMenu: Showing menu with actions: ", available_actions)
 
 
 ## Hide menu
 func hide_menu() -> void:
+	set_process_input(false)  # Disable input processing FIRST
 	visible = false
+
+
+## Reset menu to clean state (called when turn ends to prevent stale state)
+func reset_menu() -> void:
+	print("ActionMenu: reset_menu() called - clearing all state")
+
+	# Completely disable input processing
+	set_process_input(false)
+
+	# Clear all state
+	available_actions.clear()
+	selected_index = 0
+
+	# Hide menu
+	visible = false
+
+	# Reset all labels to default state
+	for item in menu_items:
+		var label: Label = item["label"]
+		label.modulate = COLOR_DISABLED
+		label.remove_theme_color_override("font_color")
 
 
 ## Handle input
@@ -192,9 +216,21 @@ func _update_selection_visual() -> void:
 
 ## Confirm current selection
 func _confirm_selection() -> void:
-	# Safety: Don't emit signals if menu is not visible
+	# DEFENSE IN DEPTH: Multiple safety checks before emitting signal
+
+	# Safety check 1: Don't emit if input processing is disabled
+	if not is_processing_input():
+		print("ActionMenu: BLOCKED - Input processing is disabled")
+		return
+
+	# Safety check 2: Don't emit signals if menu is not visible
 	if not visible:
-		print("ActionMenu: Ignoring confirmation while menu is hidden")
+		print("ActionMenu: BLOCKED - Menu is hidden")
+		return
+
+	# Safety check 3: Don't emit if no actions available (stale state)
+	if available_actions.is_empty():
+		print("ActionMenu: BLOCKED - No available actions (stale state)")
 		return
 
 	var selected_action: String = menu_items[selected_index]["action"]
@@ -202,14 +238,15 @@ func _confirm_selection() -> void:
 	print("ActionMenu: _confirm_selection called, selected_index=%d, action=%s" % [selected_index, selected_action])
 	print("ActionMenu: available_actions = %s" % str(available_actions))
 
+	# Safety check 4: Don't emit if selected action is not in available list
 	if selected_action not in available_actions:
-		print("ActionMenu: Cannot select disabled action: %s" % selected_action)
+		print("ActionMenu: BLOCKED - Cannot select disabled action: %s" % selected_action)
 		return
 
 	print("ActionMenu: Action confirmed: %s" % selected_action)
 	print("ActionMenu: Emitting action_selected signal")
 	hide_menu()
-	emit_signal("action_selected", selected_action)
+	action_selected.emit(selected_action)
 
 
 ## Cancel menu

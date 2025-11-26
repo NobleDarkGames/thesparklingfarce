@@ -69,11 +69,13 @@ func set_action_menu(menu: Control) -> void:
 
 
 ## Disconnect action menu signals (called when turn ends)
+## Forces complete disconnection - removes ALL connections, not just the first one
 func _disconnect_action_menu_signals() -> void:
 	if action_menu:
-		if action_menu.action_selected.is_connected(_on_action_menu_selected):
+		# Use while loop to ensure ALL connections are removed (fixes stale signal bug)
+		while action_menu.action_selected.is_connected(_on_action_menu_selected):
 			action_menu.action_selected.disconnect(_on_action_menu_selected)
-		if action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
+		while action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
 			action_menu.menu_cancelled.disconnect(_on_action_menu_cancelled)
 
 
@@ -88,6 +90,12 @@ func _reconnect_action_menu_signals() -> void:
 
 ## Handle action menu selection signal
 func _on_action_menu_selected(action: String) -> void:
+	print("InputManager: _on_action_menu_selected() received signal for action='%s', state=%s, session=%d" % [
+		action,
+		InputState.keys()[current_state],
+		_turn_session_id
+	])
+
 	# Play menu selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -116,10 +124,13 @@ func start_player_turn(unit: Node2D) -> void:
 	_turn_session_id += 1
 	print("InputManager: New turn session ID: %d" % _turn_session_id)
 
-	# IMPORTANT: Disconnect first to clear any queued signals, THEN reconnect fresh
-	# No await needed - disconnecting immediately clears the signal queue
+	# NUCLEAR OPTION: Reset menu state FIRST to clear any stale state
+	if action_menu:
+		action_menu.reset_menu()
+
+	# IMPORTANT: Disconnect first to clear any queued signals
+	# Reconnection happens AFTER state change to eliminate timing window
 	_disconnect_action_menu_signals()
-	_reconnect_action_menu_signals()
 
 	active_unit = unit
 	movement_start_position = unit.grid_position
@@ -140,6 +151,9 @@ func start_player_turn(unit: Node2D) -> void:
 	# AUTHENTIC SHINING FORCE: Start in movement mode immediately (cursor on unit)
 	# Player can: Move with D-pad, Press A/C to act in place, Press B to inspect
 	set_state(InputState.EXPLORING_MOVEMENT)
+
+	# NOW reconnect signals after state is correct (eliminates timing window)
+	_reconnect_action_menu_signals()
 
 	print("InputManager: Player turn started for %s at %s" % [unit.get_display_name(), movement_start_position])
 	print("InputManager: %d walkable cells available" % walkable_cells.size())
@@ -885,6 +899,10 @@ func end_player_turn() -> void:
 
 ## Reset to waiting state (called by TurnManager/BattleManager)
 func reset_to_waiting() -> void:
+	# NUCLEAR OPTION: Reset menu state to clear any stale state
+	if action_menu:
+		action_menu.reset_menu()
+
 	# Disconnect action menu to prevent stale signals
 	_disconnect_action_menu_signals()
 

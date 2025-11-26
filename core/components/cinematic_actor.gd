@@ -33,10 +33,7 @@ var parent_entity: Node2D
 
 ## Current movement state
 var is_moving: bool = false
-var current_path: Array = []
-var current_path_index: int = 0
 var movement_speed: float = 3.0
-var target_position: Vector2 = Vector2.ZERO
 
 ## Emitted when movement along path is completed
 signal movement_completed()
@@ -68,8 +65,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if is_moving and current_path.size() > 0:
-		_process_movement(delta)
+	# Movement is now handled by tweens, not per-frame updates
+	pass
 
 
 ## Find AnimatedSprite2D in entity hierarchy
@@ -85,76 +82,123 @@ func _find_sprite_node(node: Node) -> AnimatedSprite2D:
 	return null
 
 
-## Start moving along a path
-## path: Array of Vector2 positions (world coordinates or grid positions)
-## speed: Movement speed in tiles per second
-## is_grid: If true, path positions are grid coordinates
+## Start moving along a path - delegates to parent entity if possible
+## path: Array of waypoints (grid coordinates)
+## speed: Movement speed in tiles per second (ignored if parent handles it)
+## is_grid: If true, path positions are grid coordinates (default true)
 func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true) -> void:
 	if path.is_empty():
 		push_warning("CinematicActor: Empty path provided for %s" % actor_id)
 		movement_completed.emit()
 		return
 
-	# Convert grid positions to world positions if needed
-	if is_grid:
-		current_path = []
-		for pos: Variant in path:
-			if pos is Vector2:
-				# Use GridManager to convert grid to world position
-				var world_pos: Vector2 = GridManager.grid_to_world(pos)
-				current_path.append(world_pos)
-			else:
-				push_error("CinematicActor: Invalid position in path: %s" % str(pos))
-	else:
-		current_path = path.duplicate()
-
-	# Set movement parameters
-	movement_speed = speed if speed > 0 else default_speed
-	current_path_index = 0
-	is_moving = true
-
-	# Set first target
-	if current_path.size() > 0:
-		target_position = current_path[0]
-
-
-## Process movement towards current target
-func _process_movement(delta: float) -> void:
-	if parent_entity == null or current_path.is_empty():
-		_stop_movement()
+	if parent_entity == null:
+		push_error("CinematicActor: No parent entity for %s" % actor_id)
+		movement_completed.emit()
 		return
 
-	var distance_to_target: float = parent_entity.global_position.distance_to(target_position)
-	var move_distance: float = movement_speed * GridManager.TILE_SIZE * delta
-
-	# Check if we reached the target
-	if distance_to_target <= move_distance:
-		# Snap to target position
-		parent_entity.global_position = target_position
-
-		# Move to next waypoint
-		current_path_index += 1
-
-		if current_path_index >= current_path.size():
-			# Path completed
-			_stop_movement()
+	# Convert waypoints to Vector2i grid coordinates
+	var waypoints: Array[Vector2i] = []
+	for pos: Variant in path:
+		if pos is Vector2:
+			waypoints.append(Vector2i(pos))
+		elif pos is Array and pos.size() >= 2:
+			waypoints.append(Vector2i(pos[0], pos[1]))
 		else:
-			# Continue to next target
-			target_position = current_path[current_path_index]
-	else:
-		# Move towards target
-		var direction: Vector2 = (target_position - parent_entity.global_position).normalized()
-		parent_entity.global_position += direction * move_distance
+			push_error("CinematicActor: Invalid position in path: %s" % str(pos))
 
-		# Update facing direction if sprite exists
-		_update_facing_from_direction(direction)
+	if waypoints.is_empty():
+		push_warning("CinematicActor: No valid waypoints in path for %s" % actor_id)
+		movement_completed.emit()
+		return
+
+	# ARCHITECTURE: Reuse existing movement systems instead of reimplementing
+	# If parent is a Unit (battle) or has move_along_path, use that
+	if parent_entity.has_method("move_along_path"):
+		_use_parent_movement(waypoints)
+	else:
+		# Fallback for simple test entities without Unit component
+		_use_simple_movement(waypoints, speed)
+
+
+## Use parent entity's existing movement system (Unit, HeroController, etc.)
+func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
+	is_moving = true
+
+	# Build complete path using GridManager pathfinding (same as battles)
+	var complete_path: Array[Vector2i] = []
+	var current_pos: Vector2i = GridManager.world_to_cell(parent_entity.global_position)
+
+	complete_path.append(current_pos)
+
+	# Expand waypoints to full path
+	for waypoint: Vector2i in waypoints:
+		if waypoint == current_pos:
+			continue
+
+		var segment_path: Array[Vector2i] = GridManager.find_path(current_pos, waypoint, 0)
+
+		if segment_path.is_empty():
+			push_error("CinematicActor: GridManager not initialized! Call GridManager.setup_grid() before playing cinematics.")
+			movement_completed.emit()
+			return
+
+		# Add segment to complete path (skip first to avoid duplicates)
+		for i: int in range(1, segment_path.size()):
+			complete_path.append(segment_path[i])
+
+		current_pos = waypoint
+
+	# Call parent's move_along_path (reusing battle/exploration movement code)
+	parent_entity.move_along_path(complete_path)
+
+	# Connect to parent's movement signal if available
+	if parent_entity.has_signal("moved"):
+		if not parent_entity.moved.is_connected(_on_parent_moved):
+			parent_entity.moved.connect(_on_parent_moved)
+	else:
+		# No signal available, estimate completion time
+		var path_length: float = complete_path.size() * GridManager.get_tile_size()
+		var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())
+		await get_tree().create_timer(estimated_duration).timeout
+		_stop_movement()
+
+
+## Simple movement for basic entities without Unit component
+func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
+	# This should only be used in minimal test scenes
+	push_warning("CinematicActor: Using fallback movement - parent entity lacks move_along_path() method")
+
+	is_moving = true
+	movement_speed = speed if speed > 0 else default_speed
+
+	# Build simple path
+	var world_path: Array[Vector2] = []
+	for waypoint: Vector2i in waypoints:
+		world_path.append(GridManager.cell_to_world(waypoint))
+
+	# Simple tween movement
+	var move_tween: Tween = create_tween()
+	move_tween.set_trans(Tween.TRANS_LINEAR)
+	move_tween.set_ease(Tween.EASE_IN_OUT)
+
+	for target_pos: Vector2 in world_path:
+		var distance: float = parent_entity.global_position.distance_to(target_pos) if move_tween.get_total_elapsed_time() == 0 else world_path[world_path.find(target_pos) - 1].distance_to(target_pos)
+		var duration: float = distance / (movement_speed * GridManager.get_tile_size())
+		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
+
+	move_tween.tween_callback(func() -> void: _stop_movement())
+
+
+## Called when parent entity's movement completes
+func _on_parent_moved(old_pos: Vector2i, new_pos: Vector2i) -> void:
+	# Parent has finished moving
+	_stop_movement()
 
 
 ## Stop current movement
 func _stop_movement() -> void:
 	is_moving = false
-	current_path.clear()
-	current_path_index = 0
 	movement_completed.emit()
 
 
@@ -260,8 +304,35 @@ func get_world_position() -> Vector2:
 ## Get current grid position
 func get_grid_position() -> Vector2:
 	if parent_entity != null:
-		return GridManager.world_to_grid(parent_entity.global_position)
+		return Vector2(GridManager.world_to_cell(parent_entity.global_position))
 	return Vector2.ZERO
+
+
+## Simple Manhattan distance pathfinding fallback (for cinematics without battle grid)
+## Moves horizontally first, then vertically (4-directional movement)
+func _find_manhattan_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var path: Array[Vector2i] = []
+	var current: Vector2i = from
+
+	path.append(current)
+
+	# Move horizontally first
+	while current.x != to.x:
+		if current.x < to.x:
+			current.x += 1
+		else:
+			current.x -= 1
+		path.append(current)
+
+	# Then move vertically
+	while current.y != to.y:
+		if current.y < to.y:
+			current.y += 1
+		else:
+			current.y -= 1
+		path.append(current)
+
+	return path
 
 
 ## Teleport to position (instant, no movement)
@@ -270,6 +341,6 @@ func teleport_to(position: Vector2, is_grid: bool = true) -> void:
 		return
 
 	if is_grid:
-		parent_entity.global_position = GridManager.grid_to_world(position)
+		parent_entity.global_position = GridManager.cell_to_world(Vector2i(position))
 	else:
 		parent_entity.global_position = position
