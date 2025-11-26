@@ -318,7 +318,7 @@ func _play_miss_animation() -> void:
 ## Show damage number with float animation
 func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.text = str(damage)
-	damage_label.add_theme_font_size_override("font_size", 48 if is_critical else 36)
+	damage_label.add_theme_font_size_override("font_size", 48 if is_critical else 32)
 	damage_label.add_theme_color_override("font_color", Color.YELLOW if is_critical else Color.WHITE)
 	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	damage_label.add_theme_constant_override("outline_size", 3)

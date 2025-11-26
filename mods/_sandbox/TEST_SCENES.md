@@ -64,39 +64,6 @@ godot --headless --path . test_ai_headless.tscn
 
 ---
 
-## Integration Tests
-
-### 🔧 **test_full_battle.tscn** - BattleData Integration
-
-**Location:** `mods/_sandbox/scenes/test_full_battle.tscn`
-
-**Purpose:** Tests the BattleData → BattleManager initialization flow.
-
-**Status:** ⚠️ Currently has issues - use `test_unit.tscn` for manual testing instead.
-
-**What it's meant to test:**
-- Loading battles from BattleData resources
-- Map scene loading with Grid extraction
-- Unit spawning from battle data
-- Victory/defeat conditions
-
-**Why keep it:** Will be needed when the BattleData system is fully implemented in Phase 4.
-
----
-
-## Supporting Files
-
-### **test_map.gd**
-
-**Purpose:** Provides map scene for `test_full_battle.tscn`
-
-Demonstrates proper separation of concerns:
-- Map scenes contain Grid configuration
-- BattleData contains unit/objective data
-- BattleManager combines them
-
----
-
 ## Creating New Test Scenes
 
 When you need to create a new test scene:
@@ -117,13 +84,20 @@ When you need to create a new test scene:
 
 ## Test Scene History
 
-**Removed obsolete tests:**
+**Removed obsolete tests (2025-11-25 Cleanup):**
+- ❌ test_full_battle.tscn/gd - BattleData integration test (superseded by battle_loader.tscn)
+- ❌ test_xp_system.tscn/gd - XP system test (system complete, now in core/)
+- ❌ test_save_system.tscn/gd - Save system test (system complete, now in core/)
+- ❌ test_battle_manager.tscn - Simple combat test (broken, missing .gd file)
+- ❌ test_battle.tscn - Early battle prototype (broken, missing dependency)
+- ❌ test_map.gd - Map provider for test_full_battle (no longer needed)
 - ❌ test_battle_setup - Camera testing only
 - ❌ test_grid_manager - Basic pathfinding visualization
-- ❌ test_battle_manager - Simple combat test (redundant)
 
-These were early prototypes superseded by the more comprehensive test_unit scene.
+**Note:** For dynamic battle loading from BattleData resources, use `battle_loader.tscn` (production system).
+
+These were development/testing scenes superseded by the production battle_loader and the comprehensive test_unit scene.
 
 ---
 
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-25
