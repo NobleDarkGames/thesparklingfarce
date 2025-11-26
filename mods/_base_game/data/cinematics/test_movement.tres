@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="CinematicData" load_steps=2 format=3 uid="uid://test_movement"]
+
+[ext_resource type="Script" path="res://core/resources/cinematic_data.gd" id="1_cinematic_data"]
+
+[resource]
+script = ExtResource("1_cinematic_data")
+cinematic_id = "test_movement"
+cinematic_name = "Test Movement Cinematic"
+description = "A simple test cinematic demonstrating character movement and wait commands.
+This is Phase 1 testing for the cinematics system."
+commands = Array[Dictionary]([{
+"params": {
+"duration": 1.0,
+"fade_type": "in"
+},
+"type": "fade_screen"
+}, {
+"params": {
+"path": [[10, 10], [10, 7], [12, 7]],
+"speed": 3.0,
+"wait": true
+},
+"target": "hero",
+"type": "move_entity"
+}, {
+"params": {
+"direction": "right"
+},
+"target": "hero",
+"type": "set_facing"
+}, {
+"params": {
+"duration": 1.0
+},
+"type": "wait"
+}, {
+"params": {
+"path": [[12, 7], [12, 10], [10, 10]],
+"speed": 4.0,
+"wait": true
+},
+"target": "hero",
+"type": "move_entity"
+}, {
+"params": {
+"direction": "down"
+},
+"target": "hero",
+"type": "set_facing"
+}, {
+"params": {
+"duration": 0.5,
+"fade_type": "out"
+},
+"type": "fade_screen"
+}])
+disable_player_input = true
+fade_in_duration = 0.5
+fade_out_duration = 0.5
+can_skip = true
+skip_key = "ui_cancel"
+auto_play = false
+next_cinematic = null
+condition_script = null
