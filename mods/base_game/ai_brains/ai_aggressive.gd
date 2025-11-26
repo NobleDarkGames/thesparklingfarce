@@ -89,5 +89,5 @@ func execute_async(unit: Node2D, context: Dictionary) -> void:
 			await unit.get_tree().create_timer(delay_before_attack).timeout
 
 		print("AIAggressive: Executing attack")
-		attack_target(unit, _pending_attack_target)
+		await attack_target(unit, _pending_attack_target)
 		_pending_attack_target = null

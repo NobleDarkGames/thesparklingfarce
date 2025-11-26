@@ -171,4 +171,4 @@ func attack_target(unit: Node2D, target: Node2D) -> void:
 		return
 
 	# Delegate to BattleManager for actual combat execution
-	BattleManager.execute_ai_attack(unit, target)
+	await BattleManager.execute_ai_attack(unit, target)

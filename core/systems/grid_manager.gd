@@ -156,6 +156,52 @@ func find_path(from: Vector2i, to: Vector2i, movement_type: int = 0) -> Array[Ve
 	return path
 
 
+## Expand waypoints into a complete path (Phase 3: cinematics refactor)
+## Converts sparse waypoints [A, C, F] into complete path [A, B, C, D, E, F]
+## using pathfinding between each waypoint pair.
+##
+## waypoints: Array of Vector2i grid positions to visit in order
+## movement_type: Movement type for terrain costs (default 0)
+## start_pos: Starting position (if Vector2i(-1, -1), uses first waypoint as start)
+##
+## Returns: Array[Vector2i] complete path, or empty array if any segment fails
+func expand_waypoint_path(waypoints: Array[Vector2i], movement_type: int = 0, start_pos: Vector2i = Vector2i(-1, -1)) -> Array[Vector2i]:
+	if _astar == null:
+		push_error("GridManager: A* not initialized. Call setup_grid() first.")
+		return []
+
+	if waypoints.is_empty():
+		push_warning("GridManager: Cannot expand empty waypoints array")
+		return []
+
+	var complete_path: Array[Vector2i] = []
+	var current_pos: Vector2i = start_pos if start_pos != Vector2i(-1, -1) else waypoints[0]
+
+	# Start path with current position
+	complete_path.append(current_pos)
+
+	# Expand each waypoint segment
+	for waypoint: Vector2i in waypoints:
+		# Skip if waypoint is current position
+		if waypoint == current_pos:
+			continue
+
+		# Find path from current position to waypoint
+		var segment_path: Array[Vector2i] = find_path(current_pos, waypoint, movement_type)
+
+		if segment_path.is_empty():
+			push_error("GridManager: No path found from %s to %s during waypoint expansion" % [current_pos, waypoint])
+			return []
+
+		# Add segment to complete path (skip first to avoid duplicates)
+		for i: int in range(1, segment_path.size()):
+			complete_path.append(segment_path[i])
+
+		current_pos = waypoint
+
+	return complete_path
+
+
 ## Get all cells within movement range of a starting position
 ## Takes into account movement type and terrain costs
 ## Returns Array[Vector2i] of reachable cells

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=5 format=3 uid="uid://cybmlhvfpyiup"]
+
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_mage"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_mage"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_mage"]
+
+[sub_resource type="Resource" id="Resource_mage"]
+script = ExtResource("1_mage")
+display_name = "Mage"
+hp_growth = 45
+mp_growth = 75
+strength_growth = 30
+defense_growth = 35
+equippable_weapon_types = Array[String](["staff", "wand"])
+equippable_armor_types = Array[String](["light", "robe"])
+
+[resource]
+script = ExtResource("2_mage")
+character_name = "Maggie"
+character_class = SubResource("Resource_mage")
+base_hp = 18
+base_mp = 15
+base_strength = 4
+base_agility = 7
+base_intelligence = 10
+base_luck = 7
+biography = "A talented mage with a gift for elemental magic. Though physically frail, Maggie's arcane powers can turn the tide of any battle, raining destruction upon enemies from afar."

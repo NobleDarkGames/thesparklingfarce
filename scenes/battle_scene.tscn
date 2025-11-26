@@ -1,13 +1,11 @@
-[gd_scene load_steps=4 format=3 uid="uid://b8yqv3j2xh3mc"]
+[gd_scene load_steps=5 format=3 uid="uid://b8yqv3j2xh3mc"]
 
-[ext_resource type="Script" path="res://core/systems/camera_controller.gd" id="1_a2b3c"]
-[ext_resource type="Script" path="res://core/resources/grid.gd" id="2_d4e5f"]
+[ext_resource type="Script" uid="uid://bj2so3ypjwmba" path="res://core/systems/camera_controller.gd" id="1_a2b3c"]
+[ext_resource type="Script" uid="uid://ce1g8slrpl07e" path="res://core/resources/grid.gd" id="2_d4e5f"]
 [ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="3_font"]
 
 [sub_resource type="Resource" id="Grid_default"]
 script = ExtResource("2_d4e5f")
-grid_size = Vector2i(20, 11)
-cell_size = 32
 
 [node name="BattleScene" type="Node2D"]
 
@@ -20,7 +18,8 @@ color = Color(0.2, 0.25, 0.2, 1)
 
 [node name="GroundLayer" type="TileMapLayer" parent="Map"]
 
-[node name="ObjectsLayer" type="TileMapLayer" parent="Map"]
+[node name="WallsLayer" type="TileMapLayer" parent="Map"]
+z_index = 1
 
 [node name="Units" type="Node2D" parent="."]
 
@@ -30,11 +29,6 @@ color = Color(0.2, 0.25, 0.2, 1)
 position = Vector2(320, 180)
 script = ExtResource("1_a2b3c")
 grid = SubResource("Grid_default")
-follow_mode = 0
-follow_speed = 4.0
-smooth_movement = true
-dead_zone_size = Vector2(160, 90)
-edge_margin = 16
 
 [node name="UI" type="CanvasLayer" parent="."]
 

@@ -33,7 +33,7 @@ const DAMAGE_FLOAT_DURATION: float = 1.2  # Increased from 0.8
 const FLASH_DURATION: float = 0.15  # Increased from 0.1
 const SCREEN_SHAKE_AMOUNT: float = 10.0
 const FADE_IN_DURATION: float = 0.4  # New: fade in duration
-const FADE_OUT_DURATION: float = 0.4  # New: fade out duration
+const FADE_OUT_DURATION: float = 0.6  # Increased for smoother, more deliberate transition
 const RESULT_PAUSE_DURATION: float = 1.5  # New: pause to see result (increased from 0.5)
 
 

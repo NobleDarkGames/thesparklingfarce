@@ -11,7 +11,7 @@ signal scene_transition_completed(scene: String)
 const OPENING_CINEMATIC: String = "res://scenes/ui/opening_cinematic.tscn"
 const MAIN_MENU: String = "res://scenes/ui/main_menu.tscn"
 const SAVE_SLOT_SELECTOR: String = "res://scenes/ui/save_slot_selector.tscn"
-const BATTLE_LOADER: String = "res://mods/_sandbox/scenes/battle_loader.tscn"
+const BATTLE_LOADER: String = "res://mods/_sandbox/scenes/sandbox_battle_test.tscn"
 
 # Transition settings
 const FADE_DURATION: float = 0.3

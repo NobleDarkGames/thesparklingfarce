@@ -82,6 +82,45 @@ func _find_sprite_node(node: Node) -> AnimatedSprite2D:
 	return null
 
 
+## Move along a complete path (Phase 3: for executors with pre-expanded paths)
+## complete_path: Array[Vector2i] of grid cells (already expanded by GridManager)
+## speed: Movement speed in tiles per second (used only for fallback movement)
+func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0) -> void:
+	if complete_path.is_empty():
+		push_warning("CinematicActor: Empty path provided for %s" % actor_id)
+		movement_completed.emit()
+		return
+
+	if parent_entity == null:
+		push_error("CinematicActor: No parent entity for %s" % actor_id)
+		movement_completed.emit()
+		return
+
+	print("CinematicActor[%s]: move_along_path_direct() - path has %d cells, speed=%.1f" % [actor_id, complete_path.size(), speed])
+	print("  Path: %s" % str(complete_path.slice(0, min(5, complete_path.size()))))  # Show first 5 cells
+
+	is_moving = true
+
+	# Delegate directly to parent entity's move_along_path
+	if parent_entity.has_method("move_along_path"):
+		parent_entity.move_along_path(complete_path)
+
+		# Connect to parent's movement signal if available
+		if parent_entity.has_signal("moved"):
+			if not parent_entity.moved.is_connected(_on_parent_moved):
+				parent_entity.moved.connect(_on_parent_moved, CONNECT_ONE_SHOT)
+		else:
+			# No signal available, estimate completion time
+			var path_length: float = complete_path.size() * GridManager.get_tile_size()
+			var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())
+			await get_tree().create_timer(estimated_duration).timeout
+			_stop_movement()
+	else:
+		# Fallback for simple test entities without Unit component
+		print("  → Using simple movement fallback (parent has no move_along_path)")
+		_use_simple_movement_direct(complete_path, speed if speed > 0 else default_speed)
+
+
 ## Start moving along a path - delegates to parent entity if possible
 ## path: Array of waypoints (grid coordinates)
 ## speed: Movement speed in tiles per second (ignored if parent handles it)
@@ -100,7 +139,9 @@ func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true) -> 
 	# Convert waypoints to Vector2i grid coordinates
 	var waypoints: Array[Vector2i] = []
 	for pos: Variant in path:
-		if pos is Vector2:
+		if pos is Vector2i:
+			waypoints.append(pos)
+		elif pos is Vector2:
 			waypoints.append(Vector2i(pos))
 		elif pos is Array and pos.size() >= 2:
 			waypoints.append(Vector2i(pos[0], pos[1]))
@@ -122,32 +163,18 @@ func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true) -> 
 
 
 ## Use parent entity's existing movement system (Unit, HeroController, etc.)
+## Phase 3: Simplified to use GridManager.expand_waypoint_path()
 func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 	is_moving = true
 
-	# Build complete path using GridManager pathfinding (same as battles)
-	var complete_path: Array[Vector2i] = []
+	# Delegate waypoint expansion to GridManager (Phase 3 refactor)
 	var current_pos: Vector2i = GridManager.world_to_cell(parent_entity.global_position)
+	var complete_path: Array[Vector2i] = GridManager.expand_waypoint_path(waypoints, 0, current_pos)
 
-	complete_path.append(current_pos)
-
-	# Expand waypoints to full path
-	for waypoint: Vector2i in waypoints:
-		if waypoint == current_pos:
-			continue
-
-		var segment_path: Array[Vector2i] = GridManager.find_path(current_pos, waypoint, 0)
-
-		if segment_path.is_empty():
-			push_error("CinematicActor: GridManager not initialized! Call GridManager.setup_grid() before playing cinematics.")
-			movement_completed.emit()
-			return
-
-		# Add segment to complete path (skip first to avoid duplicates)
-		for i: int in range(1, segment_path.size()):
-			complete_path.append(segment_path[i])
-
-		current_pos = waypoint
+	if complete_path.is_empty():
+		push_error("CinematicActor: Failed to expand waypoints for %s. GridManager may not be initialized." % actor_id)
+		movement_completed.emit()
+		return
 
 	# Call parent's move_along_path (reusing battle/exploration movement code)
 	parent_entity.move_along_path(complete_path)
@@ -155,7 +182,7 @@ func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 	# Connect to parent's movement signal if available
 	if parent_entity.has_signal("moved"):
 		if not parent_entity.moved.is_connected(_on_parent_moved):
-			parent_entity.moved.connect(_on_parent_moved)
+			parent_entity.moved.connect(_on_parent_moved, CONNECT_ONE_SHOT)
 	else:
 		# No signal available, estimate completion time
 		var path_length: float = complete_path.size() * GridManager.get_tile_size()
@@ -187,6 +214,36 @@ func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
 		var duration: float = distance / (movement_speed * GridManager.get_tile_size())
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
 
+	move_tween.tween_callback(func() -> void: _stop_movement())
+
+
+## Simple movement with direct complete path (Phase 3: for move_along_path_direct fallback)
+func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -> void:
+	is_moving = true
+	movement_speed = speed
+
+	# Convert complete path to world positions
+	var world_path: Array[Vector2] = []
+	for cell: Vector2i in complete_path:
+		world_path.append(GridManager.cell_to_world(cell))
+
+	print("  Simple movement: %d world positions, from %s to %s" % [world_path.size(), parent_entity.global_position, world_path[-1] if world_path.size() > 0 else "N/A"])
+
+	# Simple tween movement
+	var move_tween: Tween = create_tween()
+	move_tween.set_trans(Tween.TRANS_LINEAR)
+	move_tween.set_ease(Tween.EASE_IN_OUT)
+
+	var total_duration: float = 0.0
+	for i: int in range(world_path.size()):
+		var target_pos: Vector2 = world_path[i]
+		var start_pos: Vector2 = world_path[i - 1] if i > 0 else parent_entity.global_position
+		var distance: float = start_pos.distance_to(target_pos)
+		var duration: float = distance / (movement_speed * GridManager.get_tile_size())
+		total_duration += duration
+		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
+
+	print("  Total movement duration: %.2f seconds" % total_duration)
 	move_tween.tween_callback(func() -> void: _stop_movement())
 
 

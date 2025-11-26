@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://test_registry_simple"]
-
-[ext_resource type="Script" path="res://test_registry_simple.gd" id="1"]
-
-[node name="TestRegistrySimple" type="Node"]
-script = ExtResource("1")

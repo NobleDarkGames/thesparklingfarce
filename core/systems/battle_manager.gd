@@ -393,7 +393,7 @@ func _execute_stay(unit: Node2D) -> void:
 ## Execute attack from AI (called by AIBrain)
 ## This is the public API for AI brains to trigger attacks
 func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
-	_execute_attack(attacker, defender)
+	await _execute_attack(attacker, defender)
 
 
 ## Execute Attack action
@@ -485,6 +485,7 @@ func _show_combat_animation(
 	was_critical: bool,
 	was_miss: bool
 ) -> void:
+	print("%s HIDING battlefield (combat anim starting)" % TurnManager._get_elapsed_time())
 	# HIDE the battlefield completely (Shining Force style - full screen replacement)
 	if map_instance:
 		map_instance.visible = false
@@ -502,20 +503,31 @@ func _show_combat_animation(
 	battle_scene_root.add_child(combat_anim_instance)
 
 	# Play combat animation (scene handles its own fade-in)
+	print("%s Playing combat animation..." % TurnManager._get_elapsed_time())
 	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss)
 	await combat_anim_instance.animation_complete
+	print("%s Combat animation complete" % TurnManager._get_elapsed_time())
 
 	# Clean up combat animation
 	combat_anim_instance.queue_free()
 	combat_anim_instance = null
 
 	# RESTORE the battlefield (Shining Force style - return to tactical view)
+	print("%s RESTORING battlefield visibility" % TurnManager._get_elapsed_time())
 	if map_instance:
 		map_instance.visible = true
 	if units_parent:
 		units_parent.visible = true
 	if ui_node:
 		ui_node.visible = true
+	print("%s Battlefield visible again" % TurnManager._get_elapsed_time())
+
+	# Battlefield "settle" period - give player time to see the result before next action
+	# This visual breathing room is critical for Shining Force-style pacing
+	# Camera lingers on the acting unit so player can read damage/results text
+	print("%s Starting battlefield settle delay (1.2s)..." % TurnManager._get_elapsed_time())
+	await get_tree().create_timer(1.2).timeout
+	print("%s Battlefield settle complete" % TurnManager._get_elapsed_time())
 
 
 ## Handle unit death - called when unit.died signal is emitted

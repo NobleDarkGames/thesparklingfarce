@@ -27,8 +27,12 @@ color = Color(0.15, 0.2, 0.15, 1)
 [node name="GroundLayer" type="TileMapLayer" parent="Map"]
 tile_set = SubResource("TileSet_test")
 
-[node name="HighlightLayer" type="TileMapLayer" parent="Map"]
+[node name="WallsLayer" type="TileMapLayer" parent="Map"]
 z_index = 1
+tile_set = SubResource("TileSet_test")
+
+[node name="HighlightLayer" type="TileMapLayer" parent="Map"]
+z_index = 10
 tile_set = ExtResource("5_highlight")
 
 [node name="Units" type="Node2D" parent="."]

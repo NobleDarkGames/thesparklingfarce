@@ -62,20 +62,18 @@ var _is_waiting: bool = false
 var _current_command_waits: bool = false
 var _command_completed: bool = false
 
-## Camera control
+## Camera control (Phase 3: camera logic now in CameraController)
 var _active_camera: Camera2D = null
-var _camera_tween: Tween = null
 var _camera_original_position: Vector2 = Vector2.ZERO
-var _camera_shake_timer: float = 0.0
-var _camera_shake_intensity: float = 0.0
-var _camera_follow_target: Node = null  ## Actor to continuously follow
-var _camera_follow_speed: float = 8.0   ## Camera follow smoothness
 
 ## Fade overlay
 var _fade_overlay: ColorRect = null
 
 
 func _ready() -> void:
+	# Register all built-in command executors
+	_register_built_in_commands()
+
 	# Connect to DialogManager signals
 	if DialogManager:
 		DialogManager.dialog_ended.connect(_on_dialog_ended)
@@ -89,27 +87,7 @@ func _process(delta: float) -> void:
 			_is_waiting = false
 			_command_completed = true
 
-	# Handle continuous camera follow
-	if _camera_follow_target and _active_camera:
-		var target_pos: Vector2 = _camera_follow_target.get_world_position() if _camera_follow_target.has_method("get_world_position") else _camera_follow_target.global_position
-		_active_camera.global_position = _active_camera.global_position.lerp(target_pos, _camera_follow_speed * delta)
-
-	# Handle camera shake
-	if _camera_shake_timer > 0.0 and _active_camera:
-		_camera_shake_timer -= delta
-
-		# Apply random shake offset
-		var shake_offset: Vector2 = Vector2(
-			randf_range(-_camera_shake_intensity, _camera_shake_intensity),
-			randf_range(-_camera_shake_intensity, _camera_shake_intensity)
-		)
-		_active_camera.offset = shake_offset
-
-		# Check if shake completed
-		if _camera_shake_timer <= 0.0:
-			_active_camera.offset = Vector2.ZERO
-			_camera_shake_timer = 0.0
-			_command_completed = true
+	# Phase 3: Camera follow and shake now handled by CameraController
 
 	# Continue executing commands if not waiting
 	if current_state == State.PLAYING and not _is_waiting and _command_completed:
@@ -170,6 +148,44 @@ func register_command_executor(command_type: String, executor: CinematicCommandE
 func unregister_command_executor(command_type: String) -> void:
 	if _command_executors.erase(command_type):
 		print("CinematicsManager: Unregistered executor for command type '%s'" % command_type)
+
+
+## Register all built-in command executors (Phase 2)
+## Called during _ready() to set up the command registry
+func _register_built_in_commands() -> void:
+	# Load all executor scripts
+	const WaitExecutor: GDScript = preload("res://core/systems/cinematic_commands/wait_executor.gd")
+	const SetVariableExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_variable_executor.gd")
+	const DialogExecutor: GDScript = preload("res://core/systems/cinematic_commands/dialog_executor.gd")
+	const MoveEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/move_entity_executor.gd")
+	const SetFacingExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_facing_executor.gd")
+	const PlayAnimationExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_animation_executor.gd")
+	const CameraMoveExecutor: GDScript = preload("res://core/systems/cinematic_commands/camera_move_executor.gd")
+	const CameraFollowExecutor: GDScript = preload("res://core/systems/cinematic_commands/camera_follow_executor.gd")
+	const CameraShakeExecutor: GDScript = preload("res://core/systems/cinematic_commands/camera_shake_executor.gd")
+	const FadeScreenExecutor: GDScript = preload("res://core/systems/cinematic_commands/fade_screen_executor.gd")
+	const PlaySoundExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_sound_executor.gd")
+	const PlayMusicExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_music_executor.gd")
+	const SpawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
+	const DespawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/despawn_entity_executor.gd")
+
+	# Register all built-in commands
+	register_command_executor("wait", WaitExecutor.new())
+	register_command_executor("set_variable", SetVariableExecutor.new())
+	register_command_executor("show_dialog", DialogExecutor.new())
+	register_command_executor("move_entity", MoveEntityExecutor.new())
+	register_command_executor("set_facing", SetFacingExecutor.new())
+	register_command_executor("play_animation", PlayAnimationExecutor.new())
+	register_command_executor("camera_move", CameraMoveExecutor.new())
+	register_command_executor("camera_follow", CameraFollowExecutor.new())
+	register_command_executor("camera_shake", CameraShakeExecutor.new())
+	register_command_executor("fade_screen", FadeScreenExecutor.new())
+	register_command_executor("play_sound", PlaySoundExecutor.new())
+	register_command_executor("play_music", PlayMusicExecutor.new())
+	register_command_executor("spawn_entity", SpawnEntityExecutor.new())
+	register_command_executor("despawn_entity", DespawnEntityExecutor.new())
+
+	print("CinematicsManager: Registered 14 built-in command executors")
 
 
 ## Register a camera for cinematic control
@@ -303,39 +319,9 @@ func _execute_next_command() -> void:
 			_command_completed = true
 		# else: executor will set _command_completed = true when async operation finishes
 	else:
-		# Fallback to built-in commands (will be migrated to executors in Phase 2)
-		match command_type:
-			"move_entity":
-				_execute_move_entity(command)
-			"set_facing":
-				_execute_set_facing(command)
-			"play_animation":
-				_execute_play_animation(command)
-			"show_dialog":
-				_execute_show_dialog(command)
-			"camera_move":
-				_execute_camera_move(command)
-			"camera_follow":
-				_execute_camera_follow(command)
-			"camera_shake":
-				_execute_camera_shake(command)
-			"wait":
-				_execute_wait(command)
-			"fade_screen":
-				_execute_fade_screen(command)
-			"play_sound":
-				_execute_play_sound(command)
-			"play_music":
-				_execute_play_music(command)
-			"spawn_entity":
-				_execute_spawn_entity(command)
-			"despawn_entity":
-				_execute_despawn_entity(command)
-			"set_variable":
-				_execute_set_variable(command)
-			_:
-				push_warning("CinematicsManager: Unknown command type '%s'" % command_type)
-				_command_completed = true
+		# No executor registered for this command type
+		push_warning("CinematicsManager: Unknown command type '%s' - no executor registered" % command_type)
+		_command_completed = true
 
 	# Move to next command
 	current_command_index += 1
@@ -344,327 +330,6 @@ func _execute_next_command() -> void:
 	if not _current_command_waits and not _is_waiting:
 		_command_completed = true
 
-
-## Execute move_entity command
-func _execute_move_entity(command: Dictionary) -> void:
-	var target: String = command.get("target", "")
-	var params: Dictionary = command.get("params", {})
-
-	var actor: CinematicActor = get_actor(target)
-	if actor == null:
-		push_error("CinematicsManager: Actor '%s' not found for move_entity" % target)
-		_command_completed = true
-		return
-
-	var path: Array = params.get("path", [])
-	var speed: float = params.get("speed", -1.0)
-	var should_wait: bool = params.get("wait", true)
-
-	# Convert array elements to Vector2 if needed
-	var converted_path: Array = []
-	for pos: Variant in path:
-		if pos is Array and pos.size() >= 2:
-			converted_path.append(Vector2(pos[0], pos[1]))
-		elif pos is Vector2:
-			converted_path.append(pos)
-		else:
-			push_error("CinematicsManager: Invalid path position: %s" % str(pos))
-
-	if should_wait:
-		# Connect to movement_completed signal
-		if not actor.movement_completed.is_connected(_on_movement_completed):
-			actor.movement_completed.connect(_on_movement_completed)
-
-	actor.move_along_path(converted_path, speed, true)
-
-	if not should_wait:
-		_command_completed = true
-
-
-## Execute set_facing command
-func _execute_set_facing(command: Dictionary) -> void:
-	var target: String = command.get("target", "")
-	var params: Dictionary = command.get("params", {})
-
-	var actor: CinematicActor = get_actor(target)
-	if actor == null:
-		push_error("CinematicsManager: Actor '%s' not found for set_facing" % target)
-		_command_completed = true
-		return
-
-	var direction: String = params.get("direction", "down")
-	actor.set_facing(direction)
-
-	_command_completed = true
-
-
-## Execute play_animation command
-func _execute_play_animation(command: Dictionary) -> void:
-	var target: String = command.get("target", "")
-	var params: Dictionary = command.get("params", {})
-
-	var actor: CinematicActor = get_actor(target)
-	if actor == null:
-		push_error("CinematicsManager: Actor '%s' not found for play_animation" % target)
-		_command_completed = true
-		return
-
-	var animation: String = params.get("animation", "")
-	var should_wait: bool = params.get("wait", false)
-
-	if should_wait:
-		# Connect to animation_completed signal
-		if not actor.animation_completed.is_connected(_on_animation_completed):
-			actor.animation_completed.connect(_on_animation_completed)
-
-	actor.play_animation(animation, should_wait)
-
-	if not should_wait:
-		_command_completed = true
-
-
-## Execute show_dialog command
-func _execute_show_dialog(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var dialogue_id: String = params.get("dialogue_id", "")
-
-	if dialogue_id.is_empty():
-		push_error("CinematicsManager: show_dialog command missing dialogue_id")
-		_command_completed = true
-		return
-
-	# Start dialog via DialogManager
-	if DialogManager.start_dialog(dialogue_id):
-		current_state = State.WAITING_FOR_DIALOG
-	else:
-		push_error("CinematicsManager: Failed to start dialog '%s'" % dialogue_id)
-		_command_completed = true
-
-
-## Execute camera_move command
-func _execute_camera_move(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var target_pos: Vector2 = params.get("target_pos", Vector2.ZERO)
-	var speed: float = params.get("speed", 2.0)
-	var should_wait: bool = params.get("wait", true)
-
-	if not _active_camera:
-		push_warning("CinematicsManager: No camera available for camera_move")
-		_command_completed = true
-		return
-
-	# Convert grid position to world position if needed
-	var world_pos: Vector2 = target_pos
-	if params.get("is_grid", false):
-		world_pos = GridManager.cell_to_world(Vector2i(target_pos))
-
-	# Kill any existing camera tween
-	if _camera_tween and _camera_tween.is_valid():
-		_camera_tween.kill()
-		_camera_tween = null
-
-	# Calculate duration based on speed (speed is tiles per second)
-	var distance: float = _active_camera.global_position.distance_to(world_pos)
-	var duration: float = distance / (speed * GridManager.get_tile_size())
-	duration = max(duration, 0.1)  # Minimum duration
-
-	# Create tween for smooth camera movement
-	_camera_tween = create_tween()
-	_camera_tween.set_trans(Tween.TRANS_CUBIC)
-	_camera_tween.set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(_active_camera, "global_position", world_pos, duration)
-
-	if should_wait:
-		_camera_tween.tween_callback(func() -> void: _command_completed = true)
-	else:
-		_command_completed = true
-
-
-## Execute camera_follow command
-func _execute_camera_follow(command: Dictionary) -> void:
-	var target: String = command.get("target", "")
-	var params: Dictionary = command.get("params", {})
-	var should_wait: bool = params.get("wait", false)
-	var duration: float = params.get("duration", 0.5)
-	var continuous: bool = params.get("continuous", true)  ## Keep following until explicitly stopped
-
-	if not _active_camera:
-		push_warning("CinematicsManager: No camera available for camera_follow")
-		_command_completed = true
-		return
-
-	var actor: CinematicActor = get_actor(target)
-	if actor == null:
-		push_error("CinematicsManager: Actor '%s' not found for camera_follow" % target)
-		_command_completed = true
-		return
-
-	# Get actor's world position
-	var actor_pos: Vector2 = actor.get_world_position()
-
-	# Kill any existing camera tween
-	if _camera_tween and _camera_tween.is_valid():
-		_camera_tween.kill()
-		_camera_tween = null
-
-	if continuous:
-		# Enable continuous follow (handled in _process)
-		_camera_follow_target = actor
-		_camera_follow_speed = params.get("speed", 8.0)
-
-		# Do initial move to actor position
-		_camera_tween = create_tween()
-		_camera_tween.set_trans(Tween.TRANS_CUBIC)
-		_camera_tween.set_ease(Tween.EASE_IN_OUT)
-		_camera_tween.tween_property(_active_camera, "global_position", actor_pos, duration)
-
-		if should_wait:
-			_camera_tween.tween_callback(func() -> void: _command_completed = true)
-		else:
-			_command_completed = true
-	else:
-		# One-time move to actor
-		_camera_follow_target = null
-		_camera_tween = create_tween()
-		_camera_tween.set_trans(Tween.TRANS_CUBIC)
-		_camera_tween.set_ease(Tween.EASE_IN_OUT)
-		_camera_tween.tween_property(_active_camera, "global_position", actor_pos, duration)
-
-		if should_wait:
-			_camera_tween.tween_callback(func() -> void: _command_completed = true)
-		else:
-			_command_completed = true
-
-
-## Execute camera_shake command
-func _execute_camera_shake(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var intensity: float = params.get("intensity", 2.0)
-	var duration: float = params.get("duration", 0.5)
-	var should_wait: bool = params.get("wait", false)
-
-	if not _active_camera:
-		push_warning("CinematicsManager: No camera available for camera_shake")
-		_command_completed = true
-		return
-
-	# Set shake parameters
-	_camera_shake_intensity = intensity
-	_camera_shake_timer = duration
-
-	if not should_wait:
-		_command_completed = true
-	# else: _process will set _command_completed when shake finishes
-
-
-## Execute wait command
-func _execute_wait(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var duration: float = params.get("duration", 1.0)
-
-	_wait_timer = duration
-	_is_waiting = true
-
-
-## Execute fade_screen command
-func _execute_fade_screen(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var fade_type: String = params.get("fade_type", "out")  # "in" or "out"
-	var duration: float = params.get("duration", 1.0)
-	var color: Color = params.get("color", Color.BLACK)
-
-	# Ensure fade overlay exists
-	_ensure_fade_overlay()
-
-	if not _fade_overlay:
-		push_warning("CinematicsManager: Failed to create fade overlay")
-		_command_completed = true
-		return
-
-	# Set initial color based on fade type
-	if fade_type == "in":
-		# Fade in: start opaque, end transparent
-		_fade_overlay.color = Color(color.r, color.g, color.b, 1.0)
-		_fade_overlay.show()
-	else:
-		# Fade out: start transparent, end opaque
-		_fade_overlay.color = Color(color.r, color.g, color.b, 0.0)
-		_fade_overlay.show()
-
-	# Create tween for fade
-	var fade_tween: Tween = create_tween()
-	fade_tween.set_trans(Tween.TRANS_LINEAR)
-
-	if fade_type == "in":
-		# Fade to transparent
-		fade_tween.tween_property(_fade_overlay, "color:a", 0.0, duration)
-		fade_tween.tween_callback(func() -> void:
-			_fade_overlay.hide()
-			_command_completed = true
-		)
-	else:
-		# Fade to opaque
-		fade_tween.tween_property(_fade_overlay, "color:a", 1.0, duration)
-		fade_tween.tween_callback(func() -> void: _command_completed = true)
-
-
-## Execute play_sound command
-func _execute_play_sound(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var sound_id: String = params.get("sound_id", "")
-
-	# TODO: Integrate with AudioManager
-	push_warning("CinematicsManager: play_sound not yet implemented")
-	_command_completed = true
-
-
-## Execute play_music command
-func _execute_play_music(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-
-	# TODO: Integrate with AudioManager
-	push_warning("CinematicsManager: play_music not yet implemented")
-	_command_completed = true
-
-
-## Execute spawn_entity command
-func _execute_spawn_entity(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-
-	# TODO: Implement entity spawning
-	push_warning("CinematicsManager: spawn_entity not yet implemented")
-	_command_completed = true
-
-
-## Execute despawn_entity command
-func _execute_despawn_entity(command: Dictionary) -> void:
-	var target: String = command.get("target", "")
-
-	var actor: CinematicActor = get_actor(target)
-	if actor == null:
-		push_error("CinematicsManager: Actor '%s' not found for despawn_entity" % target)
-		_command_completed = true
-		return
-
-	# TODO: Implement entity despawning
-	push_warning("CinematicsManager: despawn_entity not yet implemented")
-	_command_completed = true
-
-
-## Execute set_variable command
-func _execute_set_variable(command: Dictionary) -> void:
-	var params: Dictionary = command.get("params", {})
-	var variable_name: String = params.get("variable", "")
-	var value: Variant = params.get("value", null)
-
-	if variable_name.is_empty():
-		push_error("CinematicsManager: set_variable command missing variable name")
-		_command_completed = true
-		return
-
-	# Set in GameState
-	GameState.set_flag(variable_name)
-	_command_completed = true
 
 
 ## Called when actor movement completes
@@ -701,13 +366,11 @@ func _end_cinematic() -> void:
 	if _player_input_disabled:
 		_enable_player_input()
 
-	# Stop camera follow
-	_camera_follow_target = null
-
-	# Reset camera shake
-	if _active_camera:
-		_active_camera.offset = Vector2.ZERO
-	_camera_shake_timer = 0.0
+	# Phase 3: Stop camera operations via CameraController
+	if _active_camera and _active_camera is CameraController:
+		var camera: CameraController = _active_camera as CameraController
+		camera.stop_follow()
+		camera.offset = Vector2.ZERO  # Reset any active shake
 
 	# Clear current data
 	current_cinematic = null

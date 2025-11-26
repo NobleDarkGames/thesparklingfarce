@@ -34,7 +34,7 @@ enum InterpolationType {
 	CUBIC          ## Smooth cubic curve
 }
 
-@export var interpolation_type: InterpolationType = InterpolationType.LINEAR
+@export var interpolation_type: InterpolationType = InterpolationType.EASE_IN_OUT
 
 ## Dead zone - cursor must be this far from screen center before camera moves
 ## Measured in pixels at base resolution (640x360)
@@ -54,6 +54,22 @@ var _map_bounds: Rect2i = Rect2i()
 
 ## Current movement tween
 var _movement_tween: Tween = null
+
+## Camera shake state
+var _is_shaking: bool = false
+var _shake_intensity: float = 0.0
+var _shake_time_remaining: float = 0.0
+var _shake_frequency: float = 30.0
+var _shake_elapsed: float = 0.0
+
+## Continuous follow state
+var _follow_target: Node2D = null
+var _follow_speed: float = 8.0
+
+## Signals for async operations (Phase 3: cinematics integration)
+signal movement_completed()
+signal shake_completed()
+signal operation_completed()  ## Generic signal for any async operation
 
 
 func _ready() -> void:
@@ -114,10 +130,29 @@ func _update_camera_limits() -> void:
 	_map_bounds = Rect2i(map_origin, map_pixel_size)
 
 
-func _process(_delta: float) -> void:
-	# Note: Camera movement is now handled by tweens, not per-frame updates
-	# This process function is kept for potential future cursor following
-	pass
+func _process(delta: float) -> void:
+	# Handle continuous follow
+	if _follow_target and is_instance_valid(_follow_target):
+		var target_pos: Vector2 = _follow_target.global_position
+		position = position.lerp(target_pos, _follow_speed * delta)
+
+	# Handle camera shake
+	if _is_shaking:
+		_shake_elapsed += delta
+		_shake_time_remaining -= delta
+
+		if _shake_time_remaining <= 0.0:
+			_on_shake_completed()
+			return
+
+		# Calculate shake offset using sine wave for smooth oscillation
+		var shake_amount: float = _shake_intensity * (_shake_time_remaining / (_shake_time_remaining + _shake_elapsed))
+		var angle: float = _shake_elapsed * _shake_frequency
+
+		offset = Vector2(
+			cos(angle) * shake_amount * randf_range(0.8, 1.2),
+			sin(angle * 1.3) * shake_amount * randf_range(0.8, 1.2)
+		)
 
 
 ## Follow cursor with dead zone
@@ -153,6 +188,7 @@ func set_target_position(target: Vector2) -> void:
 	if not smooth_movement:
 		# Instant snap
 		position = _target_position.floor()
+		movement_completed.emit()
 		return
 
 	# Create new tween for smooth movement
@@ -178,8 +214,11 @@ func set_target_position(target: Vector2) -> void:
 	# Tween to target position
 	_movement_tween.tween_property(self, "position", _target_position, movement_duration)
 
-	# Snap to pixel after tween completes to prevent sub-pixel rendering
-	_movement_tween.tween_callback(func() -> void: position = position.floor())
+	# Snap to pixel after tween completes and emit completion signal
+	_movement_tween.tween_callback(func() -> void:
+		position = position.floor()
+		movement_completed.emit()
+	)
 
 
 ## Follow a specific unit smoothly
@@ -226,3 +265,104 @@ func set_follow_mode(mode: FollowMode) -> void:
 	follow_mode = mode
 	if mode == FollowMode.NONE:
 		_target_position = position
+
+
+## Apply screen shake effect (Phase 3: cinematics & battle integration)
+## intensity: Maximum pixel offset for shake
+## duration: How long the shake lasts in seconds
+## frequency: Oscillation frequency (higher = faster shaking)
+func shake(intensity: float, duration: float, frequency: float = 30.0) -> void:
+	_shake_intensity = intensity
+	_shake_frequency = frequency
+	_shake_time_remaining = duration
+	_shake_elapsed = 0.0
+	_is_shaking = true
+
+
+## Move camera to a world position (not grid-based)
+## target: World position in pixels
+## custom_duration: Optional override for movement_duration
+## wait: If true, emits movement_completed signal when done
+func move_to_position(target: Vector2, custom_duration: float = -1.0, wait: bool = false) -> void:
+	_target_position = target
+	follow_mode = FollowMode.TARGET_POSITION
+
+	# Kill any existing tween
+	if _movement_tween and _movement_tween.is_valid():
+		_movement_tween.kill()
+		_movement_tween = null
+
+	var duration: float = custom_duration if custom_duration > 0.0 else movement_duration
+
+	if not smooth_movement:
+		# Instant snap
+		position = _target_position.floor()
+		if wait:
+			movement_completed.emit()
+			operation_completed.emit()
+		return
+
+	# Create new tween for smooth movement
+	_movement_tween = create_tween()
+
+	# Set transition type based on interpolation setting
+	match interpolation_type:
+		InterpolationType.LINEAR:
+			_movement_tween.set_trans(Tween.TRANS_LINEAR)
+		InterpolationType.EASE_IN:
+			_movement_tween.set_trans(Tween.TRANS_QUAD)
+			_movement_tween.set_ease(Tween.EASE_IN)
+		InterpolationType.EASE_OUT:
+			_movement_tween.set_trans(Tween.TRANS_QUAD)
+			_movement_tween.set_ease(Tween.EASE_OUT)
+		InterpolationType.EASE_IN_OUT:
+			_movement_tween.set_trans(Tween.TRANS_QUAD)
+			_movement_tween.set_ease(Tween.EASE_IN_OUT)
+		InterpolationType.CUBIC:
+			_movement_tween.set_trans(Tween.TRANS_CUBIC)
+			_movement_tween.set_ease(Tween.EASE_IN_OUT)
+
+	# Tween to target position
+	_movement_tween.tween_property(self, "position", _target_position, duration)
+
+	# Snap to pixel and emit signal if waiting
+	if wait:
+		_movement_tween.tween_callback(func() -> void:
+			position = position.floor()
+			movement_completed.emit()
+			operation_completed.emit()
+		)
+	else:
+		_movement_tween.tween_callback(func() -> void: position = position.floor())
+
+
+## Follow an actor continuously (Phase 3: cinematics integration)
+## actor: Node2D to follow (CinematicActor parent, Unit, etc.)
+## speed: Lerp speed for smooth following (higher = faster)
+## initial_duration: Duration for initial movement to actor position
+func follow_actor(actor: Node2D, speed: float = 8.0, initial_duration: float = 0.5) -> void:
+	if not actor or not is_instance_valid(actor):
+		push_warning("CameraController: Cannot follow null or invalid actor")
+		return
+
+	_follow_target = actor
+	_follow_speed = speed
+	follow_mode = FollowMode.ACTIVE_UNIT
+
+	# Do initial smooth move to actor position
+	var actor_pos: Vector2 = actor.global_position
+	move_to_position(actor_pos, initial_duration, false)
+
+
+## Stop continuous following
+func stop_follow() -> void:
+	_follow_target = null
+	follow_mode = FollowMode.NONE
+
+
+## Internal: Called when shake completes
+func _on_shake_completed() -> void:
+	_is_shaking = false
+	offset = Vector2.ZERO
+	shake_completed.emit()
+	operation_completed.emit()

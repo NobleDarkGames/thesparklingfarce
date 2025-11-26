@@ -1,0 +1,64 @@
+## Camera follow command executor
+## Makes camera follow a target actor
+## Phase 3: Delegates to CameraController
+class_name CameraFollowExecutor
+extends CinematicCommandExecutor
+
+
+func execute(command: Dictionary, manager: Node) -> bool:
+	var target: String = command.get("target", "")
+	var params: Dictionary = command.get("params", {})
+	var should_wait: bool = params.get("wait", false)
+	var duration: float = params.get("duration", 0.5)
+	var continuous: bool = params.get("continuous", true)  ## Keep following until explicitly stopped
+
+	if not manager._active_camera:
+		push_warning("CameraFollowExecutor: No camera available")
+		return true  # Complete immediately
+
+	# Check if camera is CameraController (Phase 3 upgrade)
+	if not manager._active_camera is CameraController:
+		push_warning("CameraFollowExecutor: Camera is Camera2D, not CameraController. Follow skipped. Upgrade to CameraController for Phase 3 features.")
+		return true  # Skip follow, continue cinematic
+
+	var camera: CameraController = manager._active_camera as CameraController
+
+	var actor: CinematicActor = manager.get_actor(target)
+	if actor == null:
+		push_error("CameraFollowExecutor: Actor '%s' not found" % target)
+		return true  # Complete immediately on error
+
+	# Get actor's parent entity (the actual Node2D to follow)
+	var entity: Node2D = actor.parent_entity if actor.parent_entity else actor.get_parent() as Node2D
+	if not entity:
+		push_error("CameraFollowExecutor: Actor '%s' has no valid parent entity to follow" % target)
+		return true
+
+	if continuous:
+		# Enable continuous follow
+		var follow_speed: float = params.get("speed", 8.0)
+		camera.follow_actor(entity, follow_speed, duration)
+
+		# Connect to initial movement completion if waiting
+		if should_wait:
+			camera.movement_completed.connect(
+				func() -> void: manager._command_completed = true,
+				CONNECT_ONE_SHOT
+			)
+			return false  # Async - wait for initial movement
+
+		return true  # Sync - continue immediately
+	else:
+		# One-time move to actor position
+		camera.stop_follow()  # Ensure no continuous follow
+		camera.move_to_position(entity.global_position, duration, should_wait)
+
+		# Connect to completion signal if waiting
+		if should_wait:
+			camera.movement_completed.connect(
+				func() -> void: manager._command_completed = true,
+				CONNECT_ONE_SHOT
+			)
+			return false  # Async - wait for signal
+
+		return true  # Sync - continue immediately

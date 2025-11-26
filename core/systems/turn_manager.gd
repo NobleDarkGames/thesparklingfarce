@@ -36,6 +36,22 @@ var battle_active: bool = false
 var victory_condition: int = -1
 var defeat_condition: int = -1
 
+## Turn transition delay (allows camera pan, animations, stats panels to settle)
+## This delay occurs AFTER unit_turn_ended and BEFORE next unit's turn starts
+@export var turn_transition_delay: float = 0.6  # Slightly longer than camera movement_duration
+
+## Reference to camera for awaiting visual transitions
+var battle_camera: Camera2D = null
+
+## Timing tracking for debug
+var _timing_start_ms: int = 0
+
+
+## Get elapsed time since battle start (for debug timing)
+func _get_elapsed_time() -> String:
+	var elapsed_ms: int = Time.get_ticks_msec() - _timing_start_ms
+	return "[T+%.3fs]" % (elapsed_ms / 1000.0)
+
 
 ## Initialize battle with all units
 func start_battle(units: Array[Node2D]) -> void:
@@ -46,6 +62,7 @@ func start_battle(units: Array[Node2D]) -> void:
 	all_units = units
 	turn_number = 0
 	battle_active = true
+	_timing_start_ms = Time.get_ticks_msec()
 
 	print("\n=== Battle Started ===")
 	print("Total units: %d" % all_units.size())
@@ -139,18 +156,30 @@ func start_unit_turn(unit: Node2D) -> void:
 	active_unit = unit
 	unit.start_turn()
 
-	print("\n--- %s's Turn ---" % unit.get_display_name())
+	print("\n%s --- %s's Turn ---" % [_get_elapsed_time(), unit.get_display_name()])
 
 	if unit.is_player_unit():
 		# Player unit - wait for player input
+		print("%s Emitting player_turn_started signal" % _get_elapsed_time())
 		player_turn_started.emit(unit)
-		print("Waiting for player input...")
+		print("%s Waiting for player input..." % _get_elapsed_time())
 		# InputManager will handle from here
 	else:
-		# Enemy/AI unit - delegate to AIController
+		# Enemy/AI unit - emit signal and await visual setup completion
+		print("%s Emitting enemy_turn_started signal" % _get_elapsed_time())
 		enemy_turn_started.emit(unit)
-		print("Delegating to AIController...")
+		print("%s Enemy turn signal emitted, waiting for visual setup..." % _get_elapsed_time())
+
+		# Wait for camera pan to complete (signal handlers start the camera movement)
+		if battle_camera:
+			print("%s Awaiting camera.movement_completed..." % _get_elapsed_time())
+			await battle_camera.movement_completed
+			print("%s Camera pan complete, starting AI processing..." % _get_elapsed_time())
+
+		# Now delegate to AIController
+		print("%s Delegating to AIController..." % _get_elapsed_time())
 		await AIController.process_enemy_turn(unit)
+		print("%s AIController returned" % _get_elapsed_time())
 
 
 ## End the current unit's turn
@@ -159,10 +188,12 @@ func end_unit_turn(unit: Node2D) -> void:
 		push_warning("TurnManager: Trying to end turn for non-active unit")
 		return
 
-	print("%s's turn ended" % unit.get_display_name())
+	print("%s %s's turn ended" % [_get_elapsed_time(), unit.get_display_name()])
 
 	unit.end_turn()
+	print("%s Emitting unit_turn_ended signal" % _get_elapsed_time())
 	unit_turn_ended.emit(unit)
+	print("%s unit_turn_ended signal emitted" % _get_elapsed_time())
 
 	active_unit = null
 
@@ -175,13 +206,25 @@ func end_unit_turn(unit: Node2D) -> void:
 
 
 ## Advance to the next unit in queue
+## Now async to allow for turn transition delay
 func advance_to_next_unit() -> void:
+	print("%s advance_to_next_unit() called" % _get_elapsed_time())
+
+	# Add delay before starting next unit's turn
+	# This allows camera pans, animations, and UI updates to complete
+	if turn_transition_delay > 0:
+		print("%s Waiting %.1fs (turn_transition_delay)..." % [_get_elapsed_time(), turn_transition_delay])
+		await get_tree().create_timer(turn_transition_delay).timeout
+		print("%s Turn transition delay complete" % _get_elapsed_time())
+
 	if turn_queue.is_empty():
 		# Turn cycle complete, start new cycle
+		print("%s Turn queue empty, starting new cycle" % _get_elapsed_time())
 		start_new_turn_cycle()
 	else:
 		# Get next unit
 		var next_unit: Node2D = turn_queue.pop_front()
+		print("%s Starting next unit's turn: %s" % [_get_elapsed_time(), next_unit.get_display_name()])
 		start_unit_turn(next_unit)
 
 
