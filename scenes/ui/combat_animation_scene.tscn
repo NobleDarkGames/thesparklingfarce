@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://c1h3mjqko73yw"]
+[gd_scene load_steps=4 format=3 uid="uid://c1h3mjqko73yw"]
 
 [ext_resource type="Script" path="res://scenes/ui/combat_animation_scene.gd" id="1_combat_anim"]
 [ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
+[ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="3_monogram"]
 
 [node name="CombatAnimationScene" type="CanvasLayer"]
 layer = 100
@@ -36,6 +37,7 @@ alignment = 1
 
 [node name="NameLabel" type="Label" parent="CenterContainer/HBoxContainer/DefenderContainer"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_monogram")
 theme_override_font_sizes/font_size = 24
 text = "Defender"
 horizontal_alignment = 1
@@ -54,6 +56,7 @@ alignment = 1
 
 [node name="NameLabel" type="Label" parent="CenterContainer/HBoxContainer/AttackerContainer"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_monogram")
 theme_override_font_sizes/font_size = 24
 text = "Attacker"
 horizontal_alignment = 1
@@ -76,6 +79,7 @@ offset_right = 75.0
 offset_bottom = 40.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_fonts/font = ExtResource("3_monogram")
 theme_override_font_sizes/font_size = 64
 text = "99"
 horizontal_alignment = 1
@@ -93,6 +97,7 @@ offset_right = 150.0
 offset_bottom = -30.0
 grow_horizontal = 2
 grow_vertical = 0
+theme_override_fonts/font = ExtResource("3_monogram")
 theme_override_font_sizes/font_size = 32
 horizontal_alignment = 1
 vertical_alignment = 1

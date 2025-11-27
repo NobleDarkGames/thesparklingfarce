@@ -253,6 +253,7 @@ func _play_hit_animation(damage: int, defender: Node2D) -> void:
 ## Play critical hit animation (more dramatic)
 func _play_critical_animation(damage: int, defender: Node2D) -> void:
 	combat_log.text = "Critical Hit!"
+	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.YELLOW)
 
 	var attacker_start_pos: Vector2 = attacker_sprite.position
@@ -284,6 +285,7 @@ func _play_critical_animation(damage: int, defender: Node2D) -> void:
 ## Play miss animation
 func _play_miss_animation() -> void:
 	combat_log.text = "Miss!"
+	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.GRAY)
 
 	var attacker_start_pos: Vector2 = attacker_sprite.position
@@ -301,6 +303,7 @@ func _play_miss_animation() -> void:
 
 	# Show "MISS" text
 	damage_label.text = "MISS"
+	damage_label.add_theme_font_override("font", monogram_font)
 	damage_label.add_theme_color_override("font_color", Color.GRAY)
 	damage_label.visible = true
 	damage_label.modulate.a = 1.0
@@ -322,6 +325,7 @@ func _play_miss_animation() -> void:
 ## Show damage number with float animation
 func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.text = str(damage)
+	damage_label.add_theme_font_override("font", monogram_font)
 	damage_label.add_theme_font_size_override("font_size", 48 if is_critical else 32)
 	damage_label.add_theme_color_override("font_color", Color.YELLOW if is_critical else Color.WHITE)
 	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
