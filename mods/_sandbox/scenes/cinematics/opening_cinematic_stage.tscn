@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://sandbox_opening_cinematic"]
+[gd_scene load_steps=8 format=3 uid="uid://sandbox_opening_cinematic"]
 
 [ext_resource type="Script" path="res://mods/_sandbox/scenes/cinematics/opening_cinematic_stage.gd" id="1_stage_script"]
 [ext_resource type="Script" path="res://core/components/cinematic_actor.gd" id="2_cinematic_actor"]
 [ext_resource type="PackedScene" uid="uid://dialog_box_scene" path="res://scenes/ui/dialog_box.tscn" id="3_dialog_box"]
 [ext_resource type="Script" path="res://core/systems/camera_controller.gd" id="4_camera_controller"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/spade.png" id="5_spade_sprite"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/henchman.png" id="6_henchman_sprite"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_spade"]
 size = Vector2(28, 28)
@@ -89,19 +91,10 @@ actor_id = "artifact"
 [node name="SpadeActor" type="CharacterBody2D" parent="." groups=["cinematic_actors"]]
 position = Vector2(288, 420)
 
-[node name="Visual" type="ColorRect" parent="SpadeActor"]
-offset_left = -14.0
-offset_top = -28.0
-offset_right = 14.0
-offset_bottom = 0.0
-color = Color(0.2, 0.25, 0.45, 1)
-
-[node name="Head" type="ColorRect" parent="SpadeActor"]
-offset_left = -8.0
-offset_top = -36.0
-offset_right = 8.0
-offset_bottom = -28.0
-color = Color(0.85, 0.75, 0.65, 1)
+[node name="Sprite" type="Sprite2D" parent="SpadeActor"]
+position = Vector2(0, -16)
+texture = ExtResource("5_spade_sprite")
+texture_filter = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SpadeActor"]
 position = Vector2(0, -14)
@@ -115,19 +108,10 @@ default_speed = 3.0
 [node name="HenchmanActor" type="CharacterBody2D" parent="." groups=["cinematic_actors"]]
 position = Vector2(352, 420)
 
-[node name="Visual" type="ColorRect" parent="HenchmanActor"]
-offset_left = -16.0
-offset_top = -32.0
-offset_right = 16.0
-offset_bottom = 0.0
-color = Color(0.4, 0.35, 0.25, 1)
-
-[node name="Head" type="ColorRect" parent="HenchmanActor"]
-offset_left = -10.0
-offset_top = -42.0
-offset_right = 10.0
-offset_bottom = -32.0
-color = Color(0.8, 0.7, 0.6, 1)
+[node name="Sprite" type="Sprite2D" parent="HenchmanActor"]
+position = Vector2(0, -16)
+texture = ExtResource("6_henchman_sprite")
+texture_filter = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HenchmanActor"]
 position = Vector2(0, -16)

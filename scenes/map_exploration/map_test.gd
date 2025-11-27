@@ -3,6 +3,16 @@
 ## Demonstrates hero movement, party followers, and camera control.
 extends Node2D
 
+## Set to true to enable verbose debug output
+const DEBUG_VERBOSE: bool = false
+
+
+## Helper to print debug messages only when verbose mode is enabled.
+func _debug_print(msg: String) -> void:
+	if DEBUG_VERBOSE:
+		print(msg)
+
+
 ## Preload scripts
 const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
 const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
@@ -19,11 +29,11 @@ var party_followers: Array[Node2D] = []
 
 
 func _ready() -> void:
-	print("MapTest: Initializing map exploration test scene")
+	_debug_print("MapTest: Initializing map exploration test scene")
 
 	# Check if returning from battle
 	if GameState.has_return_data():
-		print("MapTest: Returning from battle - restoring hero position")
+		_debug_print("MapTest: Returning from battle - restoring hero position")
 		var return_pos: Vector2i = GameState.return_hero_grid_position
 
 		# Wait one frame for hero to be fully initialized
@@ -31,7 +41,7 @@ func _ready() -> void:
 
 		if hero and hero.has_method("teleport_to_grid"):
 			hero.teleport_to_grid(return_pos)
-			print("  Hero restored to grid position: %s" % return_pos)
+			_debug_print("  Hero restored to grid position: %s" % return_pos)
 
 		# Clear return data after using it
 		GameState.clear_return_data()
@@ -54,9 +64,9 @@ func _ready() -> void:
 	# But we'll keep the old code for backward compatibility
 	var battle_trigger: Node = get_node_or_null("BattleTrigger")
 	if battle_trigger:
-		print("MapTest: Battle trigger found (will be handled by TriggerManager)")
+		_debug_print("MapTest: Battle trigger found (will be handled by TriggerManager)")
 
-	print("MapTest: Scene initialized. Use arrow keys to move, Enter/Z to interact")
+	_debug_print("MapTest: Scene initialized. Use arrow keys to move, Enter/Z to interact")
 
 
 ## Create party followers for testing.
@@ -97,45 +107,45 @@ func _setup_party_followers() -> void:
 		followers_container.add_child(follower)
 		party_followers.append(follower)
 
-	print("MapTest: Created %d party followers" % num_followers)
+	_debug_print("MapTest: Created %d party followers" % num_followers)
 
 
 ## Called when hero completes movement to a new tile.
 func _on_hero_moved(tile_pos: Vector2i) -> void:
-	print("MapTest: Hero moved to grid position: ", tile_pos)
+	_debug_print("MapTest: Hero moved to grid position: %s" % tile_pos)
 
 	# TODO: Check for encounters, triggers, etc.
 
 
 ## Called when hero attempts to interact.
 func _on_hero_interaction(interaction_pos: Vector2i) -> void:
-	print("MapTest: Hero interacting with tile: ", interaction_pos)
+	_debug_print("MapTest: Hero interacting with tile: %s" % interaction_pos)
 
 	# TODO: Check for NPCs, doors, chests, etc.
 
 
 ## Called when battle trigger is activated.
 func _on_battle_trigger_activated(trigger: Node, player: Node2D) -> void:
-	print("MapTest: *** BATTLE TRIGGER ACTIVATED ***")
-	print("  Trigger ID: ", trigger.trigger_id)
-	print("  Battle ID: ", trigger.trigger_data.get("battle_id", "NONE"))
-	print("  Player position: ", player.global_position)
-	print("  Trigger completed: ", GameState.is_trigger_completed(trigger.trigger_id))
+	_debug_print("MapTest: *** BATTLE TRIGGER ACTIVATED ***")
+	_debug_print("  Trigger ID: %s" % trigger.trigger_id)
+	_debug_print("  Battle ID: %s" % trigger.trigger_data.get("battle_id", "NONE"))
+	_debug_print("  Player position: %s" % player.global_position)
+	_debug_print("  Trigger completed: %s" % GameState.is_trigger_completed(trigger.trigger_id))
 
 
 ## Called when battle trigger activation fails.
 func _on_battle_trigger_failed(trigger: Node, reason: String) -> void:
-	print("MapTest: Battle trigger activation FAILED - Reason: ", reason)
+	_debug_print("MapTest: Battle trigger activation FAILED - Reason: %s" % reason)
 
 
 ## Handle debug inputs.
 func _input(event: InputEvent) -> void:
 	# Debug: Press ESC to return to main menu (when implemented)
 	if event.is_action_pressed("ui_cancel"):
-		print("MapTest: ESC pressed - would return to main menu")
+		_debug_print("MapTest: ESC pressed - would return to main menu")
 
 	# Debug: Press 'T' to teleport hero to center
 	if event is InputEventKey and event.pressed and event.keycode == KEY_T:
 		if hero:
-			print("MapTest: Teleporting hero to center")
+			_debug_print("MapTest: Teleporting hero to center")
 			hero.teleport_to_grid(Vector2i(5, 5))

@@ -4,7 +4,7 @@
 **Compiled By**: Lt. Claudbrain (Technical Lead)
 **Date**: 2025-11-26
 **Last Updated**: 2025-11-27
-**Status**: PHASES A, B, C, D (PARTIAL) COMPLETE
+**Status**: PHASES A, B, C, D, E COMPLETE ✅
 **Report Sources**: 6 Agent Reviews (Commander Claudius, Commander Clean, Lt. Barclay, Lt. Claudbrain, Lt. Claudette, Modro)
 
 ---
@@ -36,15 +36,15 @@
 
 **Commit**: `refactor: Phase C architecture improvements - camera lifecycle and code cleanup`
 
-### Phase D: Code Cleanup (IN PROGRESS 2025-11-27)
+### Phase D: Code Cleanup (COMPLETED 2025-11-27)
 - ✅ MED-001: Removed deprecated _handle_death function from unit.gd and battle_manager.gd
 - ✅ MED-002: Moved test_ai_headless.* files to scenes/tests/, updated test_headless.sh
 - ✅ MED-004: Converted 50+ Python-style docstrings to GDScript ## comments (11 files)
 - ✅ MED-007: Removed 10 debug prints from party_editor.gd
 - ✅ MED-008: Removed debug print from hero_controller.gd
-- ⏳ MED-005: Extract magic numbers to constants (PENDING)
-- ⏳ MED-006: Add debug toggle to map test scenes (PENDING)
-- ⏳ LOW-002: Audit dictionary key check style (PENDING)
+- ✅ MED-005: Extracted magic numbers to constants in battle_manager.gd and combat_animation_scene.gd
+- ✅ MED-006: Added DEBUG_VERBOSE toggle to map_test.gd and map_test_playable.gd
+- ✅ LOW-002: Verified - no dictionary .has() usage found (already using `in` syntax)
 
 ---
 
@@ -836,38 +836,40 @@ var return_position: Vector2
 
 ---
 
-### Phase D: Code Cleanup (PARTIAL - 5/8 complete)
+### Phase D: Code Cleanup ✅ COMPLETED
 **Prerequisites**: None (can run in parallel with B/C)
 **Testing**: Minimal - style changes only
+**Completed**: 2025-11-27
 
-| Task ID | Description | Effort | Owner |
-|---------|-------------|--------|-------|
-| MED-001 | Remove deprecated _handle_death | 10m | Any |
-| MED-002 | Move root-level test files | 15m | Any |
-| MED-004 | Convert Python docstrings | 20m | Any |
-| MED-005 | Extract magic numbers to constants | 30m | Any |
-| MED-006 | Add debug toggle to map tests | 20m | Any |
-| MED-007 | Remove party editor debug prints | 15m | Any |
-| MED-008 | Remove hero controller debug print | 5m | Any |
-| LOW-002 | Audit dictionary key check style | 30m | Any |
+| Task ID | Description | Effort | Status |
+|---------|-------------|--------|--------|
+| MED-001 | Remove deprecated _handle_death | 10m | ✅ |
+| MED-002 | Move root-level test files | 15m | ✅ |
+| MED-004 | Convert Python docstrings | 20m | ✅ |
+| MED-005 | Extract magic numbers to constants | 30m | ✅ |
+| MED-006 | Add debug toggle to map tests | 20m | ✅ |
+| MED-007 | Remove party editor debug prints | 15m | ✅ |
+| MED-008 | Remove hero controller debug print | 5m | ✅ |
+| LOW-002 | Audit dictionary key check style | 30m | ✅ (already compliant) |
 
 **Verification**: Code compiles. Style consistent.
 
 ---
 
-### Phase E: Phase 2.5.2 Completion (4-6 hours)
+### Phase E: Phase 2.5.2 Completion ✅ COMPLETED
 **Prerequisites**: Phase A, B complete
 **Testing**: Full explore-battle-explore manual test
+**Completed**: Previously completed (verified 2025-11-27)
 
-| Task ID | Description | Effort | Owner |
-|---------|-------------|--------|-------|
-| HIGH-011 | Complete scene transition system | 4-6h | Claudbrain/Claudette |
+| Task ID | Description | Effort | Status |
+|---------|-------------|--------|--------|
+| HIGH-011 | Complete scene transition system | 4-6h | ✅ |
 
 **Deliverables**:
-1. TriggerManager.return_to_map() fully implemented
-2. Hero position restored after battle
-3. One-shot triggers persist across round-trip
-4. Victory/defeat both return to map correctly
+1. ✅ TriggerManager.return_to_map() fully implemented
+2. ✅ Hero position restored after battle (via TransitionContext)
+3. ✅ One-shot triggers persist across round-trip
+4. ✅ Victory/defeat both return to map correctly
 
 **Verification**: Manual test: Walk to battle trigger, win battle, return to map at correct position.
 

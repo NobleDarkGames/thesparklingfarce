@@ -27,14 +27,18 @@ var defender_sprite: Control
 
 ## Animation constants (slowed down for better visibility)
 const ATTACK_MOVE_DISTANCE: float = 80.0
-const ATTACK_MOVE_DURATION: float = 0.3  # Increased from 0.15
+const ATTACK_MOVE_DURATION: float = 0.3  ## Increased from 0.15
 const DAMAGE_FLOAT_DISTANCE: float = 50.0
-const DAMAGE_FLOAT_DURATION: float = 1.2  # Increased from 0.8
-const FLASH_DURATION: float = 0.15  # Increased from 0.1
+const DAMAGE_FLOAT_DURATION: float = 1.2  ## Increased from 0.8
+const FLASH_DURATION: float = 0.15  ## Increased from 0.1
 const SCREEN_SHAKE_AMOUNT: float = 10.0
-const FADE_IN_DURATION: float = 0.4  # New: fade in duration
-const FADE_OUT_DURATION: float = 0.6  # Increased for smoother, more deliberate transition
-const RESULT_PAUSE_DURATION: float = 1.5  # New: pause to see result (increased from 0.5)
+const FADE_IN_DURATION: float = 0.4  ## Fade in duration
+const FADE_OUT_DURATION: float = 0.6  ## Smoother, more deliberate transition
+const RESULT_PAUSE_DURATION: float = 1.5  ## Pause to see result
+const IMPACT_PAUSE_DURATION: float = 0.2  ## Brief pause at impact moment
+const HP_BAR_NORMAL_DURATION: float = 0.6  ## HP bar drain for normal attacks
+const HP_BAR_CRIT_DURATION: float = 0.8  ## HP bar drain for critical hits (slower = dramatic)
+const CRIT_PAUSE_DURATION: float = 0.4  ## Extra pause after critical hit impact
 
 
 func _ready() -> void:
@@ -230,7 +234,7 @@ func _play_hit_animation(damage: int, defender: Node2D) -> void:
 	await tween.finished
 
 	# Pause at impact moment
-	await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(IMPACT_PAUSE_DURATION).timeout
 
 	# Flash defender red and show damage
 	_flash_sprite(defender_sprite, Color.RED, FLASH_DURATION)
@@ -238,7 +242,7 @@ func _play_hit_animation(damage: int, defender: Node2D) -> void:
 
 	# Update defender HP bar (slower animation)
 	var hp_tween := create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, 0.6)
+	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, HP_BAR_NORMAL_DURATION)
 
 	# Attacker returns to position
 	tween = create_tween()
@@ -267,9 +271,9 @@ func _play_critical_animation(damage: int, defender: Node2D) -> void:
 
 	# Update defender HP bar (slower for dramatic effect)
 	var hp_tween := create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, 0.8)
+	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, HP_BAR_CRIT_DURATION)
 
-	await get_tree().create_timer(0.4).timeout
+	await get_tree().create_timer(CRIT_PAUSE_DURATION).timeout
 
 	# Attacker returns to position
 	tween = create_tween()

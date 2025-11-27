@@ -41,6 +41,11 @@ const UNIT_SCENE: PackedScene = preload("res://scenes/unit.tscn")
 ## Combat animation scene (preload for combat displays)
 const COMBAT_ANIM_SCENE: PackedScene = preload("res://scenes/ui/combat_animation_scene.tscn")
 
+## Timing constants for battle pacing (Shining Force-style)
+const BATTLEFIELD_SETTLE_DELAY: float = 1.2  ## Pause after combat to let player read results
+const RETURN_TO_MAP_DELAY: float = 2.0  ## Pause before transitioning back to map
+const DEATH_FADE_DURATION: float = 0.5  ## How long unit fade-out takes on death
+
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
 
@@ -527,8 +532,8 @@ func _show_combat_animation(
 	# Battlefield "settle" period - give player time to see the result before next action
 	# This visual breathing room is critical for Shining Force-style pacing
 	# Camera lingers on the acting unit so player can read damage/results text
-	print("%s Starting battlefield settle delay (1.2s)..." % TurnManager._get_elapsed_time())
-	await get_tree().create_timer(1.2).timeout
+	print("%s Starting battlefield settle delay (%.1fs)..." % [TurnManager._get_elapsed_time(), BATTLEFIELD_SETTLE_DELAY])
+	await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
 	print("%s Battlefield settle complete" % TurnManager._get_elapsed_time())
 
 
@@ -539,7 +544,7 @@ func _on_unit_died(unit: Node2D) -> void:
 	# Visual feedback (fade out)
 	if "modulate" in unit:
 		var tween: Tween = create_tween()
-		tween.tween_property(unit, "modulate:a", 0.0, 0.5)
+		tween.tween_property(unit, "modulate:a", 0.0, DEATH_FADE_DURATION)
 		await tween.finished
 
 	# Unit stays in scene but is marked dead
@@ -595,7 +600,7 @@ func _on_battle_ended(victory: bool) -> void:
 
 		print("BattleManager: Returning to map...")
 		# Small delay to let players see the victory/defeat message
-		await get_tree().create_timer(2.0).timeout
+		await get_tree().create_timer(RETURN_TO_MAP_DELAY).timeout
 		TriggerManager.return_to_map()
 	else:
 		print("BattleManager: No return data - staying in battle scene")

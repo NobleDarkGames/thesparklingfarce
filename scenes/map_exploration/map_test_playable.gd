@@ -3,6 +3,16 @@
 ## This scene loads your party and lets you explore a test map
 extends Node2D
 
+## Set to true to enable verbose debug output
+const DEBUG_VERBOSE: bool = false
+
+
+## Helper to print debug messages only when verbose mode is enabled.
+func _debug_print(msg: String) -> void:
+	if DEBUG_VERBOSE:
+		print(msg)
+
+
 const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
 const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
 const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
@@ -17,9 +27,9 @@ var party_characters: Array[CharacterData] = []
 
 
 func _ready() -> void:
-	print("===========================================")
-	print("MAP EXPLORATION - PLAYABLE TEST")
-	print("===========================================")
+	_debug_print("===========================================")
+	_debug_print("MAP EXPLORATION - PLAYABLE TEST")
+	_debug_print("===========================================")
 
 	# Check if returning from battle - restore hero position if so
 	var returning_from_battle: bool = GameState.has_return_data()
@@ -31,7 +41,7 @@ func _ready() -> void:
 		if context:
 			saved_position = context.hero_world_position
 			battle_outcome = context.battle_outcome
-			print("Returning from battle at position: %s (outcome: %d)" % [saved_position, battle_outcome])
+			_debug_print("Returning from battle at position: %s (outcome: %d)" % [saved_position, battle_outcome])
 
 	# Load party from PartyManager or create test party
 	_load_party()
@@ -52,37 +62,37 @@ func _ready() -> void:
 	if returning_from_battle and saved_position != Vector2.ZERO:
 		_restore_from_battle(saved_position)
 
-	print("\n===========================================")
-	print("CONTROLS:")
-	print("  Arrow Keys - Move hero")
-	print("  Enter/Z - Interact")
-	print("  Walk into RED SQUARE to trigger battle")
-	print("  ESC - Quit test")
-	print("===========================================\n")
+	_debug_print("\n===========================================")
+	_debug_print("CONTROLS:")
+	_debug_print("  Arrow Keys - Move hero")
+	_debug_print("  Enter/Z - Interact")
+	_debug_print("  Walk into RED SQUARE to trigger battle")
+	_debug_print("  ESC - Quit test")
+	_debug_print("===========================================\n")
 
 
 ## Load party members from PartyManager or create test party.
 func _load_party() -> void:
-	print("\n[Loading Party]")
+	_debug_print("\n[Loading Party]")
 
 	# Try to load from PartyManager
 	if PartyManager and PartyManager.party_members.size() > 0:
 		party_characters = PartyManager.party_members.duplicate()
-		print("✅ Loaded %d characters from PartyManager" % party_characters.size())
+		_debug_print("✅ Loaded %d characters from PartyManager" % party_characters.size())
 		for character in party_characters:
 			if character:
 				var class_name_str: String = character.character_class.display_name if character.character_class else "Unknown"
-				print("  - %s (%s)" % [character.character_name, class_name_str])
+				_debug_print("  - %s (%s)" % [character.character_name, class_name_str])
 	else:
 		# Load test characters from mod registry and add to PartyManager
-		print("⚠️  PartyManager empty, loading test party from ModRegistry...")
+		_debug_print("⚠️  PartyManager empty, loading test party from ModRegistry...")
 
 		# Load hero from sandbox mod (Mr Big Hero Face)
 		var hero_char: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
 		if hero_char:
 			party_characters.append(hero_char)
 			PartyManager.add_member(hero_char)
-			print("  - Loaded %s (Hero)" % hero_char.character_name)
+			_debug_print("  - Loaded %s (Hero)" % hero_char.character_name)
 
 		# Try to load some other characters for followers (only those with valid classes)
 		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
@@ -90,13 +100,13 @@ func _load_party() -> void:
 			if char_data != hero_char and party_characters.size() < 4:
 				# Skip characters without a class assigned
 				if not char_data.character_class:
-					print("  - Skipping %s (no class assigned)" % char_data.character_name)
+					_debug_print("  - Skipping %s (no class assigned)" % char_data.character_name)
 					continue
 				party_characters.append(char_data)
 				PartyManager.add_member(char_data)
-				print("  - Loaded %s (%s)" % [char_data.character_name, char_data.character_class.display_name])
+				_debug_print("  - Loaded %s (%s)" % [char_data.character_name, char_data.character_class.display_name])
 
-		print("✅ Added %d characters to PartyManager for battle" % party_characters.size())
+		_debug_print("✅ Added %d characters to PartyManager for battle" % party_characters.size())
 
 		if party_characters.size() == 0:
 			push_error("No characters found! Cannot create party.")
@@ -105,7 +115,7 @@ func _load_party() -> void:
 
 ## Create the hero controller from the first party member.
 func _create_hero() -> void:
-	print("\n[Creating Hero]")
+	_debug_print("\n[Creating Hero]")
 
 	if party_characters.size() == 0:
 		push_error("No party members available!")
@@ -159,12 +169,12 @@ func _create_hero() -> void:
 
 	add_child(hero)
 
-	print("✅ Hero created: %s" % hero_data.character_name)
+	_debug_print("✅ Hero created: %s" % hero_data.character_name)
 
 
 ## Create party followers from remaining party members.
 func _create_followers() -> void:
-	print("\n[Creating Followers]")
+	_debug_print("\n[Creating Followers]")
 
 	# Skip first member (that's the hero)
 	for i in range(1, party_characters.size()):
@@ -215,14 +225,14 @@ func _create_followers() -> void:
 		add_child(follower)
 		followers.append(follower)
 
-		print("✅ Follower created: %s" % char_data.character_name)
+		_debug_print("✅ Follower created: %s" % char_data.character_name)
 
-	print("Total followers: %d" % followers.size())
+	_debug_print("Total followers: %d" % followers.size())
 
 
 ## Setup camera to follow the hero.
 func _setup_camera() -> void:
-	print("\n[Setting up Camera]")
+	_debug_print("\n[Setting up Camera]")
 
 	camera = Camera2D.new()
 	camera.set_script(MapCameraScript)
@@ -235,12 +245,12 @@ func _setup_camera() -> void:
 		camera.call("set_follow_target", hero)
 		camera.call("snap_to_target")
 
-	print("✅ Camera created and following hero")
+	_debug_print("✅ Camera created and following hero")
 
 
 ## Restore hero and party after returning from battle.
 func _restore_from_battle(saved_position: Vector2) -> void:
-	print("\n[Restoring from Battle]")
+	_debug_print("\n[Restoring from Battle]")
 
 	if not hero:
 		push_error("Cannot restore - hero not created!")
@@ -262,23 +272,23 @@ func _restore_from_battle(saved_position: Vector2) -> void:
 		position_history.append(saved_position)
 	hero.set("position_history", position_history)
 
-	print("✅ Hero restored to position: %s (grid: %s)" % [saved_position, grid_pos])
+	_debug_print("✅ Hero restored to position: %s (grid: %s)" % [saved_position, grid_pos])
 
 	# Snap camera to restored position
 	if camera:
 		camera.position = saved_position
 		if camera.has_method("snap_to_target"):
 			camera.call("snap_to_target")
-		print("✅ Camera snapped to hero")
+		_debug_print("✅ Camera snapped to hero")
 
 	# Clear transition context - we've used it
 	GameState.clear_transition_context()
-	print("✅ Transition context cleared")
+	_debug_print("✅ Transition context cleared")
 
 
 ## Create a battle trigger for testing the explore-battle-explore loop.
 func _create_battle_trigger() -> void:
-	print("\n[Creating Battle Trigger]")
+	_debug_print("\n[Creating Battle Trigger]")
 
 	# Create the trigger area
 	var trigger: Area2D = Area2D.new()
@@ -319,18 +329,18 @@ func _create_battle_trigger() -> void:
 	if trigger.has_signal("triggered"):
 		trigger.triggered.connect(TriggerManager._on_trigger_activated)
 
-	print("✅ Battle trigger created at (480, 180)")
-	print("   Walk into the red square to start battle")
+	_debug_print("✅ Battle trigger created at (480, 180)")
+	_debug_print("   Walk into the red square to start battle")
 
 
 ## Handle test scene controls.
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_ESCAPE:
-			print("\n[ESC] Exiting map exploration test...")
+			_debug_print("\n[ESC] Exiting map exploration test...")
 			get_tree().quit()
 		elif event.keycode == KEY_F1:
-			# Debug: Show positions
+			# Debug: Show positions (always print these - explicit debug request)
 			print("\n--- Debug Info ---")
 			if hero:
 				print("Hero position: %s" % hero.position)
