@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://dialog_box_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://dialog_box_scene"]
 
 [ext_resource type="Script" path="res://scenes/ui/dialog_box.gd" id="1_dialog_box"]
 [ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
@@ -18,6 +18,11 @@ tracks/0/keys = {
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 0,
 "values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0.3), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_main"]
+_data = {
+"blink": SubResource("Animation_blink")
 }
 
 [node name="DialogBox" type="Control"]
@@ -109,5 +114,5 @@ text = "▼"
 
 [node name="BlinkAnimation" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("Animation_blink")
+"": SubResource("AnimationLibrary_main")
 }

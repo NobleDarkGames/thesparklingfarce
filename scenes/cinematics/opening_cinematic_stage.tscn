@@ -1,0 +1,141 @@
+[gd_scene load_steps=5 format=3 uid="uid://opening_cinematic_stage"]
+
+[ext_resource type="Script" path="res://scenes/cinematics/opening_cinematic_stage.gd" id="1_stage_script"]
+[ext_resource type="Script" path="res://core/components/cinematic_actor.gd" id="2_cinematic_actor"]
+[ext_resource type="PackedScene" uid="uid://dialog_box_scene" path="res://scenes/ui/dialog_box.tscn" id="3_dialog_box"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_spade"]
+size = Vector2(28, 28)
+
+[node name="OpeningCinematicStage" type="Node2D"]
+script = ExtResource("1_stage_script")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 640.0
+offset_bottom = 360.0
+color = Color(0.05, 0.04, 0.08, 1)
+
+[node name="TempleWalls" type="ColorRect" parent="."]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 640.0
+offset_bottom = 200.0
+color = Color(0.12, 0.1, 0.15, 1)
+
+[node name="TempleFloor" type="ColorRect" parent="."]
+offset_left = 0.0
+offset_top = 200.0
+offset_right = 640.0
+offset_bottom = 360.0
+color = Color(0.18, 0.15, 0.12, 1)
+
+[node name="LeftPillar" type="ColorRect" parent="."]
+offset_left = 80.0
+offset_top = 80.0
+offset_right = 120.0
+offset_bottom = 280.0
+color = Color(0.25, 0.22, 0.2, 1)
+
+[node name="RightPillar" type="ColorRect" parent="."]
+offset_left = 520.0
+offset_top = 80.0
+offset_right = 560.0
+offset_bottom = 280.0
+color = Color(0.25, 0.22, 0.2, 1)
+
+[node name="Pedestal" type="ColorRect" parent="."]
+offset_left = 288.0
+offset_top = 140.0
+offset_right = 352.0
+offset_bottom = 200.0
+color = Color(0.3, 0.28, 0.25, 1)
+
+[node name="PrismaticShard" type="ColorRect" parent="Pedestal"]
+offset_left = 20.0
+offset_top = -24.0
+offset_right = 44.0
+offset_bottom = 0.0
+color = Color(0.5, 0.8, 1.0, 1)
+
+[node name="ShardGlow" type="ColorRect" parent="Pedestal/PrismaticShard"]
+offset_left = -4.0
+offset_top = -4.0
+offset_right = 28.0
+offset_bottom = 28.0
+color = Color(0.4, 0.7, 1.0, 0.3)
+
+[node name="LeftStatue" type="ColorRect" parent="."]
+offset_left = 160.0
+offset_top = 120.0
+offset_right = 200.0
+offset_bottom = 200.0
+color = Color(0.35, 0.32, 0.3, 1)
+
+[node name="RightStatue" type="ColorRect" parent="."]
+offset_left = 440.0
+offset_top = 120.0
+offset_right = 480.0
+offset_bottom = 200.0
+color = Color(0.35, 0.32, 0.3, 1)
+
+[node name="SpadeActor" type="CharacterBody2D" parent="." groups=["cinematic_actors"]]
+position = Vector2(320, 240)
+
+[node name="Visual" type="ColorRect" parent="SpadeActor"]
+offset_left = -14.0
+offset_top = -28.0
+offset_right = 14.0
+offset_bottom = 0.0
+color = Color(0.2, 0.25, 0.45, 1)
+
+[node name="Head" type="ColorRect" parent="SpadeActor"]
+offset_left = -8.0
+offset_top = -36.0
+offset_right = 8.0
+offset_bottom = -28.0
+color = Color(0.85, 0.75, 0.65, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SpadeActor"]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_spade")
+
+[node name="CinematicActor" type="Node" parent="SpadeActor"]
+script = ExtResource("2_cinematic_actor")
+actor_id = "spade"
+default_speed = 3.0
+
+[node name="HenchmanActor" type="CharacterBody2D" parent="." groups=["cinematic_actors"]]
+position = Vector2(420, 250)
+
+[node name="Visual" type="ColorRect" parent="HenchmanActor"]
+offset_left = -16.0
+offset_top = -32.0
+offset_right = 16.0
+offset_bottom = 0.0
+color = Color(0.4, 0.35, 0.25, 1)
+
+[node name="Head" type="ColorRect" parent="HenchmanActor"]
+offset_left = -10.0
+offset_top = -42.0
+offset_right = 10.0
+offset_bottom = -32.0
+color = Color(0.8, 0.7, 0.6, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HenchmanActor"]
+position = Vector2(0, -16)
+shape = SubResource("RectangleShape2D_spade")
+
+[node name="CinematicActor" type="Node" parent="HenchmanActor"]
+script = ExtResource("2_cinematic_actor")
+actor_id = "henchman"
+default_speed = 2.5
+
+[node name="CinematicCamera" type="Camera2D" parent="."]
+position = Vector2(320, 180)
+enabled = true
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="DialogBox" parent="UILayer" instance=ExtResource("3_dialog_box")]
+visible = false

@@ -8,7 +8,7 @@ signal scene_transition_started(from_scene: String, to_scene: String)
 signal scene_transition_completed(scene: String)
 
 # Scene paths
-const OPENING_CINEMATIC: String = "res://scenes/ui/opening_cinematic.tscn"
+const OPENING_CINEMATIC: String = "res://scenes/cinematics/opening_cinematic_stage.tscn"
 const MAIN_MENU: String = "res://scenes/ui/main_menu.tscn"
 const SAVE_SLOT_SELECTOR: String = "res://scenes/ui/save_slot_selector.tscn"
 const BATTLE_LOADER: String = "res://mods/_sandbox/scenes/sandbox_battle_test.tscn"

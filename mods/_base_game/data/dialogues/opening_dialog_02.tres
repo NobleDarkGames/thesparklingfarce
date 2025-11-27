@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/dialogue_data.gd" id="1_dialogue_data"]
+
+[resource]
+script = ExtResource("1_dialogue_data")
+dialogue_id = "opening_dialog_02"
+dialogue_title = "Opening - The Warning"
+lines = Array[Dictionary]([{
+"emotion": "worried",
+"speaker_name": "Henchman",
+"text": "But the old guy in town said bad things happen to folks who mess with this stuff..."
+}, {
+"emotion": "happy",
+"speaker_name": "Spade",
+"text": "The 'old guy' also thought I was a traveling minstrel. Not exactly a reliable source."
+}])
+choices = Array[Dictionary]([])
+box_position = 0
