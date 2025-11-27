@@ -98,17 +98,19 @@ func move_toward_target(unit: Node2D, target_position: Vector2i) -> bool:
 	var movement_type: int = unit.character_data.character_class.movement_type
 
 	# Find path to target (NOTE: target position is likely occupied)
+	# Pass unit faction to allow passing through allies
 	var path: Array[Vector2i] = GridManager.find_path(
 		unit.grid_position,
 		target_position,
-		movement_type
+		movement_type,
+		unit.faction
 	)
 
 	# If direct path fails (target occupied), find path to nearest adjacent cell
 	if path.is_empty():
 		var best_adjacent: Vector2i = _find_best_adjacent_cell(unit.grid_position, target_position, movement_type)
 		if best_adjacent != Vector2i(-1, -1):
-			path = GridManager.find_path(unit.grid_position, best_adjacent, movement_type)
+			path = GridManager.find_path(unit.grid_position, best_adjacent, movement_type, unit.faction)
 
 	if path.is_empty():
 		return false

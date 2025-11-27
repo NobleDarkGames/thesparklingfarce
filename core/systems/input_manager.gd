@@ -163,7 +163,8 @@ func start_player_turn(unit: Node2D) -> void:
 	walkable_cells = GridManager.get_walkable_cells(
 		movement_start_position,
 		movement_range,
-		movement_type
+		movement_type,
+		unit.faction
 	)
 
 	# AUTHENTIC SHINING FORCE: Start in movement mode immediately (cursor on unit)
@@ -486,7 +487,8 @@ func _try_move_to_cell(target_cell: Vector2i) -> void:
 		var path: Array[Vector2i] = GridManager.find_path(
 			active_unit.grid_position,
 			target_cell,
-			movement_type
+			movement_type,
+			active_unit.faction
 		)
 
 		# Move along the path (animates through each cell)
@@ -584,15 +586,24 @@ func _show_movement_range() -> void:
 	var movement_range: int = active_unit.character_data.character_class.movement_range
 	var movement_type: int = active_unit.character_data.character_class.movement_type
 
-	GridManager.show_movement_range(unit_cell, movement_range, movement_type)
+	GridManager.show_movement_range(unit_cell, movement_range, movement_type, active_unit.faction)
 
 
 ## Move cursor by offset and update visuals (movement mode - clamped to walkable)
 func _move_cursor(offset: Vector2i) -> void:
 	var new_pos: Vector2i = current_cursor_position + offset
 
-	# Clamp to walkable cells only
-	if new_pos not in walkable_cells:
+	# Check if position is valid for cursor (can pass through allies for planning)
+	var is_walkable: bool = new_pos in walkable_cells
+	var is_ally_cell: bool = false
+
+	# Allow cursor to pass through allied units (same faction as active unit)
+	if not is_walkable and active_unit:
+		var unit_at_pos: Node = GridManager.get_unit_at_cell(new_pos)
+		if unit_at_pos and unit_at_pos.faction == active_unit.faction:
+			is_ally_cell = true
+
+	if not is_walkable and not is_ally_cell:
 		print("InputManager: Cursor cannot move to %s (not walkable)" % new_pos)
 		return
 
@@ -667,7 +678,8 @@ func _update_path_preview() -> void:
 		current_path = GridManager.find_path(
 			active_unit.grid_position,
 			current_cursor_position,
-			active_unit.character_data.character_class.movement_type
+			active_unit.character_data.character_class.movement_type,
+			active_unit.faction
 		)
 
 		# Draw path
