@@ -50,7 +50,7 @@ func _create_fade_overlay() -> void:
 	# Start fully transparent
 	fade_overlay.modulate.a = 0.0
 
-	# Add to tree at top level (rendered above everything)
+	# Add to tree at top level (deferred to avoid issues during autoload init)
 	get_tree().root.call_deferred("add_child", fade_overlay)
 
 
@@ -98,6 +98,10 @@ func _switch_scene(scene_path: String) -> void:
 func _fade_to_black() -> void:
 	if not fade_overlay:
 		return
+
+	# Ensure overlay is in tree (may not be if deferred add hasn't completed)
+	if not fade_overlay.is_inside_tree():
+		await get_tree().process_frame
 
 	var tween: Tween = create_tween()
 	tween.tween_property(fade_overlay, "modulate:a", 1.0, FADE_DURATION)

@@ -106,6 +106,11 @@ func _disconnect_all_triggers() -> void:
 
 ## Called when any trigger is activated
 func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
+	# CRIT-006: Validate trigger is still valid (may have been freed)
+	if not is_instance_valid(trigger):
+		push_warning("TriggerManager: Trigger was freed before handling")
+		return
+
 	var trigger_type: int = trigger.get("trigger_type")
 	var trigger_id: String = trigger.get("trigger_id")
 
@@ -200,8 +205,12 @@ func return_to_map() -> void:
 	SceneManager.change_scene(return_scene)
 
 	# Emit signal for map scene to handle restoration
-	# Wait for scene to load first
-	await SceneManager.scene_transition_completed
+	# Wait for scene to load first (only if transition is still in progress)
+	if SceneManager.has_method("is_transitioning") and SceneManager.is_transitioning:
+		await SceneManager.scene_transition_completed
+	elif SceneManager.has_signal("scene_transition_completed"):
+		# Fallback: wait for signal if we can't check state
+		await SceneManager.scene_transition_completed
 	returned_from_battle.emit()
 
 

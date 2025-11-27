@@ -50,7 +50,6 @@ func _ready() -> void:
 func show_menu(actions: Array[String], default_action: String = "", session_id: int = -1) -> void:
 	available_actions = actions
 	_menu_session_id = session_id
-	print("ActionMenu: Storing session_id=%d for this menu instance" % _menu_session_id)
 
 	# Update menu item visibility/colors
 	for item in menu_items:
@@ -78,7 +77,6 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 	# Show menu
 	visible = true
 	set_process_input(true)  # Enable input processing when shown
-	print("ActionMenu: Showing menu with actions: ", available_actions)
 
 
 ## Hide menu
@@ -89,8 +87,6 @@ func hide_menu() -> void:
 
 ## Reset menu to clean state (called when turn ends to prevent stale state)
 func reset_menu() -> void:
-	print("ActionMenu: reset_menu() called - clearing all state")
-
 	# Completely disable input processing
 	set_process_input(false)
 
@@ -126,7 +122,6 @@ func _input(event: InputEvent) -> void:
 				# Check if mouse is over this label
 				var label_rect: Rect2 = label.get_global_rect()
 				if label_rect.has_point(mouse_pos) and action in available_actions:
-					print("ActionMenu: Mouse clicked on %s" % action)
 					selected_index = i
 					_update_selection_visual()
 					_confirm_selection()
@@ -227,31 +222,21 @@ func _confirm_selection() -> void:
 
 	# Safety check 1: Don't emit if input processing is disabled
 	if not is_processing_input():
-		print("ActionMenu: BLOCKED - Input processing is disabled")
 		return
 
 	# Safety check 2: Don't emit signals if menu is not visible
 	if not visible:
-		print("ActionMenu: BLOCKED - Menu is hidden")
 		return
 
 	# Safety check 3: Don't emit if no actions available (stale state)
 	if available_actions.is_empty():
-		print("ActionMenu: BLOCKED - No available actions (stale state)")
 		return
 
 	var selected_action: String = menu_items[selected_index]["action"]
 
-	print("ActionMenu: _confirm_selection called, selected_index=%d, action=%s" % [selected_index, selected_action])
-	print("ActionMenu: available_actions = %s" % str(available_actions))
-
 	# Safety check 4: Don't emit if selected action is not in available list
 	if selected_action not in available_actions:
-		print("ActionMenu: BLOCKED - Cannot select disabled action: %s" % selected_action)
 		return
-
-	print("ActionMenu: Action confirmed: %s" % selected_action)
-	print("ActionMenu: Emitting action_selected signal with session_id=%d" % _menu_session_id)
 
 	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
 	# This prevents any state changes from affecting the emission
@@ -262,8 +247,6 @@ func _confirm_selection() -> void:
 
 ## Cancel menu
 func _cancel_menu() -> void:
-	print("ActionMenu: Menu cancelled with session_id=%d" % _menu_session_id)
-
 	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
 	var emit_session_id: int = _menu_session_id
 	menu_cancelled.emit(emit_session_id)

@@ -313,9 +313,11 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 			unit.queue_free()
 			continue
 
-		# Connect to unit death signal
+		# Connect to unit death signal (avoid duplicate connections)
 		if unit.has_signal("died"):
-			unit.died.connect(_on_unit_died.bind(unit))
+			var callback: Callable = _on_unit_died.bind(unit)
+			if not unit.died.is_connected(callback):
+				unit.died.connect(callback)
 
 		units.append(unit)
 		unit_spawned.emit(unit)

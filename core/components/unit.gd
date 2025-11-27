@@ -154,14 +154,18 @@ func move_to(target_cell: Vector2i) -> void:
 	# Update internal position
 	grid_position = target_cell
 
-	# Animate movement to new position
-	_animate_movement_to(target_cell)
-
 	# Mark as moved this turn
 	has_moved = true
 
-	# Emit signal
-	moved.emit(old_position, target_cell)
+	# Animate movement to new position
+	var tween: Tween = _animate_movement_to(target_cell)
+
+	# Emit moved signal AFTER animation completes (not before)
+	if tween:
+		tween.finished.connect(func() -> void: moved.emit(old_position, target_cell))
+	else:
+		# No animation, emit immediately
+		moved.emit(old_position, target_cell)
 
 	print("%s moved from %s to %s" % [character_data.character_name, old_position, target_cell])
 
@@ -197,14 +201,18 @@ func move_along_path(path: Array[Vector2i]) -> void:
 	# Update internal position to final destination
 	grid_position = end_cell
 
-	# Animate movement along the full path
-	_animate_movement_along_path(path)
-
 	# Mark as moved this turn
 	has_moved = true
 
-	# Emit signal
-	moved.emit(old_position, end_cell)
+	# Animate movement along the full path
+	var tween: Tween = _animate_movement_along_path(path)
+
+	# Emit moved signal AFTER animation completes (not before)
+	if tween:
+		tween.finished.connect(func() -> void: moved.emit(old_position, end_cell))
+	else:
+		# No animation, emit immediately
+		moved.emit(old_position, end_cell)
 
 	print("%s moved from %s to %s along %d-cell path" % [character_data.character_name, old_position, end_cell, path.size()])
 
@@ -222,8 +230,6 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 	# Calculate distance and duration
 	var distance: float = position.distance_to(target_position)
 	var duration: float = distance / movement_speed
-
-	print("DEBUG [TO REMOVE]: %s animating movement over %.2fs (distance: %.1f)" % [character_data.character_name, duration, distance])  # DEBUG: TO REMOVE
 
 	# Create tween for smooth movement
 	_movement_tween = create_tween()
@@ -260,8 +266,6 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 
 		# Chain the movement to this cell
 		_movement_tween.tween_property(self, "position", target_position, duration)
-
-	print("DEBUG [TO REMOVE]: %s animating along %d-cell path" % [character_data.character_name, path.size()])
 
 	return _movement_tween
 
@@ -439,3 +443,10 @@ func is_enemy_unit() -> bool:
 ## Check if unit is neutral
 func is_neutral_unit() -> bool:
 	return faction == "neutral"
+
+
+## Wait for any active movement animation to complete
+## Use this instead of accessing _movement_tween directly
+func await_movement_completion() -> void:
+	if _movement_tween and _movement_tween.is_valid():
+		await _movement_tween.finished

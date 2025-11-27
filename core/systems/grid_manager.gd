@@ -94,6 +94,10 @@ func set_terrain_cost(tile_id: int, movement_type: int, cost: int) -> void:
 
 ## Get terrain cost for a cell based on movement type
 func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
+	if grid == null:
+		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
+		return MAX_TERRAIN_COST
+
 	if not grid.is_within_bounds(cell):
 		return MAX_TERRAIN_COST
 
@@ -410,12 +414,18 @@ func clear_grid() -> void:
 
 ## Get distance between two cells (Manhattan distance)
 func get_distance(from: Vector2i, to: Vector2i) -> int:
+	if grid == null:
+		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
+		return 9999
 	return grid.get_manhattan_distance(from, to)
 
 
 ## Get all cells within a certain range (for AOE abilities)
-func get_cells_in_range(center: Vector2i, range: int) -> Array[Vector2i]:
-	return grid.get_cells_in_range(center, range)
+func get_cells_in_range(center: Vector2i, p_range: int) -> Array[Vector2i]:
+	if grid == null:
+		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
+		return []
+	return grid.get_cells_in_range(center, p_range)
 
 
 ## Check if cell is within grid bounds

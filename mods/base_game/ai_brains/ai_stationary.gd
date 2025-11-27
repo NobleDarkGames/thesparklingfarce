@@ -13,10 +13,7 @@ func execute(unit: Node2D, context: Dictionary) -> void:
 	var player_units: Array[Node2D] = get_player_units(context)
 
 	if player_units.is_empty():
-		print("AIStationary: No player units found, ending turn")
 		return
-
-	print("AIStationary: %s checking for adjacent targets" % unit.get_display_name())
 
 	# Check if any player is in attack range
 	for player in player_units:
@@ -24,12 +21,8 @@ func execute(unit: Node2D, context: Dictionary) -> void:
 			continue
 
 		if is_in_attack_range(unit, player):
-			print("AIStationary: Found target in range: %s" % player.get_display_name())
-			_pending_attack_target = player  # Store for delayed execution
+			_pending_attack_target = player
 			return
-
-	# No targets in range, end turn without moving
-	print("AIStationary: No targets in range, staying in place")
 
 
 # Store pending attack for async execution
@@ -54,6 +47,5 @@ func execute_async(unit: Node2D, context: Dictionary) -> void:
 		if delay_before_attack > 0:
 			await unit.get_tree().create_timer(delay_before_attack).timeout
 
-		print("AIStationary: Executing attack")
 		await attack_target(unit, _pending_attack_target)
 		_pending_attack_target = null

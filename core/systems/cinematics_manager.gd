@@ -455,8 +455,12 @@ func _enable_player_input() -> void:
 
 ## Ensure fade overlay exists in the scene tree
 func _ensure_fade_overlay() -> void:
-	if _fade_overlay:
+	# Check if existing overlay is still valid (may have been freed on scene change)
+	if _fade_overlay and is_instance_valid(_fade_overlay):
 		return
+
+	# Clear stale reference if overlay was freed
+	_fade_overlay = null
 
 	# Get the scene root
 	var scene_root: Node = get_tree().current_scene

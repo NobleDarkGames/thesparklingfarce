@@ -317,9 +317,8 @@ func play_animation(animation_name: String, wait_for_finish: bool = false) -> vo
 	sprite_node.play(animation_name)
 
 	if wait_for_finish:
-		# Connect to animation_finished signal
-		if not sprite_node.animation_finished.is_connected(_on_animation_finished):
-			sprite_node.animation_finished.connect(_on_animation_finished)
+		# Connect to animation_finished signal with ONE_SHOT to avoid accumulation
+		sprite_node.animation_finished.connect(_on_animation_finished, CONNECT_ONE_SHOT)
 	else:
 		# Emit immediately if not waiting
 		animation_completed.emit()

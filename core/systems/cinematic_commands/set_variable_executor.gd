@@ -13,7 +13,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		push_error("SetVariableExecutor: Missing variable name")
 		return true  # Complete immediately on error
 
-	# Set in GameState
-	GameState.set_flag(variable_name)
+	# Set in GameState - use value if provided, otherwise set as boolean flag
+	if value != null:
+		GameState.set_campaign_data(variable_name, value)
+	else:
+		GameState.set_flag(variable_name)
 
 	return true  # Synchronous, completes immediately
