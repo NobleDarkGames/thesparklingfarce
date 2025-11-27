@@ -16,7 +16,7 @@ godot --headless --check-only --path "$PROJECT_PATH" 2>&1 | grep -i "parser erro
 
 echo ""
 echo "2. Running test scene (10 seconds)..."
-timeout 10 godot --headless --path "$PROJECT_PATH" res://test_ai_headless.tscn 2>&1 | tee /tmp/godot_test.log
+timeout 10 godot --headless --path "$PROJECT_PATH" res://scenes/tests/test_ai_headless.tscn 2>&1 | tee /tmp/godot_test.log
 
 echo ""
 echo "3. Checking test output..."

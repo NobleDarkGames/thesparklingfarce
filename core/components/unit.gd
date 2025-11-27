@@ -407,15 +407,6 @@ func hide_selection() -> void:
 		selection_indicator.visible = false
 
 
-## Handle unit death (DEPRECATED - death visuals now handled by BattleManager)
-## This method is kept for backwards compatibility but no longer creates tweens
-func _handle_death() -> void:
-	print("%s has died!" % character_data.character_name)
-	GridManager.clear_cell_occupied(grid_position)
-	died.emit()
-	# Note: BattleManager is responsible for death visuals and cleanup
-
-
 ## Get unit display name (for UI)
 func get_display_name() -> String:
 	if character_data:

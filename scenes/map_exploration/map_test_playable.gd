@@ -21,6 +21,18 @@ func _ready() -> void:
 	print("MAP EXPLORATION - PLAYABLE TEST")
 	print("===========================================")
 
+	# Check if returning from battle - restore hero position if so
+	var returning_from_battle: bool = GameState.has_return_data()
+	var saved_position: Vector2 = Vector2.ZERO
+	var battle_outcome: int = 0  # TransitionContext.BattleOutcome.NONE
+
+	if returning_from_battle:
+		var context: RefCounted = GameState.get_transition_context()
+		if context:
+			saved_position = context.hero_world_position
+			battle_outcome = context.battle_outcome
+			print("Returning from battle at position: %s (outcome: %d)" % [saved_position, battle_outcome])
+
 	# Load party from PartyManager or create test party
 	_load_party()
 
@@ -33,16 +45,24 @@ func _ready() -> void:
 	# Setup camera
 	_setup_camera()
 
+	# Create test battle trigger
+	_create_battle_trigger()
+
+	# If returning from battle, restore hero position
+	if returning_from_battle and saved_position != Vector2.ZERO:
+		_restore_from_battle(saved_position)
+
 	print("\n===========================================")
 	print("CONTROLS:")
 	print("  Arrow Keys - Move hero")
 	print("  Enter/Z - Interact")
+	print("  Walk into RED SQUARE to trigger battle")
 	print("  ESC - Quit test")
 	print("===========================================\n")
 
 
+## Load party members from PartyManager or create test party.
 func _load_party() -> void:
-	"""Load party members from PartyManager or create test party."""
 	print("\n[Loading Party]")
 
 	# Try to load from PartyManager
@@ -51,14 +71,16 @@ func _load_party() -> void:
 		print("✅ Loaded %d characters from PartyManager" % party_characters.size())
 		for character in party_characters:
 			if character:
-				print("  - %s (%s)" % [character.character_name, character.character_class.display_name])
+				var class_name_str: String = character.character_class.display_name if character.character_class else "Unknown"
+				print("  - %s (%s)" % [character.character_name, class_name_str])
 	else:
-		# Load test characters from mod registry
+		# Load test characters from mod registry and add to PartyManager
 		print("⚠️  PartyManager empty, loading test party from ModRegistry...")
 
 		var max_char: CharacterData = ModLoader.registry.get_resource("character", "max")
 		if max_char:
 			party_characters.append(max_char)
+			PartyManager.add_member(max_char)
 			print("  - Loaded Max (Hero)")
 
 		# Try to load some other characters for followers
@@ -66,15 +88,19 @@ func _load_party() -> void:
 		for char_data: CharacterData in all_characters:
 			if char_data != max_char and party_characters.size() < 4:
 				party_characters.append(char_data)
-				print("  - Loaded %s (%s)" % [char_data.character_name, char_data.character_class.display_name])
+				PartyManager.add_member(char_data)
+				var class_name_str: String = char_data.character_class.display_name if char_data.character_class else "Unknown"
+				print("  - Loaded %s (%s)" % [char_data.character_name, class_name_str])
+
+		print("✅ Added %d characters to PartyManager for battle" % party_characters.size())
 
 		if party_characters.size() == 0:
 			push_error("No characters found! Cannot create party.")
 			return
 
 
+## Create the hero controller from the first party member.
 func _create_hero() -> void:
-	"""Create the hero controller from the first party member."""
 	print("\n[Creating Hero]")
 
 	if party_characters.size() == 0:
@@ -86,8 +112,10 @@ func _create_hero() -> void:
 	hero = CharacterBody2D.new()
 	hero.set_script(HeroControllerScript)
 	hero.name = "Hero"
-	hero.position = Vector2(320, 180)  # Center of screen
+	# Grid-aligned position: cell (10, 5) centered = (10*32+16, 5*32+16) = (336, 176)
+	hero.position = Vector2(336, 176)
 	hero.z_index = 100  # Hero on top of all party members
+	hero.add_to_group("hero")  # Required for MapTrigger detection
 
 	# Add visual representation (colored square with label)
 	var visual_container: Node2D = Node2D.new()
@@ -130,8 +158,8 @@ func _create_hero() -> void:
 	print("✅ Hero created: %s" % hero_data.character_name)
 
 
+## Create party followers from remaining party members.
 func _create_followers() -> void:
-	"""Create party followers from remaining party members."""
 	print("\n[Creating Followers]")
 
 	# Skip first member (that's the hero)
@@ -188,8 +216,8 @@ func _create_followers() -> void:
 	print("Total followers: %d" % followers.size())
 
 
+## Setup camera to follow the hero.
 func _setup_camera() -> void:
-	"""Setup camera to follow the hero."""
 	print("\n[Setting up Camera]")
 
 	camera = Camera2D.new()
@@ -206,8 +234,94 @@ func _setup_camera() -> void:
 	print("✅ Camera created and following hero")
 
 
+## Restore hero and party after returning from battle.
+func _restore_from_battle(saved_position: Vector2) -> void:
+	print("\n[Restoring from Battle]")
+
+	if not hero:
+		push_error("Cannot restore - hero not created!")
+		return
+
+	# Restore hero's exact world position
+	hero.global_position = saved_position
+	hero.set("target_position", saved_position)
+	hero.set("is_moving", false)
+
+	# Calculate grid position from world position
+	var tile_size: int = 32
+	var grid_pos: Vector2i = Vector2i(int(saved_position.x / tile_size), int(saved_position.y / tile_size))
+	hero.set("grid_position", grid_pos)
+
+	# Rebuild position history for followers
+	var position_history_size: int = hero.get("position_history_size") if hero.get("position_history_size") else 30
+	var position_history: Array = []
+	for i in range(position_history_size):
+		position_history.append(saved_position)
+	hero.set("position_history", position_history)
+
+	print("✅ Hero restored to position: %s (grid: %s)" % [saved_position, grid_pos])
+
+	# Snap camera to restored position
+	if camera:
+		camera.position = saved_position
+		if camera.has_method("snap_to_target"):
+			camera.call("snap_to_target")
+		print("✅ Camera snapped to hero")
+
+	# Clear transition context - we've used it
+	GameState.clear_transition_context()
+	print("✅ Transition context cleared")
+
+
+## Create a battle trigger for testing the explore-battle-explore loop.
+func _create_battle_trigger() -> void:
+	print("\n[Creating Battle Trigger]")
+
+	# Create the trigger area
+	var trigger: Area2D = Area2D.new()
+	trigger.set_script(load("res://core/components/map_trigger.gd"))
+	trigger.name = "TestBattleTrigger"
+	trigger.position = Vector2(480, 180)  # Right side of screen
+
+	# Configure as battle trigger
+	trigger.set("trigger_type", 0)  # MapTrigger.TriggerType.BATTLE
+	trigger.set("trigger_id", "test_battle_001")
+	trigger.set("one_shot", false)  # Allow re-triggering for testing
+	trigger.set("trigger_data", {"battle_id": "battle_1763763677"})
+
+	# Collision shape
+	var collision: CollisionShape2D = CollisionShape2D.new()
+	var shape: RectangleShape2D = RectangleShape2D.new()
+	shape.size = Vector2(48, 48)
+	collision.shape = shape
+	trigger.add_child(collision)
+
+	# Visual indicator (red square)
+	var visual: ColorRect = ColorRect.new()
+	visual.size = Vector2(48, 48)
+	visual.position = Vector2(-24, -24)
+	visual.color = Color(0.8, 0.2, 0.2, 0.7)  # Semi-transparent red
+	trigger.add_child(visual)
+
+	# Label
+	var label: Label = Label.new()
+	label.text = "BATTLE"
+	label.position = Vector2(-24, -40)
+	label.add_theme_font_size_override("font_size", 10)
+	trigger.add_child(label)
+
+	add_child(trigger)
+
+	# Connect trigger signal to TriggerManager
+	if trigger.has_signal("triggered"):
+		trigger.triggered.connect(TriggerManager._on_trigger_activated)
+
+	print("✅ Battle trigger created at (480, 180)")
+	print("   Walk into the red square to start battle")
+
+
+## Handle test scene controls.
 func _input(event: InputEvent) -> void:
-	"""Handle test scene controls."""
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_ESCAPE:
 			print("\n[ESC] Exiting map exploration test...")
@@ -229,8 +343,8 @@ func _input(event: InputEvent) -> void:
 				print("[F2] Hero teleported to (15, 10)")
 
 
+## Draw a simple grid for reference.
 func _draw() -> void:
-	"""Draw a simple grid for reference."""
 	# Draw grid lines
 	var grid_color: Color = Color(0.3, 0.3, 0.3, 0.3)
 	var tile_size: int = 32
@@ -244,6 +358,6 @@ func _draw() -> void:
 		draw_line(Vector2(0, y), Vector2(640, y), grid_color, 1.0)
 
 
+## Keep redrawing the grid.
 func _process(_delta: float) -> void:
-	"""Keep redrawing the grid."""
 	queue_redraw()

@@ -555,12 +555,8 @@ func _handle_unit_death(unit: Node2D) -> void:
 	if unit.has_method("is_dead") and not unit.is_dead():
 		return
 
-	# Manually trigger death if needed (Unit should emit died signal itself normally)
-	if unit.has_method("_handle_death"):
-		unit._handle_death()  # This will emit died signal
-	else:
-		# Fallback: call our handler directly
-		_on_unit_died(unit)
+	# Call our death handler directly (Unit.take_damage already emits died signal)
+	_on_unit_died(unit)
 
 
 ## Handle battle end
@@ -583,6 +579,20 @@ func _on_battle_ended(victory: bool) -> void:
 
 	# Return to map after battle (if we came from a map trigger)
 	if GameState.has_return_data():
+		# Set battle outcome in transition context
+		var context: RefCounted = GameState.get_transition_context()
+		if context:
+			# Access enum via the context's script
+			var TransitionContextScript: GDScript = context.get_script()
+			if victory:
+				context.battle_outcome = TransitionContextScript.BattleOutcome.VICTORY
+			else:
+				context.battle_outcome = TransitionContextScript.BattleOutcome.DEFEAT
+
+			# Store completed battle ID for one-shot tracking
+			if current_battle_data and current_battle_data.get("battle_id"):
+				context.completed_battle_id = current_battle_data.battle_id
+
 		print("BattleManager: Returning to map...")
 		# Small delay to let players see the victory/defeat message
 		await get_tree().create_timer(2.0).timeout

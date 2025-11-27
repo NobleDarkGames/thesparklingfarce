@@ -35,8 +35,8 @@ func _ready() -> void:
 	modulate.a = 0.0
 
 
+## Display terrain information for the given cell.
 func show_terrain_info(unit_cell: Vector2i) -> void:
-	"""Display terrain information for the given cell."""
 	# Kill any existing tween to prevent conflicts
 	if _current_tween and _current_tween.is_valid():
 		_current_tween.kill()
@@ -56,8 +56,8 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 	_current_tween.tween_property(self, "modulate:a", 1.0, 0.2)
 
 
+## Hide the terrain panel with animation.
 func hide_terrain_info() -> void:
-	"""Hide the terrain panel with animation."""
 	# Kill any existing tween to prevent conflicts
 	if _current_tween and _current_tween.is_valid():
 		_current_tween.kill()
@@ -72,8 +72,8 @@ func hide_terrain_info() -> void:
 	_current_tween.tween_callback(func() -> void: visible = false)
 
 
+## Get the terrain type ID at the specified cell.
 func _get_terrain_type_at_cell(cell: Vector2i) -> int:
-	"""Get the terrain type ID at the specified cell."""
 	# For now, return default terrain (0 = Plains)
 	# TODO: Integrate with GridManager's terrain system when custom data is added
 	if GridManager.tilemap:

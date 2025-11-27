@@ -106,8 +106,8 @@ func _ready() -> void:
 	print("========================================")
 
 
+## Simulate some movement for testing.
 func _physics_process(_delta: float) -> void:
-	"""Simulate some movement for testing."""
 	if test_complete:
 		return
 
@@ -152,8 +152,8 @@ func _physics_process(_delta: float) -> void:
 		_quit_test(true)
 
 
+## Quit the test with appropriate exit code.
 func _quit_test(success: bool) -> void:
-	"""Quit the test with appropriate exit code."""
 	if success:
 		print("\nTest completed successfully. Exiting...")
 	else:

@@ -47,8 +47,8 @@ func _process(delta: float) -> void:
 	_previous_target_pos = follow_target.global_position
 
 
+## Set the target to follow.
 func set_follow_target(target: Node2D) -> void:
-	"""Set the target to follow."""
 	follow_target = target
 
 	if follow_target:
@@ -56,17 +56,15 @@ func set_follow_target(target: Node2D) -> void:
 		global_position = follow_target.global_position
 
 
+## Instantly move camera to target (for scene transitions).
 func snap_to_target() -> void:
-	"""Instantly move camera to target (for scene transitions)."""
 	if follow_target:
 		global_position = follow_target.global_position
 		_previous_target_pos = follow_target.global_position
 
 
+## Move camera to a specific grid cell.
+## Useful for inspection mode or cutscenes.
 func move_to_cell(cell_pos: Vector2i, tile_size: int = 32) -> void:
-	"""
-	Move camera to a specific grid cell.
-	Useful for inspection mode or cutscenes.
-	"""
 	var world_pos: Vector2 = Vector2(cell_pos) * tile_size + Vector2(tile_size, tile_size) * 0.5
 	global_position = global_position.lerp(world_pos, follow_speed * get_process_delta_time())

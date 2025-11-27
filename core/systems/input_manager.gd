@@ -572,8 +572,8 @@ func _has_spells() -> bool:
 
 
 ## Show movement range highlights
+## Shows blue movement range highlights.
 func _show_movement_range() -> void:
-	"""Show blue movement range highlights."""
 	if not active_unit:
 		return
 

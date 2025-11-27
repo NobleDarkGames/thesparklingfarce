@@ -59,8 +59,8 @@ func _ready() -> void:
 	print("MapTest: Scene initialized. Use arrow keys to move, Enter/Z to interact")
 
 
+## Create party followers for testing.
 func _setup_party_followers() -> void:
-	"""Create party followers for testing."""
 	# For now, create 3 test followers
 	var num_followers: int = 3
 	var follow_spacing: int = 5  # Tiles apart in position history
@@ -100,22 +100,22 @@ func _setup_party_followers() -> void:
 	print("MapTest: Created %d party followers" % num_followers)
 
 
+## Called when hero completes movement to a new tile.
 func _on_hero_moved(tile_pos: Vector2i) -> void:
-	"""Called when hero completes movement to a new tile."""
 	print("MapTest: Hero moved to grid position: ", tile_pos)
 
 	# TODO: Check for encounters, triggers, etc.
 
 
+## Called when hero attempts to interact.
 func _on_hero_interaction(interaction_pos: Vector2i) -> void:
-	"""Called when hero attempts to interact."""
 	print("MapTest: Hero interacting with tile: ", interaction_pos)
 
 	# TODO: Check for NPCs, doors, chests, etc.
 
 
+## Called when battle trigger is activated.
 func _on_battle_trigger_activated(trigger: Node, player: Node2D) -> void:
-	"""Called when battle trigger is activated."""
 	print("MapTest: *** BATTLE TRIGGER ACTIVATED ***")
 	print("  Trigger ID: ", trigger.trigger_id)
 	print("  Battle ID: ", trigger.trigger_data.get("battle_id", "NONE"))
@@ -123,13 +123,13 @@ func _on_battle_trigger_activated(trigger: Node, player: Node2D) -> void:
 	print("  Trigger completed: ", GameState.is_trigger_completed(trigger.trigger_id))
 
 
+## Called when battle trigger activation fails.
 func _on_battle_trigger_failed(trigger: Node, reason: String) -> void:
-	"""Called when battle trigger activation fails."""
 	print("MapTest: Battle trigger activation FAILED - Reason: ", reason)
 
 
+## Handle debug inputs.
 func _input(event: InputEvent) -> void:
-	"""Handle debug inputs."""
 	# Debug: Press ESC to return to main menu (when implemented)
 	if event.is_action_pressed("ui_cancel"):
 		print("MapTest: ESC pressed - would return to main menu")

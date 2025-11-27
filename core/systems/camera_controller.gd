@@ -259,8 +259,8 @@ func set_target_position(target: Vector2) -> void:
 
 
 ## Follow a specific unit smoothly
+## Moves camera to center on the given unit's position.
 func follow_unit(unit: Node2D) -> void:
-	"""Move camera to center on the given unit's position."""
 	if not unit:
 		push_warning("CameraController: Cannot follow null unit")
 		return

@@ -359,16 +359,16 @@ func highlight_cells(cells: Array[Vector2i], color_type: int = 0) -> void:
 
 
 ## Show movement range (blue tiles)
+## Highlights all walkable cells from a position in blue.
 func show_movement_range(from: Vector2i, movement_range: int, movement_type: int) -> void:
-	"""Highlight all walkable cells from a position in blue."""
 	clear_highlights()
 	var walkable_cells: Array[Vector2i] = get_walkable_cells(from, movement_range, movement_type)
 	highlight_cells(walkable_cells, HIGHLIGHT_BLUE)
 
 
 ## Show attack range (red tiles)
+## Highlights all cells within attack range in red.
 func show_attack_range(from: Vector2i, weapon_range: int) -> void:
-	"""Highlight all cells within attack range in red."""
 	if _highlight_layer == null:
 		push_warning("GridManager: Cannot show attack range - no highlight layer set")
 		return
@@ -387,8 +387,8 @@ func show_attack_range(from: Vector2i, weapon_range: int) -> void:
 
 
 ## Highlight specific target cells (yellow tiles)
+## Highlights specific cells as valid targets in yellow.
 func highlight_targets(target_cells: Array[Vector2i]) -> void:
-	"""Highlight specific cells as valid targets in yellow."""
 	highlight_cells(target_cells, HIGHLIGHT_YELLOW)
 
 

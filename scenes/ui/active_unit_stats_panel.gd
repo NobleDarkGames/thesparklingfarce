@@ -28,8 +28,8 @@ func _ready() -> void:
 	modulate.a = 0.0
 
 
+## Display stats for the given unit.
 func show_unit_stats(unit: Node2D) -> void:
-	"""Display stats for the given unit."""
 	# Kill any existing tween to prevent conflicts
 	if _current_tween and _current_tween.is_valid():
 		_current_tween.kill()
@@ -78,8 +78,8 @@ func show_unit_stats(unit: Node2D) -> void:
 	_current_tween.tween_property(self, "modulate:a", 1.0, 0.2)
 
 
+## Hide the stats panel with animation.
 func hide_stats() -> void:
-	"""Hide the stats panel with animation."""
 	# Kill any existing tween to prevent conflicts
 	if _current_tween and _current_tween.is_valid():
 		_current_tween.kill()

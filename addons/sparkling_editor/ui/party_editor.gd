@@ -412,7 +412,6 @@ func _on_add_to_party() -> void:
 	current_save_data.party_members.append(char_save)
 
 	_refresh_player_party()
-	print("PartyEditor: Added %s to save slot %d party" % [character.character_name, current_save_slot])
 
 
 ## Remove selected character from party
@@ -439,7 +438,6 @@ func _on_remove_from_party() -> void:
 
 	current_save_data.party_members.remove_at(index)
 	_refresh_player_party()
-	print("PartyEditor: Removed %s from save slot %d party" % [char_save.fallback_character_name, current_save_slot])
 
 
 ## Move selected party member up
@@ -583,18 +581,14 @@ func _show_error(message: String) -> void:
 func _on_slot_selected(index: int) -> void:
 	# Update current slot number (but don't auto-load for safety)
 	current_save_slot = index + 1
-	print("PartyEditor: Selected slot %d" % current_save_slot)
 
 
 ## Load selected save slot
 func _on_load_slot() -> void:
-	print("PartyEditor: Load slot button pressed for slot %d" % current_save_slot)
-
 	if _editor_is_slot_occupied(current_save_slot):
 		# Load existing save
 		current_save_data = _editor_load_from_slot(current_save_slot)
 		if current_save_data:
-			print("PartyEditor: Loaded save from slot %d" % current_save_slot)
 			_update_slot_info_display()
 			_refresh_player_party()
 			_refresh_available_characters()
@@ -621,7 +615,6 @@ func _on_load_slot() -> void:
 					"version": manifest.version
 				})
 
-		print("PartyEditor: Created new save for slot %d (not saved yet)" % current_save_slot)
 		_update_slot_info_display()
 		_refresh_player_party()
 		_refresh_available_characters()
@@ -630,8 +623,6 @@ func _on_load_slot() -> void:
 
 ## Save changes to current slot
 func _on_save_changes() -> void:
-	print("PartyEditor: Save changes button pressed for slot %d" % current_save_slot)
-
 	if not current_save_data:
 		_show_error("No save slot loaded")
 		return
@@ -667,8 +658,6 @@ func _on_save_changes() -> void:
 	# Save to slot
 	if _editor_save_to_slot(current_save_slot, current_save_data):
 		_update_slot_info_display()
-		print("PartyEditor: Successfully saved to slot %d" % current_save_slot)
-		# TODO: Could show success popup here
 	else:
 		_show_error("Failed to save to slot %d!" % current_save_slot)
 
@@ -724,7 +713,6 @@ func _ensure_hero_is_leader() -> void:
 		var hero: CharacterSaveData = current_save_data.party_members[hero_index]
 		current_save_data.party_members.remove_at(hero_index)
 		current_save_data.party_members.insert(0, hero)
-		print("PartyEditor: Moved hero to leader position")
 
 
 ## Update active mods list in save data
@@ -905,8 +893,6 @@ func _load_available_characters() -> void:
 			var char_data: CharacterData = resource as CharacterData
 			if char_data:
 				available_characters.append(char_data)
-
-		print("PartyEditor: Loaded %d characters from all mods" % available_characters.size())
 	else:
 		push_warning("PartyEditor: ModLoader or registry not available")
 

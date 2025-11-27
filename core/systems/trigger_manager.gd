@@ -196,22 +196,41 @@ func return_to_map() -> void:
 
 	var return_scene: String = GameState.return_scene_path
 
+	# Validate return scene exists
+	if return_scene.is_empty():
+		push_error("TriggerManager: Return scene path is empty!")
+		GameState.clear_transition_context()
+		return
+
+	if not ResourceLoader.exists(return_scene):
+		push_error("TriggerManager: Return scene not found: %s" % return_scene)
+		GameState.clear_transition_context()
+		return
+
 	print("TriggerManager: Returning to map: %s" % return_scene)
 
-	# Clear battle data
+	# Get transition context for logging
+	var context: RefCounted = GameState.get_transition_context()
+	if context:
+		print("  Hero position to restore: %s" % context.hero_world_position)
+		print("  Battle outcome: %d" % context.battle_outcome)
+
+	# Clear battle data (but NOT transition context - map scene needs it for position restoration)
 	clear_current_battle_data()
 
-	# Transition back to map (don't clear GameState yet - map will use position data)
+	# Transition back to map
 	SceneManager.change_scene(return_scene)
 
-	# Emit signal for map scene to handle restoration
-	# Wait for scene to load first (only if transition is still in progress)
+	# Wait for scene transition to complete before emitting signal
+	# Map scene will handle restoration in its _ready() using GameState.has_return_data()
 	if SceneManager.has_method("is_transitioning") and SceneManager.is_transitioning:
 		await SceneManager.scene_transition_completed
 	elif SceneManager.has_signal("scene_transition_completed"):
-		# Fallback: wait for signal if we can't check state
 		await SceneManager.scene_transition_completed
+
+	# Signal that we've returned (map scene can connect to this if needed)
 	returned_from_battle.emit()
+	print("TriggerManager: Map restoration complete")
 
 
 ## Handle DIALOG trigger - show dialogue
