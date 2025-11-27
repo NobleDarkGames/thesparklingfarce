@@ -77,20 +77,24 @@ func _load_party() -> void:
 		# Load test characters from mod registry and add to PartyManager
 		print("⚠️  PartyManager empty, loading test party from ModRegistry...")
 
-		var max_char: CharacterData = ModLoader.registry.get_resource("character", "max")
-		if max_char:
-			party_characters.append(max_char)
-			PartyManager.add_member(max_char)
-			print("  - Loaded Max (Hero)")
+		# Load hero from sandbox mod (Mr Big Hero Face)
+		var hero_char: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+		if hero_char:
+			party_characters.append(hero_char)
+			PartyManager.add_member(hero_char)
+			print("  - Loaded %s (Hero)" % hero_char.character_name)
 
-		# Try to load some other characters for followers
+		# Try to load some other characters for followers (only those with valid classes)
 		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
 		for char_data: CharacterData in all_characters:
-			if char_data != max_char and party_characters.size() < 4:
+			if char_data != hero_char and party_characters.size() < 4:
+				# Skip characters without a class assigned
+				if not char_data.character_class:
+					print("  - Skipping %s (no class assigned)" % char_data.character_name)
+					continue
 				party_characters.append(char_data)
 				PartyManager.add_member(char_data)
-				var class_name_str: String = char_data.character_class.display_name if char_data.character_class else "Unknown"
-				print("  - Loaded %s (%s)" % [char_data.character_name, class_name_str])
+				print("  - Loaded %s (%s)" % [char_data.character_name, char_data.character_class.display_name])
 
 		print("✅ Added %d characters to PartyManager for battle" % party_characters.size())
 

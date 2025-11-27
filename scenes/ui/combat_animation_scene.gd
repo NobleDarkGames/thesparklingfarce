@@ -201,7 +201,7 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 
 ## Get color based on character class
 func _get_class_color(unit: Node2D) -> Color:
-	var char_class_name: String = unit.character_data.character_class.display_name.to_lower()
+	var char_class_name: String = unit.character_data.character_class.display_name.to_lower() if unit.character_data.character_class else "unknown"
 
 	# Color coding by class archetype
 	if "warrior" in char_class_name or "knight" in char_class_name or "fighter" in char_class_name:

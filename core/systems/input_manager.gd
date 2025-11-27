@@ -152,16 +152,19 @@ func start_player_turn(unit: Node2D) -> void:
 	current_cursor_position = unit.grid_position
 
 	# Calculate walkable cells
+	var movement_range: int = 4  # Default fallback
+	var movement_type: int = 0   # Default: FOOT
 	if unit.character_data and unit.character_data.character_class:
-		var movement_range: int = unit.character_data.character_class.movement_range
-		var movement_type: int = unit.character_data.character_class.movement_type
-		walkable_cells = GridManager.get_walkable_cells(
-			movement_start_position,
-			movement_range,
-			movement_type
-		)
+		movement_range = unit.character_data.character_class.movement_range
+		movement_type = unit.character_data.character_class.movement_type
 	else:
-		walkable_cells = []
+		push_warning("InputManager: Unit %s has no character_class, using default movement (range=%d)" % [unit.get_display_name(), movement_range])
+
+	walkable_cells = GridManager.get_walkable_cells(
+		movement_start_position,
+		movement_range,
+		movement_type
+	)
 
 	# AUTHENTIC SHINING FORCE: Start in movement mode immediately (cursor on unit)
 	# Player can: Move with D-pad, Press A/C to act in place, Press B to inspect
@@ -788,12 +791,20 @@ func _select_action(action: String, signal_session_id: int) -> void:
 
 	action_selected.emit(active_unit, action_lower)
 
-	# CRITICAL FIX: The signal handler runs synchronously and may have started the next turn!
-	# If the session ID changed, we must NOT continue - the next turn has already begun!
+	# CRITICAL FIX: The signal handler runs synchronously and may have already:
+	# 1. Started the next turn (session ID changed), OR
+	# 2. Reset state to WAITING (e.g., for Stay action via BattleManager._execute_stay)
+	#
+	# If either happened, we must NOT continue - the action is already handled!
 	if _turn_session_id != pre_emit_session:
 		print("InputManager: Session changed during signal handling (%d -> %d), aborting _select_action continuation" % [
 			pre_emit_session, _turn_session_id
 		])
+		return
+
+	# Check if state was reset by the signal handler (e.g., Stay action resets to WAITING)
+	if current_state == InputState.WAITING:
+		print("InputManager: State reset to WAITING by signal handler, action '%s' already handled" % action)
 		return
 
 	print("InputManager: Action selected: %s" % action)
@@ -807,7 +818,9 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			# TODO: Open item menu
 			_execute_action()
 		"Stay":
-			# End turn at current position
+			# BattleManager._execute_stay() handles this synchronously and resets state
+			# We should never reach here for Stay (caught by WAITING check above)
+			push_warning("InputManager: Stay action reached match statement unexpectedly")
 			_execute_action()
 
 
