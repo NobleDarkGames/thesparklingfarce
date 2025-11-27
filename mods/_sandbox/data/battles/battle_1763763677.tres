@@ -1,41 +1,25 @@
-[gd_resource type="Resource" script_class="BattleData" load_steps=9 format=3 uid="uid://oxlk7n4aon0l"]
+[gd_resource type="Resource" script_class="BattleData" load_steps=6 format=3 uid="uid://oxlk7n4aon0l"]
 
-[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_ylya7"]
-[ext_resource type="Resource" uid="uid://d3mr4nc200fti" path="res://mods/_sandbox/data/classes/class_1763763716.tres" id="2_fv7sc"]
-[ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="2_msqh6"]
+[ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="1_msqh6"]
 [ext_resource type="Script" uid="uid://bgcprqv3bhcbk" path="res://mods/base_game/ai_brains/ai_aggressive.gd" id="2_w1h23"]
-[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="3_5oe2a"]
-[ext_resource type="PackedScene" uid="uid://meb2axl5cqb8" path="res://mods/_sandbox/scenes/test_unit.tscn" id="5_w1h23"]
+[ext_resource type="Resource" uid="uid://ckk6isxsbmavb" path="res://mods/_sandbox/data/characters/character_1763763701.tres" id="3_hugerat"]
+[ext_resource type="PackedScene" uid="uid://meb2axl5cqb8" path="res://mods/_sandbox/scenes/test_unit.tscn" id="4_w1h23"]
 
 [sub_resource type="Resource" id="Resource_oxiof"]
 script = ExtResource("2_w1h23")
 
-[sub_resource type="Resource" id="Resource_hdom8"]
-script = ExtResource("3_5oe2a")
-character_name = "Huge Rat"
-character_class = ExtResource("2_fv7sc")
-base_hp = 20
-base_mp = 10
-base_strength = 2
-base_defense = 2
-base_agility = 2
-base_intelligence = 1
-base_luck = 2
-unit_category = "enemy"
-is_unique = false
-
 [resource]
-script = ExtResource("2_msqh6")
+script = ExtResource("1_msqh6")
 battle_name = "The Battle of Noobs"
 battle_description = "Enter battle description"
-map_scene = ExtResource("5_w1h23")
+map_scene = ExtResource("4_w1h23")
 enemies = Array[Dictionary]([{
 "ai_brain": SubResource("Resource_oxiof"),
-"character": SubResource("Resource_hdom8"),
+"character": ExtResource("3_hugerat"),
 "position": Vector2i(10, 8)
 }, {
 "ai_brain": SubResource("Resource_oxiof"),
-"character": SubResource("Resource_hdom8"),
+"character": ExtResource("3_hugerat"),
 "position": Vector2i(12, 9)
 }])
 experience_reward = 100

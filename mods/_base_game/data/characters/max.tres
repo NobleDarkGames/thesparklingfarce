@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=5 format=3 uid="uid://csan6ysxhu3p0"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://csan6ysxhu3p0"]
 
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_ccdhb"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_u7v87"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_1ko5m"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/max.png" id="4_sprite"]
 
 [sub_resource type="Resource" id="Resource_2smfh"]
 script = ExtResource("1_ccdhb")
@@ -28,4 +29,5 @@ base_defense = 7
 base_agility = 7
 base_intelligence = 6
 base_luck = 6
+battle_sprite = ExtResource("4_sprite")
 biography = "A brave young warrior destined for greatness. Though still inexperienced, Max possesses an unyielding spirit and natural leadership that inspires those around him."

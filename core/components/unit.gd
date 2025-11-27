@@ -50,7 +50,7 @@ var has_acted: bool = false
 var turn_priority: float = 0.0
 
 ## References to child nodes (set by scene structure)
-@onready var sprite: ColorRect = $Sprite2D
+@onready var sprite: Sprite2D = $Sprite2D
 @onready var selection_indicator: ColorRect = $SelectionIndicator
 @onready var name_label: Label = $NameLabel
 @onready var health_bar: ProgressBar = $HealthBar
@@ -112,17 +112,34 @@ func _update_visual() -> void:
 	if not sprite:
 		return
 
-	# For now, use ColorRect with faction colors (no sprites yet)
-	var placeholder_color: Color = Color.GRAY
-	match faction:
-		"player":
-			placeholder_color = COLOR_PLAYER
-		"enemy":
-			placeholder_color = COLOR_ENEMY
-		"neutral":
-			placeholder_color = COLOR_NEUTRAL
+	# Try to load the battle sprite from character data
+	if character_data and character_data.battle_sprite:
+		sprite.texture = character_data.battle_sprite
+		# Apply faction-based modulation for visual faction identification
+		match faction:
+			"player":
+				sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)  # White (no tint)
+			"enemy":
+				sprite.modulate = Color(1.0, 0.7, 0.7, 1.0)  # Slight red tint
+			"neutral":
+				sprite.modulate = Color(1.0, 1.0, 0.8, 1.0)  # Slight yellow tint
+	else:
+		# Fallback: Create a simple colored square texture as placeholder
+		sprite.texture = _create_placeholder_texture()
+		match faction:
+			"player":
+				sprite.modulate = COLOR_PLAYER
+			"enemy":
+				sprite.modulate = COLOR_ENEMY
+			"neutral":
+				sprite.modulate = COLOR_NEUTRAL
 
-	sprite.color = placeholder_color
+
+## Create a simple placeholder texture when no sprite is available
+func _create_placeholder_texture() -> ImageTexture:
+	var img: Image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	return ImageTexture.create_from_image(img)
 
 
 ## Update health bar display
