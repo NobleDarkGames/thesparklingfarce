@@ -204,26 +204,42 @@ func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 
 
 ## Simple movement for basic entities without Unit component
+## Uses Manhattan pathfinding for consistent 4-directional movement (matches battle feel)
 func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
-	# This should only be used in minimal test scenes
-	push_warning("CinematicActor: Using fallback movement - parent entity lacks move_along_path() method")
-
 	is_moving = true
 	movement_speed = speed if speed > 0 else default_speed
 
-	# Build simple path
-	var world_path: Array[Vector2] = []
-	for waypoint: Vector2i in waypoints:
-		world_path.append(GridManager.cell_to_world(waypoint))
+	# Build complete path using Manhattan pathfinding between waypoints
+	# This ensures consistent 4-directional movement even without battle grid
+	var complete_path: Array[Vector2i] = []
+	var current_cell: Vector2i = GridManager.world_to_cell(parent_entity.global_position)
 
-	# Simple tween movement
+	for waypoint: Vector2i in waypoints:
+		if waypoint == current_cell:
+			continue
+		var segment: Array[Vector2i] = _find_manhattan_path(current_cell, waypoint)
+		# Skip first cell of segment (it's the current position) unless path is empty
+		var start_idx: int = 1 if not complete_path.is_empty() else 0
+		for i: int in range(start_idx, segment.size()):
+			complete_path.append(segment[i])
+		current_cell = waypoint
+
+	if complete_path.is_empty():
+		_stop_movement()
+		return
+
+	# Convert to world positions
+	var world_path: Array[Vector2] = []
+	for cell: Vector2i in complete_path:
+		world_path.append(GridManager.cell_to_world(cell))
+
+	# Tween through each cell for smooth 4-directional movement
 	var move_tween: Tween = create_tween()
 	move_tween.set_trans(Tween.TRANS_LINEAR)
 	move_tween.set_ease(Tween.EASE_IN_OUT)
 
 	for target_pos: Vector2 in world_path:
-		var distance: float = parent_entity.global_position.distance_to(target_pos) if move_tween.get_total_elapsed_time() == 0 else world_path[world_path.find(target_pos) - 1].distance_to(target_pos)
-		var duration: float = distance / (movement_speed * GridManager.get_tile_size())
+		var duration: float = 1.0 / movement_speed  # Each cell takes consistent time
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
 
 	move_tween.tween_callback(func() -> void: _stop_movement())
