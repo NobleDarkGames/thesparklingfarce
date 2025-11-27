@@ -116,8 +116,8 @@ func _create_hero() -> void:
 	hero = CharacterBody2D.new()
 	hero.set_script(HeroControllerScript)
 	hero.name = "Hero"
-	# Grid-aligned position: cell (10, 5) centered = (10*32+16, 5*32+16) = (336, 176)
-	hero.position = Vector2(336, 176)
+	# Grid-aligned position using GridManager for consistency
+	hero.position = GridManager.cell_to_world(Vector2i(10, 5))
 	hero.z_index = 100  # Hero on top of all party members
 	hero.add_to_group("hero")  # Required for MapTrigger detection
 
@@ -251,9 +251,8 @@ func _restore_from_battle(saved_position: Vector2) -> void:
 	hero.set("target_position", saved_position)
 	hero.set("is_moving", false)
 
-	# Calculate grid position from world position
-	var tile_size: int = 32
-	var grid_pos: Vector2i = Vector2i(int(saved_position.x / tile_size), int(saved_position.y / tile_size))
+	# Calculate grid position from world position using GridManager
+	var grid_pos: Vector2i = GridManager.world_to_cell(saved_position)
 	hero.set("grid_position", grid_pos)
 
 	# Rebuild position history for followers
@@ -347,7 +346,7 @@ func _input(event: InputEvent) -> void:
 				print("[F2] Hero teleported to (15, 10)")
 
 
-## Draw a simple grid for reference.
+## Draw a simple grid for reference (static - only drawn once).
 func _draw() -> void:
 	# Draw grid lines
 	var grid_color: Color = Color(0.3, 0.3, 0.3, 0.3)
@@ -360,8 +359,3 @@ func _draw() -> void:
 	# Draw horizontal lines
 	for y in range(0, 360, tile_size):
 		draw_line(Vector2(0, y), Vector2(640, y), grid_color, 1.0)
-
-
-## Keep redrawing the grid.
-func _process(_delta: float) -> void:
-	queue_redraw()

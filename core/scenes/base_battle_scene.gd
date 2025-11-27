@@ -244,7 +244,7 @@ func _process(_delta: float) -> void:
 	var active_unit: Node2D = TurnManager.get_active_unit()
 	if InputManager.current_state != InputManager.InputState.INSPECTING:
 		if active_unit and active_unit.is_alive():
-			if active_unit._movement_tween and active_unit._movement_tween.is_valid():
+			if active_unit.has_method("is_moving") and active_unit.is_moving():
 				_camera.set_target_position(active_unit.position)
 
 	# Update debug label (subclass can override)
@@ -339,3 +339,26 @@ func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: b
 		hit,
 		crit
 	])
+
+
+## Cleanup when scene is freed - disconnect from singletons to prevent stale references
+func _exit_tree() -> void:
+	# Disconnect from BattleManager signals
+	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
+		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Disconnect from TurnManager signals
+	if TurnManager.player_turn_started.is_connected(_on_player_turn_started):
+		TurnManager.player_turn_started.disconnect(_on_player_turn_started)
+	if TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
+		TurnManager.enemy_turn_started.disconnect(_on_enemy_turn_started)
+	if TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
+		TurnManager.unit_turn_ended.disconnect(_on_unit_turn_ended)
+	if TurnManager.battle_ended.is_connected(_on_battle_ended):
+		TurnManager.battle_ended.disconnect(_on_battle_ended)
+
+	# Disconnect InputManager signals
+	if InputManager.action_selected.is_connected(BattleManager._on_action_selected):
+		InputManager.action_selected.disconnect(BattleManager._on_action_selected)
+	if InputManager.target_selected.is_connected(BattleManager._on_target_selected):
+		InputManager.target_selected.disconnect(BattleManager._on_target_selected)

@@ -441,3 +441,9 @@ func is_neutral_unit() -> bool:
 func await_movement_completion() -> void:
 	if _movement_tween and _movement_tween.is_valid():
 		await _movement_tween.finished
+
+
+## Check if unit is currently animating movement
+## Use this instead of accessing _movement_tween directly
+func is_moving() -> bool:
+	return _movement_tween != null and _movement_tween.is_valid()
