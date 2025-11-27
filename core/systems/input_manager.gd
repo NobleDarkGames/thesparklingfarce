@@ -254,6 +254,10 @@ func _on_enter_exploring_movement() -> void:
 		grid_cursor.set_grid_position(current_cursor_position)
 		grid_cursor.show_cursor()
 
+	# Return camera to active unit (important when exiting inspection mode)
+	if camera and camera is CameraController and active_unit:
+		(camera as CameraController).follow_unit(active_unit)
+
 	# Clear any existing path
 	_clear_path_preview()
 
@@ -269,6 +273,10 @@ func _on_enter_selecting_action() -> void:
 	if grid_cursor and active_unit:
 		grid_cursor.set_grid_position(active_unit.grid_position)
 		grid_cursor.show_cursor()
+
+	# Ensure camera is centered on unit for action menu
+	if camera and camera is CameraController and active_unit:
+		(camera as CameraController).follow_unit(active_unit)
 
 	# Calculate available actions based on context
 	available_actions = _get_available_actions()
