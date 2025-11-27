@@ -12,16 +12,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var duration: float = params.get("duration", 0.5)
 	var continuous: bool = params.get("continuous", true)  ## Keep following until explicitly stopped
 
-	if not manager._active_camera:
-		push_warning("CameraFollowExecutor: No camera available")
-		return true  # Complete immediately
-
-	# Check if camera is CameraController (Phase 3 upgrade)
-	if not manager._active_camera is CameraController:
-		push_warning("CameraFollowExecutor: Camera is Camera2D, not CameraController. Follow skipped. Upgrade to CameraController for Phase 3 features.")
-		return true  # Skip follow, continue cinematic
-
-	var camera: CameraController = manager._active_camera as CameraController
+	# Get validated CameraController from manager
+	var camera: CameraController = manager.get_camera_controller()
+	if not camera:
+		return true  # Complete immediately - warning already logged
 
 	var actor: CinematicActor = manager.get_actor(target)
 	if actor == null:

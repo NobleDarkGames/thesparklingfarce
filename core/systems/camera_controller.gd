@@ -3,6 +3,16 @@
 ## Provides smooth camera movement with grid-based boundaries.
 ## Designed for pixel-perfect rendering with configurable follow behavior.
 ## Can track cursor position, active units, or manual control.
+##
+## LIFECYCLE:
+## 1. Create CameraController in your scene (battle or exploration)
+## 2. Call register_with_systems() to register with TurnManager and CinematicsManager
+## 3. Systems will automatically use this camera for turn transitions and cinematics
+## 4. Camera is automatically unregistered when the scene is freed
+##
+## Example:
+##   var camera = $BattleCamera as CameraController
+##   camera.register_with_systems()
 class_name CameraController
 extends Camera2D
 
@@ -84,6 +94,33 @@ func _ready() -> void:
 
 	# Calculate and set camera limits
 	_update_camera_limits()
+
+	# Clean up when scene is freed
+	tree_exiting.connect(_on_tree_exiting)
+
+
+## Register this camera with game systems (TurnManager, CinematicsManager)
+## Call this after adding the camera to the scene tree
+func register_with_systems() -> void:
+	# Register with TurnManager for battle transitions
+	if TurnManager:
+		TurnManager.battle_camera = self
+
+	# Register with CinematicsManager for cinematic sequences
+	if CinematicsManager:
+		CinematicsManager.register_camera(self)
+
+	print("CameraController: Registered with TurnManager and CinematicsManager")
+
+
+## Unregister from systems when being freed
+func _on_tree_exiting() -> void:
+	# Clear references to prevent stale pointers
+	if TurnManager and TurnManager.battle_camera == self:
+		TurnManager.battle_camera = null
+
+	if CinematicsManager and CinematicsManager._active_camera == self:
+		CinematicsManager._active_camera = null
 
 
 ## Find the TileMapLayer in the scene tree

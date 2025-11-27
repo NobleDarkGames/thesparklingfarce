@@ -196,6 +196,18 @@ func register_camera(camera: Camera2D) -> void:
 		_camera_original_position = camera.global_position
 
 
+## Get camera as CameraController if available (helper for executors)
+## Returns null with warning if no camera or camera is not CameraController
+func get_camera_controller() -> CameraController:
+	if not _active_camera:
+		push_warning("CinematicsManager: No camera available")
+		return null
+	if not _active_camera is CameraController:
+		push_warning("CinematicsManager: Camera is not CameraController. Upgrade to CameraController for Phase 3 features.")
+		return null
+	return _active_camera as CameraController
+
+
 ## Auto-detect camera in the current scene
 func _auto_detect_camera() -> void:
 	# Try to find a Camera2D in the current scene

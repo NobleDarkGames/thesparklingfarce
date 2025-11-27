@@ -1,5 +1,8 @@
 extends Node
 ## GameState singleton - Manages story flags, trigger completion, and campaign state
+
+## Preload TransitionContext to ensure it's available before autoload init
+const TransitionContextScript: GDScript = preload("res://core/resources/transition_context.gd")
 ##
 ## This autoload manages persistent game state including:
 ## - Story flags (boolean flags for quest/narrative progression)
@@ -27,10 +30,34 @@ var campaign_data: Dictionary = {
 	"treasures_found": 0,
 }
 
-## Battle transition data - stores where to return after battle
-var return_scene_path: String = ""
-var return_hero_position: Vector2 = Vector2.ZERO
-var return_hero_grid_position: Vector2i = Vector2i.ZERO
+## Battle transition context - encapsulates all transition data
+## Use TransitionContext for type safety and extensibility
+var _transition_context: RefCounted = null  # Actually TransitionContext
+
+## Legacy accessors (maintained for backwards compatibility)
+var return_scene_path: String:
+	get:
+		return _transition_context.return_scene_path if _transition_context else ""
+	set(value):
+		if not _transition_context:
+			_transition_context = TransitionContextScript.new()
+		_transition_context.return_scene_path = value
+
+var return_hero_position: Vector2:
+	get:
+		return _transition_context.hero_world_position if _transition_context else Vector2.ZERO
+	set(value):
+		if not _transition_context:
+			_transition_context = TransitionContextScript.new()
+		_transition_context.hero_world_position = value
+
+var return_hero_grid_position: Vector2i:
+	get:
+		return _transition_context.hero_grid_position if _transition_context else Vector2i.ZERO
+	set(value):
+		if not _transition_context:
+			_transition_context = TransitionContextScript.new()
+		_transition_context.hero_grid_position = value
 
 ## Emitted when a story flag changes
 signal flag_changed(flag_name: String, value: bool)
@@ -137,21 +164,36 @@ func reset_all() -> void:
 	clear_return_data()
 
 
-## Store where to return after battle
+## Store where to return after battle (legacy API - uses TransitionContext internally)
 func set_return_data(scene_path: String, hero_pos: Vector2, hero_grid_pos: Vector2i) -> void:
-	return_scene_path = scene_path
-	return_hero_position = hero_pos
-	return_hero_grid_position = hero_grid_pos
+	_transition_context = TransitionContextScript.new()
+	_transition_context.return_scene_path = scene_path
+	_transition_context.hero_world_position = hero_pos
+	_transition_context.hero_grid_position = hero_grid_pos
 	print("GameState: Stored return data - Scene: %s, Position: %s" % [scene_path, hero_grid_pos])
 
 
 ## Check if there's return data available
 func has_return_data() -> bool:
-	return not return_scene_path.is_empty()
+	return _transition_context != null and _transition_context.is_valid()
 
 
 ## Clear return data after using it
 func clear_return_data() -> void:
-	return_scene_path = ""
-	return_hero_position = Vector2.ZERO
-	return_hero_grid_position = Vector2i.ZERO
+	_transition_context = null
+
+
+## NEW API: Set full transition context
+func set_transition_context(context: RefCounted) -> void:
+	_transition_context = context
+	print("GameState: Stored transition context - Scene: %s" % context.return_scene_path)
+
+
+## NEW API: Get current transition context (returns TransitionContext or null)
+func get_transition_context() -> RefCounted:
+	return _transition_context
+
+
+## NEW API: Clear transition context
+func clear_transition_context() -> void:
+	_transition_context = null

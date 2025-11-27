@@ -183,8 +183,8 @@ func _ready() -> void:
 	TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
 	TurnManager.battle_ended.connect(_on_battle_ended)
 
-	# Set camera reference in TurnManager for awaiting visual transitions
-	TurnManager.battle_camera = _camera
+	# Register camera with all game systems (TurnManager, CinematicsManager)
+	_camera.register_with_systems()
 
 	# Start turn-based battle (this will emit signals immediately)
 	var all_units: Array[Node2D] = _player_units + _enemy_units + _neutral_units

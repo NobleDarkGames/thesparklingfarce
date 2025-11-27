@@ -12,16 +12,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var frequency: float = params.get("frequency", 30.0)
 	var should_wait: bool = params.get("wait", false)
 
-	if not manager._active_camera:
-		push_warning("CameraShakeExecutor: No camera available")
-		return true  # Complete immediately
-
-	# Check if camera is CameraController (Phase 3 upgrade)
-	if not manager._active_camera is CameraController:
-		push_warning("CameraShakeExecutor: Camera is Camera2D, not CameraController. Shake skipped. Upgrade to CameraController for Phase 3 features.")
-		return true  # Skip shake, continue cinematic
-
-	var camera: CameraController = manager._active_camera as CameraController
+	# Get validated CameraController from manager
+	var camera: CameraController = manager.get_camera_controller()
+	if not camera:
+		return true  # Complete immediately - warning already logged
 
 	# Delegate shake to CameraController
 	camera.shake(intensity, duration, frequency)

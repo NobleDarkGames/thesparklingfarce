@@ -11,16 +11,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var speed: float = params.get("speed", 2.0)
 	var should_wait: bool = params.get("wait", true)
 
-	if not manager._active_camera:
-		push_warning("CameraMoveExecutor: No camera available")
-		return true  # Complete immediately
-
-	# Check if camera is CameraController (Phase 3 upgrade)
-	if not manager._active_camera is CameraController:
-		push_warning("CameraMoveExecutor: Camera is Camera2D, not CameraController. Movement skipped. Upgrade to CameraController for Phase 3 features.")
-		return true  # Skip move, continue cinematic
-
-	var camera: CameraController = manager._active_camera as CameraController
+	# Get validated CameraController from manager
+	var camera: CameraController = manager.get_camera_controller()
+	if not camera:
+		return true  # Complete immediately - warning already logged
 
 	# Convert grid position to world position if needed
 	var world_pos: Vector2 = target_pos
