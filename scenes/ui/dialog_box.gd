@@ -75,6 +75,9 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 		fade_tween.kill()
 		fade_tween = null
 
+	# IMMEDIATELY hide old text to prevent flash of previous content during fade-in
+	text_label.visible_characters = 0
+
 	# Fade in dialog box on first line (or if it was hidden)
 	if is_first_line or modulate.a < 0.5:
 		modulate.a = 0.0

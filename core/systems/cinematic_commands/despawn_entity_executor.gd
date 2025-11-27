@@ -1,19 +1,38 @@
 ## Despawn entity command executor
 ## Removes an entity from the scene
-## TODO: Implement entity despawning when ready
 class_name DespawnEntityExecutor
 extends CinematicCommandExecutor
 
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var target: String = command.get("target", "")
+	var params: Dictionary = command.get("params", {})
 
 	var actor: CinematicActor = manager.get_actor(target)
 	if actor == null:
 		push_error("DespawnEntityExecutor: Actor '%s' not found" % target)
 		return true  # Complete immediately on error
 
-	# TODO: Implement entity despawning
-	push_warning("DespawnEntityExecutor: despawn_entity not yet implemented")
+	# Get the parent entity (the actual scene node)
+	var entity: Node = actor.parent_entity
+	if entity == null:
+		push_error("DespawnEntityExecutor: Actor '%s' has no parent entity" % target)
+		return true
 
-	return true  # Complete immediately (stub)
+	# Unregister the actor from CinematicsManager before removing
+	if CinematicsManager:
+		CinematicsManager.unregister_actor(target)
+
+	# Check for fade parameter
+	var fade_duration: float = params.get("fade", 0.0)
+
+	if fade_duration > 0.0 and entity is CanvasItem:
+		# Fade out then remove
+		var tween: Tween = entity.create_tween()
+		tween.tween_property(entity, "modulate:a", 0.0, fade_duration)
+		tween.tween_callback(entity.queue_free)
+	else:
+		# Instant removal
+		entity.queue_free()
+
+	return true  # Complete immediately
