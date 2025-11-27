@@ -18,6 +18,14 @@ var _resource_sources: Dictionary = {}
 # Tracks all resources provided by each mod
 var _mod_resources: Dictionary = {}
 
+# Scene registration (separate from resources - scenes are paths, not Resource objects)
+# Dictionary structure: { "scene_id": "scene_path" }
+var _scenes: Dictionary = {}
+
+# Dictionary structure: { "scene_id": "mod_id" }
+# Tracks which mod provided each scene
+var _scene_sources: Dictionary = {}
+
 
 ## Register a resource from a mod
 func register_resource(resource: Resource, resource_type: String, resource_id: String, mod_id: String) -> void:
@@ -59,6 +67,32 @@ func get_all_resources(resource_type: String) -> Array[Resource]:
 		for resource: Resource in _resources_by_type[resource_type].values():
 			result.append(resource)
 	return result
+
+
+## Get a character by their unique ID (character_uid)
+## Returns null if no character with that UID exists
+func get_character_by_uid(uid: String) -> CharacterData:
+	if uid.is_empty():
+		return null
+
+	if not "character" in _resources_by_type:
+		return null
+
+	for character: Resource in _resources_by_type["character"].values():
+		var char_data: CharacterData = character as CharacterData
+		if char_data and char_data.character_uid == uid:
+			return char_data
+
+	return null
+
+
+## Get a character's display name by their UID
+## Returns empty string if character not found
+func get_character_name_by_uid(uid: String) -> String:
+	var character: CharacterData = get_character_by_uid(uid)
+	if character:
+		return character.character_name
+	return ""
 
 
 ## Get the hero character (primary protagonist)
@@ -134,11 +168,13 @@ func has_resource(resource_type: String, resource_id: String) -> bool:
 	return resource_id in _resources_by_type[resource_type]
 
 
-## Clear all registered resources
+## Clear all registered resources and scenes
 func clear() -> void:
 	_resources_by_type.clear()
 	_resource_sources.clear()
 	_mod_resources.clear()
+	_scenes.clear()
+	_scene_sources.clear()
 
 
 ## Clear all resources from a specific mod
@@ -159,6 +195,61 @@ func clear_mod_resources(mod_id: String) -> void:
 	_mod_resources.erase(mod_id)
 
 
+# =============================================================================
+# Scene Registration (for moddable scenes like opening cinematic, main menu)
+# =============================================================================
+
+## Register a scene path from a mod
+## scene_id: Unique identifier (e.g., "opening_cinematic", "main_menu")
+## scene_path: Full path to the scene file
+## mod_id: ID of the mod providing this scene
+func register_scene(scene_id: String, scene_path: String, mod_id: String) -> void:
+	if scene_id.is_empty():
+		push_error("ModRegistry: Cannot register scene with empty scene_id")
+		return
+
+	if scene_path.is_empty():
+		push_error("ModRegistry: Cannot register scene '%s' with empty path" % scene_id)
+		return
+
+	# Check if this scene ID already exists (override scenario)
+	if scene_id in _scenes:
+		var existing_mod: String = _scene_sources.get(scene_id, "unknown")
+		print("ModRegistry: Mod '%s' overriding scene '%s' from mod '%s'" % [mod_id, scene_id, existing_mod])
+
+	_scenes[scene_id] = scene_path
+	_scene_sources[scene_id] = mod_id
+
+
+## Get the scene path for a given scene ID
+## Returns empty string if scene is not registered
+func get_scene_path(scene_id: String) -> String:
+	return _scenes.get(scene_id, "")
+
+
+## Check if a scene is registered
+func has_scene(scene_id: String) -> bool:
+	return scene_id in _scenes
+
+
+## Get the mod ID that provided a specific scene
+func get_scene_source(scene_id: String) -> String:
+	return _scene_sources.get(scene_id, "")
+
+
+## Get all registered scene IDs
+func get_scene_ids() -> Array[String]:
+	var result: Array[String] = []
+	for scene_id: String in _scenes.keys():
+		result.append(scene_id)
+	return result
+
+
+## Get count of registered scenes
+func get_scene_count() -> int:
+	return _scenes.size()
+
+
 ## Get statistics about loaded resources
 func get_statistics() -> Dictionary:
 	var stats: Dictionary = {}
@@ -168,6 +259,8 @@ func get_statistics() -> Dictionary:
 	for resource_type: String in stats.resource_types:
 		stats.type_counts[resource_type] = get_resource_count(resource_type)
 	stats.loaded_mods = _mod_resources.keys()
+	stats.scene_count = get_scene_count()
+	stats.scene_ids = get_scene_ids()
 	return stats
 
 
@@ -178,5 +271,8 @@ func print_debug() -> void:
 	print("Resource types: %s" % str(get_resource_types()))
 	for resource_type: String in get_resource_types():
 		print("  - %s: %d resources" % [resource_type, get_resource_count(resource_type)])
+	print("Registered scenes: %d" % get_scene_count())
+	for scene_id: String in get_scene_ids():
+		print("  - %s -> %s" % [scene_id, _scenes[scene_id]])
 	print("Loaded mods: %s" % str(_mod_resources.keys()))
 	print("========================")

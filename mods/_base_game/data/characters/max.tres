@@ -18,6 +18,7 @@ equippable_armor_types = Array[String](["light", "medium"])
 
 [resource]
 script = ExtResource("2_u7v87")
+character_uid = "hk7wm4np"
 character_name = "Max"
 character_class = SubResource("Resource_2smfh")
 base_hp = 25

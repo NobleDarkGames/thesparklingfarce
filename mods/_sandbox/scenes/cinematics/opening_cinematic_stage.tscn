@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://opening_cinematic_stage"]
+[gd_scene load_steps=6 format=3 uid="uid://sandbox_opening_cinematic"]
 
-[ext_resource type="Script" path="res://scenes/cinematics/opening_cinematic_stage.gd" id="1_stage_script"]
+[ext_resource type="Script" path="res://mods/_sandbox/scenes/cinematics/opening_cinematic_stage.gd" id="1_stage_script"]
 [ext_resource type="Script" path="res://core/components/cinematic_actor.gd" id="2_cinematic_actor"]
 [ext_resource type="PackedScene" uid="uid://dialog_box_scene" path="res://scenes/ui/dialog_box.tscn" id="3_dialog_box"]
+[ext_resource type="Script" path="res://core/systems/camera_controller.gd" id="4_camera_controller"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_spade"]
 size = Vector2(28, 28)
@@ -50,20 +51,6 @@ offset_right = 352.0
 offset_bottom = 200.0
 color = Color(0.3, 0.28, 0.25, 1)
 
-[node name="PrismaticShard" type="ColorRect" parent="Pedestal"]
-offset_left = 20.0
-offset_top = -24.0
-offset_right = 44.0
-offset_bottom = 0.0
-color = Color(0.5, 0.8, 1.0, 1)
-
-[node name="ShardGlow" type="ColorRect" parent="Pedestal/PrismaticShard"]
-offset_left = -4.0
-offset_top = -4.0
-offset_right = 28.0
-offset_bottom = 28.0
-color = Color(0.4, 0.7, 1.0, 0.3)
-
 [node name="LeftStatue" type="ColorRect" parent="."]
 offset_left = 160.0
 offset_top = 120.0
@@ -78,8 +65,29 @@ offset_right = 480.0
 offset_bottom = 200.0
 color = Color(0.35, 0.32, 0.3, 1)
 
+[node name="ArtifactActor" type="Node2D" parent="." groups=["cinematic_actors"]]
+position = Vector2(320, 128)
+
+[node name="ShardGlow" type="ColorRect" parent="ArtifactActor"]
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+color = Color(0.4, 0.7, 1.0, 0.3)
+
+[node name="Shard" type="ColorRect" parent="ArtifactActor"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+color = Color(0.5, 0.8, 1.0, 1)
+
+[node name="CinematicActor" type="Node" parent="ArtifactActor"]
+script = ExtResource("2_cinematic_actor")
+actor_id = "artifact"
+
 [node name="SpadeActor" type="CharacterBody2D" parent="." groups=["cinematic_actors"]]
-position = Vector2(320, 240)
+position = Vector2(288, 420)
 
 [node name="Visual" type="ColorRect" parent="SpadeActor"]
 offset_left = -14.0
@@ -105,7 +113,7 @@ actor_id = "spade"
 default_speed = 3.0
 
 [node name="HenchmanActor" type="CharacterBody2D" parent="." groups=["cinematic_actors"]]
-position = Vector2(420, 250)
+position = Vector2(352, 420)
 
 [node name="Visual" type="ColorRect" parent="HenchmanActor"]
 offset_left = -16.0
@@ -133,6 +141,8 @@ default_speed = 2.5
 [node name="CinematicCamera" type="Camera2D" parent="."]
 position = Vector2(320, 180)
 enabled = true
+script = ExtResource("4_camera_controller")
+smooth_movement = false
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 layer = 10

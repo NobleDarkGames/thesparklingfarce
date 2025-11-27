@@ -16,6 +16,7 @@ equippable_armor_types = Array[String](["light", "robe"])
 
 [resource]
 script = ExtResource("2_mage")
+character_uid = "qr9vb3xz"
 character_name = "Maggie"
 character_class = SubResource("Resource_mage")
 base_hp = 18

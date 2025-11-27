@@ -6,6 +6,7 @@
 
 [resource]
 script = ExtResource("1_yikiu")
+character_uid = "mg4nv7pq"
 character_name = "Maggie"
 character_class = ExtResource("1_igv21")
 base_hp = 12

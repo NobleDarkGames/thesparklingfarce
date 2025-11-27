@@ -26,6 +26,10 @@ const MAX_PRIORITY: int = 9999
 @export var overrides: Array[String] = []
 @export var tags: Array[String] = []
 
+## Scene mappings: { "scene_id": "relative/path/to/scene.tscn" }
+## Allows mods to provide/override game scenes like opening_cinematic, main_menu, etc.
+@export var scenes: Dictionary = {}
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -84,6 +88,13 @@ static func load_from_file(json_path: String) -> ModManifest:
 	if "content" in data and data.content is Dictionary:
 		manifest.data_path = data.content.get("data_path", "data/")
 		manifest.assets_path = data.content.get("assets_path", "assets/")
+
+	# Parse scene mappings
+	if "scenes" in data and data.scenes is Dictionary:
+		for scene_id: String in data.scenes.keys():
+			var scene_path: Variant = data.scenes[scene_id]
+			if scene_path is String:
+				manifest.scenes[scene_id] = scene_path
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

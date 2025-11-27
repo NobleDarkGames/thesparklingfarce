@@ -6,6 +6,7 @@
 
 [resource]
 script = ExtResource("1_ewgi5")
+character_uid = "bh3xk9mw"
 character_name = "Mr Big Hero Face"
 character_class = ExtResource("1_m00m4")
 base_hp = 20

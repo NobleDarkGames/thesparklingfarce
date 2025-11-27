@@ -1,7 +1,7 @@
 {
   "id": "base_game",
   "name": "The Sparkling Farce - Base Game",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "author": "Sparkling Farce Team",
   "description": "Reference implementation and base content for The Sparkling Farce tactical RPG platform. Demonstrates proper mod structure for tilesets, maps, triggers, characters, classes, items, and battles. Placeholder art should be replaced with final assets.",
   "godot_version": "4.5",
@@ -10,6 +10,10 @@
   "content": {
     "data_path": "data/",
     "assets_path": "assets/"
+  },
+  "scenes": {
+    "main_menu": "scenes/ui/main_menu.tscn",
+    "save_slot_selector": "scenes/ui/save_slot_selector.tscn"
   },
   "provides": {
     "tilesets": ["terrain_placeholder", "interaction_placeholder"],

@@ -1,0 +1,183 @@
+{
+  "cinematic_id": "game_opening",
+  "cinematic_name": "Opening Cinematic",
+  "description": "The game's opening cinematic sequence - demonstrates movement, dialog, and camera effects",
+  "can_skip": true,
+  "disable_player_input": true,
+
+  "commands": [
+	{
+	  "type": "fade_screen",
+	  "params": {
+		"fade_type": "in",
+		"duration": 2.0
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 1.0
+	  }
+	},
+	{
+	  "type": "move_entity",
+	  "target": "spade",
+	  "params": {
+		"path": [[9, 7]],
+		"speed": 2.5,
+		"wait": false
+	  }
+	},
+	{
+	  "type": "move_entity",
+	  "target": "henchman",
+	  "params": {
+		"path": [[11, 8]],
+		"speed": 2.0,
+		"wait": true
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 0.5
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "hn2cm5xv",
+		"text": "Boss, I don't like this place. The statues keep starin' at me.",
+		"emotion": "worried"
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "sp8dq4kn",
+		"text": "Those statues haven't moved in a thousand years. Now keep watch while I work.",
+		"emotion": "neutral"
+	  }
+	},
+	{
+	  "type": "move_entity",
+	  "target": "spade",
+	  "params": {
+		"path": [[10, 5]],
+		"speed": 2.0,
+		"wait": true
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 0.5
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "hn2cm5xv",
+		"text": "But the old guy in town said bad things happen to folks who mess with this stuff...",
+		"emotion": "worried"
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "sp8dq4kn",
+		"text": "The 'old guy' also thought I was a traveling minstrel. Not exactly a reliable source.",
+		"emotion": "happy"
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 0.8
+	  }
+	},
+	{
+	  "type": "despawn_entity",
+	  "target": "artifact",
+	  "params": {}
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 0.5
+	  }
+	},
+	{
+	  "type": "move_entity",
+	  "target": "spade",
+	  "params": {
+		"path": [[10, 7]],
+		"speed": 2.0,
+		"wait": true
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "sp8dq4kn",
+		"text": "Ha! See? Nothing to worry about. This little beauty is going to make us very rich.",
+		"emotion": "happy"
+	  }
+	},
+	{
+	  "type": "camera_shake",
+	  "params": {
+		"intensity": 6.0,
+		"duration": 1.5,
+		"frequency": 20.0
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 0.3
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "hn2cm5xv",
+		"text": "Uh, Boss? Is the temple supposed to do that?",
+		"emotion": "worried"
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"character_id": "sp8dq4kn",
+		"text": "...We should probably go. Quickly.",
+		"emotion": "neutral"
+	  }
+	},
+	{
+	  "type": "move_entity",
+	  "target": "spade",
+	  "params": {
+		"path": [[9, 13]],
+		"speed": 4.0,
+		"wait": false
+	  }
+	},
+	{
+	  "type": "move_entity",
+	  "target": "henchman",
+	  "params": {
+		"path": [[11, 13]],
+		"speed": 3.5,
+		"wait": false
+	  }
+	},
+	{
+	  "type": "fade_screen",
+	  "params": {
+		"fade_type": "out",
+		"duration": 1.5
+	  }
+	}
+  ]
+}

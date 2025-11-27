@@ -3,6 +3,15 @@ extends Resource
 
 ## Represents a single character/unit in the game.
 ## Contains all stats, appearance, and equipment information.
+##
+## Each character has a unique ID (character_uid) that is auto-generated
+## at creation and remains immutable. Use this UID in dialogs and cinematics
+## to reference characters by ID rather than name, allowing name changes
+## without breaking references.
+
+## Auto-generated unique identifier (6-8 alphanumeric characters)
+## This is immutable once generated - do not modify after creation
+@export var character_uid: String = ""
 
 @export var character_name: String = ""
 @export var character_class: ClassData
@@ -68,3 +77,32 @@ func validate() -> bool:
 		push_error("CharacterData: starting_level must be at least 1")
 		return false
 	return true
+
+
+## Ensure character has a UID, generating one if needed
+## Call this when creating new characters or loading legacy characters without UIDs
+func ensure_uid() -> void:
+	if character_uid.is_empty():
+		character_uid = generate_uid()
+
+
+## Generate a new unique identifier (8 alphanumeric characters)
+## Uses a combination of timestamp and random characters for uniqueness
+static func generate_uid() -> String:
+	const CHARS: String = "abcdefghjkmnpqrstuvwxyz23456789"  # Removed ambiguous: i, l, o, 0, 1
+	const UID_LENGTH: int = 8
+
+	# Seed with current time for additional entropy
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = Time.get_ticks_usec()
+
+	var uid: String = ""
+	for i: int in range(UID_LENGTH):
+		uid += CHARS[rng.randi() % CHARS.length()]
+
+	return uid
+
+
+## Check if this character has a valid UID
+func has_valid_uid() -> bool:
+	return not character_uid.is_empty() and character_uid.length() >= 6

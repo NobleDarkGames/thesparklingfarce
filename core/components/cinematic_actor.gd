@@ -62,6 +62,18 @@ func _ready() -> void:
 	# Validate actor_id is set
 	if actor_id.is_empty():
 		push_warning("CinematicActor: actor_id not set for %s" % parent_entity.name)
+		return
+
+	# Auto-register with CinematicsManager (removes boilerplate from cinematic scenes)
+	if CinematicsManager:
+		CinematicsManager.register_actor(self)
+
+
+## Called when this node is about to be removed from the scene tree
+func _exit_tree() -> void:
+	# Auto-unregister from CinematicsManager
+	if not actor_id.is_empty() and CinematicsManager:
+		CinematicsManager.unregister_actor(actor_id)
 
 
 func _process(delta: float) -> void:

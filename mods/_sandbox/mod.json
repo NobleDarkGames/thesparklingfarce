@@ -11,6 +11,9 @@
     "data_path": "data/",
     "assets_path": "assets/"
   },
+  "scenes": {
+    "opening_cinematic": "scenes/cinematics/opening_cinematic_stage.tscn"
+  },
   "overrides": [],
   "tags": ["development", "testing", "sandbox"]
 }

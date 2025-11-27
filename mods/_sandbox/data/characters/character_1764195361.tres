@@ -6,6 +6,7 @@
 
 [resource]
 script = ExtResource("1_nbylg")
+character_uid = "sp8dq4kn"
 character_name = "Spade"
 character_class = ExtResource("1_fkxom")
 base_hp = 20

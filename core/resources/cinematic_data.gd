@@ -96,12 +96,48 @@ func add_play_animation(actor_id: String, animation: String, wait: bool = true) 
 	commands.append(command)
 
 
-## Add a show dialog command
+## Add a show dialog command (loads from ModRegistry by ID)
 func add_show_dialog(dialogue_id: String) -> void:
 	var command: Dictionary = {
 		"type": "show_dialog",
 		"params": {
 			"dialogue_id": dialogue_id
+		}
+	}
+	commands.append(command)
+
+
+## Add a single inline dialog line command
+## Use this when you need to interleave dialog with other commands (camera shake, movement, etc.)
+## Each call creates a separate dialog command that waits for player to advance.
+func add_dialog_line(speaker: String, text: String, emotion: String = "neutral") -> void:
+	var line: Dictionary = {
+		"speaker_name": speaker,
+		"text": text,
+		"emotion": emotion
+	}
+
+	var command: Dictionary = {
+		"type": "show_dialog",
+		"params": {
+			"lines": [line]
+		}
+	}
+	commands.append(command)
+
+
+## Add multiple inline dialog lines as a single dialog sequence
+## All lines will play sequentially before the next cinematic command executes.
+## Use add_dialog_line() instead if you need to interleave with other commands.
+func add_inline_dialog(lines: Array[Dictionary]) -> void:
+	if lines.is_empty():
+		push_warning("CinematicData: add_inline_dialog called with empty lines array")
+		return
+
+	var command: Dictionary = {
+		"type": "show_dialog",
+		"params": {
+			"lines": lines
 		}
 	}
 	commands.append(command)
@@ -126,6 +162,24 @@ func add_camera_follow(actor_id: String) -> void:
 		"type": "camera_follow",
 		"target": actor_id,
 		"params": {}
+	}
+	commands.append(command)
+
+
+## Add a camera shake command for dramatic effect
+## intensity: Maximum pixel offset for shake
+## duration: How long the shake lasts in seconds
+## frequency: Oscillation frequency (higher = faster shaking)
+## wait: If true, cinematic waits for shake to complete before continuing
+func add_camera_shake(intensity: float = 6.0, duration: float = 0.5, frequency: float = 30.0, wait: bool = false) -> void:
+	var command: Dictionary = {
+		"type": "camera_shake",
+		"params": {
+			"intensity": intensity,
+			"duration": duration,
+			"frequency": frequency,
+			"wait": wait
+		}
 	}
 	commands.append(command)
 

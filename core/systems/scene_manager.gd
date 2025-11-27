@@ -3,15 +3,23 @@ extends Node
 ## SceneManager - Autoload singleton for managing scene transitions
 ## Handles transitions between different game states (menu, battle, HQ, etc.)
 ## and provides fade effects for smooth scene changes
+##
+## Scene paths are looked up from ModRegistry, allowing mods to override
+## core scenes like opening_cinematic, main_menu, save_slot_selector, etc.
 
 signal scene_transition_started(from_scene: String, to_scene: String)
 signal scene_transition_completed(scene: String)
 
-# Scene paths
-const OPENING_CINEMATIC: String = "res://scenes/cinematics/opening_cinematic_stage.tscn"
-const MAIN_MENU: String = "res://scenes/ui/main_menu.tscn"
-const SAVE_SLOT_SELECTOR: String = "res://scenes/ui/save_slot_selector.tscn"
-const BATTLE_LOADER: String = "res://mods/_sandbox/scenes/sandbox_battle_test.tscn"
+# Scene ID constants (used for registry lookups)
+const SCENE_OPENING_CINEMATIC: String = "opening_cinematic"
+const SCENE_MAIN_MENU: String = "main_menu"
+const SCENE_SAVE_SLOT_SELECTOR: String = "save_slot_selector"
+
+# Fallback paths (used only if no mod registers these scenes)
+const FALLBACK_OPENING_CINEMATIC: String = "res://scenes/cinematics/opening_cinematic_stage.tscn"
+const FALLBACK_MAIN_MENU: String = "res://scenes/ui/main_menu.tscn"
+const FALLBACK_SAVE_SLOT_SELECTOR: String = "res://scenes/ui/save_slot_selector.tscn"
+const FALLBACK_BATTLE_LOADER: String = "res://mods/_sandbox/scenes/sandbox_battle_test.tscn"
 
 # Transition settings
 const FADE_DURATION: float = 0.3
@@ -118,21 +126,40 @@ func _fade_from_black() -> void:
 	await tween.finished
 
 
+## Get a scene path from ModRegistry, with fallback to hardcoded path
+## scene_id: The scene identifier (e.g., "opening_cinematic")
+## fallback: Path to use if scene is not registered
+func get_scene_path(scene_id: String, fallback: String = "") -> String:
+	if ModLoader and ModLoader.registry:
+		var registered_path: String = ModLoader.registry.get_scene_path(scene_id)
+		if not registered_path.is_empty():
+			return registered_path
+
+	if fallback.is_empty():
+		push_warning("SceneManager: Scene '%s' not registered and no fallback provided" % scene_id)
+	return fallback
+
+
 ## Convenience functions for common transitions
 
 func goto_opening_cinematic(use_fade: bool = true) -> void:
-	change_scene(OPENING_CINEMATIC, use_fade)
+	var scene_path: String = get_scene_path(SCENE_OPENING_CINEMATIC, FALLBACK_OPENING_CINEMATIC)
+	change_scene(scene_path, use_fade)
 
 
 func goto_main_menu(use_fade: bool = true) -> void:
-	change_scene(MAIN_MENU, use_fade)
+	var scene_path: String = get_scene_path(SCENE_MAIN_MENU, FALLBACK_MAIN_MENU)
+	change_scene(scene_path, use_fade)
 
 
 func goto_save_slot_selector(use_fade: bool = true) -> void:
-	change_scene(SAVE_SLOT_SELECTOR, use_fade)
+	var scene_path: String = get_scene_path(SCENE_SAVE_SLOT_SELECTOR, FALLBACK_SAVE_SLOT_SELECTOR)
+	change_scene(scene_path, use_fade)
 
 
-func goto_battle(battle_scene_path: String = BATTLE_LOADER, use_fade: bool = true) -> void:
+func goto_battle(battle_scene_path: String = "", use_fade: bool = true) -> void:
+	if battle_scene_path.is_empty():
+		battle_scene_path = FALLBACK_BATTLE_LOADER
 	change_scene(battle_scene_path, use_fade)
 
 

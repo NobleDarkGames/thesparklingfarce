@@ -27,6 +27,12 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"battles": "battle"
 }
 
+# Resource types that support JSON loading (in addition to .tres)
+const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic"]
+
+# Preload the CinematicLoader for JSON cinematics
+const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
+
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
 var active_mod_id: String = "base_game"  # Default active mod for editor
@@ -105,14 +111,17 @@ func _load_mod(manifest: ModManifest) -> void:
 		var type_dir: String = data_dir.path_join(dir_name)
 		loaded_count += _load_resources_from_directory(type_dir, resource_type, manifest.mod_id)
 
+	# Register scenes from manifest
+	var scene_count: int = _register_mod_scenes(manifest)
+
 	# Mark mod as loaded
 	manifest.is_loaded = true
 	loaded_mods.append(manifest)
 
-	print("ModLoader: Mod '%s' loaded successfully (%d resources)" % [manifest.mod_name, loaded_count])
+	print("ModLoader: Mod '%s' loaded successfully (%d resources, %d scenes)" % [manifest.mod_name, loaded_count, scene_count])
 
 
-## Load all .tres resources from a directory
+## Load all .tres and .json resources from a directory
 func _load_resources_from_directory(directory: String, resource_type: String, mod_id: String) -> int:
 	var count: int = 0
 	var dir: DirAccess = DirAccess.open(directory)
@@ -121,25 +130,65 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 		# Directory might not exist in this mod (that's okay)
 		return 0
 
+	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
+
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
 
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
+		if not dir.current_is_dir():
 			var full_path: String = directory.path_join(file_name)
-			var resource: Resource = load(full_path)
+			var resource: Resource = null
+			var resource_id: String = ""
+
+			if file_name.ends_with(".tres"):
+				# Standard Godot resource
+				resource = load(full_path)
+				resource_id = file_name.get_basename()
+
+			elif file_name.ends_with(".json") and supports_json:
+				# JSON resource (currently only cinematics)
+				resource = _load_json_resource(full_path, resource_type)
+				resource_id = file_name.get_basename()
 
 			if resource:
-				# Use filename without extension as resource ID
-				var resource_id: String = file_name.get_basename()
 				registry.register_resource(resource, resource_type, resource_id, mod_id)
 				count += 1
-			else:
+			elif not resource_id.is_empty():
 				push_warning("ModLoader: Failed to load resource: " + full_path)
 
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
+	return count
+
+
+## Load a resource from a JSON file based on resource type
+func _load_json_resource(json_path: String, resource_type: String) -> Resource:
+	match resource_type:
+		"cinematic":
+			return CinematicLoader.load_from_json(json_path)
+		_:
+			push_warning("ModLoader: JSON loading not supported for resource type: " + resource_type)
+			return null
+
+
+## Register scenes from a mod manifest
+func _register_mod_scenes(manifest: ModManifest) -> int:
+	var count: int = 0
+
+	for scene_id: String in manifest.scenes.keys():
+		var relative_path: String = manifest.scenes[scene_id]
+		var full_path: String = manifest.mod_directory.path_join(relative_path)
+
+		# Verify scene file exists
+		if not FileAccess.file_exists(full_path):
+			push_warning("ModLoader: Scene '%s' not found at: %s" % [scene_id, full_path])
+			continue
+
+		registry.register_scene(scene_id, full_path, manifest.mod_id)
+		count += 1
+
 	return count
 
 

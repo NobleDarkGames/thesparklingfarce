@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://bw1qv7qy5d8au"]
 
-[ext_resource type="Script" path="res://scenes/ui/save_slot_selector.gd" id="1_save_slot_selector"]
+[ext_resource type="Script" path="res://mods/_base_game/scenes/ui/save_slot_selector.gd" id="1_save_slot_selector"]
 [ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
 
 [node name="SaveSlotSelector" type="Control"]

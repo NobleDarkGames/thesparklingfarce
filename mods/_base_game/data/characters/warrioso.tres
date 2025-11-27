@@ -18,6 +18,7 @@ equippable_armor_types = Array[String](["heavy", "medium"])
 
 [resource]
 script = ExtResource("2_warrior")
+character_uid = "wy5ct8fg"
 character_name = "Warrioso"
 character_class = SubResource("Resource_warrior")
 base_hp = 30
