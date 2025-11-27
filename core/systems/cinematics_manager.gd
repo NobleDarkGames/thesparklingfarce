@@ -284,6 +284,10 @@ func play_cinematic_from_resource(cinematic: CinematicData) -> bool:
 	if not _active_camera:
 		_auto_detect_camera()
 
+	# Switch camera to cinematic mode for smooth, dramatic movements
+	if _active_camera and _active_camera is CameraController:
+		(_active_camera as CameraController).set_cinematic_mode()
+
 	# Disable player input if requested
 	if cinematic.disable_player_input:
 		_disable_player_input()
@@ -383,6 +387,7 @@ func _end_cinematic() -> void:
 		var camera: CameraController = _active_camera as CameraController
 		camera.stop_follow()
 		camera.offset = Vector2.ZERO  # Reset any active shake
+		camera.set_tactical_mode()  # Restore fast camera for gameplay
 
 	# Clear current data
 	current_cinematic = null

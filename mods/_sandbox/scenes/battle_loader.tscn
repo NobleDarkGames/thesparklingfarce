@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://bp8uf7h7njdje"]
+[gd_scene load_steps=20 format=3 uid="uid://bp8uf7h7njdje"]
 
 [ext_resource type="Script" uid="uid://dt1doo2qfgs2h" path="res://mods/_sandbox/scenes/battle_loader.gd" id="1_script"]
 [ext_resource type="Script" uid="uid://bgcprqv3bhcbk" path="res://mods/base_game/ai_brains/ai_aggressive.gd" id="2_5rhrm"]
@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
 [ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="7_jpukm"]
 [ext_resource type="PackedScene" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
+[ext_resource type="PackedScene" uid="uid://combat_forecast_panel" path="res://scenes/ui/combat_forecast_panel.tscn" id="8_forecast"]
 
 [sub_resource type="Resource" id="Resource_fv7sc"]
 script = ExtResource("2_5rhrm")
@@ -81,6 +82,9 @@ mouse_filter = 2
 layout_mode = 1
 
 [node name="TerrainInfoPanel" parent="UI/HUD" instance=ExtResource("7_terrain")]
+layout_mode = 1
+
+[node name="CombatForecastPanel" parent="UI/HUD" instance=ExtResource("8_forecast")]
 layout_mode = 1
 
 [node name="DebugLabel" type="Label" parent="UI/HUD"]

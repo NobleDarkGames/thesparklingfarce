@@ -7,7 +7,7 @@ extends Node2D
 var grid_position: Vector2i = Vector2i.ZERO
 
 ## Cursor visual
-@onready var cursor_sprite: ColorRect = $CursorSprite
+@onready var cursor_sprite: Sprite2D = $CursorSprite
 
 
 ## Set cursor to specific grid position

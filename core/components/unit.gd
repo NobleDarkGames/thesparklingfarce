@@ -387,6 +387,8 @@ func is_dead() -> bool:
 func start_turn() -> void:
 	has_moved = false
 	has_acted = false
+	# Restore normal brightness when turn starts
+	_set_acted_visual(false)
 	turn_began.emit()
 	print("%s turn started" % character_data.character_name)
 
@@ -394,6 +396,8 @@ func start_turn() -> void:
 ## End turn
 func end_turn() -> void:
 	turn_finished.emit()
+	# Dim the unit to show they've acted this round
+	_set_acted_visual(true)
 	print("%s turn ended" % character_data.character_name)
 
 
@@ -422,6 +426,40 @@ func show_selection() -> void:
 func hide_selection() -> void:
 	if selection_indicator:
 		selection_indicator.visible = false
+
+
+## Set visual feedback for acted/waiting state
+## When dimmed=true, unit appears darker to show they've completed their turn
+func _set_acted_visual(dimmed: bool) -> void:
+	if not sprite:
+		return
+
+	if dimmed:
+		# Dim to ~60% brightness to show unit has acted
+		sprite.modulate = sprite.modulate * Color(0.6, 0.6, 0.6, 1.0)
+	else:
+		# Restore based on faction (from _update_visual logic)
+		if character_data and character_data.battle_sprite:
+			match faction:
+				"player":
+					sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+				"enemy":
+					sprite.modulate = Color(1.0, 0.7, 0.7, 1.0)
+				"neutral":
+					sprite.modulate = Color(1.0, 1.0, 0.8, 1.0)
+		else:
+			match faction:
+				"player":
+					sprite.modulate = COLOR_PLAYER
+				"enemy":
+					sprite.modulate = COLOR_ENEMY
+				"neutral":
+					sprite.modulate = COLOR_NEUTRAL
+
+
+## Reset all units to undimmed state (call at round start)
+func reset_acted_visual() -> void:
+	_set_acted_visual(false)
 
 
 ## Get unit display name (for UI)

@@ -49,6 +49,9 @@ var _terrain_panel: TerrainInfoPanel = null
 ## Camera
 var _camera: CameraController = null
 
+## Debug display toggle
+var _debug_visible: bool = false
+
 
 func _ready() -> void:
 	# Find required nodes
@@ -163,6 +166,8 @@ func _setup_ui() -> void:
 		InputManager.camera = _camera
 	if _stats_panel:
 		InputManager.stats_panel = _stats_panel
+	if _terrain_panel:
+		InputManager.terrain_panel = _terrain_panel
 
 
 ## Spawn units - MUST be overridden by subclass
@@ -251,35 +256,56 @@ func _process(_delta: float) -> void:
 	_update_debug_label()
 
 
-## Update debug label - override in subclass for custom info
+## Handle debug toggle input (F3 key)
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F3:
+			_debug_visible = not _debug_visible
+			var debug_label: Label = get_node_or_null("UI/HUD/DebugLabel")
+			if debug_label:
+				debug_label.visible = _debug_visible
+
+
+## Update debug label - hidden by default, toggle with F3
 func _update_debug_label() -> void:
 	var debug_label: Label = get_node_or_null("UI/HUD/DebugLabel")
 	if not debug_label:
+		return
+
+	# Keep hidden unless debug mode is enabled
+	if not _debug_visible:
+		debug_label.visible = false
 		return
 
 	var mouse_world: Vector2 = get_global_mouse_position()
 	var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 	var active_unit: Node2D = TurnManager.get_active_unit()
 
-	debug_label.text = "Battle Scene\n"
-	debug_label.text += "Mouse: %s\n" % mouse_cell
+	debug_label.text = "=== DEBUG (F3) ===\n"
+	debug_label.text += "Cell: %s\n" % mouse_cell
+	debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
 
+	if active_unit:
+		debug_label.text += "Active: %s\n" % active_unit.get_display_name()
+	else:
+		debug_label.text += "Active: None\n"
+
+	debug_label.text += "\n--- Units ---\n"
 	for unit in _player_units:
 		if unit.is_alive():
-			debug_label.text += "Player: %s\n" % unit.get_stats_summary()
-		else:
-			debug_label.text += "Player: DEAD\n"
+			debug_label.text += "P: %s HP:%d/%d\n" % [
+				unit.get_display_name().left(8),
+				unit.stats.current_hp,
+				unit.stats.max_hp
+			]
 
 	for unit in _enemy_units:
 		if unit.is_alive():
-			debug_label.text += "Enemy: %s\n" % unit.get_stats_summary()
-		else:
-			debug_label.text += "Enemy: DEAD\n"
-
-	if active_unit:
-		debug_label.text += "\nActive: %s" % active_unit.get_display_name()
-	else:
-		debug_label.text += "\nActive: None"
+			debug_label.text += "E: %s HP:%d/%d\n" % [
+				unit.get_display_name().left(8),
+				unit.stats.current_hp,
+				unit.stats.max_hp
+			]
 
 
 ## TurnManager signal handlers

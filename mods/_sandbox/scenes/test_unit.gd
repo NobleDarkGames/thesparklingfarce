@@ -35,7 +35,9 @@ var _action_menu: Control = null  # Action menu UI
 var _grid_cursor: Node2D = null  # Grid cursor visual
 var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
 var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
+var _combat_forecast_panel: CombatForecastPanel = null  # Combat forecast panel
 var _camera: CameraController = null  # Camera controller
+var _debug_visible: bool = false  # Debug display toggle (F3)
 
 
 func _ready() -> void:
@@ -108,6 +110,7 @@ func _ready() -> void:
 	# Get reference to stats panels
 	_stats_panel = $UI/HUD/ActiveUnitStatsPanel
 	_terrain_panel = $UI/HUD/TerrainInfoPanel
+	_combat_forecast_panel = $UI/HUD/CombatForecastPanel
 
 	# Get reference to camera
 	_camera = $Camera
@@ -117,6 +120,8 @@ func _ready() -> void:
 
 	# Set stats panel reference in InputManager (used for both active unit and inspection)
 	InputManager.stats_panel = _stats_panel
+	InputManager.terrain_panel = _terrain_panel
+	InputManager.combat_forecast_panel = _combat_forecast_panel
 
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
@@ -230,6 +235,16 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 	return unit
 
 
+## Handle debug toggle input (F3 key)
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F3:
+			_debug_visible = not _debug_visible
+			var debug_label: Label = $UI/HUD/DebugLabel
+			if debug_label:
+				debug_label.visible = _debug_visible
+
+
 func _process(_delta: float) -> void:
 	# Quit on Q key (changed from ESC/Backspace to avoid conflict with B button functionality)
 	if Input.is_key_pressed(KEY_Q):
@@ -246,27 +261,27 @@ func _process(_delta: float) -> void:
 			if active_unit._movement_tween and active_unit._movement_tween.is_valid():
 				_camera.set_target_position(active_unit.position)
 
-	# Update debug label
-	var mouse_world: Vector2 = get_global_mouse_position()
-	var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
-
+	# Update debug label (hidden by default, toggle with F3)
 	var debug_label: Label = $UI/HUD/DebugLabel
 	if debug_label:
-		debug_label.text = "Shining Force Battle Test\n"
-		debug_label.text += "Mouse: %s\n" % mouse_cell
-		if _test_unit and _test_unit.is_alive():
-			debug_label.text += "Hero: %s\n" % _test_unit.get_stats_summary()
+		if not _debug_visible:
+			debug_label.visible = false
 		else:
-			debug_label.text += "Hero: DEAD\n"
-		if _enemy_unit and _enemy_unit.is_alive():
-			debug_label.text += "Goblin: %s\n" % _enemy_unit.get_stats_summary()
-		else:			debug_label.text += "Goblin: DEAD\n"
+			var mouse_world: Vector2 = get_global_mouse_position()
+			var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
-		# Show current turn state
-		if active_unit:
-			debug_label.text += "\nActive: %s" % active_unit.get_display_name()
-		else:
-			debug_label.text += "\nActive: None"
+			debug_label.text = "=== DEBUG (F3) ===\n"
+			debug_label.text += "Cell: %s\n" % mouse_cell
+			debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
+
+			if active_unit:
+				debug_label.text += "Active: %s\n" % active_unit.get_display_name()
+
+			debug_label.text += "\n--- Units ---\n"
+			if _test_unit and _test_unit.is_alive():
+				debug_label.text += "Hero: HP:%d/%d\n" % [_test_unit.stats.current_hp, _test_unit.stats.max_hp]
+			if _enemy_unit and _enemy_unit.is_alive():
+				debug_label.text += "Goblin: HP:%d/%d\n" % [_enemy_unit.stats.current_hp, _enemy_unit.stats.max_hp]
 
 
 # Input is now handled by InputManager, no longer needed here

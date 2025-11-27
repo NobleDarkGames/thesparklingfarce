@@ -46,6 +46,8 @@ var battle_scene: Node = null  # Reference to battle scene for UI access
 var grid_cursor: Node2D = null  # Visual cursor for grid movement
 var path_preview_parent: Node2D = null  # Parent node for path visuals
 var stats_panel: Control = null  # ActiveUnitStatsPanel for both active unit and inspection
+var terrain_panel: Control = null  # TerrainInfoPanel for cursor position
+var combat_forecast_panel: Control = null  # CombatForecastPanel for attack preview
 
 ## Path preview
 var current_path: Array[Vector2i] = []
@@ -260,10 +262,13 @@ func _on_enter_selecting_action() -> void:
 	# Clear movement highlights
 	GridManager.clear_highlights()
 
-	# Hide cursor and path (movement is locked in)
-	if grid_cursor:
-		grid_cursor.hide_cursor()
+	# Clear path preview but KEEP cursor visible (SF-style)
 	_clear_path_preview()
+
+	# Keep cursor on unit's current position
+	if grid_cursor and active_unit:
+		grid_cursor.set_grid_position(active_unit.grid_position)
+		grid_cursor.show_cursor()
 
 	# Calculate available actions based on context
 	available_actions = _get_available_actions()
@@ -293,6 +298,9 @@ func _on_enter_targeting() -> void:
 		grid_cursor.set_grid_position(current_cursor_position)
 		grid_cursor.show_cursor()
 
+	# Show combat forecast for initial target
+	_update_combat_forecast()
+
 
 func _on_enter_executing() -> void:
 	# Action is executing, clear all highlights and cursor
@@ -301,6 +309,10 @@ func _on_enter_executing() -> void:
 	# Hide cursor during execution
 	if grid_cursor:
 		grid_cursor.hide_cursor()
+
+	# Hide combat forecast
+	if combat_forecast_panel and combat_forecast_panel.has_method("hide_forecast"):
+		combat_forecast_panel.hide_forecast()
 
 
 ## Handle continuous key presses (for cursor movement when held)
@@ -617,6 +629,9 @@ func _move_cursor(offset: Vector2i) -> void:
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
 
+	# Update terrain panel for cursor position
+	_update_terrain_panel()
+
 	# Update path preview
 	_update_path_preview()
 
@@ -643,6 +658,9 @@ func _move_free_cursor(offset: Vector2i) -> void:
 	if camera:
 		camera.move_to_cell(current_cursor_position)
 
+	# Update terrain panel for cursor position
+	_update_terrain_panel()
+
 	# Update unit inspector panel based on what's under cursor
 	_update_unit_inspector()
 
@@ -664,6 +682,12 @@ func _move_targeting_cursor(offset: Vector2i) -> void:
 	# Update cursor visual
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
+
+	# Update terrain panel for cursor position
+	_update_terrain_panel()
+
+	# Update combat forecast if there's a target under cursor
+	_update_combat_forecast()
 
 	print("InputManager: Targeting cursor moved to %s" % current_cursor_position)
 
@@ -704,7 +728,7 @@ func _draw_path_preview() -> void:
 		path_visual.offset_top = -16.0
 		path_visual.offset_right = 16.0
 		path_visual.offset_bottom = 16.0
-		path_visual.color = Color(1.0, 1.0, 0.3, 0.5)  # Yellow, semi-transparent
+		path_visual.color = Color(0.3, 0.8, 1.0, 0.4)  # Light cyan, semi-transparent
 		path_visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 		path_node.add_child(path_visual)
@@ -1026,3 +1050,36 @@ func _update_unit_inspector() -> void:
 	else:
 		# No unit under cursor, hide stats
 		stats_panel.hide_stats()
+
+
+## Update terrain panel based on cursor position
+func _update_terrain_panel() -> void:
+	if not terrain_panel:
+		return
+
+	if terrain_panel.has_method("show_terrain_info"):
+		terrain_panel.show_terrain_info(current_cursor_position)
+
+
+## Update combat forecast based on cursor position (during targeting)
+func _update_combat_forecast() -> void:
+	if not combat_forecast_panel:
+		return
+
+	# Only show forecast in targeting mode
+	if current_state != InputState.TARGETING:
+		if combat_forecast_panel.has_method("hide_forecast"):
+			combat_forecast_panel.hide_forecast()
+		return
+
+	# Check for enemy under cursor
+	var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+
+	if target and target.is_alive() and active_unit:
+		# Show forecast for this target
+		if combat_forecast_panel.has_method("show_forecast"):
+			combat_forecast_panel.show_forecast(active_unit, target)
+	else:
+		# No valid target, hide forecast
+		if combat_forecast_panel.has_method("hide_forecast"):
+			combat_forecast_panel.hide_forecast()

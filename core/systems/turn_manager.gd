@@ -4,6 +4,10 @@
 ## based on their agility stats. No separate phases - one unit acts at a time.
 extends Node
 
+## Headless mode detection - skips visual delays for automated testing
+## Cached at startup for performance
+var is_headless: bool = false
+
 # Turn priority calculation constants (Shining Force II formula)
 const AGI_VARIANCE_MIN: float = 0.875
 const AGI_VARIANCE_MAX: float = 1.125
@@ -129,6 +133,11 @@ func start_new_turn_cycle() -> void:
 	turn_cycle_started.emit(turn_number)
 
 	print("\n========== TURN %d ==========" % turn_number)
+
+	# Reset all unit visuals (remove dimming from previous round)
+	for unit in all_units:
+		if unit.is_alive() and unit.has_method("reset_acted_visual"):
+			unit.reset_acted_visual()
 
 	# Recalculate turn order with new AGI randomization
 	calculate_turn_order()

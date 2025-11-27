@@ -7,6 +7,7 @@
 [ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="5_highlight"]
 [ext_resource type="PackedScene" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
 [ext_resource type="PackedScene" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
+[ext_resource type="PackedScene" uid="uid://combat_forecast_panel" path="res://scenes/ui/combat_forecast_panel.tscn" id="8_forecast"]
 
 [sub_resource type="TileSet" id="TileSet_test"]
 tile_size = Vector2i(32, 32)
@@ -57,6 +58,9 @@ mouse_filter = 2
 layout_mode = 1
 
 [node name="TerrainInfoPanel" parent="UI/HUD" instance=ExtResource("7_terrain")]
+layout_mode = 1
+
+[node name="CombatForecastPanel" parent="UI/HUD" instance=ExtResource("8_forecast")]
 layout_mode = 1
 
 [node name="DebugLabel" type="Label" parent="UI/HUD"]

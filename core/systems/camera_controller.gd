@@ -29,11 +29,15 @@ enum FollowMode {
 
 @export var follow_mode: FollowMode = FollowMode.NONE
 
-## Duration of camera movement in seconds
-@export_range(0.1, 3.0, 0.1) var movement_duration: float = 0.6
+## Camera mode - determines movement speed and style
+## TACTICAL: Fast linear pans for responsive gameplay (SF-style)
+## CINEMATIC: Slower eased movements for story moments
+enum CameraMode {
+	TACTICAL,   ## Fast linear panning for battle/cursor movement
+	CINEMATIC   ## Smooth eased panning for cutscenes/story
+}
 
-## Enable smooth camera movement (tween) or instant snap
-@export var smooth_movement: bool = true
+@export var camera_mode: CameraMode = CameraMode.TACTICAL
 
 ## Interpolation type for camera movement
 enum InterpolationType {
@@ -44,7 +48,19 @@ enum InterpolationType {
 	CUBIC          ## Smooth cubic curve
 }
 
-@export var interpolation_type: InterpolationType = InterpolationType.EASE_IN_OUT
+## Tactical mode settings (fast, responsive, SF-style)
+@export_group("Tactical Mode")
+@export_range(0.1, 1.0, 0.05) var tactical_duration: float = 0.2
+@export var tactical_interpolation: InterpolationType = InterpolationType.LINEAR
+
+## Cinematic mode settings (smooth, dramatic)
+@export_group("Cinematic Mode")
+@export_range(0.2, 2.0, 0.1) var cinematic_duration: float = 0.6
+@export var cinematic_interpolation: InterpolationType = InterpolationType.EASE_IN_OUT
+
+## Legacy exports (use camera_mode instead)
+@export_group("Legacy")
+@export var smooth_movement: bool = true  ## Always true now, use camera_mode for speed
 
 ## Dead zone - cursor must be this far from screen center before camera moves
 ## Measured in pixels at base resolution (640x360)
@@ -222,34 +238,18 @@ func set_target_position(target: Vector2) -> void:
 		_movement_tween.kill()
 		_movement_tween = null
 
-	if not smooth_movement:
-		# Instant snap
-		position = _target_position.floor()
-		movement_completed.emit()
-		return
+	# Get mode-based settings
+	var duration: float = _get_current_duration()
+	var interp_type: InterpolationType = _get_current_interpolation()
 
 	# Create new tween for smooth movement
 	_movement_tween = create_tween()
 
-	# Set transition type based on interpolation setting
-	match interpolation_type:
-		InterpolationType.LINEAR:
-			_movement_tween.set_trans(Tween.TRANS_LINEAR)
-		InterpolationType.EASE_IN:
-			_movement_tween.set_trans(Tween.TRANS_QUAD)
-			_movement_tween.set_ease(Tween.EASE_IN)
-		InterpolationType.EASE_OUT:
-			_movement_tween.set_trans(Tween.TRANS_QUAD)
-			_movement_tween.set_ease(Tween.EASE_OUT)
-		InterpolationType.EASE_IN_OUT:
-			_movement_tween.set_trans(Tween.TRANS_QUAD)
-			_movement_tween.set_ease(Tween.EASE_IN_OUT)
-		InterpolationType.CUBIC:
-			_movement_tween.set_trans(Tween.TRANS_CUBIC)
-			_movement_tween.set_ease(Tween.EASE_IN_OUT)
+	# Apply interpolation based on current camera mode
+	_apply_interpolation(_movement_tween, interp_type)
 
 	# Tween to target position
-	_movement_tween.tween_property(self, "position", _target_position, movement_duration)
+	_movement_tween.tween_property(self, "position", _target_position, duration)
 
 	# Snap to pixel after tween completes and emit completion signal
 	_movement_tween.tween_callback(func() -> void:
@@ -304,6 +304,55 @@ func set_follow_mode(mode: FollowMode) -> void:
 		_target_position = position
 
 
+## Set camera to tactical mode (fast linear panning for gameplay)
+func set_tactical_mode() -> void:
+	camera_mode = CameraMode.TACTICAL
+
+
+## Set camera to cinematic mode (smooth eased panning for story moments)
+func set_cinematic_mode() -> void:
+	camera_mode = CameraMode.CINEMATIC
+
+
+## Get current movement duration based on camera mode
+func _get_current_duration() -> float:
+	match camera_mode:
+		CameraMode.TACTICAL:
+			return tactical_duration
+		CameraMode.CINEMATIC:
+			return cinematic_duration
+	return tactical_duration
+
+
+## Get current interpolation type based on camera mode
+func _get_current_interpolation() -> InterpolationType:
+	match camera_mode:
+		CameraMode.TACTICAL:
+			return tactical_interpolation
+		CameraMode.CINEMATIC:
+			return cinematic_interpolation
+	return tactical_interpolation
+
+
+## Apply interpolation settings to a tween based on type
+func _apply_interpolation(tween: Tween, interp_type: InterpolationType) -> void:
+	match interp_type:
+		InterpolationType.LINEAR:
+			tween.set_trans(Tween.TRANS_LINEAR)
+		InterpolationType.EASE_IN:
+			tween.set_trans(Tween.TRANS_QUAD)
+			tween.set_ease(Tween.EASE_IN)
+		InterpolationType.EASE_OUT:
+			tween.set_trans(Tween.TRANS_QUAD)
+			tween.set_ease(Tween.EASE_OUT)
+		InterpolationType.EASE_IN_OUT:
+			tween.set_trans(Tween.TRANS_QUAD)
+			tween.set_ease(Tween.EASE_IN_OUT)
+		InterpolationType.CUBIC:
+			tween.set_trans(Tween.TRANS_CUBIC)
+			tween.set_ease(Tween.EASE_IN_OUT)
+
+
 ## Apply screen shake effect (Phase 3: cinematics & battle integration)
 ## intensity: Maximum pixel offset for shake
 ## duration: How long the shake lasts in seconds
@@ -318,7 +367,7 @@ func shake(intensity: float, duration: float, frequency: float = 30.0) -> void:
 
 ## Move camera to a world position (not grid-based)
 ## target: World position in pixels
-## custom_duration: Optional override for movement_duration
+## custom_duration: Optional override for mode-based duration (-1 uses mode default)
 ## wait: If true, emits movement_completed signal when done
 func move_to_position(target: Vector2, custom_duration: float = -1.0, wait: bool = false) -> void:
 	_target_position = target
@@ -329,35 +378,15 @@ func move_to_position(target: Vector2, custom_duration: float = -1.0, wait: bool
 		_movement_tween.kill()
 		_movement_tween = null
 
-	var duration: float = custom_duration if custom_duration > 0.0 else movement_duration
-
-	if not smooth_movement:
-		# Instant snap
-		position = _target_position.floor()
-		if wait:
-			movement_completed.emit()
-			operation_completed.emit()
-		return
+	# Get mode-based settings, with optional duration override
+	var duration: float = custom_duration if custom_duration > 0.0 else _get_current_duration()
+	var interp_type: InterpolationType = _get_current_interpolation()
 
 	# Create new tween for smooth movement
 	_movement_tween = create_tween()
 
-	# Set transition type based on interpolation setting
-	match interpolation_type:
-		InterpolationType.LINEAR:
-			_movement_tween.set_trans(Tween.TRANS_LINEAR)
-		InterpolationType.EASE_IN:
-			_movement_tween.set_trans(Tween.TRANS_QUAD)
-			_movement_tween.set_ease(Tween.EASE_IN)
-		InterpolationType.EASE_OUT:
-			_movement_tween.set_trans(Tween.TRANS_QUAD)
-			_movement_tween.set_ease(Tween.EASE_OUT)
-		InterpolationType.EASE_IN_OUT:
-			_movement_tween.set_trans(Tween.TRANS_QUAD)
-			_movement_tween.set_ease(Tween.EASE_IN_OUT)
-		InterpolationType.CUBIC:
-			_movement_tween.set_trans(Tween.TRANS_CUBIC)
-			_movement_tween.set_ease(Tween.EASE_IN_OUT)
+	# Apply interpolation based on current camera mode
+	_apply_interpolation(_movement_tween, interp_type)
 
 	# Tween to target position
 	_movement_tween.tween_property(self, "position", _target_position, duration)
