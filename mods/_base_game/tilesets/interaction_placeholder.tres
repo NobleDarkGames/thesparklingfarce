@@ -5,15 +5,15 @@
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_door"]
 texture = ExtResource("1_door")
-texture_region_size = Vector2i(16, 16)
+texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_battle"]
 texture = ExtResource("2_battle")
-texture_region_size = Vector2i(16, 16)
+texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
 
 [resource]
-tile_size = Vector2i(16, 16)
+tile_size = Vector2i(32, 32)
 sources/0 = SubResource("TileSetAtlasSource_door")
 sources/1 = SubResource("TileSetAtlasSource_battle")
