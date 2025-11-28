@@ -1,0 +1,49 @@
+{
+  "campaign_id": "sandbox:test_campaign",
+  "campaign_name": "Test Campaign",
+  "campaign_description": "A simple test campaign for development and modder reference.",
+  "campaign_version": "1.0.0",
+  "starting_node_id": "headquarters",
+  "default_hub_id": "headquarters",
+
+  "initial_flags": {
+    "campaign_started": true
+  },
+
+  "chapters": [
+    {
+      "id": "ch1",
+      "name": "Chapter 1: Testing",
+      "number": 1,
+      "node_ids": ["headquarters", "battle_of_noobs"]
+    }
+  ],
+
+  "nodes": [
+    {
+      "node_id": "headquarters",
+      "display_name": "Headquarters",
+      "node_type": "scene",
+      "scene_path": "res://mods/_base_game/maps/test/collision_test_001.tscn",
+      "is_hub": true,
+      "allow_egress": false,
+      "completion_trigger": "exit_trigger",
+      "on_complete": "battle_of_noobs"
+    },
+    {
+      "node_id": "battle_of_noobs",
+      "display_name": "Battle of Noobs",
+      "node_type": "battle",
+      "resource_id": "battle_1763763677",
+      "retain_xp_on_defeat": true,
+      "defeat_gold_penalty": 0.5,
+      "repeatable": true,
+      "replay_advances_story": false,
+      "on_victory": "headquarters",
+      "on_defeat": "headquarters",
+      "on_complete_flags": {
+        "completed_battle_of_noobs": true
+      }
+    }
+  ]
+}

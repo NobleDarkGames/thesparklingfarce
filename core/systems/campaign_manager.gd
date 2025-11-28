@@ -39,6 +39,9 @@ signal egress_requested()
 ## Emitted when chapter boundary is reached (for save prompt UI)
 signal chapter_boundary_reached(chapter: Dictionary)
 
+## Emitted when returning to a scene after an encounter (carries return position)
+signal encounter_return(scene_path: String, position: Vector2, facing: String)
+
 # ---- State ----
 
 ## Currently active campaign (CampaignData resource)
@@ -55,6 +58,11 @@ var last_hub_id: String = ""
 
 ## Registered campaigns (from all mods)
 var _campaigns: Dictionary = {}  # campaign_id -> CampaignData
+
+# ---- Encounter Return Context ----
+## Stores scene and position to return to after triggered encounters
+## Format: {"scene_path": String, "position": Vector2, "facing": String, "node_id": String}
+var _return_context: Dictionary = {}
 
 # ---- Registry Pattern: Node Processors ----
 ## Registered node type processors: node_type -> Callable
@@ -423,6 +431,12 @@ func complete_current_node(outcome: Dictionary) -> void:
 
 ## Handle battle completion (called via BattleManager.battle_ended signal)
 func _on_battle_ended(victory: bool) -> void:
+	# Check if this was an encounter (position-preserving battle)
+	if has_encounter_return():
+		_handle_encounter_return(victory)
+		return
+
+	# Otherwise, handle as normal campaign node battle
 	on_battle_completed(victory)
 
 
@@ -479,6 +493,92 @@ func request_egress() -> bool:
 	print("CampaignManager: Egress to hub '%s'" % egress_target)
 	await enter_node(egress_target)
 	return true
+
+
+# ==== Encounter System (Position-Preserving Battles) ====
+
+## Trigger a battle encounter that returns to the current scene position afterward
+## Use this for exploration triggers, ambushes, random encounters, etc.
+## @param battle_id: The battle resource ID to start
+## @param return_position: Player's position to restore after battle
+## @param return_facing: Optional facing direction ("up", "down", "left", "right")
+func trigger_encounter(battle_id: String, return_position: Vector2, return_facing: String = "") -> void:
+	# Store return context
+	var current_scene_path: String = SceneManager.current_scene.scene_file_path if SceneManager.current_scene else ""
+
+	if current_scene_path.is_empty():
+		push_warning("CampaignManager: No current scene for encounter return context")
+
+	_return_context = {
+		"scene_path": current_scene_path,
+		"position": return_position,
+		"facing": return_facing,
+		"node_id": current_node.node_id if current_node else "",
+		"is_encounter": true
+	}
+
+	print("CampaignManager: Triggering encounter '%s' with return to %s at %s" % [
+		battle_id, current_scene_path, return_position
+	])
+
+	# Store encounter context in GameState for battle return
+	GameState.set_campaign_data("encounter_battle_id", battle_id)
+	GameState.set_campaign_data("encounter_return_scene", current_scene_path)
+	GameState.set_campaign_data("encounter_return_position_x", return_position.x)
+	GameState.set_campaign_data("encounter_return_position_y", return_position.y)
+	GameState.set_campaign_data("encounter_return_facing", return_facing)
+
+	# Start the battle via TriggerManager
+	TriggerManager.start_battle(battle_id)
+
+
+## Check if we have a pending encounter return
+func has_encounter_return() -> bool:
+	return not _return_context.is_empty() and _return_context.get("is_encounter", false)
+
+
+## Get the stored return position (for scenes to query on load)
+func get_encounter_return_position() -> Vector2:
+	return _return_context.get("position", Vector2.ZERO)
+
+
+## Get the stored return facing direction
+func get_encounter_return_facing() -> String:
+	return _return_context.get("facing", "")
+
+
+## Clear the return context (called after position is restored)
+func clear_encounter_return() -> void:
+	_return_context.clear()
+	GameState.set_campaign_data("encounter_return_scene", "")
+	print("CampaignManager: Encounter return context cleared")
+
+
+## Handle return to scene after encounter battle completes
+func _handle_encounter_return(victory: bool) -> void:
+	if not has_encounter_return():
+		return
+
+	var scene_path: String = _return_context.get("scene_path", "")
+	var position: Vector2 = _return_context.get("position", Vector2.ZERO)
+	var facing: String = _return_context.get("facing", "")
+	var original_node_id: String = _return_context.get("node_id", "")
+
+	print("CampaignManager: Returning from encounter to %s at %s (victory: %s)" % [
+		scene_path, position, victory
+	])
+
+	# Emit signal so scenes can prepare for position restoration
+	encounter_return.emit(scene_path, position, facing)
+
+	# Return to the scene
+	if not scene_path.is_empty():
+		SceneManager.change_scene(scene_path)
+	elif not original_node_id.is_empty() and current_campaign:
+		# Fallback: re-enter the original node
+		await enter_node(original_node_id)
+
+	# Note: Scene should call clear_encounter_return() after restoring player position
 
 
 # ==== Transition Logic ====

@@ -29,10 +29,11 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 }
 
 # Resource types that support JSON loading (in addition to .tres)
-const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic"]
+const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "campaign"]
 
-# Preload the CinematicLoader for JSON cinematics
+# Preload loaders for JSON resources
 const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
+const CampaignLoader: GDScript = preload("res://core/systems/campaign_loader.gd")
 
 # Preload type registry classes
 const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
@@ -338,6 +339,8 @@ func _load_json_resource(json_path: String, resource_type: String) -> Resource:
 	match resource_type:
 		"cinematic":
 			return CinematicLoader.load_from_json(json_path)
+		"campaign":
+			return CampaignLoader.load_from_json(json_path)
 		_:
 			push_warning("ModLoader: JSON loading not supported for resource type: " + resource_type)
 			return null
