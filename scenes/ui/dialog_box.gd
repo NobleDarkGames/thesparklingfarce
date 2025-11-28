@@ -33,14 +33,32 @@ func _ready() -> void:
 	DialogManager.line_changed.connect(_on_line_changed)
 	DialogManager.dialog_ended.connect(_on_dialog_ended)
 
-	# Start hidden
+	# Start hidden with NO stale content
 	hide()
+	modulate.a = 0.0
+
+	# Clear any stale text content to prevent flicker on first show
+	_clear_all_content()
 
 	# Ensure continue indicator starts hidden
 	continue_indicator.hide()
 
 	# Set mouse filter to block clicks to battle map
 	mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+## Clear all text/visual content to prevent stale content flicker
+func _clear_all_content() -> void:
+	if text_label:
+		text_label.text = ""
+		text_label.visible_characters = 0
+	if speaker_label:
+		speaker_label.text = ""
+	if portrait_texture_rect:
+		portrait_texture_rect.texture = null
+		portrait_texture_rect.hide()
+	full_text = ""
+	visible_characters = 0.0
 
 
 func _process(delta: float) -> void:
@@ -75,8 +93,12 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 		fade_tween.kill()
 		fade_tween = null
 
-	# IMMEDIATELY hide old text to prevent flash of previous content during fade-in
+	# IMMEDIATELY clear old text content to prevent ANY flash of previous content
+	# This must happen BEFORE any await operations (portrait animations, fade-in, etc.)
+	text_label.text = ""
 	text_label.visible_characters = 0
+	full_text = ""
+	visible_characters = 0.0
 
 	# Fade in dialog box on first line (or if it was hidden)
 	if is_first_line or modulate.a < 0.5:
@@ -212,7 +234,10 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 		fade_tween = null
 
 		hide()
-		modulate.a = 1.0
+		modulate.a = 0.0  # Keep at 0 when hidden to prevent flash on next show
+
+		# Clear ALL content after hiding to prevent stale content flash on next dialog
+		_clear_all_content()
 
 	# Always clean up UI elements
 	continue_indicator.hide()

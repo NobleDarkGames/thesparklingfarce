@@ -66,7 +66,8 @@ var _command_completed: bool = false
 var _active_camera: Camera2D = null
 var _camera_original_position: Vector2 = Vector2.ZERO
 
-## Fade overlay
+## Fade overlay (DEPRECATED - use SceneManager.fade_to_black/fade_from_black instead)
+## Kept for backwards compatibility with custom mods that may reference it
 var _fade_overlay: ColorRect = null
 
 
@@ -470,7 +471,8 @@ func _enable_player_input() -> void:
 	_player_input_disabled = false
 
 
-## Ensure fade overlay exists in the scene tree
+## DEPRECATED: Ensure fade overlay exists in the scene tree
+## Now handled by SceneManager. Kept for backwards compatibility with custom mods.
 func _ensure_fade_overlay() -> void:
 	# Check if existing overlay is still valid (may have been freed on scene change)
 	if _fade_overlay and is_instance_valid(_fade_overlay):

@@ -1,5 +1,5 @@
 ## Fade screen command executor
-## Fades screen in or out
+## Fades screen in or out using SceneManager's centralized fade system
 class_name FadeScreenExecutor
 extends CinematicCommandExecutor
 
@@ -10,37 +10,28 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var duration: float = params.get("duration", 1.0)
 	var color: Color = params.get("color", Color.BLACK)
 
-	# Ensure fade overlay exists
-	manager._ensure_fade_overlay()
-
-	if not manager._fade_overlay:
-		push_warning("FadeScreenExecutor: Failed to create fade overlay")
+	# Use SceneManager's centralized fade system
+	if not SceneManager:
+		push_warning("FadeScreenExecutor: SceneManager not available")
 		return true  # Complete immediately on error
 
-	# Set initial color based on fade type
-	if fade_type == "in":
-		# Fade in: start opaque, end transparent
-		manager._fade_overlay.color = Color(color.r, color.g, color.b, 1.0)
-		manager._fade_overlay.show()
-	else:
-		# Fade out: start transparent, end opaque
-		manager._fade_overlay.color = Color(color.r, color.g, color.b, 0.0)
-		manager._fade_overlay.show()
-
-	# Create tween for fade
-	var fade_tween: Tween = manager.create_tween()
-	fade_tween.set_trans(Tween.TRANS_LINEAR)
-
-	if fade_type == "in":
-		# Fade to transparent
-		fade_tween.tween_property(manager._fade_overlay, "color:a", 0.0, duration)
-		fade_tween.tween_callback(func() -> void:
-			manager._fade_overlay.hide()
-			manager._command_completed = true
-		)
-	else:
-		# Fade to opaque
-		fade_tween.tween_property(manager._fade_overlay, "color:a", 1.0, duration)
-		fade_tween.tween_callback(func() -> void: manager._command_completed = true)
+	# Start the fade asynchronously
+	_do_fade(fade_type, duration, color, manager)
 
 	return false  # Always async
+
+
+## Perform the fade using SceneManager
+func _do_fade(fade_type: String, duration: float, color: Color, manager: Node) -> void:
+	if fade_type == "in":
+		# Fade in: reveal the scene (from black to visible)
+		# First ensure we're at black
+		if not SceneManager.is_faded_to_black:
+			SceneManager.set_black()
+		await SceneManager.fade_from_black(duration)
+	else:
+		# Fade out: hide the scene (from visible to black)
+		await SceneManager.fade_to_black(duration, color)
+
+	# Mark command as completed
+	manager._command_completed = true

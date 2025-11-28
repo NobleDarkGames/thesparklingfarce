@@ -51,6 +51,13 @@ var battle_camera: Camera2D = null
 var _timing_start_ms: int = 0
 
 
+func _ready() -> void:
+	# Detect headless mode for automated testing (skips visual delays)
+	is_headless = DisplayServer.get_name() == "headless"
+	if is_headless:
+		print("TurnManager: Headless mode detected - visual delays disabled")
+
+
 ## Get elapsed time since battle start (for debug timing)
 func _get_elapsed_time() -> String:
 	var elapsed_ms: int = Time.get_ticks_msec() - _timing_start_ms
@@ -221,7 +228,8 @@ func advance_to_next_unit() -> void:
 
 	# Add delay before starting next unit's turn
 	# This allows camera pans, animations, and UI updates to complete
-	if turn_transition_delay > 0:
+	# Skip in headless mode for faster automated testing
+	if turn_transition_delay > 0 and not is_headless:
 		print("%s Waiting %.1fs (turn_transition_delay)..." % [_get_elapsed_time(), turn_transition_delay])
 		await get_tree().create_timer(turn_transition_delay).timeout
 		print("%s Turn transition delay complete" % _get_elapsed_time())

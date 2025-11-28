@@ -33,18 +33,29 @@ const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic"]
 # Preload the CinematicLoader for JSON cinematics
 const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
 
+## Signal emitted when all mods have finished loading
+signal mods_loaded()
+
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
 var active_mod_id: String = "base_game"  # Default active mod for editor
 
+## Loading state tracking
+var _is_loading: bool = false
+var _pending_loads: Dictionary = {}  # path -> {resource_type, resource_id, mod_id}
+
 
 func _ready() -> void:
 	print("ModLoader: Initializing...")
+	# Initial load is SYNCHRONOUS to ensure all resources are available
+	# before any scenes try to use them. Use reload_mods_async() for
+	# runtime hot-reloading if needed.
 	_discover_and_load_mods()
 	registry.print_debug()
+	mods_loaded.emit()
 
 
-## Discover all mods and load them in priority order
+## Discover all mods and load them in priority order (sync version for editor/reload)
 func _discover_and_load_mods() -> void:
 	var discovered_mods: Array[ModManifest] = _discover_mods()
 	if discovered_mods.is_empty():
@@ -57,6 +68,25 @@ func _discover_and_load_mods() -> void:
 	# Load each mod
 	for manifest in discovered_mods:
 		_load_mod(manifest)
+
+
+## Discover all mods and load them asynchronously (for game startup)
+func _discover_and_load_mods_async() -> void:
+	_is_loading = true
+	var discovered_mods: Array[ModManifest] = _discover_mods()
+	if discovered_mods.is_empty():
+		push_warning("ModLoader: No mods found in " + MODS_DIRECTORY)
+		_is_loading = false
+		return
+
+	# Sort by load priority (lower priority loads first, can be overridden by higher)
+	discovered_mods.sort_custom(_sort_by_priority)
+
+	# Load each mod asynchronously
+	for manifest in discovered_mods:
+		await _load_mod_async(manifest)
+
+	_is_loading = false
 
 
 ## Discover all mods in the mods/ directory
@@ -119,6 +149,130 @@ func _load_mod(manifest: ModManifest) -> void:
 	loaded_mods.append(manifest)
 
 	print("ModLoader: Mod '%s' loaded successfully (%d resources, %d scenes)" % [manifest.mod_name, loaded_count, scene_count])
+
+
+## Load a single mod asynchronously using threaded resource loading
+func _load_mod_async(manifest: ModManifest) -> void:
+	print("ModLoader: Loading mod '%s' (priority: %d)..." % [manifest.mod_name, manifest.load_priority])
+
+	# Check dependencies (simple check - just verify they're loaded)
+	for dep_id in manifest.dependencies:
+		if not _is_mod_loaded(dep_id):
+			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
+			return
+
+	# Collect all resource paths from data directory
+	var data_dir: String = manifest.get_data_directory()
+	var resource_requests: Array[Dictionary] = []
+
+	for dir_name: String in RESOURCE_TYPE_DIRS.keys():
+		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
+		var type_dir: String = data_dir.path_join(dir_name)
+		var requests: Array[Dictionary] = _collect_resource_paths(type_dir, resource_type, manifest.mod_id)
+		resource_requests.append_array(requests)
+
+	# Request all .tres resources to load in background threads
+	var tres_paths: Array[String] = []
+	for req in resource_requests:
+		if req.path.ends_with(".tres"):
+			ResourceLoader.load_threaded_request(req.path, "", true)  # true = use_sub_threads
+			tres_paths.append(req.path)
+
+	# Wait for all threaded loads to complete (polling with yield to not block)
+	if not tres_paths.is_empty():
+		print("ModLoader: Waiting for %d resources to load in background..." % tres_paths.size())
+		await _wait_for_threaded_loads(tres_paths)
+
+	# Now retrieve and register all resources
+	var loaded_count: int = 0
+	for req in resource_requests:
+		var resource: Resource = null
+
+		if req.path.ends_with(".tres"):
+			# Get the threaded-loaded resource
+			resource = ResourceLoader.load_threaded_get(req.path)
+		elif req.path.ends_with(".json"):
+			# JSON resources are loaded synchronously (they're small text files)
+			resource = _load_json_resource(req.path, req.resource_type)
+
+		if resource:
+			registry.register_resource(resource, req.resource_type, req.resource_id, manifest.mod_id)
+			loaded_count += 1
+		else:
+			push_warning("ModLoader: Failed to load resource: " + req.path)
+
+	# Register scenes from manifest
+	var scene_count: int = _register_mod_scenes(manifest)
+
+	# Mark mod as loaded
+	manifest.is_loaded = true
+	loaded_mods.append(manifest)
+
+	print("ModLoader: Mod '%s' loaded successfully (%d resources, %d scenes)" % [manifest.mod_name, loaded_count, scene_count])
+
+
+## Collect all resource file paths from a directory (without loading them)
+func _collect_resource_paths(directory: String, resource_type: String, mod_id: String) -> Array[Dictionary]:
+	var requests: Array[Dictionary] = []
+	var dir: DirAccess = DirAccess.open(directory)
+
+	if not dir:
+		return requests
+
+	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
+
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+
+	while file_name != "":
+		if not dir.current_is_dir():
+			var full_path: String = directory.path_join(file_name)
+
+			if file_name.ends_with(".tres"):
+				requests.append({
+					"path": full_path,
+					"resource_type": resource_type,
+					"resource_id": file_name.get_basename(),
+					"mod_id": mod_id
+				})
+			elif file_name.ends_with(".json") and supports_json:
+				requests.append({
+					"path": full_path,
+					"resource_type": resource_type,
+					"resource_id": file_name.get_basename(),
+					"mod_id": mod_id
+				})
+
+		file_name = dir.get_next()
+
+	dir.list_dir_end()
+	return requests
+
+
+## Wait for all threaded resource loads to complete
+func _wait_for_threaded_loads(paths: Array[String]) -> void:
+	var pending: Array[String] = paths.duplicate()
+
+	while not pending.is_empty():
+		var still_pending: Array[String] = []
+
+		for path in pending:
+			var status: ResourceLoader.ThreadLoadStatus = ResourceLoader.load_threaded_get_status(path)
+			match status:
+				ResourceLoader.THREAD_LOAD_LOADED:
+					pass  # Done, don't add to still_pending
+				ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+					still_pending.append(path)
+				ResourceLoader.THREAD_LOAD_FAILED:
+					push_warning("ModLoader: Failed to load resource: " + path)
+				ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+					push_warning("ModLoader: Invalid resource: " + path)
+
+		pending = still_pending
+
+		# Yield to allow other processing (don't block the main thread)
+		if not pending.is_empty():
+			await get_tree().process_frame
 
 
 ## Load all .tres and .json resources from a directory
@@ -246,13 +400,27 @@ func set_active_mod(mod_id: String) -> bool:
 		return false
 
 
-## Reload all mods (useful for development)
+## Reload all mods synchronously (useful for editor/development)
+## Blocks until all mods are loaded - safe but may cause brief freeze
 func reload_mods() -> void:
 	print("ModLoader: Reloading all mods...")
 	loaded_mods.clear()
 	registry.clear()
 	_discover_and_load_mods()
 	registry.print_debug()
+	mods_loaded.emit()
+
+
+## Reload all mods asynchronously (useful for runtime hot-reloading)
+## Does not block - emits mods_loaded signal when complete
+## WARNING: Scenes should wait for mods_loaded before accessing mod resources
+func reload_mods_async() -> void:
+	print("ModLoader: Reloading all mods (async)...")
+	loaded_mods.clear()
+	registry.clear()
+	await _discover_and_load_mods_async()
+	registry.print_debug()
+	mods_loaded.emit()
 
 
 ## Get list of all available resource directories for a mod

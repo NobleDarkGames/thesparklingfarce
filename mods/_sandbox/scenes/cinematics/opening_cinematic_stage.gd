@@ -50,11 +50,21 @@ func _start_cinematic() -> void:
 func _on_cinematic_ended(_cinematic_id: String) -> void:
 	print("OpeningCinematic: Sequence complete, transitioning to main menu...")
 
-	# Brief pause before transition
-	await get_tree().create_timer(0.5).timeout
+	# Wait for any pending fade to complete before transitioning
+	# This prevents race conditions where the cinematic's fade_out finishes
+	# after we've already started the scene transition
+	while SceneManager.is_fading:
+		await get_tree().process_frame
 
-	# Transition to main menu (actors auto-unregister when scene is freed)
-	SceneManager.goto_main_menu(false)  # No fade since we just faded out
+	# Ensure screen is black before transition (cinematic should have faded out)
+	if not SceneManager.is_faded_to_black:
+		await SceneManager.fade_to_black(0.5)
+
+	# Brief pause before transition
+	await get_tree().create_timer(0.3).timeout
+
+	# Transition to main menu - SceneManager will fade FROM black
+	SceneManager.goto_main_menu(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:

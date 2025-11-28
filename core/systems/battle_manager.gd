@@ -492,6 +492,11 @@ func _show_combat_animation(
 	was_critical: bool,
 	was_miss: bool
 ) -> void:
+	# Skip combat animation entirely in headless mode for faster automated testing
+	if TurnManager.is_headless:
+		print("%s [HEADLESS] Skipping combat animation" % TurnManager._get_elapsed_time())
+		return
+
 	print("%s HIDING battlefield (combat anim starting)" % TurnManager._get_elapsed_time())
 	# HIDE the battlefield completely (Shining Force style - full screen replacement)
 	if map_instance:
@@ -541,8 +546,8 @@ func _show_combat_animation(
 func _on_unit_died(unit: Node2D) -> void:
 	print("BattleManager: Handling death of %s" % unit.get_display_name())
 
-	# Visual feedback (fade out)
-	if "modulate" in unit:
+	# Visual feedback (fade out) - skip in headless mode
+	if "modulate" in unit and not TurnManager.is_headless:
 		var tween: Tween = create_tween()
 		tween.tween_property(unit, "modulate:a", 0.0, DEATH_FADE_DURATION)
 		await tween.finished

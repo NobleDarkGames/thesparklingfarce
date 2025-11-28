@@ -29,7 +29,8 @@ func process_enemy_turn(unit: Node2D) -> void:
 	print("%s AIController: Processing turn for %s" % [TurnManager._get_elapsed_time(), unit.get_display_name()])
 
 	# Delay before enemy starts acting (gives player time to see whose turn it is)
-	if delay_before_turn_start > 0:
+	# Skip in headless mode for faster automated testing
+	if delay_before_turn_start > 0 and not TurnManager.is_headless:
 		print("%s AIController: Waiting %.1fs before AI processing..." % [TurnManager._get_elapsed_time(), delay_before_turn_start])
 		await get_tree().create_timer(delay_before_turn_start).timeout
 		print("%s AIController: Pre-turn delay complete" % TurnManager._get_elapsed_time())
@@ -37,11 +38,17 @@ func process_enemy_turn(unit: Node2D) -> void:
 	# Build context for AI decision-making
 	var context: Dictionary = _build_ai_context()
 
-	# Pass delay settings to AI brain via context
-	context["ai_delays"] = {
-		"after_movement": delay_after_movement,
-		"before_attack": delay_before_attack,
-	}
+	# Pass delay settings to AI brain via context (0 in headless mode)
+	if TurnManager.is_headless:
+		context["ai_delays"] = {
+			"after_movement": 0.0,
+			"before_attack": 0.0,
+		}
+	else:
+		context["ai_delays"] = {
+			"after_movement": delay_after_movement,
+			"before_attack": delay_before_attack,
+		}
 
 	# Execute AI brain if available
 	if unit.ai_brain:
