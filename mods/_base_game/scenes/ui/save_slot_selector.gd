@@ -108,9 +108,17 @@ func _new_game(slot_num: int) -> void:
 		PartyManager.import_from_save(save_data.party_members)
 		print("SaveSlotSelector: PartyManager populated with %d members" % PartyManager.get_party_size())
 
-		# Go to first battle (Battle of Noobs from sandbox mod)
-		print("SaveSlotSelector: Calling TriggerManager.start_battle('battle_1763763677')")
-		TriggerManager.start_battle("battle_1763763677")
+		# Start campaign via CampaignManager
+		var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
+		if campaigns.size() > 0:
+			# Use first available campaign (or default from mod config)
+			var campaign: Resource = campaigns[0]
+			print("SaveSlotSelector: Starting campaign '%s'" % campaign.campaign_name)
+			CampaignManager.start_campaign(campaign.campaign_id)
+		else:
+			# Fallback to legacy hardcoded battle if no campaigns found
+			push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle start")
+			TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to create new save")
 
@@ -125,9 +133,18 @@ func _load_game(slot_num: int) -> void:
 		# Populate PartyManager with loaded data
 		PartyManager.import_from_save(save_data.party_members)
 
-		# Go to battle (Battle of Noobs from sandbox mod)
-		# TODO: In the future, load saved battle/location from save_data
-		TriggerManager.start_battle("battle_1763763677")
+		# Restore GameState from save
+		GameState.story_flags = save_data.story_flags.duplicate()
+
+		# Resume campaign if we have campaign data
+		if not save_data.current_campaign_id.is_empty() and not save_data.current_node_id.is_empty():
+			print("SaveSlotSelector: Resuming campaign '%s' at node '%s'" % [
+				save_data.current_campaign_id, save_data.current_node_id])
+			CampaignManager.resume_campaign(save_data.current_campaign_id, save_data.current_node_id)
+		else:
+			# Fallback to legacy behavior if no campaign data
+			push_warning("SaveSlotSelector: No campaign data in save, falling back to legacy battle start")
+			TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to load save from slot %d" % slot_num)
 

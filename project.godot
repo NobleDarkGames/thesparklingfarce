@@ -33,6 +33,7 @@ TurnManager="*res://core/systems/turn_manager.gd"
 InputManager="*res://core/systems/input_manager.gd"
 BattleManager="*res://core/systems/battle_manager.gd"
 AIController="*res://core/systems/ai_controller.gd"
+CampaignManager="*res://core/systems/campaign_manager.gd"
 EditorEventBus="*res://addons/sparkling_editor/editor_event_bus.gd"
 
 [debug]

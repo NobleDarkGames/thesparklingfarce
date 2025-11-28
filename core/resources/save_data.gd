@@ -43,7 +43,19 @@ extends Resource
 # CAMPAIGN PROGRESS
 # ============================================================================
 
-## Current campaign chapter/location
+## Current campaign ID (namespaced: "mod_id:campaign_id")
+@export var current_campaign_id: String = ""
+
+## Current node ID within the campaign
+@export var current_node_id: String = ""
+
+## History of visited nodes (for back-tracking if needed)
+@export var campaign_node_history: Array[String] = []
+
+## Last hub node visited (for egress return)
+@export var last_hub_id: String = ""
+
+## Current campaign chapter/location (legacy, used for display)
 ## Example: "chapter_1", "headquarters", "battle_5"
 @export var current_location: String = "headquarters"
 
@@ -109,6 +121,11 @@ func serialize_to_dict() -> Dictionary:
 		"slot_number": slot_number,
 		"active_mods": active_mods.duplicate(),
 		"game_version": game_version,
+		# Campaign progress
+		"current_campaign_id": current_campaign_id,
+		"current_node_id": current_node_id,
+		"campaign_node_history": campaign_node_history.duplicate(),
+		"last_hub_id": last_hub_id,
 		"current_location": current_location,
 		"story_flags": story_flags.duplicate(),
 		"completed_battles": completed_battles.duplicate(),
@@ -159,6 +176,19 @@ func deserialize_from_dict(data: Dictionary) -> void:
 			active_mods.append(mod_dict)
 	if "game_version" in data:
 		game_version = data.game_version
+	# Campaign progress
+	if "current_campaign_id" in data:
+		current_campaign_id = data.current_campaign_id
+	if "current_node_id" in data:
+		current_node_id = data.current_node_id
+	if "campaign_node_history" in data:
+		campaign_node_history.clear()
+		var history_array: Array = data.campaign_node_history
+		for i: int in range(history_array.size()):
+			var node_id: String = history_array[i]
+			campaign_node_history.append(node_id)
+	if "last_hub_id" in data:
+		last_hub_id = data.last_hub_id
 	if "current_location" in data:
 		current_location = data.current_location
 	if "story_flags" in data:

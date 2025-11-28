@@ -24,7 +24,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"dialogues": "dialogue",
 	"cinematics": "cinematic",
 	"parties": "party",
-	"battles": "battle"
+	"battles": "battle",
+	"campaigns": "campaign"
 }
 
 # Resource types that support JSON loading (in addition to .tres)
