@@ -1,9 +1,14 @@
-[gd_resource type="TileSet" load_steps=9 format=3 uid="uid://dsgco58wfm80c"]
+[gd_resource type="TileSet" load_steps=19 format=3 uid="uid://dsgco58wfm80c"]
 
 [ext_resource type="Texture2D" uid="uid://daok7oiw4e12l" path="res://mods/_base_game/art/tilesets/placeholder/grass.png" id="1_grass"]
 [ext_resource type="Texture2D" uid="uid://4qa8rj8k6ygm" path="res://mods/_base_game/art/tilesets/placeholder/wall.png" id="2_wall"]
 [ext_resource type="Texture2D" uid="uid://3850bwylod6d" path="res://mods/_base_game/art/tilesets/placeholder/water.png" id="3_water"]
 [ext_resource type="Texture2D" uid="uid://d3143x3o14mwx" path="res://mods/_base_game/art/tilesets/placeholder/road.png" id="4_road"]
+[ext_resource type="Texture2D" uid="uid://dg7ykfojs2xea" path="res://mods/_base_game/art/tilesets/placeholder/forest.png" id="5_forest"]
+[ext_resource type="Texture2D" uid="uid://bkfucipxlkiit" path="res://mods/_base_game/art/tilesets/placeholder/mountain.png" id="6_mountain"]
+[ext_resource type="Texture2D" uid="uid://deoxsm36cisn5" path="res://mods/_base_game/art/tilesets/placeholder/sand.png" id="7_sand"]
+[ext_resource type="Texture2D" uid="uid://bx53i6q5w86sy" path="res://mods/_base_game/art/tilesets/placeholder/bridge.png" id="8_bridge"]
+[ext_resource type="Texture2D" uid="uid://b3ptq7pmgp0xs" path="res://mods/_base_game/art/tilesets/placeholder/dirt.png" id="9_dirt"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_grass"]
 texture = ExtResource("1_grass")
@@ -23,9 +28,35 @@ texture = ExtResource("3_water")
 texture = ExtResource("4_road")
 0:0/0 = 0
 
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_forest"]
+texture = ExtResource("5_forest")
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_mountain"]
+texture = ExtResource("6_mountain")
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_sand"]
+texture = ExtResource("7_sand")
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_bridge"]
+texture = ExtResource("8_bridge")
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dirt"]
+texture = ExtResource("9_dirt")
+0:0/0 = 0
+
 [resource]
 physics_layer_0/collision_layer = 1
 sources/0 = SubResource("TileSetAtlasSource_grass")
 sources/1 = SubResource("TileSetAtlasSource_wall")
 sources/2 = SubResource("TileSetAtlasSource_water")
 sources/3 = SubResource("TileSetAtlasSource_road")
+sources/4 = SubResource("TileSetAtlasSource_forest")
+sources/5 = SubResource("TileSetAtlasSource_mountain")
+sources/6 = SubResource("TileSetAtlasSource_sand")
+sources/7 = SubResource("TileSetAtlasSource_bridge")
+sources/8 = SubResource("TileSetAtlasSource_dirt")

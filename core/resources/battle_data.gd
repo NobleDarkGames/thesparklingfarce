@@ -28,6 +28,8 @@ enum DefeatCondition {
 @export_group("Map Configuration")
 ## Map scene contains grid dimensions, spawn points, and terrain
 @export var map_scene: PackedScene
+## Starting position for the player party (first unit spawns here, others use formation offsets)
+@export var player_spawn_point: Vector2i = Vector2i(2, 2)
 
 @export_group("Player Forces")
 ## Player party to deploy in this battle.

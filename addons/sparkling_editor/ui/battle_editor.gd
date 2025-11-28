@@ -9,7 +9,9 @@ var battle_name_edit: LineEdit
 var battle_description_edit: TextEdit
 
 # Map
-var map_scene_label: Label
+var map_scene_option: OptionButton
+var player_spawn_x_spin: SpinBox
+var player_spawn_y_spin: SpinBox
 
 # Player Forces
 var player_party_option: OptionButton
@@ -137,22 +139,39 @@ func _add_map_section() -> void:
 	map_label.text = "Map Scene:"
 	detail_panel.add_child(map_label)
 
-	map_scene_label = Label.new()
-	map_scene_label.text = "(No map selected)"
-	map_scene_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	detail_panel.add_child(map_scene_label)
+	map_scene_option = OptionButton.new()
+	detail_panel.add_child(map_scene_option)
 
-	# Temporary button to use test_unit map (until Phase 3 map selector)
-	var use_test_map_button: Button = Button.new()
-	use_test_map_button.text = "Use Test Unit Map (Temporary)"
-	use_test_map_button.pressed.connect(_on_use_test_map)
-	detail_panel.add_child(use_test_map_button)
+	var map_note: Label = Label.new()
+	map_note.text = "Maps are loaded from mods/*/maps/ directories"
+	map_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	map_note.add_theme_font_size_override("font_size", 10)
+	detail_panel.add_child(map_note)
 
-	var note_label: Label = Label.new()
-	note_label.text = "Phase 3: Full map scene browser"
-	note_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	note_label.add_theme_font_size_override("font_size", 10)
-	detail_panel.add_child(note_label)
+	# Player Spawn Point
+	var spawn_label: Label = Label.new()
+	spawn_label.text = "Player Spawn Point (X, Y):"
+	detail_panel.add_child(spawn_label)
+
+	var spawn_hbox: HBoxContainer = HBoxContainer.new()
+	player_spawn_x_spin = SpinBox.new()
+	player_spawn_x_spin.min_value = 0
+	player_spawn_x_spin.max_value = 100
+	player_spawn_x_spin.value = 2
+	spawn_hbox.add_child(player_spawn_x_spin)
+
+	player_spawn_y_spin = SpinBox.new()
+	player_spawn_y_spin.min_value = 0
+	player_spawn_y_spin.max_value = 100
+	player_spawn_y_spin.value = 2
+	spawn_hbox.add_child(player_spawn_y_spin)
+	detail_panel.add_child(spawn_hbox)
+
+	var spawn_note: Label = Label.new()
+	spawn_note.text = "Party members spawn in formation around this point"
+	spawn_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	spawn_note.add_theme_font_size_override("font_size", 10)
+	detail_panel.add_child(spawn_note)
 
 	_add_separator()
 
@@ -707,21 +726,80 @@ func _select_ai_in_dropdown(option: OptionButton, ai_brain: AIBrain) -> void:
 			return
 
 
-## Temporary: Use test_unit map scene
-func _on_use_test_map() -> void:
-	var battle: BattleData = current_resource as BattleData
-	if not battle:
+## Update map dropdown with available map scenes from mod directories
+func _update_map_dropdown() -> void:
+	map_scene_option.clear()
+	map_scene_option.add_item("(No map selected)", -1)
+
+	# Scan all mod directories for maps
+	var mods_dir: DirAccess = DirAccess.open("res://mods/")
+	if not mods_dir:
+		push_warning("Battle Editor: Could not open mods directory")
 		return
 
-	# Load the test_unit scene
-	var test_map: PackedScene = load("res://mods/_sandbox/scenes/test_unit.tscn")
-	if test_map:
-		battle.map_scene = test_map
-		map_scene_label.text = "test_unit.tscn (Temporary)"
-		map_scene_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
-		print("Battle Editor: Set map to test_unit scene")
-	else:
-		push_error("Battle Editor: Failed to load test_unit map scene")
+	var index: int = 0
+	mods_dir.list_dir_begin()
+	var mod_name: String = mods_dir.get_next()
+
+	while mod_name != "":
+		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+			var maps_path: String = "res://mods/%s/maps/" % mod_name
+			var maps_dir: DirAccess = DirAccess.open(maps_path)
+
+			if maps_dir:
+				_scan_maps_directory(maps_dir, maps_path, mod_name, index)
+				index = map_scene_option.item_count - 1  # Update index based on items added
+
+		mod_name = mods_dir.get_next()
+	mods_dir.list_dir_end()
+
+
+## Recursively scan a maps directory for .tscn files
+func _scan_maps_directory(dir: DirAccess, base_path: String, mod_name: String, start_index: int) -> void:
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+
+	while file_name != "":
+		if dir.current_is_dir() and not file_name.begins_with("."):
+			# Recurse into subdirectories
+			var sub_path: String = base_path.path_join(file_name)
+			var sub_dir: DirAccess = DirAccess.open(sub_path)
+			if sub_dir:
+				_scan_maps_directory(sub_dir, sub_path, mod_name, start_index)
+		elif file_name.ends_with(".tscn"):
+			var full_path: String = base_path.path_join(file_name)
+			var map_scene: PackedScene = load(full_path)
+			if map_scene:
+				# Display as "mod_name: filename"
+				var display_name: String = "[%s] %s" % [mod_name, file_name]
+				var item_index: int = map_scene_option.item_count
+				map_scene_option.add_item(display_name, item_index - 1)
+				map_scene_option.set_item_metadata(item_index, full_path)
+
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+
+## Select a map in the dropdown by PackedScene
+func _select_map_in_dropdown(map_scene: PackedScene) -> void:
+	if not map_scene:
+		map_scene_option.selected = 0
+		return
+
+	var target_path: String = map_scene.resource_path
+	for i in range(map_scene_option.item_count):
+		var metadata: Variant = map_scene_option.get_item_metadata(i)
+		if metadata == target_path:
+			map_scene_option.selected = i
+			return
+
+	# Map not found in dropdown - might be from a path not in maps/
+	# Add it as a custom entry
+	var display_name: String = "[custom] %s" % target_path.get_file()
+	var item_index: int = map_scene_option.item_count
+	map_scene_option.add_item(display_name, item_index - 1)
+	map_scene_option.set_item_metadata(item_index, target_path)
+	map_scene_option.selected = item_index
 
 
 ## Victory condition changed - update conditional UI
@@ -839,13 +917,12 @@ func _load_resource_data() -> void:
 	battle_description_edit.text = battle.battle_description
 
 	# Map scene
-	if battle.map_scene:
-		var scene_path: String = battle.map_scene.resource_path
-		map_scene_label.text = scene_path.get_file()
-		map_scene_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
-	else:
-		map_scene_label.text = "(No map selected)"
-		map_scene_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	_update_map_dropdown()
+	_select_map_in_dropdown(battle.map_scene)
+
+	# Player spawn point
+	player_spawn_x_spin.value = battle.player_spawn_point.x
+	player_spawn_y_spin.value = battle.player_spawn_point.y
 
 	# Player party
 	_update_party_dropdown()
@@ -1042,6 +1119,18 @@ func _save_resource_data() -> void:
 	# Basic info
 	battle.battle_name = battle_name_edit.text
 	battle.battle_description = battle_description_edit.text
+
+	# Map scene
+	var map_index: int = map_scene_option.selected
+	if map_index > 0:
+		var map_path: String = map_scene_option.get_item_metadata(map_index)
+		if map_path:
+			battle.map_scene = load(map_path)
+	else:
+		battle.map_scene = null
+
+	# Player spawn point
+	battle.player_spawn_point = Vector2i(int(player_spawn_x_spin.value), int(player_spawn_y_spin.value))
 
 	# Player party
 	var party_index: int = player_party_option.selected

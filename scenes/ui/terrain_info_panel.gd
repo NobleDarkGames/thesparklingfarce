@@ -17,6 +17,9 @@ const TERRAIN_NAMES: Dictionary = {
 	2: "Mountain",
 	3: "Water",
 	4: "Road",
+	5: "Sand",
+	6: "Bridge",
+	7: "Dirt Path",
 }
 
 # Terrain effects (placeholder - will be expanded with actual terrain system)
@@ -26,6 +29,9 @@ const TERRAIN_EFFECTS: Dictionary = {
 	2: "DEF +2, AGI -1",
 	3: "Impassable (ground)",
 	4: "MOV cost reduced",
+	5: "MOV +1 cost",
+	6: "Crosses water",
+	7: "No effect",
 }
 
 
@@ -74,15 +80,16 @@ func hide_terrain_info() -> void:
 
 ## Get the terrain type ID at the specified cell.
 func _get_terrain_type_at_cell(cell: Vector2i) -> int:
+	# TODO: Integrate with GridManager's terrain system when custom data layers are added to tileset
 	# For now, return default terrain (0 = Plains)
-	# TODO: Integrate with GridManager's terrain system when custom data is added
-	if GridManager.tilemap:
-		var tile_data: TileData = GridManager.tilemap.get_cell_tile_data(cell)
-		if tile_data and tile_data.get_custom_data_layer_count() > 0:
-			# Try to get terrain_type from custom data
-			# This will work when we add custom data layers to the tileset
-			if tile_data.has_custom_data("terrain_type"):
-				return tile_data.get_custom_data("terrain_type")
+	# Once terrain_type custom data is added to the tileset, uncomment the code below:
+	#
+	# if GridManager.tilemap:
+	#     var tile_data: TileData = GridManager.tilemap.get_cell_tile_data(cell)
+	#     if tile_data:
+	#         var terrain_type: Variant = tile_data.get_custom_data("terrain_type")
+	#         if terrain_type is int:
+	#             return terrain_type
 
-	# Default to Plains if no terrain data available
+	# Default to Plains until custom data layers are configured
 	return 0

@@ -1,0 +1,434 @@
+## BATTLE LOADER - ENGINE COMPONENT
+##
+## Loads battles created in the Sparkling Editor and executes them.
+## Fully dynamic - uses PartyManager for player units and BattleData for enemies/neutrals.
+##
+## This is an ENGINE component that loads CONTENT (maps, battles) from mods.
+## Maps come from: mods/*/maps/
+## Battles come from: mods/*/data/battles/
+##
+## Features:
+## - Loads BattleData resources from editor
+## - Spawns player party from PartyManager
+## - Spawns enemies and neutral units from BattleData
+## - Complete turn-based battle flow (TurnManager + InputManager + BattleManager)
+## - Full XP system integration (damage, kill, participation, level-ups)
+## - Visual grid with cursor and path preview
+## - Action menu UI with Attack/Stay options
+## - Combat resolution with damage calculation
+##
+## Controls:
+## - Arrow Keys: Move cursor during your turn
+## - Enter/Space: Confirm movement (opens action menu)
+## - Backspace/X: Cancel/go back/free cursor inspect (B button)
+## - Q: Quit test scene
+## - Action Menu: Arrow keys to select, Enter to confirm
+extends Node2D
+
+# Preload scenes
+const UnitScript: GDScript = preload("res://core/components/unit.gd")
+const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
+const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
+
+## Battle data - set via TriggerManager or Inspector for testing
+@export var battle_data: BattleData
+
+var _ground_layer: TileMapLayer = null
+var _highlight_layer: TileMapLayer = null
+var _highlight_visuals: Dictionary = {}  # {Vector2i: ColorRect}
+var _player_units: Array[Node2D] = []  # All player units
+var _enemy_units: Array[Node2D] = []  # All enemy units
+var _neutral_units: Array[Node2D] = []  # All neutral units
+var _action_menu: Control = null  # Action menu UI
+var _grid_cursor: Node2D = null  # Grid cursor visual
+var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
+var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
+var _combat_forecast_panel: CombatForecastPanel = null  # Combat forecast panel
+var _camera: CameraController = null  # Camera controller
+var _debug_visible: bool = false  # Debug display toggle (F3)
+var _map_instance: Node2D = null  # Instanced map scene
+var _map_node: Node2D = null  # The active Map node (from loaded map scene)
+
+
+## Load and integrate the map scene from battle_data
+func _load_map_scene() -> bool:
+	# Validate map_scene exists
+	if not battle_data.map_scene:
+		push_error("BattleLoader: battle_data.map_scene is not set!")
+		return false
+
+	# Instance the map scene
+	_map_instance = battle_data.map_scene.instantiate()
+	if not _map_instance:
+		push_error("BattleLoader: Failed to instantiate map_scene")
+		return false
+
+	print("Loading map scene: %s" % battle_data.map_scene.resource_path)
+
+	# Find the Map node in the instanced scene
+	var map_node: Node2D = _map_instance.get_node_or_null("Map")
+	if not map_node:
+		# Maybe the root IS the map node
+		if _map_instance.get_node_or_null("GroundLayer"):
+			map_node = _map_instance
+		else:
+			push_error("BattleLoader: map_scene has no 'Map' node or 'GroundLayer'")
+			_map_instance.queue_free()
+			return false
+
+	# Find required layers
+	_ground_layer = map_node.get_node_or_null("GroundLayer") as TileMapLayer
+	_highlight_layer = map_node.get_node_or_null("HighlightLayer") as TileMapLayer
+
+	if not _ground_layer:
+		push_error("BattleLoader: Map missing 'GroundLayer' TileMapLayer")
+		_map_instance.queue_free()
+		return false
+
+	if not _highlight_layer:
+		push_error("BattleLoader: Map missing 'HighlightLayer' TileMapLayer")
+		_map_instance.queue_free()
+		return false
+
+	# Remove our placeholder Map node and replace with the loaded one
+	# Use free() instead of queue_free() to ensure immediate removal
+	# This prevents $Map from finding the old dying node instead of the new one
+	var old_map: Node = get_node_or_null("Map")
+	if old_map:
+		remove_child(old_map)
+		old_map.free()
+
+	# Reparent the Map node from the instanced scene to battle_loader
+	map_node.get_parent().remove_child(map_node)
+	add_child(map_node)
+	move_child(map_node, 1)  # After Background
+
+	# Store reference for later use (instead of relying on $Map)
+	_map_node = map_node
+
+	# Clean up the rest of the instanced scene (Camera, UI, etc. - we have our own)
+	_map_instance.queue_free()
+	_map_instance = null
+
+	print("  GroundLayer: %s" % _ground_layer.name)
+	print("  HighlightLayer: %s" % _highlight_layer.name)
+
+	return true
+
+
+func _ready() -> void:
+	print("BattleLoader: _ready() starting...")
+
+	# Check if TriggerManager has battle data (from map trigger)
+	var trigger_battle_data: Resource = TriggerManager.get_current_battle_data()
+	print("BattleLoader: TriggerManager.get_current_battle_data() = %s" % trigger_battle_data)
+	if trigger_battle_data:
+		print("BattleLoader: Using battle data from TriggerManager")
+		battle_data = trigger_battle_data
+
+	# Validate battle data
+	if not battle_data:
+		push_error("BattleLoader: No battle_data assigned! Set the 'battle_data' export variable in the Inspector.")
+		return
+
+	print("\n=== Battle Loader Starting ===")
+	print("Battle: %s" % battle_data.battle_name)
+	print("Description: %s" % battle_data.battle_description)
+
+	# Load map from battle_data.map_scene
+	if not _load_map_scene():
+		push_error("BattleLoader: Failed to load map scene")
+		return
+
+	# Calculate grid size from tilemap used rect
+	var grid_resource: Grid = Grid.new()
+	grid_resource.cell_size = 32
+
+	var used_rect: Rect2i = _ground_layer.get_used_rect()
+	if used_rect.size.x > 0 and used_rect.size.y > 0:
+		grid_resource.grid_size = used_rect.size
+		print("Grid size from map: %s (offset: %s)" % [used_rect.size, used_rect.position])
+	else:
+		# Fallback for empty maps - use a default size
+		grid_resource.grid_size = Vector2i(20, 11)
+		print("Map has no tiles painted - using default grid size: %s" % grid_resource.grid_size)
+
+	GridManager.setup_grid(grid_resource, _ground_layer)
+	GridManager.set_highlight_layer(_highlight_layer)
+
+	# Spawn player units from BattleData or PartyManager
+	print("\n=== Spawning Player Party ===")
+
+	# If battle has specific party, load it temporarily
+	if battle_data.player_party:
+		print("  Loading party from BattleData: %s" % battle_data.player_party.party_name)
+		PartyManager.load_from_party_data(battle_data.player_party)
+
+	# Get spawn data from PartyManager (uses current party and battle's spawn point)
+	var party_spawn_data: Array[Dictionary] = PartyManager.get_battle_spawn_data(battle_data.player_spawn_point)
+	print("Player spawn point: %s" % battle_data.player_spawn_point)
+
+	if party_spawn_data.is_empty():
+		push_warning("BattleLoader: PartyManager has no party members! Set up party before starting battle.")
+		push_warning("  Either set battle_data.player_party OR configure PartyManager before battle.")
+	else:
+		for spawn_entry: Dictionary in party_spawn_data:
+			var character: CharacterData = spawn_entry.character
+			var position: Vector2i = spawn_entry.position
+
+			var player_unit: Node2D = _spawn_unit(character, position, "player", null)
+			_player_units.append(player_unit)
+			print("  - %s at %s" % [character.character_name, position])
+
+	# Spawn enemy units from BattleData
+	print("\n=== Spawning Enemies ===")
+	for enemy_dict in battle_data.enemies:
+		if not 'character' in enemy_dict or not enemy_dict.character:
+			push_error("BattleLoader: Enemy missing character data")
+			continue
+
+		var character: CharacterData = enemy_dict.character
+		var position: Vector2i = enemy_dict.position if 'position' in enemy_dict else Vector2i(10, 5)
+		var ai_brain: AIBrain = enemy_dict.ai_brain if 'ai_brain' in enemy_dict else null
+
+		var enemy_unit: Node2D = _spawn_unit(character, position, "enemy", ai_brain)
+		_enemy_units.append(enemy_unit)
+		print("  - %s at %s (AI: %s)" % [character.character_name, position, ai_brain.get_script().get_path().get_file() if ai_brain else "none"])
+
+	# Spawn neutral units from BattleData
+	if not battle_data.neutrals.is_empty():
+		print("\n=== Spawning Neutrals ===")
+		for neutral_dict in battle_data.neutrals:
+			if not 'character' in neutral_dict or not neutral_dict.character:
+				push_error("BattleLoader: Neutral missing character data")
+				continue
+
+			var character: CharacterData = neutral_dict.character
+			var position: Vector2i = neutral_dict.position if 'position' in neutral_dict else Vector2i(8, 5)
+			var ai_brain: AIBrain = neutral_dict.ai_brain if 'ai_brain' in neutral_dict else null
+
+			var neutral_unit: Node2D = _spawn_unit(character, position, "neutral", ai_brain)
+			_neutral_units.append(neutral_unit)
+			print("  - %s at %s (AI: %s)" % [character.character_name, position, ai_brain.get_script().get_path().get_file() if ai_brain else "none"])
+
+	print("\n=== Units Summary ===")
+	print("Player units: %d" % _player_units.size())
+	print("Enemy units: %d" % _enemy_units.size())
+	print("Neutral units: %d" % _neutral_units.size())
+
+	# Setup action menu UI BEFORE starting battle
+	_action_menu = ActionMenuScene.instantiate()
+	$UI.add_child(_action_menu)
+	InputManager.set_action_menu(_action_menu)
+
+	# Setup grid cursor
+	_grid_cursor = GridCursorScene.instantiate()
+	_map_node.add_child(_grid_cursor)
+	_grid_cursor.hide_cursor()  # Hidden until player turn
+	InputManager.grid_cursor = _grid_cursor
+
+	# Set path preview parent (use Map node for path visuals)
+	InputManager.path_preview_parent = _map_node
+
+	# Get reference to stats panels
+	_stats_panel = $UI/HUD/ActiveUnitStatsPanel
+	_terrain_panel = $UI/HUD/TerrainInfoPanel
+	_combat_forecast_panel = $UI/HUD/CombatForecastPanel
+
+	# Get reference to camera
+	_camera = $Camera
+
+	# Set camera reference in InputManager for inspection mode
+	InputManager.camera = _camera
+
+	# Set stats panel reference in InputManager (used for both active unit and inspection)
+	InputManager.stats_panel = _stats_panel
+	InputManager.terrain_panel = _terrain_panel
+	InputManager.combat_forecast_panel = _combat_forecast_panel
+
+	# Setup BattleManager with scene references
+	BattleManager.setup(self, $Units)
+
+	# Populate BattleManager unit arrays (needed for AI to find targets)
+	BattleManager.player_units = _player_units
+	BattleManager.enemy_units = _enemy_units
+	BattleManager.neutral_units = _neutral_units
+	BattleManager.all_units = _player_units + _enemy_units + _neutral_units
+
+	# Connect to BattleManager signals for visual feedback
+	BattleManager.combat_resolved.connect(_on_combat_resolved)
+
+	# Connect to TurnManager signals BEFORE starting battle
+	TurnManager.player_turn_started.connect(_on_player_turn_started)
+	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
+	TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
+	TurnManager.battle_ended.connect(_on_battle_ended)
+
+	# Register camera with all game systems (TurnManager, CinematicsManager)
+	_camera.register_with_systems()
+
+	# Start turn-based battle (this will emit signals immediately)
+	var all_units: Array[Node2D] = _player_units + _enemy_units + _neutral_units
+	TurnManager.start_battle(all_units)
+
+	# Connect InputManager signals to BattleManager (for combat execution)
+	if not InputManager.action_selected.is_connected(BattleManager._on_action_selected):
+		InputManager.action_selected.connect(BattleManager._on_action_selected)
+	if not InputManager.target_selected.is_connected(BattleManager._on_target_selected):
+		InputManager.target_selected.connect(BattleManager._on_target_selected)
+
+	print("\n=== Controls ===")
+	print("Arrow keys = Move cursor")
+	print("Enter/Space/Z = Confirm position / Open action menu")
+	print("Backspace/X = Free cursor inspect mode (B button)")
+	print("Arrow keys = Navigate action menu")
+	print("Enter/Space/Z = Confirm action")
+	print("Backspace/X in menu = Cancel and return to movement")
+	print("Q = Quit")
+
+
+
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
+	# Load unit scene
+	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
+	var unit: Node2D = unit_scene.instantiate()
+
+	# Initialize with character data and AI brain
+	unit.initialize(character, p_faction, p_ai_brain)
+
+	# Set grid position
+	unit.grid_position = cell
+	unit.position = GridManager.cell_to_world(cell)
+
+	# Register with GridManager
+	GridManager.set_cell_occupied(cell, unit)
+
+	# Add to scene
+	$Units.add_child(unit)
+
+	return unit
+
+
+## Handle debug toggle input (F3 key)
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F3:
+			_debug_visible = not _debug_visible
+			var debug_label: Label = $UI/HUD/DebugLabel
+			if debug_label:
+				debug_label.visible = _debug_visible
+
+
+func _process(_delta: float) -> void:
+	# Quit on Q key (changed from ESC/Backspace to avoid conflict with B button functionality)
+	if Input.is_key_pressed(KEY_Q):
+		get_tree().quit()
+
+	# Camera behavior:
+	# - On turn start: CameraController.follow_unit() smoothly pans to new unit
+	# - During unit movement: Follow the moving unit's position (while they're animating)
+	# - In inspection mode: InputManager controls the camera to follow cursor
+	var active_unit: Node2D = TurnManager.get_active_unit()
+	if InputManager.current_state != InputManager.InputState.INSPECTING:
+		if active_unit and active_unit.is_alive():
+			# If unit is currently moving (has active tween), follow them smoothly
+			if active_unit._movement_tween and active_unit._movement_tween.is_valid():
+				_camera.set_target_position(active_unit.position)
+
+	# Update debug label (hidden by default, toggle with F3)
+	var debug_label: Label = $UI/HUD/DebugLabel
+	if debug_label:
+		if not _debug_visible:
+			debug_label.visible = false
+		else:
+			var mouse_world: Vector2 = get_global_mouse_position()
+			var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
+
+			debug_label.text = "=== DEBUG (F3) ===\n"
+			debug_label.text += "Battle: %s\n" % battle_data.battle_name
+			debug_label.text += "Cell: %s\n" % mouse_cell
+			debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
+
+			if active_unit:
+				debug_label.text += "Active: %s\n" % active_unit.get_display_name()
+
+			debug_label.text += "\n--- Units ---\n"
+			for unit in _player_units:
+				if unit.is_alive():
+					debug_label.text += "P: %s HP:%d/%d\n" % [
+						unit.get_display_name().left(8),
+						unit.stats.current_hp,
+						unit.stats.max_hp
+					]
+
+			for unit in _enemy_units:
+				if unit.is_alive():
+					debug_label.text += "E: %s HP:%d/%d\n" % [
+						unit.get_display_name().left(8),
+						unit.stats.current_hp,
+						unit.stats.max_hp
+					]
+
+
+## TurnManager signal handlers
+func _on_player_turn_started(unit: Node2D) -> void:
+	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
+	unit.show_selection()
+
+	# Move camera to active unit
+	_camera.follow_unit(unit)
+
+	# Show stats and terrain panels
+	_stats_panel.show_unit_stats(unit)
+	var unit_cell: Vector2i = unit.grid_position
+	_terrain_panel.show_terrain_info(unit_cell)
+
+	# GridManager now handles highlights via TileMapLayer (called by InputManager)
+	# Start InputManager for player turn
+	InputManager.start_player_turn(unit)
+
+
+func _on_enemy_turn_started(unit: Node2D) -> void:
+	print("\n>>> ENEMY'S TURN: %s <<<" % unit.get_display_name())
+	unit.show_selection()
+
+	# Move camera to active unit
+	_camera.follow_unit(unit)
+
+	# Show stats and terrain panels for enemy turn (optional)
+	_stats_panel.show_unit_stats(unit)
+	var unit_cell: Vector2i = unit.grid_position
+	_terrain_panel.show_terrain_info(unit_cell)
+
+
+func _on_unit_turn_ended(unit: Node2D) -> void:
+	print(">>> Turn ended for: %s <<<" % unit.get_display_name())
+	unit.hide_selection()
+
+	# Hide stats and terrain panels
+	_stats_panel.hide_stats()
+	_terrain_panel.hide_terrain_info()
+
+	# GridManager now handles clearing highlights
+
+
+func _on_battle_ended(victory: bool) -> void:
+	print("\n========== BATTLE OVER ==========")
+	if victory:
+		print("YOU WIN!")
+		# Phase 3: Show victory_dialogue from battle_data
+	else:
+		print("YOU LOSE!")
+		# Phase 3: Show defeat_dialogue from battle_data
+	print("Press Q to quit")
+
+
+func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
+	print("Battle: Combat resolved - %s -> %s: %d damage (hit: %s, crit: %s)" % [
+		attacker.get_display_name(),
+		defender.get_display_name(),
+		damage,
+		hit,
+		crit
+	])
+	# TODO: Show damage numbers (Phase 3)

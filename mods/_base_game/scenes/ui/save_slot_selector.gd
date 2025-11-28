@@ -106,9 +106,11 @@ func _new_game(slot_num: int) -> void:
 
 		# Initialize PartyManager with the hero
 		PartyManager.import_from_save(save_data.party_members)
+		print("SaveSlotSelector: PartyManager populated with %d members" % PartyManager.get_party_size())
 
-		# Go to first battle
-		SceneManager.goto_battle()
+		# Go to first battle (Battle of Noobs from sandbox mod)
+		print("SaveSlotSelector: Calling TriggerManager.start_battle('battle_1763763677')")
+		TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to create new save")
 
@@ -123,8 +125,9 @@ func _load_game(slot_num: int) -> void:
 		# Populate PartyManager with loaded data
 		PartyManager.import_from_save(save_data.party_members)
 
-		# Go to battle (or HQ in the future)
-		SceneManager.goto_battle()
+		# Go to battle (Battle of Noobs from sandbox mod)
+		# TODO: In the future, load saved battle/location from save_data
+		TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to load save from slot %d" % slot_num)
 

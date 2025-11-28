@@ -25,7 +25,7 @@ const SCENE_SAVE_SLOT_SELECTOR: String = "save_slot_selector"
 const FALLBACK_OPENING_CINEMATIC: String = "res://scenes/cinematics/opening_cinematic_stage.tscn"
 const FALLBACK_MAIN_MENU: String = "res://scenes/ui/main_menu.tscn"
 const FALLBACK_SAVE_SLOT_SELECTOR: String = "res://scenes/ui/save_slot_selector.tscn"
-const FALLBACK_BATTLE_LOADER: String = "res://mods/_sandbox/scenes/sandbox_battle_test.tscn"
+const FALLBACK_BATTLE_LOADER: String = "res://scenes/battle_loader.tscn"
 
 # Transition settings
 const FADE_DURATION: float = 0.3

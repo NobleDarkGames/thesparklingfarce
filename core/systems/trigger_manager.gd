@@ -170,8 +170,8 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 	# For now, store it in GameState temporarily
 	_current_battle_data = battle_data
 
-	# Use the battle_loader scene from _sandbox
-	SceneManager.change_scene("res://mods/_sandbox/scenes/battle_loader.tscn")
+	# Use the engine's battle_loader scene
+	SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
 
 ## Temporary storage for battle data (will be picked up by battle scene)
@@ -186,6 +186,36 @@ func get_current_battle_data() -> Resource:
 ## Clear current battle data
 func clear_current_battle_data() -> void:
 	_current_battle_data = null
+
+
+## Start a battle programmatically (from menus, save loading, etc.)
+## @param battle_id: The registry ID of the battle to start
+func start_battle(battle_id: String) -> void:
+	print("TriggerManager: start_battle() called with battle_id='%s'" % battle_id)
+	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
+	if not battle_data:
+		push_error("TriggerManager: Battle '%s' not found in registry" % battle_id)
+		# Debug: print available battles
+		var available: Array[String] = ModLoader.registry.get_resource_ids("battle")
+		print("TriggerManager: Available battles: %s" % available)
+		return
+
+	print("TriggerManager: Starting battle '%s' (%s)" % [battle_id, battle_data.get("battle_name")])
+	print("TriggerManager: Setting _current_battle_data = %s" % battle_data)
+	_current_battle_data = battle_data
+	SceneManager.change_scene("res://scenes/battle_loader.tscn")
+
+
+## Start a battle with direct BattleData reference
+## @param battle_data: The BattleData resource to use
+func start_battle_with_data(battle_data: Resource) -> void:
+	if not battle_data:
+		push_error("TriggerManager: Cannot start battle with null data")
+		return
+
+	print("TriggerManager: Starting battle with data")
+	_current_battle_data = battle_data
+	SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
 
 ## Return to map after battle ends
