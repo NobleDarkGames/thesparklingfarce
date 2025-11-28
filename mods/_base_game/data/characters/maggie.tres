@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_mage"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_mage"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_mage"]
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/maggie.png" id="4_sprite"]
+[ext_resource type="Texture2D" uid="uid://dljgut82iyl3a" path="res://mods/_sandbox/art/placeholder/sprites/maggie.png" id="4_sprite"]
 
 [sub_resource type="Resource" id="Resource_mage"]
 script = ExtResource("1_mage")

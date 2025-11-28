@@ -3,8 +3,8 @@
 [ext_resource type="Resource" uid="uid://bf8juwqrvo2e" path="res://mods/_sandbox/data/classes/class_1764195319.tres" id="1_fkxom"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_nbylg"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_fkxom"]
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/portraits/spade.png" id="3_portrait"]
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/spade.png" id="4_battle"]
+[ext_resource type="Texture2D" uid="uid://dmjfug8qghb85" path="res://mods/_sandbox/art/placeholder/portraits/spade.png" id="3_portrait"]
+[ext_resource type="Texture2D" uid="uid://bo6ax1h5t4bxy" path="res://mods/_sandbox/art/placeholder/sprites/spade.png" id="4_battle"]
 
 [resource]
 script = ExtResource("1_nbylg")
