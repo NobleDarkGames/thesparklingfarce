@@ -27,6 +27,7 @@ func _ready() -> void:
 	_run_combat_calculator_tests()
 	_run_grid_tests()
 	_run_unit_stats_tests()
+	_run_experience_config_tests()
 
 	# Print summary
 	_print_summary()
@@ -798,4 +799,152 @@ func _test_unit_stats_hp_percent() -> void:
 	var percent: float = stats.get_hp_percent()
 
 	if _assert_equal(percent, 0.75):
+		_pass()
+
+
+# =============================================================================
+# EXPERIENCE CONFIG TESTS
+# =============================================================================
+
+func _run_experience_config_tests() -> void:
+	_start_suite("ExperienceConfig")
+
+	# Level difference XP tests
+	_test_xp_table_very_low_level_returns_zero()
+	_test_xp_table_7_below_returns_zero()
+	_test_xp_table_6_below_returns_10()
+	_test_xp_table_5_below_returns_20()
+	_test_xp_table_4_below_returns_30()
+	_test_xp_table_3_below_returns_40()
+	_test_xp_table_2_below_returns_50()
+	_test_xp_table_same_level_returns_50()
+	_test_xp_table_above_capped_at_50()
+
+	# Anti-spam multiplier tests
+	_test_antispam_initial_returns_1()
+	_test_antispam_below_threshold_returns_1()
+	_test_antispam_medium_threshold_returns_06()
+	_test_antispam_heavy_threshold_returns_03()
+	_test_antispam_disabled_returns_1()
+
+
+# --- Level Difference XP Table Tests ---
+
+func _test_xp_table_very_low_level_returns_zero() -> void:
+	_start_test("xp_table_very_low_level_returns_zero")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-20)
+	if _assert_equal(xp, 0):
+		_pass()
+
+
+func _test_xp_table_7_below_returns_zero() -> void:
+	_start_test("xp_table_7_below_returns_zero")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-7)
+	if _assert_equal(xp, 0):
+		_pass()
+
+
+func _test_xp_table_6_below_returns_10() -> void:
+	_start_test("xp_table_6_below_returns_10")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-6)
+	if _assert_equal(xp, 10):
+		_pass()
+
+
+func _test_xp_table_5_below_returns_20() -> void:
+	_start_test("xp_table_5_below_returns_20")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-5)
+	if _assert_equal(xp, 20):
+		_pass()
+
+
+func _test_xp_table_4_below_returns_30() -> void:
+	_start_test("xp_table_4_below_returns_30")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-4)
+	if _assert_equal(xp, 30):
+		_pass()
+
+
+func _test_xp_table_3_below_returns_40() -> void:
+	_start_test("xp_table_3_below_returns_40")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-3)
+	if _assert_equal(xp, 40):
+		_pass()
+
+
+func _test_xp_table_2_below_returns_50() -> void:
+	_start_test("xp_table_2_below_returns_50")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(-2)
+	if _assert_equal(xp, 50):
+		_pass()
+
+
+func _test_xp_table_same_level_returns_50() -> void:
+	_start_test("xp_table_same_level_returns_50")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var xp: int = config.get_base_xp_from_level_diff(0)
+	if _assert_equal(xp, 50):
+		_pass()
+
+
+func _test_xp_table_above_capped_at_50() -> void:
+	_start_test("xp_table_above_level_capped_at_50")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	# Even 10 levels above still caps at 50
+	var xp: int = config.get_base_xp_from_level_diff(10)
+	if _assert_equal(xp, 50):
+		_pass()
+
+
+# --- Anti-Spam Multiplier Tests ---
+
+func _test_antispam_initial_returns_1() -> void:
+	_start_test("antispam_initial_usage_returns_1")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	var mult: float = config.get_anti_spam_multiplier(0)
+	if _assert_equal(mult, 1.0):
+		_pass()
+
+
+func _test_antispam_below_threshold_returns_1() -> void:
+	_start_test("antispam_below_threshold_returns_1")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	# Default spam_threshold_medium is 5, so 4 uses should still be 1.0
+	var mult: float = config.get_anti_spam_multiplier(4)
+	if _assert_equal(mult, 1.0):
+		_pass()
+
+
+func _test_antispam_medium_threshold_returns_06() -> void:
+	_start_test("antispam_medium_threshold_returns_0.6")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	# Default spam_threshold_medium is 5
+	var mult: float = config.get_anti_spam_multiplier(5)
+	if _assert_equal(mult, 0.6):
+		_pass()
+
+
+func _test_antispam_heavy_threshold_returns_03() -> void:
+	_start_test("antispam_heavy_threshold_returns_0.3")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	# Default spam_threshold_heavy is 8
+	var mult: float = config.get_anti_spam_multiplier(8)
+	if _assert_equal(mult, 0.3):
+		_pass()
+
+
+func _test_antispam_disabled_returns_1() -> void:
+	_start_test("antispam_disabled_always_returns_1")
+	var config: ExperienceConfig = ExperienceConfig.new()
+	config.anti_spam_enabled = false
+	# Even at heavy usage, should return 1.0 when disabled
+	var mult: float = config.get_anti_spam_multiplier(20)
+	if _assert_equal(mult, 1.0):
 		_pass()

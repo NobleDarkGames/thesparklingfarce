@@ -77,6 +77,24 @@ fi
 
 echo ""
 echo "========================================="
+echo "5. Running Battle Flow Integration Test..."
+echo "========================================="
+timeout 30 godot --headless --path "$PROJECT_PATH" res://tests/integration/battle/test_battle_flow.tscn 2>&1 | tee /tmp/battle_flow_test.log
+
+echo ""
+echo "6. Checking battle flow test output..."
+BATTLE_FLOW_PASS=true
+
+if grep -q "INTEGRATION TEST PASSED!" /tmp/battle_flow_test.log; then
+    echo "[OK] Battle flow integration test passed"
+else
+    echo "[FAIL] Battle flow integration test failed"
+    BATTLE_FLOW_PASS=false
+    EXIT_CODE=1
+fi
+
+echo ""
+echo "========================================="
 echo "TEST SUMMARY"
 echo "========================================="
 
@@ -86,9 +104,14 @@ UNIT_FAILED=$(grep "^Failed:" /tmp/unit_test.log | awk '{print $2}')
 
 echo "Unit Tests: ${UNIT_PASSED:-0} passed, ${UNIT_FAILED:-0} failed"
 if [ "$INTEGRATION_PASS" = true ]; then
-    echo "Integration Tests: PASSED"
+    echo "AI Integration Tests: PASSED"
 else
-    echo "Integration Tests: FAILED"
+    echo "AI Integration Tests: FAILED"
+fi
+if [ "$BATTLE_FLOW_PASS" = true ]; then
+    echo "Battle Flow Integration: PASSED"
+else
+    echo "Battle Flow Integration: FAILED"
 fi
 
 echo ""
