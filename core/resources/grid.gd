@@ -78,14 +78,14 @@ func get_manhattan_distance(from: Vector2i, to: Vector2i) -> int:
 
 
 ## Get all grid positions within range of a cell
-## Returns array of Vector2i within manhattan_distance <= range
-func get_cells_in_range(center: Vector2i, range: int) -> Array[Vector2i]:
+## Returns array of Vector2i within manhattan_distance <= radius
+func get_cells_in_range(center: Vector2i, radius: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 
-	for x in range(-range, range + 1):
-		for y in range(-range, range + 1):
+	for x in range(-radius, radius + 1):
+		for y in range(-radius, radius + 1):
 			var cell: Vector2i = center + Vector2i(x, y)
-			if get_manhattan_distance(center, cell) <= range and is_within_bounds(cell):
+			if get_manhattan_distance(center, cell) <= radius and is_within_bounds(cell):
 				cells.append(cell)
 
 	return cells

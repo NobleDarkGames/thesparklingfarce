@@ -300,14 +300,35 @@ func enter_node(node_id: String) -> bool:
 	return true
 
 
+## Track recovery attempts to prevent infinite loops
+var _recovery_attempts: int = 0
+const MAX_RECOVERY_ATTEMPTS: int = 3
+
+
 ## Handle error when a node cannot be found (error recovery)
 func _handle_missing_node_error(node_id: String) -> void:
-	push_error("CampaignManager: Attempting recovery from missing node '%s'" % node_id)
+	_recovery_attempts += 1
+	push_error("CampaignManager: Attempting recovery from missing node '%s' (attempt %d/%d)" % [
+		node_id, _recovery_attempts, MAX_RECOVERY_ATTEMPTS
+	])
+
+	# Prevent infinite recovery loops
+	if _recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
+		push_error("CampaignManager: Max recovery attempts reached - campaign in invalid state")
+		push_error("CampaignManager: Manual intervention required. Check node_id: '%s'" % node_id)
+		_recovery_attempts = 0  # Reset for future attempts
+		return
 
 	# Try to return to last hub or default hub
 	var recovery_target: String = last_hub_id if not last_hub_id.is_empty() else ""
 	if recovery_target.is_empty() and current_campaign:
 		recovery_target = current_campaign.default_hub_id
+
+	# Don't try to recover to the same node that failed
+	if recovery_target == node_id:
+		push_error("CampaignManager: Recovery target is same as failed node - aborting")
+		_recovery_attempts = 0
+		return
 
 	if not recovery_target.is_empty() and current_campaign and current_campaign.has_node(recovery_target):
 		push_warning("CampaignManager: Recovering to hub '%s'" % recovery_target)
@@ -315,6 +336,7 @@ func _handle_missing_node_error(node_id: String) -> void:
 		call_deferred("enter_node", recovery_target)
 	else:
 		push_error("CampaignManager: No valid recovery target - campaign in invalid state")
+		_recovery_attempts = 0
 
 
 ## Process a node based on its type using registry

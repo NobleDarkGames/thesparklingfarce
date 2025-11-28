@@ -1,15 +1,18 @@
 ## Play sound command executor
-## Plays a sound effect
-## TODO: Integrate with AudioManager when ready
+## Plays a sound effect via AudioManager
 class_name PlaySoundExecutor
 extends CinematicCommandExecutor
 
 
-func execute(command: Dictionary, manager: Node) -> bool:
+func execute(command: Dictionary, _manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
 	var sound_id: String = params.get("sound_id", "")
 
-	# TODO: Integrate with AudioManager
-	push_warning("PlaySoundExecutor: play_sound not yet implemented")
+	if sound_id.is_empty():
+		push_warning("PlaySoundExecutor: No sound_id specified")
+		return true
 
-	return true  # Complete immediately (stub)
+	# Play sound effect via AudioManager
+	AudioManager.play_sfx(sound_id, AudioManager.SFXCategory.SYSTEM)
+
+	return true  # Sound effects play asynchronously, complete immediately

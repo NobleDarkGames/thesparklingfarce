@@ -289,9 +289,8 @@ func _ready() -> void:
 
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
-	# Load unit scene
-	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Node2D = unit_scene.instantiate()
+	# Use BattleManager's preloaded unit scene constant
+	var unit: Node2D = BattleManager.UNIT_SCENE.instantiate()
 
 	# Initialize with character data and AI brain
 	unit.initialize(character, p_faction, p_ai_brain)
@@ -333,39 +332,43 @@ func _process(_delta: float) -> void:
 			if active_unit._movement_tween and active_unit._movement_tween.is_valid():
 				_camera.set_target_position(active_unit.position)
 
-	# Update debug label (hidden by default, toggle with F3)
+	# Early return if debug label is hidden (optimization)
+	if not _debug_visible:
+		return
+
+	# Update debug label (visible since we passed the early return check)
 	var debug_label: Label = $UI/HUD/DebugLabel
-	if debug_label:
-		if not _debug_visible:
-			debug_label.visible = false
-		else:
-			var mouse_world: Vector2 = get_global_mouse_position()
-			var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
+	if not debug_label:
+		return
 
-			debug_label.text = "=== DEBUG (F3) ===\n"
-			debug_label.text += "Battle: %s\n" % battle_data.battle_name
-			debug_label.text += "Cell: %s\n" % mouse_cell
-			debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
+	debug_label.visible = true
+	var mouse_world: Vector2 = get_global_mouse_position()
+	var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
-			if active_unit:
-				debug_label.text += "Active: %s\n" % active_unit.get_display_name()
+	debug_label.text = "=== DEBUG (F3) ===\n"
+	debug_label.text += "Battle: %s\n" % battle_data.battle_name
+	debug_label.text += "Cell: %s\n" % mouse_cell
+	debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
 
-			debug_label.text += "\n--- Units ---\n"
-			for unit in _player_units:
-				if unit.is_alive():
-					debug_label.text += "P: %s HP:%d/%d\n" % [
-						unit.get_display_name().left(8),
-						unit.stats.current_hp,
-						unit.stats.max_hp
-					]
+	if active_unit:
+		debug_label.text += "Active: %s\n" % active_unit.get_display_name()
 
-			for unit in _enemy_units:
-				if unit.is_alive():
-					debug_label.text += "E: %s HP:%d/%d\n" % [
-						unit.get_display_name().left(8),
-						unit.stats.current_hp,
-						unit.stats.max_hp
-					]
+	debug_label.text += "\n--- Units ---\n"
+	for unit in _player_units:
+		if unit.is_alive():
+			debug_label.text += "P: %s HP:%d/%d\n" % [
+				unit.get_display_name().left(8),
+				unit.stats.current_hp,
+				unit.stats.max_hp
+			]
+
+	for unit in _enemy_units:
+		if unit.is_alive():
+			debug_label.text += "E: %s HP:%d/%d\n" % [
+				unit.get_display_name().left(8),
+				unit.stats.current_hp,
+				unit.stats.max_hp
+			]
 
 
 ## TurnManager signal handlers

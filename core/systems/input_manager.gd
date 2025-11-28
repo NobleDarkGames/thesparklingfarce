@@ -378,11 +378,6 @@ func _process(delta: float) -> void:
 
 ## Process input based on current state
 func _input(event: InputEvent) -> void:
-	# Debug: Show that we're receiving input
-	if event is InputEventMouseButton or event is InputEventKey:
-		if event.pressed:
-			print("InputManager: Received input in state %s" % InputState.keys()[current_state])
-
 	match current_state:
 		InputState.INSPECTING:
 			_handle_inspecting_input(event)
