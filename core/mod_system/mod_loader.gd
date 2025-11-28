@@ -37,6 +37,7 @@ const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.g
 const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
 const EnvironmentRegistryClass: GDScript = preload("res://core/registries/environment_registry.gd")
 const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_category_registry.gd")
+const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/animation_offset_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -49,6 +50,7 @@ var active_mod_id: String = "base_game"  # Default active mod for editor
 var equipment_registry: RefCounted = EquipmentRegistryClass.new()
 var environment_registry: RefCounted = EnvironmentRegistryClass.new()
 var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
+var animation_offset_registry: RefCounted = AnimationOffsetRegistryClass.new()
 
 ## Loading state tracking
 var _is_loading: bool = false
@@ -359,6 +361,10 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	if not manifest.custom_unit_categories.is_empty():
 		unit_category_registry.register_categories(manifest.mod_id, manifest.custom_unit_categories)
 
+	# Animation offset types
+	if not manifest.custom_animation_offset_types.is_empty():
+		animation_offset_registry.register_offset_types(manifest.mod_id, manifest.custom_animation_offset_types)
+
 
 ## Register scenes from a mod manifest
 func _register_mod_scenes(manifest: ModManifest) -> int:
@@ -443,6 +449,7 @@ func reload_mods() -> void:
 	equipment_registry.clear_mod_registrations()
 	environment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
+	animation_offset_registry.clear_mod_registrations()
 	_discover_and_load_mods()
 	registry.print_debug()
 	mods_loaded.emit()
@@ -459,6 +466,7 @@ func reload_mods_async() -> void:
 	equipment_registry.clear_mod_registrations()
 	environment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
+	animation_offset_registry.clear_mod_registrations()
 	await _discover_and_load_mods_async()
 	registry.print_debug()
 	mods_loaded.emit()

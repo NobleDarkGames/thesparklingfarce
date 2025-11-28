@@ -22,6 +22,10 @@ extends Resource
 @export var sprite_scale: float = 3.0  ## Battle sprites are typically larger than map sprites
 @export var sprite_offset: Vector2 = Vector2.ZERO  ## Fine-tune positioning if needed
 
+## Animation phase offset settings (classic 16-bit desync effect)
+## Controls how this character's idle animation is offset from others
+@export_enum("none", "random", "clustered", "position_based", "instance_id") var animation_offset_type: String = "random"
+
 ## Optional weapon overlay (for showing equipped weapon separately)
 @export var weapon_sprite: Texture2D
 @export var weapon_offset: Vector2 = Vector2.ZERO
