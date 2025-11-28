@@ -33,12 +33,22 @@ const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic"]
 # Preload the CinematicLoader for JSON cinematics
 const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
 
+# Preload type registry classes
+const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
+const EnvironmentRegistryClass: GDScript = preload("res://core/registries/environment_registry.gd")
+const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_category_registry.gd")
+
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
 
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
 var active_mod_id: String = "base_game"  # Default active mod for editor
+
+# Type registries for mod-extensible enums
+var equipment_registry: RefCounted = EquipmentRegistryClass.new()
+var environment_registry: RefCounted = EnvironmentRegistryClass.new()
+var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
 
 ## Loading state tracking
 var _is_loading: bool = false
@@ -131,6 +141,9 @@ func _load_mod(manifest: ModManifest) -> void:
 		if not _is_mod_loaded(dep_id):
 			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
 			return
+
+	# Register custom type definitions from manifest
+	_register_mod_type_definitions(manifest)
 
 	# Load resources from data directory
 	var data_dir: String = manifest.get_data_directory()
@@ -327,6 +340,26 @@ func _load_json_resource(json_path: String, resource_type: String) -> Resource:
 			return null
 
 
+## Register custom type definitions from a mod manifest
+## This populates the type registries with mod-defined extensions
+func _register_mod_type_definitions(manifest: ModManifest) -> void:
+	# Equipment types
+	if not manifest.custom_weapon_types.is_empty():
+		equipment_registry.register_weapon_types(manifest.mod_id, manifest.custom_weapon_types)
+	if not manifest.custom_armor_types.is_empty():
+		equipment_registry.register_armor_types(manifest.mod_id, manifest.custom_armor_types)
+
+	# Environment types
+	if not manifest.custom_weather_types.is_empty():
+		environment_registry.register_weather_types(manifest.mod_id, manifest.custom_weather_types)
+	if not manifest.custom_time_of_day.is_empty():
+		environment_registry.register_time_of_day(manifest.mod_id, manifest.custom_time_of_day)
+
+	# Unit categories
+	if not manifest.custom_unit_categories.is_empty():
+		unit_category_registry.register_categories(manifest.mod_id, manifest.custom_unit_categories)
+
+
 ## Register scenes from a mod manifest
 func _register_mod_scenes(manifest: ModManifest) -> int:
 	var count: int = 0
@@ -406,6 +439,10 @@ func reload_mods() -> void:
 	print("ModLoader: Reloading all mods...")
 	loaded_mods.clear()
 	registry.clear()
+	# Clear type registries
+	equipment_registry.clear_mod_registrations()
+	environment_registry.clear_mod_registrations()
+	unit_category_registry.clear_mod_registrations()
 	_discover_and_load_mods()
 	registry.print_debug()
 	mods_loaded.emit()
@@ -418,6 +455,10 @@ func reload_mods_async() -> void:
 	print("ModLoader: Reloading all mods (async)...")
 	loaded_mods.clear()
 	registry.clear()
+	# Clear type registries
+	equipment_registry.clear_mod_registrations()
+	environment_registry.clear_mod_registrations()
+	unit_category_registry.clear_mod_registrations()
 	await _discover_and_load_mods_async()
 	registry.print_debug()
 	mods_loaded.emit()

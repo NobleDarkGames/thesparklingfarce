@@ -273,25 +273,43 @@ func _add_equipment_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 14)
 	section.add_child(section_label)
 
-	# Weapon Types
+	# Weapon Types - get from registry or use defaults
 	var weapon_label: Label = Label.new()
 	weapon_label.text = "Equippable Weapon Types:"
 	section.add_child(weapon_label)
 
 	weapon_types_container = VBoxContainer.new()
-	_add_equipment_type_checkboxes(weapon_types_container, ["sword", "axe", "lance", "bow", "staff", "tome"])
+	var weapon_types: Array[String] = _get_weapon_types_from_registry()
+	_add_equipment_type_checkboxes(weapon_types_container, weapon_types)
 	section.add_child(weapon_types_container)
 
-	# Armor Types
+	# Armor Types - get from registry or use defaults
 	var armor_label: Label = Label.new()
 	armor_label.text = "Equippable Armor Types:"
 	section.add_child(armor_label)
 
 	armor_types_container = VBoxContainer.new()
-	_add_equipment_type_checkboxes(armor_types_container, ["light", "heavy", "robe", "shield"])
+	var armor_types: Array[String] = _get_armor_types_from_registry()
+	_add_equipment_type_checkboxes(armor_types_container, armor_types)
 	section.add_child(armor_types_container)
 
 	detail_panel.add_child(section)
+
+
+## Get weapon types from ModLoader's equipment registry (with fallback)
+func _get_weapon_types_from_registry() -> Array[String]:
+	if ModLoader and ModLoader.equipment_registry:
+		return ModLoader.equipment_registry.get_weapon_types()
+	# Fallback to defaults if registry not available
+	return ["sword", "axe", "lance", "bow", "staff", "tome"]
+
+
+## Get armor types from ModLoader's equipment registry (with fallback)
+func _get_armor_types_from_registry() -> Array[String]:
+	if ModLoader and ModLoader.equipment_registry:
+		return ModLoader.equipment_registry.get_armor_types()
+	# Fallback to defaults if registry not available
+	return ["light", "heavy", "robe", "shield"]
 
 
 func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array) -> void:

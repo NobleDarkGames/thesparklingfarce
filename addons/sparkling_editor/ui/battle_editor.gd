@@ -348,10 +348,10 @@ func _add_environment_section() -> void:
 	detail_panel.add_child(weather_label)
 
 	weather_option = OptionButton.new()
-	weather_option.add_item("None")
-	weather_option.add_item("Rain")
-	weather_option.add_item("Snow")
-	weather_option.add_item("Fog")
+	# Populate from registry
+	var weather_types: Array[String] = _get_weather_types_from_registry()
+	for weather_type: String in weather_types:
+		weather_option.add_item(weather_type.capitalize())
 	detail_panel.add_child(weather_option)
 
 	var time_label: Label = Label.new()
@@ -359,13 +359,29 @@ func _add_environment_section() -> void:
 	detail_panel.add_child(time_label)
 
 	time_of_day_option = OptionButton.new()
-	time_of_day_option.add_item("Day")
-	time_of_day_option.add_item("Night")
-	time_of_day_option.add_item("Dawn")
-	time_of_day_option.add_item("Dusk")
+	# Populate from registry
+	var time_options: Array[String] = _get_time_of_day_from_registry()
+	for time_option: String in time_options:
+		time_of_day_option.add_item(time_option.capitalize())
 	detail_panel.add_child(time_of_day_option)
 
 	_add_separator()
+
+
+## Get weather types from ModLoader's environment registry (with fallback)
+func _get_weather_types_from_registry() -> Array[String]:
+	if ModLoader and ModLoader.environment_registry:
+		return ModLoader.environment_registry.get_weather_types()
+	# Fallback to defaults if registry not available
+	return ["none", "rain", "snow", "fog"]
+
+
+## Get time of day options from ModLoader's environment registry (with fallback)
+func _get_time_of_day_from_registry() -> Array[String]:
+	if ModLoader and ModLoader.environment_registry:
+		return ModLoader.environment_registry.get_time_of_day_options()
+	# Fallback to defaults if registry not available
+	return ["day", "night", "dawn", "dusk"]
 
 
 ## Section 9: Audio (Placeholders)
@@ -979,12 +995,14 @@ func _load_resource_data() -> void:
 	_select_dialogue_in_dropdown(victory_dialogue_option, battle.victory_dialogue)
 	_select_dialogue_in_dropdown(defeat_dialogue_option, battle.defeat_dialogue)
 
-	# Environment
-	var weather_index: int = ["none", "rain", "snow", "fog"].find(battle.weather)
+	# Environment - use registry for lookups
+	var weather_types: Array[String] = _get_weather_types_from_registry()
+	var weather_index: int = weather_types.find(battle.weather)
 	if weather_index >= 0:
 		weather_option.selected = weather_index
 
-	var time_index: int = ["day", "night", "dawn", "dusk"].find(battle.time_of_day)
+	var time_options: Array[String] = _get_time_of_day_from_registry()
+	var time_index: int = time_options.find(battle.time_of_day)
 	if time_index >= 0:
 		time_of_day_option.selected = time_index
 
@@ -1226,12 +1244,14 @@ func _save_resource_data() -> void:
 	else:
 		battle.defeat_dialogue = null
 
-	# Environment
-	var weather_items: Array[String] = ["none", "rain", "snow", "fog"]
-	battle.weather = weather_items[weather_option.selected]
+	# Environment - use registry for lookups
+	var weather_items: Array[String] = _get_weather_types_from_registry()
+	if weather_option.selected >= 0 and weather_option.selected < weather_items.size():
+		battle.weather = weather_items[weather_option.selected]
 
-	var time_items: Array[String] = ["day", "night", "dawn", "dusk"]
-	battle.time_of_day = time_items[time_of_day_option.selected]
+	var time_items: Array[String] = _get_time_of_day_from_registry()
+	if time_of_day_option.selected >= 0 and time_of_day_option.selected < time_items.size():
+		battle.time_of_day = time_items[time_of_day_option.selected]
 
 	# Rewards
 	battle.experience_reward = int(experience_reward_spin.value)

@@ -24,8 +24,17 @@ var delete_button: Button
 # Current resource being edited
 var current_resource: Resource
 
+# Track source mod of current resource (for write protection)
+var current_resource_source_mod: String = ""
+
 # Available resources for reference (e.g., classes list for character editor)
 var available_resources: Array[Resource] = []
+
+# Dialogs and feedback panels
+var confirmation_dialog: ConfirmationDialog
+var error_panel: PanelContainer
+var error_label: RichTextLabel
+var _pending_confirmation_action: Callable
 
 
 func _ready() -> void:
@@ -152,6 +161,41 @@ func _setup_base_ui() -> void:
 	scroll.add_child(detail_panel)
 	hsplit.add_child(scroll)
 
+	# Create confirmation dialog
+	confirmation_dialog = ConfirmationDialog.new()
+	confirmation_dialog.title = "Confirm Action"
+	confirmation_dialog.confirmed.connect(_on_confirmation_confirmed)
+	add_child(confirmation_dialog)
+
+	# Create error panel (hidden by default)
+	error_panel = PanelContainer.new()
+	error_panel.visible = false
+	var error_style: StyleBoxFlat = StyleBoxFlat.new()
+	error_style.bg_color = Color(0.6, 0.15, 0.15, 0.95)
+	error_style.border_width_left = 3
+	error_style.border_width_right = 3
+	error_style.border_width_top = 3
+	error_style.border_width_bottom = 3
+	error_style.border_color = Color(0.9, 0.3, 0.3, 1.0)
+	error_style.corner_radius_top_left = 4
+	error_style.corner_radius_top_right = 4
+	error_style.corner_radius_bottom_left = 4
+	error_style.corner_radius_bottom_right = 4
+	error_style.content_margin_left = 8
+	error_style.content_margin_right = 8
+	error_style.content_margin_top = 6
+	error_style.content_margin_bottom = 6
+	error_panel.add_theme_stylebox_override("panel", error_style)
+
+	error_label = RichTextLabel.new()
+	error_label.bbcode_enabled = true
+	error_label.fit_content = true
+	error_label.custom_minimum_size = Vector2(0, 40)
+	error_label.scroll_active = false
+	error_panel.add_child(error_label)
+
+	# Error panel will be inserted before button_container in child's _create_detail_form
+
 
 func _refresh_list() -> void:
 	resource_list.clear()
@@ -205,33 +249,71 @@ func _on_resource_selected(index: int) -> void:
 	current_resource = loaded_resource.duplicate(true)
 	# Keep the original path so we can save to the same location
 	current_resource.take_over_path(path)
+
+	# Track source mod for write protection
+	current_resource_source_mod = _get_mod_from_path(path)
+
+	# Hide any previous errors when selecting a new resource
+	_hide_errors()
+
 	_load_resource_data()
+
+
+## Determine which mod a resource path belongs to
+func _get_mod_from_path(path: String) -> String:
+	# Paths are like: res://mods/_base_game/data/characters/hero.tres
+	if path.begins_with("res://mods/"):
+		var parts: PackedStringArray = path.split("/")
+		if parts.size() >= 3:
+			return parts[2]  # The mod folder name
+	return ""
 
 
 func _on_save() -> void:
 	if not current_resource:
-		push_warning("No " + resource_type_name.to_lower() + " selected")
+		_show_errors(["No " + resource_type_name.to_lower() + " selected"])
 		return
 
 	# Check if we have a selected item
 	var selected_items: PackedInt32Array = resource_list.get_selected_items()
 	if selected_items.size() == 0:
-		push_warning("No " + resource_type_name.to_lower() + " selected in list")
+		_show_errors(["No " + resource_type_name.to_lower() + " selected in list"])
 		return
+
+	# Hide any previous errors
+	_hide_errors()
+
+	# Check for cross-mod write protection
+	var active_mod_folder: String = ""
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			# Get the folder name from mod directory
+			active_mod_folder = active_mod.mod_directory.get_file()
+
+	# If resource came from a different mod than the active one, warn
+	if current_resource_source_mod != "" and active_mod_folder != "":
+		if current_resource_source_mod != active_mod_folder:
+			_show_cross_mod_warning(current_resource_source_mod, active_mod_folder)
+			return
 
 	# Validate first
 	var validation: Dictionary = _validate_resource()
 	if not validation.valid:
-		var error_msg: String = "Cannot save " + resource_type_name.to_lower() + ":\n"
-		for error in validation.errors:
-			error_msg += "- " + error + "\n"
-		push_error(error_msg)
+		_show_errors(validation.errors)
 		return
 
+	# Perform the actual save
+	_perform_save()
+
+
+## Actually perform the save operation (called after validation/confirmation)
+func _perform_save() -> void:
 	# Save UI data to resource
 	_save_resource_data()
 
 	# Save to file
+	var selected_items: PackedInt32Array = resource_list.get_selected_items()
 	var path: String = resource_list.get_item_metadata(selected_items[0])
 	var err: Error = ResourceSaver.save(current_resource, path)
 	if err == OK:
@@ -239,9 +321,10 @@ func _on_save() -> void:
 		if EditorEventBus:
 			EditorEventBus.notify_resource_saved(resource_type_id, path, current_resource)
 
+		_hide_errors()
 		_refresh_list()
 	else:
-		push_error("Failed to save " + resource_type_name.to_lower() + ": " + str(err))
+		_show_errors(["Failed to save " + resource_type_name.to_lower() + ": " + str(err)])
 
 
 func _on_create_new() -> void:
@@ -301,10 +384,31 @@ func _on_delete() -> void:
 	# Check if this resource is referenced elsewhere
 	var references: Array[String] = _check_resource_references(current_resource)
 	if references.size() > 0:
-		push_error("Cannot delete %s: Referenced by %d resource(s)" % [_get_resource_display_name(current_resource), references.size()])
+		var ref_list: String = ""
+		for i in range(mini(references.size(), 5)):
+			ref_list += "\n  - " + references[i].get_file()
+		if references.size() > 5:
+			ref_list += "\n  ... and %d more" % (references.size() - 5)
+		_show_errors(["Cannot delete '%s'" % _get_resource_display_name(current_resource),
+					  "Referenced by %d resource(s):%s" % [references.size(), ref_list]])
 		return
 
 	# Get the file path
+	var selected_items: PackedInt32Array = resource_list.get_selected_items()
+	if selected_items.size() == 0:
+		return
+
+	# Show confirmation dialog
+	var resource_name: String = _get_resource_display_name(current_resource)
+	_show_confirmation(
+		"Delete " + resource_type_name + "?",
+		"Are you sure you want to delete '%s'?\n\nThis action cannot be undone." % resource_name,
+		_perform_delete
+	)
+
+
+## Actually perform the delete operation (called after confirmation)
+func _perform_delete() -> void:
 	var selected_items: PackedInt32Array = resource_list.get_selected_items()
 	if selected_items.size() == 0:
 		return
@@ -321,8 +425,63 @@ func _on_delete() -> void:
 				EditorEventBus.notify_resource_deleted(resource_type_id, path)
 
 			current_resource = null
+			current_resource_source_mod = ""
+			_hide_errors()
 			_refresh_list()
 		else:
-			push_error("Failed to delete " + resource_type_name.to_lower() + " file: " + str(err))
+			_show_errors(["Failed to delete " + resource_type_name.to_lower() + " file: " + str(err)])
 	else:
-		push_error("Failed to access directory for deletion")
+		_show_errors(["Failed to access directory for deletion"])
+
+
+## Show error messages in the visual error panel
+func _show_errors(errors: Array) -> void:
+	var error_text: String = "[b]Error:[/b]\n"
+	for error in errors:
+		error_text += "• " + str(error) + "\n"
+	error_label.text = error_text
+
+	# Insert error panel before button_container if not already there
+	if error_panel.get_parent() != detail_panel:
+		var button_index: int = button_container.get_index()
+		detail_panel.add_child(error_panel)
+		detail_panel.move_child(error_panel, button_index)
+
+	error_panel.show()
+
+	# Brief pulse animation to draw attention
+	var tween: Tween = create_tween()
+	tween.tween_property(error_panel, "modulate:a", 0.6, 0.15)
+	tween.tween_property(error_panel, "modulate:a", 1.0, 0.15)
+
+
+## Hide the error panel
+func _hide_errors() -> void:
+	error_panel.hide()
+	error_label.text = ""
+
+
+## Show a confirmation dialog
+func _show_confirmation(title: String, message: String, on_confirm: Callable) -> void:
+	confirmation_dialog.title = title
+	confirmation_dialog.dialog_text = message
+	_pending_confirmation_action = on_confirm
+	confirmation_dialog.popup_centered()
+
+
+## Called when confirmation dialog is confirmed
+func _on_confirmation_confirmed() -> void:
+	if _pending_confirmation_action.is_valid():
+		_pending_confirmation_action.call()
+	_pending_confirmation_action = Callable()
+
+
+## Show warning about cross-mod write attempt
+func _show_cross_mod_warning(source_mod: String, active_mod: String) -> void:
+	_show_confirmation(
+		"Cross-Mod Write Warning",
+		"This resource belongs to mod '%s' but you're editing mod '%s'.\n\n" % [source_mod, active_mod] +
+		"Saving will modify the original mod's files.\n\n" +
+		"Are you sure you want to continue?",
+		_perform_save
+	)

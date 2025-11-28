@@ -307,10 +307,10 @@ func _add_battle_configuration_section() -> void:
 	category_container.add_child(category_label)
 
 	category_option = OptionButton.new()
-	category_option.add_item("player", 0)
-	category_option.add_item("enemy", 1)
-	category_option.add_item("boss", 2)
-	category_option.add_item("neutral", 3)
+	# Populate from registry
+	var categories: Array[String] = _get_unit_categories_from_registry()
+	for i in range(categories.size()):
+		category_option.add_item(categories[i], i)
 	category_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	category_container.add_child(category_option)
 	section.add_child(category_container)
@@ -482,19 +482,18 @@ func _setup_filter_buttons() -> void:
 	var filter_container: HBoxContainer = HBoxContainer.new()
 	filter_container.add_theme_constant_override("separation", 4)
 
-	# Create filter buttons
-	var categories: Array[String] = ["all", "player", "enemy", "boss", "neutral"]
-	var button_texts: Dictionary = {
-		"all": "All",
-		"player": "Players",
-		"enemy": "Enemies",
-		"boss": "Bosses",
-		"neutral": "Neutrals"
-	}
+	# Create filter buttons - get categories from registry
+	var unit_categories: Array[String] = _get_unit_categories_from_registry()
+	var categories: Array[String] = ["all"]
+	categories.append_array(unit_categories)
 
 	for category in categories:
 		var btn: Button = Button.new()
-		btn.text = button_texts[category]
+		# Generate button text: "all" -> "All", "player" -> "Players", etc.
+		if category == "all":
+			btn.text = "All"
+		else:
+			btn.text = category.capitalize() + "s"  # Pluralize for filter buttons
 		btn.toggle_mode = true
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_filter_changed.bind(category))
@@ -522,23 +521,37 @@ func _on_filter_changed(category: String) -> void:
 
 
 func _apply_filter() -> void:
-	if current_filter == "all":
-		# Show all items
-		for i in range(resource_list.item_count):
-			resource_list.set_item_disabled(i, false)
-		return
+	# Store currently selected path to restore selection after filter
+	var selected_path: String = ""
+	var selected_items: PackedInt32Array = resource_list.get_selected_items()
+	if selected_items.size() > 0:
+		selected_path = resource_list.get_item_metadata(selected_items[0])
 
-	# Filter based on category
-	for i in range(resource_list.item_count):
-		var path: String = resource_list.get_item_metadata(i)
-		var character: CharacterData = load(path) as CharacterData
+	# Clear and rebuild list with only matching items
+	resource_list.clear()
 
-		if character:
-			var should_show: bool = (character.unit_category == current_filter)
-			resource_list.set_item_disabled(i, not should_show)
+	for i in range(available_resources.size()):
+		var character: CharacterData = available_resources[i] as CharacterData
+		if not character:
+			continue
 
-			# Hide disabled items by making them invisible
-			if not should_show:
-				# Add a prefix to visually hide (Godot doesn't have native hide for ItemList items)
-				# Instead, we'll use a different approach: only show matching items
-				pass
+		# Check if matches current filter
+		var matches_filter: bool = (current_filter == "all") or (character.unit_category == current_filter)
+
+		if matches_filter:
+			resource_list.add_item(_get_resource_display_name(character))
+			# Store the original resource index so we can find the right resource
+			var original_path: String = character.resource_path
+			resource_list.set_item_metadata(resource_list.item_count - 1, original_path)
+
+			# Restore selection if this was the previously selected item
+			if original_path == selected_path:
+				resource_list.select(resource_list.item_count - 1)
+
+
+## Get unit categories from ModLoader's unit category registry (with fallback)
+func _get_unit_categories_from_registry() -> Array[String]:
+	if ModLoader and ModLoader.unit_category_registry:
+		return ModLoader.unit_category_registry.get_categories()
+	# Fallback to defaults if registry not available
+	return ["player", "enemy", "boss", "neutral"]

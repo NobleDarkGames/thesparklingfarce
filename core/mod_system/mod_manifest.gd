@@ -30,6 +30,14 @@ const MAX_PRIORITY: int = 9999
 ## Allows mods to provide/override game scenes like opening_cinematic, main_menu, etc.
 @export var scenes: Dictionary = {}
 
+## Custom type definitions - allows mods to extend available options
+## These are registered with the type registries on mod load
+@export var custom_weapon_types: Array[String] = []
+@export var custom_armor_types: Array[String] = []
+@export var custom_weather_types: Array[String] = []
+@export var custom_time_of_day: Array[String] = []
+@export var custom_unit_categories: Array[String] = []
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -95,6 +103,30 @@ static func load_from_file(json_path: String) -> ModManifest:
 			var scene_path: Variant = data.scenes[scene_id]
 			if scene_path is String:
 				manifest.scenes[scene_id] = scene_path
+
+	# Parse custom type definitions
+	if "custom_types" in data and data.custom_types is Dictionary:
+		var custom_types: Dictionary = data.custom_types
+
+		if "weapon_types" in custom_types and custom_types.weapon_types is Array:
+			for wt: Variant in custom_types.weapon_types:
+				manifest.custom_weapon_types.append(str(wt))
+
+		if "armor_types" in custom_types and custom_types.armor_types is Array:
+			for at: Variant in custom_types.armor_types:
+				manifest.custom_armor_types.append(str(at))
+
+		if "weather_types" in custom_types and custom_types.weather_types is Array:
+			for wt: Variant in custom_types.weather_types:
+				manifest.custom_weather_types.append(str(wt))
+
+		if "time_of_day" in custom_types and custom_types.time_of_day is Array:
+			for tod: Variant in custom_types.time_of_day:
+				manifest.custom_time_of_day.append(str(tod))
+
+		if "unit_categories" in custom_types and custom_types.unit_categories is Array:
+			for uc: Variant in custom_types.unit_categories:
+				manifest.custom_unit_categories.append(str(uc))
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()
