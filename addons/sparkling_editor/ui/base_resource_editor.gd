@@ -262,10 +262,11 @@ func _on_resource_selected(index: int) -> void:
 ## Determine which mod a resource path belongs to
 func _get_mod_from_path(path: String) -> String:
 	# Paths are like: res://mods/_base_game/data/characters/hero.tres
+	# Split by "/" gives: ["res:", "", "mods", "_base_game", "data", ...]
 	if path.begins_with("res://mods/"):
 		var parts: PackedStringArray = path.split("/")
-		if parts.size() >= 3:
-			return parts[2]  # The mod folder name
+		if parts.size() >= 4:
+			return parts[3]  # The mod folder name (index 3 due to "res://" splitting)
 	return ""
 
 

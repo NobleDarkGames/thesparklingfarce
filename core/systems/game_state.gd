@@ -76,6 +76,14 @@ func _ready() -> void:
 		pass
 
 
+## Global quit handler - Q key quits the game (development convenience)
+## Uses _unhandled_input for efficiency (only fires on actual input, not every frame)
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_Q:
+			get_tree().quit()
+
+
 ## Check if a story flag is set to true
 func has_flag(flag_name: String) -> bool:
 	return story_flags.get(flag_name, false)

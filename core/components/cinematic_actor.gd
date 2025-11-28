@@ -76,11 +76,6 @@ func _exit_tree() -> void:
 		CinematicsManager.unregister_actor(actor_id)
 
 
-func _process(delta: float) -> void:
-	# Movement is now handled by tweens, not per-frame updates
-	pass
-
-
 ## Find AnimatedSprite2D in entity hierarchy
 func _find_sprite_node(node: Node) -> AnimatedSprite2D:
 	if node is AnimatedSprite2D:

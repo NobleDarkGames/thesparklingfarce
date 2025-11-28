@@ -59,6 +59,11 @@ const INPUT_DELAY_INITIAL: float = 0.3  # Delay before repeat starts
 const INPUT_DELAY_REPEAT: float = 0.1   # Delay between repeats
 
 
+func _ready() -> void:
+	# Disable per-frame processing on startup (we start in WAITING state)
+	set_process(false)
+
+
 ## Set action menu reference and connect signals
 func set_action_menu(menu: Control) -> void:
 	action_menu = menu
@@ -214,12 +219,16 @@ func set_state(new_state: InputState) -> void:
 
 ## State enter handlers
 func _on_enter_waiting() -> void:
+	# Disable per-frame processing in waiting state (optimization)
+	set_process(false)
 	active_unit = null
 	walkable_cells.clear()
 	available_actions.clear()
 
 
 func _on_enter_inspecting() -> void:
+	# Enable per-frame processing for continuous cursor movement
+	set_process(true)
 	# Free cursor mode - can inspect any unit on battlefield
 	# Clear movement highlights (we're not moving anymore)
 	GridManager.clear_highlights()
@@ -238,6 +247,8 @@ func _on_enter_inspecting() -> void:
 
 
 func _on_enter_exploring_movement() -> void:
+	# Enable per-frame processing for continuous cursor movement
+	set_process(true)
 	# Show active unit stats when exiting inspection mode
 	if stats_panel and active_unit:
 		stats_panel.show_unit_stats(active_unit)
@@ -263,6 +274,8 @@ func _on_enter_exploring_movement() -> void:
 
 
 func _on_enter_selecting_action() -> void:
+	# Disable per-frame processing (menu handles its own input)
+	set_process(false)
 	# Clear movement highlights
 	GridManager.clear_highlights()
 
@@ -286,6 +299,8 @@ func _on_enter_selecting_action() -> void:
 
 
 func _on_enter_targeting() -> void:
+	# Disable per-frame processing (targeting uses _input for individual key presses)
+	set_process(false)
 	# Clear movement highlights
 	GridManager.clear_highlights()
 
@@ -311,6 +326,8 @@ func _on_enter_targeting() -> void:
 
 
 func _on_enter_executing() -> void:
+	# Disable per-frame processing during action execution
+	set_process(false)
 	# Action is executing, clear all highlights and cursor
 	GridManager.clear_highlights()
 

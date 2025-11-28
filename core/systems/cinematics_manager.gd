@@ -72,6 +72,9 @@ var _fade_overlay: ColorRect = null
 
 
 func _ready() -> void:
+	# Disable per-frame processing when idle (optimization)
+	set_process(false)
+
 	# Register all built-in command executors
 	_register_built_in_commands()
 
@@ -295,6 +298,9 @@ func play_cinematic_from_resource(cinematic: CinematicData) -> bool:
 
 	emit_signal("cinematic_started", cinematic.cinematic_id)
 
+	# Enable per-frame processing while cinematic is active
+	set_process(true)
+
 	# Start executing commands
 	current_state = State.PLAYING
 	_command_completed = true  # Start first command
@@ -400,6 +406,10 @@ func _end_cinematic() -> void:
 	emit_signal("cinematic_ended", finished_cinematic.cinematic_id if finished_cinematic else "")
 
 	current_state = State.IDLE
+
+	# Disable per-frame processing while idle (optimization)
+	# Note: Will be re-enabled if chaining to next cinematic
+	set_process(false)
 
 	# Chain to next cinematic if exists
 	if finished_cinematic and finished_cinematic.has_next():

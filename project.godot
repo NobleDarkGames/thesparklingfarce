@@ -94,13 +94,5 @@ sf_cancel={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-2d/snap_2d_transforms_to_pixel=true
-
-; Shader caching to improve startup time on subsequent runs
-; First run will still compile shaders, but they'll be cached for future runs
-shader_compiler/shader_cache/enabled=true
-shader_compiler/shader_cache/compress=true
-shader_compiler/shader_cache/use_zstd_compression=true
-
-; Reduce environment processing for 2D game (not using 3D features)
 environment/defaults/default_clear_color=Color(0.1, 0.1, 0.15, 1)
+2d/snap_2d_transforms_to_pixel=true

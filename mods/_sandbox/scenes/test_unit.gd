@@ -246,9 +246,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Quit on Q key (changed from ESC/Backspace to avoid conflict with B button functionality)
-	if Input.is_key_pressed(KEY_Q):
-		get_tree().quit()
+	# Note: Q-key quit is now handled globally by GameState autoload
 
 	# Camera behavior:
 	# - On turn start: CameraController.follow_unit() smoothly pans to new unit

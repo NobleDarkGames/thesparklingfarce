@@ -241,9 +241,7 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, faction: String, ai_b
 
 
 func _process(_delta: float) -> void:
-	# Quit on Q key
-	if Input.is_key_pressed(KEY_Q):
-		get_tree().quit()
+	# Note: Q-key quit is now handled globally by GameState autoload
 
 	# Camera follows active unit during movement
 	var active_unit: Node2D = TurnManager.get_active_unit()
