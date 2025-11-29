@@ -54,16 +54,23 @@ func _configure_slot_button(button: Button, slot_num: int, metadata: SlotMetadat
 
 
 func _on_slot_selected(slot_num: int) -> void:
-	print("SaveSlotSelector: Slot %d selected" % slot_num)
+	print("SaveSlotSelector: Slot %d selected (mode: %s)" % [slot_num, SceneManager.save_slot_mode])
 
 	var metadata: SlotMetadata = SaveManager.get_slot_metadata(slot_num)
+	var is_occupied: bool = metadata != null and metadata.is_occupied
 
-	if metadata and metadata.is_occupied:
-		# Load existing save
-		_load_game(slot_num)
-	else:
-		# Create new save
+	if SceneManager.save_slot_mode == "new_game":
+		# New game mode: always create new save (overwrite if occupied)
+		if is_occupied:
+			print("SaveSlotSelector: Overwriting existing save in slot %d" % slot_num)
 		_new_game(slot_num)
+	else:
+		# Load game mode: only load if occupied
+		if is_occupied:
+			_load_game(slot_num)
+		else:
+			print("SaveSlotSelector: Cannot load empty slot %d" % slot_num)
+			# TODO: Show feedback to user that slot is empty
 
 
 func _new_game(slot_num: int) -> void:
@@ -110,10 +117,16 @@ func _new_game(slot_num: int) -> void:
 
 		# Start campaign via CampaignManager
 		var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
+		print("SaveSlotSelector: Found %d available campaigns" % campaigns.size())
 		if campaigns.size() > 0:
 			# Use first available campaign (or default from mod config)
 			var campaign: Resource = campaigns[0]
-			print("SaveSlotSelector: Starting campaign '%s'" % campaign.campaign_name)
+			print("SaveSlotSelector: Starting campaign '%s' (id: %s)" % [campaign.campaign_name, campaign.campaign_id])
+			print("SaveSlotSelector: Campaign starting_node_id: '%s'" % campaign.starting_node_id)
+			# Debug: print all node scene_paths
+			for node: Resource in campaign.nodes:
+				if node.node_type == "scene":
+					print("SaveSlotSelector: Node '%s' scene_path: '%s'" % [node.node_id, node.scene_path])
 			CampaignManager.start_campaign(campaign.campaign_id)
 		else:
 			# Fallback to legacy hardcoded battle if no campaigns found
@@ -142,9 +155,17 @@ func _load_game(slot_num: int) -> void:
 				save_data.current_campaign_id, save_data.current_node_id])
 			CampaignManager.resume_campaign(save_data.current_campaign_id, save_data.current_node_id)
 		else:
-			# Fallback to legacy behavior if no campaign data
-			push_warning("SaveSlotSelector: No campaign data in save, falling back to legacy battle start")
-			TriggerManager.start_battle("battle_1763763677")
+			# Legacy save without campaign data - start first available campaign
+			push_warning("SaveSlotSelector: Legacy save without campaign data - starting fresh campaign")
+			var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
+			if campaigns.size() > 0:
+				var campaign: Resource = campaigns[0]
+				print("SaveSlotSelector: Starting campaign '%s' for legacy save" % campaign.campaign_name)
+				CampaignManager.start_campaign(campaign.campaign_id)
+			else:
+				# Ultimate fallback if no campaigns exist at all
+				push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle start")
+				TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to load save from slot %d" % slot_num)
 

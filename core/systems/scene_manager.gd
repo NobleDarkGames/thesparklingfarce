@@ -34,6 +34,9 @@ var current_scene_path: String = ""
 var previous_scene_path: String = ""
 var is_transitioning: bool = false
 
+## Save slot selector mode: "new_game" or "load_game"
+var save_slot_mode: String = "new_game"
+
 ## Current fade state - true if screen is currently faded to black
 var is_faded_to_black: bool = false
 
@@ -236,7 +239,8 @@ func goto_main_menu(use_fade: bool = true) -> void:
 	change_scene(scene_path, use_fade)
 
 
-func goto_save_slot_selector(use_fade: bool = true) -> void:
+func goto_save_slot_selector(mode: String = "new_game", use_fade: bool = true) -> void:
+	save_slot_mode = mode
 	var scene_path: String = get_scene_path(SCENE_SAVE_SLOT_SELECTOR, FALLBACK_SAVE_SLOT_SELECTOR)
 	change_scene(scene_path, use_fade)
 

@@ -24,7 +24,7 @@
       "node_id": "headquarters",
       "display_name": "Headquarters",
       "node_type": "scene",
-      "scene_path": "res://mods/_base_game/maps/test/collision_test_001.tscn",
+      "scene_path": "res://mods/_sandbox/maps/opening_game_map.tscn",
       "is_hub": true,
       "allow_egress": false,
       "completion_trigger": "exit_trigger",

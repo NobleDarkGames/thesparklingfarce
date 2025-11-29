@@ -20,14 +20,14 @@ func _ready() -> void:
 
 func _on_new_game_pressed() -> void:
 	# Go to save slot selector in "new game" mode
-	# The selector will create a new save in the chosen slot
-	SceneManager.goto_save_slot_selector()
+	# The selector will create a new save in the chosen slot (overwriting if occupied)
+	SceneManager.goto_save_slot_selector("new_game")
 
 
 func _on_load_game_pressed() -> void:
 	# Go to save slot selector in "load game" mode
 	# The selector will load an existing save from the chosen slot
-	SceneManager.goto_save_slot_selector()
+	SceneManager.goto_save_slot_selector("load_game")
 
 
 func _on_quit_pressed() -> void:
