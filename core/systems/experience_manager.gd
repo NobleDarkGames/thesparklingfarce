@@ -3,7 +3,7 @@ extends Node
 ## ExperienceManager - Central system for XP awards and level-up mechanics.
 ##
 ## Autoload singleton responsible for:
-## - Calculating and awarding combat XP (damage, kills, participation)
+## - Calculating and awarding combat XP (damage, kills, formation bonus)
 ## - Calculating and awarding support XP (healing, buffs, debuffs)
 ## - Processing level-ups and stat increases
 ## - Learning new abilities at milestone levels
@@ -18,7 +18,7 @@ extends Node
 ## Emitted when a unit gains XP.
 ## @param unit: The Unit that gained XP
 ## @param amount: Amount of XP gained
-## @param source: Source of XP ("damage", "kill", "participation", "heal", etc.)
+## @param source: Source of XP ("damage", "kill", "formation", "heal", etc.)
 signal unit_gained_xp(unit: Node2D, amount: int, source: String)
 
 ## Emitted when a unit levels up.
@@ -56,7 +56,7 @@ var config: Resource = null  # ExperienceConfig
 enum XPSource {
 	DAMAGE,          ## XP from dealing damage
 	KILL,            ## Bonus XP from killing an enemy
-	PARTICIPATION,   ## XP from being near an ally's combat
+	FORMATION,       ## XP from being positioned near an ally's combat
 	HEAL,            ## XP from healing
 	BUFF,            ## XP from buffing allies
 	DEBUFF,          ## XP from debuffing enemies
@@ -94,7 +94,7 @@ func set_config(new_config: Resource) -> void:
 ## Distributes XP to:
 ## - Attacker (based on damage dealt)
 ## - Attacker (bonus if got kill)
-## - Nearby allies (participation XP)
+## - Nearby allies (formation XP for tactical positioning)
 ##
 ## @param attacker: Unit that performed the attack
 ## @param defender: Unit that was attacked
@@ -116,10 +116,16 @@ func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_
 	# Calculate attacker's XP
 	var attacker_xp: int = 0
 
-	# Damage XP: proportional to damage dealt
+	# Damage XP: proportional to damage dealt, with minimum floor
 	if damage_dealt > 0:
 		var damage_ratio: float = float(damage_dealt) / float(defender.stats.max_hp)
-		attacker_xp += int(base_xp * damage_ratio)
+		var damage_xp: int = int(base_xp * damage_ratio)
+
+		# Ensure minimum XP for any successful hit (prevents chip damage being worthless)
+		var min_damage_xp: int = maxi(1, int(base_xp * config.min_damage_xp_ratio))
+		damage_xp = maxi(damage_xp, min_damage_xp)
+
+		attacker_xp += damage_xp
 
 	# Kill bonus XP
 	if got_kill:
@@ -129,25 +135,38 @@ func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_
 	# Cap at max XP per action
 	attacker_xp = mini(attacker_xp, config.max_xp_per_action)
 
+	# Only award XP to player faction - enemies don't use our progression system
+	if attacker.faction != "player":
+		return
+
 	# Award to attacker
 	if attacker_xp > 0:
 		var source: String = "kill" if got_kill else "damage"
 		_give_xp_to_unit(attacker, attacker_xp, source)
 
-	# Award participation XP to nearby allies
-	if config.enable_participation_xp and damage_dealt > 0:
-		var nearby_allies: Array[Node2D] = _get_units_in_participation_radius(attacker)
-		var participation_xp: int = int(base_xp * config.participation_multiplier)
+	# Award formation XP to nearby allies (rewards tactical positioning)
+	if config.enable_formation_xp and damage_dealt > 0:
+		var nearby_allies: Array[Node2D] = _get_units_in_formation_radius(attacker)
+		var ally_count: int = nearby_allies.size()
 
-		for ally in nearby_allies:
-			_give_xp_to_unit(ally, participation_xp, "participation")
+		if ally_count > 0:
+			# Calculate TOTAL formation XP pool, capped at % of attacker's actual XP
+			var base_total_formation: int = int(base_xp * config.formation_multiplier)
+			var capped_total_formation: int = int(attacker_xp * config.formation_cap_ratio)
+			var total_formation_xp: int = mini(base_total_formation, capped_total_formation)
+
+			# Divide pool among allies (minimum 1 XP each if any pool exists)
+			var per_ally_xp: int = maxi(1, total_formation_xp / ally_count)
+
+			for ally in nearby_allies:
+				_give_xp_to_unit(ally, per_ally_xp, "formation")
 
 
-## Get all allied units within participation radius of a unit.
+## Get all allied units within formation radius of a unit.
 ##
 ## @param center_unit: Unit to check from
-## @return: Array of Units within participation range
-func _get_units_in_participation_radius(center_unit: Node2D) -> Array[Node2D]:
+## @return: Array of Units within formation range
+func _get_units_in_formation_radius(center_unit: Node2D) -> Array[Node2D]:
 	var nearby_allies: Array[Node2D] = []
 
 	if not is_instance_valid(center_unit):
@@ -171,7 +190,7 @@ func _get_units_in_participation_radius(center_unit: Node2D) -> Array[Node2D]:
 
 		# Check distance
 		var distance: int = GridManager.get_distance(center_pos, unit.grid_position)
-		if distance <= config.participation_radius:
+		if distance <= config.formation_radius:
 			nearby_allies.append(unit)
 
 	return nearby_allies
@@ -301,7 +320,7 @@ func apply_level_up(unit: Node2D) -> Dictionary:
 	# Roll for each stat increase (Shining Force style)
 	var stats_to_grow: Array[String] = ["hp", "mp", "strength", "defense", "agility", "intelligence", "luck"]
 
-	for stat_name in stats_to_grow:
+	for stat_name: String in stats_to_grow:
 		var growth_rate: int = class_data.get_growth_rate(stat_name)
 		var increase: int = _calculate_stat_increase(growth_rate)
 
@@ -363,9 +382,11 @@ func _check_learned_abilities(unit: Node2D, new_level: int, class_data: Resource
 	if "learnable_abilities" not in class_data:
 		return learned
 
-	var learnable_abilities: Variant = class_data.learnable_abilities
-	if learnable_abilities == null:
+	var learnable_abilities_raw: Variant = class_data.learnable_abilities
+	if learnable_abilities_raw == null or not learnable_abilities_raw is Dictionary:
 		return learned
+
+	var learnable_abilities: Dictionary = learnable_abilities_raw as Dictionary
 
 	# Check if this level has abilities
 	if new_level in learnable_abilities:

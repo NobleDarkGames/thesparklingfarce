@@ -26,7 +26,6 @@
 extends Node2D
 
 # Preload scenes
-const UnitScript: GDScript = preload("res://core/components/unit.gd")
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
 
@@ -249,6 +248,11 @@ func _ready() -> void:
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
 
+	# CRITICAL: Connect BattleManager signals for XP, level-ups, and victory/defeat screens
+	# This must be called because we're NOT calling BattleManager.start_battle()
+	# (we call TurnManager.start_battle() directly for more control)
+	BattleManager._connect_signals()
+
 	# Populate BattleManager unit arrays (needed for AI to find targets)
 	BattleManager.player_units = _player_units
 	BattleManager.enemy_units = _enemy_units
@@ -258,11 +262,15 @@ func _ready() -> void:
 	# Connect to BattleManager signals for visual feedback
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
-	# Connect to TurnManager signals BEFORE starting battle
-	TurnManager.player_turn_started.connect(_on_player_turn_started)
-	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
-	TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
-	TurnManager.battle_ended.connect(_on_battle_ended)
+	# Connect to TurnManager signals BEFORE starting battle (with guards to prevent duplicates)
+	if not TurnManager.player_turn_started.is_connected(_on_player_turn_started):
+		TurnManager.player_turn_started.connect(_on_player_turn_started)
+	if not TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
+		TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
+	if not TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
+		TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
+	if not TurnManager.battle_ended.is_connected(_on_battle_ended):
+		TurnManager.battle_ended.connect(_on_battle_ended)
 
 	# Register camera with all game systems (TurnManager, CinematicsManager)
 	_camera.register_with_systems()
@@ -329,7 +337,7 @@ func _process(_delta: float) -> void:
 	if InputManager.current_state != InputManager.InputState.INSPECTING:
 		if active_unit and active_unit.is_alive():
 			# If unit is currently moving (has active tween), follow them smoothly
-			if active_unit._movement_tween and active_unit._movement_tween.is_valid():
+			if active_unit.is_moving():
 				_camera.set_target_position(active_unit.position)
 
 	# Early return if debug label is hidden (optimization)

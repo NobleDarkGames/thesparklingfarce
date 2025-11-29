@@ -1,0 +1,239 @@
+class_name LevelUpCelebration
+extends CanvasLayer
+
+## Level-Up Celebration - Displays stat increases when a unit levels up
+##
+## Shows immediately during battle (Shining Force authentic behavior).
+## Pauses battle flow until player acknowledges.
+
+signal celebration_dismissed
+
+## Font reference
+const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
+
+## Animation constants
+const FADE_IN_DURATION: float = 0.3
+const STAT_REVEAL_DELAY: float = 0.12
+const LEVEL_POP_SCALE: float = 1.4
+
+## UI References
+@onready var background: ColorRect = $Background
+@onready var panel: PanelContainer = $CenterContainer/Panel
+@onready var portrait: TextureRect = $CenterContainer/Panel/MarginContainer/HBox/PortraitPanel/Portrait
+@onready var name_label: Label = $CenterContainer/Panel/MarginContainer/HBox/StatsVBox/NameLabel
+@onready var level_label: Label = $CenterContainer/Panel/MarginContainer/HBox/StatsVBox/LevelLabel
+@onready var stats_container: VBoxContainer = $CenterContainer/Panel/MarginContainer/HBox/StatsVBox/StatsContainer
+@onready var abilities_container: VBoxContainer = $CenterContainer/Panel/MarginContainer/HBox/StatsVBox/AbilitiesContainer
+@onready var continue_label: Label = $CenterContainer/Panel/MarginContainer/HBox/StatsVBox/ContinueLabel
+
+## State
+var _can_dismiss: bool = false
+var _blink_tween: Tween = null
+
+
+func _ready() -> void:
+	# Start hidden
+	background.modulate.a = 0.0
+	panel.modulate.a = 0.0
+	continue_label.visible = false
+
+	# Set layer above combat animation
+	layer = 101
+
+
+## Show the level-up celebration
+func show_level_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+	_can_dismiss = false
+
+	# Play level-up sound
+	AudioManager.play_sfx("level_up", AudioManager.SFXCategory.UI)
+
+	# Set portrait
+	if unit.character_data and unit.character_data.portrait:
+		portrait.texture = unit.character_data.portrait
+		portrait.visible = true
+	else:
+		portrait.visible = false
+
+	# Set name
+	var char_name: String = "Unknown"
+	if unit.character_data:
+		char_name = unit.character_data.character_name
+	name_label.text = char_name
+
+	# Set initial level text
+	level_label.text = "LEVEL UP!"
+	level_label.add_theme_color_override("font_color", Color.GOLD)
+
+	# Fade in
+	await _fade_in()
+
+	# Animate level change
+	await _animate_level_change(old_level, new_level)
+
+	# Reveal stat increases one by one
+	await _reveal_stats(stat_increases)
+
+	# Show learned abilities if any
+	if "abilities" in stat_increases and not stat_increases.abilities.is_empty():
+		await _reveal_abilities(stat_increases.abilities)
+
+	# Show continue prompt
+	continue_label.visible = true
+	_animate_continue_blink()
+	_can_dismiss = true
+
+
+func _fade_in() -> void:
+	var tween: Tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(background, "modulate:a", 0.7, FADE_IN_DURATION)
+	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
+	await tween.finished
+
+
+func _animate_level_change(old_level: int, new_level: int) -> void:
+	await get_tree().create_timer(0.3).timeout
+
+	# Pop animation on level text
+	var tween: Tween = create_tween()
+	tween.tween_property(level_label, "scale", Vector2(LEVEL_POP_SCALE, LEVEL_POP_SCALE), 0.1)
+	tween.tween_callback(func() -> void:
+		level_label.text = "Lv %d -> %d" % [old_level, new_level]
+	)
+	tween.tween_property(level_label, "scale", Vector2.ONE, 0.15)
+	await tween.finished
+
+
+func _reveal_stats(stat_increases: Dictionary) -> void:
+	# Clear any existing stat rows
+	for child in stats_container.get_children():
+		child.queue_free()
+
+	# Stat display order (Shining Force style)
+	var stat_order: Array[String] = ["hp", "mp", "strength", "defense", "agility", "intelligence", "luck"]
+
+	for stat_name: String in stat_order:
+		if stat_name not in stat_increases:
+			continue
+
+		var increase: int = stat_increases[stat_name]
+		if increase <= 0:
+			continue
+
+		# Create stat row
+		var row: HBoxContainer = _create_stat_row(stat_name, increase)
+		row.modulate.a = 0.0
+		stats_container.add_child(row)
+
+		# Play tick sound and fade in
+		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
+
+		var tween: Tween = create_tween()
+		tween.tween_property(row, "modulate:a", 1.0, 0.15)
+
+		await get_tree().create_timer(STAT_REVEAL_DELAY).timeout
+
+
+func _create_stat_row(stat_name: String, increase: int) -> HBoxContainer:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	# Stat name label
+	var name_lbl: Label = Label.new()
+	name_lbl.text = _format_stat_name(stat_name)
+	name_lbl.add_theme_font_override("font", MONOGRAM_FONT)
+	name_lbl.add_theme_font_size_override("font_size", 24)
+	name_lbl.custom_minimum_size.x = 80
+	row.add_child(name_lbl)
+
+	# Increase label
+	var value_lbl: Label = Label.new()
+	value_lbl.text = "+%d" % increase
+	value_lbl.add_theme_font_override("font", MONOGRAM_FONT)
+	value_lbl.add_theme_font_size_override("font_size", 24)
+	value_lbl.add_theme_color_override("font_color", Color.LIME_GREEN)
+	row.add_child(value_lbl)
+
+	return row
+
+
+func _format_stat_name(stat_name: String) -> String:
+	match stat_name:
+		"hp": return "HP"
+		"mp": return "MP"
+		"strength": return "STR"
+		"defense": return "DEF"
+		"agility": return "AGI"
+		"intelligence": return "INT"
+		"luck": return "LCK"
+		_: return stat_name.to_upper()
+
+
+func _reveal_abilities(abilities: Array) -> void:
+	# Clear existing
+	for child in abilities_container.get_children():
+		child.queue_free()
+
+	for ability: Resource in abilities:
+		var ability_name: String = "Unknown Ability"
+		if ability and "ability_name" in ability:
+			ability_name = ability.ability_name
+
+		var lbl: Label = Label.new()
+		lbl.text = "Learned: %s" % ability_name
+		lbl.add_theme_font_override("font", MONOGRAM_FONT)
+		lbl.add_theme_font_size_override("font_size", 20)
+		lbl.add_theme_color_override("font_color", Color.CYAN)
+		lbl.modulate.a = 0.0
+		abilities_container.add_child(lbl)
+
+		# Play special sound for ability
+		AudioManager.play_sfx("ability_learned", AudioManager.SFXCategory.UI)
+
+		var tween: Tween = create_tween()
+		tween.tween_property(lbl, "modulate:a", 1.0, 0.2)
+
+		await get_tree().create_timer(0.3).timeout
+
+
+func _animate_continue_blink() -> void:
+	# Kill any existing blink tween
+	if _blink_tween and _blink_tween.is_valid():
+		_blink_tween.kill()
+
+	_blink_tween = create_tween()
+	_blink_tween.set_loops()
+	_blink_tween.tween_property(continue_label, "modulate:a", 0.3, 0.5)
+	_blink_tween.tween_property(continue_label, "modulate:a", 1.0, 0.5)
+
+
+func _input(event: InputEvent) -> void:
+	# Block ALL inputs while this modal popup is visible
+	# This prevents clicks/keys from passing through to the battle map
+	get_viewport().set_input_as_handled()
+
+	if not _can_dismiss:
+		return
+
+	if event.is_action_pressed("sf_confirm") or event.is_action_pressed("sf_cancel"):
+		AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
+		_dismiss()
+
+
+func _dismiss() -> void:
+	_can_dismiss = false
+
+	# Kill the blink tween to free resources
+	if _blink_tween and _blink_tween.is_valid():
+		_blink_tween.kill()
+		_blink_tween = null
+
+	# Fade out
+	var tween: Tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(background, "modulate:a", 0.0, 0.2)
+	tween.tween_property(panel, "modulate:a", 0.0, 0.2)
+	await tween.finished
+
+	celebration_dismissed.emit()
