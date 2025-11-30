@@ -20,6 +20,14 @@ var _occupied_cells: Dictionary = {}
 ## Highlight layer for showing movement ranges and targets
 var _highlight_layer: TileMapLayer = null
 
+## Highlight pulse animation tween
+var _highlight_tween: Tween = null
+
+## Pulse animation settings
+const HIGHLIGHT_PULSE_MIN_ALPHA: float = 0.5
+const HIGHLIGHT_PULSE_MAX_ALPHA: float = 1.0
+const HIGHLIGHT_PULSE_DURATION: float = 0.6
+
 ## Terrain cost by tile type and movement type
 ## Format: {tile_id: {MovementType: cost}}
 var _terrain_costs: Dictionary = {}
@@ -364,7 +372,8 @@ const HIGHLIGHT_YELLOW: int = 2  # Target selection
 
 ## Highlight cells with a specific color (for movement range, attack range, etc.)
 ## Colors: 0 = movement (blue), 1 = attack (red), 2 = target (yellow)
-func highlight_cells(cells: Array[Vector2i], color_type: int = 0) -> void:
+## pulse: Whether to animate the highlights with a gentle pulse effect
+func highlight_cells(cells: Array[Vector2i], color_type: int = 0, pulse: bool = true) -> void:
 	if _highlight_layer == null:
 		push_warning("GridManager: No highlight layer set. Call set_highlight_layer() first.")
 		return
@@ -377,6 +386,10 @@ func highlight_cells(cells: Array[Vector2i], color_type: int = 0) -> void:
 			# Use source_id to select the correct colored tile
 			# source_id corresponds to: 0=blue, 1=red, 2=yellow
 			_highlight_layer.set_cell(cell, color_type, Vector2i(0, 0))
+
+	# Start pulse animation if requested
+	if pulse and cells.size() > 0:
+		_start_highlight_pulse()
 
 
 ## Show movement range (blue tiles)
@@ -416,14 +429,59 @@ func highlight_targets(target_cells: Array[Vector2i]) -> void:
 
 ## Clear all cell highlights
 func clear_highlights() -> void:
+	# Stop pulse animation
+	_stop_highlight_pulse()
+
 	if _highlight_layer == null:
 		return
 
 	_highlight_layer.clear()
+	_highlight_layer.modulate.a = 1.0  # Reset alpha
+
+
+## Start pulsing the highlight layer (gentle alpha oscillation)
+func _start_highlight_pulse() -> void:
+	if _highlight_layer == null:
+		return
+
+	# Kill existing tween
+	if _highlight_tween and _highlight_tween.is_valid():
+		_highlight_tween.kill()
+
+	# Create looping pulse animation
+	_highlight_tween = create_tween()
+	_highlight_tween.set_loops()
+
+	_highlight_tween.tween_property(
+		_highlight_layer,
+		"modulate:a",
+		HIGHLIGHT_PULSE_MIN_ALPHA,
+		HIGHLIGHT_PULSE_DURATION / 2.0
+	).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+	_highlight_tween.tween_property(
+		_highlight_layer,
+		"modulate:a",
+		HIGHLIGHT_PULSE_MAX_ALPHA,
+		HIGHLIGHT_PULSE_DURATION / 2.0
+	).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+
+## Stop pulsing the highlight layer
+func _stop_highlight_pulse() -> void:
+	if _highlight_tween and _highlight_tween.is_valid():
+		_highlight_tween.kill()
+		_highlight_tween = null
+
+	if _highlight_layer:
+		_highlight_layer.modulate.a = 1.0
 
 
 ## Clear the entire grid state (call when exiting battle)
 func clear_grid() -> void:
+	# Stop highlight pulse animation
+	_stop_highlight_pulse()
+
 	grid = null
 	tilemap = null
 	_astar = null

@@ -43,6 +43,7 @@ var _grid_cursor: Node2D = null  # Grid cursor visual
 var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
 var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
 var _combat_forecast_panel: CombatForecastPanel = null  # Combat forecast panel
+var _turn_order_panel: TurnOrderPanel = null  # Turn order preview panel
 var _camera: CameraController = null  # Camera controller
 var _debug_visible: bool = false  # Debug display toggle (F3)
 var _map_instance: Node2D = null  # Instanced map scene
@@ -229,10 +230,11 @@ func _ready() -> void:
 	# Set path preview parent (use Map node for path visuals)
 	InputManager.path_preview_parent = _map_node
 
-	# Get reference to stats panels
+	# Get reference to UI panels
 	_stats_panel = $UI/HUD/ActiveUnitStatsPanel
 	_terrain_panel = $UI/HUD/TerrainInfoPanel
 	_combat_forecast_panel = $UI/HUD/CombatForecastPanel
+	_turn_order_panel = $UI/HUD/TurnOrderPanel
 
 	# Get reference to camera
 	_camera = $Camera
@@ -263,6 +265,8 @@ func _ready() -> void:
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
 	# Connect to TurnManager signals BEFORE starting battle (with guards to prevent duplicates)
+	if not TurnManager.turn_cycle_started.is_connected(_on_turn_cycle_started):
+		TurnManager.turn_cycle_started.connect(_on_turn_cycle_started)
 	if not TurnManager.player_turn_started.is_connected(_on_player_turn_started):
 		TurnManager.player_turn_started.connect(_on_player_turn_started)
 	if not TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
@@ -380,6 +384,16 @@ func _process(_delta: float) -> void:
 
 
 ## TurnManager signal handlers
+
+## Called when a new turn cycle begins (all units get new turn priorities)
+func _on_turn_cycle_started(turn_number: int) -> void:
+	print(">>> TURN CYCLE %d STARTED <<<" % turn_number)
+
+	# Show turn order panel on first turn cycle
+	if turn_number == 1:
+		_turn_order_panel.show_panel()
+
+
 func _on_player_turn_started(unit: Node2D) -> void:
 	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
@@ -391,6 +405,9 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	_stats_panel.show_unit_stats(unit)
 	var unit_cell: Vector2i = unit.grid_position
 	_terrain_panel.show_terrain_info(unit_cell)
+
+	# Update turn order panel
+	_update_turn_order_display(unit)
 
 	# GridManager now handles highlights via TileMapLayer (called by InputManager)
 	# Start InputManager for player turn
@@ -408,6 +425,9 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 	_stats_panel.show_unit_stats(unit)
 	var unit_cell: Vector2i = unit.grid_position
 	_terrain_panel.show_terrain_info(unit_cell)
+
+	# Update turn order panel
+	_update_turn_order_display(unit)
 
 
 func _on_unit_turn_ended(unit: Node2D) -> void:
@@ -430,6 +450,16 @@ func _on_battle_ended(victory: bool) -> void:
 		print("YOU LOSE!")
 		# Phase 3: Show defeat_dialogue from battle_data
 	print("Press Q to quit")
+
+	# Hide turn order panel
+	_turn_order_panel.hide_panel()
+
+
+## Helper to update the turn order panel with current battle state
+func _update_turn_order_display(active_unit: Node2D) -> void:
+	var upcoming: Array[Node2D] = TurnManager.get_remaining_turn_queue()
+	_turn_order_panel.update_turn_order(active_unit, upcoming)
+	_turn_order_panel.animate_transition()
 
 
 func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:

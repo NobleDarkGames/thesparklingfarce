@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
 [ext_resource type="PackedScene" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
 [ext_resource type="PackedScene" uid="uid://combat_forecast_panel" path="res://scenes/ui/combat_forecast_panel.tscn" id="8_forecast"]
+[ext_resource type="PackedScene" uid="uid://turn_order_panel" path="res://scenes/ui/turn_order_panel.tscn" id="9_turn_order"]
 
 [sub_resource type="TileSet" id="TileSet_placeholder"]
 tile_size = Vector2i(32, 32)
@@ -57,6 +58,9 @@ layout_mode = 1
 layout_mode = 1
 
 [node name="CombatForecastPanel" parent="UI/HUD" instance=ExtResource("8_forecast")]
+layout_mode = 1
+
+[node name="TurnOrderPanel" parent="UI/HUD" instance=ExtResource("9_turn_order")]
 layout_mode = 1
 
 [node name="DebugLabel" type="Label" parent="UI/HUD"]

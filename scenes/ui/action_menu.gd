@@ -1,6 +1,7 @@
 ## ActionMenu - Shining Force style action selection menu
 ##
-## Displays available actions (Attack, Magic, Item, Stay) with context-aware highlighting
+## Displays available actions (Attack, Magic, Item, Stay) with context-aware highlighting.
+## Features keyboard/mouse navigation, hover states, and sound feedback.
 extends Control
 
 ## Signals - session_id prevents stale signals from previous turns
@@ -24,16 +25,21 @@ var menu_items: Array[Dictionary] = []
 ## Session ID - stored when menu opens, emitted with signals to prevent stale signals
 var _menu_session_id: int = -1
 
+## Hover tracking
+var _hover_index: int = -1
+
 ## Colors
 const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
 const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
+const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)  # Subtle hover highlight
 
 
 func _ready() -> void:
 	# Hide by default
 	visible = false
 	set_process_input(false)  # Disable input processing when hidden
+	set_process(false)  # Disable _process when hidden
 
 	# Build menu item array
 	menu_items = [
@@ -45,11 +51,44 @@ func _ready() -> void:
 	]
 
 
+func _process(_delta: float) -> void:
+	# Track mouse hover for visual feedback
+	if not visible:
+		return
+
+	var mouse_pos: Vector2 = get_global_mouse_position()
+	var new_hover: int = -1
+
+	for i in range(menu_items.size()):
+		var label: Label = menu_items[i]["label"]
+		var action: String = menu_items[i]["action"]
+
+		if action not in available_actions:
+			continue
+
+		var label_rect: Rect2 = label.get_global_rect()
+		if label_rect.has_point(mouse_pos):
+			new_hover = i
+			break
+
+	# Update hover state if changed
+	if new_hover != _hover_index:
+		var old_hover: int = _hover_index
+		_hover_index = new_hover
+
+		# Play hover sound when entering a new valid item (not the selected one)
+		if new_hover != -1 and new_hover != selected_index:
+			AudioManager.play_sfx("cursor_hover", AudioManager.SFXCategory.UI)
+
+		_update_selection_visual()
+
+
 ## Show menu with specific available actions
 ## session_id: The turn session ID from InputManager - will be emitted with signals
 func show_menu(actions: Array[String], default_action: String = "", session_id: int = -1) -> void:
 	available_actions = actions
 	_menu_session_id = session_id
+	_hover_index = -1  # Reset hover state
 
 	# Update menu item visibility/colors
 	for item in menu_items:
@@ -77,23 +116,28 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 	# Show menu
 	visible = true
 	set_process_input(true)  # Enable input processing when shown
+	set_process(true)  # Enable hover tracking
 
 
 ## Hide menu
 func hide_menu() -> void:
 	set_process_input(false)  # Disable input processing FIRST
+	set_process(false)  # Disable hover tracking
 	visible = false
+	_hover_index = -1
 
 
 ## Reset menu to clean state (called when turn ends to prevent stale state)
 func reset_menu() -> void:
 	# Completely disable input processing
 	set_process_input(false)
+	set_process(false)
 
 	# Clear all state including session ID
 	available_actions.clear()
 	selected_index = 0
 	_menu_session_id = -1  # Invalidate session ID
+	_hover_index = -1
 
 	# Hide menu
 	visible = false
@@ -155,18 +199,26 @@ func _input(event: InputEvent) -> void:
 				if "Attack" in available_actions:
 					_select_action_by_name("Attack")
 					_confirm_selection()
+				else:
+					_play_error_sound()
 			KEY_2:
 				if "Magic" in available_actions:
 					_select_action_by_name("Magic")
 					_confirm_selection()
+				else:
+					_play_error_sound()
 			KEY_3:
 				if "Item" in available_actions:
 					_select_action_by_name("Item")
 					_confirm_selection()
+				else:
+					_play_error_sound()
 			KEY_4:
 				if "Stay" in available_actions:
 					_select_action_by_name("Stay")
 					_confirm_selection()
+				else:
+					_play_error_sound()
 
 
 ## Move selection up or down
@@ -179,7 +231,10 @@ func _move_selection(direction: int) -> void:
 
 		var item: Dictionary = menu_items[selected_index]
 		if item["action"] in available_actions:
-			_update_selection_visual()
+			# Only play sound and update if we actually moved
+			if selected_index != start_index:
+				AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
+				_update_selection_visual()
 			return
 
 		# Prevent infinite loop if no actions available
@@ -203,11 +258,15 @@ func _update_selection_visual() -> void:
 		var action: String = item["action"]
 
 		if i == selected_index and action in available_actions:
-			# Selected item
+			# Selected item - bright yellow
 			label.modulate = COLOR_SELECTED
 			label.add_theme_color_override("font_color", COLOR_SELECTED)
+		elif i == _hover_index and action in available_actions:
+			# Hovered but not selected - subtle highlight
+			label.modulate = COLOR_HOVER
+			label.remove_theme_color_override("font_color")
 		elif action in available_actions:
-			# Available but not selected
+			# Available but not selected or hovered
 			label.modulate = COLOR_NORMAL
 			label.remove_theme_color_override("font_color")
 		else:
@@ -236,7 +295,11 @@ func _confirm_selection() -> void:
 
 	# Safety check 4: Don't emit if selected action is not in available list
 	if selected_action not in available_actions:
+		_play_error_sound()
 		return
+
+	# Play confirm sound
+	AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 
 	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
 	# This prevents any state changes from affecting the emission
@@ -247,7 +310,15 @@ func _confirm_selection() -> void:
 
 ## Cancel menu
 func _cancel_menu() -> void:
+	# Play cancel sound
+	AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
+
 	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
 	var emit_session_id: int = _menu_session_id
 	menu_cancelled.emit(emit_session_id)
 	hide_menu()
+
+
+## Play error/invalid action sound
+func _play_error_sound() -> void:
+	AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)

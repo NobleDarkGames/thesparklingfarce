@@ -33,6 +33,10 @@ var stats: RefCounted = null  # UnitStats instance
 var movement_speed: float = 200.0  # Pixels per second
 var _movement_tween: Tween = null
 
+## Health bar animation
+var _health_bar_tween: Tween = null
+const HEALTH_BAR_TWEEN_DURATION: float = 0.3
+
 ## Grid position
 var grid_position: Vector2i = Vector2i.ZERO
 
@@ -59,7 +63,7 @@ var turn_priority: float = 0.0
 func _ready() -> void:
 	# Update visuals after nodes are ready
 	_update_visual()
-	_update_health_bar()
+	_update_health_bar(false)  # No animation on initial setup
 
 	# Update name if character data already set
 	if character_data and name_label:
@@ -93,8 +97,8 @@ func initialize(
 	if name_label:
 		name_label.text = character_data.character_name
 
-	# Update health bar
-	_update_health_bar()
+	# Update health bar (no animation on initialization)
+	_update_health_bar(false)
 
 	# Hide selection indicator by default
 	if selection_indicator:
@@ -142,13 +146,37 @@ func _create_placeholder_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
-## Update health bar display
-func _update_health_bar() -> void:
+## Update health bar display with optional animation
+## animate: If true, smoothly tween to new value; if false, set immediately
+func _update_health_bar(animate: bool = true) -> void:
 	if not health_bar or not stats:
 		return
 
 	health_bar.max_value = stats.max_hp
-	health_bar.value = stats.current_hp
+
+	# Check if GameJuice is available and animation is enabled
+	var should_animate: bool = animate and is_inside_tree()
+	if should_animate:
+		# Try to check GameJuice setting (may not be available during initialization)
+		if Engine.has_singleton("GameJuice") or get_node_or_null("/root/GameJuice"):
+			should_animate = GameJuice.animate_stat_bars
+
+	if should_animate:
+		# Kill existing health bar tween
+		if _health_bar_tween and _health_bar_tween.is_valid():
+			_health_bar_tween.kill()
+
+		var duration: float = HEALTH_BAR_TWEEN_DURATION
+		# Try to get adjusted duration from GameJuice
+		if get_node_or_null("/root/GameJuice"):
+			duration = GameJuice.get_adjusted_duration(HEALTH_BAR_TWEEN_DURATION)
+
+		_health_bar_tween = create_tween()
+		_health_bar_tween.tween_property(health_bar, "value", float(stats.current_hp), duration)
+		_health_bar_tween.set_ease(Tween.EASE_OUT)
+		_health_bar_tween.set_trans(Tween.TRANS_CUBIC)
+	else:
+		health_bar.value = stats.current_hp
 
 
 ## Move unit to new grid position (direct movement, no path following)

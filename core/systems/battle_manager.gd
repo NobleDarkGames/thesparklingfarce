@@ -517,6 +517,11 @@ func _show_combat_animation(
 		print("%s [HEADLESS] Skipping combat animation" % TurnManager._get_elapsed_time())
 		return
 
+	# Skip combat animation if GameJuice is set to MAP_ONLY mode
+	if GameJuice.should_skip_combat_animation():
+		print("%s [MAP_ONLY] Skipping combat animation" % TurnManager._get_elapsed_time())
+		return
+
 	print("%s HIDING battlefield (combat anim starting)" % TurnManager._get_elapsed_time())
 	# HIDE the battlefield completely (Shining Force style - full screen replacement)
 	if map_instance:
@@ -533,6 +538,9 @@ func _show_combat_animation(
 	# (uses CanvasLayer with layer=100 to appear above everything)
 	combat_anim_instance = COMBAT_ANIM_SCENE.instantiate()
 	battle_scene_root.add_child(combat_anim_instance)
+
+	# Set animation speed from GameJuice settings
+	combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
 
 	# Play combat animation (scene handles its own fade-in)
 	print("%s Playing combat animation..." % TurnManager._get_elapsed_time())

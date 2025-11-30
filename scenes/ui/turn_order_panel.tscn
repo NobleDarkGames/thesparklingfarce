@@ -1,0 +1,80 @@
+[gd_scene load_steps=3 format=3 uid="uid://turn_order_panel"]
+
+[ext_resource type="Script" path="res://scenes/ui/turn_order_panel.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.08, 0.08, 0.12, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.35, 0.35, 0.45, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="TurnOrderPanel" type="PanelContainer"]
+texture_filter = 1
+anchors_preset = 0
+offset_left = 8.0
+offset_top = 60.0
+offset_right = 8.0
+offset_bottom = 60.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+theme = ExtResource("2_ui_theme")
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Slot0" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FactionBar" type="ColorRect" parent="MarginContainer/VBoxContainer/Slot0"]
+custom_minimum_size = Vector2(4, 18)
+layout_mode = 2
+color = Color(0.3, 0.6, 1, 1)
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer/Slot0"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Unit Name"
+
+[node name="Slot1" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FactionBar" type="ColorRect" parent="MarginContainer/VBoxContainer/Slot1"]
+custom_minimum_size = Vector2(4, 18)
+layout_mode = 2
+color = Color(1, 0.3, 0.3, 1)
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer/Slot1"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Enemy"
+
+[node name="Slot2" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FactionBar" type="ColorRect" parent="MarginContainer/VBoxContainer/Slot2"]
+custom_minimum_size = Vector2(4, 18)
+layout_mode = 2
+color = Color(0.3, 0.6, 1, 1)
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer/Slot2"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Next"

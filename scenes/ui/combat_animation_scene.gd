@@ -25,20 +25,42 @@ var defender_sprite: Control
 ## Font reference for dynamically created labels
 @onready var monogram_font: Font = preload("res://assets/fonts/monogram.ttf")
 
-## Animation constants (slowed down for better visibility)
+## Base animation constants (will be adjusted by GameJuice speed settings)
 const ATTACK_MOVE_DISTANCE: float = 80.0
-const ATTACK_MOVE_DURATION: float = 0.3  ## Increased from 0.15
+const BASE_ATTACK_MOVE_DURATION: float = 0.3
 const DAMAGE_FLOAT_DISTANCE: float = 50.0
-const DAMAGE_FLOAT_DURATION: float = 1.2  ## Increased from 0.8
-const FLASH_DURATION: float = 0.15  ## Increased from 0.1
+const BASE_DAMAGE_FLOAT_DURATION: float = 1.2
+const BASE_FLASH_DURATION: float = 0.15
 const SCREEN_SHAKE_AMOUNT: float = 10.0
-const FADE_IN_DURATION: float = 0.4  ## Fade in duration
-const FADE_OUT_DURATION: float = 0.6  ## Smoother, more deliberate transition
-const RESULT_PAUSE_DURATION: float = 1.5  ## Pause to see result
-const IMPACT_PAUSE_DURATION: float = 0.2  ## Brief pause at impact moment
-const HP_BAR_NORMAL_DURATION: float = 0.6  ## HP bar drain for normal attacks
-const HP_BAR_CRIT_DURATION: float = 0.8  ## HP bar drain for critical hits (slower = dramatic)
-const CRIT_PAUSE_DURATION: float = 0.4  ## Extra pause after critical hit impact
+const BASE_FADE_IN_DURATION: float = 0.4
+const BASE_FADE_OUT_DURATION: float = 0.6
+const BASE_RESULT_PAUSE_DURATION: float = 1.5
+const BASE_IMPACT_PAUSE_DURATION: float = 0.2
+const BASE_HP_BAR_NORMAL_DURATION: float = 0.6
+const BASE_HP_BAR_CRIT_DURATION: float = 0.8
+const BASE_CRIT_PAUSE_DURATION: float = 0.4
+
+## Speed multiplier (set by BattleManager based on GameJuice settings)
+var _speed_multiplier: float = 1.0
+
+
+## Set animation speed multiplier (called by BattleManager)
+func set_speed_multiplier(multiplier: float) -> void:
+	_speed_multiplier = maxf(multiplier, 0.1)  # Minimum 0.1 to avoid division issues
+
+
+## Get duration adjusted by speed multiplier
+func _get_duration(base_duration: float) -> float:
+	if _speed_multiplier <= 0.1:
+		return 0.01  # Near-instant
+	return base_duration / _speed_multiplier
+
+
+## Get pause duration adjusted by speed multiplier
+func _get_pause(base_pause: float) -> float:
+	if _speed_multiplier <= 0.1:
+		return 0.01
+	return base_pause / _speed_multiplier
 
 
 func _ready() -> void:
@@ -62,7 +84,7 @@ func play_combat_animation(
 
 	# Fade in background and contents
 	var tween := create_tween()
-	tween.tween_property(background, "modulate:a", 1.0, FADE_IN_DURATION)
+	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
 	await tween.finished
 
 	# Play appropriate animation sequence
@@ -74,11 +96,11 @@ func play_combat_animation(
 		await _play_hit_animation(damage, defender)
 
 	# Pause to let player see result
-	await get_tree().create_timer(RESULT_PAUSE_DURATION).timeout
+	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
 
 	# Fade out everything by hiding the entire layer
 	tween = create_tween()
-	tween.tween_property(background, "modulate:a", 0.0, FADE_OUT_DURATION)
+	tween.tween_property(background, "modulate:a", 0.0, _get_duration(BASE_FADE_OUT_DURATION))
 	await tween.finished
 
 	# Hide the entire CanvasLayer to ensure nothing remains visible
@@ -227,26 +249,27 @@ func _play_hit_animation(damage: int, defender: Node2D) -> void:
 	combat_log.text = "Hit!"
 
 	var attacker_start_pos: Vector2 = attacker_sprite.position
+	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 
 	# Attacker slides forward
 	var tween := create_tween()
-	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, ATTACK_MOVE_DURATION)
+	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
 	await tween.finished
 
 	# Pause at impact moment
-	await get_tree().create_timer(IMPACT_PAUSE_DURATION).timeout
+	await get_tree().create_timer(_get_pause(BASE_IMPACT_PAUSE_DURATION)).timeout
 
 	# Flash defender red and show damage
-	_flash_sprite(defender_sprite, Color.RED, FLASH_DURATION)
+	_flash_sprite(defender_sprite, Color.RED, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, false)
 
 	# Update defender HP bar (slower animation)
 	var hp_tween := create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, HP_BAR_NORMAL_DURATION)
+	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
 	# Attacker returns to position
 	tween = create_tween()
-	tween.tween_property(attacker_sprite, "position", attacker_start_pos, ATTACK_MOVE_DURATION)
+	tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
 
@@ -257,28 +280,29 @@ func _play_critical_animation(damage: int, defender: Node2D) -> void:
 	combat_log.add_theme_color_override("font_color", Color.YELLOW)
 
 	var attacker_start_pos: Vector2 = attacker_sprite.position
+	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 
 	# Attacker slides forward (still dramatic but not too fast)
 	var tween := create_tween()
-	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE * 1.5, ATTACK_MOVE_DURATION)
+	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE * 1.5, move_duration)
 	await tween.finished
 
-	# Screen shake effect
+	# Screen shake effect (respects GameJuice intensity setting)
 	_screen_shake()
 
 	# Flash defender yellow and show critical damage
-	_flash_sprite(defender_sprite, Color.YELLOW, FLASH_DURATION)
+	_flash_sprite(defender_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, true)
 
 	# Update defender HP bar (slower for dramatic effect)
 	var hp_tween := create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, HP_BAR_CRIT_DURATION)
+	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 
-	await get_tree().create_timer(CRIT_PAUSE_DURATION).timeout
+	await get_tree().create_timer(_get_pause(BASE_CRIT_PAUSE_DURATION)).timeout
 
 	# Attacker returns to position
 	tween = create_tween()
-	tween.tween_property(attacker_sprite, "position", attacker_start_pos, ATTACK_MOVE_DURATION)
+	tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
 
@@ -290,14 +314,16 @@ func _play_miss_animation() -> void:
 
 	var attacker_start_pos: Vector2 = attacker_sprite.position
 	var defender_start_pos: Vector2 = defender_sprite.position
+	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
+	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 
 	# Attacker slides forward
 	var attack_tween := create_tween()
-	attack_tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, ATTACK_MOVE_DURATION)
+	attack_tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
 
 	# Defender dodges (slight movement)
 	var dodge_tween := create_tween()
-	dodge_tween.tween_property(defender_sprite, "position:x", defender_start_pos.x + 30, ATTACK_MOVE_DURATION)
+	dodge_tween.tween_property(defender_sprite, "position:x", defender_start_pos.x + 30, move_duration)
 
 	await attack_tween.finished
 
@@ -310,14 +336,14 @@ func _play_miss_animation() -> void:
 
 	var fade_tween := create_tween()
 	fade_tween.set_parallel(true)
-	fade_tween.tween_property(damage_label, "position:y", damage_label.position.y - DAMAGE_FLOAT_DISTANCE, DAMAGE_FLOAT_DURATION)
-	fade_tween.tween_property(damage_label, "modulate:a", 0.0, DAMAGE_FLOAT_DURATION)
+	fade_tween.tween_property(damage_label, "position:y", damage_label.position.y - DAMAGE_FLOAT_DISTANCE, float_duration)
+	fade_tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
 
 	# Both return to start positions
 	var return_tween := create_tween()
 	return_tween.set_parallel(true)
-	return_tween.tween_property(attacker_sprite, "position", attacker_start_pos, ATTACK_MOVE_DURATION)
-	return_tween.tween_property(defender_sprite, "position", defender_start_pos, ATTACK_MOVE_DURATION)
+	return_tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
+	return_tween.tween_property(defender_sprite, "position", defender_start_pos, move_duration)
 
 	await return_tween.finished
 
@@ -337,10 +363,11 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.modulate.a = 1.0
 
 	# Animate upward and fade out
+	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 	var tween := create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, DAMAGE_FLOAT_DURATION)
-	tween.tween_property(damage_label, "modulate:a", 0.0, DAMAGE_FLOAT_DURATION)
+	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, float_duration)
+	tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
 
 
 ## Flash a sprite with a color
