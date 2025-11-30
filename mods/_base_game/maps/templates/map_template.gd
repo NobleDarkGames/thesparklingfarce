@@ -248,9 +248,10 @@ func _create_follower(index: int) -> CharacterBody2D:
 	follower.tile_size = hero.tile_size if hero else 32
 
 	# Placeholder visual (replace with actual sprites)
+	# Size 24x24 to match battle unit placeholders and be visible at 0.8x zoom
 	var visual: ColorRect = ColorRect.new()
-	visual.custom_minimum_size = Vector2(12, 12)
-	visual.position = Vector2(-6, -6)
+	visual.custom_minimum_size = Vector2(24, 24)
+	visual.position = Vector2(-12, -12)
 	visual.color = Color(0.3 + index * 0.15, 0.5, 0.8 - index * 0.15)
 	visual.name = "SpriteVisual"
 	follower.add_child(visual)
