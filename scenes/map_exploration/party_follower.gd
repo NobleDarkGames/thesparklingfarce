@@ -67,7 +67,7 @@ func _ready() -> void:
 
 	# Initialize our tile history with current position
 	tile_history.clear()
-	for i in range(TILE_HISTORY_SIZE):
+	for i: int in range(TILE_HISTORY_SIZE):
 		tile_history.append(grid_position)
 
 	if DEBUG_MODE:
@@ -90,7 +90,7 @@ func _find_hero() -> Node2D:
 	# Fallback: search parent for node named Hero
 	var parent: Node = get_parent()
 	if parent:
-		for child in parent.get_children():
+		for child: Node in parent.get_children():
 			if child.name == "Hero" or "hero" in child.name.to_lower():
 				if child != self:
 					return child
@@ -283,7 +283,7 @@ func set_follow_target(target: Node2D) -> void:
 
 			# Fill our history with spawn position
 			tile_history.clear()
-			for i in range(TILE_HISTORY_SIZE):
+			for i: int in range(TILE_HISTORY_SIZE):
 				tile_history.append(grid_position)
 
 			if DEBUG_MODE:

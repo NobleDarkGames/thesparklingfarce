@@ -107,7 +107,7 @@ func _animate_level_change(old_level: int, new_level: int) -> void:
 
 func _reveal_stats(stat_increases: Dictionary) -> void:
 	# Clear any existing stat rows
-	for child in stats_container.get_children():
+	for child: Node in stats_container.get_children():
 		child.queue_free()
 
 	# Stat display order (Shining Force style)
@@ -170,9 +170,9 @@ func _format_stat_name(stat_name: String) -> String:
 		_: return stat_name.to_upper()
 
 
-func _reveal_abilities(abilities: Array) -> void:
+func _reveal_abilities(abilities: Array[Resource]) -> void:
 	# Clear existing
-	for child in abilities_container.get_children():
+	for child: Node in abilities_container.get_children():
 		child.queue_free()
 
 	for ability: Resource in abilities:

@@ -385,21 +385,16 @@ func _process_battle_node(node: Resource) -> void:
 ## Process a scene node (town, hub, exploration, dungeon)
 func _process_scene_node(node: Resource) -> void:
 	var target_scene_path: String = node.scene_path
-	print("CampaignManager: _process_scene_node for '%s'" % node.node_id)
-	print("  node.scene_path = '%s'" % node.scene_path)
-	print("  node.resource_id = '%s'" % node.resource_id)
 
 	if target_scene_path.is_empty() and not node.resource_id.is_empty():
 		# Look up scene from registry
 		target_scene_path = ModLoader.registry.get_scene_path(node.resource_id)
-		print("  Looked up from registry: '%s'" % target_scene_path)
 
 	if target_scene_path.is_empty():
 		push_error("CampaignManager: No scene for node '%s'" % node.node_id)
 		_handle_missing_node_error(node.node_id)
 		return
 
-	print("  Final target_scene_path: '%s'" % target_scene_path)
 	SceneManager.change_scene(target_scene_path)
 
 

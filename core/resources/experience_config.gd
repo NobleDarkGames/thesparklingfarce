@@ -91,8 +91,8 @@ extends Resource
 # ============================================================================
 
 ## Experience points required per level.
-## NOTE: Set low (15) for testing. Production value should be ~100.
-@export_range(1, 1000) var xp_per_level: int = 15
+## Production default: 100 XP per level (mods can override for different difficulty curves)
+@export_range(1, 1000) var xp_per_level: int = 100
 
 ## Maximum level characters can reach.
 @export_range(1, 99) var max_level: int = 20

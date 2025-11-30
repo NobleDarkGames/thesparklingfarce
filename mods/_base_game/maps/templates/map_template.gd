@@ -224,7 +224,7 @@ func _setup_party_followers() -> void:
 
 	var num_followers: int = mini(MAX_VISIBLE_FOLLOWERS, 3)
 
-	for i in range(num_followers):
+	for i: int in range(num_followers):
 		var follower: CharacterBody2D = _create_follower(i)
 		followers_container.add_child(follower)
 		party_followers.append(follower)

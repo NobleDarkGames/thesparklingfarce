@@ -5,6 +5,9 @@
 class_name HeroController
 extends CharacterBody2D
 
+## Debug mode - set to true for verbose logging
+const DEBUG_MODE: bool = false
+
 ## Emitted when hero completes movement to a new tile
 signal moved_to_tile(tile_position: Vector2i)
 
@@ -57,21 +60,23 @@ func _ready() -> void:
 	target_position = grid_to_world(grid_position)  # Snap to grid center
 	global_position = target_position  # Actually snap the position
 
-	print("[HeroController] Init - tile_size: %d" % tile_size)
-	print("[HeroController] Init - global_position: %s" % global_position)
-	print("[HeroController] Init - grid_position: %s" % grid_position)
-	print("[HeroController] Init - target_position: %s" % target_position)
+	if DEBUG_MODE:
+		print("[HeroController] Init - tile_size: %d" % tile_size)
+		print("[HeroController] Init - global_position: %s" % global_position)
+		print("[HeroController] Init - grid_position: %s" % grid_position)
+		print("[HeroController] Init - target_position: %s" % target_position)
 
 	# Initialize position history with current position
 	position_history.clear()
-	for i in range(position_history_size):
+	for i: int in range(position_history_size):
 		position_history.append(global_position)
 
 	# Initialize tile history with current grid position (SF2-style)
 	tile_history.clear()
-	for i in range(TILE_HISTORY_SIZE):
+	for i: int in range(TILE_HISTORY_SIZE):
 		tile_history.append(grid_position)
-	print("[HeroController] Tile history initialized with %d entries at %s" % [TILE_HISTORY_SIZE, grid_position])
+	if DEBUG_MODE:
+		print("[HeroController] Tile history initialized with %d entries at %s" % [TILE_HISTORY_SIZE, grid_position])
 
 	# Setup interaction raycast
 	if interaction_ray:
@@ -258,7 +263,8 @@ func _update_tile_history(new_tile: Vector2i) -> void:
 	if tile_history.size() > TILE_HISTORY_SIZE:
 		tile_history.pop_back()
 
-	print("[HeroController] Tile history updated: moved to %s (history size: %d)" % [new_tile, tile_history.size()])
+	if DEBUG_MODE:
+		print("[HeroController] Tile history updated: moved to %s (history size: %d)" % [new_tile, tile_history.size()])
 
 
 ## Initialize tile history with a formation trail extending BEHIND the hero.
@@ -274,13 +280,14 @@ func initialize_formation_history() -> void:
 
 	# Pre-seed history with tiles extending behind the hero
 	# history[0] = hero position, history[1] = 1 tile behind, etc.
-	for i in range(TILE_HISTORY_SIZE):
+	for i: int in range(TILE_HISTORY_SIZE):
 		var offset_tile: Vector2i = grid_position + (behind_direction * i)
 		tile_history.append(offset_tile)
 
-	print("[HeroController] Formation history initialized: %d tiles behind %s (direction: %s)" % [
-		TILE_HISTORY_SIZE, grid_position, behind_direction
-	])
+	if DEBUG_MODE:
+		print("[HeroController] Formation history initialized: %d tiles behind %s (direction: %s)" % [
+			TILE_HISTORY_SIZE, grid_position, behind_direction
+		])
 
 
 ## Get a position from the hero's movement history.
@@ -326,11 +333,12 @@ func teleport_to_grid(new_grid_pos: Vector2i) -> void:
 
 	# Clear position history and fill with new position
 	position_history.clear()
-	for i in range(position_history_size):
+	for i: int in range(position_history_size):
 		position_history.append(global_position)
 
 	# Clear tile history and fill with new tile (SF2-style)
 	tile_history.clear()
-	for i in range(TILE_HISTORY_SIZE):
+	for i: int in range(TILE_HISTORY_SIZE):
 		tile_history.append(grid_position)
-	print("[HeroController] Teleported to %s - tile history reset" % grid_position)
+	if DEBUG_MODE:
+		print("[HeroController] Teleported to %s - tile history reset" % grid_position)

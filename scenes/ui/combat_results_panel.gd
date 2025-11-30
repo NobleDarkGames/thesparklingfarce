@@ -83,7 +83,7 @@ func show_results() -> void:
 	_auto_dismiss_timer = AUTO_DISMISS_DELAY
 
 	# Clear previous entries
-	for child in entries_container.get_children():
+	for child: Node in entries_container.get_children():
 		child.queue_free()
 
 	# Separate combat entries from formation entries for batching

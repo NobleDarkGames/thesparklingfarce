@@ -39,7 +39,8 @@ extends Marker2D
 @export_multiline var description: String = ""
 
 ## Tile size for grid calculations (should match your tilemap)
-const TILE_SIZE: int = 16
+## SF-authentic: unified 32px tiles for all modes (matching HeroController default)
+@export var tile_size: int = 32
 
 ## Colors for editor visualization
 const COLOR_DEFAULT: Color = Color(0.2, 0.8, 0.2, 0.8)  # Green for default
@@ -53,8 +54,8 @@ const ARROW_LENGTH: float = 8.0
 var grid_position: Vector2i:
 	get:
 		return Vector2i(
-			int(floor(global_position.x / TILE_SIZE)),
-			int(floor(global_position.y / TILE_SIZE))
+			int(floor(global_position.x / tile_size)),
+			int(floor(global_position.y / tile_size))
 		)
 
 
@@ -63,8 +64,8 @@ var snapped_position: Vector2:
 	get:
 		var grid_pos: Vector2i = grid_position
 		return Vector2(
-			grid_pos.x * TILE_SIZE + TILE_SIZE / 2.0,
-			grid_pos.y * TILE_SIZE + TILE_SIZE / 2.0
+			grid_pos.x * tile_size + tile_size / 2.0,
+			grid_pos.y * tile_size + tile_size / 2.0
 		)
 
 
@@ -168,14 +169,14 @@ static func _find_spawn_points_recursive(node: Node, results: Array[SpawnPoint])
 	if node is SpawnPoint:
 		results.append(node as SpawnPoint)
 
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		_find_spawn_points_recursive(child, results)
 
 
 ## Find a spawn point by ID in a scene tree
 static func find_by_id(root: Node, spawn_id: String) -> SpawnPoint:
 	var all_spawns: Array[SpawnPoint] = find_all_in_tree(root)
-	for spawn in all_spawns:
+	for spawn: SpawnPoint in all_spawns:
 		if spawn.spawn_id == spawn_id:
 			return spawn
 	return null
@@ -186,7 +187,7 @@ static func find_default(root: Node) -> SpawnPoint:
 	var all_spawns: Array[SpawnPoint] = find_all_in_tree(root)
 
 	# First look for explicitly marked default
-	for spawn in all_spawns:
+	for spawn: SpawnPoint in all_spawns:
 		if spawn.is_default:
 			return spawn
 
@@ -200,7 +201,7 @@ static func find_default(root: Node) -> SpawnPoint:
 ## Find the caravan spawn point in a scene tree
 static func find_caravan_spawn(root: Node) -> SpawnPoint:
 	var all_spawns: Array[SpawnPoint] = find_all_in_tree(root)
-	for spawn in all_spawns:
+	for spawn: SpawnPoint in all_spawns:
 		if spawn.is_caravan_spawn:
 			return spawn
 	return null
