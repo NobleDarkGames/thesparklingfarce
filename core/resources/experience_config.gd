@@ -11,14 +11,20 @@ extends Resource
 # COMBAT XP SETTINGS
 # ============================================================================
 
-## Enable participation-based XP for nearby allies.
-@export var enable_participation_xp: bool = true
+## Enable formation-based XP for nearby allies (rewards tactical positioning).
+@export var enable_formation_xp: bool = true
 
-## Radius in grid cells for participation XP (allies within this distance get XP).
-@export_range(1, 10) var participation_radius: int = 3
+## Radius in grid cells for formation XP (allies within this distance get XP).
+@export_range(1, 10) var formation_radius: int = 3
 
-## Multiplier for participation XP (0.25 = 25% of base XP).
-@export_range(0.0, 1.0) var participation_multiplier: float = 0.25
+## Multiplier for formation XP (0.25 = 25% of base XP).
+@export_range(0.0, 1.0) var formation_multiplier: float = 0.25
+
+## Cap formation XP at this percentage of attacker's actual XP (prevents bystanders earning more than fighters).
+@export_range(0.0, 1.0) var formation_cap_ratio: float = 0.50
+
+## Minimum XP for any successful attack (as ratio of base XP, e.g., 0.1 = 10%).
+@export_range(0.0, 0.5) var min_damage_xp_ratio: float = 0.10
 
 ## Multiplier for kill bonus XP (0.5 = 50% of base XP added).
 @export_range(0.0, 2.0) var kill_bonus_multiplier: float = 0.5
@@ -85,7 +91,8 @@ extends Resource
 # ============================================================================
 
 ## Experience points required per level.
-@export_range(1, 1000) var xp_per_level: int = 100
+## NOTE: Set low (15) for testing. Production value should be ~100.
+@export_range(1, 1000) var xp_per_level: int = 15
 
 ## Maximum level characters can reach.
 @export_range(1, 99) var max_level: int = 20

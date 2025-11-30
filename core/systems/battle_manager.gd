@@ -41,6 +41,16 @@ const UNIT_SCENE: PackedScene = preload("res://scenes/unit.tscn")
 ## Combat animation scene (preload for combat displays)
 const COMBAT_ANIM_SCENE: PackedScene = preload("res://scenes/ui/combat_animation_scene.tscn")
 
+## Level-up celebration scene
+const LEVEL_UP_SCENE: PackedScene = preload("res://scenes/ui/level_up_celebration.tscn")
+
+## Victory/Defeat screens
+const VICTORY_SCREEN_SCENE: PackedScene = preload("res://scenes/ui/victory_screen.tscn")
+const DEFEAT_SCREEN_SCENE: PackedScene = preload("res://scenes/ui/defeat_screen.tscn")
+
+## Combat results panel (shows XP gains after combat)
+const COMBAT_RESULTS_SCENE: PackedScene = preload("res://scenes/ui/combat_results_panel.tscn")
+
 ## Timing constants for battle pacing (Shining Force-style)
 const BATTLEFIELD_SETTLE_DELAY: float = 1.2  ## Pause after combat to let player read results
 const RETURN_TO_MAP_DELAY: float = 2.0  ## Pause before transitioning back to map
@@ -48,6 +58,13 @@ const DEATH_FADE_DURATION: float = 0.5  ## How long unit fade-out takes on death
 
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
+
+## Level-up queue for handling multiple level-ups in sequence
+var _pending_level_ups: Array[Dictionary] = []
+var _showing_level_up: bool = false
+
+## XP entries queue for combat results panel
+var _pending_xp_entries: Array[Dictionary] = []
 
 
 ## Initialize battle manager with scene references
@@ -473,6 +490,9 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 		# Award combat XP to attacker and nearby allies
 		ExperienceManager.award_combat_xp(attacker, defender, damage, got_kill)
 
+		# Show combat results panel with XP gains
+		await _show_combat_results()
+
 	# TODO: Counterattack (Phase 4)
 
 	# Reset InputManager to waiting state ONLY if this unit is still the active unit
@@ -584,8 +604,19 @@ func _on_battle_ended(victory: bool) -> void:
 
 	battle_ended.emit(victory)
 
-	# TODO: Show victory/defeat dialogue
-	# TODO: Award experience/items
+	# Show result screen (skip in headless mode)
+	var should_retry: bool = false
+	if not TurnManager.is_headless:
+		if victory:
+			should_retry = await _show_victory_screen()
+		else:
+			should_retry = await _show_defeat_screen()
+
+	# Handle retry request
+	if should_retry:
+		print("BattleManager: Retry requested - reloading battle...")
+		# TODO: Implement battle retry (reload current battle data)
+		return
 
 	# Return to map after battle (if we came from a map trigger)
 	if GameState.has_return_data():
@@ -604,23 +635,62 @@ func _on_battle_ended(victory: bool) -> void:
 				context.completed_battle_id = current_battle_data.battle_id
 
 		print("BattleManager: Returning to map...")
-		# Small delay to let players see the victory/defeat message
-		await get_tree().create_timer(RETURN_TO_MAP_DELAY).timeout
 		TriggerManager.return_to_map()
 	else:
 		print("BattleManager: No return data - staying in battle scene")
 
 
+## Show victory screen and wait for player to dismiss
+## Returns false (victory never triggers retry)
+func _show_victory_screen() -> bool:
+	var gold_earned: int = 0
+	# TODO: Calculate gold from defeated enemies
+
+	var victory_screen: CanvasLayer = VICTORY_SCREEN_SCENE.instantiate()
+	battle_scene_root.add_child(victory_screen)
+
+	victory_screen.show_victory(gold_earned)
+	await victory_screen.result_dismissed
+
+	victory_screen.queue_free()
+	return false
+
+
+## Show defeat screen and wait for player choice
+## Returns true if player chose to retry, false to return to town
+func _show_defeat_screen() -> bool:
+	var defeat_screen: CanvasLayer = DEFEAT_SCREEN_SCENE.instantiate()
+	battle_scene_root.add_child(defeat_screen)
+
+	var retry_chosen: bool = false
+
+	# Connect to specific signals for player choice
+	defeat_screen.retry_requested.connect(func() -> void: retry_chosen = true)
+	defeat_screen.return_requested.connect(func() -> void: retry_chosen = false)
+
+	defeat_screen.show_defeat()
+	await defeat_screen.result_dismissed
+
+	defeat_screen.queue_free()
+	return retry_chosen
+
+
 ## Handle unit gaining XP
 func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
 	print("BattleManager: %s gained %d XP from %s" % [unit.get_display_name(), amount, source])
-	# TODO: Show floating "+X XP" text above unit (Phase 3 or 4)
+
+	# Queue XP entry for combat results panel
+	_pending_xp_entries.append({
+		"unit_name": unit.get_display_name(),
+		"amount": amount,
+		"source": source
+	})
 
 
 ## Handle unit level up
 func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
 	print("\n========================================")
-	print("LEVEL UP! %s: Lv %d → Lv %d" % [unit.get_display_name(), old_level, new_level])
+	print("LEVEL UP! %s: Lv %d -> Lv %d" % [unit.get_display_name(), old_level, new_level])
 	print("========================================")
 
 	# Print stat increases
@@ -632,12 +702,44 @@ func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_incr
 
 	print("========================================\n")
 
-	# TODO: Show level-up screen UI (Phase 4 or 5)
-	# - Unit portrait
-	# - Level progression
-	# - Stat increases
-	# - Learned abilities
-	# - Continue button
+	# Queue the level-up for display
+	_pending_level_ups.append({
+		"unit": unit,
+		"old_level": old_level,
+		"new_level": new_level,
+		"stat_increases": stat_increases
+	})
+
+	# Process queue if not already showing a level-up
+	if not _showing_level_up:
+		_process_level_up_queue()
+
+
+## Process queued level-ups one at a time
+func _process_level_up_queue() -> void:
+	if _pending_level_ups.is_empty():
+		_showing_level_up = false
+		return
+
+	_showing_level_up = true
+	var data: Dictionary = _pending_level_ups.pop_front()
+
+	# Skip visual in headless mode
+	if TurnManager.is_headless:
+		_process_level_up_queue()
+		return
+
+	# Instantiate and show level-up celebration
+	var celebration: CanvasLayer = LEVEL_UP_SCENE.instantiate()
+	battle_scene_root.add_child(celebration)
+
+	celebration.show_level_up(data.unit, data.old_level, data.new_level, data.stat_increases)
+	await celebration.celebration_dismissed
+
+	celebration.queue_free()
+
+	# Process next in queue
+	_process_level_up_queue()
 
 
 ## Handle unit learning ability
@@ -645,6 +747,35 @@ func _on_unit_learned_ability(unit: Node2D, ability: Resource) -> void:
 	var ability_name: String = ability.ability_name if ability else "Unknown"
 	print("BattleManager: %s learned %s!" % [unit.get_display_name(), ability_name])
 	# TODO: Show ability learned notification (Phase 4)
+
+
+## Show combat results panel with queued XP entries
+func _show_combat_results() -> void:
+	# Skip in headless mode
+	if TurnManager.is_headless:
+		_pending_xp_entries.clear()
+		return
+
+	# Skip if no entries
+	if _pending_xp_entries.is_empty():
+		return
+
+	# Create and populate the results panel
+	var results_panel: CanvasLayer = COMBAT_RESULTS_SCENE.instantiate()
+	battle_scene_root.add_child(results_panel)
+
+	# Add all queued entries
+	for entry: Dictionary in _pending_xp_entries:
+		results_panel.add_xp_entry(entry.unit_name, entry.amount, entry.source)
+
+	# Clear the queue
+	_pending_xp_entries.clear()
+
+	# Show and wait for dismissal
+	results_panel.show_results()
+	await results_panel.results_dismissed
+
+	results_panel.queue_free()
 
 
 ## Clean up battle
