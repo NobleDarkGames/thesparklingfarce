@@ -71,12 +71,14 @@ func _ready() -> void:
 
 
 ## Main entry point: play combat animation sequence
+## is_counter: if true, displays "COUNTER!" banner before the attack
 func play_combat_animation(
 	attacker: Node2D,
 	defender: Node2D,
 	damage: int,
 	was_critical: bool,
-	was_miss: bool
+	was_miss: bool,
+	is_counter: bool = false
 ) -> void:
 	# Set up combatants
 	await _setup_combatant(attacker, attacker_container, attacker_name, attacker_hp_bar, true)
@@ -86,6 +88,10 @@ func play_combat_animation(
 	var tween := create_tween()
 	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
 	await tween.finished
+
+	# Show "COUNTER!" banner if this is a counterattack
+	if is_counter:
+		await _show_counter_banner()
 
 	# Play appropriate animation sequence
 	if was_miss:
@@ -399,3 +405,43 @@ func _screen_shake() -> void:
 
 	# Return to original offset
 	offset = original_offset
+
+
+## Show "COUNTER!" banner before counterattack animation
+func _show_counter_banner() -> void:
+	# Create counter banner label
+	var counter_label := Label.new()
+	counter_label.text = "COUNTER!"
+	counter_label.add_theme_font_override("font", monogram_font)
+	counter_label.add_theme_font_size_override("font_size", 64)
+	counter_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.0))  # Orange
+	counter_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	counter_label.add_theme_constant_override("outline_size", 4)
+	counter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	counter_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	# Position at center of screen
+	counter_label.set_anchors_preset(Control.PRESET_CENTER)
+	counter_label.pivot_offset = counter_label.size / 2
+
+	add_child(counter_label)
+
+	# Animate: scale up from small, hold, then fade out
+	counter_label.scale = Vector2(0.3, 0.3)
+	counter_label.modulate.a = 0.0
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(counter_label, "scale", Vector2.ONE, _get_duration(0.2)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(counter_label, "modulate:a", 1.0, _get_duration(0.15))
+	await tween.finished
+
+	# Hold for a moment
+	await get_tree().create_timer(_get_pause(0.4)).timeout
+
+	# Fade out
+	tween = create_tween()
+	tween.tween_property(counter_label, "modulate:a", 0.0, _get_duration(0.2))
+	await tween.finished
+
+	counter_label.queue_free()

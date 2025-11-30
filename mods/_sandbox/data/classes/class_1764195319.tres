@@ -5,6 +5,8 @@
 [resource]
 script = ExtResource("1_0tlyv")
 display_name = "Rogue"
+counter_rate = 18
+double_attack_rate = 12
 hp_growth = 40
 mp_growth = 5
 strength_growth = 30

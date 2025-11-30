@@ -6,6 +6,8 @@
 script = ExtResource("1_ttobc")
 display_name = "Hero"
 movement_range = 5
+counter_rate = 12
+double_attack_rate = 6
 hp_growth = 65
 mp_growth = 45
 strength_growth = 60

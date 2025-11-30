@@ -179,3 +179,60 @@ static func can_counterattack(
 ) -> bool:
 	# Can only counter if weapon reaches the attacker
 	return defender_weapon_range >= attack_distance
+
+
+## Calculate counter chance based on defender's class
+## SF2 uses class-based rates (1/4, 1/8, 1/16, 1/32) not agility
+## Returns: Counter chance percentage (0-50)
+static func calculate_counter_chance(defender_stats: UnitStats) -> int:
+	if not defender_stats:
+		return 0
+
+	# Get counter rate from class data (default 12% if no class)
+	var counter_rate: int = 12
+	if defender_stats.class_data and "counter_rate" in defender_stats.class_data:
+		counter_rate = defender_stats.class_data.counter_rate
+
+	return clampi(counter_rate, 0, 50)
+
+
+## Roll for counterattack
+## Returns: true if counter occurs
+static func roll_counter(counter_chance: int) -> bool:
+	if counter_chance <= 0:
+		return false
+	var roll: int = randi_range(1, 100)
+	return roll <= counter_chance
+
+
+## Full counterattack check - combines range check and roll
+## Returns: Dictionary with {can_counter: bool, will_counter: bool, chance: int}
+static func check_counterattack(
+	defender_stats: UnitStats,
+	defender_weapon_range: int,
+	attack_distance: int,
+	defender_is_alive: bool
+) -> Dictionary:
+	var result: Dictionary = {
+		"can_counter": false,
+		"will_counter": false,
+		"chance": 0
+	}
+
+	# Dead units can't counter
+	if not defender_is_alive:
+		return result
+
+	# Check range requirement
+	if not can_counterattack(defender_weapon_range, attack_distance):
+		return result
+
+	# Calculate and store chance
+	result.chance = calculate_counter_chance(defender_stats)
+	result.can_counter = result.chance > 0
+
+	# Roll for counter
+	if result.can_counter:
+		result.will_counter = roll_counter(result.chance)
+
+	return result

@@ -5,3 +5,5 @@
 [resource]
 script = ExtResource("1_tqt6t")
 display_name = "Huge Rat"
+counter_rate = 6
+double_attack_rate = 3

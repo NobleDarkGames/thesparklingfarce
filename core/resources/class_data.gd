@@ -14,6 +14,15 @@ enum MovementType {
 @export var movement_type: MovementType = MovementType.WALKING
 @export var movement_range: int = 4
 
+@export_group("Combat Rates")
+## Counter rate determines chance to counterattack when attacked (SF2 uses 3, 6, 12, or 25%)
+## 25 = 1/4 (25%), 12 = 1/8 (~12.5%), 6 = 1/16 (~6%), 3 = 1/32 (~3%)
+@export_range(0, 50) var counter_rate: int = 12
+## Double attack rate (chance for second attack) - future implementation
+@export_range(0, 50) var double_attack_rate: int = 6
+## Critical hit rate bonus (added to base crit calculation)
+@export_range(0, 50) var crit_rate_bonus: int = 0
+
 @export_group("Growth Rates")
 ## Stat growth rates determine how stats increase on level up (0-100%)
 ## These rates define the class's growth pattern, matching Shining Force mechanics

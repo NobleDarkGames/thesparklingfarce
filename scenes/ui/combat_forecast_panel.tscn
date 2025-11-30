@@ -66,3 +66,10 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(1, 0.8, 0.4, 1)
 text = "Crit: 5%"
+
+[node name="CounterLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 0.6, 0.0, 1)
+text = "Counter: 12%"

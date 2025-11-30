@@ -459,7 +459,8 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 		# Show combat results panel with XP gains
 		await _show_combat_results()
 
-	# TODO: Counterattack (Phase 4)
+	# Counterattack check - defender strikes back if alive and in range
+	await _check_and_execute_counterattack(attacker, defender)
 
 	# Reset InputManager to waiting state ONLY if this unit is still the active unit
 	# (prevents race condition where next turn has already started during the await)
@@ -470,13 +471,119 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	TurnManager.end_unit_turn(attacker)
 
 
+## Check if defender can counterattack and execute if so
+## Counterattacks deal 75% damage and cannot trigger further counters
+func _check_and_execute_counterattack(original_attacker: Node2D, original_defender: Node2D) -> void:
+	# Check if defender is still alive
+	if not original_defender.is_alive():
+		return
+
+	# Check if attacker is still alive (edge case: status effects)
+	if not original_attacker.is_alive():
+		return
+
+	# Get weapon ranges (default to 1 for melee)
+	var attacker_range: int = _get_unit_weapon_range(original_attacker)
+	var defender_range: int = _get_unit_weapon_range(original_defender)
+
+	# Calculate attack distance
+	var attack_distance: int = GridManager.get_distance(
+		original_attacker.grid_position,
+		original_defender.grid_position
+	)
+
+	# Full counter check (range + roll)
+	var counter_result: Dictionary = CombatCalculator.check_counterattack(
+		original_defender.stats,
+		defender_range,
+		attack_distance,
+		original_defender.is_alive()
+	)
+
+	# No counter if can't reach or roll failed
+	if not counter_result.will_counter:
+		return
+
+	# Execute counterattack (defender attacks original attacker)
+	await _execute_counterattack(original_defender, original_attacker)
+
+
+## Execute the actual counterattack (reduced damage, no counter-counter)
+func _execute_counterattack(counter_attacker: Node2D, counter_target: Node2D) -> void:
+	var attacker_stats: UnitStats = counter_attacker.stats
+	var target_stats: UnitStats = counter_target.stats
+
+	# Calculate hit chance (same as normal attack)
+	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker_stats, target_stats)
+	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
+
+	var damage: int = 0
+	var was_critical: bool = false
+
+	if not was_miss:
+		# Calculate counter damage (75% of normal)
+		damage = CombatCalculator.calculate_counter_damage(attacker_stats, target_stats, true)
+
+		# Counters can still crit
+		var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker_stats, target_stats)
+		was_critical = CombatCalculator.roll_crit(crit_chance)
+
+		if was_critical:
+			damage *= 2
+			AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
+		else:
+			AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
+	else:
+		AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
+
+	# Show combat animation for counter (with "COUNTER!" indicator)
+	await _show_combat_animation(counter_attacker, counter_target, damage, was_critical, was_miss, true)
+
+	# Apply damage
+	if not was_miss:
+		if counter_target.has_method("take_damage"):
+			counter_target.take_damage(damage)
+		else:
+			target_stats.current_hp -= damage
+			target_stats.current_hp = maxi(0, target_stats.current_hp)
+
+	# Emit combat result signal for counter
+	combat_resolved.emit(counter_attacker, counter_target, damage, not was_miss, was_critical)
+
+	# Award XP for counter damage (smaller amount, no kill bonus processed here)
+	if not was_miss and damage > 0:
+		var got_kill: bool = false
+		if counter_target.has_method("is_dead"):
+			got_kill = counter_target.is_dead()
+		elif counter_target.stats:
+			got_kill = counter_target.stats.current_hp <= 0
+
+		ExperienceManager.award_combat_xp(counter_attacker, counter_target, damage, got_kill)
+		await _show_combat_results()
+
+	# NO further counterattack check - counters don't trigger counters
+
+
+## Get weapon range for a unit (default 1 for melee)
+func _get_unit_weapon_range(unit: Node2D) -> int:
+	# Check for weapon_range property or method
+	if "weapon_range" in unit:
+		return unit.weapon_range
+	if unit.has_method("get_weapon_range"):
+		return unit.get_weapon_range()
+	# Default melee range
+	return 1
+
+
 ## Show combat animation scene
+## is_counter: if true, displays "COUNTER!" banner on the combat screen
 func _show_combat_animation(
 	attacker: Node2D,
 	defender: Node2D,
 	damage: int,
 	was_critical: bool,
-	was_miss: bool
+	was_miss: bool,
+	is_counter: bool = false
 ) -> void:
 	# Skip combat animation entirely in headless mode for faster automated testing
 	if TurnManager.is_headless:
@@ -505,7 +612,7 @@ func _show_combat_animation(
 	combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
 
 	# Play combat animation (scene handles its own fade-in)
-	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss)
+	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss, is_counter)
 	await combat_anim_instance.animation_complete
 
 	# Clean up combat animation

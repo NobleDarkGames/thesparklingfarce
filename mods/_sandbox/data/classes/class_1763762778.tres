@@ -5,5 +5,7 @@
 [resource]
 script = ExtResource("1_vcw47")
 display_name = "Mage"
+counter_rate = 3
+double_attack_rate = 3
 equippable_weapon_types = Array[String](["staff", "tome"])
 equippable_armor_types = Array[String](["robe"])
