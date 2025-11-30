@@ -46,6 +46,7 @@ const MAX_VISIBLE_FOLLOWERS: int = 3
 const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
 const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
 const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
+const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd")
 
 
 # =============================================================================
@@ -80,9 +81,14 @@ var party_followers: Array[CharacterBody2D] = []
 func _ready() -> void:
 	_debug_print("MapTemplate: Initializing...")
 
-	# CRITICAL: Handle return from battle FIRST (restores hero position)
-	if GameState.has_return_data():
-		await _restore_from_battle()
+	# CRITICAL: Handle transitions FIRST (restores hero position)
+	# This handles both battle returns AND door transitions with spawn points
+	var context: RefCounted = GameState.get_transition_context()
+	if context:
+		await _handle_transition_context(context)
+	else:
+		# No transition context - use default spawn point if available
+		_spawn_at_default()
 
 	# Setup camera to follow hero
 	_setup_camera()
@@ -97,31 +103,90 @@ func _ready() -> void:
 
 
 # =============================================================================
-# BATTLE RETURN HANDLING
+# TRANSITION HANDLING (Battle Returns & Door Transitions)
 # =============================================================================
 
-## Restores hero position after returning from a battle.
-## Called automatically in _ready() if return data exists.
-func _restore_from_battle() -> void:
-	_debug_print("MapTemplate: Returning from battle...")
+## Handles all transition types: battle returns and door transitions
+## Uses spawn_point_id if provided, otherwise falls back to position restoration
+func _handle_transition_context(context: RefCounted) -> void:
+	_debug_print("MapTemplate: Handling transition context...")
 
 	# Wait one frame for hero to be fully initialized
 	await get_tree().process_frame
 
-	# Try the new TransitionContext API first
+	var spawn_point_id: String = context.spawn_point_id if context.get("spawn_point_id") else ""
+	var restored: bool = false
+
+	# Priority 1: Use spawn point if specified (door transitions)
+	if not spawn_point_id.is_empty():
+		restored = _spawn_at_point(spawn_point_id)
+		if restored:
+			_debug_print("  Hero spawned at point: %s" % spawn_point_id)
+
+	# Priority 2: Use saved position (battle returns)
+	if not restored and context.hero_grid_position != Vector2i.ZERO:
+		if hero and hero.has_method("teleport_to_grid"):
+			hero.teleport_to_grid(context.hero_grid_position)
+			# Restore facing direction if available
+			if context.get("hero_facing") and hero.has_method("set_facing"):
+				hero.set_facing(context.hero_facing)
+			restored = true
+			_debug_print("  Hero restored to grid: %s" % context.hero_grid_position)
+
+	# Priority 3: Use default spawn point as fallback
+	if not restored:
+		_spawn_at_default()
+		_debug_print("  Hero spawned at default position")
+
+	# Snap camera to avoid jarring interpolation
+	if camera:
+		camera.snap_to_target()
+
+	# Clear context after using it
+	GameState.clear_transition_context()
+
+	# Emit signal for any listeners
+	if TriggerManager and TriggerManager.has_signal("door_transition_completed"):
+		TriggerManager.door_transition_completed.emit(spawn_point_id)
+
+
+## Spawns hero at a named spawn point in this scene
+## Returns true if spawn point was found and hero was teleported
+func _spawn_at_point(spawn_id: String) -> bool:
+	# Find spawn point in scene tree
+	var spawn_point: Node = SpawnPointScript.find_by_id(self, spawn_id)
+
+	if spawn_point:
+		if hero and hero.has_method("teleport_to_grid"):
+			hero.teleport_to_grid(spawn_point.grid_position)
+			# Set facing direction from spawn point
+			if hero.has_method("set_facing"):
+				hero.set_facing(spawn_point.facing)
+			return true
+	else:
+		push_warning("MapTemplate: Spawn point '%s' not found in scene" % spawn_id)
+
+	return false
+
+
+## Spawns hero at the default spawn point (if one exists)
+func _spawn_at_default() -> void:
+	var default_spawn: Node = SpawnPointScript.find_default(self)
+
+	if default_spawn:
+		if hero and hero.has_method("teleport_to_grid"):
+			hero.teleport_to_grid(default_spawn.grid_position)
+			if hero.has_method("set_facing"):
+				hero.set_facing(default_spawn.facing)
+			_debug_print("MapTemplate: Hero spawned at default spawn point")
+	# If no default spawn point, hero stays at scene-defined position
+
+
+## Legacy function - redirects to new system
+func _restore_from_battle() -> void:
 	var context: RefCounted = GameState.get_transition_context()
 	if context:
-		var saved_pos: Vector2i = context.hero_grid_position
-		if hero and hero.has_method("teleport_to_grid"):
-			hero.teleport_to_grid(saved_pos)
-			_debug_print("  Hero restored to grid: %s" % saved_pos)
-
-		# Snap camera to avoid jarring interpolation
-		if camera:
-			camera.snap_to_target()
-
-		# Clear context after using it
-		GameState.clear_transition_context()
+		await _handle_transition_context(context)
 	else:
 		# Fallback to legacy API
 		var return_pos: Vector2i = GameState.return_hero_grid_position
@@ -150,6 +215,7 @@ func _setup_camera() -> void:
 # =============================================================================
 
 ## Creates visual follower sprites for party members.
+## SF2-style CHAIN FOLLOWING: Each follower follows the one in front of them.
 ## TODO: Integrate with PartyManager to use actual party data
 func _setup_party_followers() -> void:
 	# TODO: Get actual party from PartyManager
@@ -163,16 +229,22 @@ func _setup_party_followers() -> void:
 		followers_container.add_child(follower)
 		party_followers.append(follower)
 
-	_debug_print("MapTemplate: Created %d party followers" % num_followers)
+		# CHAIN FOLLOWING: First follower follows hero, rest follow previous follower
+		if i == 0:
+			follower.set_follow_target(hero)
+		else:
+			follower.set_follow_target(party_followers[i - 1])
+
+	_debug_print("MapTemplate: Created %d party followers (chain following)" % num_followers)
 
 
 ## Creates a single follower node.
-## SF2-style: each follower is 1 unit behind the previous in formation.
+## SF2-style: each follower is positioned behind hero based on formation_index.
 func _create_follower(index: int) -> CharacterBody2D:
 	var follower: CharacterBody2D = CharacterBody2D.new()
 	follower.set_script(PartyFollowerScript)
 	follower.name = "Follower%d" % (index + 1)
-	follower.follow_distance = index + 1  # SF2-style: 1, 2, 3 units behind hero
+	follower.formation_index = index + 1  # SF2-style: position in formation behind hero
 	follower.tile_size = hero.tile_size if hero else 32
 
 	# Placeholder visual (replace with actual sprites)
@@ -190,8 +262,7 @@ func _create_follower(index: int) -> CharacterBody2D:
 	collision.shape = shape
 	follower.add_child(collision)
 
-	# Set to follow hero
-	follower.set_follow_target(hero)
+	# NOTE: follow_target is set in _setup_party_followers() for chain following
 
 	return follower
 

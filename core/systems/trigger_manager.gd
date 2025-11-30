@@ -17,6 +17,15 @@ extends Node
 ## Emitted when returning from battle (for map scenes to handle restoration)
 signal returned_from_battle()
 
+## Emitted when a door transition begins (for UI effects, audio, etc.)
+signal door_transition_started(from_map: String, to_map: String)
+
+## Emitted when a door transition completes and spawn point is resolved
+signal door_transition_completed(spawn_point_id: String)
+
+## Preload TransitionContext for door transitions
+const TransitionContext: GDScript = preload("res://core/resources/transition_context.gd")
+
 ## Track connected triggers to avoid duplicate connections
 var connected_triggers: Array[Node] = []
 
@@ -295,24 +304,77 @@ func _handle_chest_trigger(trigger: Node, _player: Node2D) -> void:
 
 
 ## Handle DOOR trigger - scene transition
-func _handle_door_trigger(trigger: Node, _player: Node2D) -> void:
+## Enhanced to support MapMetadata-based transitions with spawn point resolution
+##
+## Supported trigger_data fields:
+##   destination_scene: String - Direct scene path (legacy)
+##   target_map_id: String - MapMetadata ID (preferred, looked up in registry)
+##   spawn_point / target_spawn_id: String - Spawn point ID in destination
+##   transition_type: String - "fade", "instant", "scroll" (default: "fade")
+##   requires_key: String - Item ID if door is locked
+func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var destination_scene: String = trigger_data.get("destination_scene", "")
-	var spawn_point: String = trigger_data.get("spawn_point", "")
+	var trigger_id: String = trigger.get("trigger_id") if trigger.get("trigger_id") else ""
+
+	# Determine destination scene path
+	var destination_scene: String = ""
+	var target_map_id: String = trigger_data.get("target_map_id", "")
+
+	if not target_map_id.is_empty():
+		# New style: Look up MapMetadata from registry
+		var map_metadata: Resource = ModLoader.registry.get_resource("map", target_map_id)
+		if map_metadata:
+			destination_scene = map_metadata.scene_path
+			print("TriggerManager: Resolved map '%s' to scene: %s" % [target_map_id, destination_scene])
+		else:
+			push_error("TriggerManager: MapMetadata not found for ID: %s" % target_map_id)
+			return
+	else:
+		# Legacy style: Direct scene path
+		destination_scene = trigger_data.get("destination_scene", "")
 
 	if destination_scene.is_empty():
-		push_warning("TriggerManager: Door trigger missing destination_scene")
+		push_warning("TriggerManager: Door trigger missing destination_scene or target_map_id")
 		return
 
-	print("TriggerManager: Door trigger - transitioning to: %s (spawn: %s)" % [destination_scene, spawn_point])
+	# Get spawn point ID (support both old and new field names)
+	var spawn_point_id: String = trigger_data.get("target_spawn_id", "")
+	if spawn_point_id.is_empty():
+		spawn_point_id = trigger_data.get("spawn_point", "")
 
-	# Store spawn point for destination scene to use
-	if not spawn_point.is_empty():
-		# TODO: Store spawn point in GameState for destination scene to read
-		pass
+	# Check for locked door (requires key item)
+	var requires_key: String = trigger_data.get("requires_key", "")
+	if not requires_key.is_empty():
+		# TODO: Check if player has key item in inventory
+		# For now, just log and allow passage
+		print("TriggerManager: Door requires key '%s' (key check not yet implemented)" % requires_key)
+
+	print("TriggerManager: Door trigger - transitioning to: %s (spawn: %s)" % [destination_scene, spawn_point_id])
+
+	# Create transition context with spawn point info
+	var context: RefCounted = TransitionContext.from_current_scene(player)
+	context.spawn_point_id = spawn_point_id
+
+	# Store any extra transition data
+	var transition_type: String = trigger_data.get("transition_type", "fade")
+	context.set_extra("transition_type", transition_type)
+	context.set_extra("source_trigger_id", trigger_id)
+
+	# Store transition context in GameState
+	GameState.set_transition_context(context)
+
+	# Emit signal for any listeners (UI animations, etc.)
+	door_transition_started.emit(context.return_scene_path, destination_scene)
 
 	# Transition to new scene
-	SceneManager.change_scene(destination_scene)
+	match transition_type:
+		"instant":
+			SceneManager.change_scene(destination_scene, false)  # No fade
+		"scroll":
+			# TODO: Implement scroll transition for overworld edges
+			SceneManager.change_scene(destination_scene)
+		_:  # Default: fade
+			SceneManager.change_scene(destination_scene)
 
 
 ## Handle CUTSCENE trigger

@@ -25,15 +25,17 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"cinematics": "cinematic",
 	"parties": "party",
 	"battles": "battle",
-	"campaigns": "campaign"
+	"campaigns": "campaign",
+	"maps": "map"  # MapMetadata resources for exploration maps
 }
 
 # Resource types that support JSON loading (in addition to .tres)
-const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "campaign"]
+const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "campaign", "map"]
 
 # Preload loaders for JSON resources
 const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
 const CampaignLoader: GDScript = preload("res://core/systems/campaign_loader.gd")
+const MapMetadataLoader: GDScript = preload("res://core/systems/map_metadata_loader.gd")
 
 # Preload type registry classes
 const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
@@ -341,6 +343,8 @@ func _load_json_resource(json_path: String, resource_type: String) -> Resource:
 			return CinematicLoader.load_from_json(json_path)
 		"campaign":
 			return CampaignLoader.load_from_json(json_path)
+		"map":
+			return MapMetadataLoader.load_from_json(json_path)
 		_:
 			push_warning("ModLoader: JSON loading not supported for resource type: " + resource_type)
 			return null

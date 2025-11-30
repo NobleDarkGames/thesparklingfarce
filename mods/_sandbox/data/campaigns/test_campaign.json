@@ -3,8 +3,8 @@
   "campaign_name": "Test Campaign",
   "campaign_description": "A simple test campaign for development and modder reference.",
   "campaign_version": "1.0.0",
-  "starting_node_id": "headquarters",
-  "default_hub_id": "headquarters",
+  "starting_node_id": "starting_plains",
+  "default_hub_id": "starting_plains",
 
   "initial_flags": {
     "campaign_started": true
@@ -15,16 +15,17 @@
       "id": "ch1",
       "name": "Chapter 1: Testing",
       "number": 1,
-      "node_ids": ["headquarters", "battle_of_noobs"]
+      "node_ids": ["starting_plains", "battle_of_noobs"]
     }
   ],
 
   "nodes": [
     {
-      "node_id": "headquarters",
-      "display_name": "Headquarters",
+      "node_id": "starting_plains",
+      "display_name": "Starting Plains",
       "node_type": "scene",
       "scene_path": "res://mods/_sandbox/maps/opening_game_map.tscn",
+      "map_id": "sandbox:opening_world_map",
       "is_hub": true,
       "allow_egress": false,
       "completion_trigger": "exit_trigger",
@@ -39,8 +40,8 @@
       "defeat_gold_penalty": 0.5,
       "repeatable": true,
       "replay_advances_story": false,
-      "on_victory": "headquarters",
-      "on_defeat": "headquarters",
+      "on_victory": "starting_plains",
+      "on_defeat": "starting_plains",
       "on_complete_flags": {
         "completed_battle_of_noobs": true
       }

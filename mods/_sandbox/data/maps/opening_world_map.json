@@ -1,0 +1,31 @@
+{
+  "map_id": "sandbox:opening_world_map",
+  "display_name": "Starting Plains",
+  "map_type": "OVERWORLD",
+  "caravan_visible": false,
+  "caravan_accessible": false,
+  "camera_zoom": 0.8,
+  "scene_path": "res://mods/_sandbox/maps/opening_game_map.tscn",
+  "music_id": "",
+  "ambient_id": "",
+  "random_encounters_enabled": false,
+  "base_encounter_rate": 0.0,
+  "save_anywhere": true,
+
+  "spawn_points": {
+    "default_start": {
+      "grid_position": [5, 5],
+      "facing": "down",
+      "is_default": true
+    },
+    "from_battle": {
+      "grid_position": [32, 34],
+      "facing": "up",
+      "is_default": false
+    }
+  },
+
+  "connections": [],
+
+  "edge_connections": {}
+}
