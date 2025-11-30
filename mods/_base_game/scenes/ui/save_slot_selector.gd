@@ -54,27 +54,23 @@ func _configure_slot_button(button: Button, slot_num: int, metadata: SlotMetadat
 
 
 func _on_slot_selected(slot_num: int) -> void:
-	print("SaveSlotSelector: Slot %d selected (mode: %s)" % [slot_num, SceneManager.save_slot_mode])
+	print("[FLOW] Save slot %d selected (mode: %s)" % [slot_num, SceneManager.save_slot_mode])
 
 	var metadata: SlotMetadata = SaveManager.get_slot_metadata(slot_num)
 	var is_occupied: bool = metadata != null and metadata.is_occupied
 
 	if SceneManager.save_slot_mode == "new_game":
-		# New game mode: always create new save (overwrite if occupied)
-		if is_occupied:
-			print("SaveSlotSelector: Overwriting existing save in slot %d" % slot_num)
 		_new_game(slot_num)
 	else:
 		# Load game mode: only load if occupied
 		if is_occupied:
 			_load_game(slot_num)
 		else:
-			print("SaveSlotSelector: Cannot load empty slot %d" % slot_num)
-			# TODO: Show feedback to user that slot is empty
+			push_warning("SaveSlotSelector: Cannot load empty slot %d" % slot_num)
 
 
 func _new_game(slot_num: int) -> void:
-	print("SaveSlotSelector: Starting new game in slot %d" % slot_num)
+	print("[FLOW] New game in slot %d" % slot_num)
 
 	# Create a new save with default party
 	var save_data: SaveData = SaveData.new()
@@ -99,50 +95,35 @@ func _new_game(slot_num: int) -> void:
 				var char_save: CharacterSaveData = CharacterSaveData.new()
 				char_save.populate_from_character_data(character)
 				save_data.party_members.append(char_save)
-				print("SaveSlotSelector: Added '%s' to starting party" % character.character_name)
 
 		if save_data.party_members.is_empty():
-			push_warning("SaveSlotSelector: Default party was empty! Starting with no characters.")
+			push_warning("SaveSlotSelector: Default party was empty!")
 	else:
-		push_warning("SaveSlotSelector: Could not load default party! Starting with empty party.")
+		push_warning("SaveSlotSelector: Could not load default party!")
 
 	# Save the new game
 	var success: bool = SaveManager.save_to_slot(slot_num, save_data)
 	if success:
-		print("SaveSlotSelector: New save created successfully")
-
-		# Initialize PartyManager with the hero
+		# Initialize PartyManager with the party
 		PartyManager.import_from_save(save_data.party_members)
-		print("SaveSlotSelector: PartyManager populated with %d members" % PartyManager.get_party_size())
 
 		# Start campaign via CampaignManager
 		var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
-		print("SaveSlotSelector: Found %d available campaigns" % campaigns.size())
 		if campaigns.size() > 0:
-			# Use first available campaign (or default from mod config)
 			var campaign: Resource = campaigns[0]
-			print("SaveSlotSelector: Starting campaign '%s' (id: %s)" % [campaign.campaign_name, campaign.campaign_id])
-			print("SaveSlotSelector: Campaign starting_node_id: '%s'" % campaign.starting_node_id)
-			# Debug: print all node scene_paths
-			for node: Resource in campaign.nodes:
-				if node.node_type == "scene":
-					print("SaveSlotSelector: Node '%s' scene_path: '%s'" % [node.node_id, node.scene_path])
 			CampaignManager.start_campaign(campaign.campaign_id)
 		else:
-			# Fallback to legacy hardcoded battle if no campaigns found
-			push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle start")
+			push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle")
 			TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to create new save")
 
 
 func _load_game(slot_num: int) -> void:
-	print("SaveSlotSelector: Loading game from slot %d" % slot_num)
+	print("[FLOW] Load game from slot %d" % slot_num)
 
 	var save_data: SaveData = SaveManager.load_from_slot(slot_num)
 	if save_data:
-		print("SaveSlotSelector: Save loaded successfully")
-
 		# Populate PartyManager with loaded data
 		PartyManager.import_from_save(save_data.party_members)
 
@@ -151,20 +132,15 @@ func _load_game(slot_num: int) -> void:
 
 		# Resume campaign if we have campaign data
 		if not save_data.current_campaign_id.is_empty() and not save_data.current_node_id.is_empty():
-			print("SaveSlotSelector: Resuming campaign '%s' at node '%s'" % [
-				save_data.current_campaign_id, save_data.current_node_id])
 			CampaignManager.resume_campaign(save_data.current_campaign_id, save_data.current_node_id)
 		else:
 			# Legacy save without campaign data - start first available campaign
-			push_warning("SaveSlotSelector: Legacy save without campaign data - starting fresh campaign")
 			var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
 			if campaigns.size() > 0:
 				var campaign: Resource = campaigns[0]
-				print("SaveSlotSelector: Starting campaign '%s' for legacy save" % campaign.campaign_name)
 				CampaignManager.start_campaign(campaign.campaign_id)
 			else:
-				# Ultimate fallback if no campaigns exist at all
-				push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle start")
+				push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle")
 				TriggerManager.start_battle("battle_1763763677")
 	else:
 		push_error("SaveSlotSelector: Failed to load save from slot %d" % slot_num)

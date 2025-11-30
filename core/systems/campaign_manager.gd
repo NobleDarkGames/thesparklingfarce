@@ -82,7 +82,6 @@ var _custom_handlers: Dictionary = {}
 
 
 func _ready() -> void:
-	print("CampaignManager: Initializing...")
 	_register_built_in_processors()
 	_register_built_in_evaluators()
 
@@ -91,7 +90,6 @@ func _ready() -> void:
 		await ModLoader.mods_loaded
 
 	_discover_campaigns()
-	print("CampaignManager: Found %d campaigns" % _campaigns.size())
 
 	# Connect to BattleManager for battle completion
 	if BattleManager:
@@ -119,7 +117,6 @@ func _register_built_in_evaluators() -> void:
 ## Callable signature: func(node: Resource) -> void
 func register_node_processor(node_type: String, processor: Callable) -> void:
 	_node_processors[node_type] = processor
-	print("CampaignManager: Registered processor for node type '%s'" % node_type)
 
 
 ## Register an evaluator for a transition trigger type
@@ -132,7 +129,6 @@ func register_trigger_evaluator(trigger_type: String, evaluator: Callable) -> vo
 ## Handler signature: func(node: Resource, manager: Node) -> void
 func register_custom_handler(custom_type: String, handler: Callable) -> void:
 	_custom_handlers[custom_type] = handler
-	print("CampaignManager: Registered custom handler for 'custom:%s'" % custom_type)
 
 
 # ==== Campaign Discovery ====
@@ -148,7 +144,6 @@ func _discover_campaigns() -> void:
 				if campaign.campaign_id in _campaigns:
 					push_warning("CampaignManager: Campaign ID '%s' collision - overwriting previous" % campaign.campaign_id)
 				_campaigns[campaign.campaign_id] = campaign
-				print("CampaignManager: Registered campaign '%s'" % campaign.campaign_name)
 			else:
 				push_error("CampaignManager: Campaign '%s' validation failed:" % campaign.campaign_id)
 				for error: String in errors:
@@ -217,7 +212,7 @@ func start_campaign(campaign_id: String) -> bool:
 	GameState.set_campaign_data("current_node_id", "")
 
 	campaign_started.emit(campaign)
-	print("CampaignManager: Started campaign '%s'" % campaign.campaign_name)
+	print("[FLOW] Campaign started: '%s' -> starting_node: '%s'" % [campaign.campaign_name, campaign.starting_node_id])
 
 	# Enter starting node
 	return await enter_node(campaign.starting_node_id)
@@ -283,7 +278,7 @@ func enter_node(node_id: String) -> bool:
 	_check_chapter_transition(node)
 
 	node_entered.emit(node)
-	print("CampaignManager: Entered node '%s' (%s)" % [node.display_name, node.node_type])
+	print("[FLOW] Entered node: '%s' (type: %s)" % [node.display_name, node.node_type])
 
 	# Play pre-cinematic if present
 	if not node.pre_cinematic_id.is_empty():
@@ -423,9 +418,8 @@ func _process_choice_node(node: Resource) -> void:
 			})
 
 	# TODO: Emit signal for UI to show choice dialog
-	# For now, log and wait for on_choice_made() to be called
-	print("CampaignManager: Choice node - awaiting player choice")
-	print("  Available choices: %s" % choices)
+	# For now, wait for on_choice_made() to be called
+	pass
 
 
 # ==== Completion Handlers ====
@@ -445,7 +439,7 @@ func complete_current_node(outcome: Dictionary) -> void:
 		await _play_cinematic(current_node.post_cinematic_id)
 
 	node_completed.emit(current_node, outcome)
-	print("CampaignManager: Completed node '%s'" % current_node.display_name)
+	print("[FLOW] Completed node: '%s'" % current_node.display_name)
 
 	# Find and execute transition
 	_execute_transition(outcome)
@@ -476,11 +470,6 @@ func on_battle_completed(victory: bool) -> void:
 			var current_gold: int = GameState.get_campaign_data("gold", 0)
 			var penalty_amount: int = int(float(current_gold) * gold_penalty)
 			GameState.set_campaign_data("gold", current_gold - penalty_amount)
-			print("CampaignManager: Applied defeat gold penalty: -%d gold (%.0f%%)" % [penalty_amount, gold_penalty * 100])
-
-		# XP retention is handled by BattleManager checking retain_xp_on_defeat
-		if current_node.retain_xp_on_defeat:
-			print("CampaignManager: XP retained on defeat (SF authentic)")
 
 	complete_current_node({"victory": victory})
 
@@ -512,7 +501,7 @@ func request_egress() -> bool:
 		return false
 
 	egress_requested.emit()
-	print("CampaignManager: Egress to hub '%s'" % egress_target)
+	print("[FLOW] Egress -> hub: '%s'" % egress_target)
 	await enter_node(egress_target)
 	return true
 
@@ -539,9 +528,7 @@ func trigger_encounter(battle_id: String, return_position: Vector2, return_facin
 		"is_encounter": true
 	}
 
-	print("CampaignManager: Triggering encounter '%s' with return to %s at %s" % [
-		battle_id, current_scene_path, return_position
-	])
+	print("[FLOW] Triggering encounter: '%s' (return to %s)" % [battle_id, current_scene_path])
 
 	# Store encounter context in GameState for battle return
 	GameState.set_campaign_data("encounter_battle_id", battle_id)
@@ -573,7 +560,6 @@ func get_encounter_return_facing() -> String:
 func clear_encounter_return() -> void:
 	_return_context.clear()
 	GameState.set_campaign_data("encounter_return_scene", "")
-	print("CampaignManager: Encounter return context cleared")
 
 
 ## Handle return to scene after encounter battle completes
@@ -586,9 +572,7 @@ func _handle_encounter_return(victory: bool) -> void:
 	var facing: String = _return_context.get("facing", "")
 	var original_node_id: String = _return_context.get("node_id", "")
 
-	print("CampaignManager: Returning from encounter to %s at %s (victory: %s)" % [
-		scene_path, position, victory
-	])
+	print("[FLOW] Encounter return -> %s (victory: %s)" % [scene_path, victory])
 
 	# Emit signal so scenes can prepare for position restoration
 	encounter_return.emit(scene_path, position, facing)
@@ -617,7 +601,7 @@ func _execute_transition(outcome: Dictionary) -> void:
 		# No transition found - check for default hub fallback
 		if current_campaign and current_node.node_type == "battle":
 			if not current_campaign.default_hub_id.is_empty():
-				print("CampaignManager: No transition found, returning to default hub")
+				print("[FLOW] No transition -> default hub: '%s'" % current_campaign.default_hub_id)
 				enter_node(current_campaign.default_hub_id)
 				return
 
@@ -671,7 +655,7 @@ func _check_chapter_transition(node: Resource) -> void:
 		chapter_started.emit(chapter)
 		var chapter_num: int = chapter.get("number", 0)
 		var chapter_name: String = chapter.get("name", "")
-		print("CampaignManager: === CHAPTER %d: %s ===" % [chapter_num, chapter_name])
+		print("[FLOW] === CHAPTER %d: %s ===" % [chapter_num, chapter_name])
 
 
 # ==== Built-in Trigger Evaluators ====

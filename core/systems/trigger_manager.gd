@@ -31,8 +31,6 @@ var connected_triggers: Array[Node] = []
 
 
 func _ready() -> void:
-	print("TriggerManager: Initializing...")
-
 	# Defer connecting to SceneManager to ensure it's fully initialized
 	call_deferred("_connect_to_scene_manager")
 
@@ -41,15 +39,12 @@ func _ready() -> void:
 func _connect_to_scene_manager() -> void:
 	if SceneManager:
 		SceneManager.scene_transition_completed.connect(_on_scene_changed)
-		print("TriggerManager: Connected to SceneManager")
 	else:
 		push_error("TriggerManager: SceneManager not found!")
 
 
 ## Called when a scene transition completes
-func _on_scene_changed(scene_path: String) -> void:
-	print("TriggerManager: Scene changed to: %s" % scene_path)
-
+func _on_scene_changed(_scene_path: String) -> void:
 	# Clear old connections
 	_disconnect_all_triggers()
 
@@ -67,8 +62,6 @@ func _connect_to_scene_triggers() -> void:
 
 	# Recursively find all MapTrigger nodes
 	var triggers: Array[Node] = _find_all_triggers(current_scene)
-
-	print("TriggerManager: Found %d triggers in scene" % triggers.size())
 
 	for trigger in triggers:
 		_connect_trigger(trigger)
@@ -98,10 +91,6 @@ func _connect_trigger(trigger: Node) -> void:
 	if not trigger.triggered.is_connected(_on_trigger_activated):
 		trigger.triggered.connect(_on_trigger_activated)
 		connected_triggers.append(trigger)
-		print("TriggerManager: Connected to trigger: %s (type: %s)" % [
-			trigger.get("trigger_id"),
-			_get_trigger_type_name(trigger.get("trigger_type"))
-		])
 
 
 ## Disconnect from all triggers
@@ -122,11 +111,7 @@ func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
 
 	var trigger_type: int = trigger.get("trigger_type")
 	var trigger_id: String = trigger.get("trigger_id")
-
-	print("TriggerManager: Trigger activated - ID: %s, Type: %s" % [
-		trigger_id,
-		_get_trigger_type_name(trigger_type)
-	])
+	print("[FLOW] Trigger: %s (%s)" % [trigger_id, _get_trigger_type_name(trigger_type)])
 
 	# Route to appropriate handler based on type
 	match trigger_type:
@@ -157,7 +142,7 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 		push_error("TriggerManager: Battle trigger missing battle_id")
 		return
 
-	print("TriggerManager: Loading battle: %s" % battle_id)
+	print("[FLOW] Loading battle: %s" % battle_id)
 
 	# Look up BattleData resource from ModLoader
 	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
@@ -200,17 +185,14 @@ func clear_current_battle_data() -> void:
 ## Start a battle programmatically (from menus, save loading, etc.)
 ## @param battle_id: The registry ID of the battle to start
 func start_battle(battle_id: String) -> void:
-	print("TriggerManager: start_battle() called with battle_id='%s'" % battle_id)
 	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
 	if not battle_data:
 		push_error("TriggerManager: Battle '%s' not found in registry" % battle_id)
-		# Debug: print available battles
 		var available: Array[String] = ModLoader.registry.get_resource_ids("battle")
-		print("TriggerManager: Available battles: %s" % available)
+		push_error("  Available battles: %s" % available)
 		return
 
-	print("TriggerManager: Starting battle '%s' (%s)" % [battle_id, battle_data.get("battle_name")])
-	print("TriggerManager: Setting _current_battle_data = %s" % battle_data)
+	print("[FLOW] Starting battle: '%s'" % battle_data.get("battle_name"))
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
@@ -222,7 +204,7 @@ func start_battle_with_data(battle_data: Resource) -> void:
 		push_error("TriggerManager: Cannot start battle with null data")
 		return
 
-	print("TriggerManager: Starting battle with data")
+	print("[FLOW] Starting battle: '%s'" % battle_data.get("battle_name"))
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
@@ -246,13 +228,7 @@ func return_to_map() -> void:
 		GameState.clear_transition_context()
 		return
 
-	print("TriggerManager: Returning to map: %s" % return_scene)
-
-	# Get transition context for logging
-	var context: RefCounted = GameState.get_transition_context()
-	if context:
-		print("  Hero position to restore: %s" % context.hero_world_position)
-		print("  Battle outcome: %d" % context.battle_outcome)
+	print("[FLOW] Returning to map: %s" % return_scene.get_file())
 
 	# Clear battle data (but NOT transition context - map scene needs it for position restoration)
 	clear_current_battle_data()
@@ -269,7 +245,6 @@ func return_to_map() -> void:
 
 	# Signal that we've returned (map scene can connect to this if needed)
 	returned_from_battle.emit()
-	print("TriggerManager: Map restoration complete")
 
 
 ## Handle DIALOG trigger - show dialogue
@@ -281,7 +256,6 @@ func _handle_dialog_trigger(trigger: Node, player: Node2D) -> void:
 		push_warning("TriggerManager: Dialog trigger missing dialog_id")
 		return
 
-	print("TriggerManager: Dialog trigger activated: %s" % dialog_id)
 
 	# Look up DialogueData resource
 	var dialogue_data: Resource = ModLoader.registry.get_resource("dialogue", dialog_id)
@@ -296,11 +270,9 @@ func _handle_dialog_trigger(trigger: Node, player: Node2D) -> void:
 
 ## Handle CHEST trigger - grant rewards
 func _handle_chest_trigger(trigger: Node, _player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
-	print("TriggerManager: Chest trigger activated")
-	print("  TODO: Implement chest rewards (Phase 4)")
-	print("  Data: %s" % trigger_data)
+	var _trigger_data: Dictionary = trigger.get("trigger_data")
 	# TODO: Phase 4 - implement item/gold rewards
+	pass
 
 
 ## Handle DOOR trigger - scene transition
@@ -325,7 +297,6 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 		var map_metadata: Resource = ModLoader.registry.get_resource("map", target_map_id)
 		if map_metadata:
 			destination_scene = map_metadata.scene_path
-			print("TriggerManager: Resolved map '%s' to scene: %s" % [target_map_id, destination_scene])
 		else:
 			push_error("TriggerManager: MapMetadata not found for ID: %s" % target_map_id)
 			return
@@ -346,10 +317,9 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	var requires_key: String = trigger_data.get("requires_key", "")
 	if not requires_key.is_empty():
 		# TODO: Check if player has key item in inventory
-		# For now, just log and allow passage
-		print("TriggerManager: Door requires key '%s' (key check not yet implemented)" % requires_key)
+		pass
 
-	print("TriggerManager: Door trigger - transitioning to: %s (spawn: %s)" % [destination_scene, spawn_point_id])
+	print("[FLOW] Door -> %s (spawn: %s)" % [destination_scene.get_file(), spawn_point_id])
 
 	# Create transition context with spawn point info
 	var context: RefCounted = TransitionContext.from_current_scene(player)
@@ -379,10 +349,9 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 
 ## Handle CUTSCENE trigger
 func _handle_cutscene_trigger(trigger: Node, _player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
-	print("TriggerManager: Cutscene trigger activated")
-	print("  TODO: Implement cutscene system (Phase 5)")
-	print("  Data: %s" % trigger_data)
+	var _trigger_data: Dictionary = trigger.get("trigger_data")
+	# TODO: Phase 5 - implement cutscene system
+	pass
 
 
 ## Handle TRANSITION trigger - teleport within same scene
@@ -394,7 +363,6 @@ func _handle_transition_trigger(trigger: Node, player: Node2D) -> void:
 		push_warning("TriggerManager: Transition trigger missing target_position")
 		return
 
-	print("TriggerManager: Transition trigger - teleporting to: %s" % target_position)
 
 	# Teleport player
 	if player.has_method("teleport_to_grid"):
@@ -404,13 +372,10 @@ func _handle_transition_trigger(trigger: Node, player: Node2D) -> void:
 
 
 ## Handle CUSTOM trigger
-func _handle_custom_trigger(trigger: Node, player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
-	print("TriggerManager: Custom trigger activated")
-	print("  Data: %s" % trigger_data)
-	# Custom triggers should be handled by game-specific logic
-	# Emit a signal that game scripts can connect to
+func _handle_custom_trigger(trigger: Node, _player: Node2D) -> void:
+	var _trigger_data: Dictionary = trigger.get("trigger_data")
 	# TODO: Phase 5 - custom trigger system
+	pass
 
 
 ## Get human-readable trigger type name

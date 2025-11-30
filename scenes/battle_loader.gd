@@ -63,7 +63,6 @@ func _load_map_scene() -> bool:
 		push_error("BattleLoader: Failed to instantiate map_scene")
 		return false
 
-	print("Loading map scene: %s" % battle_data.map_scene.resource_path)
 
 	# Find the Map node in the instanced scene
 	var map_node: Node2D = _map_instance.get_node_or_null("Map")
@@ -110,20 +109,13 @@ func _load_map_scene() -> bool:
 	_map_instance.queue_free()
 	_map_instance = null
 
-	print("  GroundLayer: %s" % _ground_layer.name)
-	print("  HighlightLayer: %s" % _highlight_layer.name)
-
 	return true
 
 
 func _ready() -> void:
-	print("BattleLoader: _ready() starting...")
-
 	# Check if TriggerManager has battle data (from map trigger)
 	var trigger_battle_data: Resource = TriggerManager.get_current_battle_data()
-	print("BattleLoader: TriggerManager.get_current_battle_data() = %s" % trigger_battle_data)
 	if trigger_battle_data:
-		print("BattleLoader: Using battle data from TriggerManager")
 		battle_data = trigger_battle_data
 
 	# Validate battle data
@@ -131,9 +123,7 @@ func _ready() -> void:
 		push_error("BattleLoader: No battle_data assigned! Set the 'battle_data' export variable in the Inspector.")
 		return
 
-	print("\n=== Battle Loader Starting ===")
-	print("Battle: %s" % battle_data.battle_name)
-	print("Description: %s" % battle_data.battle_description)
+	print("[FLOW] BattleLoader: %s" % battle_data.battle_name)
 
 	# Load map from battle_data.map_scene
 	if not _load_map_scene():
@@ -147,74 +137,61 @@ func _ready() -> void:
 	var used_rect: Rect2i = _ground_layer.get_used_rect()
 	if used_rect.size.x > 0 and used_rect.size.y > 0:
 		grid_resource.grid_size = used_rect.size
-		print("Grid size from map: %s (offset: %s)" % [used_rect.size, used_rect.position])
 	else:
 		# Fallback for empty maps - use a default size
 		grid_resource.grid_size = Vector2i(20, 11)
-		print("Map has no tiles painted - using default grid size: %s" % grid_resource.grid_size)
 
 	GridManager.setup_grid(grid_resource, _ground_layer)
 	GridManager.set_highlight_layer(_highlight_layer)
 
 	# Spawn player units from BattleData or PartyManager
-	print("\n=== Spawning Player Party ===")
 
 	# If battle has specific party, load it temporarily
 	if battle_data.player_party:
-		print("  Loading party from BattleData: %s" % battle_data.player_party.party_name)
 		PartyManager.load_from_party_data(battle_data.player_party)
 
 	# Get spawn data from PartyManager (uses current party and battle's spawn point)
 	var party_spawn_data: Array[Dictionary] = PartyManager.get_battle_spawn_data(battle_data.player_spawn_point)
-	print("Player spawn point: %s" % battle_data.player_spawn_point)
 
 	if party_spawn_data.is_empty():
-		push_warning("BattleLoader: PartyManager has no party members! Set up party before starting battle.")
-		push_warning("  Either set battle_data.player_party OR configure PartyManager before battle.")
+		push_warning("BattleLoader: PartyManager has no party members!")
 	else:
 		for spawn_entry: Dictionary in party_spawn_data:
 			var character: CharacterData = spawn_entry.character
-			var position: Vector2i = spawn_entry.position
+			var spawn_position: Vector2i = spawn_entry.position
 
-			var player_unit: Node2D = _spawn_unit(character, position, "player", null)
+			var player_unit: Node2D = _spawn_unit(character, spawn_position, "player", null)
 			_player_units.append(player_unit)
-			print("  - %s at %s" % [character.character_name, position])
 
 	# Spawn enemy units from BattleData
-	print("\n=== Spawning Enemies ===")
 	for enemy_dict in battle_data.enemies:
 		if not 'character' in enemy_dict or not enemy_dict.character:
 			push_error("BattleLoader: Enemy missing character data")
 			continue
 
 		var character: CharacterData = enemy_dict.character
-		var position: Vector2i = enemy_dict.position if 'position' in enemy_dict else Vector2i(10, 5)
+		var enemy_pos: Vector2i = enemy_dict.position if 'position' in enemy_dict else Vector2i(10, 5)
 		var ai_brain: AIBrain = enemy_dict.ai_brain if 'ai_brain' in enemy_dict else null
 
-		var enemy_unit: Node2D = _spawn_unit(character, position, "enemy", ai_brain)
+		var enemy_unit: Node2D = _spawn_unit(character, enemy_pos, "enemy", ai_brain)
 		_enemy_units.append(enemy_unit)
-		print("  - %s at %s (AI: %s)" % [character.character_name, position, ai_brain.get_script().get_path().get_file() if ai_brain else "none"])
 
 	# Spawn neutral units from BattleData
 	if not battle_data.neutrals.is_empty():
-		print("\n=== Spawning Neutrals ===")
 		for neutral_dict in battle_data.neutrals:
 			if not 'character' in neutral_dict or not neutral_dict.character:
 				push_error("BattleLoader: Neutral missing character data")
 				continue
 
 			var character: CharacterData = neutral_dict.character
-			var position: Vector2i = neutral_dict.position if 'position' in neutral_dict else Vector2i(8, 5)
+			var neutral_pos: Vector2i = neutral_dict.position if 'position' in neutral_dict else Vector2i(8, 5)
 			var ai_brain: AIBrain = neutral_dict.ai_brain if 'ai_brain' in neutral_dict else null
 
-			var neutral_unit: Node2D = _spawn_unit(character, position, "neutral", ai_brain)
+			var neutral_unit: Node2D = _spawn_unit(character, neutral_pos, "neutral", ai_brain)
 			_neutral_units.append(neutral_unit)
-			print("  - %s at %s (AI: %s)" % [character.character_name, position, ai_brain.get_script().get_path().get_file() if ai_brain else "none"])
 
-	print("\n=== Units Summary ===")
-	print("Player units: %d" % _player_units.size())
-	print("Enemy units: %d" % _enemy_units.size())
-	print("Neutral units: %d" % _neutral_units.size())
+	print("[FLOW] Units: %d player, %d enemy, %d neutral" % [
+		_player_units.size(), _enemy_units.size(), _neutral_units.size()])
 
 	# Setup action menu UI BEFORE starting battle
 	_action_menu = ActionMenuScene.instantiate()
@@ -288,15 +265,6 @@ func _ready() -> void:
 		InputManager.action_selected.connect(BattleManager._on_action_selected)
 	if not InputManager.target_selected.is_connected(BattleManager._on_target_selected):
 		InputManager.target_selected.connect(BattleManager._on_target_selected)
-
-	print("\n=== Controls ===")
-	print("Arrow keys = Move cursor")
-	print("Enter/Space/Z = Confirm position / Open action menu")
-	print("Backspace/X = Free cursor inspect mode (B button)")
-	print("Arrow keys = Navigate action menu")
-	print("Enter/Space/Z = Confirm action")
-	print("Backspace/X in menu = Cancel and return to movement")
-	print("Q = Quit")
 
 
 
@@ -387,7 +355,7 @@ func _process(_delta: float) -> void:
 
 ## Called when a new turn cycle begins (all units get new turn priorities)
 func _on_turn_cycle_started(turn_number: int) -> void:
-	print(">>> TURN CYCLE %d STARTED <<<" % turn_number)
+	print("[FLOW] Turn cycle: %d" % turn_number)
 
 	# Show turn order panel on first turn cycle
 	if turn_number == 1:
@@ -395,7 +363,6 @@ func _on_turn_cycle_started(turn_number: int) -> void:
 
 
 func _on_player_turn_started(unit: Node2D) -> void:
-	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
 	# Move camera to active unit
@@ -415,7 +382,6 @@ func _on_player_turn_started(unit: Node2D) -> void:
 
 
 func _on_enemy_turn_started(unit: Node2D) -> void:
-	print("\n>>> ENEMY'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
 	# Move camera to active unit
@@ -431,7 +397,6 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 
 
 func _on_unit_turn_ended(unit: Node2D) -> void:
-	print(">>> Turn ended for: %s <<<" % unit.get_display_name())
 	unit.hide_selection()
 
 	# Hide stats and terrain panels
@@ -441,16 +406,7 @@ func _on_unit_turn_ended(unit: Node2D) -> void:
 	# GridManager now handles clearing highlights
 
 
-func _on_battle_ended(victory: bool) -> void:
-	print("\n========== BATTLE OVER ==========")
-	if victory:
-		print("YOU WIN!")
-		# Phase 3: Show victory_dialogue from battle_data
-	else:
-		print("YOU LOSE!")
-		# Phase 3: Show defeat_dialogue from battle_data
-	print("Press Q to quit")
-
+func _on_battle_ended(_victory: bool) -> void:
 	# Hide turn order panel
 	_turn_order_panel.hide_panel()
 
@@ -462,12 +418,6 @@ func _update_turn_order_display(active_unit: Node2D) -> void:
 	_turn_order_panel.animate_transition()
 
 
-func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
-	print("Battle: Combat resolved - %s -> %s: %d damage (hit: %s, crit: %s)" % [
-		attacker.get_display_name(),
-		defender.get_display_name(),
-		damage,
-		hit,
-		crit
-	])
+func _on_combat_resolved(_attacker: Node2D, _defender: Node2D, _damage: int, _hit: bool, _crit: bool) -> void:
 	# TODO: Show damage numbers (Phase 3)
+	pass

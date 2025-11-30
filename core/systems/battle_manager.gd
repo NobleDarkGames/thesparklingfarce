@@ -72,8 +72,6 @@ func setup(battle_scene: Node, units_container: Node2D) -> void:
 	battle_scene_root = battle_scene
 	units_parent = units_container
 
-	print("BattleManager: Setup complete")
-
 
 ## Start a battle from BattleData resource (loaded from mods/)
 func start_battle(battle_data: Resource) -> void:
@@ -89,9 +87,7 @@ func start_battle(battle_data: Resource) -> void:
 	current_battle_data = battle_data
 	battle_active = true
 
-	print("\n========================================")
-	print("BattleManager: Starting battle - %s" % battle_data.battle_name)
-	print("========================================\n")
+	print("[FLOW] === BATTLE START: %s ===" % battle_data.battle_name)
 
 	# 0. Set active mod for audio system
 	_initialize_audio()
@@ -116,8 +112,6 @@ func start_battle(battle_data: Resource) -> void:
 	#     await _show_dialogue(battle_data.pre_battle_dialogue)
 
 	battle_started.emit(battle_data)
-
-	print("BattleManager: Battle initialized successfully")
 
 
 ## Validate BattleData has required properties
@@ -156,7 +150,6 @@ func _initialize_audio() -> void:
 			# path_parts[3] = "<mod_name>"
 			mod_path = "res://mods/" + path_parts[3]
 
-	print("BattleManager: Setting audio mod path to %s" % mod_path)
 	AudioManager.set_active_mod(mod_path)
 
 	# Start battle music
@@ -177,7 +170,6 @@ func _load_map_scene() -> void:
 	map_instance = map_scene.instantiate()
 	if battle_scene_root:
 		battle_scene_root.add_child(map_instance)
-		print("BattleManager: Map scene loaded")
 	else:
 		push_error("BattleManager: battle_scene_root not set, cannot add map")
 
@@ -202,7 +194,6 @@ func _initialize_grid() -> void:
 
 	# Setup GridManager with grid from map
 	GridManager.setup_grid(grid, tilemap)
-	print("BattleManager: Grid initialized from map (%d x %d)" % [grid.grid_size.x, grid.grid_size.y])
 
 
 ## Find TileMapLayer in scene tree
@@ -250,8 +241,6 @@ func _create_grid_from_tilemap(tilemap: TileMapLayer) -> Resource:
 	grid.grid_size = used_rect.size
 	grid.cell_size = 32  # Default, could read from tilemap.tile_set
 
-	print("BattleManager: Created grid from tilemap size: %s" % grid.grid_size)
-
 	return grid
 
 
@@ -286,11 +275,8 @@ func _spawn_all_units() -> void:
 	all_units.append_array(enemy_units)
 	all_units.append_array(neutral_units)
 
-	print("BattleManager: Units spawned - %d player, %d enemy, %d neutral" % [
-		player_units.size(),
-		enemy_units.size(),
-		neutral_units.size()
-	])
+	print("[FLOW] Units: %d player, %d enemy, %d neutral" % [
+		player_units.size(), enemy_units.size(), neutral_units.size()])
 
 
 ## Spawn units from array of dictionaries
@@ -370,12 +356,9 @@ func _connect_signals() -> void:
 	if not ExperienceManager.unit_learned_ability.is_connected(_on_unit_learned_ability):
 		ExperienceManager.unit_learned_ability.connect(_on_unit_learned_ability)
 
-	print("BattleManager: Signals connected")
-
 
 ## Handle action selection from InputManager
 func _on_action_selected(unit: Node2D, action: String) -> void:
-	print("BattleManager: Action selected - %s by %s" % [action, unit.get_display_name()])
 
 	match action:
 		"attack":
@@ -394,18 +377,12 @@ func _on_action_selected(unit: Node2D, action: String) -> void:
 
 ## Handle target selection from InputManager
 func _on_target_selected(unit: Node2D, target: Node2D) -> void:
-	print("BattleManager: Target selected - %s targets %s" % [
-		unit.get_display_name(),
-		target.get_display_name()
-	])
-
 	# Execute the queued action
 	_execute_attack(unit, target)
 
 
 ## Execute Stay action (end turn)
 func _execute_stay(unit: Node2D) -> void:
-	print("BattleManager: %s chose Stay" % unit.get_display_name())
 
 	# Reset InputManager to waiting state
 	InputManager.reset_to_waiting()
@@ -422,10 +399,6 @@ func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
 
 ## Execute Attack action
 func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
-	print("\nBattleManager: Executing attack - %s -> %s" % [
-		attacker.get_display_name(),
-		defender.get_display_name()
-	])
 
 	# Get stats
 	var attacker_stats: UnitStats = attacker.stats
@@ -450,17 +423,10 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 		if was_critical:
 			damage *= 2
-			print("  → CRITICAL HIT!")
-			# Play critical hit sound
 			AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
 		else:
-			# Play normal hit sound
 			AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
-
-		print("  → HIT! %d damage (%d%% hit chance)" % [damage, hit_chance])
 	else:
-		print("  → MISS! (%d%% chance)" % hit_chance)
-		# Play miss sound
 		AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
 
 	# Show combat animation
@@ -514,15 +480,11 @@ func _show_combat_animation(
 ) -> void:
 	# Skip combat animation entirely in headless mode for faster automated testing
 	if TurnManager.is_headless:
-		print("%s [HEADLESS] Skipping combat animation" % TurnManager._get_elapsed_time())
 		return
 
 	# Skip combat animation if GameJuice is set to MAP_ONLY mode
 	if GameJuice.should_skip_combat_animation():
-		print("%s [MAP_ONLY] Skipping combat animation" % TurnManager._get_elapsed_time())
 		return
-
-	print("%s HIDING battlefield (combat anim starting)" % TurnManager._get_elapsed_time())
 	# HIDE the battlefield completely (Shining Force style - full screen replacement)
 	if map_instance:
 		map_instance.visible = false
@@ -543,36 +505,28 @@ func _show_combat_animation(
 	combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
 
 	# Play combat animation (scene handles its own fade-in)
-	print("%s Playing combat animation..." % TurnManager._get_elapsed_time())
 	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss)
 	await combat_anim_instance.animation_complete
-	print("%s Combat animation complete" % TurnManager._get_elapsed_time())
 
 	# Clean up combat animation
 	combat_anim_instance.queue_free()
 	combat_anim_instance = null
 
 	# RESTORE the battlefield (Shining Force style - return to tactical view)
-	print("%s RESTORING battlefield visibility" % TurnManager._get_elapsed_time())
 	if map_instance:
 		map_instance.visible = true
 	if units_parent:
 		units_parent.visible = true
 	if ui_node:
 		ui_node.visible = true
-	print("%s Battlefield visible again" % TurnManager._get_elapsed_time())
 
 	# Battlefield "settle" period - give player time to see the result before next action
 	# This visual breathing room is critical for Shining Force-style pacing
-	# Camera lingers on the acting unit so player can read damage/results text
-	print("%s Starting battlefield settle delay (%.1fs)..." % [TurnManager._get_elapsed_time(), BATTLEFIELD_SETTLE_DELAY])
 	await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
-	print("%s Battlefield settle complete" % TurnManager._get_elapsed_time())
 
 
 ## Handle unit death - called when unit.died signal is emitted
 func _on_unit_died(unit: Node2D) -> void:
-	print("BattleManager: Handling death of %s" % unit.get_display_name())
 
 	# Visual feedback (fade out) - skip in headless mode
 	if "modulate" in unit and not TurnManager.is_headless:
@@ -601,16 +555,17 @@ func _handle_unit_death(unit: Node2D) -> void:
 func _on_battle_ended(victory: bool) -> void:
 	battle_active = false
 
-	print("\n========================================")
 	if victory:
-		print("VICTORY!")
-		# Increment battles won in campaign data
+		print("[FLOW] === BATTLE VICTORY ===")
 		GameState.increment_campaign_data("battles_won")
 	else:
-		print("DEFEAT!")
-	print("========================================\n")
+		print("[FLOW] === BATTLE DEFEAT ===")
 
 	battle_ended.emit(victory)
+
+	# Wait for any pending level-up celebrations to finish before showing result screen
+	# This prevents the victory/defeat screen from overlapping with level-up popups
+	await _wait_for_level_ups()
 
 	# Show result screen (skip in headless mode)
 	var should_retry: bool = false
@@ -622,7 +577,6 @@ func _on_battle_ended(victory: bool) -> void:
 
 	# Handle retry request
 	if should_retry:
-		print("BattleManager: Retry requested - reloading battle...")
 		# TODO: Implement battle retry (reload current battle data)
 		return
 
@@ -642,10 +596,7 @@ func _on_battle_ended(victory: bool) -> void:
 			if current_battle_data and current_battle_data.get("battle_id"):
 				context.completed_battle_id = current_battle_data.battle_id
 
-		print("BattleManager: Returning to map...")
 		TriggerManager.return_to_map()
-	else:
-		print("BattleManager: No return data - staying in battle scene")
 
 
 ## Show victory screen and wait for player to dismiss
@@ -685,7 +636,6 @@ func _show_defeat_screen() -> bool:
 
 ## Handle unit gaining XP
 func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
-	print("BattleManager: %s gained %d XP from %s" % [unit.get_display_name(), amount, source])
 
 	# Queue XP entry for combat results panel
 	_pending_xp_entries.append({
@@ -697,18 +647,7 @@ func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
 
 ## Handle unit level up
 func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
-	print("\n========================================")
-	print("LEVEL UP! %s: Lv %d -> Lv %d" % [unit.get_display_name(), old_level, new_level])
-	print("========================================")
-
-	# Print stat increases
-	for stat_name: String in stat_increases:
-		if stat_name == "abilities":
-			continue  # Handled by unit_learned_ability signal
-		var increase: int = stat_increases[stat_name]
-		print("  %s +%d" % [stat_name.to_upper(), increase])
-
-	print("========================================\n")
+	print("[FLOW] LEVEL UP: %s Lv%d -> Lv%d" % [unit.get_display_name(), old_level, new_level])
 
 	# Queue the level-up for display
 	_pending_level_ups.append({
@@ -750,11 +689,17 @@ func _process_level_up_queue() -> void:
 	_process_level_up_queue()
 
 
+## Wait for all pending level-up celebrations to finish
+## Used before showing victory/defeat screens to prevent overlap
+func _wait_for_level_ups() -> void:
+	while _showing_level_up or not _pending_level_ups.is_empty():
+		await get_tree().process_frame
+
+
 ## Handle unit learning ability
 func _on_unit_learned_ability(unit: Node2D, ability: Resource) -> void:
 	var ability_name: String = ability.ability_name if ability else "Unknown"
-	print("BattleManager: %s learned %s!" % [unit.get_display_name(), ability_name])
-	# TODO: Show ability learned notification (Phase 4)
+	print("[FLOW] %s learned: %s" % [unit.get_display_name(), ability_name])
 
 
 ## Show combat results panel with queued XP entries
@@ -806,5 +751,3 @@ func end_battle() -> void:
 		map_instance = null
 
 	current_battle_data = null
-
-	print("BattleManager: Battle cleaned up")

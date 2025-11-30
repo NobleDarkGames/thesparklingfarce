@@ -49,8 +49,6 @@ var fade_overlay: ColorRect
 
 
 func _ready() -> void:
-	print("SceneManager: Initializing...")
-
 	# Create fade overlay
 	_create_fade_overlay()
 
@@ -58,8 +56,6 @@ func _ready() -> void:
 	var root: Window = get_tree().root
 	var current: Node = root.get_child(root.get_child_count() - 1)
 	current_scene_path = current.scene_file_path
-
-	print("SceneManager: Current scene: %s" % current_scene_path)
 
 
 ## Create a full-screen black overlay for fade transitions
@@ -104,7 +100,7 @@ func change_scene(scene_path: String, use_fade: bool = true) -> void:
 	previous_scene_path = current_scene_path
 
 	scene_transition_started.emit(current_scene_path, scene_path)
-	print("SceneManager: Transitioning from %s to %s" % [current_scene_path, scene_path])
+	print("[FLOW] Scene: %s -> %s" % [current_scene_path.get_file(), scene_path.get_file()])
 
 	if use_fade:
 		# Only fade to black if not already black
@@ -122,7 +118,6 @@ func change_scene(scene_path: String, use_fade: bool = true) -> void:
 	is_transitioning = false
 
 	scene_transition_completed.emit(scene_path)
-	print("SceneManager: Transition complete")
 
 
 ## Actually switch the scene

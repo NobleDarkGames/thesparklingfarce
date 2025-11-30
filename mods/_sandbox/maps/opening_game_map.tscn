@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://dwuuawrde1yuh" path="res://scenes/map_exploration/hero_controller.gd" id="3_jf301"]
 [ext_resource type="Script" uid="uid://iijt33alqt3j" path="res://scenes/map_exploration/map_camera.gd" id="4_juiv6"]
 [ext_resource type="PackedScene" path="res://mods/_base_game/triggers/battle_trigger.tscn" id="5_o5vq8"]
-[ext_resource type="Script" path="res://core/components/spawn_point.gd" id="6_spawn"]
+[ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="6_spawn"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hero"]
 radius = 4.0
@@ -23,7 +23,6 @@ tile_set = ExtResource("2_o5vq8")
 position = Vector2(88, 88)
 script = ExtResource("6_spawn")
 spawn_id = "default_start"
-facing = "down"
 is_default = true
 
 [node name="FromBattle" type="Marker2D" parent="SpawnPoints"]
@@ -60,4 +59,6 @@ script = ExtResource("4_juiv6")
 [node name="BattleTrigger" parent="." instance=ExtResource("5_o5vq8")]
 position = Vector2(520, 552)
 trigger_id = "opening_battle_trigger"
-trigger_data = {"battle_id": "battle_1763763677"}
+trigger_data = {
+"battle_id": "battle_1763763677"
+}
