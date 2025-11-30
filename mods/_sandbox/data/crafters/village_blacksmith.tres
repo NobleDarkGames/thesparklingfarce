@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CrafterData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/crafter_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+crafter_name = "Guntz the Blacksmith"
+crafter_type = "blacksmith"
+skill_level = 3
+specializations = Array[String](["swords", "axes"])
+location_map_id = "guardiana_town"
+location_grid_position = Vector2i(8, 12)
+character_id = ""
+required_flags = Array[String]([])
+forbidden_flags = Array[String]([])
+service_fee_modifier = 1.0
+description = "A skilled dwarven smith who learned his craft in the mountain forges. He specializes in bladed weapons."

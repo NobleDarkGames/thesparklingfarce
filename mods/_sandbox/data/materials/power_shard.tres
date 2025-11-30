@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RareMaterialData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/rare_material_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+material_name = "Power Shard"
+rarity = 3
+crafting_category = "essence"
+tags = Array[String](["magical", "power"])
+stack_limit = 20
+description = "A crystallized fragment of pure magical energy. Enchanters prize these for imbuing items with special abilities."
+lore_hint = "Sometimes found near sites of great magical battles."

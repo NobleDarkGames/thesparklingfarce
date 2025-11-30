@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CraftingRecipeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/crafting_recipe_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+recipe_name = "Mithril Sword"
+output_mode = 0
+output_item_id = "mithril_sword"
+output_choices = Array[String]([])
+upgrade_base_item_id = ""
+upgrade_result_item_id = ""
+inputs = [{"material_id": "mithril", "quantity": 1}]
+gold_cost = 500
+required_crafter_type = "blacksmith"
+required_crafter_skill = 2
+required_flags = Array[String]([])
+description = "Forge a legendary sword from mithril. Light yet incredibly sharp."
+unlock_hint = ""

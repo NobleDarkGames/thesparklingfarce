@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="MaterialSpawnData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/material_spawn_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+material_id = "mithril"
+map_id = "dwarf_mines"
+grid_position = Vector2i(12, 8)
+spawn_id = "mithril_vein_01"
+required_flags = Array[String](["mine_entrance_open"])
+forbidden_flags = Array[String]([])
+min_chapter = 0
+max_chapter = -1
+quantity = 1
+respawns = false
+visual_hint = "sparkle"
+interaction_prompt = "You found Mithril!"
