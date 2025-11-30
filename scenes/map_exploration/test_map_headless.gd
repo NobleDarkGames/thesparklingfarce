@@ -67,15 +67,15 @@ func _ready() -> void:
 		_quit_test(false)
 		return
 
-	# Test 3: Create followers
-	print("\n[TEST 3] Creating party followers...")
+	# Test 3: Create followers in SF2-style formation
+	print("\n[TEST 3] Creating party followers (formation style)...")
 	for i in range(3):
 		var follower: CharacterBody2D = CharacterBody2D.new()
 		follower.set_script(PartyFollowerScript)
 		follower.name = "Follower%d" % (i + 1)
-		follower.set("follow_distance", 5 * (i + 1))
+		follower.set("formation_index", i + 1)  # Position in formation behind hero
 		follower.set("tile_size", 32)
-		follower.set("follow_target", hero)
+		follower.set("follow_target", hero)  # All follow hero directly
 
 		var follower_collision: CollisionShape2D = CollisionShape2D.new()
 		var follower_shape: CircleShape2D = CircleShape2D.new()

@@ -23,8 +23,13 @@ var grid_position: Vector2i = Vector2i.ZERO
 var target_position: Vector2 = Vector2.ZERO
 var is_moving: bool = false
 
-## Position history for followers (world positions, not grid)
+## Position history for followers (world positions, not grid) - LEGACY, updated every frame
 var position_history: Array[Vector2] = []
+
+## Tile history for followers - ONLY updated on tile completion (SF2-style)
+## This is the array followers should use for path memory
+var tile_history: Array[Vector2i] = []
+const TILE_HISTORY_SIZE: int = 32
 
 ## References (optional - may not exist in all setups)
 var sprite: AnimatedSprite2D = null
@@ -62,6 +67,12 @@ func _ready() -> void:
 	for i in range(position_history_size):
 		position_history.append(global_position)
 
+	# Initialize tile history with current grid position (SF2-style)
+	tile_history.clear()
+	for i in range(TILE_HISTORY_SIZE):
+		tile_history.append(grid_position)
+	print("[HeroController] Tile history initialized with %d entries at %s" % [TILE_HISTORY_SIZE, grid_position])
+
 	# Setup interaction raycast
 	if interaction_ray:
 		interaction_ray.enabled = true
@@ -88,6 +99,9 @@ func _process_movement(delta: float) -> void:
 		global_position = target_position
 		grid_position = world_to_grid(global_position)
 		is_moving = false
+
+		# Update tile history (SF2-style - only on tile completion!)
+		_update_tile_history(grid_position)
 
 		# Emit signal
 		moved_to_tile.emit(grid_position)
@@ -234,11 +248,53 @@ func _update_position_history() -> void:
 		position_history.pop_back()
 
 
+## Update tile history when hero completes a tile move (SF2-style).
+## This is called ONLY on tile completion, not every frame.
+func _update_tile_history(new_tile: Vector2i) -> void:
+	# Add new tile to front of history
+	tile_history.push_front(new_tile)
+
+	# Trim to max size
+	if tile_history.size() > TILE_HISTORY_SIZE:
+		tile_history.pop_back()
+
+	print("[HeroController] Tile history updated: moved to %s (history size: %d)" % [new_tile, tile_history.size()])
+
+
+## Initialize tile history with a formation trail extending BEHIND the hero.
+## SF2-AUTHENTIC: This gives followers somewhere to spawn that isn't on the hero.
+## Call this after the hero is positioned but BEFORE followers are created.
+func initialize_formation_history() -> void:
+	tile_history.clear()
+
+	# Determine the "behind" direction (opposite of facing)
+	var behind_direction: Vector2i = -facing_direction
+	if behind_direction == Vector2i.ZERO:
+		behind_direction = Vector2i.DOWN  # Default to down
+
+	# Pre-seed history with tiles extending behind the hero
+	# history[0] = hero position, history[1] = 1 tile behind, etc.
+	for i in range(TILE_HISTORY_SIZE):
+		var offset_tile: Vector2i = grid_position + (behind_direction * i)
+		tile_history.append(offset_tile)
+
+	print("[HeroController] Formation history initialized: %d tiles behind %s (direction: %s)" % [
+		TILE_HISTORY_SIZE, grid_position, behind_direction
+	])
+
+
 ## Get a position from the hero's movement history.
 ## steps_back: How many steps back in history to look (0 = current position)
 func get_historical_position(steps_back: int) -> Vector2:
 	steps_back = clampi(steps_back, 0, position_history.size() - 1)
 	return position_history[steps_back]
+
+
+## Get a tile from the hero's tile history (SF2-style).
+## tiles_back: How many tiles back in history (0 = current tile, 1 = previous tile, etc.)
+func get_historical_tile(tiles_back: int) -> Vector2i:
+	tiles_back = clampi(tiles_back, 0, tile_history.size() - 1)
+	return tile_history[tiles_back]
 
 
 ## Convert world position to grid coordinates.
@@ -272,3 +328,9 @@ func teleport_to_grid(new_grid_pos: Vector2i) -> void:
 	position_history.clear()
 	for i in range(position_history_size):
 		position_history.append(global_position)
+
+	# Clear tile history and fill with new tile (SF2-style)
+	tile_history.clear()
+	for i in range(TILE_HISTORY_SIZE):
+		tile_history.append(grid_position)
+	print("[HeroController] Teleported to %s - tile history reset" % grid_position)

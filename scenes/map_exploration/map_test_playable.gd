@@ -49,6 +49,10 @@ func _ready() -> void:
 	# Create hero from first party member
 	_create_hero()
 
+	# Initialize hero's tile history with formation trail BEFORE creating followers
+	if hero and hero.has_method("initialize_formation_history"):
+		hero.call("initialize_formation_history")
+
 	# Create followers from remaining party members
 	_create_followers()
 
@@ -185,10 +189,9 @@ func _create_followers() -> void:
 		follower.name = "Follower_%s" % char_data.character_name
 		follower.z_index = 90 - i  # Followers below hero, in reverse order (closer = higher)
 
-		# Set follow parameters
-		follower.set("follow_distance", 6 * i)  # Spread them out more
+		# Set follow parameters - SF2 CHAIN style: each follows the previous
+		follower.set("formation_index", i)  # 1, 2, 3... for identification
 		follower.set("tile_size", 32)
-		follower.set("follow_target", hero)
 
 		# Add visual representation
 		var visual_container: Node2D = Node2D.new()
@@ -225,7 +228,14 @@ func _create_followers() -> void:
 		add_child(follower)
 		followers.append(follower)
 
-		_debug_print("✅ Follower created: %s" % char_data.character_name)
+		# CHAIN FOLLOWING: Set up after adding to scene so set_follow_target() works correctly
+		# Follower 1 follows hero, Follower 2 follows Follower 1, etc.
+		if i == 1:
+			follower.call("set_follow_target", hero)  # First follower follows hero
+		else:
+			follower.call("set_follow_target", followers[i - 2])  # Follow previous follower
+
+		_debug_print("✅ Follower created: %s (formation index %d)" % [char_data.character_name, i])
 
 	_debug_print("Total followers: %d" % followers.size())
 

@@ -73,15 +73,12 @@ func _ready() -> void:
 func _setup_party_followers() -> void:
 	# For now, create 3 test followers
 	var num_followers: int = 3
-	var follow_spacing: int = 5  # Tiles apart in position history
-
-	var previous_target: Node2D = hero
 
 	for i in range(num_followers):
 		var follower: CharacterBody2D = CharacterBody2D.new()
 		follower.set_script(PartyFollowerScript)
 		follower.name = "Follower%d" % (i + 1)
-		follower.follow_distance = follow_spacing * (i + 1)
+		follower.formation_index = i + 1  # SF2-style: position in formation behind hero
 		follower.tile_size = hero.tile_size
 
 		# Add visual components (placeholder colored squares)
@@ -100,7 +97,7 @@ func _setup_party_followers() -> void:
 		collision.name = "CollisionShape2D"
 		follower.add_child(collision)
 
-		# Set follow target (each follower follows the hero)
+		# Set follow target - all followers follow hero directly
 		follower.set_follow_target(hero)
 
 		# Add to scene
