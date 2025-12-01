@@ -42,19 +42,24 @@ const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipmen
 const EnvironmentRegistryClass: GDScript = preload("res://core/registries/environment_registry.gd")
 const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_category_registry.gd")
 const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/animation_offset_registry.gd")
+const TriggerTypeRegistryClass: GDScript = preload("res://core/registries/trigger_type_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
 
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
-var active_mod_id: String = "base_game"  # Default active mod for editor
+var active_mod_id: String = "_base_game"  # Default active mod for editor
 
 # Type registries for mod-extensible enums
 var equipment_registry: RefCounted = EquipmentRegistryClass.new()
 var environment_registry: RefCounted = EnvironmentRegistryClass.new()
 var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
 var animation_offset_registry: RefCounted = AnimationOffsetRegistryClass.new()
+var trigger_type_registry: RefCounted = TriggerTypeRegistryClass.new()
+
+# TileSet registry: tileset_name -> {path: String, mod_id: String, resource: TileSet}
+var _tileset_registry: Dictionary = {}
 
 ## Loading state tracking
 var _is_loading: bool = false
@@ -62,12 +67,10 @@ var _pending_loads: Dictionary = {}  # path -> {resource_type, resource_id, mod_
 
 
 func _ready() -> void:
-	print("ModLoader: Initializing...")
 	# Initial load is SYNCHRONOUS to ensure all resources are available
 	# before any scenes try to use them. Use reload_mods_async() for
 	# runtime hot-reloading if needed.
 	_discover_and_load_mods()
-	registry.print_debug()
 	mods_loaded.emit()
 
 
@@ -125,12 +128,9 @@ func _discover_mods() -> Array[ModManifest]:
 			if FileAccess.file_exists(mod_json_path):
 				var manifest: ModManifest = ModManifest.load_from_file(mod_json_path)
 				if manifest:
-					print("ModLoader: Discovered mod '%s' (%s)" % [manifest.mod_name, manifest.mod_id])
 					mods.append(manifest)
 				else:
 					push_warning("ModLoader: Failed to load manifest for mod in folder: " + folder_name)
-			else:
-				push_warning("ModLoader: Folder '%s' has no mod.json, skipping" % folder_name)
 
 		folder_name = dir.get_next()
 
@@ -140,8 +140,6 @@ func _discover_mods() -> Array[ModManifest]:
 
 ## Load a single mod and register all its resources
 func _load_mod(manifest: ModManifest) -> void:
-	print("ModLoader: Loading mod '%s' (priority: %d)..." % [manifest.mod_name, manifest.load_priority])
-
 	# Check dependencies (simple check - just verify they're loaded)
 	for dep_id in manifest.dependencies:
 		if not _is_mod_loaded(dep_id):
@@ -163,17 +161,17 @@ func _load_mod(manifest: ModManifest) -> void:
 	# Register scenes from manifest
 	var scene_count: int = _register_mod_scenes(manifest)
 
+	# Discover and register trigger scripts and tilesets
+	_discover_trigger_scripts(manifest)
+	_discover_tilesets(manifest)
+
 	# Mark mod as loaded
 	manifest.is_loaded = true
 	loaded_mods.append(manifest)
 
-	print("ModLoader: Mod '%s' loaded successfully (%d resources, %d scenes)" % [manifest.mod_name, loaded_count, scene_count])
-
 
 ## Load a single mod asynchronously using threaded resource loading
 func _load_mod_async(manifest: ModManifest) -> void:
-	print("ModLoader: Loading mod '%s' (priority: %d)..." % [manifest.mod_name, manifest.load_priority])
-
 	# Check dependencies (simple check - just verify they're loaded)
 	for dep_id in manifest.dependencies:
 		if not _is_mod_loaded(dep_id):
@@ -199,7 +197,6 @@ func _load_mod_async(manifest: ModManifest) -> void:
 
 	# Wait for all threaded loads to complete (polling with yield to not block)
 	if not tres_paths.is_empty():
-		print("ModLoader: Waiting for %d resources to load in background..." % tres_paths.size())
 		await _wait_for_threaded_loads(tres_paths)
 
 	# Now retrieve and register all resources
@@ -223,11 +220,13 @@ func _load_mod_async(manifest: ModManifest) -> void:
 	# Register scenes from manifest
 	var scene_count: int = _register_mod_scenes(manifest)
 
+	# Discover and register trigger scripts and tilesets
+	_discover_trigger_scripts(manifest)
+	_discover_tilesets(manifest)
+
 	# Mark mod as loaded
 	manifest.is_loaded = true
 	loaded_mods.append(manifest)
-
-	print("ModLoader: Mod '%s' loaded successfully (%d resources, %d scenes)" % [manifest.mod_name, loaded_count, scene_count])
 
 
 ## Collect all resource file paths from a directory (without loading them)
@@ -373,6 +372,10 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	if not manifest.custom_animation_offset_types.is_empty():
 		animation_offset_registry.register_offset_types(manifest.mod_id, manifest.custom_animation_offset_types)
 
+	# Trigger types
+	if not manifest.custom_trigger_types.is_empty():
+		trigger_type_registry.register_trigger_types(manifest.mod_id, manifest.custom_trigger_types)
+
 
 ## Register scenes from a mod manifest
 func _register_mod_scenes(manifest: ModManifest) -> int:
@@ -391,6 +394,133 @@ func _register_mod_scenes(manifest: ModManifest) -> int:
 		count += 1
 
 	return count
+
+
+## Discover and register trigger scripts from a mod's triggers/ directory
+## Trigger scripts should extend MapTrigger and define custom behavior
+## File naming convention: {trigger_type}_trigger.gd (e.g., puzzle_trigger.gd)
+func _discover_trigger_scripts(manifest: ModManifest) -> int:
+	var triggers_dir: String = manifest.mod_directory.path_join("triggers")
+	var dir: DirAccess = DirAccess.open(triggers_dir)
+
+	if not dir:
+		# No triggers directory - that's okay, not all mods have custom triggers
+		return 0
+
+	var count: int = 0
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with("_trigger.gd"):
+			var full_path: String = triggers_dir.path_join(file_name)
+			# Extract trigger type from filename: puzzle_trigger.gd -> puzzle
+			var trigger_type: String = file_name.replace("_trigger.gd", "").to_lower()
+
+			if not trigger_type.is_empty():
+				trigger_type_registry.register_trigger_script(trigger_type, full_path, manifest.mod_id)
+				# Also register the trigger type if not already registered
+				if not trigger_type_registry.is_valid_trigger_type(trigger_type):
+					trigger_type_registry.register_trigger_types(manifest.mod_id, [trigger_type])
+				count += 1
+
+		file_name = dir.get_next()
+
+	dir.list_dir_end()
+	return count
+
+
+## Discover and register tilesets from a mod's tilesets/ directory
+## TileSets are registered by their filename (without extension) as the tileset name
+## Higher-priority mods override lower-priority tilesets with the same name
+func _discover_tilesets(manifest: ModManifest) -> int:
+	var tilesets_dir: String = manifest.mod_directory.path_join("tilesets")
+	var dir: DirAccess = DirAccess.open(tilesets_dir)
+
+	if not dir:
+		# No tilesets directory - that's okay
+		return 0
+
+	var count: int = 0
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".tres"):
+			var full_path: String = tilesets_dir.path_join(file_name)
+			# Extract tileset name from filename: terrain_placeholder.tres -> terrain_placeholder
+			var tileset_name: String = file_name.get_basename().to_lower()
+
+			if not tileset_name.is_empty():
+				# Register (or override) the tileset
+				_tileset_registry[tileset_name] = {
+					"path": full_path,
+					"mod_id": manifest.mod_id,
+					"resource": null  # Lazy-loaded on first access
+				}
+				count += 1
+
+		file_name = dir.get_next()
+
+	dir.list_dir_end()
+	return count
+
+
+## Get a TileSet resource by name
+## Returns the highest-priority mod's version of the tileset
+## @param tileset_name: The tileset name (e.g., "terrain_placeholder")
+## @return: The TileSet resource, or null if not found
+func get_tileset(tileset_name: String) -> TileSet:
+	var name_lower: String = tileset_name.to_lower()
+
+	if name_lower not in _tileset_registry:
+		push_warning("ModLoader: TileSet '%s' not found in registry" % tileset_name)
+		return null
+
+	var entry: Dictionary = _tileset_registry[name_lower]
+
+	# Lazy-load the resource on first access
+	if entry.resource == null:
+		entry.resource = load(entry.path) as TileSet
+		if entry.resource == null:
+			push_error("ModLoader: Failed to load TileSet from: %s" % entry.path)
+			return null
+
+	return entry.resource
+
+
+## Get the path to a TileSet by name (without loading it)
+## Useful for scene files that need the path at edit time
+func get_tileset_path(tileset_name: String) -> String:
+	var name_lower: String = tileset_name.to_lower()
+
+	if name_lower not in _tileset_registry:
+		return ""
+
+	return _tileset_registry[name_lower].path
+
+
+## Check if a tileset is registered
+func has_tileset(tileset_name: String) -> bool:
+	return tileset_name.to_lower() in _tileset_registry
+
+
+## Get all registered tileset names
+func get_tileset_names() -> Array[String]:
+	var names: Array[String] = []
+	for name: String in _tileset_registry.keys():
+		names.append(name)
+	return names
+
+
+## Get which mod provides a tileset
+func get_tileset_source(tileset_name: String) -> String:
+	var name_lower: String = tileset_name.to_lower()
+
+	if name_lower not in _tileset_registry:
+		return ""
+
+	return _tileset_registry[name_lower].mod_id
 
 
 ## Check if a mod with the given ID is loaded
@@ -440,7 +570,6 @@ func get_active_mod() -> ModManifest:
 func set_active_mod(mod_id: String) -> bool:
 	if _is_mod_loaded(mod_id):
 		active_mod_id = mod_id
-		print("ModLoader: Active mod set to '%s'" % mod_id)
 		return true
 	else:
 		push_error("ModLoader: Cannot set active mod - mod '%s' is not loaded" % mod_id)
@@ -450,7 +579,6 @@ func set_active_mod(mod_id: String) -> bool:
 ## Reload all mods synchronously (useful for editor/development)
 ## Blocks until all mods are loaded - safe but may cause brief freeze
 func reload_mods() -> void:
-	print("ModLoader: Reloading all mods...")
 	loaded_mods.clear()
 	registry.clear()
 	# Clear type registries
@@ -458,8 +586,10 @@ func reload_mods() -> void:
 	environment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
+	trigger_type_registry.clear_mod_registrations()
+	# Clear tileset registry
+	_tileset_registry.clear()
 	_discover_and_load_mods()
-	registry.print_debug()
 	mods_loaded.emit()
 
 
@@ -467,7 +597,6 @@ func reload_mods() -> void:
 ## Does not block - emits mods_loaded signal when complete
 ## WARNING: Scenes should wait for mods_loaded before accessing mod resources
 func reload_mods_async() -> void:
-	print("ModLoader: Reloading all mods (async)...")
 	loaded_mods.clear()
 	registry.clear()
 	# Clear type registries
@@ -475,8 +604,10 @@ func reload_mods_async() -> void:
 	environment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
+	trigger_type_registry.clear_mod_registrations()
+	# Clear tileset registry
+	_tileset_registry.clear()
 	await _discover_and_load_mods_async()
-	registry.print_debug()
 	mods_loaded.emit()
 
 

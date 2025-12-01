@@ -16,6 +16,7 @@ extends Area2D
 ## One-shot triggers are marked as completed in GameState after activation.
 
 ## Type of trigger (determines handling by TriggerManager)
+## DEPRECATED: Use trigger_type_string instead for mod extensibility
 enum TriggerType {
 	BATTLE,       ## Initiate a tactical battle
 	DIALOG,       ## Start a dialog/conversation
@@ -26,8 +27,26 @@ enum TriggerType {
 	CUSTOM        ## User-defined custom trigger type
 }
 
-## The type of this trigger
+## Mapping from enum values to string names (for backwards compatibility)
+const TRIGGER_TYPE_NAMES: Dictionary = {
+	TriggerType.BATTLE: "battle",
+	TriggerType.DIALOG: "dialog",
+	TriggerType.CHEST: "chest",
+	TriggerType.DOOR: "door",
+	TriggerType.CUTSCENE: "cutscene",
+	TriggerType.TRANSITION: "transition",
+	TriggerType.CUSTOM: "custom"
+}
+
+## The type of this trigger (enum - DEPRECATED, use trigger_type_string)
+## Kept for backwards compatibility with existing scenes
 @export var trigger_type: TriggerType = TriggerType.BATTLE
+
+## String-based trigger type (preferred for mod extensibility)
+## If set, this takes precedence over trigger_type enum
+## Use registered types from ModLoader.trigger_type_registry
+## Examples: "battle", "dialog", "puzzle", "shop", "minigame"
+@export var trigger_type_string: String = ""
 
 ## Unique identifier for this trigger (used for save system and completion tracking)
 @export var trigger_id: String = ""
@@ -143,6 +162,24 @@ func _get_failure_reason() -> String:
 			return "Forbidden flag set: %s" % flag
 
 	return "Unknown reason"
+
+
+## Get the effective trigger type as a string
+## Prefers trigger_type_string if set, otherwise converts enum to string
+## This is the recommended way to check trigger type for handling
+func get_trigger_type_name() -> String:
+	# Prefer string-based type if set
+	if not trigger_type_string.is_empty():
+		return trigger_type_string.to_lower()
+
+	# Fall back to enum-based type
+	return TRIGGER_TYPE_NAMES.get(trigger_type, "custom")
+
+
+## Check if this trigger is of a specific type (string comparison)
+## Works with both enum-based and string-based trigger types
+func is_trigger_type(type_name: String) -> bool:
+	return get_trigger_type_name() == type_name.to_lower()
 
 
 ## Get type-specific data from trigger_data

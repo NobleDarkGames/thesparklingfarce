@@ -38,6 +38,7 @@ const MAX_PRIORITY: int = 9999
 @export var custom_time_of_day: Array[String] = []
 @export var custom_unit_categories: Array[String] = []
 @export var custom_animation_offset_types: Array[String] = []
+@export var custom_trigger_types: Array[String] = []
 
 # Runtime properties (not serialized)
 var mod_directory: String = ""
@@ -132,6 +133,10 @@ static func load_from_file(json_path: String) -> ModManifest:
 		if "animation_offset_types" in custom_types and custom_types.animation_offset_types is Array:
 			for aot: Variant in custom_types.animation_offset_types:
 				manifest.custom_animation_offset_types.append(str(aot))
+
+		if "trigger_types" in custom_types and custom_types.trigger_types is Array:
+			for tt: Variant in custom_types.trigger_types:
+				manifest.custom_trigger_types.append(str(tt))
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

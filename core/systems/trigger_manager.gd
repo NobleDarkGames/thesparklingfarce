@@ -109,28 +109,80 @@ func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
 		push_warning("TriggerManager: Trigger was freed before handling")
 		return
 
-	var trigger_type: int = trigger.get("trigger_type")
-	var trigger_id: String = trigger.get("trigger_id")
-	print("[FLOW] Trigger: %s (%s)" % [trigger_id, _get_trigger_type_name(trigger_type)])
+	# Get trigger type as string (supports both enum and string-based types)
+	var type_name: String = _get_trigger_type_string(trigger)
 
-	# Route to appropriate handler based on type
-	match trigger_type:
-		0:  # MapTrigger.TriggerType.BATTLE
+	# Route to appropriate handler based on type string
+	match type_name:
+		"battle":
 			_handle_battle_trigger(trigger, player)
-		1:  # MapTrigger.TriggerType.DIALOG
+		"dialog":
 			_handle_dialog_trigger(trigger, player)
-		2:  # MapTrigger.TriggerType.CHEST
+		"chest":
 			_handle_chest_trigger(trigger, player)
-		3:  # MapTrigger.TriggerType.DOOR
+		"door":
 			_handle_door_trigger(trigger, player)
-		4:  # MapTrigger.TriggerType.CUTSCENE
+		"cutscene":
 			_handle_cutscene_trigger(trigger, player)
-		5:  # MapTrigger.TriggerType.TRANSITION
+		"transition":
 			_handle_transition_trigger(trigger, player)
-		6:  # MapTrigger.TriggerType.CUSTOM
+		"custom":
 			_handle_custom_trigger(trigger, player)
 		_:
-			push_warning("TriggerManager: Unknown trigger type: %d" % trigger_type)
+			# Check for registered custom trigger handler
+			_handle_modded_trigger(trigger, player, type_name)
+
+
+## Get the trigger type as a string (works with both enum and string-based triggers)
+func _get_trigger_type_string(trigger: Node) -> String:
+	# Check for string-based type first (Phase 2.5.1+)
+	if trigger.has_method("get_trigger_type_name"):
+		return trigger.get_trigger_type_name()
+
+	# Fall back to checking trigger_type_string property
+	var type_string: Variant = trigger.get("trigger_type_string")
+	if type_string is String and not type_string.is_empty():
+		return type_string.to_lower()
+
+	# Legacy: Convert enum to string
+	var trigger_type: Variant = trigger.get("trigger_type")
+	if trigger_type is int:
+		match trigger_type:
+			0: return "battle"
+			1: return "dialog"
+			2: return "chest"
+			3: return "door"
+			4: return "cutscene"
+			5: return "transition"
+			6: return "custom"
+
+	return "custom"
+
+
+## Handle a modded trigger type (not built-in)
+## Custom trigger handlers must define a static function:
+##   static func handle_trigger(trigger: Node, player: Node2D, manager: Node) -> void
+func _handle_modded_trigger(trigger: Node, player: Node2D, type_name: String) -> void:
+	# Check if there's a registered handler script for this type
+	var script_path: String = ModLoader.trigger_type_registry.get_trigger_script_path(type_name)
+
+	if not script_path.is_empty():
+		# Load the custom trigger script
+		var script: GDScript = load(script_path) as GDScript
+		if script:
+			# Call the static handle_trigger function directly on the script
+			# Note: We can't use has_method() on GDScript class itself, so we call directly
+			# and let GDScript handle the error if the method doesn't exist
+			script.handle_trigger(trigger, player, self)
+			return
+		else:
+			push_error("TriggerManager: Failed to load trigger script: %s" % script_path)
+
+	# Check if trigger type is at least registered (even without a handler)
+	if ModLoader.trigger_type_registry.is_valid_trigger_type(type_name):
+		push_warning("TriggerManager: Trigger type '%s' is registered but has no handler script" % type_name)
+	else:
+		push_warning("TriggerManager: Unknown trigger type: '%s'" % type_name)
 
 
 ## Handle BATTLE trigger - transition to battle scene
@@ -141,8 +193,6 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 	if battle_id.is_empty():
 		push_error("TriggerManager: Battle trigger missing battle_id")
 		return
-
-	print("[FLOW] Loading battle: %s" % battle_id)
 
 	# Look up BattleData resource from ModLoader
 	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
@@ -192,7 +242,6 @@ func start_battle(battle_id: String) -> void:
 		push_error("  Available battles: %s" % available)
 		return
 
-	print("[FLOW] Starting battle: '%s'" % battle_data.get("battle_name"))
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
@@ -204,7 +253,6 @@ func start_battle_with_data(battle_data: Resource) -> void:
 		push_error("TriggerManager: Cannot start battle with null data")
 		return
 
-	print("[FLOW] Starting battle: '%s'" % battle_data.get("battle_name"))
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
@@ -227,8 +275,6 @@ func return_to_map() -> void:
 		push_error("TriggerManager: Return scene not found: %s" % return_scene)
 		GameState.clear_transition_context()
 		return
-
-	print("[FLOW] Returning to map: %s" % return_scene.get_file())
 
 	# Clear battle data (but NOT transition context - map scene needs it for position restoration)
 	clear_current_battle_data()
@@ -318,8 +364,6 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	if not requires_key.is_empty():
 		# TODO: Check if player has key item in inventory
 		pass
-
-	print("[FLOW] Door -> %s (spawn: %s)" % [destination_scene.get_file(), spawn_point_id])
 
 	# Create transition context with spawn point info
 	var context: RefCounted = TransitionContext.from_current_scene(player)
