@@ -85,7 +85,7 @@ func play_combat_animation(
 	await _setup_combatant(defender, defender_container, defender_name, defender_hp_bar, false)
 
 	# Fade in background and contents
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
 	await tween.finished
 
@@ -151,11 +151,11 @@ func _setup_combatant(
 
 ## Create placeholder portrait using colored panel and character initial
 func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
-	var panel := PanelContainer.new()
+	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(180, 180)  # Larger for full-screen view
 
 	# Create styled panel based on character class
-	var style_box := StyleBoxFlat.new()
+	var style_box: StyleBoxFlat = StyleBoxFlat.new()
 	style_box.bg_color = _get_class_color(unit)
 	style_box.border_width_left = 4
 	style_box.border_width_right = 4
@@ -171,12 +171,12 @@ func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	panel.add_theme_stylebox_override("panel", style_box)
 
 	# Container for content
-	var vbox := VBoxContainer.new()
+	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(vbox)
 
 	# Character initial (large letter)
-	var initial := Label.new()
+	var initial: Label = Label.new()
 	initial.text = unit.character_data.character_name.substr(0, 1).to_upper()
 	initial.add_theme_font_override("font", monogram_font)
 	initial.add_theme_font_size_override("font_size", 96)  # Even larger for prominence
@@ -187,7 +187,7 @@ func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	vbox.add_child(initial)
 
 	# Simple ASCII face
-	var face := Label.new()
+	var face: Label = Label.new()
 	face.text = "• — •\n  ◡"
 	face.add_theme_font_override("font", monogram_font)
 	face.add_theme_font_size_override("font_size", 24)  # Larger face too
@@ -205,13 +205,13 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	# Use AnimatedSprite2D if sprite frames provided, otherwise static Sprite2D
 	var sprite_node: Node
 	if anim_data.battle_sprite_frames:
-		var animated := AnimatedSprite2D.new()
+		var animated: AnimatedSprite2D = AnimatedSprite2D.new()
 		animated.sprite_frames = anim_data.battle_sprite_frames
 		animated.animation = anim_data.idle_animation
 		animated.play()
 		sprite_node = animated
 	else:
-		var static_sprite := Sprite2D.new()
+		var static_sprite: Sprite2D = Sprite2D.new()
 		static_sprite.texture = anim_data.battle_sprite
 		sprite_node = static_sprite
 
@@ -224,7 +224,7 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 		sprite_node.flip_h = true
 
 	# Wrap in control for consistent API
-	var container := Control.new()
+	var container: Control = Control.new()
 	container.custom_minimum_size = Vector2(120, 120)
 	container.add_child(sprite_node)
 
@@ -258,7 +258,7 @@ func _play_hit_animation(damage: int, defender: Node2D) -> void:
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 
 	# Attacker slides forward
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
 	await tween.finished
 
@@ -270,7 +270,7 @@ func _play_hit_animation(damage: int, defender: Node2D) -> void:
 	_show_damage_number(damage, false)
 
 	# Update defender HP bar (slower animation)
-	var hp_tween := create_tween()
+	var hp_tween: Tween = create_tween()
 	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
 	# Attacker returns to position
@@ -289,7 +289,7 @@ func _play_critical_animation(damage: int, defender: Node2D) -> void:
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 
 	# Attacker slides forward (still dramatic but not too fast)
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE * 1.5, move_duration)
 	await tween.finished
 
@@ -301,7 +301,7 @@ func _play_critical_animation(damage: int, defender: Node2D) -> void:
 	_show_damage_number(damage, true)
 
 	# Update defender HP bar (slower for dramatic effect)
-	var hp_tween := create_tween()
+	var hp_tween: Tween = create_tween()
 	hp_tween.tween_property(defender_hp_bar, "value", defender.stats.current_hp - damage, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 
 	await get_tree().create_timer(_get_pause(BASE_CRIT_PAUSE_DURATION)).timeout
@@ -324,11 +324,11 @@ func _play_miss_animation() -> void:
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 
 	# Attacker slides forward
-	var attack_tween := create_tween()
+	var attack_tween: Tween = create_tween()
 	attack_tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
 
 	# Defender dodges (slight movement)
-	var dodge_tween := create_tween()
+	var dodge_tween: Tween = create_tween()
 	dodge_tween.tween_property(defender_sprite, "position:x", defender_start_pos.x + 30, move_duration)
 
 	await attack_tween.finished
@@ -340,13 +340,13 @@ func _play_miss_animation() -> void:
 	damage_label.visible = true
 	damage_label.modulate.a = 1.0
 
-	var fade_tween := create_tween()
+	var fade_tween: Tween = create_tween()
 	fade_tween.set_parallel(true)
 	fade_tween.tween_property(damage_label, "position:y", damage_label.position.y - DAMAGE_FLOAT_DISTANCE, float_duration)
 	fade_tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
 
 	# Both return to start positions
-	var return_tween := create_tween()
+	var return_tween: Tween = create_tween()
 	return_tween.set_parallel(true)
 	return_tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
 	return_tween.tween_property(defender_sprite, "position", defender_start_pos, move_duration)
@@ -370,7 +370,7 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 
 	# Animate upward and fade out
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, float_duration)
 	tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
@@ -396,7 +396,7 @@ func _screen_shake() -> void:
 
 	for i in shake_count:
 		# Random offset
-		var shake_amount := Vector2(
+		var shake_amount: Vector2 = Vector2(
 			randf_range(-SCREEN_SHAKE_AMOUNT, SCREEN_SHAKE_AMOUNT),
 			randf_range(-SCREEN_SHAKE_AMOUNT, SCREEN_SHAKE_AMOUNT)
 		)
@@ -410,7 +410,7 @@ func _screen_shake() -> void:
 ## Show "COUNTER!" banner before counterattack animation
 func _show_counter_banner() -> void:
 	# Create counter banner label
-	var counter_label := Label.new()
+	var counter_label: Label = Label.new()
 	counter_label.text = "COUNTER!"
 	counter_label.add_theme_font_override("font", monogram_font)
 	counter_label.add_theme_font_size_override("font_size", 64)
@@ -430,7 +430,7 @@ func _show_counter_banner() -> void:
 	counter_label.scale = Vector2(0.3, 0.3)
 	counter_label.modulate.a = 0.0
 
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(counter_label, "scale", Vector2.ONE, _get_duration(0.2)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(counter_label, "modulate:a", 1.0, _get_duration(0.15))
