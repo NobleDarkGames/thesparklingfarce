@@ -48,8 +48,9 @@ enum MapType {
 ## Typically true only for OVERWORLD maps
 @export var caravan_visible: bool = false
 
-## Camera zoom level (1.0 = default, <1.0 = zoomed out for overworld feel)
-## Recommended: TOWN=1.0, OVERWORLD=0.75-0.85, DUNGEON=0.9-1.0
+## Camera zoom level (1.0 = default for pixel-perfect rendering)
+## Note: Non-integer zoom causes pixel distortion. Use 1.0 for all map types
+## and achieve visual scale differences through art direction instead.
 @export_range(0.5, 2.0, 0.05) var camera_zoom: float = 1.0
 
 ## Scene path for this map (res://mods/mod_id/maps/scene.tscn)
@@ -239,7 +240,7 @@ func apply_type_defaults() -> void:
 		MapType.OVERWORLD:
 			caravan_visible = true
 			caravan_accessible = true
-			camera_zoom = 0.8
+			camera_zoom = 1.0  # Keep 1.0 for pixel-perfect rendering
 			random_encounters_enabled = true
 			base_encounter_rate = 0.1
 			save_anywhere = true
@@ -247,7 +248,7 @@ func apply_type_defaults() -> void:
 		MapType.DUNGEON:
 			caravan_visible = false
 			caravan_accessible = false
-			camera_zoom = 0.95
+			camera_zoom = 1.0  # Keep 1.0 for pixel-perfect rendering
 			random_encounters_enabled = true
 			base_encounter_rate = 0.15
 			save_anywhere = false  # Dungeons often restrict saving

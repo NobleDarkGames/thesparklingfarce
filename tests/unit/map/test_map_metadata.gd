@@ -102,7 +102,7 @@ func test_apply_type_defaults_for_overworld() -> void:
 
 	assert_bool(metadata.caravan_visible).is_true()
 	assert_bool(metadata.caravan_accessible).is_true()
-	assert_float(metadata.camera_zoom).is_equal_approx(0.8, 0.01)
+	assert_float(metadata.camera_zoom).is_equal_approx(1.0, 0.01)  # 1.0 for pixel-perfect rendering
 	assert_bool(metadata.random_encounters_enabled).is_true()
 	assert_float(metadata.base_encounter_rate).is_equal_approx(0.1, 0.01)
 

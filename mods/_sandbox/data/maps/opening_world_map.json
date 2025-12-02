@@ -4,7 +4,7 @@
   "map_type": "OVERWORLD",
   "caravan_visible": false,
   "caravan_accessible": false,
-  "camera_zoom": 0.8,
+  "camera_zoom": 1.0,
   "scene_path": "res://mods/_sandbox/maps/opening_game_map.tscn",
   "music_id": "",
   "ambient_id": "",

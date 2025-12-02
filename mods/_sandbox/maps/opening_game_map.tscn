@@ -31,7 +31,6 @@ facing = "up"
 
 [node name="MapCamera" type="Camera2D" parent="."]
 position = Vector2(88, 88)
-zoom = Vector2(0.8, 0.8)
 script = ExtResource("4_juiv6")
 
 [node name="BattleTrigger" parent="." instance=ExtResource("5_o5vq8")]

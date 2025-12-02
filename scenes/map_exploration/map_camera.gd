@@ -43,11 +43,8 @@ func _process(delta: float) -> void:
 	# Smooth camera movement
 	global_position = global_position.lerp(target_pos, follow_speed * delta)
 
-	# Pixel-perfect snapping for non-integer zoom levels
-	# At 0.8x zoom, snap to 1.25 pixel intervals to prevent texture shimmer
-	if zoom.x != 1.0:
-		var snap_interval: float = 1.0 / zoom.x
-		global_position = (global_position / snap_interval).round() * snap_interval
+	# Snap to pixel for clean rendering (works with 1.0 zoom)
+	global_position = global_position.round()
 
 	# Update previous position
 	_previous_target_pos = follow_target.global_position
