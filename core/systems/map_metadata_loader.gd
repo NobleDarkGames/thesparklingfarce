@@ -14,7 +14,7 @@ extends RefCounted
 ##   "caravan_visible": false,
 ##   "caravan_accessible": false,
 ##   "camera_zoom": 1.0,
-##   "scene_path": "res://mods/base_game/maps/granseal.tscn",
+##   "scene_path": "res://mods/_base_game/maps/granseal.tscn",
 ##   "music_id": "town_theme",
 ##   "spawn_points": {
 ##     "entrance": {

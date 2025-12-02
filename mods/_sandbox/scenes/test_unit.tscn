@@ -1,13 +1,13 @@
-[gd_scene load_steps=10 format=3 uid="uid://meb2axl5cqb8"]
+[gd_scene load_steps=11 format=3 uid="uid://vl6iqyan38ef"]
 
-[ext_resource type="Script" uid="uid://dirogxhavm30h" path="res://mods/_sandbox/scenes/test_unit.gd" id="1_script"]
+[ext_resource type="Script" path="res://mods/_sandbox/scenes/test_unit.gd" id="1_script"]
 [ext_resource type="Script" uid="uid://bj2so3ypjwmba" path="res://core/systems/camera_controller.gd" id="2_camera"]
 [ext_resource type="Script" uid="uid://ce1g8slrpl07e" path="res://core/resources/grid.gd" id="3_grid"]
 [ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="4_font"]
 [ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="5_highlight"]
 [ext_resource type="PackedScene" path="res://scenes/ui/active_unit_stats_panel.tscn" id="6_stats"]
 [ext_resource type="PackedScene" path="res://scenes/ui/terrain_info_panel.tscn" id="7_terrain"]
-[ext_resource type="PackedScene" uid="uid://combat_forecast_panel" path="res://scenes/ui/combat_forecast_panel.tscn" id="8_forecast"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat_forecast_panel.tscn" id="8_forecast"]
 
 [sub_resource type="TileSet" id="TileSet_test"]
 tile_size = Vector2i(32, 32)

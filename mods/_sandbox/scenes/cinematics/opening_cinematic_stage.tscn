@@ -126,7 +126,6 @@ default_speed = 2.5
 position = Vector2(320, 180)
 enabled = true
 script = ExtResource("4_camera_controller")
-smooth_movement = false
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 layer = 10

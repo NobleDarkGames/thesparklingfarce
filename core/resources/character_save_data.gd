@@ -320,7 +320,7 @@ func _get_mod_id_for_resource(resource: Resource) -> String:
 		push_warning("CharacterSaveData: Resource has no resource_path")
 		return ""
 
-	# Extract mod_id from path (e.g., "res://mods/base_game/..." → "base_game")
+	# Extract mod_id from path (e.g., "res://mods/_base_game/..." → "_base_game")
 	if resource_path.begins_with("res://mods/"):
 		var path_parts: PackedStringArray = resource_path.split("/")
 		if path_parts.size() >= 3:
