@@ -4,7 +4,7 @@
 ## This runs AI turns automatically without requiring player input.
 ## Used for quick validation that battle systems work correctly.
 ##
-## Note: For manual interactive testing, use mods/_sandbox/scenes/test_unit.tscn
+## Note: For manual interactive testing, use mods/_sandbox/scenes/test_xp_system.tscn
 extends Node2D
 
 const UnitScript: GDScript = preload("res://core/components/unit.gd")
@@ -34,7 +34,7 @@ func _ready() -> void:
 	var enemy_character: CharacterData = _create_character("Goblin", 15, 5, 8, 6, 6)
 
 	# Load AI brain
-	var AIAggressiveClass: GDScript = load("res://mods/base_game/ai_brains/ai_aggressive.gd")
+	var AIAggressiveClass: GDScript = load("res://mods/_base_game/ai_brains/ai_aggressive.gd")
 	var aggressive_ai: Resource = AIAggressiveClass.new()
 
 	# Spawn units

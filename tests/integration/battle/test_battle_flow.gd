@@ -56,7 +56,7 @@ func _ready() -> void:
 	var enemy_character: CharacterData = _create_character("TestGoblin", 10, 5, 5, 2, 5)
 
 	# Load AI brain for enemy
-	var AIAggressiveClass: GDScript = load("res://mods/base_game/ai_brains/ai_aggressive.gd")
+	var AIAggressiveClass: GDScript = load("res://mods/_base_game/ai_brains/ai_aggressive.gd")
 	var aggressive_ai: Resource = AIAggressiveClass.new()
 
 	# Load AI brain for player (also aggressive - will attack)

@@ -38,6 +38,25 @@ func _create_test_ability(power: int) -> Resource:
 	return ability
 
 
+## Create a UnitStats with ClassData attached for counter rate testing
+func _create_test_stats_with_class(counter_rate: int = 12) -> UnitStats:
+	var stats: UnitStats = UnitStats.new()
+	stats.strength = 10
+	stats.defense = 5
+	stats.agility = 10
+	stats.intelligence = 10
+	stats.luck = 5
+	stats.level = 1
+
+	# Create and attach ClassData with specified counter rate
+	var class_data: ClassData = ClassData.new()
+	class_data.display_name = "TestClass"
+	class_data.counter_rate = counter_rate
+	stats.class_data = class_data
+
+	return stats
+
+
 # =============================================================================
 # PHYSICAL DAMAGE TESTS
 # =============================================================================
@@ -347,3 +366,180 @@ func test_cannot_counterattack_short_range_vs_long() -> void:
 	# Weapon range 2, attack distance 4 - cannot counter
 	var can_counter: bool = CombatCalculator.can_counterattack(2, 4)
 	assert_bool(can_counter).is_false()
+
+
+# =============================================================================
+# COUNTER CHANCE TESTS (Class-based rates)
+# =============================================================================
+
+func test_counter_chance_default_rate_is_12() -> void:
+	# Stats without class_data should return default 12%
+	var stats: UnitStats = _create_test_stats()
+	var chance: int = CombatCalculator.calculate_counter_chance(stats)
+	assert_int(chance).is_equal(12)
+
+
+func test_counter_chance_uses_class_rate_25() -> void:
+	# SF2-style 25% (1/4) counter rate
+	var stats: UnitStats = _create_test_stats_with_class(25)
+	var chance: int = CombatCalculator.calculate_counter_chance(stats)
+	assert_int(chance).is_equal(25)
+
+
+func test_counter_chance_uses_class_rate_6() -> void:
+	# SF2-style 6% (1/16) counter rate
+	var stats: UnitStats = _create_test_stats_with_class(6)
+	var chance: int = CombatCalculator.calculate_counter_chance(stats)
+	assert_int(chance).is_equal(6)
+
+
+func test_counter_chance_uses_class_rate_3() -> void:
+	# SF2-style 3% (1/32) counter rate
+	var stats: UnitStats = _create_test_stats_with_class(3)
+	var chance: int = CombatCalculator.calculate_counter_chance(stats)
+	assert_int(chance).is_equal(3)
+
+
+func test_counter_chance_null_stats_returns_zero() -> void:
+	var chance: int = CombatCalculator.calculate_counter_chance(null)
+	assert_int(chance).is_equal(0)
+
+
+func test_counter_chance_clamped_at_50() -> void:
+	# Even if class has 100% counter rate, should be clamped at 50
+	var stats: UnitStats = _create_test_stats_with_class(100)
+	var chance: int = CombatCalculator.calculate_counter_chance(stats)
+	assert_int(chance).is_equal(50)
+
+
+func test_counter_chance_clamped_at_0() -> void:
+	# Negative rates should be clamped to 0
+	var stats: UnitStats = _create_test_stats_with_class(-10)
+	var chance: int = CombatCalculator.calculate_counter_chance(stats)
+	assert_int(chance).is_equal(0)
+
+
+# =============================================================================
+# ROLL COUNTER TESTS
+# =============================================================================
+
+func test_roll_counter_returns_bool() -> void:
+	var result: bool = CombatCalculator.roll_counter(25)
+	assert_bool(result is bool).is_true()
+
+
+func test_roll_counter_100_percent_always_counters() -> void:
+	for i in range(20):
+		var result: bool = CombatCalculator.roll_counter(100)
+		assert_bool(result).is_true()
+
+
+func test_roll_counter_0_percent_never_counters() -> void:
+	for i in range(20):
+		var result: bool = CombatCalculator.roll_counter(0)
+		assert_bool(result).is_false()
+
+
+func test_roll_counter_negative_returns_false() -> void:
+	# Negative chance should always return false (early exit in function)
+	for i in range(20):
+		var result: bool = CombatCalculator.roll_counter(-10)
+		assert_bool(result).is_false()
+
+
+# =============================================================================
+# CHECK COUNTERATTACK INTEGRATION TESTS
+# =============================================================================
+
+func test_check_counterattack_dead_defender_cannot_counter() -> void:
+	var stats: UnitStats = _create_test_stats_with_class(100)  # 100% rate, but dead
+
+	var result: Dictionary = CombatCalculator.check_counterattack(
+		stats,
+		1,     # weapon_range
+		1,     # attack_distance
+		false  # defender_is_alive = false
+	)
+
+	assert_bool(result.can_counter).is_false()
+	assert_bool(result.will_counter).is_false()
+	assert_int(result.chance).is_equal(0)
+
+
+func test_check_counterattack_out_of_range_cannot_counter() -> void:
+	var stats: UnitStats = _create_test_stats_with_class(100)  # 100% rate, but out of range
+
+	var result: Dictionary = CombatCalculator.check_counterattack(
+		stats,
+		1,    # weapon_range (melee)
+		3,    # attack_distance (3 tiles away - out of reach)
+		true  # defender_is_alive
+	)
+
+	assert_bool(result.can_counter).is_false()
+	assert_bool(result.will_counter).is_false()
+	assert_int(result.chance).is_equal(0)
+
+
+func test_check_counterattack_in_range_returns_can_counter_true() -> void:
+	var stats: UnitStats = _create_test_stats_with_class(25)
+
+	var result: Dictionary = CombatCalculator.check_counterattack(
+		stats,
+		1,    # weapon_range
+		1,    # attack_distance (melee vs melee)
+		true  # defender_is_alive
+	)
+
+	assert_bool(result.can_counter).is_true()
+	assert_int(result.chance).is_equal(25)
+
+
+func test_check_counterattack_high_rate_clamped() -> void:
+	var stats: UnitStats = _create_test_stats_with_class(100)  # Should be clamped to 50
+
+	var result: Dictionary = CombatCalculator.check_counterattack(
+		stats,
+		2,    # weapon_range
+		2,    # attack_distance
+		true  # defender_is_alive
+	)
+
+	assert_bool(result.can_counter).is_true()
+	assert_int(result.chance).is_equal(50)  # Clamped
+
+
+func test_check_counterattack_returns_correct_structure() -> void:
+	var stats: UnitStats = _create_test_stats_with_class(25)
+
+	var result: Dictionary = CombatCalculator.check_counterattack(
+		stats,
+		2,    # weapon_range
+		2,    # attack_distance (ranged match)
+		true  # defender_is_alive
+	)
+
+	# Verify all expected keys exist
+	assert_bool("can_counter" in result).is_true()
+	assert_bool("will_counter" in result).is_true()
+	assert_bool("chance" in result).is_true()
+
+	# Verify types
+	assert_bool(result.can_counter is bool).is_true()
+	assert_bool(result.will_counter is bool).is_true()
+	assert_bool(result.chance is int).is_true()
+
+
+func test_check_counterattack_ranged_defender_vs_melee_attacker() -> void:
+	# Ranged unit (range 3) can counter melee attack (distance 1)
+	var stats: UnitStats = _create_test_stats_with_class(25)
+
+	var result: Dictionary = CombatCalculator.check_counterattack(
+		stats,
+		3,    # weapon_range (bow)
+		1,    # attack_distance (melee attack)
+		true  # defender_is_alive
+	)
+
+	assert_bool(result.can_counter).is_true()
+	assert_int(result.chance).is_equal(25)

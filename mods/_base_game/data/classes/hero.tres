@@ -1,13 +1,11 @@
-[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3 uid="uid://casopgh4ktt3i"]
 
-[ext_resource type="Script" path="res://core/resources/class_data.gd" id="1_ttobc"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_ttobc"]
 
 [resource]
 script = ExtResource("1_ttobc")
 display_name = "Hero"
 movement_range = 5
-counter_rate = 12
-double_attack_rate = 6
 hp_growth = 65
 mp_growth = 45
 strength_growth = 60

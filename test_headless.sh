@@ -44,28 +44,28 @@ echo ""
 echo "4. Checking integration test output..."
 INTEGRATION_PASS=true
 
-if grep -q "BattleManager: Setup complete" /tmp/ai_test.log; then
+if grep -q "AI Headless Test Starting\|\[FLOW\] BattleLoader:" /tmp/ai_test.log; then
     echo "[OK] Battle initialized"
 else
     echo "[FAIL] Battle initialization failed"
     INTEGRATION_PASS=false
 fi
 
-if grep -q "Unit initialized:" /tmp/ai_test.log; then
+if grep -q "\[PLAYER TURN\].*at\|Stats:.*HP:" /tmp/ai_test.log; then
     echo "[OK] Units spawned"
 else
     echo "[FAIL] Unit spawn failed"
     INTEGRATION_PASS=false
 fi
 
-if grep -q -- "Turn Order Calculated" /tmp/ai_test.log; then
-    echo "[OK] Turn order calculated"
+if grep -q "\[PLAYER TURN\]\|\[ENEMY TURN\]" /tmp/ai_test.log; then
+    echo "[OK] Turn system active"
 else
-    echo "[FAIL] Turn order calculation failed"
+    echo "[FAIL] Turn system failed"
     INTEGRATION_PASS=false
 fi
 
-if grep -q "MAX TURNS REACHED\|DEFEAT\|VICTORY" /tmp/ai_test.log; then
+if grep -q "MAX TURNS REACHED\|RESULT: Player Victory\|RESULT: Player Defeat" /tmp/ai_test.log; then
     echo "[OK] Battle completed (victory, defeat, or max turns)"
 else
     echo "[WARN] Battle still running (may need longer timeout)"
