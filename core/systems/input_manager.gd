@@ -11,7 +11,8 @@ extends Node
 enum InputState {
 	WAITING,            # Not player's turn
 	INSPECTING,         # Free cursor mode - inspecting battlefield (B button)
-	EXPLORING_MOVEMENT,  # Freely exploring movement options (can cancel)
+	EXPLORING_MOVEMENT,  # LEGACY: Cursor-based movement (kept for compatibility)
+	DIRECT_MOVEMENT,     # SF2-style: Player controls unit directly tile-by-tile
 	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Stay)
 	TARGETING,           # Selecting target for attack/spell
 	EXECUTING,           # Action executing (animations, etc.)
@@ -55,8 +56,13 @@ var path_visuals: Array[Node2D] = []
 
 ## Continuous input handling
 var _input_delay: float = 0.0
-const INPUT_DELAY_INITIAL: float = 0.3  # Delay before repeat starts
-const INPUT_DELAY_REPEAT: float = 0.1   # Delay between repeats
+const INPUT_DELAY_INITIAL: float = 0.15  # Delay before repeat starts (SF2-responsive)
+const INPUT_DELAY_REPEAT: float = 0.08   # Delay between repeats (SF2-responsive)
+
+## Direct movement tracking (SF2-style tile-by-tile control)
+var movement_path_taken: Array[Vector2i] = []  # Cells walked through in order
+var movement_start_cell: Vector2i = Vector2i.ZERO  # Original position for cancel
+var is_direct_moving: bool = false              # True during step animation (blocks input)
 
 
 func _ready() -> void:
@@ -98,13 +104,6 @@ func _reconnect_action_menu_signals() -> void:
 ## Handle action menu selection signal
 ## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
 func _on_action_menu_selected(action: String, signal_session_id: int) -> void:
-	print("InputManager: _on_action_menu_selected() received signal for action='%s', signal_session=%d, current_session=%d, state=%s" % [
-		action,
-		signal_session_id,
-		_turn_session_id,
-		InputState.keys()[current_state]
-	])
-
 	# Play menu selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -115,10 +114,6 @@ func _on_action_menu_selected(action: String, signal_session_id: int) -> void:
 ## Handle action menu cancellation signal
 ## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
 func _on_action_menu_cancelled(signal_session_id: int) -> void:
-	print("InputManager: _on_action_menu_cancelled() signal_session=%d, current_session=%d" % [
-		signal_session_id,
-		_turn_session_id
-	])
 
 	# Guard: Reject stale cancel signals from previous turns
 	if signal_session_id != _turn_session_id:
@@ -136,15 +131,12 @@ func _on_action_menu_cancelled(signal_session_id: int) -> void:
 
 ## Initialize input manager for new player turn
 func start_player_turn(unit: Node2D) -> void:
-	print("InputManager: start_player_turn() called for %s" % (unit.get_display_name() if unit else "null"))
-
 	if not unit:
 		push_error("InputManager: Cannot start turn with null unit")
 		return
 
 	# Increment turn session ID to invalidate any queued signals from previous turns
 	_turn_session_id += 1
-	print("InputManager: New turn session ID: %d" % _turn_session_id)
 
 	# NUCLEAR OPTION: Reset menu state FIRST to clear any stale state
 	if action_menu:
@@ -174,16 +166,17 @@ func start_player_turn(unit: Node2D) -> void:
 		unit.faction
 	)
 
-	# AUTHENTIC SHINING FORCE: Start in movement mode immediately (cursor on unit)
-	# Player can: Move with D-pad, Press A/C to act in place, Press B to inspect
-	set_state(InputState.EXPLORING_MOVEMENT)
+	# SF2-STYLE DIRECT MOVEMENT: Player controls unit tile-by-tile
+	# Check if unit can move at all (not immobilized)
+	if movement_range <= 0:
+		# No movement possible - skip directly to action menu
+		set_state(InputState.SELECTING_ACTION)
+	else:
+		# Normal case: Enter direct movement mode
+		set_state(InputState.DIRECT_MOVEMENT)
 
 	# NOW reconnect signals after state is correct (eliminates timing window)
 	_reconnect_action_menu_signals()
-
-	print("InputManager: Player turn started for %s at %s" % [unit.get_display_name(), movement_start_position])
-	print("InputManager: %d walkable cells available" % walkable_cells.size())
-	print("InputManager: Arrow keys = Move, Enter/Space/Z = Action menu, Backspace/X = Free cursor inspect")
 
 
 ## Change input state
@@ -191,11 +184,9 @@ func set_state(new_state: InputState) -> void:
 	var old_state: InputState = current_state
 	current_state = new_state
 
-	# Debug: Print stack trace when transitioning to WAITING unexpectedly
+	# Debug: Warn on unexpected transition to WAITING
 	if new_state == InputState.WAITING and old_state == InputState.EXPLORING_MOVEMENT:
-		print("InputManager: WARNING - Unexpected transition from EXPLORING_MOVEMENT to WAITING!")
-		print("Stack trace:")
-		print_stack()
+		push_warning("InputManager: Unexpected transition from EXPLORING_MOVEMENT to WAITING!")
 
 	match new_state:
 		InputState.WAITING:
@@ -204,17 +195,14 @@ func set_state(new_state: InputState) -> void:
 			_on_enter_inspecting()
 		InputState.EXPLORING_MOVEMENT:
 			_on_enter_exploring_movement()
+		InputState.DIRECT_MOVEMENT:
+			_on_enter_direct_movement()
 		InputState.SELECTING_ACTION:
 			_on_enter_selecting_action()
 		InputState.TARGETING:
 			_on_enter_targeting()
 		InputState.EXECUTING:
 			_on_enter_executing()
-
-	print("InputManager: State changed from %s to %s" % [
-		InputState.keys()[old_state],
-		InputState.keys()[new_state]
-	])
 
 
 ## State enter handlers
@@ -236,14 +224,13 @@ func _on_enter_inspecting() -> void:
 	# Clear path preview
 	_clear_path_preview()
 
-	# Cursor is free to roam anywhere
+	# Cursor is free to roam anywhere - show at current position
 	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
 		grid_cursor.show_cursor()
 
 	# Update inspector for unit at current cursor position (if any)
 	_update_unit_inspector()
-
-	print("InputManager: Entering INSPECTING mode - cursor free to roam")
 
 
 func _on_enter_exploring_movement() -> void:
@@ -271,6 +258,32 @@ func _on_enter_exploring_movement() -> void:
 
 	# Clear any existing path
 	_clear_path_preview()
+
+
+func _on_enter_direct_movement() -> void:
+	## SF2-style direct movement: Player controls unit tile-by-tile
+	# Enable per-frame processing for continuous input
+	set_process(true)
+
+	# Show active unit stats
+	if stats_panel and active_unit:
+		stats_panel.show_unit_stats(active_unit)
+
+	# Initialize movement tracking
+	movement_start_cell = active_unit.grid_position
+	movement_path_taken = [movement_start_cell]
+	is_direct_moving = false
+
+	# Hide grid cursor during direct movement (unit IS the cursor)
+	if grid_cursor:
+		grid_cursor.hide_cursor()
+
+	# Show movement range (walkable_cells already calculated at turn start)
+	_show_movement_range()
+
+	# Camera focuses on unit
+	if camera and camera is CameraController:
+		(camera as CameraController).follow_unit(active_unit)
 
 
 func _on_enter_selecting_action() -> void:
@@ -343,7 +356,11 @@ func _on_enter_executing() -> void:
 ## Handle continuous key presses (for cursor movement when held)
 func _process(delta: float) -> void:
 	# Only handle continuous input in movement and inspection modes
-	if current_state != InputState.EXPLORING_MOVEMENT and current_state != InputState.INSPECTING:
+	if current_state != InputState.EXPLORING_MOVEMENT and current_state != InputState.INSPECTING and current_state != InputState.DIRECT_MOVEMENT:
+		return
+
+	# Block continuous input during step animation
+	if current_state == InputState.DIRECT_MOVEMENT and is_direct_moving:
 		return
 
 	# Check if any directional key is held
@@ -363,11 +380,13 @@ func _process(delta: float) -> void:
 		if _input_delay > 0.0:
 			_input_delay -= delta
 		else:
-			# Move cursor
+			# Move based on current state
 			if current_state == InputState.EXPLORING_MOVEMENT:
 				_move_cursor(direction)
 			elif current_state == InputState.INSPECTING:
 				_move_free_cursor(direction)
+			elif current_state == InputState.DIRECT_MOVEMENT:
+				_try_direct_step(direction)
 
 			# Set repeat delay (faster after initial delay)
 			_input_delay = INPUT_DELAY_REPEAT
@@ -383,6 +402,8 @@ func _input(event: InputEvent) -> void:
 			_handle_inspecting_input(event)
 		InputState.EXPLORING_MOVEMENT:
 			_handle_movement_input(event)
+		InputState.DIRECT_MOVEMENT:
+			_handle_direct_movement_input(event)
 		InputState.SELECTING_ACTION:
 			_handle_action_menu_input(event)
 		InputState.TARGETING:
@@ -416,25 +437,23 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 		var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
 
 		if unit_at_cursor == active_unit:
-			# Pressed A on our own unit - return to movement mode
-			print("InputManager: Returning to movement mode")
+			# Pressed A on our own unit - return to direct movement mode
 			current_cursor_position = active_unit.grid_position
-			set_state(InputState.EXPLORING_MOVEMENT)
+			set_state(InputState.DIRECT_MOVEMENT)
 		elif unit_at_cursor:
-			# Pressed A on another unit - show stats (TODO: implement stats panel)
-			print("InputManager: Inspecting unit: %s" % unit_at_cursor.get_display_name())
+			# Pressed A on another unit - show stats
 			# TODO: Show unit stats panel
+			pass
 		else:
 			# Pressed A on empty cell - could open game menu (Map, Speed, etc.)
-			print("InputManager: Empty cell - could open game menu here")
 			# TODO: Implement game menu (Map, Speed settings, etc.)
+			pass
 		handled = true
 
-	# Cancel returns to movement mode
+	# Cancel returns to direct movement mode
 	if event.is_action_pressed("sf_cancel"):
-		print("InputManager: Exiting inspect mode, returning to movement")
 		current_cursor_position = active_unit.grid_position
-		set_state(InputState.EXPLORING_MOVEMENT)
+		set_state(InputState.DIRECT_MOVEMENT)
 		handled = true
 
 	# Consume input to prevent duplicate processing by other handlers
@@ -451,11 +470,7 @@ func _handle_movement_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			# Get global mouse position (works with camera)
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
-
-			print("InputManager: Mouse click at world %s" % mouse_world)
-
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
-			print("InputManager: Target cell: %s" % target_cell)
 			_try_move_to_cell(target_cell)
 			handled = true
 
@@ -482,7 +497,6 @@ func _handle_movement_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_accept"):
 		# If cursor hasn't moved, open action menu at starting position
 		if current_cursor_position == movement_start_position:
-			print("InputManager: Opening action menu without moving")
 			set_state(InputState.SELECTING_ACTION)
 		else:
 			# Cursor has moved - move unit and open action menu
@@ -491,7 +505,6 @@ func _handle_movement_input(event: InputEvent) -> void:
 
 	# Cancel key - Enter free cursor inspection mode (B button in SF)
 	if event.is_action_pressed("sf_cancel"):
-		print("InputManager: [BACKSPACE/X PRESSED] Entering inspection mode (free cursor)")
 		set_state(InputState.INSPECTING)
 		handled = true
 
@@ -503,15 +516,10 @@ func _handle_movement_input(event: InputEvent) -> void:
 ## Try to move unit to target cell
 func _try_move_to_cell(target_cell: Vector2i) -> void:
 	if not GridManager.is_within_bounds(target_cell):
-		print("InputManager: Cell %s out of bounds" % target_cell)
 		return
 
 	if target_cell not in walkable_cells:
-		print("InputManager: Cell %s not walkable" % target_cell)
 		return
-
-	# Move unit to target cell
-	print("InputManager: Moving unit to %s" % target_cell)
 
 	if target_cell != active_unit.grid_position:
 		# Calculate the full path from current position to target
@@ -537,7 +545,6 @@ func _try_move_to_cell(target_cell: Vector2i) -> void:
 
 ## Cancel movement and return to start position
 func _cancel_movement() -> void:
-	print("InputManager: Canceling movement, returning to %s" % movement_start_position)
 
 	# Move unit back to start
 	if active_unit.grid_position != movement_start_position:
@@ -579,7 +586,6 @@ func _get_available_actions() -> Array[String]:
 	# Stay - always available (ends turn at current position)
 	actions.append("Stay")
 
-	print("InputManager: Available actions: ", actions)
 	return actions
 
 
@@ -636,7 +642,6 @@ func _move_cursor(offset: Vector2i) -> void:
 			is_ally_cell = true
 
 	if not is_walkable and not is_ally_cell:
-		print("InputManager: Cursor cannot move to %s (not walkable)" % new_pos)
 		return
 
 	# Update cursor position
@@ -655,8 +660,6 @@ func _move_cursor(offset: Vector2i) -> void:
 	# Update path preview
 	_update_path_preview()
 
-	print("InputManager: Cursor moved to %s" % current_cursor_position)
-
 
 ## Move free cursor (inspection mode - no restrictions)
 func _move_free_cursor(offset: Vector2i) -> void:
@@ -664,7 +667,6 @@ func _move_free_cursor(offset: Vector2i) -> void:
 
 	# Only check bounds, not walkability
 	if not GridManager.is_within_bounds(new_pos):
-		print("InputManager: Free cursor cannot move to %s (out of bounds)" % new_pos)
 		return
 
 	# Update cursor position
@@ -684,8 +686,6 @@ func _move_free_cursor(offset: Vector2i) -> void:
 	# Update unit inspector panel based on what's under cursor
 	_update_unit_inspector()
 
-	print("InputManager: Free cursor moved to %s" % current_cursor_position)
-
 
 ## Move targeting cursor by offset (for attack/spell targeting)
 func _move_targeting_cursor(offset: Vector2i) -> void:
@@ -693,7 +693,6 @@ func _move_targeting_cursor(offset: Vector2i) -> void:
 
 	# Check if new position is within bounds
 	if not GridManager.is_within_bounds(new_pos):
-		print("InputManager: Targeting cursor cannot move to %s (out of bounds)" % new_pos)
 		return
 
 	# Update cursor position (allow moving to any valid grid cell during targeting)
@@ -708,8 +707,6 @@ func _move_targeting_cursor(offset: Vector2i) -> void:
 
 	# Update combat forecast if there's a target under cursor
 	_update_combat_forecast()
-
-	print("InputManager: Targeting cursor moved to %s" % current_cursor_position)
 
 
 ## Update path preview from unit to cursor
@@ -805,14 +802,6 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 
 ## Select action from menu
 func _select_action(action: String, signal_session_id: int) -> void:
-	print("InputManager: _select_action called with action='%s', state=%s, active_unit=%s, signal_session=%d, current_session=%d" % [
-		action,
-		InputState.keys()[current_state],
-		"null" if active_unit == null else active_unit.get_display_name(),
-		signal_session_id,
-		_turn_session_id
-	])
-
 	# Guard: Check if this signal is from a previous turn (stale)
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE action selection '%s' from session %d (current session: %d)" % [
@@ -853,17 +842,11 @@ func _select_action(action: String, signal_session_id: int) -> void:
 	#
 	# If either happened, we must NOT continue - the action is already handled!
 	if _turn_session_id != pre_emit_session:
-		print("InputManager: Session changed during signal handling (%d -> %d), aborting _select_action continuation" % [
-			pre_emit_session, _turn_session_id
-		])
 		return
 
 	# Check if state was reset by the signal handler (e.g., Stay action resets to WAITING)
 	if current_state == InputState.WAITING:
-		print("InputManager: State reset to WAITING by signal handler, action '%s' already handled" % action)
 		return
-
-	print("InputManager: Action selected: %s" % action)
 
 	match action:
 		"Attack":
@@ -882,15 +865,35 @@ func _select_action(action: String, signal_session_id: int) -> void:
 
 ## Cancel action menu and return to previous state
 func _cancel_action_menu() -> void:
-	print("InputManager: Canceling action menu")
 
-	# AUTHENTIC SHINING FORCE: B button in menu returns to movement mode
-	# If unit has moved, cancel movement and return to start
-	if active_unit.grid_position != movement_start_position:
-		_cancel_movement()
+	# SF2-STYLE: B button in menu returns to direct movement mode
+	# If unit has moved from their starting position, return them to start
+	if active_unit.grid_position != movement_start_cell:
+		_cancel_direct_movement()
 
-	# Always return to EXPLORING_MOVEMENT (not WAITING_FOR_COMMAND)
-	set_state(InputState.EXPLORING_MOVEMENT)
+	# Return to DIRECT_MOVEMENT (SF2-style)
+	set_state(InputState.DIRECT_MOVEMENT)
+
+
+## Cancel all direct movement and return unit to start position (SF2-style)
+func _cancel_direct_movement() -> void:
+	if movement_path_taken.size() <= 1:
+		return  # Already at start
+
+	# Update grid occupation back to start
+	var current_occupant: Node2D = GridManager.get_unit_at_cell(active_unit.grid_position)
+	if current_occupant == active_unit:
+		GridManager.clear_cell_occupied(active_unit.grid_position)
+
+	# Set start cell as occupied (we're returning there)
+	GridManager.set_cell_occupied(movement_start_cell, active_unit)
+	active_unit.grid_position = movement_start_cell
+
+	# Instant teleport back (SF2-authentic)
+	active_unit.position = GridManager.cell_to_world(movement_start_cell)
+
+	# Reset path tracking
+	movement_path_taken = [movement_start_cell]
 
 
 ## Get valid target cells based on action and range
@@ -922,20 +925,15 @@ func _show_targeting_range() -> void:
 	if not active_unit:
 		return
 
-	print("InputManager: Showing targeting range for %s" % current_action)
-
 	# Get weapon range (default to 1 for melee)
 	# TODO: Get from equipped weapon when equipment system exists
 	var weapon_range: int = 1
-
-	print("InputManager: Unit position: %s, weapon range: %d" % [active_unit.grid_position, weapon_range])
 
 	# Show red attack range tiles
 	GridManager.show_attack_range(active_unit.grid_position, weapon_range)
 
 	# Find and highlight valid targets in yellow
 	var valid_targets: Array[Vector2i] = _get_valid_target_cells(weapon_range)
-	print("InputManager: Valid targets found: %d at cells: %s" % [valid_targets.size(), valid_targets])
 	if not valid_targets.is_empty():
 		GridManager.highlight_targets(valid_targets)
 
@@ -989,7 +987,6 @@ func _handle_targeting_input(event: InputEvent) -> void:
 ## Select target for action
 func _select_target(target: Node2D) -> void:
 	target_selected.emit(active_unit, target)
-	print("InputManager: Target selected: %s" % target.get_display_name())
 	_execute_action_on_target(target)
 
 
@@ -1016,8 +1013,6 @@ func _execute_action() -> void:
 
 ## Complete turn and notify TurnManager
 func _complete_turn() -> void:
-	print("InputManager: Turn complete for %s" % active_unit.get_display_name())
-
 	# Mark unit as acted
 	active_unit.mark_acted()
 
@@ -1103,3 +1098,206 @@ func _update_combat_forecast() -> void:
 		# No valid target, hide forecast
 		if combat_forecast_panel.has_method("hide_forecast"):
 			combat_forecast_panel.hide_forecast()
+
+
+# =============================================================================
+# SF2-STYLE DIRECT MOVEMENT SYSTEM
+# =============================================================================
+
+## Update movement range display (shows walkable_cells calculated at turn start)
+func _update_direct_movement_range() -> void:
+	GridManager.clear_highlights()
+
+	# Highlight all walkable cells in blue
+	GridManager.highlight_cells(walkable_cells, GridManager.HIGHLIGHT_BLUE)
+
+	# Highlight current position in green (unit's position is distinct)
+	GridManager.highlight_cells([active_unit.grid_position], GridManager.HIGHLIGHT_GREEN)
+
+
+## Try to step the unit one tile in a direction (SF2-style direct control)
+## Returns true if step was executed, false if blocked
+func _try_direct_step(direction: Vector2i) -> bool:
+	if is_direct_moving:
+		return false  # Block input during animation
+
+	if not active_unit:
+		return false
+
+	var target_cell: Vector2i = active_unit.grid_position + direction
+
+	# Bounds check
+	if not GridManager.is_within_bounds(target_cell):
+		return false
+
+	# Check if walking back on our path (always allowed)
+	if movement_path_taken.size() > 1:
+		var previous_cell: Vector2i = movement_path_taken[-2]
+		if target_cell == previous_cell:
+			_undo_last_step()
+			return true
+
+	# Check what's at the target cell
+	var occupant: Node2D = GridManager.get_unit_at_cell(target_cell)
+
+	# Block if enemy occupies the cell
+	if occupant and occupant.faction != active_unit.faction:
+		return false
+
+	# Allow if: in walkable_cells, OR on our path, OR ally is there (pass-through)
+	var is_walkable: bool = target_cell in walkable_cells
+	var is_on_path: bool = target_cell in movement_path_taken
+	var is_ally_cell: bool = occupant != null and occupant.faction == active_unit.faction
+
+	if not is_walkable and not is_on_path and not is_ally_cell:
+		return false
+
+	# Execute the step
+	_execute_direct_step(target_cell)
+	return true
+
+
+## Execute a single step to target cell with animation
+func _execute_direct_step(target_cell: Vector2i) -> void:
+	is_direct_moving = true
+
+	# Update path taken
+	movement_path_taken.append(target_cell)
+
+	# Update grid occupation (handle ally pass-through)
+	var old_pos: Vector2i = active_unit.grid_position
+	var target_occupant: Node2D = GridManager.get_unit_at_cell(target_cell)
+
+	# Clear old position unless an ally is there (we were passing through)
+	var old_occupant: Node2D = GridManager.get_unit_at_cell(old_pos)
+	if old_occupant == active_unit:
+		GridManager.clear_cell_occupied(old_pos)
+
+	# Set new position as occupied unless an ally is there (passing through)
+	if not target_occupant:
+		GridManager.set_cell_occupied(target_cell, active_unit)
+
+	active_unit.grid_position = target_cell
+
+	# Quick tween to new position (SF2-style: nearly instant)
+	var target_world: Vector2 = GridManager.cell_to_world(target_cell)
+	var step_tween: Tween = create_tween()
+	step_tween.tween_property(active_unit, "position", target_world, 0.1)
+	step_tween.set_trans(Tween.TRANS_LINEAR)
+
+	# Play step sound
+	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.MOVEMENT)
+
+	await step_tween.finished
+	is_direct_moving = false
+
+	# Update visual feedback (remaining movement display)
+	_update_direct_movement_range()
+
+	# Update camera to follow unit
+	if camera and camera is CameraController:
+		(camera as CameraController).move_to_cell(target_cell)
+
+
+## Undo the last step (walking backward)
+func _undo_last_step() -> void:
+	if movement_path_taken.size() <= 1:
+		return  # Can't undo - at start
+
+	is_direct_moving = true
+
+	# Remove current cell from path
+	movement_path_taken.pop_back()
+	var previous_cell: Vector2i = movement_path_taken[-1]
+
+	# Update grid occupation
+	var current_occupant: Node2D = GridManager.get_unit_at_cell(active_unit.grid_position)
+	if current_occupant == active_unit:
+		GridManager.clear_cell_occupied(active_unit.grid_position)
+
+	var prev_occupant: Node2D = GridManager.get_unit_at_cell(previous_cell)
+	if not prev_occupant:
+		GridManager.set_cell_occupied(previous_cell, active_unit)
+
+	active_unit.grid_position = previous_cell
+
+	# Animate back
+	var target_world: Vector2 = GridManager.cell_to_world(previous_cell)
+	var step_tween: Tween = create_tween()
+	step_tween.tween_property(active_unit, "position", target_world, 0.1)
+	step_tween.set_trans(Tween.TRANS_LINEAR)
+
+	# Play step sound (same as forward movement)
+	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.MOVEMENT)
+
+	await step_tween.finished
+	is_direct_moving = false
+
+	# Update visual feedback
+	_update_direct_movement_range()
+
+	# Update camera to follow unit
+	if camera and camera is CameraController:
+		(camera as CameraController).move_to_cell(previous_cell)
+
+
+## Handle direct movement input (SF2-style)
+func _handle_direct_movement_input(event: InputEvent) -> void:
+	var handled: bool = false
+
+	# Block all input during step animation
+	if is_direct_moving:
+		if event is InputEventKey or event is InputEventMouseButton:
+			get_viewport().set_input_as_handled()
+		return
+
+	# Arrow keys directly move the unit
+	if event.is_action_pressed("ui_up"):
+		_try_direct_step(Vector2i(0, -1))
+		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
+	elif event.is_action_pressed("ui_down"):
+		_try_direct_step(Vector2i(0, 1))
+		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
+	elif event.is_action_pressed("ui_left"):
+		_try_direct_step(Vector2i(-1, 0))
+		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
+	elif event.is_action_pressed("ui_right"):
+		_try_direct_step(Vector2i(1, 0))
+		_input_delay = INPUT_DELAY_INITIAL
+		handled = true
+
+	# Accept key - Confirm position and open action menu
+	if event.is_action_pressed("ui_accept"):
+		# Check if we can confirm at this position (not on ally)
+		if _can_confirm_direct_position():
+			set_state(InputState.SELECTING_ACTION)
+		handled = true
+
+	# Cancel key - SF2-style B button behavior
+	if event.is_action_pressed("sf_cancel"):
+		if active_unit.grid_position != movement_start_cell:
+			# Unit has moved - cancel all movement and return to start
+			_cancel_direct_movement()
+			_update_direct_movement_range()
+			# Stay in DIRECT_MOVEMENT to try again
+		else:
+			# Already at start - enter inspection mode
+			current_cursor_position = active_unit.grid_position
+			set_state(InputState.INSPECTING)
+		handled = true
+
+	if handled:
+		get_viewport().set_input_as_handled()
+
+
+## Check if unit can confirm its current position (not standing on an ally)
+func _can_confirm_direct_position() -> bool:
+	var occupant: Node2D = GridManager.get_unit_at_cell(active_unit.grid_position)
+	if occupant and occupant != active_unit:
+		# Standing on another unit (ally pass-through) - can't confirm here
+		AudioManager.play_sfx("movement_blocked", AudioManager.SFXCategory.UI)
+		return false
+	return true

@@ -69,8 +69,6 @@ func setup_grid(p_grid: Grid, p_tilemap: TileMapLayer) -> void:
 	# Initialize A* grid
 	_setup_astar()
 
-	print("GridManager: Initialized with grid size %s, cell size %d" % [grid.grid_size, grid.cell_size])
-
 
 ## Set up the A* pathfinding grid
 func _setup_astar() -> void:
@@ -89,8 +87,6 @@ func _setup_astar() -> void:
 		for y in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
 			_astar.set_point_solid(cell, false)
-
-	print("GridManager: A* grid initialized")
 
 
 ## Set terrain cost for a specific tile type and movement type
@@ -362,13 +358,13 @@ func move_unit(unit: Node, from: Vector2i, to: Vector2i) -> void:
 ## Set the highlight layer for visual feedback
 func set_highlight_layer(layer: TileMapLayer) -> void:
 	_highlight_layer = layer
-	print("GridManager: Highlight layer set")
 
 
 ## Highlight constants for tile source IDs
 const HIGHLIGHT_BLUE: int = 0    # Movement range
 const HIGHLIGHT_RED: int = 1     # Attack range
 const HIGHLIGHT_YELLOW: int = 2  # Target selection
+const HIGHLIGHT_GREEN: int = 3   # Current position (SF2-style direct movement)
 
 ## Highlight cells with a specific color (for movement range, attack range, etc.)
 ## Colors: 0 = movement (blue), 1 = attack (red), 2 = target (yellow)
@@ -377,9 +373,6 @@ func highlight_cells(cells: Array[Vector2i], color_type: int = 0, pulse: bool = 
 	if _highlight_layer == null:
 		push_warning("GridManager: No highlight layer set. Call set_highlight_layer() first.")
 		return
-
-	var color_name: String = ["blue", "red", "yellow"][color_type] if color_type < 3 else "unknown"
-	print("GridManager: Highlighting %d cells with color %s (type %d)" % [cells.size(), color_name, color_type])
 
 	for cell in cells:
 		if grid.is_within_bounds(cell):
@@ -412,12 +405,11 @@ func show_attack_range(from: Vector2i, weapon_range: int) -> void:
 	var attack_cells: Array[Vector2i] = []
 	for x in range(-weapon_range, weapon_range + 1):
 		for y in range(-weapon_range, weapon_range + 1):
-			var target_cell := Vector2i(from.x + x, from.y + y)
+			var target_cell: Vector2i = Vector2i(from.x + x, from.y + y)
 			var distance: int = abs(x) + abs(y)
 			if distance > 0 and distance <= weapon_range and grid.is_within_bounds(target_cell):
 				attack_cells.append(target_cell)
 
-	print("GridManager: Showing attack range from %s with range %d - %d cells" % [from, weapon_range, attack_cells.size()])
 	highlight_cells(attack_cells, HIGHLIGHT_RED)
 
 
@@ -488,8 +480,6 @@ func clear_grid() -> void:
 	_occupied_cells.clear()
 	_terrain_costs.clear()
 	_highlight_layer = null
-
-	print("GridManager: Grid cleared")
 
 
 ## Get distance between two cells (Manhattan distance)
