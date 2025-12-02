@@ -1,5 +1,12 @@
 # Opening Cinematic Implementation Plan
 
+**Status:** ✅ COMPLETE (Scene implemented in _sandbox mod)
+**Author:** Lt. Claudbrain
+**Date:** November 2025
+**Last Reviewed:** December 1, 2025
+
+---
+
 ## Mission Brief
 
 Captain, this document outlines the implementation plan for the opening cinematic of The Sparkling Farce. Inspired by Shining Force 2's iconic temple opening (where Slade discovers the jewel), our version will feature Spade and Henchman in an original scenario that establishes intrigue while demonstrating the cinematic system's capabilities.
@@ -644,3 +651,29 @@ Make it so, Captain.
 ---
 
 *Plan authored by Lt. Claudbrain, Stardate 2025.330*
+
+---
+
+## Implementation Notes (December 1, 2025)
+
+**Status: ✅ COMPLETE**
+
+The opening cinematic scene has been implemented in the _sandbox mod:
+
+**Implementation Files:**
+- `mods/_sandbox/scenes/cinematics/opening_cinematic_stage.tscn` - Stage scene with actors
+- `mods/_sandbox/scenes/cinematics/opening_cinematic_stage.gd` - Stage controller script
+
+**Features Implemented:**
+- CinematicActor registration with CinematicsManager
+- Camera registration
+- Dialog box integration with DialogManager
+- Cinematic playback from ModRegistry (game_opening)
+- Scene transition to main menu after completion
+
+**Future Polish (from Part 6):**
+- Background music (awaiting AudioManager)
+- Sound effects
+- Animated sprites (currently ColorRect placeholders)
+- Particle effects
+- Proper tilemap background

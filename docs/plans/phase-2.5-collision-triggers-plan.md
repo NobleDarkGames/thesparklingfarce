@@ -1,8 +1,8 @@
 # Phase 2.5: Map Collision & Trigger System Implementation Plan
 
 **Date:** November 25, 2025
-**Status:** APPROVED by Commander Claudius
-**Priority:** CRITICAL - Blocks all Phase 4+ work
+**Status:** ✅ COMPLETE (November 2025)
+**Priority:** CRITICAL - Blocks all Phase 4+ work (unblocked)
 
 ---
 
@@ -336,23 +336,23 @@ MapScene (Node2D)
 
 ## TESTING CHECKLIST
 
-### Phase 1 Tests (Collision)
-- [ ] Hero cannot walk through gray wall tiles
-- [ ] Hero cannot walk into blue water tiles
-- [ ] Hero CAN walk on green grass tiles
-- [ ] Hero CAN walk on brown road tiles
-- [ ] Party followers respect collision
-- [ ] Camera follows hero smoothly
-- [ ] Movement animation plays correctly
+### Phase 1 Tests (Collision) ✅
+- [x] Hero cannot walk through gray wall tiles
+- [x] Hero cannot walk into blue water tiles
+- [x] Hero CAN walk on green grass tiles
+- [x] Hero CAN walk on brown road tiles
+- [x] Party followers respect collision
+- [x] Camera follows hero smoothly
+- [x] Movement animation plays correctly
 
-### Phase 2 Tests (Triggers)
-- [ ] Stepping on battle trigger initiates battle
-- [ ] Battle trigger only fires once (one-shot)
-- [ ] Required flags prevent trigger activation
-- [ ] Forbidden flags prevent trigger activation
-- [ ] After battle victory, return to map at correct position
-- [ ] Trigger marked as completed in GameState
-- [ ] Save system persists completed triggers
+### Phase 2 Tests (Triggers) ✅
+- [x] Stepping on battle trigger initiates battle
+- [x] Battle trigger only fires once (one-shot)
+- [x] Required flags prevent trigger activation
+- [x] Forbidden flags prevent trigger activation
+- [x] After battle victory, return to map at correct position
+- [x] Trigger marked as completed in GameState
+- [x] Save system persists completed triggers
 
 ---
 
@@ -398,3 +398,23 @@ Only proceed to these after Phase 2.5 is COMPLETE:
 - `/home/user/dev/sparklingfarce/scenes/map_exploration/map_test.tscn`
 - Godot 4.5 TileMapLayer documentation
 - Shining Force game design patterns
+
+---
+
+## COMPLETION NOTES (December 1, 2025)
+
+**Phase 2.5 is COMPLETE.** All critical infrastructure has been implemented:
+
+- Collision detection working via TileMapLayer physics layers
+- MapTrigger base class with Area2D-based detection
+- TriggerManager dispatcher for battle/dialog/transition triggers
+- GameState story flag system with persistence
+- Full explore → battle → explore loop functional
+
+**Implementation Files:**
+- `core/components/map_trigger.gd` - Base trigger class
+- `core/systems/trigger_manager.gd` - Trigger dispatcher
+- `core/systems/game_state.gd` - Story flag system
+- `mods/_base_game/tilesets/terrain_placeholder.tres` - Tileset with collision
+
+**Next Phase:** Phase 2.5.1 (Mod Extensibility) addresses remaining moddability gaps identified by Modro.

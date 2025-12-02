@@ -63,3 +63,114 @@ The overworld "zoomed out" feel vs town "zoomed in" feel is achieved through **a
 This means one map system with configurable art assets can achieve both visual styles.
 
 **Reference**: See `docs/design/sf1_vs_sf2_world_map_analysis.md` for the complete analysis with fan quotes and technical details.
+
+## Mod System Architecture ("The Game is Just a Mod")
+
+**Core Philosophy: The platform provides infrastructure; mods provide content.**
+
+The Sparkling Farce is designed as a modding platform first. The "base game" is itself a mod that uses the exact same systems as third-party content. This means:
+- No hardcoded game content in `core/`
+- All characters, items, battles, maps, and story content live in `mods/`
+- Third-party mods can override, extend, or completely replace base content
+- Total conversion mods are a first-class use case
+
+### Directory Structure
+
+```
+core/                          # Platform code ONLY (never game content)
+  mod_system/                  # ModLoader, ModRegistry, ModManifest
+  resources/                   # Resource class definitions (CharacterData, ItemData, etc.)
+  registries/                  # Type registries for mod-extensible enums
+  systems/                     # Game systems (BattleManager, DialogManager, etc.)
+  components/                  # Reusable node components
+
+mods/                          # ALL game content lives here
+  _base_game/                  # Official base content (load_priority: 0)
+    mod.json                   # Manifest with id, name, priority, dependencies
+    data/                      # Resource files by type
+      characters/              # CharacterData .tres files
+      classes/                 # ClassData .tres files
+      items/                   # ItemData .tres files
+      battles/                 # BattleData .tres files
+      campaigns/               # CampaignData .json files
+      cinematics/              # CinematicData .json files
+      dialogues/               # DialogueData .tres files
+      maps/                    # MapMetadata .json files
+      parties/                 # PartyData .tres files
+      abilities/               # AbilityData .tres files
+    assets/                    # Art, audio, animations
+    scenes/                    # Moddable scenes (menus, etc.)
+    tilesets/                  # TileSet resources
+    triggers/                  # Custom trigger scripts
+  _sandbox/                    # Development/testing mod (load_priority: 100)
+```
+
+### How Resources Flow Through the System
+
+1. **Discovery**: ModLoader scans `mods/` for folders with `mod.json`
+2. **Priority Sort**: Mods sorted by `load_priority` (0=base, 100-8999=user, 9000+=total conversion)
+3. **Loading**: Each mod's `data/` directory scanned for resource files
+4. **Registration**: Resources registered in ModRegistry with type, ID, and source mod
+5. **Override**: Later mods (higher priority) can override earlier resources with same ID
+6. **Access**: Systems use `ModLoader.registry.get_resource(type, id)` to retrieve content
+
+### Key Patterns for Agents
+
+**When adding new content:**
+- Place resource files in `mods/_base_game/data/<type>/` or `mods/_sandbox/data/<type>/`
+- Never add game content to `core/` - that is platform code only
+- Use existing resource classes from `core/resources/`
+
+**When adding new resource types:**
+1. Create the Resource class in `core/resources/` (e.g., `my_type_data.gd`)
+2. Add the type mapping in `ModLoader.RESOURCE_TYPE_DIRS`
+3. Resources will be auto-discovered from `mods/*/data/<type_dir>/`
+
+**When accessing content from code:**
+```gdscript
+# Get single resource by type and ID
+var character: CharacterData = ModLoader.registry.get_resource("character", "max")
+
+# Get all resources of a type
+var all_battles: Array[Resource] = ModLoader.registry.get_all_resources("battle")
+
+# Check if resource exists
+if ModLoader.registry.has_resource("item", "healing_herb"):
+    # Use item
+
+# Get registered scene path
+var menu_path: String = ModLoader.registry.get_scene_path("main_menu")
+```
+
+**When extending type systems (e.g., weapon types):**
+- Mods can register new enum-like values in `mod.json` under `custom_types`
+- Type registries in `core/registries/` merge base + mod definitions
+- Example: Add `"custom_weapon_types": ["laser", "plasma"]` to mod.json
+
+### Load Priority Strategy
+
+| Range | Purpose | Example |
+|-------|---------|---------|
+| 0-99 | Official core content | `_base_game` (priority 0) |
+| 100-8999 | User mods, add-ons | `_sandbox` (priority 100), expansion packs |
+| 9000-9999 | Total conversions, override mods | Complete game replacements |
+
+Higher priority mods override lower priority resources with matching IDs. Same-priority mods load alphabetically by mod_id.
+
+### What Makes Total Conversion Possible
+
+1. **Scene Registration**: Mods can override any registered scene (main_menu, battle_scene, etc.)
+2. **Resource Override**: Same-ID resources from higher-priority mods replace base content
+3. **Type Extension**: Mods can add new weapon types, unit categories, weather types, etc.
+4. **Dependency System**: Mods can declare dependencies on other mods
+5. **No Hardcoded Content**: All game content flows through the registry, so it can all be replaced
+
+### Common Mistakes to Avoid
+
+- **DO NOT** put game content (characters, items, battles) in `core/`
+- **DO NOT** hardcode resource paths - use `ModLoader.registry.get_resource()`
+- **DO NOT** assume `_base_game` content exists - mods might remove/replace it
+- **DO** use namespaced IDs for mod-specific content to avoid collisions
+- **DO** declare mod dependencies if your content requires another mod
+
+**Reference**: See `docs/plans/phase-2.5.1-mod-extensibility-plan.md` for planned improvements to trigger discovery, type extensibility, and flag namespacing.
