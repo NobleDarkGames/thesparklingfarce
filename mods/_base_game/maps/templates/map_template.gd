@@ -53,8 +53,8 @@ const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd
 # NODE REFERENCES
 # =============================================================================
 
-## The player character - must be in "hero" group for triggers to work
-@onready var hero: CharacterBody2D = $Hero
+## The player character - dynamically created from PartyManager
+var hero: CharacterBody2D = null
 
 ## Camera that follows the hero
 @onready var camera: Camera2D = $MapCamera
@@ -64,6 +64,9 @@ const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd
 
 ## Container for dynamically created party followers
 @onready var followers_container: Node2D = $Followers
+
+## Party data loaded from PartyManager
+var party_characters: Array[CharacterData] = []
 
 
 # =============================================================================
@@ -81,8 +84,20 @@ var party_followers: Array[CharacterBody2D] = []
 func _ready() -> void:
 	_debug_print("MapTemplate: Initializing...")
 
-	# CRITICAL: Handle transitions FIRST (restores hero position)
-	# This handles both battle returns AND door transitions with spawn points
+	# Load party from PartyManager
+	_load_party()
+
+	# Dynamically create hero from first party member
+	_create_hero()
+
+	# Initialize hero's tile history for formation trail BEFORE creating followers
+	if hero and hero.has_method("initialize_formation_history"):
+		hero.call("initialize_formation_history")
+
+	# Create party followers from remaining party members
+	_setup_party_followers()
+
+	# CRITICAL: Handle transitions (restores hero position after battle/door)
 	var context: RefCounted = GameState.get_transition_context()
 	if context:
 		await _handle_transition_context(context)
@@ -92,9 +107,6 @@ func _ready() -> void:
 
 	# Setup camera to follow hero
 	_setup_camera()
-
-	# Create party followers from PartyManager (if available)
-	_setup_party_followers()
 
 	# Connect hero signals for custom behavior
 	_connect_hero_signals()
@@ -196,6 +208,92 @@ func _restore_from_battle() -> void:
 
 
 # =============================================================================
+# DYNAMIC PARTY CREATION
+# =============================================================================
+
+## Load party members from PartyManager
+func _load_party() -> void:
+	_debug_print("MapTemplate: Loading party...")
+
+	if PartyManager and PartyManager.party_members.size() > 0:
+		party_characters = PartyManager.party_members.duplicate()
+		_debug_print("  Loaded %d characters from PartyManager" % party_characters.size())
+		for character: CharacterData in party_characters:
+			if character:
+				var class_name_str: String = character.character_class.display_name if character.character_class else "Unknown"
+				_debug_print("    - %s (%s)" % [character.character_name, class_name_str])
+	else:
+		push_warning("MapTemplate: PartyManager is empty! Loading fallback test party...")
+		# Fallback: try to load a character from ModRegistry
+		var hero_char: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+		if hero_char:
+			party_characters.append(hero_char)
+			_debug_print("  Loaded fallback hero: %s" % hero_char.character_name)
+
+	if party_characters.is_empty():
+		push_error("MapTemplate: No party members available! Cannot create hero.")
+
+
+## Create the hero from the first party member
+func _create_hero() -> void:
+	_debug_print("MapTemplate: Creating hero...")
+
+	if party_characters.is_empty():
+		push_error("MapTemplate: Cannot create hero - no party members!")
+		return
+
+	var hero_data: CharacterData = party_characters[0]
+
+	hero = CharacterBody2D.new()
+	hero.set_script(HeroControllerScript)
+	hero.name = "Hero"
+	hero.z_index = 100  # Hero on top of all party members
+	hero.add_to_group("hero")  # Required for MapTrigger detection
+	hero.collision_mask = 2  # Match expected collision settings
+
+	# Add visual representation using character's battle_sprite
+	var visual_container: Node2D = Node2D.new()
+	visual_container.name = "Visual"
+	hero.add_child(visual_container)
+
+	if hero_data.battle_sprite:
+		var sprite: Sprite2D = Sprite2D.new()
+		sprite.texture = hero_data.battle_sprite
+		sprite.name = "Sprite"
+		visual_container.add_child(sprite)
+		_debug_print("  Using battle_sprite: %s" % hero_data.battle_sprite.resource_path)
+	else:
+		# Fallback: colored square if no battle_sprite
+		var sprite_rect: ColorRect = ColorRect.new()
+		sprite_rect.custom_minimum_size = Vector2(24, 24)
+		sprite_rect.position = Vector2(-12, -12)
+		sprite_rect.color = Color(0.2, 0.8, 0.2)  # Green for hero
+		sprite_rect.name = "SpriteRect"
+		visual_container.add_child(sprite_rect)
+		_debug_print("  Using fallback green square (no battle_sprite)")
+
+	# Collision shape
+	var collision: CollisionShape2D = CollisionShape2D.new()
+	var shape: CircleShape2D = CircleShape2D.new()
+	shape.radius = 4.0
+	collision.shape = shape
+	collision.name = "CollisionShape2D"
+	hero.add_child(collision)
+
+	# Interaction ray
+	var interaction_ray: RayCast2D = RayCast2D.new()
+	interaction_ray.enabled = true
+	interaction_ray.target_position = Vector2(32, 0)
+	interaction_ray.name = "InteractionRay"
+	hero.add_child(interaction_ray)
+
+	# Add hero to scene (position will be set by spawn point handling)
+	add_child(hero)
+
+	_debug_print("  Hero created: %s" % hero_data.character_name)
+
+
+# =============================================================================
 # CAMERA SETUP
 # =============================================================================
 
@@ -216,16 +314,22 @@ func _setup_camera() -> void:
 
 ## Creates visual follower sprites for party members.
 ## SF2-style CHAIN FOLLOWING: Each follower follows the one in front of them.
-## TODO: Integrate with PartyManager to use actual party data
+## Uses actual party data from PartyManager for sprites.
 func _setup_party_followers() -> void:
-	# TODO: Get actual party from PartyManager
-	# var party: Array = PartyManager.get_party_members()
-	# For now, create placeholder followers for testing
+	_debug_print("MapTemplate: Setting up party followers...")
 
-	var num_followers: int = mini(MAX_VISIBLE_FOLLOWERS, 3)
+	if not hero:
+		push_warning("MapTemplate: Cannot create followers - hero not created")
+		return
+
+	# Skip first member (that's the hero) - create followers from remaining party
+	var num_followers: int = mini(party_characters.size() - 1, MAX_VISIBLE_FOLLOWERS)
 
 	for i: int in range(num_followers):
-		var follower: CharacterBody2D = _create_follower(i)
+		var char_index: int = i + 1  # Skip hero at index 0
+		var char_data: CharacterData = party_characters[char_index]
+
+		var follower: CharacterBody2D = _create_follower(i, char_data)
 		followers_container.add_child(follower)
 		party_followers.append(follower)
 
@@ -235,26 +339,46 @@ func _setup_party_followers() -> void:
 		else:
 			follower.set_follow_target(party_followers[i - 1])
 
+		_debug_print("  Follower %d: %s (following %s)" % [
+			i + 1,
+			char_data.character_name,
+			"hero" if i == 0 else party_characters[i].character_name
+		])
+
 	_debug_print("MapTemplate: Created %d party followers (chain following)" % num_followers)
 
 
-## Creates a single follower node.
+## Creates a single follower node from CharacterData.
 ## SF2-style: each follower is positioned behind hero based on formation_index.
-func _create_follower(index: int) -> CharacterBody2D:
+func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 	var follower: CharacterBody2D = CharacterBody2D.new()
 	follower.set_script(PartyFollowerScript)
-	follower.name = "Follower%d" % (index + 1)
+	follower.name = "Follower_%s" % char_data.character_name
 	follower.formation_index = index + 1  # SF2-style: position in formation behind hero
 	follower.tile_size = hero.tile_size if hero else 32
+	follower.z_index = 90 - index  # Followers below hero, in reverse order
 
-	# Placeholder visual (replace with actual sprites)
-	# Size 24x24 to match battle unit placeholders and be visible at 0.8x zoom
-	var visual: ColorRect = ColorRect.new()
-	visual.custom_minimum_size = Vector2(24, 24)
-	visual.position = Vector2(-12, -12)
-	visual.color = Color(0.3 + index * 0.15, 0.5, 0.8 - index * 0.15)
-	visual.name = "SpriteVisual"
-	follower.add_child(visual)
+	# Add visual representation using character's battle_sprite
+	var visual_container: Node2D = Node2D.new()
+	visual_container.name = "Visual"
+	follower.add_child(visual_container)
+
+	if char_data.battle_sprite:
+		var sprite: Sprite2D = Sprite2D.new()
+		sprite.texture = char_data.battle_sprite
+		sprite.name = "Sprite"
+		visual_container.add_child(sprite)
+	else:
+		# Fallback: colored square if no battle_sprite
+		var hue: float = float(index) / float(maxi(party_characters.size(), 1))
+		var follower_color: Color = Color.from_hsv(hue, 0.6, 0.9)
+
+		var sprite_rect: ColorRect = ColorRect.new()
+		sprite_rect.custom_minimum_size = Vector2(24, 24)
+		sprite_rect.position = Vector2(-12, -12)
+		sprite_rect.color = follower_color
+		sprite_rect.name = "SpriteRect"
+		visual_container.add_child(sprite_rect)
 
 	# Collision shape
 	var collision: CollisionShape2D = CollisionShape2D.new()
