@@ -135,18 +135,25 @@ func _create_hero() -> void:
 	hero.z_index = 100  # Hero on top of all party members
 	hero.add_to_group("hero")  # Required for MapTrigger detection
 
-	# Add visual representation (colored square with label)
+	# Add visual representation using character's battle_sprite
 	var visual_container: Node2D = Node2D.new()
 	visual_container.name = "Visual"
 	hero.add_child(visual_container)
 
-	# Character sprite (colored square for now)
-	var sprite_rect: ColorRect = ColorRect.new()
-	sprite_rect.custom_minimum_size = Vector2(28, 28)
-	sprite_rect.position = Vector2(-14, -14)
-	sprite_rect.color = Color(0.2, 0.8, 0.2)  # Green for hero
-	sprite_rect.name = "SpriteRect"
-	visual_container.add_child(sprite_rect)
+	# Character sprite - use battle_sprite from CharacterData
+	if hero_data.battle_sprite:
+		var sprite: Sprite2D = Sprite2D.new()
+		sprite.texture = hero_data.battle_sprite
+		sprite.name = "Sprite"
+		visual_container.add_child(sprite)
+	else:
+		# Fallback: colored square if no battle_sprite
+		var sprite_rect: ColorRect = ColorRect.new()
+		sprite_rect.custom_minimum_size = Vector2(28, 28)
+		sprite_rect.position = Vector2(-14, -14)
+		sprite_rect.color = Color(0.2, 0.8, 0.2)  # Green for hero
+		sprite_rect.name = "SpriteRect"
+		visual_container.add_child(sprite_rect)
 
 	# Character name label (hidden in map mode to avoid overlap)
 	# var name_label: Label = Label.new()
@@ -193,21 +200,28 @@ func _create_followers() -> void:
 		follower.set("formation_index", i)  # 1, 2, 3... for identification
 		follower.set("tile_size", 32)
 
-		# Add visual representation
+		# Add visual representation using character's battle_sprite
 		var visual_container: Node2D = Node2D.new()
 		visual_container.name = "Visual"
 		follower.add_child(visual_container)
 
-		# Different color for each follower
-		var hue: float = float(i) / float(party_characters.size())
-		var follower_color: Color = Color.from_hsv(hue, 0.6, 0.9)
+		# Character sprite - use battle_sprite from CharacterData
+		if char_data.battle_sprite:
+			var sprite: Sprite2D = Sprite2D.new()
+			sprite.texture = char_data.battle_sprite
+			sprite.name = "Sprite"
+			visual_container.add_child(sprite)
+		else:
+			# Fallback: colored square if no battle_sprite
+			var hue: float = float(i) / float(party_characters.size())
+			var follower_color: Color = Color.from_hsv(hue, 0.6, 0.9)
 
-		var sprite_rect: ColorRect = ColorRect.new()
-		sprite_rect.custom_minimum_size = Vector2(24, 24)
-		sprite_rect.position = Vector2(-12, -12)
-		sprite_rect.color = follower_color
-		sprite_rect.name = "SpriteRect"
-		visual_container.add_child(sprite_rect)
+			var sprite_rect: ColorRect = ColorRect.new()
+			sprite_rect.custom_minimum_size = Vector2(24, 24)
+			sprite_rect.position = Vector2(-12, -12)
+			sprite_rect.color = follower_color
+			sprite_rect.name = "SpriteRect"
+			visual_container.add_child(sprite_rect)
 
 		# Character name label (hidden in map mode to avoid overlap)
 		# var name_label: Label = Label.new()
