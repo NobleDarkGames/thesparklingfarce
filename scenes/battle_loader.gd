@@ -34,7 +34,6 @@ const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
 
 var _ground_layer: TileMapLayer = null
 var _highlight_layer: TileMapLayer = null
-var _highlight_visuals: Dictionary = {}  # {Vector2i: ColorRect}
 var _player_units: Array[Node2D] = []  # All player units
 var _enemy_units: Array[Node2D] = []  # All enemy units
 var _neutral_units: Array[Node2D] = []  # All neutral units

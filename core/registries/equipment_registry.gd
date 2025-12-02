@@ -40,7 +40,6 @@ func register_weapon_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_weapon_types[mod_id] = typed_array
 		_cache_dirty = true
-		print("EquipmentRegistry: Registered weapon types from '%s': %s" % [mod_id, typed_array])
 
 
 ## Register armor types from a mod
@@ -54,7 +53,6 @@ func register_armor_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_armor_types[mod_id] = typed_array
 		_cache_dirty = true
-		print("EquipmentRegistry: Registered armor types from '%s': %s" % [mod_id, typed_array])
 
 
 ## Unregister all types from a mod (called when mod is unloaded)

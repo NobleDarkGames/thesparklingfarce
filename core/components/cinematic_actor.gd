@@ -103,9 +103,6 @@ func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0)
 		movement_completed.emit()
 		return
 
-	print("CinematicActor[%s]: move_along_path_direct() - path has %d cells, speed=%.1f" % [actor_id, complete_path.size(), speed])
-	print("  Path: %s" % str(complete_path.slice(0, min(5, complete_path.size()))))  # Show first 5 cells
-
 	is_moving = true
 
 	# Delegate directly to parent entity's move_along_path
@@ -124,7 +121,6 @@ func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0)
 			_stop_movement()
 	else:
 		# Fallback for simple test entities without Unit component
-		print("  → Using simple movement fallback (parent has no move_along_path)")
 		_use_simple_movement_direct(complete_path, speed if speed > 0 else default_speed)
 
 
@@ -250,8 +246,6 @@ func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -
 	for cell: Vector2i in complete_path:
 		world_path.append(GridManager.cell_to_world(cell))
 
-	print("  Simple movement: %d world positions, from %s to %s" % [world_path.size(), parent_entity.global_position, world_path[-1] if world_path.size() > 0 else "N/A"])
-
 	# Simple tween movement
 	var move_tween: Tween = create_tween()
 	move_tween.set_trans(Tween.TRANS_LINEAR)
@@ -266,7 +260,6 @@ func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -
 		total_duration += duration
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
 
-	print("  Total movement duration: %.2f seconds" % total_duration)
 	move_tween.tween_callback(func() -> void: _stop_movement())
 
 

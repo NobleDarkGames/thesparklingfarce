@@ -36,7 +36,6 @@ func register_categories(mod_id: String, categories: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_categories[mod_id] = typed_array
 		_cache_dirty = true
-		print("UnitCategoryRegistry: Registered categories from '%s': %s" % [mod_id, typed_array])
 
 
 ## Unregister all categories from a mod (called when mod is unloaded)

@@ -100,7 +100,6 @@ func change_scene(scene_path: String, use_fade: bool = true) -> void:
 	previous_scene_path = current_scene_path
 
 	scene_transition_started.emit(current_scene_path, scene_path)
-	print("[FLOW] Scene: %s -> %s" % [current_scene_path.get_file(), scene_path.get_file()])
 
 	if use_fade:
 		# Only fade to black if not already black

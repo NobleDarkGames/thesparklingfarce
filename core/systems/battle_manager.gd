@@ -87,8 +87,6 @@ func start_battle(battle_data: Resource) -> void:
 	current_battle_data = battle_data
 	battle_active = true
 
-	print("[FLOW] === BATTLE START: %s ===" % battle_data.battle_name)
-
 	# 0. Set active mod for audio system
 	_initialize_audio()
 
@@ -107,9 +105,7 @@ func start_battle(battle_data: Resource) -> void:
 	# 5. Connect signals for battle flow
 	_connect_signals()
 
-	# 6. Show pre-battle dialogue (TODO: Phase 4)
-	# if battle_data.pre_battle_dialogue:
-	#     await _show_dialogue(battle_data.pre_battle_dialogue)
+	# TODO: Phase 4 - Show pre-battle dialogue
 
 	battle_started.emit(battle_data)
 
@@ -274,9 +270,6 @@ func _spawn_all_units() -> void:
 	all_units.append_array(player_units)
 	all_units.append_array(enemy_units)
 	all_units.append_array(neutral_units)
-
-	print("[FLOW] Units: %d player, %d enemy, %d neutral" % [
-		player_units.size(), enemy_units.size(), neutral_units.size()])
 
 
 ## Spawn units from array of dictionaries
@@ -663,10 +656,7 @@ func _on_battle_ended(victory: bool) -> void:
 	battle_active = false
 
 	if victory:
-		print("[FLOW] === BATTLE VICTORY ===")
 		GameState.increment_campaign_data("battles_won")
-	else:
-		print("[FLOW] === BATTLE DEFEAT ===")
 
 	battle_ended.emit(victory)
 
@@ -754,8 +744,6 @@ func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
 
 ## Handle unit level up
 func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
-	print("[FLOW] LEVEL UP: %s Lv%d -> Lv%d" % [unit.get_display_name(), old_level, new_level])
-
 	# Queue the level-up for display
 	_pending_level_ups.append({
 		"unit": unit,
@@ -805,8 +793,7 @@ func _wait_for_level_ups() -> void:
 
 ## Handle unit learning ability
 func _on_unit_learned_ability(unit: Node2D, ability: Resource) -> void:
-	var ability_name: String = ability.ability_name if ability else "Unknown"
-	print("[FLOW] %s learned: %s" % [unit.get_display_name(), ability_name])
+	pass  # Future: Show ability learned notification
 
 
 ## Show combat results panel with queued XP entries

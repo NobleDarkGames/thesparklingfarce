@@ -40,7 +40,6 @@ func register_weather_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_weather_types[mod_id] = typed_array
 		_cache_dirty = true
-		print("EnvironmentRegistry: Registered weather types from '%s': %s" % [mod_id, typed_array])
 
 
 ## Register time of day options from a mod
@@ -54,7 +53,6 @@ func register_time_of_day(mod_id: String, times: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_time_of_day[mod_id] = typed_array
 		_cache_dirty = true
-		print("EnvironmentRegistry: Registered time of day from '%s': %s" % [mod_id, typed_array])
 
 
 ## Unregister all types from a mod (called when mod is unloaded)

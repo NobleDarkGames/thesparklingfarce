@@ -212,7 +212,6 @@ func start_campaign(campaign_id: String) -> bool:
 	GameState.set_campaign_data("current_node_id", "")
 
 	campaign_started.emit(campaign)
-	print("[FLOW] Campaign started: '%s' -> starting_node: '%s'" % [campaign.campaign_name, campaign.starting_node_id])
 
 	# Enter starting node
 	return await enter_node(campaign.starting_node_id)
@@ -278,7 +277,6 @@ func enter_node(node_id: String) -> bool:
 	_check_chapter_transition(node)
 
 	node_entered.emit(node)
-	print("[FLOW] Entered node: '%s' (type: %s)" % [node.display_name, node.node_type])
 
 	# Play pre-cinematic if present
 	if not node.pre_cinematic_id.is_empty():
@@ -439,7 +437,6 @@ func complete_current_node(outcome: Dictionary) -> void:
 		await _play_cinematic(current_node.post_cinematic_id)
 
 	node_completed.emit(current_node, outcome)
-	print("[FLOW] Completed node: '%s'" % current_node.display_name)
 
 	# Find and execute transition
 	_execute_transition(outcome)
@@ -501,7 +498,6 @@ func request_egress() -> bool:
 		return false
 
 	egress_requested.emit()
-	print("[FLOW] Egress -> hub: '%s'" % egress_target)
 	await enter_node(egress_target)
 	return true
 
@@ -527,8 +523,6 @@ func trigger_encounter(battle_id: String, return_position: Vector2, return_facin
 		"node_id": current_node.node_id if current_node else "",
 		"is_encounter": true
 	}
-
-	print("[FLOW] Triggering encounter: '%s' (return to %s)" % [battle_id, current_scene_path])
 
 	# Store encounter context in GameState for battle return
 	GameState.set_campaign_data("encounter_battle_id", battle_id)
@@ -572,8 +566,6 @@ func _handle_encounter_return(victory: bool) -> void:
 	var facing: String = _return_context.get("facing", "")
 	var original_node_id: String = _return_context.get("node_id", "")
 
-	print("[FLOW] Encounter return -> %s (victory: %s)" % [scene_path, victory])
-
 	# Emit signal so scenes can prepare for position restoration
 	encounter_return.emit(scene_path, position, facing)
 
@@ -601,7 +593,6 @@ func _execute_transition(outcome: Dictionary) -> void:
 		# No transition found - check for default hub fallback
 		if current_campaign and current_node.node_type == "battle":
 			if not current_campaign.default_hub_id.is_empty():
-				print("[FLOW] No transition -> default hub: '%s'" % current_campaign.default_hub_id)
 				enter_node(current_campaign.default_hub_id)
 				return
 
@@ -653,9 +644,6 @@ func _check_chapter_transition(node: Resource) -> void:
 	if chapter_id != current_chapter_id:
 		GameState.set_campaign_data("current_chapter_id", chapter_id)
 		chapter_started.emit(chapter)
-		var chapter_num: int = chapter.get("number", 0)
-		var chapter_name: String = chapter.get("name", "")
-		print("[FLOW] === CHAPTER %d: %s ===" % [chapter_num, chapter_name])
 
 
 # ==== Built-in Trigger Evaluators ====

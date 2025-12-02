@@ -47,7 +47,7 @@ const DEFAULT_FORMATION: Array[Vector2i] = [
 # ============================================================================
 
 func _ready() -> void:
-	print("PartyManager: Initialized")
+	pass
 
 
 # ============================================================================
@@ -69,8 +69,6 @@ func set_party(characters: Array[CharacterData]) -> void:
 	# Ensure hero is always first
 	_ensure_hero_is_leader()
 
-	print("PartyManager: Party set with %d members" % party_members.size())
-
 
 ## Add a character to the party
 ## @param character: CharacterData to add
@@ -84,11 +82,6 @@ func add_member(character: CharacterData) -> bool:
 		return false
 
 	party_members.append(character)
-	print("PartyManager: Added %s to party (%d/%d)" % [
-		character.character_name,
-		party_members.size(),
-		MAX_PARTY_SIZE
-	])
 	return true
 
 
@@ -107,14 +100,12 @@ func remove_member(character: CharacterData) -> bool:
 		return false
 
 	party_members.remove_at(index)
-	print("PartyManager: Removed %s from party" % character.character_name)
 	return true
 
 
 ## Clear the entire party
 func clear_party() -> void:
 	party_members.clear()
-	print("PartyManager: Party cleared")
 
 
 ## Load party from PartyData resource
@@ -133,11 +124,6 @@ func load_from_party_data(party_data: PartyData) -> void:
 	for member_dict in party_data.members:
 		if "character" in member_dict and member_dict.character:
 			party_members.append(member_dict.character)
-
-	print("PartyManager: Loaded party '%s' with %d members" % [
-		party_data.party_name,
-		party_members.size()
-	])
 
 
 ## Get party size
@@ -182,7 +168,6 @@ func _ensure_hero_is_leader() -> void:
 		var hero: CharacterData = party_members[hero_index]
 		party_members.remove_at(hero_index)
 		party_members.insert(0, hero)
-		print("PartyManager: Moved hero '%s' to leader position" % hero.character_name)
 	elif hero_index == -1:
 		push_warning("PartyManager: No hero found in party! This may cause issues.")
 
@@ -272,7 +257,6 @@ func export_to_save() -> Array[CharacterSaveData]:
 		char_save.populate_from_character_data(character_data)
 		save_array.append(char_save)
 
-	print("PartyManager: Exported %d party members to save data" % save_array.size())
 	return save_array
 
 
@@ -288,20 +272,11 @@ func import_from_save(saved_characters: Array[CharacterSaveData]) -> void:
 
 		if character_data:
 			party_members.append(character_data)
-			print("PartyManager: Imported character '%s' (Lv.%d)" % [
-				char_save.fallback_character_name,
-				char_save.level
-			])
 		else:
 			push_warning("PartyManager: Failed to import character '%s' from mod '%s'" % [
 				char_save.fallback_character_name,
 				char_save.character_mod_id
 			])
-
-	print("PartyManager: Imported %d/%d party members from save" % [
-		party_members.size(),
-		saved_characters.size()
-	])
 
 	# Ensure hero is at the front of the party
 	_ensure_hero_is_leader()

@@ -207,16 +207,9 @@ func _connect_signals() -> void:
 		InputManager.target_selected.connect(BattleManager._on_target_selected)
 
 
-## Print control instructions
+## Print control instructions - disabled for cleaner output
 func _print_controls() -> void:
-	print("\n=== Controls ===")
-	print("Arrow keys = Move cursor")
-	print("Enter/Space/Z = Confirm position / Open action menu")
-	print("Backspace/X = Free cursor inspect mode (B button)")
-	print("Arrow keys = Navigate action menu")
-	print("Enter/Space/Z = Confirm action")
-	print("Backspace/X in menu = Cancel and return to movement")
-	print("Q = Quit")
+	pass
 
 
 ## Start the battle with all spawned units
@@ -309,7 +302,6 @@ func _update_debug_label() -> void:
 ## TurnManager signal handlers
 
 func _on_player_turn_started(unit: Node2D) -> void:
-	print("\n>>> PLAYER'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
 	if _camera:
@@ -324,7 +316,6 @@ func _on_player_turn_started(unit: Node2D) -> void:
 
 
 func _on_enemy_turn_started(unit: Node2D) -> void:
-	print("\n>>> ENEMY'S TURN: %s <<<" % unit.get_display_name())
 	unit.show_selection()
 
 	if _camera:
@@ -337,7 +328,6 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 
 
 func _on_unit_turn_ended(unit: Node2D) -> void:
-	print(">>> Turn ended for: %s <<<" % unit.get_display_name())
 	unit.hide_selection()
 
 	if _stats_panel:
@@ -347,22 +337,13 @@ func _on_unit_turn_ended(unit: Node2D) -> void:
 
 
 func _on_battle_ended(victory: bool) -> void:
-	print("\n========== BATTLE OVER ==========")
-	if victory:
-		print("YOU WIN!")
-	else:
-		print("YOU LOSE!")
-	print("Press Q to quit")
+	# Battle result handled by BattleManager (victory/defeat screens)
+	pass
 
 
 func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
-	print("Combat: %s -> %s: %d damage (hit: %s, crit: %s)" % [
-		attacker.get_display_name(),
-		defender.get_display_name(),
-		damage,
-		hit,
-		crit
-	])
+	# Combat results displayed by CombatAnimationScene
+	pass
 
 
 ## Cleanup when scene is freed - disconnect from singletons to prevent stale references

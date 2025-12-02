@@ -22,18 +22,13 @@ func process_enemy_turn(unit: Node2D) -> void:
 
 	if not unit.is_alive():
 		# Dead units don't act, end turn immediately
-		print("%s AIController: Unit %s is dead, ending turn" % [TurnManager._get_elapsed_time(), unit.get_display_name()])
 		TurnManager.end_unit_turn(unit)
 		return
-
-	print("%s AIController: Processing turn for %s" % [TurnManager._get_elapsed_time(), unit.get_display_name()])
 
 	# Delay before enemy starts acting (gives player time to see whose turn it is)
 	# Skip in headless mode for faster automated testing
 	if delay_before_turn_start > 0 and not TurnManager.is_headless:
-		print("%s AIController: Waiting %.1fs before AI processing..." % [TurnManager._get_elapsed_time(), delay_before_turn_start])
 		await get_tree().create_timer(delay_before_turn_start).timeout
-		print("%s AIController: Pre-turn delay complete" % TurnManager._get_elapsed_time())
 
 	# Build context for AI decision-making
 	var context: Dictionary = _build_ai_context()
@@ -52,9 +47,7 @@ func process_enemy_turn(unit: Node2D) -> void:
 
 	# Execute AI brain if available
 	if unit.ai_brain:
-		print("%s AIController: Using AI brain: %s" % [TurnManager._get_elapsed_time(), unit.ai_brain.get_class()])
 		await unit.ai_brain.execute_async(unit, context)
-		print("%s AIController: AI brain execution complete" % TurnManager._get_elapsed_time())
 	else:
 		# No AI brain assigned - log warning
 		push_warning("AIController: Unit %s has no ai_brain assigned, ending turn" % unit.get_display_name())
@@ -62,10 +55,7 @@ func process_enemy_turn(unit: Node2D) -> void:
 	# End turn (only if not already ended by BattleManager during attack)
 	# This handles cases where AI doesn't attack (movement only, or stationary with no targets)
 	if TurnManager.active_unit == unit:
-		print("%s AIController: Ending turn for %s" % [TurnManager._get_elapsed_time(), unit.get_display_name()])
 		TurnManager.end_unit_turn(unit)
-	else:
-		print("%s AIController: Turn already ended (by combat), skipping end_unit_turn" % TurnManager._get_elapsed_time())
 
 
 ## Build context dictionary with current battle state

@@ -58,10 +58,6 @@ enum InterpolationType {
 @export_range(0.2, 2.0, 0.1) var cinematic_duration: float = 0.6
 @export var cinematic_interpolation: InterpolationType = InterpolationType.EASE_IN_OUT
 
-## Legacy exports (use camera_mode instead)
-@export_group("Legacy")
-@export var smooth_movement: bool = true  ## Always true now, use camera_mode for speed
-
 ## Dead zone - cursor must be this far from screen center before camera moves
 ## Measured in pixels at base resolution (640x360)
 @export var dead_zone_size: Vector2 = Vector2(160, 90)
@@ -125,8 +121,6 @@ func register_with_systems() -> void:
 	# Register with CinematicsManager for cinematic sequences
 	if CinematicsManager:
 		CinematicsManager.register_camera(self)
-
-	print("CameraController: Registered with TurnManager and CinematicsManager")
 
 
 ## Unregister from systems when being freed

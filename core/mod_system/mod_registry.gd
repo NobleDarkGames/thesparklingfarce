@@ -37,12 +37,7 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 	if not resource_type in _resources_by_type:
 		_resources_by_type[resource_type] = {}
 
-	# Check if this resource ID already exists (override scenario)
-	if resource_id in _resources_by_type[resource_type]:
-		var existing_mod: String = _resource_sources.get(resource_id, "unknown")
-		print("ModRegistry: Mod '%s' overriding resource '%s' from mod '%s'" % [mod_id, resource_id, existing_mod])
-
-	# Register the resource
+	# Register the resource (overrides any existing resource with same ID)
 	_resources_by_type[resource_type][resource_id] = resource
 	_resource_sources[resource_id] = mod_id
 
@@ -212,11 +207,7 @@ func register_scene(scene_id: String, scene_path: String, mod_id: String) -> voi
 		push_error("ModRegistry: Cannot register scene '%s' with empty path" % scene_id)
 		return
 
-	# Check if this scene ID already exists (override scenario)
-	if scene_id in _scenes:
-		var existing_mod: String = _scene_sources.get(scene_id, "unknown")
-		print("ModRegistry: Mod '%s' overriding scene '%s' from mod '%s'" % [mod_id, scene_id, existing_mod])
-
+	# Register scene (overrides any existing scene with same ID)
 	_scenes[scene_id] = scene_path
 	_scene_sources[scene_id] = mod_id
 
@@ -264,15 +255,16 @@ func get_statistics() -> Dictionary:
 	return stats
 
 
-## Print debug information about the registry
-func print_debug() -> void:
-	print("=== ModRegistry Debug ===")
-	print("Total resources: %d" % get_total_resource_count())
-	print("Resource types: %s" % str(get_resource_types()))
+## Get debug string about the registry (for debugging)
+func get_debug_string() -> String:
+	var output: String = "=== ModRegistry Debug ===\n"
+	output += "Total resources: %d\n" % get_total_resource_count()
+	output += "Resource types: %s\n" % str(get_resource_types())
 	for resource_type: String in get_resource_types():
-		print("  - %s: %d resources" % [resource_type, get_resource_count(resource_type)])
-	print("Registered scenes: %d" % get_scene_count())
+		output += "  - %s: %d resources\n" % [resource_type, get_resource_count(resource_type)]
+	output += "Registered scenes: %d\n" % get_scene_count()
 	for scene_id: String in get_scene_ids():
-		print("  - %s -> %s" % [scene_id, _scenes[scene_id]])
-	print("Loaded mods: %s" % str(_mod_resources.keys()))
-	print("========================")
+		output += "  - %s -> %s\n" % [scene_id, _scenes[scene_id]]
+	output += "Loaded mods: %s\n" % str(_mod_resources.keys())
+	output += "========================"
+	return output

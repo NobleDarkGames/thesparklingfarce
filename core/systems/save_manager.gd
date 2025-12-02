@@ -40,10 +40,8 @@ signal save_copied(from_slot: int, to_slot: int)
 # ============================================================================
 
 func _ready() -> void:
-	print("SaveManager: Initializing...")
 	_ensure_save_directory_exists()
 	_initialize_metadata_if_missing()
-	print("SaveManager: Ready")
 
 
 ## Ensure save directory exists
@@ -57,8 +55,6 @@ func _ensure_save_directory_exists() -> void:
 		var err: Error = dir.make_dir("saves")
 		if err != OK:
 			push_error("SaveManager: Failed to create saves directory: %d" % err)
-		else:
-			print("SaveManager: Created saves directory")
 
 
 ## Initialize metadata file if it doesn't exist
@@ -66,8 +62,6 @@ func _initialize_metadata_if_missing() -> void:
 	var metadata_path: String = SAVE_DIRECTORY.path_join(METADATA_FILE)
 
 	if not FileAccess.file_exists(metadata_path):
-		print("SaveManager: Initializing metadata file")
-
 		# Create empty metadata for all slots
 		var metadata_array: Array[SlotMetadata] = []
 		for i: int in range(MAX_SLOTS):
@@ -121,8 +115,6 @@ func save_to_slot(slot_number: int, save_data: SaveData) -> bool:
 	file.store_string(json_string)
 	file.close()
 
-	print("SaveManager: Saved game to slot %d" % slot_number)
-
 	# Update metadata
 	_update_metadata_for_slot(slot_number, save_data)
 
@@ -174,8 +166,6 @@ func load_from_slot(slot_number: int) -> SaveData:
 		push_error("SaveManager: Loaded SaveData from slot %d failed validation" % slot_number)
 		return null
 
-	print("SaveManager: Loaded game from slot %d" % slot_number)
-
 	save_loaded.emit(slot_number, save_data)
 	return save_data
 
@@ -203,8 +193,6 @@ func delete_slot(slot_number: int) -> bool:
 	if err != OK:
 		push_error("SaveManager: Failed to delete file: %s (error %d)" % [file_path, err])
 		return false
-
-	print("SaveManager: Deleted save from slot %d" % slot_number)
 
 	# Update metadata
 	_mark_slot_as_empty(slot_number)
@@ -239,7 +227,6 @@ func copy_slot(from_slot: int, to_slot: int) -> bool:
 	var success: bool = save_to_slot(to_slot, save_data)
 
 	if success:
-		print("SaveManager: Copied slot %d to slot %d" % [from_slot, to_slot])
 		save_copied.emit(from_slot, to_slot)
 
 	return success
@@ -431,13 +418,14 @@ func _get_slot_file_path(slot_number: int) -> String:
 # DEBUG METHODS
 # ============================================================================
 
-## Print all slot metadata (for debugging)
-func print_all_slots() -> void:
-	print("SaveManager: Slot Status:")
+## Get debug string for all slots (for debugging)
+func get_all_slots_debug_string() -> String:
+	var output: String = "SaveManager: Slot Status:\n"
 	var all_metadata: Array[SlotMetadata] = get_all_slot_metadata()
 
 	for meta: SlotMetadata in all_metadata:
 		if meta.is_occupied:
-			print("  Slot %d: %s" % [meta.slot_number, meta.get_display_string()])
+			output += "  Slot %d: %s\n" % [meta.slot_number, meta.get_display_string()]
 		else:
-			print("  Slot %d: Empty" % meta.slot_number)
+			output += "  Slot %d: Empty\n" % meta.slot_number
+	return output

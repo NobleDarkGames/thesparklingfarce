@@ -65,7 +65,6 @@ func register_offset_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_offset_types[mod_id] = typed_array
 		_cache_dirty = true
-		print("AnimationOffsetRegistry: Registered offset types from '%s': %s" % [mod_id, typed_array])
 
 
 ## Unregister all types from a mod (called when mod is unloaded)

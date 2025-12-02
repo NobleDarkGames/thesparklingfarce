@@ -27,7 +27,6 @@ enum State {
 signal cinematic_started(cinematic_id: String)
 signal cinematic_ended(cinematic_id: String)
 signal command_executed(command_type: String, command_index: int)
-signal cinematic_paused()
 signal cinematic_resumed()
 signal cinematic_skipped()
 
@@ -65,10 +64,6 @@ var _command_completed: bool = false
 ## Camera control (Phase 3: camera logic now in CameraController)
 var _active_camera: Camera2D = null
 var _camera_original_position: Vector2 = Vector2.ZERO
-
-## Fade overlay (DEPRECATED - use SceneManager.fade_to_black/fade_from_black instead)
-## Kept for backwards compatibility with custom mods that may reference it
-var _fade_overlay: ColorRect = null
 
 
 func _ready() -> void:
@@ -145,13 +140,11 @@ func register_command_executor(command_type: String, executor: CinematicCommandE
 		push_warning("CinematicsManager: Overwriting executor for command type '%s'" % command_type)
 
 	_command_executors[command_type] = executor
-	print("CinematicsManager: Registered executor for command type '%s'" % command_type)
 
 
 ## Unregister a command executor
 func unregister_command_executor(command_type: String) -> void:
-	if _command_executors.erase(command_type):
-		print("CinematicsManager: Unregistered executor for command type '%s'" % command_type)
+	_command_executors.erase(command_type)
 
 
 ## Register all built-in command executors (Phase 2)
@@ -188,8 +181,6 @@ func _register_built_in_commands() -> void:
 	register_command_executor("play_music", PlayMusicExecutor.new())
 	register_command_executor("spawn_entity", SpawnEntityExecutor.new())
 	register_command_executor("despawn_entity", DespawnEntityExecutor.new())
-
-	print("CinematicsManager: Registered 14 built-in command executors")
 
 
 ## Register a camera for cinematic control
@@ -434,15 +425,6 @@ func skip_cinematic() -> void:
 	_end_cinematic()
 
 
-## Pause the current cinematic
-func pause_cinematic() -> void:
-	if current_state != State.PLAYING:
-		return
-
-	current_state = State.PAUSED
-	emit_signal("cinematic_paused")
-
-
 ## Resume the paused cinematic
 func resume_cinematic() -> void:
 	if current_state != State.PAUSED:
@@ -479,45 +461,3 @@ func _enable_player_input() -> void:
 		InputManager.set_input_enabled(_previous_input_state)
 
 	_player_input_disabled = false
-
-
-## DEPRECATED: Ensure fade overlay exists in the scene tree
-## Now handled by SceneManager. Kept for backwards compatibility with custom mods.
-func _ensure_fade_overlay() -> void:
-	# Check if existing overlay is still valid (may have been freed on scene change)
-	if _fade_overlay and is_instance_valid(_fade_overlay):
-		return
-
-	# Clear stale reference if overlay was freed
-	_fade_overlay = null
-
-	# Get the scene root
-	var scene_root: Node = get_tree().current_scene
-	if not scene_root:
-		push_error("CinematicsManager: No current scene for fade overlay")
-		return
-
-	# Find or create CanvasLayer for fade overlay
-	var canvas_layer: CanvasLayer = null
-	for child: Node in scene_root.get_children():
-		if child is CanvasLayer and child.name == "CinematicOverlay":
-			canvas_layer = child as CanvasLayer
-			break
-
-	if not canvas_layer:
-		canvas_layer = CanvasLayer.new()
-		canvas_layer.name = "CinematicOverlay"
-		canvas_layer.layer = 100  # High layer to be on top
-		scene_root.add_child(canvas_layer)
-
-	# Create fade overlay ColorRect
-	_fade_overlay = ColorRect.new()
-	_fade_overlay.name = "FadeOverlay"
-	_fade_overlay.color = Color(0, 0, 0, 0)
-	_fade_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fade_overlay.hide()
-
-	# Make it cover the entire viewport
-	_fade_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-
-	canvas_layer.add_child(_fade_overlay)

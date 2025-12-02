@@ -104,7 +104,6 @@ func initialize(
 	if selection_indicator:
 		selection_indicator.visible = false
 
-	print("Unit initialized: %s (Lv%d %s)" % [character_data.character_name, stats.level, faction])
 
 
 ## Update sprite based on character data
@@ -212,7 +211,6 @@ func move_to(target_cell: Vector2i) -> void:
 		# No animation, emit immediately
 		moved.emit(old_position, target_cell)
 
-	print("%s moved from %s to %s" % [character_data.character_name, old_position, target_cell])
 
 
 ## Move unit along a pathfinding path, animating through each cell
@@ -259,7 +257,6 @@ func move_along_path(path: Array[Vector2i]) -> void:
 		# No animation, emit immediately
 		moved.emit(old_position, end_cell)
 
-	print("%s moved from %s to %s along %d-cell path" % [character_data.character_name, old_position, end_cell, path.size()])
 
 
 ## Animate smooth movement to target cell
@@ -330,11 +327,8 @@ func take_damage(damage: int) -> void:
 	# Emit signal
 	damaged.emit(damage)
 
-	print("%s takes %d damage (HP: %d/%d)" % [character_data.character_name, damage, stats.current_hp, stats.max_hp])
-
 	# Emit death signal if unit died (let BattleManager handle the visuals)
 	if unit_died:
-		print("%s has died!" % character_data.character_name)
 		GridManager.clear_cell_occupied(grid_position)
 		died.emit()
 
@@ -354,7 +348,6 @@ func heal(amount: int) -> void:
 	# Emit signal
 	healed.emit(actual_heal)
 
-	print("%s heals %d HP (HP: %d/%d)" % [character_data.character_name, actual_heal, stats.current_hp, stats.max_hp])
 
 
 ## Add status effect
@@ -364,7 +357,6 @@ func add_status_effect(effect_type: String, duration: int, power: int = 0) -> vo
 
 	stats.add_status_effect(effect_type, duration, power)
 	status_effect_applied.emit(effect_type)
-	print("%s gains status: %s (duration: %d)" % [character_data.character_name, effect_type, duration])
 
 
 ## Remove status effect
@@ -374,7 +366,6 @@ func remove_status_effect(effect_type: String) -> void:
 
 	stats.remove_status_effect(effect_type)
 	status_effect_cleared.emit(effect_type)
-	print("%s loses status: %s" % [character_data.character_name, effect_type])
 
 
 ## Check if unit has status effect
@@ -396,7 +387,6 @@ func process_status_effects() -> void:
 
 	# Emit death signal if died from status effects (let BattleManager handle the visuals)
 	if not still_alive:
-		print("%s has died from status effects!" % character_data.character_name)
 		GridManager.clear_cell_occupied(grid_position)
 		died.emit()
 
@@ -418,7 +408,6 @@ func start_turn() -> void:
 	# Restore normal brightness when turn starts
 	_set_acted_visual(false)
 	turn_began.emit()
-	print("%s turn started" % character_data.character_name)
 
 
 ## End turn
@@ -426,7 +415,6 @@ func end_turn() -> void:
 	turn_finished.emit()
 	# Dim the unit to show they've acted this round
 	_set_acted_visual(true)
-	print("%s turn ended" % character_data.character_name)
 
 
 ## Check if unit can still act this turn

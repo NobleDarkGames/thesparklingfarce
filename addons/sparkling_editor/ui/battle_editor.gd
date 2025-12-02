@@ -689,7 +689,6 @@ func _load_available_ai_brains() -> void:
 
 	# Scan for AI brain files in mods
 	var ai_dirs: Array[String] = [
-		"res://mods/base_game/ai_brains/",
 		"res://mods/_base_game/ai_brains/",
 		"res://core/ai/"  # Future location for built-in AI
 	]

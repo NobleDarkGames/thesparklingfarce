@@ -162,20 +162,17 @@ func process_status_effects() -> bool:
 				# Take damage based on power
 				var damage: int = maxi(1, effect.power)
 				current_hp -= damage
-				print("Unit takes %d poison damage" % damage)
 
 			"regen":
 				# Heal based on power
 				var heal: int = maxi(1, effect.power)
 				current_hp = mini(current_hp + heal, max_hp)
-				print("Unit heals %d HP from regen" % heal)
 
 		# Decrement duration
 		effect.duration -= 1
 
 		# Remove if expired
 		if effect.duration <= 0:
-			print("Status effect '%s' expired" % effect.type)
 			status_effects.remove_at(i)
 
 	# Check if still alive
