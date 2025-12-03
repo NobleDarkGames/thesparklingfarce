@@ -399,3 +399,64 @@ func _get_resource_id_for_resource(resource: Resource) -> String:
 	var resource_id: String = filename.get_basename()
 
 	return resource_id
+
+
+# ============================================================================
+# INVENTORY MANAGEMENT
+# ============================================================================
+
+## Add an item to the character's inventory
+## @param item_id: ID of the item to add
+## @return: true if added successfully, false if inventory full
+func add_item_to_inventory(item_id: String) -> bool:
+	if item_id.is_empty():
+		push_warning("CharacterSaveData: Cannot add empty item_id to inventory")
+		return false
+
+	# Check inventory limit (default 4 slots in SF)
+	var max_slots: int = 4
+	if ModLoader and "inventory_config" in ModLoader:
+		max_slots = ModLoader.inventory_config.get_max_slots()
+
+	if inventory.size() >= max_slots:
+		push_warning("CharacterSaveData: Inventory full (%d/%d)" % [inventory.size(), max_slots])
+		return false
+
+	inventory.append(item_id)
+	return true
+
+
+## Remove an item from the character's inventory
+## @param item_id: ID of the item to remove
+## @return: true if removed successfully, false if not found
+func remove_item_from_inventory(item_id: String) -> bool:
+	if item_id.is_empty():
+		push_warning("CharacterSaveData: Cannot remove empty item_id from inventory")
+		return false
+
+	var index: int = inventory.find(item_id)
+	if index == -1:
+		push_warning("CharacterSaveData: Item '%s' not found in inventory" % item_id)
+		return false
+
+	inventory.remove_at(index)
+	print("[CharacterSaveData] Removed item '%s' from inventory (remaining: %d items)" % [item_id, inventory.size()])
+	return true
+
+
+## Check if the character has a specific item in inventory
+## @param item_id: ID of the item to check
+## @return: true if item is in inventory
+func has_item_in_inventory(item_id: String) -> bool:
+	return item_id in inventory
+
+
+## Get the count of a specific item in inventory (supports duplicates)
+## @param item_id: ID of the item to count
+## @return: Number of this item in inventory
+func get_item_count(item_id: String) -> int:
+	var count: int = 0
+	for inv_item: String in inventory:
+		if inv_item == item_id:
+			count += 1
+	return count

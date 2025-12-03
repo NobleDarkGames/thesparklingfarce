@@ -306,6 +306,32 @@ func update_member_save_data(character_uid: String, save_data: CharacterSaveData
 	_member_save_data[character_uid] = save_data
 
 
+## Remove an item from a party member's inventory
+## @param character_uid: The unique identifier of the character
+## @param item_id: ID of the item to remove
+## @return: true if removed successfully, false if not found or error
+func remove_item_from_member(character_uid: String, item_id: String) -> bool:
+	var save_data: CharacterSaveData = get_member_save_data(character_uid)
+	if not save_data:
+		push_warning("PartyManager: Cannot remove item - no save data for character_uid: %s" % character_uid)
+		return false
+
+	return save_data.remove_item_from_inventory(item_id)
+
+
+## Add an item to a party member's inventory
+## @param character_uid: The unique identifier of the character
+## @param item_id: ID of the item to add
+## @return: true if added successfully, false if full or error
+func add_item_to_member(character_uid: String, item_id: String) -> bool:
+	var save_data: CharacterSaveData = get_member_save_data(character_uid)
+	if not save_data:
+		push_warning("PartyManager: Cannot add item - no save data for character_uid: %s" % character_uid)
+		return false
+
+	return save_data.add_item_to_inventory(item_id)
+
+
 # ============================================================================
 # SAVE SYSTEM INTEGRATION
 # ============================================================================

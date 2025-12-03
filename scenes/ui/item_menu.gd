@@ -277,15 +277,25 @@ func _populate_item_labels() -> void:
 
 ## Check if an item at index is usable in battle
 func _is_item_usable(index: int) -> bool:
+	print("[ItemMenu] _is_item_usable(%d) checking..." % index)
+
 	if index < 0 or index >= _item_data_cache.size():
+		print("[ItemMenu]   FAIL: index out of range (cache size: %d)" % _item_data_cache.size())
 		return false
 
 	var item: ItemData = _item_data_cache[index]
 	if not item:
+		print("[ItemMenu]   FAIL: item is null at index %d" % index)
 		return false
 
+	print("[ItemMenu]   item_name: %s" % item.item_name)
+	print("[ItemMenu]   item_type: %s (CONSUMABLE=%d)" % [item.item_type, ItemData.ItemType.CONSUMABLE])
+	print("[ItemMenu]   usable_in_battle: %s" % item.usable_in_battle)
+
 	# Only consumables with usable_in_battle = true can be used
-	return item.item_type == ItemData.ItemType.CONSUMABLE and item.usable_in_battle
+	var is_usable: bool = item.item_type == ItemData.ItemType.CONSUMABLE and item.usable_in_battle
+	print("[ItemMenu]   result: %s" % is_usable)
+	return is_usable
 
 
 ## Check if any usable items exist
@@ -309,9 +319,11 @@ func _select_smart_default(unit: Node2D) -> void:
 			var item: ItemData = _item_data_cache[i]
 			if item and _is_item_usable(i):
 				# Check if it's a healing item (has heal effect)
-				if item.effect and item.effect.has_method("get") and item.effect.get("ability_type") == 1:  # HEAL type
-					selected_index = i
-					return
+				if item.effect is AbilityData:
+					var ability: AbilityData = item.effect as AbilityData
+					if ability.ability_type == AbilityData.AbilityType.HEAL:
+						selected_index = i
+						return
 
 	# Otherwise select first usable item
 	for i in range(_item_data_cache.size()):
@@ -360,12 +372,40 @@ func _update_description() -> void:
 
 	var item: ItemData = _item_data_cache[selected_index]
 	if item:
+		var desc: String = ""
+
+		# Start with base description
 		if not item.description.is_empty():
-			_description_label.text = item.description
-		elif _is_item_usable(selected_index):
-			_description_label.text = "Use in battle"
-		else:
-			_description_label.text = "Cannot use in battle"
+			desc = item.description
+
+		# Add effect details for usable items (SF-authentic: show power)
+		if item.effect is AbilityData:
+			var ability: AbilityData = item.effect as AbilityData
+			var effect_text: String = ""
+			match ability.ability_type:
+				AbilityData.AbilityType.HEAL:
+					effect_text = "Heals: %d HP" % ability.power
+				AbilityData.AbilityType.ATTACK:
+					effect_text = "Damage: %d" % ability.power
+				AbilityData.AbilityType.SUPPORT:
+					effect_text = "Buff effect"
+				AbilityData.AbilityType.DEBUFF:
+					effect_text = "Debuff effect"
+
+			if not effect_text.is_empty():
+				if desc.is_empty():
+					desc = effect_text
+				else:
+					desc += "\n" + effect_text
+
+		# Fallback if no description
+		if desc.is_empty():
+			if _is_item_usable(selected_index):
+				desc = "Use in battle"
+			else:
+				desc = "Cannot use in battle"
+
+		_description_label.text = desc
 	else:
 		_description_label.text = ""
 
@@ -467,21 +507,36 @@ func _move_selection(direction: int) -> void:
 
 ## Try to confirm current selection
 func _try_confirm_selection() -> void:
+	print("[ItemMenu] _try_confirm_selection() called")
+	print("[ItemMenu]   selected_index: %d" % selected_index)
+	print("[ItemMenu]   is_processing_input: %s" % is_processing_input())
+	print("[ItemMenu]   visible: %s" % visible)
+	print("[ItemMenu]   _menu_session_id: %d" % _menu_session_id)
+
 	# Safety checks
 	if not is_processing_input():
+		print("[ItemMenu] BLOCKED: Not processing input")
 		return
 	if not visible:
+		print("[ItemMenu] BLOCKED: Menu not visible")
 		return
 
 	# Check if selected item is usable
-	if not _is_item_usable(selected_index):
+	var is_usable: bool = _is_item_usable(selected_index)
+	print("[ItemMenu]   is_item_usable(%d): %s" % [selected_index, is_usable])
+
+	if not is_usable:
 		# Play error sound - can't use this item
+		print("[ItemMenu] BLOCKED: Item not usable - playing error sound")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
 
 	# Get the item ID
 	var item_id: String = _inventory_items[selected_index]
+	print("[ItemMenu]   item_id from inventory: '%s'" % item_id)
+
 	if item_id.is_empty():
+		print("[ItemMenu] BLOCKED: Empty item_id")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
 
@@ -490,7 +545,9 @@ func _try_confirm_selection() -> void:
 
 	# Emit selection signal before hiding
 	var emit_session_id: int = _menu_session_id
+	print("[ItemMenu] Emitting item_selected signal: item_id='%s', session=%d" % [item_id, emit_session_id])
 	item_selected.emit(item_id, emit_session_id)
+	print("[ItemMenu] Signal emitted, hiding menu...")
 	hide_menu()
 
 

@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://core/resources/item_data.gd" id="1_item"]
-[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/minor_heal.tres" id="2_effect"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/cure_poison.tres" id="2_effect"]
 
 [resource]
 script = ExtResource("1_item")
-item_name = "Healing Herb"
+item_name = "Antidote"
 item_type = 2
 equipment_type = ""
 equipment_slot = ""
@@ -13,6 +13,6 @@ is_cursed = false
 usable_in_battle = true
 usable_on_field = true
 effect = ExtResource("2_effect")
-buy_price = 10
-sell_price = 5
-description = "Restores a small amount of HP."
+buy_price = 15
+sell_price = 7
+description = "Cures poison status."

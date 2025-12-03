@@ -15,6 +15,7 @@ enum InputState {
 	DIRECT_MOVEMENT,     # SF2-style: Player controls unit directly tile-by-tile
 	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Stay)
 	SELECTING_ITEM,      # Item menu open (selecting which item to use)
+	SELECTING_ITEM_TARGET,  # Selecting target for item use (e.g., healing ally)
 	TARGETING,           # Selecting target for attack/spell
 	EXECUTING,           # Action executing (animations, etc.)
 }
@@ -23,7 +24,7 @@ enum InputState {
 signal movement_confirmed(unit: Node2D, destination: Vector2i)
 signal action_selected(unit: Node2D, action: String)
 signal target_selected(unit: Node2D, target: Node2D)
-signal item_use_requested(unit: Node2D, item_id: String)  # Player selected an item to use
+signal item_use_requested(unit: Node2D, item_id: String, target: Node2D)  # Player used an item on a target
 signal turn_cancelled()  # Player wants to redo movement
 
 ## Current state
@@ -41,6 +42,11 @@ var walkable_cells: Array[Vector2i] = []
 ## Action menu state
 var current_action: String = ""
 var available_actions: Array[String] = []
+
+## Item usage state
+var selected_item_id: String = ""  # Item ID selected for use (for target selection)
+var selected_item_data: ItemData = null  # Cached ItemData for the selected item
+var _item_valid_targets: Array[Vector2i] = []  # Valid target cells for snap-to-target navigation
 
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
@@ -126,6 +132,12 @@ func _reconnect_item_menu_signals() -> void:
 
 ## Handle item menu selection signal
 func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
+	print("[InputManager] _on_item_menu_selected() called")
+	print("[InputManager]   item_id: '%s'" % item_id)
+	print("[InputManager]   signal_session_id: %d, current session: %d" % [signal_session_id, _turn_session_id])
+	print("[InputManager]   current_state: %s" % InputState.keys()[current_state])
+	print("[InputManager]   active_unit: %s" % (active_unit.get_display_name() if active_unit else "NULL"))
+
 	# Guard: Reject stale signals from previous turns
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE item selection from session %d (current: %d)" % [
@@ -139,11 +151,73 @@ func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
 		push_warning("InputManager: Ignoring item selection in state %s" % InputState.keys()[current_state])
 		return
 
+	print("[InputManager] Item selection validated - checking if target selection needed")
+
 	# Play selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
+	# Store selected item for target selection
+	selected_item_id = item_id
+	selected_item_data = ModLoader.registry.get_resource("item", item_id) as ItemData
+
+	if not selected_item_data:
+		push_warning("InputManager: Item '%s' not found in registry" % item_id)
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	print("[InputManager] Item data loaded: %s" % selected_item_data.item_name)
+
+	# Check if item needs target selection
+	if _item_needs_target_selection(selected_item_data):
+		print("[InputManager] Item needs target selection - entering SELECTING_ITEM_TARGET state")
+		set_state(InputState.SELECTING_ITEM_TARGET)
+	else:
+		# Self-target items (or items without effect) - use immediately on self
+		print("[InputManager] Item is self-target - using on self")
+		_use_item_on_target(active_unit)
+
+
+## Check if an item needs target selection (vs self-use)
+func _item_needs_target_selection(item: ItemData) -> bool:
+	if not item or not item.effect:
+		# No effect = self-target by default
+		return false
+
+	var effect: AbilityData = item.effect as AbilityData
+	if not effect:
+		return false
+
+	# Check the ability's target type
+	match effect.target_type:
+		AbilityData.TargetType.SELF:
+			return false  # Always targets self
+		AbilityData.TargetType.SINGLE_ALLY:
+			return true  # Needs to pick an ally (including self)
+		AbilityData.TargetType.SINGLE_ENEMY:
+			return true  # Needs to pick an enemy
+		AbilityData.TargetType.ALL_ALLIES, AbilityData.TargetType.ALL_ENEMIES:
+			return false  # Affects all, no selection needed
+		AbilityData.TargetType.AREA:
+			return true  # Needs position selection
+		_:
+			return false
+
+
+## Use the selected item on the given target
+func _use_item_on_target(target: Node2D) -> void:
+	print("[InputManager] _use_item_on_target() called")
+	print("[InputManager]   item_id: '%s'" % selected_item_id)
+	print("[InputManager]   target: %s" % (target.get_display_name() if target else "NULL"))
+
 	# Emit item use signal for BattleManager to handle
-	item_use_requested.emit(active_unit, item_id)
+	print("[InputManager] Emitting item_use_requested signal...")
+	item_use_requested.emit(active_unit, selected_item_id, target)
+	print("[InputManager] Signal emitted, transitioning to EXECUTING state")
+
+	# Clear item selection state
+	selected_item_id = ""
+	selected_item_data = null
+	_item_valid_targets.clear()
 
 	# Transition to EXECUTING (BattleManager will handle the item use and end turn)
 	set_state(InputState.EXECUTING)
@@ -283,6 +357,8 @@ func set_state(new_state: InputState) -> void:
 			_on_enter_selecting_action()
 		InputState.SELECTING_ITEM:
 			_on_enter_selecting_item()
+		InputState.SELECTING_ITEM_TARGET:
+			_on_enter_selecting_item_target()
 		InputState.TARGETING:
 			_on_enter_targeting()
 		InputState.EXECUTING:
@@ -408,6 +484,49 @@ func _on_enter_selecting_item() -> void:
 	_show_item_menu()
 
 
+func _on_enter_selecting_item_target() -> void:
+	print("[InputManager] _on_enter_selecting_item_target() - item: %s" % selected_item_id)
+	# Disable per-frame processing (targeting uses _input for individual key presses)
+	set_process(false)
+
+	# Hide item menu if visible
+	if item_menu and item_menu.visible:
+		item_menu.hide_menu()
+
+	# Clear movement highlights
+	GridManager.clear_highlights()
+
+	# Get valid targets for the item and store for snap-to-target navigation
+	_item_valid_targets = _get_valid_item_target_cells()
+	print("[InputManager] Valid item targets: %s" % str(_item_valid_targets))
+
+	if _item_valid_targets.is_empty():
+		# No valid targets - return to action menu (SF-authentic: don't end turn)
+		print("[InputManager] No valid targets for item - returning to action menu")
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		selected_item_id = ""
+		selected_item_data = null
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Show item target range (green for allies, different from attack red)
+	_show_item_targeting_range(_item_valid_targets)
+
+	# Position cursor on first valid target (prefer self if valid)
+	if active_unit.grid_position in _item_valid_targets:
+		current_cursor_position = active_unit.grid_position
+	else:
+		current_cursor_position = _item_valid_targets[0]
+
+	# Show cursor at target position
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.show_cursor()
+
+	# Update stats panel to show target info
+	_update_item_target_info()
+
+
 func _on_enter_targeting() -> void:
 	# Disable per-frame processing (targeting uses _input for individual key presses)
 	set_process(false)
@@ -503,6 +622,8 @@ func _input(event: InputEvent) -> void:
 			_handle_direct_movement_input(event)
 		InputState.SELECTING_ACTION:
 			_handle_action_menu_input(event)
+		InputState.SELECTING_ITEM_TARGET:
+			_handle_item_target_input(event)
 		InputState.TARGETING:
 			_handle_targeting_input(event)
 
@@ -899,6 +1020,11 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 
 ## Show item menu
 func _show_item_menu() -> void:
+	print("[InputManager] _show_item_menu() called")
+	print("[InputManager]   item_menu reference: %s" % (item_menu != null))
+	print("[InputManager]   active_unit: %s" % (active_unit.get_display_name() if active_unit else "NULL"))
+	print("[InputManager]   session_id: %d" % _turn_session_id)
+
 	if not item_menu:
 		push_warning("InputManager: No item menu reference set - falling back to ending turn")
 		# Fall back: end turn immediately (prevents freeze)
@@ -913,6 +1039,7 @@ func _show_item_menu() -> void:
 		return
 
 	# Show item menu with unit's inventory
+	print("[InputManager] Calling item_menu.show_menu()...")
 	item_menu.show_menu(active_unit, _turn_session_id)
 
 	# Position menu near active unit (similar to action menu)
@@ -920,6 +1047,7 @@ func _show_item_menu() -> void:
 	var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
 	# Offset to right of unit
 	item_menu.position = unit_screen_pos + Vector2(40, -20)
+	print("[InputManager] Item menu positioned at: %s" % item_menu.position)
 
 
 ## Select action from menu
@@ -1426,3 +1554,231 @@ func _can_confirm_direct_position() -> bool:
 		AudioManager.play_sfx("movement_blocked", AudioManager.SFXCategory.UI)
 		return false
 	return true
+
+
+# =============================================================================
+# ITEM TARGET SELECTION SYSTEM
+# =============================================================================
+
+## Handle input during item target selection
+func _handle_item_target_input(event: InputEvent) -> void:
+	var handled: bool = false
+
+	# Mouse click to select target
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
+			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
+
+			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
+			if target and _is_valid_item_target(target):
+				_confirm_item_target(target)
+			handled = true
+
+	# Keyboard: Arrow keys to move targeting cursor
+	if event.is_action_pressed("ui_up"):
+		_move_item_target_cursor(Vector2i(0, -1))
+		handled = true
+	elif event.is_action_pressed("ui_down"):
+		_move_item_target_cursor(Vector2i(0, 1))
+		handled = true
+	elif event.is_action_pressed("ui_left"):
+		_move_item_target_cursor(Vector2i(-1, 0))
+		handled = true
+	elif event.is_action_pressed("ui_right"):
+		_move_item_target_cursor(Vector2i(1, 0))
+		handled = true
+
+	# Accept key to confirm target selection
+	if event.is_action_pressed("ui_accept"):
+		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		if target and _is_valid_item_target(target):
+			_confirm_item_target(target)
+		else:
+			# Invalid target - play error sound but stay in targeting
+			AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		handled = true
+
+	# Cancel returns to action menu (SF-authentic: don't end turn)
+	if event.is_action_pressed("sf_cancel"):
+		print("[InputManager] Item target selection cancelled - returning to action menu")
+		AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
+		selected_item_id = ""
+		selected_item_data = null
+		_item_valid_targets.clear()
+		set_state(InputState.SELECTING_ACTION)
+		handled = true
+
+	# Consume input to prevent duplicate processing by other handlers
+	if handled:
+		get_viewport().set_input_as_handled()
+
+
+## Get valid target cells for the selected item
+func _get_valid_item_target_cells() -> Array[Vector2i]:
+	var valid_cells: Array[Vector2i] = []
+
+	if not selected_item_data or not selected_item_data.effect:
+		# No effect - only self is valid
+		valid_cells.append(active_unit.grid_position)
+		return valid_cells
+
+	var effect: AbilityData = selected_item_data.effect as AbilityData
+	if not effect:
+		valid_cells.append(active_unit.grid_position)
+		return valid_cells
+
+	# Get cells in range based on ability
+	var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range(
+		active_unit.grid_position,
+		effect.max_range
+	)
+
+	# Also include self if min_range is 0
+	if effect.min_range == 0:
+		if active_unit.grid_position not in cells_in_range:
+			cells_in_range.append(active_unit.grid_position)
+
+	# Filter based on target type
+	match effect.target_type:
+		AbilityData.TargetType.SELF:
+			valid_cells.append(active_unit.grid_position)
+
+		AbilityData.TargetType.SINGLE_ALLY:
+			# Include self and all allies (same faction) in range
+			for cell in cells_in_range:
+				var unit: Node2D = GridManager.get_unit_at_cell(cell)
+				if unit and unit.faction == active_unit.faction and unit.is_alive():
+					valid_cells.append(cell)
+			# Always include self for healing items
+			if active_unit.grid_position not in valid_cells:
+				valid_cells.append(active_unit.grid_position)
+
+		AbilityData.TargetType.SINGLE_ENEMY:
+			# Only enemies in range
+			for cell in cells_in_range:
+				var unit: Node2D = GridManager.get_unit_at_cell(cell)
+				if unit and unit.faction != active_unit.faction and unit.is_alive():
+					valid_cells.append(cell)
+
+		AbilityData.TargetType.ALL_ALLIES, AbilityData.TargetType.ALL_ENEMIES:
+			# No target selection needed - handled elsewhere
+			valid_cells.append(active_unit.grid_position)
+
+		AbilityData.TargetType.AREA:
+			# All cells in range
+			valid_cells = cells_in_range
+
+	return valid_cells
+
+
+## Check if a unit is a valid target for the selected item
+func _is_valid_item_target(unit: Node2D) -> bool:
+	if not unit or not unit.is_alive():
+		return false
+
+	if not selected_item_data or not selected_item_data.effect:
+		# No effect - only self is valid
+		return unit == active_unit
+
+	var effect: AbilityData = selected_item_data.effect as AbilityData
+	if not effect:
+		return unit == active_unit
+
+	# Check range
+	var distance: int = GridManager.get_distance(active_unit.grid_position, unit.grid_position)
+	if distance < effect.min_range or distance > effect.max_range:
+		return false
+
+	# Check target type
+	match effect.target_type:
+		AbilityData.TargetType.SELF:
+			return unit == active_unit
+		AbilityData.TargetType.SINGLE_ALLY:
+			return unit.faction == active_unit.faction
+		AbilityData.TargetType.SINGLE_ENEMY:
+			return unit.faction != active_unit.faction
+		_:
+			return true
+
+
+## Show item targeting range highlights
+func _show_item_targeting_range(valid_targets: Array[Vector2i]) -> void:
+	# Use green for ally-targeting items (like healing)
+	# Use red for enemy-targeting items
+	# Use yellow for area/special items
+	var effect: AbilityData = selected_item_data.effect as AbilityData if selected_item_data else null
+
+	var color_type: int = GridManager.HIGHLIGHT_GREEN  # Default green for allies
+
+	if effect:
+		match effect.target_type:
+			AbilityData.TargetType.SINGLE_ENEMY:
+				color_type = GridManager.HIGHLIGHT_RED
+			AbilityData.TargetType.SELF:
+				color_type = GridManager.HIGHLIGHT_GREEN
+			AbilityData.TargetType.AREA:
+				color_type = GridManager.HIGHLIGHT_YELLOW
+
+	GridManager.highlight_cells(valid_targets, color_type)
+
+
+## Move item target cursor (snap-to-target navigation for better UX)
+func _move_item_target_cursor(offset: Vector2i) -> void:
+	# SF-authentic: Snap between valid targets instead of cell-by-cell movement
+	if _item_valid_targets.is_empty():
+		return
+
+	# Find current target index
+	var current_idx: int = _item_valid_targets.find(current_cursor_position)
+
+	if current_idx == -1:
+		# Not on a valid target - snap to first one
+		current_cursor_position = _item_valid_targets[0]
+	else:
+		# Snap to next/previous valid target based on direction
+		# Up or Left = previous, Down or Right = next
+		if offset.y < 0 or offset.x < 0:
+			current_idx = wrapi(current_idx - 1, 0, _item_valid_targets.size())
+		else:
+			current_idx = wrapi(current_idx + 1, 0, _item_valid_targets.size())
+
+		current_cursor_position = _item_valid_targets[current_idx]
+
+	# Play cursor movement sound
+	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
+
+	# Update cursor visual
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+
+	# Update target info panel
+	_update_item_target_info()
+
+
+## Update stats panel to show target info during item targeting
+func _update_item_target_info() -> void:
+	if not stats_panel:
+		return
+
+	# Check what's under the cursor
+	var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+
+	if unit_at_cursor and unit_at_cursor.is_alive():
+		# Show stats for potential target
+		stats_panel.show_unit_stats(unit_at_cursor)
+	else:
+		# No valid target, show active unit stats
+		if active_unit:
+			stats_panel.show_unit_stats(active_unit)
+
+
+## Confirm item target and use item
+func _confirm_item_target(target: Node2D) -> void:
+	print("[InputManager] _confirm_item_target() - target: %s" % target.get_display_name())
+
+	# Play confirm sound
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+
+	# Use the item on the target
+	_use_item_on_target(target)
