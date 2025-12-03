@@ -101,6 +101,38 @@ extends Resource
 @export_range(1, 50) var promotion_level: int = 10
 
 # ============================================================================
+# PROMOTION SETTINGS
+# ============================================================================
+
+## Whether level resets to 1 on promotion (SF2 style).
+## If false, level continues incrementing.
+@export var promotion_resets_level: bool = true
+
+## Whether special promotion items are consumed on use.
+@export var consume_promotion_item: bool = true
+
+## Flat HP bonus applied when promoting.
+@export_range(0, 20) var promotion_bonus_hp: int = 0
+
+## Flat MP bonus applied when promoting.
+@export_range(0, 10) var promotion_bonus_mp: int = 0
+
+## Flat Strength bonus applied when promoting.
+@export_range(0, 5) var promotion_bonus_strength: int = 0
+
+## Flat Defense bonus applied when promoting.
+@export_range(0, 5) var promotion_bonus_defense: int = 0
+
+## Flat Agility bonus applied when promoting.
+@export_range(0, 5) var promotion_bonus_agility: int = 0
+
+## Flat Intelligence bonus applied when promoting.
+@export_range(0, 5) var promotion_bonus_intelligence: int = 0
+
+## Flat Luck bonus applied when promoting.
+@export_range(0, 5) var promotion_bonus_luck: int = 0
+
+# ============================================================================
 # ADJUTANT SYSTEM (Skeleton for Future Implementation)
 # ============================================================================
 

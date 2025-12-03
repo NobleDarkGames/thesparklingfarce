@@ -1,7 +1,7 @@
 # The Sparkling Farce Platform Specification
 
-**Version:** 1.1.0
-**Status:** Revised (Senior Staff Review)
+**Version:** 1.2.0
+**Status:** Revised (Phase 4.1 Promotion System)
 **Last Updated:** December 2, 2025
 **Godot Version:** 4.5.1
 
@@ -115,7 +115,7 @@ sparklingfarce/
 
 ## 3. Autoload Singletons
 
-The platform uses 17 core autoload singletons plus 1 editor-specific autoload for global state and orchestration.
+The platform uses 18 core autoload singletons plus 1 editor-specific autoload for global state and orchestration.
 
 ### Core Infrastructure
 
@@ -150,6 +150,7 @@ The platform uses 17 core autoload singletons plus 1 editor-specific autoload fo
 |-----------|------|---------|
 | **PartyManager** | `core/systems/party_manager.gd` | Party composition, hero protection |
 | **ExperienceManager** | `core/systems/experience_manager.gd` | XP distribution, level-up handling |
+| **PromotionManager** | `core/systems/promotion_manager.gd` | Class promotion eligibility, execution, ceremony |
 | **DialogManager** | `core/systems/dialog_manager.gd` | Dialog state machine, typewriter effect |
 | **CinematicsManager** | `core/systems/cinematics_manager.gd` | Scripted cutscene execution |
 | **CampaignManager** | `core/systems/campaign_manager.gd` | Campaign node progression |
@@ -385,7 +386,16 @@ Defines a character class with growth rates and combat parameters.
 | `counter_rate` | int | Counterattack % (SF2: 3, 6, 12, or 25) |
 | `*_growth` | int | Stat growth rates (0-100%) |
 | `equippable_weapon_types` | Array[String] | Allowed weapon types |
-| `promotion_class` | ClassData | Class after promotion |
+| `promotion_class` | ClassData | Standard promotion path (optional) |
+| `promotion_level` | int | Minimum level for promotion (default 10) |
+| `special_promotion_class` | ClassData | Item-gated alternate promotion (SF2 style) |
+| `special_promotion_item` | ItemData | Required item for special promotion |
+
+**Promotion Methods:**
+```gdscript
+func has_special_promotion() -> bool  # True if special_promotion_class is set
+func get_all_promotion_paths() -> Array[ClassData]  # Returns all available promotions
+```
 
 ### BattleData
 
@@ -910,6 +920,8 @@ var char = load("res://mods/_base_game/data/characters/max.tres")
 | AI System | 2 | 30% complete, only Aggressive/Defensive behaviors |
 | UI Systems | 2, 3 | Battle UI done, missing menus |
 | Cinematics | 3.2 | Core working, needs more command executors |
+| **Promotion System** | 4.1 | Core complete, needs PartyManager integration for persistence |
+| Terrain Effects | 4 | Movement costs implemented, defense bonuses pending |
 
 ### Roadmap: Phase 4 (Core SF Mechanics) 🚧
 
@@ -917,13 +929,12 @@ These are **critical Shining Force mechanics** that define the genre feel:
 
 | System | Priority | Description |
 |--------|----------|-------------|
-| **Promotion System** | CRITICAL | Class advancement, stat boosts, visual transformation. *The* signature SF mechanic. |
 | **Equipment System** | HIGH | Weapon/armor equipping, stat modifiers, class restrictions |
 | **Caravan System** | HIGH | Mobile HQ for party management, storage, services (SF2 defining feature) |
-| **Terrain Effects** | HIGH | Movement costs by terrain type, defense bonuses |
 | **Magic/Spells** | HIGH | MP costs, targeting, area effects |
 | **Items/Inventory** | MEDIUM | Consumables, storage, shop integration |
 | **Retreat/Death** | MEDIUM | Units retreat when defeated (not permadeath), resurrection at church |
+| **Promotion Integration** | MEDIUM | Wire promotion UI trigger in battle/menu, PartyManager persistence |
 
 ### Roadmap: Phase 5 (Polish & Advanced) 🔮
 
@@ -947,13 +958,15 @@ These are **critical Shining Force mechanics** that define the genre feel:
 
 ### Known Gaps
 
-1. **Battle UI Polish**: Floating damage numbers, level-up celebration screens
+1. **Battle UI Polish**: Floating damage numbers (level-up/promotion ceremonies complete)
 
 2. **Campaign Flow**: Full explore-battle-explore loop verification needed
 
 3. **XP Balance**: No catch-up mechanics for underleveled characters (SF historical problem)
 
 4. **World Graph**: Map connection graph and gating logic not yet implemented
+
+5. **Promotion Integration**: PartyManager persistence for promoted classes, Unit.apply_promotion() method
 
 ---
 
@@ -1067,6 +1080,18 @@ static func calculate_physical_damage(attacker: UnitStats, defender: UnitStats) 
 |---------|------|---------|
 | 1.0.0 | 2025-12-02 | Initial baseline specification |
 | 1.1.0 | 2025-12-02 | Senior staff review corrections |
+| 1.2.0 | 2025-12-02 | Phase 4.1 Promotion System implementation |
+
+**v1.2.0 Changes:**
+- Added `PromotionManager` autoload singleton (18 total autoloads)
+- Extended `ClassData` with `special_promotion_class`, `special_promotion_item`, `promotion_level`
+- Added `ClassData.has_special_promotion()` and `ClassData.get_all_promotion_paths()` methods
+- Extended `CharacterSaveData` with `cumulative_level`, `promotion_count`, `current_class_mod_id`, `current_class_resource_id`
+- Extended `ExperienceConfig` with promotion bonuses and `promotion_resets_level` setting
+- Added `PromotionCeremony` UI scene for full-screen transformation celebration
+- Moved Promotion System from Phase 4 roadmap to Functional status
+- Updated Known Gaps to note level-up/promotion ceremonies are complete
+- Added Promotion Integration to remaining Phase 4 tasks
 
 **v1.1.0 Changes:**
 - Fixed `RESOURCE_TYPE_DIRS` mapping direction (directory → type)

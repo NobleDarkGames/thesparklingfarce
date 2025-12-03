@@ -1,0 +1,99 @@
+[gd_scene load_steps=3 format=3 uid="uid://c3rxmn2ygk7qj"]
+
+[ext_resource type="Script" path="res://scenes/ui/promotion_ceremony.gd" id="1_script"]
+[ext_resource type="FontFile" path="res://assets/fonts/monogram.ttf" id="2_font"]
+
+[node name="PromotionCeremony" type="CanvasLayer"]
+layer = 102
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.0, 0.1, 0.85)
+
+[node name="ScreenFlash" type="ColorRect" parent="."]
+z_index = 10
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+modulate = Color(1, 1, 1, 0)
+color = Color(1, 1, 1, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CeremonyVBox" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/CeremonyVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
+theme_override_colors/font_outline_color = Color(0.2, 0.15, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 48
+text = "PROMOTION!"
+horizontal_alignment = 1
+
+[node name="CharacterNameLabel" type="Label" parent="CenterContainer/CeremonyVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 32
+text = "Character Name"
+horizontal_alignment = 1
+
+[node name="SpriteContainer" type="CenterContainer" parent="CenterContainer/CeremonyVBox"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+
+[node name="CharacterSprite" type="TextureRect" parent="CenterContainer/CeremonyVBox/SpriteContainer"]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+expand_mode = 3
+stretch_mode = 5
+
+[node name="ClassTransitionBox" type="HBoxContainer" parent="CenterContainer/CeremonyVBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="OldClassLabel" type="Label" parent="CenterContainer/CeremonyVBox/ClassTransitionBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 28
+text = "SDMN"
+
+[node name="ArrowLabel" type="Label" parent="CenterContainer/CeremonyVBox/ClassTransitionBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.808, 0.82, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 32
+text = "-->"
+
+[node name="NewClassLabel" type="Label" parent="CenterContainer/CeremonyVBox/ClassTransitionBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 28
+text = "PLDN"
+
+[node name="BonusesContainer" type="VBoxContainer" parent="CenterContainer/CeremonyVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ContinueLabel" type="Label" parent="CenterContainer/CeremonyVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 20
+text = "Press Z to continue"
+horizontal_alignment = 1

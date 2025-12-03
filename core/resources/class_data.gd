@@ -45,10 +45,16 @@ enum MovementType {
 @export var learnable_abilities: Dictionary = {}
 
 @export_group("Promotion")
-## The class this promotes to (optional)
+## The class this promotes to (standard path, optional)
 @export var promotion_class: ClassData
 ## Level required to promote
 @export var promotion_level: int = 10
+## Alternative promotion path requiring a specific item (SF2 style)
+## Example: Knight -> Pegasus Knight requires "Pegasus Wing" item
+@export var special_promotion_class: ClassData
+## Item required for special promotion (if special_promotion_class is set)
+## If null but special_promotion_class is set, special promotion is always available
+@export var special_promotion_item: ItemData
 
 @export_group("Appearance")
 @export var class_icon: Texture2D
@@ -88,6 +94,22 @@ func get_growth_rate(stat_name: String) -> int:
 	if growth_key in self:
 		return get(growth_key)
 	return 0
+
+
+## Check if this class has a special promotion path defined
+func has_special_promotion() -> bool:
+	return special_promotion_class != null
+
+
+## Get all available promotion paths for this class
+## Returns array containing standard and special promotions (if defined)
+func get_all_promotion_paths() -> Array[ClassData]:
+	var paths: Array[ClassData] = []
+	if promotion_class != null:
+		paths.append(promotion_class)
+	if special_promotion_class != null:
+		paths.append(special_promotion_class)
+	return paths
 
 
 ## Validate that required fields are set

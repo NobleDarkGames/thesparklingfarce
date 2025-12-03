@@ -86,6 +86,22 @@ extends Resource
 ## Recruitment chapter (when they joined the party)
 @export var recruitment_chapter: String = ""
 
+# ============================================================================
+# PROMOTION TRACKING
+# ============================================================================
+
+## Total levels earned across all promotions (for ability learning)
+## Spells in SF2 are learned at "cumulative levels" not current level
+@export var cumulative_level: int = 1
+
+## Number of times this character has been promoted
+@export var promotion_count: int = 0
+
+## Current class (may differ from CharacterData's starting class after promotion)
+## Stored as mod_id + resource_id for mod-safe loading
+@export var current_class_mod_id: String = ""
+@export var current_class_resource_id: String = ""
+
 
 # ============================================================================
 # INITIALIZATION
@@ -214,7 +230,11 @@ func serialize_to_dict() -> Dictionary:
 		"is_alive": is_alive,
 		"is_available": is_available,
 		"is_hero": is_hero,
-		"recruitment_chapter": recruitment_chapter
+		"recruitment_chapter": recruitment_chapter,
+		"cumulative_level": cumulative_level,
+		"promotion_count": promotion_count,
+		"current_class_mod_id": current_class_mod_id,
+		"current_class_resource_id": current_class_resource_id
 	}
 
 
@@ -271,6 +291,14 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		is_hero = data.is_hero
 	if "recruitment_chapter" in data:
 		recruitment_chapter = data.recruitment_chapter
+	if "cumulative_level" in data:
+		cumulative_level = data.cumulative_level
+	if "promotion_count" in data:
+		promotion_count = data.promotion_count
+	if "current_class_mod_id" in data:
+		current_class_mod_id = data.current_class_mod_id
+	if "current_class_resource_id" in data:
+		current_class_resource_id = data.current_class_resource_id
 
 
 # ============================================================================

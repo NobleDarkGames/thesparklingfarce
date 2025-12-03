@@ -354,6 +354,10 @@ func apply_level_up(unit: Node2D) -> Dictionary:
 	# Emit signal
 	unit_leveled_up.emit(unit, old_level, new_level, stat_increases)
 
+	# Check if promotion is now available
+	if PromotionManager:
+		PromotionManager.check_promotion_eligibility(unit)
+
 	return stat_increases
 
 
