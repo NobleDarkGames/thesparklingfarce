@@ -148,6 +148,15 @@ func start_unit_turn(unit: Node2D) -> void:
 		return
 
 	active_unit = unit
+
+	# Process terrain effects BEFORE unit.start_turn() (damage happens at turn start)
+	var unit_died: bool = await _process_terrain_effects(unit)
+	if unit_died:
+		# Unit died from terrain damage - skip their turn
+		unit_turn_ended.emit(unit)
+		advance_to_next_unit()
+		return
+
 	unit.start_turn()
 
 	if unit.is_player_unit():
@@ -266,6 +275,71 @@ func get_remaining_turn_queue() -> Array[Node2D]:
 ## Get turn number
 func get_turn_number() -> int:
 	return turn_number
+
+
+## Process terrain effects for a unit at the start of their turn
+## Returns true if the unit died from terrain damage
+func _process_terrain_effects(unit: Node2D) -> bool:
+	if not unit or not unit.is_alive():
+		return false
+
+	# Get terrain at unit's position
+	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit.grid_position)
+	if terrain == null:
+		return false
+
+	# Flying units are immune to ground-based terrain damage
+	if unit.character_data and unit.character_data.character_class:
+		var movement_type: int = unit.character_data.character_class.movement_type
+		if movement_type == ClassData.MovementType.FLYING:
+			return false  # Flying units ignore terrain DoT
+
+	# Apply terrain damage
+	if terrain.damage_per_turn > 0:
+		# Show damage popup (if available and not headless)
+		if not is_headless:
+			_show_terrain_damage_popup(unit, terrain.damage_per_turn, terrain.display_name)
+
+		# Apply the damage
+		if unit.has_method("take_damage"):
+			unit.take_damage(terrain.damage_per_turn)
+		elif unit.stats:
+			unit.stats.current_hp -= terrain.damage_per_turn
+			unit.stats.current_hp = maxi(0, unit.stats.current_hp)
+
+		# Check if unit died
+		if unit.has_method("is_dead"):
+			if unit.is_dead():
+				return true
+		elif unit.stats and unit.stats.current_hp <= 0:
+			return true
+
+	# NOTE: healing_per_turn is DEFERRED per Commander Claudius's simplifications
+	# The field exists in TerrainData but we don't process it yet
+
+	return false
+
+
+## Show a damage popup for terrain effects
+func _show_terrain_damage_popup(unit: Node2D, damage: int, terrain_name: String) -> void:
+	# Create a simple damage label at unit position
+	# This is a basic implementation - can be enhanced with GameJuice later
+	var label: Label = Label.new()
+	label.text = "-%d (%s)" % [damage, terrain_name]
+	label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))  # Red
+	label.add_theme_font_size_override("font_size", 12)
+	label.position = unit.position + Vector2(0, -20)
+	label.z_index = 100
+
+	# Add to scene tree
+	if unit.get_parent():
+		unit.get_parent().add_child(label)
+
+		# Animate and remove
+		var tween: Tween = label.create_tween()
+		tween.tween_property(label, "position:y", label.position.y - 30, 0.8)
+		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)
+		tween.tween_callback(label.queue_free)
 
 
 ## Clear battle state (call when exiting battle)

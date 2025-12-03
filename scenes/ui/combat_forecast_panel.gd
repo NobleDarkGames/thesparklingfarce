@@ -35,18 +35,41 @@ func show_forecast(attacker: Node2D, defender: Node2D) -> void:
 		_current_tween.kill()
 		_current_tween = null
 
-	# Calculate combat stats
-	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker.stats, defender.stats)
-	var damage: int = CombatCalculator.calculate_physical_damage(attacker.stats, defender.stats)
+	# Get terrain bonuses for defender's position
+	var terrain_defense: int = 0
+	var terrain_evasion: int = 0
+	var defender_terrain: TerrainData = GridManager.get_terrain_at_cell(defender.grid_position)
+	if defender_terrain:
+		terrain_defense = defender_terrain.defense_bonus
+		terrain_evasion = defender_terrain.evasion_bonus
+
+	# Calculate combat stats (with terrain bonuses)
+	var hit_chance: int = CombatCalculator.calculate_hit_chance_with_terrain(
+		attacker.stats, defender.stats, terrain_evasion
+	)
+	var damage: int = CombatCalculator.calculate_physical_damage_with_terrain(
+		attacker.stats, defender.stats, terrain_defense
+	)
 	var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker.stats, defender.stats)
 
 	# Calculate defender's counter chance (depends on range)
 	var counter_chance: int = _calculate_counter_chance_for_forecast(attacker, defender)
 
-	# Update labels
+	# Update labels with terrain bonus indicators
 	target_name_label.text = defender.get_display_name()
-	hit_label.text = "Hit: %d%%" % hit_chance
-	damage_label.text = "Dmg: ~%d" % damage
+
+	# Show hit chance with terrain evasion indicator
+	if terrain_evasion > 0:
+		hit_label.text = "Hit: %d%% (-%d terrain)" % [hit_chance, terrain_evasion]
+	else:
+		hit_label.text = "Hit: %d%%" % hit_chance
+
+	# Show damage with terrain defense indicator
+	if terrain_defense > 0:
+		damage_label.text = "Dmg: ~%d (+%d DEF terrain)" % [damage, terrain_defense]
+	else:
+		damage_label.text = "Dmg: ~%d" % damage
+
 	crit_label.text = "Crit: %d%%" % crit_chance
 
 	# Show counter chance (0% if out of range, otherwise class-based rate)

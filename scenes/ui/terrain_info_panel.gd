@@ -2,6 +2,7 @@
 ##
 ## Shows terrain name and effects in a small panel at the top-left of the screen.
 ## Appears when a unit's turn starts.
+## Now uses the TerrainData system via GridManager for real terrain effects.
 class_name TerrainInfoPanel
 extends PanelContainer
 
@@ -9,30 +10,6 @@ extends PanelContainer
 @onready var terrain_effect_label: Label = %TerrainEffectLabel
 
 var _current_tween: Tween = null
-
-# Terrain type to name mapping
-const TERRAIN_NAMES: Dictionary = {
-	0: "Plains",
-	1: "Forest",
-	2: "Mountain",
-	3: "Water",
-	4: "Road",
-	5: "Sand",
-	6: "Bridge",
-	7: "Dirt Path",
-}
-
-# Terrain effects (placeholder - will be expanded with actual terrain system)
-const TERRAIN_EFFECTS: Dictionary = {
-	0: "No effect",
-	1: "DEF +1",
-	2: "DEF +2, AGI -1",
-	3: "Impassable (ground)",
-	4: "MOV cost reduced",
-	5: "MOV +1 cost",
-	6: "Crosses water",
-	7: "No effect",
-}
 
 
 func _ready() -> void:
@@ -48,12 +25,12 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 		_current_tween.kill()
 		_current_tween = null
 
-	# Get terrain type from TileMapLayer
-	var terrain_type: int = _get_terrain_type_at_cell(unit_cell)
+	# Get terrain data from GridManager
+	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit_cell)
 
 	# Update labels
-	terrain_name_label.text = TERRAIN_NAMES.get(terrain_type, "Unknown")
-	terrain_effect_label.text = TERRAIN_EFFECTS.get(terrain_type, "No data")
+	terrain_name_label.text = terrain.display_name
+	terrain_effect_label.text = _format_terrain_effects(terrain)
 
 	# Force visible and animate in
 	visible = true
@@ -78,18 +55,39 @@ func hide_terrain_info() -> void:
 	_current_tween.tween_callback(func() -> void: visible = false)
 
 
-## Get the terrain type ID at the specified cell.
-func _get_terrain_type_at_cell(cell: Vector2i) -> int:
-	# TODO: Integrate with GridManager's terrain system when custom data layers are added to tileset
-	# For now, return default terrain (0 = Plains)
-	# Once terrain_type custom data is added to the tileset, uncomment the code below:
-	#
-	# if GridManager.tilemap:
-	#     var tile_data: TileData = GridManager.tilemap.get_cell_tile_data(cell)
-	#     if tile_data:
-	#         var terrain_type: Variant = tile_data.get_custom_data("terrain_type")
-	#         if terrain_type is int:
-	#             return terrain_type
+## Format terrain effects into a readable string
+func _format_terrain_effects(terrain: TerrainData) -> String:
+	var effects: Array[String] = []
 
-	# Default to Plains until custom data layers are configured
-	return 0
+	# Defense bonus
+	if terrain.defense_bonus > 0:
+		effects.append("DEF +%d" % terrain.defense_bonus)
+
+	# Evasion bonus
+	if terrain.evasion_bonus > 0:
+		effects.append("EVA +%d%%" % terrain.evasion_bonus)
+
+	# Damage per turn
+	if terrain.damage_per_turn > 0:
+		effects.append("DMG %d/turn" % terrain.damage_per_turn)
+
+	# Healing per turn (shows even though deferred - players can see what terrain will do)
+	if terrain.healing_per_turn > 0:
+		effects.append("HEAL %d/turn" % terrain.healing_per_turn)
+
+	# Movement cost for ground units (only show if not standard cost 1)
+	if terrain.movement_cost_walking > 1:
+		effects.append("MOV x%d" % terrain.movement_cost_walking)
+
+	# Impassable indicators
+	if terrain.impassable_walking and terrain.impassable_floating and terrain.impassable_flying:
+		effects.append("Impassable")
+	elif terrain.impassable_walking and terrain.impassable_floating:
+		effects.append("Ground/Float: Blocked")
+	elif terrain.impassable_walking:
+		effects.append("Ground: Blocked")
+
+	if effects.is_empty():
+		return "No effect"
+
+	return ", ".join(effects)

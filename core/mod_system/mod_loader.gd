@@ -26,7 +26,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"parties": "party",
 	"battles": "battle",
 	"campaigns": "campaign",
-	"maps": "map"  # MapMetadata resources for exploration maps
+	"maps": "map",  # MapMetadata resources for exploration maps
+	"terrain": "terrain"  # TerrainData resources for battle terrain effects
 }
 
 # Resource types that support JSON loading (in addition to .tres)
@@ -43,6 +44,7 @@ const EnvironmentRegistryClass: GDScript = preload("res://core/registries/enviro
 const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_category_registry.gd")
 const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/animation_offset_registry.gd")
 const TriggerTypeRegistryClass: GDScript = preload("res://core/registries/trigger_type_registry.gd")
+const TerrainRegistryClass: GDScript = preload("res://core/registries/terrain_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -57,6 +59,7 @@ var environment_registry: RefCounted = EnvironmentRegistryClass.new()
 var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
 var animation_offset_registry: RefCounted = AnimationOffsetRegistryClass.new()
 var trigger_type_registry: RefCounted = TriggerTypeRegistryClass.new()
+var terrain_registry: RefCounted = TerrainRegistryClass.new()
 
 # TileSet registry: tileset_name -> {path: String, mod_id: String, resource: TileSet}
 var _tileset_registry: Dictionary = {}
@@ -213,6 +216,9 @@ func _load_mod_async(manifest: ModManifest) -> void:
 
 		if resource:
 			registry.register_resource(resource, req.resource_type, req.resource_id, manifest.mod_id)
+			# Special handling for terrain resources - also register with terrain_registry
+			if req.resource_type == "terrain" and resource is TerrainData:
+				terrain_registry.register_terrain(resource, manifest.mod_id)
 			loaded_count += 1
 		else:
 			push_warning("ModLoader: Failed to load resource: " + req.path)
@@ -325,6 +331,9 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 
 			if resource:
 				registry.register_resource(resource, resource_type, resource_id, mod_id)
+				# Special handling for terrain resources - also register with terrain_registry
+				if resource_type == "terrain" and resource is TerrainData:
+					terrain_registry.register_terrain(resource, mod_id)
 				count += 1
 			elif not resource_id.is_empty():
 				push_warning("ModLoader: Failed to load resource: " + full_path)
@@ -587,6 +596,7 @@ func reload_mods() -> void:
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()
+	terrain_registry.clear_mod_registrations()
 	# Clear tileset registry
 	_tileset_registry.clear()
 	_discover_and_load_mods()
@@ -605,6 +615,7 @@ func reload_mods_async() -> void:
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()
+	terrain_registry.clear_mod_registrations()
 	# Clear tileset registry
 	_tileset_registry.clear()
 	await _discover_and_load_mods_async()

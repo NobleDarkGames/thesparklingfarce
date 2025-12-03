@@ -28,9 +28,13 @@ const HIGHLIGHT_PULSE_MIN_ALPHA: float = 0.5
 const HIGHLIGHT_PULSE_MAX_ALPHA: float = 1.0
 const HIGHLIGHT_PULSE_DURATION: float = 0.6
 
-## Terrain cost by tile type and movement type
+## Terrain cost by tile type and movement type (LEGACY - kept for compatibility)
 ## Format: {tile_id: {MovementType: cost}}
 var _terrain_costs: Dictionary = {}
+
+## Cached terrain data for current map: {Vector2i: TerrainData}
+## Populated by load_terrain_data() after map is loaded
+var _cell_terrain_cache: Dictionary = {}
 
 ## Default terrain cost if not specified
 const DEFAULT_TERRAIN_COST: int = 1
@@ -40,6 +44,9 @@ const MAX_TERRAIN_COST: int = 99
 
 ## Default tile size (32x32 pixels) - used when no grid is set
 const DEFAULT_TILE_SIZE: int = 32
+
+## Name of the custom data layer in TileSets that stores terrain type
+const TERRAIN_TYPE_LAYER_NAME: String = "terrain_type"
 
 
 ## Get the current tile size (from grid if available, otherwise default)
@@ -65,9 +72,13 @@ func setup_grid(p_grid: Grid, p_tilemap: TileMapLayer) -> void:
 
 	# Clear previous state
 	_occupied_cells.clear()
+	_cell_terrain_cache.clear()
 
 	# Initialize A* grid
 	_setup_astar()
+
+	# Load terrain data from tilemap custom data (if available)
+	load_terrain_data()
 
 
 ## Set up the A* pathfinding grid
@@ -89,14 +100,74 @@ func _setup_astar() -> void:
 			_astar.set_point_solid(cell, false)
 
 
-## Set terrain cost for a specific tile type and movement type
+## Set terrain cost for a specific tile type and movement type (LEGACY)
 func set_terrain_cost(tile_id: int, movement_type: int, cost: int) -> void:
 	if tile_id not in _terrain_costs:
 		_terrain_costs[tile_id] = {}
 	_terrain_costs[tile_id][movement_type] = cost
 
 
+## Load terrain data from the current tilemap's custom data layer
+## Call this after setup_grid() to populate the terrain cache
+## This reads the "terrain_type" custom data from each tile and maps it to TerrainData
+func load_terrain_data() -> void:
+	_cell_terrain_cache.clear()
+
+	if not tilemap or not tilemap.tile_set:
+		return
+
+	# Check if tileset has terrain_type custom data layer
+	if not _tileset_has_terrain_type():
+		# No terrain_type layer - terrain will use fallback plains
+		return
+
+	# Cache terrain data for each cell in the grid
+	for x in range(grid.grid_size.x):
+		for y in range(grid.grid_size.y):
+			var cell: Vector2i = Vector2i(x, y)
+			var terrain_id: String = _get_terrain_id_at_cell(cell)
+			if not terrain_id.is_empty():
+				var terrain: TerrainData = ModLoader.terrain_registry.get_terrain(terrain_id)
+				_cell_terrain_cache[cell] = terrain
+
+
+## Check if tileset has terrain_type custom data layer
+func _tileset_has_terrain_type() -> bool:
+	if not tilemap or not tilemap.tile_set:
+		return false
+
+	var custom_data_count: int = tilemap.tile_set.get_custom_data_layers_count()
+	for i in range(custom_data_count):
+		if tilemap.tile_set.get_custom_data_layer_name(i) == TERRAIN_TYPE_LAYER_NAME:
+			return true
+	return false
+
+
+## Get terrain ID from tile custom data at a specific cell
+func _get_terrain_id_at_cell(cell: Vector2i) -> String:
+	if not tilemap:
+		return ""
+
+	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
+	if tile_data == null:
+		return ""
+
+	var terrain_type: Variant = tile_data.get_custom_data(TERRAIN_TYPE_LAYER_NAME)
+	if terrain_type is String:
+		return terrain_type
+	return ""
+
+
+## Get TerrainData at a cell (from cache, or fallback to plains)
+func get_terrain_at_cell(cell: Vector2i) -> TerrainData:
+	if cell in _cell_terrain_cache:
+		return _cell_terrain_cache[cell]
+	# Return fallback terrain (plains) for cells without terrain data
+	return ModLoader.terrain_registry.get_terrain("plains")
+
+
 ## Get terrain cost for a cell based on movement type
+## Now uses TerrainData system with proper movement type handling
 func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 	if grid == null:
 		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
@@ -113,7 +184,12 @@ func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 	if tilemap.tile_set.get_source_count() == 0:
 		return DEFAULT_TERRAIN_COST
 
-	# Get tile data from tilemap
+	# Use new TerrainData system if terrain cache is populated
+	if not _cell_terrain_cache.is_empty():
+		var terrain: TerrainData = get_terrain_at_cell(cell)
+		return terrain.get_movement_cost(movement_type)
+
+	# LEGACY FALLBACK: Old tile ID-based system (for backwards compatibility)
 	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
 	if tile_data == null:
 		return DEFAULT_TERRAIN_COST
@@ -122,7 +198,7 @@ func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 	var atlas_coords: Vector2i = tilemap.get_cell_atlas_coords(cell)
 	var tile_id: int = atlas_coords.y * 1000 + atlas_coords.x  # Simple ID from coords
 
-	# Look up terrain cost
+	# Look up terrain cost from legacy system
 	if tile_id in _terrain_costs and movement_type in _terrain_costs[tile_id]:
 		return _terrain_costs[tile_id][movement_type]
 
@@ -479,6 +555,7 @@ func clear_grid() -> void:
 	_astar = null
 	_occupied_cells.clear()
 	_terrain_costs.clear()
+	_cell_terrain_cache.clear()
 	_highlight_layer = null
 
 

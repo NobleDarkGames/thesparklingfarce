@@ -397,8 +397,18 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	var attacker_stats: UnitStats = attacker.stats
 	var defender_stats: UnitStats = defender.stats
 
-	# Calculate hit chance
-	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker_stats, defender_stats)
+	# Get terrain bonuses for defender's position
+	var terrain_defense: int = 0
+	var terrain_evasion: int = 0
+	var defender_terrain: TerrainData = GridManager.get_terrain_at_cell(defender.grid_position)
+	if defender_terrain:
+		terrain_defense = defender_terrain.defense_bonus
+		terrain_evasion = defender_terrain.evasion_bonus
+
+	# Calculate hit chance (with terrain evasion penalty)
+	var hit_chance: int = CombatCalculator.calculate_hit_chance_with_terrain(
+		attacker_stats, defender_stats, terrain_evasion
+	)
 
 	# Roll to hit
 	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
@@ -407,8 +417,10 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 	var was_critical: bool = false
 
 	if not was_miss:
-		# Calculate damage
-		damage = CombatCalculator.calculate_physical_damage(attacker_stats, defender_stats)
+		# Calculate damage (with terrain defense bonus)
+		damage = CombatCalculator.calculate_physical_damage_with_terrain(
+			attacker_stats, defender_stats, terrain_defense
+		)
 
 		# Check for critical hit
 		var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker_stats, defender_stats)
@@ -506,16 +518,31 @@ func _execute_counterattack(counter_attacker: Node2D, counter_target: Node2D) ->
 	var attacker_stats: UnitStats = counter_attacker.stats
 	var target_stats: UnitStats = counter_target.stats
 
-	# Calculate hit chance (same as normal attack)
-	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker_stats, target_stats)
+	# Get terrain bonuses for the counter-target's position
+	var terrain_defense: int = 0
+	var terrain_evasion: int = 0
+	var target_terrain: TerrainData = GridManager.get_terrain_at_cell(counter_target.grid_position)
+	if target_terrain:
+		terrain_defense = target_terrain.defense_bonus
+		terrain_evasion = target_terrain.evasion_bonus
+
+	# Calculate hit chance (with terrain evasion)
+	var hit_chance: int = CombatCalculator.calculate_hit_chance_with_terrain(
+		attacker_stats, target_stats, terrain_evasion
+	)
 	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
 
 	var damage: int = 0
 	var was_critical: bool = false
 
 	if not was_miss:
-		# Calculate counter damage (75% of normal)
-		damage = CombatCalculator.calculate_counter_damage(attacker_stats, target_stats, true)
+		# Calculate counter damage (75% of normal, with terrain defense)
+		# Note: We calculate full damage with terrain, then apply counter multiplier
+		var base_damage: int = CombatCalculator.calculate_physical_damage_with_terrain(
+			attacker_stats, target_stats, terrain_defense
+		)
+		damage = int(base_damage * CombatCalculator.COUNTER_DAMAGE_MULTIPLIER)
+		damage = maxi(damage, 1)  # Minimum 1 damage
 
 		# Counters can still crit
 		var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker_stats, target_stats)

@@ -236,3 +236,47 @@ static func check_counterattack(
 		result.will_counter = roll_counter(result.chance)
 
 	return result
+
+
+## Calculate hit chance with terrain evasion bonus
+## Formula: Base hit chance - terrain_evasion_bonus
+## Returns: Clamped between 10% and 99%
+static func calculate_hit_chance_with_terrain(
+	attacker_stats: UnitStats,
+	defender_stats: UnitStats,
+	terrain_evasion_bonus: int
+) -> int:
+	var base_hit: int = calculate_hit_chance(attacker_stats, defender_stats)
+	return clampi(base_hit - terrain_evasion_bonus, 10, 99)
+
+
+## Calculate effective defense with terrain bonus
+## Returns: Defender's defense + terrain_defense_bonus
+static func get_effective_defense_with_terrain(
+	defender_stats: UnitStats,
+	terrain_defense_bonus: int
+) -> int:
+	return defender_stats.defense + terrain_defense_bonus
+
+
+## Calculate physical damage with terrain defense bonus
+## Formula: (Attacker STR - (Defender DEF + terrain_def)) * variance
+## Returns: Minimum of 1 damage
+static func calculate_physical_damage_with_terrain(
+	attacker_stats: UnitStats,
+	defender_stats: UnitStats,
+	terrain_defense_bonus: int
+) -> int:
+	if not attacker_stats or not defender_stats:
+		push_error("CombatCalculator: Cannot calculate damage with null stats")
+		return 0
+
+	var effective_defense: int = defender_stats.defense + terrain_defense_bonus
+	var base_damage: int = attacker_stats.strength - effective_defense
+
+	# Apply variance (+/- 10%)
+	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
+	var damage: int = int(base_damage * variance)
+
+	# Minimum damage is always 1
+	return maxi(damage, 1)
