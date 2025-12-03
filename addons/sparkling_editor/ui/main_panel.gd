@@ -11,6 +11,7 @@ const AbilityEditorScene: PackedScene = preload("res://addons/sparkling_editor/u
 const DialogueEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/dialogue_editor.tscn")
 const PartyEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/party_editor.tscn")
 const BattleEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/battle_editor.tscn")
+const ModJsonEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/mod_json_editor.tscn")
 
 var character_editor: Control
 var class_editor: Control
@@ -19,6 +20,7 @@ var ability_editor: Control
 var dialogue_editor: Control
 var party_editor: Control
 var battle_editor: Control
+var mod_json_editor: Control
 
 var tab_container: TabContainer
 var mod_selector: OptionButton
@@ -61,6 +63,7 @@ func _setup_ui() -> void:
 
 	# Create editor tabs - Overview first so it shows by default
 	_create_overview_tab()
+	_create_mod_settings_tab()
 	_create_class_editor_tab()
 	_create_character_editor_tab()
 	_create_item_editor_tab()
@@ -118,6 +121,12 @@ For more information, check the documentation in the user_content folder."""
 	overview.add_child(scroll)
 
 	tab_container.add_child(overview)
+
+
+func _create_mod_settings_tab() -> void:
+	mod_json_editor = ModJsonEditorScene.instantiate()
+	mod_json_editor.name = "Mod Settings"
+	tab_container.add_child(mod_json_editor)
 
 
 func _create_character_editor_tab() -> void:
@@ -236,8 +245,9 @@ func _on_mod_selected(index: int) -> void:
 
 	if ModLoader and ModLoader.set_active_mod(mod_id):
 		# Notify all editors that the active mod changed
-		if EditorEventBus:
-			EditorEventBus.active_mod_changed.emit(mod_id)
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.active_mod_changed.emit(mod_id)
 
 		_update_mod_info(index)
 		_refresh_all_editors()
@@ -263,8 +273,9 @@ func _on_refresh_mods() -> void:
 		ModLoader.reload_mods()
 
 		# Notify all editors that mods were reloaded
-		if EditorEventBus:
-			EditorEventBus.mods_reloaded.emit()
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.mods_reloaded.emit()
 
 		_refresh_mod_list()
 		_refresh_all_editors()
@@ -286,3 +297,5 @@ func _refresh_all_editors() -> void:
 		party_editor._refresh_list()
 	if battle_editor and battle_editor.has_method("_refresh_list"):
 		battle_editor._refresh_list()
+	if mod_json_editor and mod_json_editor.has_method("_refresh_mod_list"):
+		mod_json_editor._refresh_mod_list()

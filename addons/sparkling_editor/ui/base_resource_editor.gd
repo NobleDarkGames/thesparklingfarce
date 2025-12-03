@@ -319,8 +319,9 @@ func _perform_save() -> void:
 	var err: Error = ResourceSaver.save(current_resource, path)
 	if err == OK:
 		# Notify other editors that a resource was saved
-		if EditorEventBus:
-			EditorEventBus.notify_resource_saved(resource_type_id, path, current_resource)
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_saved(resource_type_id, path, current_resource)
 
 		_hide_errors()
 		_refresh_list()
@@ -359,8 +360,9 @@ func _on_create_new() -> void:
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
 		# Notify other editors that a resource was created
-		if EditorEventBus:
-			EditorEventBus.notify_resource_created(resource_type_id, full_path, new_resource)
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
 
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
@@ -422,8 +424,9 @@ func _perform_delete() -> void:
 		var err: Error = dir.remove(path)
 		if err == OK:
 			# Notify other editors that a resource was deleted
-			if EditorEventBus:
-				EditorEventBus.notify_resource_deleted(resource_type_id, path)
+			var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+			if event_bus:
+				event_bus.notify_resource_deleted(resource_type_id, path)
 
 			current_resource = null
 			current_resource_source_mod = ""

@@ -69,10 +69,11 @@ func _ready() -> void:
 	_load_available_characters()
 
 	# Listen for character changes from other editor tabs via EditorEventBus
-	if EditorEventBus:
-		EditorEventBus.resource_saved.connect(_on_resource_event)
-		EditorEventBus.resource_created.connect(_on_resource_event)
-		EditorEventBus.resource_deleted.connect(_on_resource_deleted_event)
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		event_bus.resource_saved.connect(_on_resource_event)
+		event_bus.resource_created.connect(_on_resource_event)
+		event_bus.resource_deleted.connect(_on_resource_deleted_event)
 
 
 ## Handle resource saved/created events from EditorEventBus

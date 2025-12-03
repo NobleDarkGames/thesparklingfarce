@@ -85,9 +85,10 @@ func _ready() -> void:
 	_setup_ui()
 
 	# Connect to EditorEventBus for mod reload notifications
-	if EditorEventBus:
-		if not EditorEventBus.mods_reloaded.is_connected(_on_mods_reloaded):
-			EditorEventBus.mods_reloaded.connect(_on_mods_reloaded)
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+			event_bus.mods_reloaded.connect(_on_mods_reloaded)
 
 	# Initial refresh if resource_type is set
 	if not resource_type.is_empty():
@@ -96,9 +97,10 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	# Clean up signal connections
-	if EditorEventBus:
-		if EditorEventBus.mods_reloaded.is_connected(_on_mods_reloaded):
-			EditorEventBus.mods_reloaded.disconnect(_on_mods_reloaded)
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+			event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
 
 
 func _setup_ui() -> void:

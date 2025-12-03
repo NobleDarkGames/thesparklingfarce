@@ -1,6 +1,6 @@
 # Sparkling Editor Expansion Plan
 
-**Status:** In Progress (Phase 1A)
+**Status:** In Progress (Phase 1B Complete)
 **Priority:** High - Critical for modder accessibility
 **Dependencies:** Phase 2.5.1 complete (mod extensibility)
 **Target:** Before Phase 5 (advanced systems)
