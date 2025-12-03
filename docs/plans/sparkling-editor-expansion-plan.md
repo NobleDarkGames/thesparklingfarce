@@ -1,11 +1,25 @@
 # Sparkling Editor Expansion Plan
 
-**Status:** Proposed
+**Status:** In Progress (Phase 1A)
 **Priority:** High - Critical for modder accessibility
 **Dependencies:** Phase 2.5.1 complete (mod extensibility)
 **Target:** Before Phase 5 (advanced systems)
-**Estimated Effort:** 12-18 days total
+**Estimated Effort:** 11.5-17 days total
 **Created:** December 3, 2025
+**Last Verified:** December 3, 2025
+**Approved:** December 3, 2025 (Captain Obvious, with O'Brien architectural review)
+
+---
+
+## Verification Summary (December 3, 2025)
+
+Codebase scan confirms:
+- **7 editors exist:** Character, Class, Item, Ability, Dialogue, Party, Battle
+- **Map dropdown ALREADY implements multi-mod pattern** - use as template
+- **Other dropdowns still broken** - only show active mod resources
+- **Tab registration still hardcoded** in `main_panel.gd` lines 7-13
+- **EditorEventBus working correctly** - signals for cross-editor communication
+- **No new editors added since initial assessment**
 
 ---
 
@@ -48,30 +62,58 @@ The Sparkling Editor plugin currently covers 7 of ~15 moddable resource types (4
 
 ## Critical Issues Identified
 
-### Issue 1: Resource References Lose Mod Origin (CRITICAL)
+### Issue 1: Resource References and Mod Override Visibility (MEDIUM)
 
 **Location:** All editor files when storing resource references
 
-**Problem:** Dropdowns store Resource objects directly, not `{mod_id, resource_id}` pairs. When a referenced resource is from base_game but the modder's mod has a same-ID override, the wrong resource gets loaded depending on save order.
+**Original Concern:** Dropdowns store Resource objects directly, not `{mod_id, resource_id}` pairs. When a referenced resource is from base_game but the modder's mod has a same-ID override, the wrong resource gets loaded depending on save order.
 
-**Example from `battle_editor.gd`:**
-```gdscript
-var enemy_dict: Dictionary = {
-    "character": character,  # Just the resource object - loses mod origin!
-    "position": Vector2i(...),
-    "ai_brain": ai_brain
-}
+**Chief O'Brien's Analysis (December 3, 2025):** After examining actual `.tres` file format, Godot's native resource serialization already stores references using `ext_resource` with full paths and UIDs:
+```
+[ext_resource type="Resource" uid="uid://csan6ysxhu3p0" path="res://mods/_base_game/data/characters/max.tres" id="2_max"]
 ```
 
-**Solution:** Store references as `{mod_id: String, resource_id: String}` pairs, resolved at runtime via ModLoader.registry.
+The resource path IS preserved in the .tres file. The real issues are:
+1. **Editor Dropdown Population** - Only showing active mod resources (addressed in Issue 2)
+2. **Override Ambiguity at Runtime** - If a higher-priority mod overrides `max.tres`, the .tres file still points to the original path, but `ModLoader.registry.get_resource()` would return the override
+
+**Approved Solution (Native Godot References):**
+- Keep Godot's native resource reference mechanism (battle-tested, no migration needed)
+- When loading resources at runtime, check if referenced resource ID has an override in a higher-priority mod
+- Provide clear visual feedback in editor showing which mod provides selected resource AND whether it has overrides
+- Add `ModRegistry.get_resource_source_by_resource()` convenience method
+
+**Alternative Considered (Soft References):**
+Store references as `{mod_id: String, resource_id: String}` pairs, resolved at runtime via ModLoader.registry. This approach was rejected due to:
+- Requires migration of all existing .tres files
+- Requires changes to core Resource class definitions
+- Requires custom serialization/deserialization logic
+- Adds complexity without clear benefit over native approach
 
 ---
 
-### Issue 2: Dropdown Populations Show Only Active Mod (CRITICAL)
+### Issue 2: Dropdown Populations Show Only Active Mod (PARTIAL - Map Dropdown Already Fixed)
 
 **Location:** Multiple files - `character_editor.gd`, `battle_editor.gd`, `party_editor.gd`
 
-**Example from `battle_editor.gd` lines 646-652:**
+**Good News:** The `battle_editor.gd` already implements multi-mod resource display for **map selection** (lines 745-795). It scans ALL mods and displays as `[mod_name] filename`. This is the correct pattern!
+
+**Example of WORKING pattern from `battle_editor.gd` `_update_map_dropdown()`:**
+```gdscript
+# Scans ALL mod directories for maps
+var mods_dir: DirAccess = DirAccess.open("res://mods/")
+mods_dir.list_dir_begin()
+var mod_name: String = mods_dir.get_next()
+
+while mod_name != "":
+    if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+        var maps_path: String = "res://mods/%s/maps/" % mod_name
+        # ... scan and add with "[mod_name] filename" format
+```
+
+**Still Broken:** Character, class, party, dialogue, and AI brain dropdowns only query active mod:
+
+**Example from `battle_editor.gd` lines 646-652 (NEEDS FIXING):**
 ```gdscript
 if ModLoader:
     var active_mod: ModManifest = ModLoader.get_active_mod()
@@ -81,9 +123,7 @@ if ModLoader:
             character_dir = resource_dirs["character"]
 ```
 
-**Problem:** Reference dropdowns should show ALL resources from ALL loaded mods. Modders frequently reference base_game content (items, classes, abilities).
-
-**Correct Approach:**
+**Solution:** Apply the map dropdown pattern to all resource reference dropdowns:
 ```gdscript
 func _populate_resource_picker(resource_type: String, option_button: OptionButton) -> void:
     option_button.clear()
@@ -135,25 +175,32 @@ const ClassEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/
 
 ## Proposed Solutions
 
-### Phase 1A: Fix Resource Dropdowns (1 day)
+### Phase 1A: Fix Resource Dropdowns (0.5-1 day)
 
 **Objective:** Show all mod resources in reference pickers with source attribution
 
+**Template Already Exists:** The `battle_editor.gd` `_update_map_dropdown()` method (lines 745-795) already implements this pattern correctly. It:
+- Scans ALL mod directories (not just active mod)
+- Displays as `[mod_name] filename`
+- Stores full path in metadata
+
 **Implementation:**
 
-1. Create reusable `ResourcePicker` widget in `addons/sparkling_editor/ui/components/`
-2. Query `ModLoader.registry.get_all_resources(type)` instead of scanning active mod only
+1. Create reusable `ResourcePicker` widget based on existing map dropdown pattern
+2. Generalize to work with ModLoader.registry for typed resources
 3. Display format: `"[mod_id] Resource Name"`
 4. Store both mod_id and resource_id in item metadata
 5. Update all existing editors to use the new widget:
-   - `character_editor.gd` - class dropdown
+   - `character_editor.gd` - class dropdown (line 405-437)
    - `item_editor.gd` - effect dropdown
-   - `battle_editor.gd` - character/AI dropdowns
+   - `battle_editor.gd` - character/AI/party/dialogue dropdowns (lines 641-674, 1029-1064, 1079-1115)
    - `party_editor.gd` - character dropdown
    - `ability_editor.gd` - status effect references
 
+**Effort Reduced:** Having a working template in the codebase reduces implementation time.
+
 **Deliverables:**
-- `ResourcePicker` reusable component
+- `ResourcePicker` reusable component (based on map dropdown pattern)
 - All editors updated to use mod-aware dropdowns
 - Source mod visible in all resource selections
 
@@ -437,7 +484,7 @@ Allow mods to provide custom editor tabs:
 
 | Priority | Phase | Component | Effort | Rationale |
 |----------|-------|-----------|--------|-----------|
-| 1 | 1A | Fix resource dropdowns | 1 day | Blocks correct resource referencing |
+| 1 | 1A | Fix resource dropdowns | 0.5-1 day | Blocks correct resource referencing (template exists!) |
 | 2 | 1B | mod.json editor | 2 days | Unlocks total conversion config |
 | 3 | 2 | MapMetadata editor | 1-2 days | Foundation for world-building |
 | 4 | 3 | CinematicData editor | 3-4 days | Enables story content creation |
@@ -445,7 +492,7 @@ Allow mods to provide custom editor tabs:
 | 6 | 5 | Dynamic tab registration | 1 day | Enables mod-provided editors |
 | 7 | 6 | UX polish | 1-2 days | Quality of life improvements |
 
-**Total Estimated Effort:** 12-18 days
+**Total Estimated Effort:** 11.5-17 days (reduced due to existing map dropdown pattern)
 
 ---
 
@@ -574,8 +621,9 @@ addons/sparkling_editor/
 
 **Plan Created:** December 3, 2025
 **Away Team:** Lt. Claudbrain, Clauderina, Ed
-**Architectural Review:** Modro
-**Approved By:** Pending Captain's approval
+**Architectural Review:** Modro, Chief O'Brien
+**Approved By:** Captain Obvious (December 3, 2025)
+**Implementation Started:** December 3, 2025 (Phase 1A - ResourcePicker)
 
 ---
 
@@ -650,3 +698,45 @@ signal resource_deleted(resource_type: String, resource_id: String)
 signal active_mod_changed(mod_id: String)
 signal mods_reloaded()
 ```
+
+---
+
+## Appendix C: Chief O'Brien's Architectural Review (December 3, 2025)
+
+### Resource Reference Strategy Decision
+
+> "The resource path IS preserved in the .tres file. The issue is not with how resources are *stored*, but rather with editor dropdown population and runtime override resolution."
+
+**Approved Approach:** Keep Godot's native resource references. This avoids:
+- Migration of 60+ existing .tres files
+- Custom serialization/deserialization logic
+- Changes to core Resource class definitions
+- Breaking third-party mod compatibility
+
+### Recommended ModRegistry Enhancement
+
+```gdscript
+func get_resource_source_by_resource(resource: Resource) -> String:
+    if not resource or resource.resource_path.is_empty():
+        return ""
+    var resource_id: String = resource.resource_path.get_file().get_basename()
+    return get_resource_source(resource_id)
+```
+
+### EditorEventBus Signal Additions for Copy/Override Workflows
+
+```gdscript
+signal resource_copied(source_type: String, source_id: String, target_mod: String, new_id: String)
+signal resource_override_created(resource_type: String, resource_id: String, override_mod: String)
+```
+
+### JSON Serialization Abstraction
+
+Multiple new editors (MapMetadata, CinematicData, CampaignData) need JSON handling. Abstract into shared utility rather than duplicating code.
+
+### GraphEdit Contingency
+
+If GraphEdit proves unstable for Campaign Editor, have fallback options ready:
+- Tree-based view (Godot's Tree node is more stable)
+- Table-based view with connection columns
+- Export to/Import from external graph tools

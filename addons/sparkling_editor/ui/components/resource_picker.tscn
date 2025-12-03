@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dpj7kxm2h8qnf"]
+
+[ext_resource type="Script" path="res://addons/sparkling_editor/ui/components/resource_picker.gd" id="1_picker"]
+
+[node name="ResourcePicker" type="HBoxContainer"]
+script = ExtResource("1_picker")
