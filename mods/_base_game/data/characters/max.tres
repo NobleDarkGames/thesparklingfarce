@@ -30,4 +30,6 @@ base_agility = 7
 base_intelligence = 6
 base_luck = 6
 battle_sprite = ExtResource("4_sprite")
+starting_inventory = Array[String](["healing_herb", "healing_herb"])
 biography = "A brave young warrior destined for greatness. Though still inexperienced, Max possesses an unyielding spirit and natural leadership that inspires those around him."
+is_hero = true

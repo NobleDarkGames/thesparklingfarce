@@ -28,6 +28,7 @@ func _ready() -> void:
 	_run_grid_tests()
 	_run_unit_stats_tests()
 	_run_experience_config_tests()
+	_run_item_menu_integration_tests()
 
 	# Print summary
 	_print_summary()
@@ -212,7 +213,7 @@ func _run_combat_calculator_tests() -> void:
 	_test_physical_damage_equal_stats()
 
 	# Hit Chance Tests
-	_test_hit_chance_base_is_80()
+	_test_hit_chance_base_is_90_with_no_weapon()
 	_test_hit_chance_agility_advantage()
 	_test_hit_chance_agility_disadvantage()
 	_test_hit_chance_minimum_is_10()
@@ -353,12 +354,13 @@ func _test_physical_damage_equal_stats() -> void:
 
 # --- Hit Chance Tests ---
 
-func _test_hit_chance_base_is_80() -> void:
-	_start_test("hit_chance_base_is_80")
+func _test_hit_chance_base_is_90_with_no_weapon() -> void:
+	_start_test("hit_chance_base_is_90_with_no_weapon")
 	var attacker: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var defender: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker, defender)
-	if _assert_equal(hit_chance, 80):
+	# Default weapon hit rate is 90% when no weapon equipped
+	if _assert_equal(hit_chance, 90):
 		_pass()
 
 
@@ -376,7 +378,8 @@ func _test_hit_chance_agility_disadvantage() -> void:
 	var attacker: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var defender: UnitStats = _create_test_stats(10, 5, 20, 10, 5)
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker, defender)
-	if _assert_equal(hit_chance, 60):
+	# Base 90 - 20 (agility difference * 2) = 70
+	if _assert_equal(hit_chance, 70):
 		_pass()
 
 
@@ -1152,3 +1155,96 @@ func _test_antispam_disabled_returns_1() -> void:
 	var mult: float = config.get_anti_spam_multiplier(20)
 	if _assert_equal(mult, 1.0):
 		_pass()
+
+
+# =============================================================================
+# ITEM MENU INTEGRATION TESTS
+# =============================================================================
+
+func _run_item_menu_integration_tests() -> void:
+	_start_suite("ItemMenuIntegration")
+
+	_test_items_discovered()
+	_test_starting_inventory_copy()
+	_test_party_manager_save_data()
+
+
+func _test_items_discovered() -> void:
+	_start_test("items_discovered_by_mod_loader")
+
+	# Check if healing_herb exists
+	var healing_herb: Resource = ModLoader.registry.get_resource("item", "healing_herb")
+	if not _assert_not_null(healing_herb, "healing_herb should be found"):
+		return
+
+	# Check if medical_herb exists
+	var medical_herb: Resource = ModLoader.registry.get_resource("item", "medical_herb")
+	if not _assert_not_null(medical_herb, "medical_herb should be found"):
+		return
+
+	# Check if antidote exists
+	var antidote: Resource = ModLoader.registry.get_resource("item", "antidote")
+	if not _assert_not_null(antidote, "antidote should be found"):
+		return
+
+	# Check usable_in_battle flag
+	var herb: ItemData = healing_herb as ItemData
+	if _assert_true(herb.usable_in_battle, "healing_herb should be usable_in_battle"):
+		_pass()
+
+
+func _test_starting_inventory_copy() -> void:
+	_start_test("starting_inventory_copied_to_save_data")
+
+	# Load the hero character
+	var hero: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+	if not _assert_not_null(hero, "Hero character should exist"):
+		return
+
+	# Check starting_inventory
+	if hero.starting_inventory.size() == 0:
+		_fail("Hero should have starting_inventory items")
+		return
+
+	# Create CharacterSaveData
+	var save_data: CharacterSaveData = CharacterSaveData.new()
+	save_data.populate_from_character_data(hero)
+
+	# Check inventory was copied
+	if _assert_equal(save_data.inventory.size(), hero.starting_inventory.size(), "inventory size"):
+		_pass()
+
+
+func _test_party_manager_save_data() -> void:
+	_start_test("party_manager_get_member_save_data")
+
+	# Load the hero character
+	var hero: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+	if not _assert_not_null(hero, "Hero character should exist"):
+		return
+
+	# Clear party and add hero
+	PartyManager.clear_party()
+	PartyManager.add_member(hero)
+
+	# Check party size
+	if not _assert_equal(PartyManager.get_party_size(), 1, "party size"):
+		return
+
+	# Check has_method for get_member_save_data
+	if not _assert_true(PartyManager.has_method("get_member_save_data"), "has get_member_save_data"):
+		return
+
+	# Get save data
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(hero.character_uid)
+	if not _assert_not_null(save_data, "get_member_save_data should return data"):
+		return
+
+	# Check inventory
+	if not _assert_greater_equal(save_data.inventory.size(), 1, "save data should have inventory"):
+		return
+
+	_pass()
+
+	# Clean up
+	PartyManager.clear_party()

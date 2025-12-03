@@ -27,6 +27,7 @@ extends Node2D
 
 # Preload scenes
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
+const ItemMenuScene: PackedScene = preload("res://scenes/ui/item_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
 
 ## Battle data - set via TriggerManager or Inspector for testing
@@ -38,6 +39,7 @@ var _player_units: Array[Node2D] = []  # All player units
 var _enemy_units: Array[Node2D] = []  # All enemy units
 var _neutral_units: Array[Node2D] = []  # All neutral units
 var _action_menu: Control = null  # Action menu UI
+var _item_menu: Control = null  # Item menu UI
 var _grid_cursor: Node2D = null  # Grid cursor visual
 var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
 var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
@@ -196,6 +198,11 @@ func _ready() -> void:
 	_action_menu = ActionMenuScene.instantiate()
 	$UI.add_child(_action_menu)
 	InputManager.set_action_menu(_action_menu)
+
+	# Setup item menu UI
+	_item_menu = ItemMenuScene.instantiate()
+	$UI.add_child(_item_menu)
+	InputManager.set_item_menu(_item_menu)
 
 	# Setup grid cursor
 	_grid_cursor = GridCursorScene.instantiate()

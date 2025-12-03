@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://b2t8x7k4nan3p"]
+
+[ext_resource type="Script" path="res://scenes/ui/item_menu.gd" id="1_item_menu"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
+
+[node name="ItemMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 180.0
+offset_bottom = 200.0
+theme = ExtResource("2_ui_theme")
+script = ExtResource("1_item_menu")

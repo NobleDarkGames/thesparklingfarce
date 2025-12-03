@@ -15,4 +15,5 @@ base_hp = 20
 base_mp = 10
 portrait = ExtResource("3_portrait")
 battle_sprite = ExtResource("4_battle")
+starting_inventory = Array[String](["healing_herb", "medical_herb", "antidote"])
 is_hero = true

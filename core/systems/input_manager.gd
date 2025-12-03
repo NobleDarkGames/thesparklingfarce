@@ -14,6 +14,7 @@ enum InputState {
 	EXPLORING_MOVEMENT,  # LEGACY: Cursor-based movement (kept for compatibility)
 	DIRECT_MOVEMENT,     # SF2-style: Player controls unit directly tile-by-tile
 	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Stay)
+	SELECTING_ITEM,      # Item menu open (selecting which item to use)
 	TARGETING,           # Selecting target for attack/spell
 	EXECUTING,           # Action executing (animations, etc.)
 }
@@ -22,6 +23,7 @@ enum InputState {
 signal movement_confirmed(unit: Node2D, destination: Vector2i)
 signal action_selected(unit: Node2D, action: String)
 signal target_selected(unit: Node2D, target: Node2D)
+signal item_use_requested(unit: Node2D, item_id: String)  # Player selected an item to use
 signal turn_cancelled()  # Player wants to redo movement
 
 ## Current state
@@ -43,6 +45,7 @@ var available_actions: Array[String] = []
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
 var action_menu: Control = null  # Will be set by battle scene
+var item_menu: Control = null  # Will be set by battle scene
 var battle_scene: Node = null  # Reference to battle scene for UI access
 var grid_cursor: Node2D = null  # Visual cursor for grid movement
 var path_preview_parent: Node2D = null  # Parent node for path visuals
@@ -90,6 +93,79 @@ func _disconnect_action_menu_signals() -> void:
 			action_menu.action_selected.disconnect(_on_action_menu_selected)
 		while action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
 			action_menu.menu_cancelled.disconnect(_on_action_menu_cancelled)
+
+
+## Set item menu reference and connect signals
+func set_item_menu(menu: Control) -> void:
+	item_menu = menu
+
+	# Connect signals (we'll manage connection lifecycle per turn)
+	if not item_menu.item_selected.is_connected(_on_item_menu_selected):
+		item_menu.item_selected.connect(_on_item_menu_selected)
+	if not item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
+		item_menu.menu_cancelled.connect(_on_item_menu_cancelled)
+
+
+## Disconnect item menu signals (called when turn ends)
+func _disconnect_item_menu_signals() -> void:
+	if item_menu:
+		while item_menu.item_selected.is_connected(_on_item_menu_selected):
+			item_menu.item_selected.disconnect(_on_item_menu_selected)
+		while item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
+			item_menu.menu_cancelled.disconnect(_on_item_menu_cancelled)
+
+
+## Reconnect item menu signals (called when player turn starts)
+func _reconnect_item_menu_signals() -> void:
+	if item_menu:
+		if not item_menu.item_selected.is_connected(_on_item_menu_selected):
+			item_menu.item_selected.connect(_on_item_menu_selected)
+		if not item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
+			item_menu.menu_cancelled.connect(_on_item_menu_cancelled)
+
+
+## Handle item menu selection signal
+func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
+	# Guard: Reject stale signals from previous turns
+	if signal_session_id != _turn_session_id:
+		push_warning("InputManager: Ignoring STALE item selection from session %d (current: %d)" % [
+			signal_session_id,
+			_turn_session_id
+		])
+		return
+
+	# Guard: Only process in correct state
+	if current_state != InputState.SELECTING_ITEM or active_unit == null:
+		push_warning("InputManager: Ignoring item selection in state %s" % InputState.keys()[current_state])
+		return
+
+	# Play selection sound
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+
+	# Emit item use signal for BattleManager to handle
+	item_use_requested.emit(active_unit, item_id)
+
+	# Transition to EXECUTING (BattleManager will handle the item use and end turn)
+	set_state(InputState.EXECUTING)
+
+
+## Handle item menu cancellation signal
+func _on_item_menu_cancelled(signal_session_id: int) -> void:
+	print("[InputManager] _on_item_menu_cancelled() - signal session: %d, current: %d" % [
+		signal_session_id,
+		_turn_session_id
+	])
+	# Guard: Reject stale cancel signals from previous turns
+	if signal_session_id != _turn_session_id:
+		push_warning("InputManager: Ignoring STALE item cancel from session %d (current: %d)" % [
+			signal_session_id,
+			_turn_session_id
+		])
+		return
+
+	print("[InputManager] Returning to SELECTING_ACTION from item menu cancel")
+	# Return to action menu
+	set_state(InputState.SELECTING_ACTION)
 
 
 ## Reconnect action menu signals (called when player turn starts)
@@ -177,12 +253,18 @@ func start_player_turn(unit: Node2D) -> void:
 
 	# NOW reconnect signals after state is correct (eliminates timing window)
 	_reconnect_action_menu_signals()
+	_reconnect_item_menu_signals()
 
 
 ## Change input state
 func set_state(new_state: InputState) -> void:
 	var old_state: InputState = current_state
 	current_state = new_state
+
+	print("[InputManager] State change: %s -> %s" % [
+		InputState.keys()[old_state],
+		InputState.keys()[new_state]
+	])
 
 	# Debug: Warn on unexpected transition to WAITING
 	if new_state == InputState.WAITING and old_state == InputState.EXPLORING_MOVEMENT:
@@ -199,6 +281,8 @@ func set_state(new_state: InputState) -> void:
 			_on_enter_direct_movement()
 		InputState.SELECTING_ACTION:
 			_on_enter_selecting_action()
+		InputState.SELECTING_ITEM:
+			_on_enter_selecting_item()
 		InputState.TARGETING:
 			_on_enter_targeting()
 		InputState.EXECUTING:
@@ -309,6 +393,19 @@ func _on_enter_selecting_action() -> void:
 
 	# Show action menu
 	_show_action_menu()
+
+
+func _on_enter_selecting_item() -> void:
+	print("[InputManager] _on_enter_selecting_item() - session: %d" % _turn_session_id)
+	# Disable per-frame processing (menu handles its own input)
+	set_process(false)
+
+	# Hide action menu if visible
+	if action_menu and action_menu.visible:
+		action_menu.hide_menu()
+
+	# Show item menu
+	_show_item_menu()
 
 
 func _on_enter_targeting() -> void:
@@ -800,6 +897,31 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 	pass
 
 
+## Show item menu
+func _show_item_menu() -> void:
+	if not item_menu:
+		push_warning("InputManager: No item menu reference set - falling back to ending turn")
+		# Fall back: end turn immediately (prevents freeze)
+		set_state(InputState.EXECUTING)
+		if active_unit:
+			BattleManager._execute_stay(active_unit)
+		return
+
+	if not active_unit:
+		push_warning("InputManager: No active unit for item menu")
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Show item menu with unit's inventory
+	item_menu.show_menu(active_unit, _turn_session_id)
+
+	# Position menu near active unit (similar to action menu)
+	var viewport: Viewport = active_unit.get_viewport()
+	var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
+	# Offset to right of unit
+	item_menu.position = unit_screen_pos + Vector2(40, -20)
+
+
 ## Select action from menu
 func _select_action(action: String, signal_session_id: int) -> void:
 	# Guard: Check if this signal is from a previous turn (stale)
@@ -854,8 +976,8 @@ func _select_action(action: String, signal_session_id: int) -> void:
 		"Magic":
 			set_state(InputState.TARGETING)
 		"Item":
-			# TODO: Open item menu
-			_execute_action()
+			# Open item menu - transition to SELECTING_ITEM state
+			set_state(InputState.SELECTING_ITEM)
 		"Stay":
 			# BattleManager._execute_stay() handles this synchronously and resets state
 			# We should never reach here for Stay (caught by WAITING check above)
@@ -1036,9 +1158,12 @@ func reset_to_waiting() -> void:
 	# NUCLEAR OPTION: Reset menu state to clear any stale state
 	if action_menu:
 		action_menu.reset_menu()
+	if item_menu:
+		item_menu.reset_menu()
 
-	# Disconnect action menu to prevent stale signals
+	# Disconnect menus to prevent stale signals
 	_disconnect_action_menu_signals()
+	_disconnect_item_menu_signals()
 
 	# Hide stats panel
 	if stats_panel:

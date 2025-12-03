@@ -29,6 +29,7 @@ extends Node2D
 
 ## Preloaded scenes
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
+const ItemMenuScene: PackedScene = preload("res://scenes/ui/item_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
 
 ## Map layers
@@ -42,6 +43,7 @@ var _neutral_units: Array[Node2D] = []
 
 ## UI elements
 var _action_menu: Control = null
+var _item_menu: Control = null
 var _grid_cursor: Node2D = null
 var _stats_panel: ActiveUnitStatsPanel = null
 var _terrain_panel: TerrainInfoPanel = null
@@ -151,6 +153,11 @@ func _setup_ui() -> void:
 	_action_menu = ActionMenuScene.instantiate()
 	$UI.add_child(_action_menu)
 	InputManager.set_action_menu(_action_menu)
+
+	# Item menu
+	_item_menu = ItemMenuScene.instantiate()
+	$UI.add_child(_item_menu)
+	InputManager.set_item_menu(_item_menu)
 
 	# Grid cursor
 	_grid_cursor = GridCursorScene.instantiate()

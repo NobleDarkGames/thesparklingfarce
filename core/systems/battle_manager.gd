@@ -339,6 +339,9 @@ func _connect_signals() -> void:
 	if not InputManager.target_selected.is_connected(_on_target_selected):
 		InputManager.target_selected.connect(_on_target_selected)
 
+	if not InputManager.item_use_requested.is_connected(_on_item_use_requested):
+		InputManager.item_use_requested.connect(_on_item_use_requested)
+
 	# ExperienceManager signals
 	if not ExperienceManager.unit_gained_xp.is_connected(_on_unit_gained_xp):
 		ExperienceManager.unit_gained_xp.connect(_on_unit_gained_xp)
@@ -361,8 +364,9 @@ func _on_action_selected(unit: Node2D, action: String) -> void:
 			# TODO: Phase 4
 			push_warning("BattleManager: Magic not yet implemented")
 		"item":
-			# TODO: Phase 4
-			push_warning("BattleManager: Items not yet implemented")
+			# InputManager handles item menu - nothing to do here
+			# Item use is handled via _on_item_use_requested signal
+			pass
 		"stay":
 			# End turn immediately
 			_execute_stay(unit)
@@ -376,6 +380,30 @@ func _on_target_selected(unit: Node2D, target: Node2D) -> void:
 
 ## Execute Stay action (end turn)
 func _execute_stay(unit: Node2D) -> void:
+
+	# Reset InputManager to waiting state
+	InputManager.reset_to_waiting()
+
+	# End unit's turn
+	TurnManager.end_unit_turn(unit)
+
+
+## Handle item use request from InputManager
+func _on_item_use_requested(unit: Node2D, item_id: String) -> void:
+	# For MVP (Phase 1): Just end turn after item selection
+	# Phase 2 will add actual item effects and target selection
+
+	# Get the item data
+	var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	if item:
+		print("BattleManager: %s used %s (effect not yet implemented)" % [
+			unit.get_display_name(),
+			item.item_name
+		])
+		# TODO Phase 2: Apply item effect, consume item, show animation
+		# TODO Phase 2: Some items may need target selection (healing items on allies)
+	else:
+		push_warning("BattleManager: Item '%s' not found in registry" % item_id)
 
 	# Reset InputManager to waiting state
 	InputManager.reset_to_waiting()
