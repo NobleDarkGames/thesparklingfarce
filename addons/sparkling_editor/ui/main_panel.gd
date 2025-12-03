@@ -12,6 +12,7 @@ const DialogueEditorScene: PackedScene = preload("res://addons/sparkling_editor/
 const PartyEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/party_editor.tscn")
 const BattleEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/battle_editor.tscn")
 const ModJsonEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/mod_json_editor.tscn")
+const MapMetadataEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/map_metadata_editor.tscn")
 
 var character_editor: Control
 var class_editor: Control
@@ -21,6 +22,7 @@ var dialogue_editor: Control
 var party_editor: Control
 var battle_editor: Control
 var mod_json_editor: Control
+var map_metadata_editor: Control
 
 var tab_container: TabContainer
 var mod_selector: OptionButton
@@ -71,6 +73,7 @@ func _setup_ui() -> void:
 	_create_dialogue_editor_tab()
 	_create_party_editor_tab()
 	_create_battle_editor_tab()
+	_create_map_metadata_tab()
 
 
 func _create_overview_tab() -> void:
@@ -162,6 +165,12 @@ func _create_party_editor_tab() -> void:
 func _create_battle_editor_tab() -> void:
 	battle_editor = BattleEditorScene.instantiate()
 	tab_container.add_child(battle_editor)
+
+
+func _create_map_metadata_tab() -> void:
+	map_metadata_editor = MapMetadataEditorScene.instantiate()
+	map_metadata_editor.name = "Maps"
+	tab_container.add_child(map_metadata_editor)
 
 
 func _create_mod_selector_ui() -> void:
@@ -299,3 +308,5 @@ func _refresh_all_editors() -> void:
 		battle_editor._refresh_list()
 	if mod_json_editor and mod_json_editor.has_method("_refresh_mod_list"):
 		mod_json_editor._refresh_mod_list()
+	if map_metadata_editor and map_metadata_editor.has_method("_refresh_map_list"):
+		map_metadata_editor._refresh_map_list()

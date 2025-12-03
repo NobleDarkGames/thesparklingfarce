@@ -1,6 +1,6 @@
 # Sparkling Editor Expansion Plan
 
-**Status:** In Progress (Phase 1B Complete)
+**Status:** In Progress (Phase 2)
 **Priority:** High - Critical for modder accessibility
 **Dependencies:** Phase 2.5.1 complete (mod extensibility)
 **Target:** Before Phase 5 (advanced systems)
@@ -11,15 +11,31 @@
 
 ---
 
+## Implementation Progress
+
+| Phase | Component | Status | Commit | Notes |
+|-------|-----------|--------|--------|-------|
+| 1A | ResourcePicker widget | ✅ Complete | `c09df5f` | Cross-mod dropdowns with `[mod_id]` format |
+| 1A | Editor integration | ✅ Complete | `0493833` | battle_editor, character_editor updated |
+| 1B | mod.json editor | ✅ Complete | `298454a` | All 9 sections, EditorEventBus fix |
+| 2 | MapMetadata editor | 🔄 In Progress | | |
+| 3 | CinematicData editor | ⏳ Pending | | |
+| 4 | CampaignData editor | ⏳ Pending | | |
+| 5 | Dynamic tab registration | ⏳ Pending | | |
+| 6 | UX polish | ⏳ Pending | | |
+
+---
+
 ## Verification Summary (December 3, 2025)
 
-Codebase scan confirms:
-- **7 editors exist:** Character, Class, Item, Ability, Dialogue, Party, Battle
-- **Map dropdown ALREADY implements multi-mod pattern** - use as template
-- **Other dropdowns still broken** - only show active mod resources
-- **Tab registration still hardcoded** in `main_panel.gd` lines 7-13
-- **EditorEventBus working correctly** - signals for cross-editor communication
-- **No new editors added since initial assessment**
+**Updated after Phase 1 completion:**
+- **8 editors exist:** Character, Class, Item, Ability, Dialogue, Party, Battle, **Mod Settings (NEW)**
+- **All resource dropdowns now use ResourcePicker** - shows ALL mods with `[mod_id]` prefix
+- **EditorEventBus references fixed** - use `get_node_or_null()` for runtime lookup
+- **Tab registration still hardcoded** in `main_panel.gd` (Phase 5 will address)
+
+**Original assessment (preserved for reference):**
+- Map dropdown ALREADY implements multi-mod pattern - used as template for ResourcePicker
 
 ---
 
