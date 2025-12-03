@@ -53,6 +53,11 @@ const MAX_PRIORITY: int = 9999
 ## When true, default party members from lower-priority mods are ignored
 @export var replaces_default_party: bool = false
 
+## Editor extensions - allows mods to provide custom editor tabs
+## Format: {"tab_id": {"resource_type": String, "editor_scene": String, "tab_name": String}}
+## editor_scene is relative to mod directory
+@export var editor_extensions: Dictionary = {}
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -166,6 +171,13 @@ static func load_from_file(json_path: String) -> ModManifest:
 		var party_config: Dictionary = data.party_config
 		if "replaces_lower_priority" in party_config:
 			manifest.replaces_default_party = bool(party_config.replaces_lower_priority)
+
+	# Parse editor extensions (allows mods to add custom editor tabs)
+	if "editor_extensions" in data and data.editor_extensions is Dictionary:
+		for ext_id: String in data.editor_extensions.keys():
+			var ext_data: Variant = data.editor_extensions[ext_id]
+			if ext_data is Dictionary:
+				manifest.editor_extensions[ext_id] = ext_data
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

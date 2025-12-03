@@ -1,6 +1,6 @@
 # Sparkling Editor Expansion Plan
 
-**Status:** In Progress (Phase 4 Complete - Awaiting Testing)
+**Status:** In Progress (Phase 5 Complete - Awaiting Testing)
 **Priority:** High - Critical for modder accessibility
 **Dependencies:** Phase 2.5.1 complete (mod extensibility)
 **Target:** Before Phase 5 (advanced systems)
@@ -20,8 +20,8 @@
 | 1B | mod.json editor | ✅ Complete | `298454a` | All 9 sections, EditorEventBus fix |
 | 2 | MapMetadata editor | ✅ Complete | `a0a4352` | JSON-based editor, all map metadata fields |
 | 3 | CinematicData editor | ✅ Complete | `45a5037` | 19 command types, command inspector panel |
-| 4 | CampaignData editor | ✅ Complete | (staged) | GraphEdit visual node graph with color-coding |
-| 5 | Dynamic tab registration | ⏳ Pending | | |
+| 4 | CampaignData editor | ✅ Complete | `cf9375c` | GraphEdit visual node graph with color-coding |
+| 5 | Dynamic tab registration | ✅ Complete | (staged) | Mods can add custom editor tabs via mod.json |
 | 6 | UX polish | ⏳ Pending | | |
 
 ---

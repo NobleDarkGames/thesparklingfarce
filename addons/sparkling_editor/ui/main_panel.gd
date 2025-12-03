@@ -28,6 +28,10 @@ var map_metadata_editor: Control
 var cinematic_editor: Control
 var campaign_editor: Control
 
+# Dynamic editor tabs from mods
+# Format: {"mod_id:tab_id": {"control": Control, "refresh_method": String}}
+var dynamic_editors: Dictionary = {}
+
 var tab_container: TabContainer
 var mod_selector: OptionButton
 var mod_info_label: Label
@@ -80,6 +84,9 @@ func _setup_ui() -> void:
 	_create_map_metadata_tab()
 	_create_cinematic_editor_tab()
 	_create_campaign_editor_tab()
+
+	# Load dynamic editor tabs from mods
+	_load_mod_editor_extensions()
 
 
 func _create_overview_tab() -> void:
@@ -189,6 +196,80 @@ func _create_campaign_editor_tab() -> void:
 	campaign_editor = CampaignEditorScene.instantiate()
 	campaign_editor.name = "Campaigns"
 	tab_container.add_child(campaign_editor)
+
+
+func _load_mod_editor_extensions() -> void:
+	## Discover and load editor extensions from all mods
+	## Mods can define editor_extensions in mod.json to add custom tabs
+
+	if not ModLoader:
+		return
+
+	# Clear existing dynamic editors
+	for key: String in dynamic_editors.keys():
+		var editor_info: Dictionary = dynamic_editors[key]
+		if editor_info.get("control"):
+			editor_info["control"].queue_free()
+	dynamic_editors.clear()
+
+	var mods: Array[ModManifest] = ModLoader.get_all_mods()
+
+	for mod: ModManifest in mods:
+		if mod.editor_extensions.is_empty():
+			continue
+
+		for ext_id: String in mod.editor_extensions.keys():
+			var ext_config: Dictionary = mod.editor_extensions[ext_id]
+			_register_mod_editor(mod, ext_id, ext_config)
+
+
+func _register_mod_editor(mod: ModManifest, ext_id: String, config: Dictionary) -> void:
+	## Register a single mod editor tab
+	## config format: {editor_scene: String, tab_name: String, refresh_method: String (optional)}
+
+	var editor_scene_path: String = config.get("editor_scene", "")
+	var tab_name: String = config.get("tab_name", ext_id)
+	var refresh_method: String = config.get("refresh_method", "_refresh_list")
+
+	if editor_scene_path.is_empty():
+		push_warning("Mod '%s' editor_extension '%s' missing editor_scene" % [mod.mod_id, ext_id])
+		return
+
+	# Resolve full path (relative to mod directory)
+	var full_scene_path: String = mod.mod_directory.path_join(editor_scene_path)
+
+	# Check if scene exists
+	if not ResourceLoader.exists(full_scene_path):
+		push_warning("Mod '%s' editor_extension '%s' scene not found: %s" % [mod.mod_id, ext_id, full_scene_path])
+		return
+
+	# Load and instantiate the scene
+	var scene: PackedScene = load(full_scene_path)
+	if not scene:
+		push_error("Failed to load mod editor scene: " + full_scene_path)
+		return
+
+	var editor_instance: Control = scene.instantiate()
+	if not editor_instance:
+		push_error("Failed to instantiate mod editor: " + full_scene_path)
+		return
+
+	# Set tab name with mod prefix for clarity
+	editor_instance.name = "[%s] %s" % [mod.mod_id, tab_name]
+
+	# Add to tab container
+	tab_container.add_child(editor_instance)
+
+	# Track for refresh calls
+	var editor_key: String = "%s:%s" % [mod.mod_id, ext_id]
+	dynamic_editors[editor_key] = {
+		"control": editor_instance,
+		"refresh_method": refresh_method,
+		"mod_id": mod.mod_id,
+		"tab_name": tab_name
+	}
+
+	print("Sparkling Editor: Registered mod editor tab '%s' from mod '%s'" % [tab_name, mod.mod_id])
 
 
 func _create_mod_selector_ui() -> void:
@@ -305,6 +386,10 @@ func _on_refresh_mods() -> void:
 			event_bus.mods_reloaded.emit()
 
 		_refresh_mod_list()
+
+		# Reload dynamic editor tabs (mods may have added/removed extensions)
+		_load_mod_editor_extensions()
+
 		_refresh_all_editors()
 
 
@@ -332,3 +417,11 @@ func _refresh_all_editors() -> void:
 		cinematic_editor._refresh_cinematic_list()
 	if campaign_editor and campaign_editor.has_method("_refresh_campaign_list"):
 		campaign_editor._refresh_campaign_list()
+
+	# Refresh dynamic mod editors
+	for key: String in dynamic_editors.keys():
+		var editor_info: Dictionary = dynamic_editors[key]
+		var editor_control: Control = editor_info.get("control")
+		var refresh_method: String = editor_info.get("refresh_method", "_refresh_list")
+		if editor_control and editor_control.has_method(refresh_method):
+			editor_control.call(refresh_method)
