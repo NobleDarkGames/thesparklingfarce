@@ -18,9 +18,23 @@ enum ItemType {
 @export_group("Equipment Properties")
 ## For weapons: type like "sword", "axe", "bow"
 ## For armor: type like "light", "heavy", "robe"
+## For rings: "ring"
+## For accessories: "accessory"
 @export var equipment_type: String = ""
-## Durability/uses (-1 for unlimited)
-@export var durability: int = -1
+
+## Which slot this item occupies when equipped
+## Uses String to support mod-defined slot types (validated at runtime)
+## Default slots: "weapon", "ring_1", "ring_2", "accessory"
+@export var equipment_slot: String = "weapon"
+
+@export_group("Curse Properties")
+## If true, item cannot be unequipped through normal means once equipped
+## Cursed items are typically powerful but lock the slot until uncursed
+@export var is_cursed: bool = false
+
+## Item IDs that can remove this curse (e.g., "purify_scroll", "holy_water")
+## Empty array means only church service can remove curse
+@export var uncurse_items: Array[String] = []
 
 @export_group("Stats Modifiers")
 @export var hp_modifier: int = 0
@@ -91,4 +105,53 @@ func validate() -> bool:
 		return false
 	if item_type == ItemType.CONSUMABLE and effect == null:
 		push_warning("ItemData: consumable item has no effect assigned")
+	return true
+
+
+## Check if this item can have its curse removed by a specific item
+func can_uncurse_with(uncurse_item_id: String) -> bool:
+	if not is_cursed:
+		return false
+	return uncurse_item_id in uncurse_items
+
+
+## Check if this item's curse can only be removed by church service
+func requires_church_uncurse() -> bool:
+	return is_cursed and uncurse_items.is_empty()
+
+
+## Get valid slots this item can be equipped to
+## Returns array because some item types (rings) can go in multiple slots
+func get_valid_slots() -> Array[String]:
+	# Check if ModLoader is available (may not be during editor preview)
+	if Engine.has_singleton("ModLoader") or ClassDB.class_exists("ModLoader"):
+		var mod_loader: Node = Engine.get_singleton("ModLoader") if Engine.has_singleton("ModLoader") else null
+		if mod_loader == null:
+			mod_loader = Engine.get_main_loop().root.get_node_or_null("ModLoader") if Engine.get_main_loop() else null
+		if mod_loader and "equipment_slot_registry" in mod_loader:
+			return mod_loader.equipment_slot_registry.get_slots_for_type(equipment_type)
+	# Fallback to default slot matching
+	return _get_default_valid_slots()
+
+
+## Fallback slot lookup when ModLoader is not available
+func _get_default_valid_slots() -> Array[String]:
+	match equipment_type.to_lower():
+		"weapon", "sword", "axe", "lance", "bow", "staff", "tome":
+			return ["weapon"]
+		"ring":
+			return ["ring_1", "ring_2"]
+		"accessory":
+			return ["accessory"]
+		_:
+			return []
+
+
+## Validate equipment_slot against current slot registry
+## Returns true if the item's equipment_type is accepted by at least one slot
+func validate_equipment_slot() -> bool:
+	var valid_slots: Array[String] = get_valid_slots()
+	if valid_slots.is_empty():
+		push_warning("ItemData '%s': equipment_type '%s' not accepted by any slot" % [item_name, equipment_type])
+		return false
 	return true

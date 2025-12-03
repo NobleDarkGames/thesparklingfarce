@@ -19,15 +19,24 @@ const XP_LEVEL_PENALTY_PERCENT: float = 0.1
 const XP_MINIMUM_MULTIPLIER: float = 0.5
 
 
-## Calculate physical attack damage
-## Formula: (Attacker STR - Defender DEF) * variance(0.9 to 1.1)
+## Calculate physical attack damage with weapon
+## Formula: (Attacker STR + Weapon ATK - Defender DEF) * variance(0.9 to 1.1)
 ## Returns: Minimum of 1 damage
 static func calculate_physical_damage(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		push_error("CombatCalculator: Cannot calculate damage with null stats")
 		return 0
 
-	var base_damage: int = attacker_stats.strength - defender_stats.defense
+	# Get effective strength (includes equipment bonuses)
+	var attack_power: int = attacker_stats.get_effective_strength()
+
+	# Add weapon attack power
+	attack_power += attacker_stats.get_weapon_attack_power()
+
+	# Get effective defense (includes equipment bonuses)
+	var defense_power: int = defender_stats.get_effective_defense()
+
+	var base_damage: int = attack_power - defense_power
 
 	# Apply variance (±10%)
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
@@ -66,30 +75,36 @@ static func calculate_magic_damage(
 	return maxi(damage, 1)
 
 
-## Calculate hit chance (percentage)
-## Formula: Base 80% + (Attacker AGI - Defender AGI) * 2
+## Calculate hit chance (percentage) with weapon hit rate
+## Formula: Weapon Hit Rate + (Attacker AGI - Defender AGI) * 2
 ## Returns: Clamped between 10% and 99%
 static func calculate_hit_chance(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		push_error("CombatCalculator: Cannot calculate hit chance with null stats")
 		return 50  # Default to 50% if error
 
-	var base_hit: int = BASE_HIT_CHANCE
-	var hit_modifier: int = (attacker_stats.agility - defender_stats.agility) * 2
+	# Get weapon hit rate (or default base hit rate)
+	var base_hit: int = attacker_stats.get_weapon_hit_rate()
+
+	# Calculate agility modifier
+	var hit_modifier: int = (attacker_stats.get_effective_agility() - defender_stats.get_effective_agility()) * 2
 
 	return clampi(base_hit + hit_modifier, 10, 99)
 
 
-## Calculate critical hit chance (percentage)
-## Formula: Base 5% + (Attacker LUK - Defender LUK)
+## Calculate critical hit chance (percentage) with weapon crit rate
+## Formula: Weapon Crit Rate + (Attacker LUK - Defender LUK)
 ## Returns: Clamped between 0% and 50%
 static func calculate_crit_chance(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		push_error("CombatCalculator: Cannot calculate crit chance with null stats")
 		return 0
 
-	var base_crit: int = BASE_CRIT_CHANCE
-	var crit_modifier: int = attacker_stats.luck - defender_stats.luck
+	# Get weapon crit rate (or default base crit rate)
+	var base_crit: int = attacker_stats.get_weapon_crit_rate()
+
+	# Calculate luck modifier
+	var crit_modifier: int = attacker_stats.get_effective_luck() - defender_stats.get_effective_luck()
 
 	return clampi(base_crit + crit_modifier, 0, 50)
 
@@ -179,6 +194,14 @@ static func can_counterattack(
 ) -> bool:
 	# Can only counter if weapon reaches the attacker
 	return defender_weapon_range >= attack_distance
+
+
+## Check if attacker can reach target with their weapon
+## Uses the cached weapon range from UnitStats
+static func can_attack_at_range(attacker_stats: UnitStats, distance: int) -> bool:
+	if not attacker_stats:
+		return false
+	return attacker_stats.get_weapon_range() >= distance
 
 
 ## Calculate counter chance based on defender's class

@@ -518,3 +518,81 @@ func await_movement_completion() -> void:
 ## Use this instead of accessing _movement_tween directly
 func is_moving() -> bool:
 	return _movement_tween != null and _movement_tween.is_valid()
+
+
+## Refresh the equipment cache from CharacterSaveData
+## Called when equipment changes (equip/unequip) to update combat stats
+## Requires a CharacterSaveData reference - typically from PartyManager
+func refresh_equipment_cache() -> void:
+	if stats == null:
+		push_warning("Unit: Cannot refresh equipment cache - no stats")
+		return
+
+	# Try to get save data from PartyManager
+	if not character_data:
+		push_warning("Unit: Cannot refresh equipment cache - no character_data")
+		return
+
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_data.character_uid)
+	if not save_data:
+		# Fall back to checking if we have a reference stored
+		push_warning("Unit: Cannot refresh equipment cache - no save data found for '%s'" % character_data.character_name)
+		return
+
+	stats.load_equipment_from_save(save_data)
+
+
+## Initialize unit from CharacterSaveData (for battle)
+## This preserves persistent stats and equipment from saved state
+func initialize_from_save_data(
+	p_character_data: CharacterData,
+	p_save_data: CharacterSaveData,
+	p_faction: String = "neutral",
+	p_ai_brain: Resource = null
+) -> void:
+	if p_character_data == null or p_save_data == null:
+		push_error("Unit: Cannot initialize with null CharacterData or SaveData")
+		return
+
+	character_data = p_character_data
+	faction = p_faction
+	ai_brain = p_ai_brain
+
+	# Create stats
+	var UnitStatsClass: GDScript = load("res://core/components/unit_stats.gd")
+	stats = UnitStatsClass.new()
+	stats.owner_unit = self
+
+	# Load base stats from save data instead of character data
+	stats.level = p_save_data.level
+	stats.current_xp = p_save_data.current_xp
+	stats.max_hp = p_save_data.max_hp
+	stats.current_hp = p_save_data.current_hp
+	stats.max_mp = p_save_data.max_mp
+	stats.current_mp = p_save_data.current_mp
+	stats.strength = p_save_data.strength
+	stats.defense = p_save_data.defense
+	stats.agility = p_save_data.agility
+	stats.intelligence = p_save_data.intelligence
+	stats.luck = p_save_data.luck
+
+	# Store character and class references
+	stats.character_data = p_character_data
+	stats.class_data = p_character_data.character_class
+
+	# Load equipment from save data
+	stats.load_equipment_from_save(p_save_data)
+
+	# Set visual (placeholder for now)
+	_update_visual()
+
+	# Set name label
+	if name_label:
+		name_label.text = character_data.character_name
+
+	# Update health bar (no animation on initialization)
+	_update_health_bar(false)
+
+	# Hide selection indicator by default
+	if selection_indicator:
+		selection_indicator.visible = false

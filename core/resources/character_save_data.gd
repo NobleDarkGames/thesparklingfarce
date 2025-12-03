@@ -57,9 +57,15 @@ extends Resource
 # ============================================================================
 
 ## Equipped items (by mod_id + resource_id)
-## Format: [{slot: String, mod_id: String, item_id: String}]
-## Slots: "weapon", "armor", "accessory_1", "accessory_2"
+## Format: [{slot: String, mod_id: String, item_id: String, curse_broken: bool}]
+## Slots (default SF layout): "weapon", "ring_1", "ring_2", "accessory"
+## curse_broken: If true, a cursed item can now be unequipped (curse was removed)
 @export var equipped_items: Array[Dictionary] = []
+
+## Inventory - items the character is carrying but not equipped
+## Format: Array of item IDs (duplicates allowed, supports 4 slots by default)
+## Example: ["healing_herb", "healing_herb", "antidote", "power_ring"]
+@export var inventory: Array[String] = []
 
 # ============================================================================
 # ABILITIES (Learned abilities persist)
@@ -147,10 +153,17 @@ func populate_from_character_data(character: CharacterData) -> void:
 	for item: ItemData in character.starting_equipment:
 		if item:
 			equipped_items.append({
-				"slot": "weapon",  # TODO: Determine actual slot when equipment system is implemented
+				"slot": item.equipment_slot if not item.equipment_slot.is_empty() else "weapon",
 				"mod_id": _get_mod_id_for_resource(item),
-				"item_id": _get_resource_id_for_resource(item)
+				"item_id": _get_resource_id_for_resource(item),
+				"curse_broken": false  # Freshly equipped items have unbroken curses
 			})
+
+	# Copy starting inventory
+	inventory.clear()
+	for item_id: String in character.starting_inventory:
+		if not item_id.is_empty():
+			inventory.append(item_id)
 
 	# Start with no learned abilities (will gain through leveling)
 	learned_abilities.clear()
@@ -225,7 +238,8 @@ func serialize_to_dict() -> Dictionary:
 		"agility": agility,
 		"intelligence": intelligence,
 		"luck": luck,
-		"equipped_items": equipped_items.duplicate(),
+		"equipped_items": equipped_items.duplicate(true),
+		"inventory": inventory.duplicate(),
 		"learned_abilities": learned_abilities.duplicate(),
 		"is_alive": is_alive,
 		"is_available": is_available,
@@ -276,7 +290,17 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		var items_array: Array = data.equipped_items
 		for i in range(items_array.size()):
 			var item_dict: Dictionary = items_array[i]
+			# Ensure curse_broken field exists (backward compatibility)
+			if "curse_broken" not in item_dict:
+				item_dict["curse_broken"] = false
 			equipped_items.append(item_dict)
+	if "inventory" in data:
+		inventory.clear()
+		var inv_array: Array = data.inventory
+		for i in range(inv_array.size()):
+			var item_id: Variant = inv_array[i]
+			if item_id is String:
+				inventory.append(item_id)
 	if "learned_abilities" in data:
 		learned_abilities.clear()
 		var abilities_array: Array = data.learned_abilities

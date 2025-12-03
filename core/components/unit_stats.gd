@@ -47,6 +47,26 @@ var class_data: ClassData = null
 ## Reference to owner Unit (needed for level-up callbacks)
 var owner_unit: Node2D = null
 
+# =============================================================================
+# EQUIPMENT CACHE
+# =============================================================================
+
+## Cached equipped weapon (for combat calculations)
+var cached_weapon: ItemData = null
+
+## Cached equipment by slot (for stat bonuses)
+## Format: {slot_id: ItemData}
+var cached_equipment: Dictionary = {}
+
+## Equipment stat bonuses (cached for performance)
+var equipment_hp_bonus: int = 0
+var equipment_mp_bonus: int = 0
+var equipment_strength_bonus: int = 0
+var equipment_defense_bonus: int = 0
+var equipment_agility_bonus: int = 0
+var equipment_intelligence_bonus: int = 0
+var equipment_luck_bonus: int = 0
+
 
 ## Calculate stats from CharacterData and equipment
 func calculate_from_character(character: CharacterData) -> void:
@@ -115,6 +135,142 @@ func remove_equipment_bonus(item: ItemData) -> void:
 	# Clamp current HP/MP
 	current_hp = mini(current_hp, max_hp)
 	current_mp = mini(current_mp, max_mp)
+
+
+## Load and cache equipment from CharacterSaveData
+## Called when initializing a Unit from saved state or when equipment changes
+func load_equipment_from_save(save_data: CharacterSaveData) -> void:
+	# Clear existing cache
+	cached_weapon = null
+	cached_equipment.clear()
+	equipment_hp_bonus = 0
+	equipment_mp_bonus = 0
+	equipment_strength_bonus = 0
+	equipment_defense_bonus = 0
+	equipment_agility_bonus = 0
+	equipment_intelligence_bonus = 0
+	equipment_luck_bonus = 0
+
+	# Load each equipped item
+	for entry: Dictionary in save_data.equipped_items:
+		var slot_id: String = entry.get("slot", "")
+		var item_id: String = entry.get("item_id", "")
+
+		if slot_id.is_empty() or item_id.is_empty():
+			continue
+
+		# Get item from registry
+		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		if not item:
+			push_warning("UnitStats: Failed to load item '%s' for slot '%s'" % [item_id, slot_id])
+			continue
+
+		# Cache by slot
+		cached_equipment[slot_id] = item
+
+		# Special handling for weapon (slot_id "weapon" or ItemType.WEAPON)
+		if slot_id == "weapon" or item.item_type == ItemData.ItemType.WEAPON:
+			cached_weapon = item
+
+		# Accumulate stat bonuses
+		equipment_hp_bonus += item.hp_modifier
+		equipment_mp_bonus += item.mp_modifier
+		equipment_strength_bonus += item.strength_modifier
+		equipment_defense_bonus += item.defense_modifier
+		equipment_agility_bonus += item.agility_modifier
+		equipment_intelligence_bonus += item.intelligence_modifier
+		equipment_luck_bonus += item.luck_modifier
+
+
+## Get weapon attack power (0 if no weapon equipped)
+func get_weapon_attack_power() -> int:
+	if cached_weapon:
+		return cached_weapon.attack_power
+	return 0
+
+
+## Get weapon attack range (1 = melee if no weapon)
+func get_weapon_range() -> int:
+	if cached_weapon:
+		return cached_weapon.attack_range
+	return 1
+
+
+## Get weapon hit rate bonus (90 default if no weapon)
+func get_weapon_hit_rate() -> int:
+	if cached_weapon:
+		return cached_weapon.hit_rate
+	return 90
+
+
+## Get weapon critical rate bonus (5 default if no weapon)
+func get_weapon_crit_rate() -> int:
+	if cached_weapon:
+		return cached_weapon.critical_rate
+	return 5
+
+
+## Get effective strength (base + equipment + buffs)
+func get_effective_strength() -> int:
+	var total: int = strength + equipment_strength_bonus
+
+	# Add strength buffs
+	for effect: Dictionary in status_effects:
+		if effect.type == "attack_up":
+			total += effect.power
+		elif effect.type == "attack_down":
+			total -= effect.power
+
+	return maxi(0, total)
+
+
+## Get effective defense (base + equipment + buffs)
+func get_effective_defense() -> int:
+	var total: int = defense + equipment_defense_bonus
+
+	# Add defense buffs
+	for effect: Dictionary in status_effects:
+		if effect.type == "defense_up":
+			total += effect.power
+		elif effect.type == "defense_down":
+			total -= effect.power
+
+	return maxi(0, total)
+
+
+## Get effective agility (base + equipment + buffs)
+func get_effective_agility() -> int:
+	var total: int = agility + equipment_agility_bonus
+
+	# Add agility buffs
+	for effect: Dictionary in status_effects:
+		if effect.type == "speed_up":
+			total += effect.power
+		elif effect.type == "speed_down":
+			total -= effect.power
+
+	return maxi(0, total)
+
+
+## Get effective intelligence (base + equipment + buffs)
+func get_effective_intelligence() -> int:
+	var total: int = intelligence + equipment_intelligence_bonus
+	return maxi(0, total)
+
+
+## Get effective luck (base + equipment)
+func get_effective_luck() -> int:
+	return maxi(0, luck + equipment_luck_bonus)
+
+
+## Get effective max HP (base + equipment)
+func get_effective_max_hp() -> int:
+	return maxi(1, max_hp + equipment_hp_bonus)
+
+
+## Get effective max MP (base + equipment)
+func get_effective_max_mp() -> int:
+	return maxi(0, max_mp + equipment_mp_bonus)
 
 
 ## Add a status effect
@@ -233,49 +389,6 @@ func get_mp_percent() -> float:
 	if max_mp == 0:
 		return 0.0
 	return float(current_mp) / float(max_mp)
-
-
-## Get total defense (base defense + buffs)
-func get_effective_defense() -> int:
-	var total_defense: int = defense
-
-	# Add defense buffs
-	for effect in status_effects:
-		if effect.type == "defense_up":
-			total_defense += effect.power
-		elif effect.type == "defense_down":
-			total_defense -= effect.power
-
-	return maxi(0, total_defense)
-
-
-## Get total strength (base strength + buffs)
-func get_effective_strength() -> int:
-	var total_strength: int = strength
-
-	# Add strength buffs
-	for effect in status_effects:
-		if effect.type == "attack_up":
-			total_strength += effect.power
-		elif effect.type == "attack_down":
-			total_strength -= effect.power
-
-	return maxi(0, total_strength)
-
-
-## Get total agility (base agility + buffs)
-func get_effective_agility() -> int:
-	var total_agility: int = agility
-
-	# Add agility buffs
-	for effect in status_effects:
-		if effect.type == "speed_up":
-			total_agility += effect.power
-		elif effect.type == "speed_down":
-			total_agility -= effect.power
-
-	return maxi(0, total_agility)
-
 
 ## Get summary string for debugging
 func get_stats_string() -> String:

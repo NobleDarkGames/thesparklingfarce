@@ -23,6 +23,11 @@ extends Node
 ## Order matters: first member is leader, spawn order follows array order
 var party_members: Array[CharacterData] = []
 
+## Runtime save data for each party member, keyed by character_uid
+## This stores mutable state (inventory, equipment changes, stat gains)
+## Initialized when characters are added to the party
+var _member_save_data: Dictionary = {}
+
 ## Maximum party size (Shining Force allows 12)
 ## For now, we'll use a smaller limit for testing
 const MAX_PARTY_SIZE: int = 8
@@ -69,6 +74,10 @@ func set_party(characters: Array[CharacterData]) -> void:
 	# Ensure hero is always first
 	_ensure_hero_is_leader()
 
+	# Create save data for all party members
+	for character in party_members:
+		_ensure_save_data(character)
+
 
 ## Add a character to the party
 ## @param character: CharacterData to add
@@ -82,6 +91,7 @@ func add_member(character: CharacterData) -> bool:
 		return false
 
 	party_members.append(character)
+	_ensure_save_data(character)
 	return true
 
 
@@ -106,6 +116,7 @@ func remove_member(character: CharacterData) -> bool:
 ## Clear the entire party
 func clear_party() -> void:
 	party_members.clear()
+	_member_save_data.clear()
 
 
 ## Load party from PartyData resource
@@ -120,10 +131,13 @@ func load_from_party_data(party_data: PartyData) -> void:
 		return
 
 	party_members.clear()
+	_member_save_data.clear()
 
 	for member_dict in party_data.members:
 		if "character" in member_dict and member_dict.character:
-			party_members.append(member_dict.character)
+			var character: CharacterData = member_dict.character
+			party_members.append(character)
+			_ensure_save_data(character)
 
 
 ## Get party size
@@ -243,19 +257,75 @@ func get_custom_spawn_data(spawn_positions: Array[Vector2i]) -> Array[Dictionary
 
 
 # ============================================================================
+# RUNTIME SAVE DATA ACCESS
+# ============================================================================
+
+## Get the CharacterSaveData for a party member by character_uid
+## This is used to access inventory, equipment, and other mutable state
+## @param character_uid: The unique identifier of the character
+## @return: CharacterSaveData or null if character not in party
+func get_member_save_data(character_uid: String) -> CharacterSaveData:
+	if character_uid.is_empty():
+		push_warning("PartyManager: get_member_save_data called with empty character_uid")
+		return null
+
+	if character_uid in _member_save_data:
+		return _member_save_data[character_uid]
+
+	push_warning("PartyManager: No save data found for character_uid: %s" % character_uid)
+	return null
+
+
+## Ensure a CharacterSaveData exists for the given CharacterData
+## Creates one from the template if it doesn't exist
+## @param character: CharacterData to ensure save data for
+func _ensure_save_data(character: CharacterData) -> void:
+	if not character:
+		return
+
+	var uid: String = character.character_uid
+	if uid.is_empty():
+		push_warning("PartyManager: Character '%s' has no character_uid" % character.character_name)
+		return
+
+	if uid not in _member_save_data:
+		var save_data: CharacterSaveData = CharacterSaveData.new()
+		save_data.populate_from_character_data(character)
+		_member_save_data[uid] = save_data
+
+
+## Update a party member's CharacterSaveData
+## Used after battles to persist stat changes, inventory, etc.
+## @param character_uid: The unique identifier of the character
+## @param save_data: The updated CharacterSaveData
+func update_member_save_data(character_uid: String, save_data: CharacterSaveData) -> void:
+	if character_uid.is_empty():
+		push_warning("PartyManager: update_member_save_data called with empty character_uid")
+		return
+
+	_member_save_data[character_uid] = save_data
+
+
+# ============================================================================
 # SAVE SYSTEM INTEGRATION
 # ============================================================================
 
 ## Export party to save data
-## Converts current party members to CharacterSaveData for saving
+## Returns runtime CharacterSaveData (with inventory, level-ups, etc.)
 ## @return: Array of CharacterSaveData representing current party
 func export_to_save() -> Array[CharacterSaveData]:
 	var save_array: Array[CharacterSaveData] = []
 
 	for character_data: CharacterData in party_members:
-		var char_save: CharacterSaveData = CharacterSaveData.new()
-		char_save.populate_from_character_data(character_data)
-		save_array.append(char_save)
+		var uid: String = character_data.character_uid
+		if uid in _member_save_data:
+			# Use runtime save data (has inventory, level-ups, etc.)
+			save_array.append(_member_save_data[uid])
+		else:
+			# Fallback: create fresh save data from template
+			var char_save: CharacterSaveData = CharacterSaveData.new()
+			char_save.populate_from_character_data(character_data)
+			save_array.append(char_save)
 
 	return save_array
 
@@ -265,6 +335,7 @@ func export_to_save() -> Array[CharacterSaveData]:
 ## @param saved_characters: Array of CharacterSaveData to load
 func import_from_save(saved_characters: Array[CharacterSaveData]) -> void:
 	party_members.clear()
+	_member_save_data.clear()
 
 	for char_save: CharacterSaveData in saved_characters:
 		# Try to resolve CharacterData from ModRegistry
@@ -272,6 +343,8 @@ func import_from_save(saved_characters: Array[CharacterSaveData]) -> void:
 
 		if character_data:
 			party_members.append(character_data)
+			# Store the imported save data (preserves inventory, equipment, levels)
+			_member_save_data[character_data.character_uid] = char_save
 		else:
 			push_warning("PartyManager: Failed to import character '%s' from mod '%s'" % [
 				char_save.fallback_character_name,
