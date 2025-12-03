@@ -40,6 +40,19 @@ const MAX_PRIORITY: int = 9999
 @export var custom_animation_offset_types: Array[String] = []
 @export var custom_trigger_types: Array[String] = []
 
+## Equipment slot layout - allows total conversion mods to redefine equipment slots
+## Format: [{id: String, display_name: String, accepts_types: Array[String]}]
+## If set, completely replaces the default SF-style layout
+@export var equipment_slot_layout: Array[Dictionary] = []
+
+## Inventory configuration - allows mods to change inventory behavior
+## Format: {slots_per_character: int, allow_duplicates: bool}
+@export var inventory_config: Dictionary = {}
+
+## Party configuration - allows total conversion mods to replace default party
+## When true, default party members from lower-priority mods are ignored
+@export var replaces_default_party: bool = false
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -137,6 +150,22 @@ static func load_from_file(json_path: String) -> ModManifest:
 		if "trigger_types" in custom_types and custom_types.trigger_types is Array:
 			for tt: Variant in custom_types.trigger_types:
 				manifest.custom_trigger_types.append(str(tt))
+
+	# Parse equipment slot layout (total conversion support)
+	if "equipment_slot_layout" in data and data.equipment_slot_layout is Array:
+		for slot_def: Variant in data.equipment_slot_layout:
+			if slot_def is Dictionary:
+				manifest.equipment_slot_layout.append(slot_def)
+
+	# Parse inventory configuration
+	if "inventory_config" in data and data.inventory_config is Dictionary:
+		manifest.inventory_config = data.inventory_config
+
+	# Parse party configuration
+	if "party_config" in data and data.party_config is Dictionary:
+		var party_config: Dictionary = data.party_config
+		if "replaces_lower_priority" in party_config:
+			manifest.replaces_default_party = bool(party_config.replaces_lower_priority)
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

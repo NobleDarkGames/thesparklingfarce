@@ -28,3 +28,4 @@ base_defense = 9
 base_intelligence = 4
 battle_sprite = ExtResource("4_sprite")
 biography = "A seasoned warrior with unmatched strength and defensive prowess. Warrioso has fought in countless battles and serves as the party's shield, protecting allies with unwavering courage."
+is_default_party_member = true

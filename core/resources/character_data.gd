@@ -32,6 +32,9 @@ extends Resource
 @export_group("Starting Configuration")
 @export var starting_level: int = 1
 @export var starting_equipment: Array[ItemData] = []
+## Starting inventory items (by item ID, e.g. "healing_herb")
+## These are items the character carries but doesn't have equipped
+@export var starting_inventory: Array[String] = []
 
 @export_group("Lore")
 @export_multiline var biography: String = ""
@@ -52,6 +55,11 @@ extends Resource
 ## Only one hero can exist per party/save slot
 ## The hero is always the first member of the player party
 @export var is_hero: bool = false
+
+## If true, this character is included in the default starting party
+## Only applies to player-category characters
+## The hero is always included regardless of this flag
+@export var is_default_party_member: bool = false
 
 ## Default AI behavior for this unit when used as an enemy
 ## Can be overridden in BattleData on a per-instance basis

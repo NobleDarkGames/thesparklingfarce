@@ -86,20 +86,15 @@ func _new_game(slot_num: int) -> void:
 			"version": manifest.version
 		})
 
-	# Initialize party with default party (Hero, Warrioso, Maggie)
-	var default_party: PartyData = load("res://mods/_base_game/data/parties/default_party.tres")
-	if default_party:
-		for member_dict: Dictionary in default_party.members:
-			if "character" in member_dict and member_dict.character:
-				var character: CharacterData = member_dict.character
-				var char_save: CharacterSaveData = CharacterSaveData.new()
-				char_save.populate_from_character_data(character)
-				save_data.party_members.append(char_save)
-
-		if save_data.party_members.is_empty():
-			push_warning("SaveSlotSelector: Default party was empty!")
+	# Initialize party from mod system (hero from highest-priority mod + default party members)
+	var default_characters: Array[CharacterData] = ModLoader.get_default_party()
+	if default_characters.is_empty():
+		push_error("SaveSlotSelector: No hero character found in any loaded mod!")
 	else:
-		push_warning("SaveSlotSelector: Could not load default party!")
+		for character: CharacterData in default_characters:
+			var char_save: CharacterSaveData = CharacterSaveData.new()
+			char_save.populate_from_character_data(character)
+			save_data.party_members.append(char_save)
 
 	# Save the new game
 	var success: bool = SaveManager.save_to_slot(slot_num, save_data)

@@ -45,6 +45,8 @@ const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_
 const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/animation_offset_registry.gd")
 const TriggerTypeRegistryClass: GDScript = preload("res://core/registries/trigger_type_registry.gd")
 const TerrainRegistryClass: GDScript = preload("res://core/registries/terrain_registry.gd")
+const EquipmentSlotRegistryClass: GDScript = preload("res://core/registries/equipment_slot_registry.gd")
+const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_config.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -60,6 +62,10 @@ var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
 var animation_offset_registry: RefCounted = AnimationOffsetRegistryClass.new()
 var trigger_type_registry: RefCounted = TriggerTypeRegistryClass.new()
 var terrain_registry: RefCounted = TerrainRegistryClass.new()
+
+# Equipment system configuration (data-driven slots and inventory)
+var equipment_slot_registry: RefCounted = EquipmentSlotRegistryClass.new()
+var inventory_config: RefCounted = InventoryConfigClass.new()
 
 # TileSet registry: tileset_name -> {path: String, mod_id: String, resource: TileSet}
 var _tileset_registry: Dictionary = {}
@@ -385,6 +391,14 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	if not manifest.custom_trigger_types.is_empty():
 		trigger_type_registry.register_trigger_types(manifest.mod_id, manifest.custom_trigger_types)
 
+	# Equipment slot layout (higher priority mods completely replace the layout)
+	if not manifest.equipment_slot_layout.is_empty():
+		equipment_slot_registry.register_slot_layout(manifest.mod_id, manifest.equipment_slot_layout)
+
+	# Inventory configuration (higher priority mods completely replace the config)
+	if not manifest.inventory_config.is_empty():
+		inventory_config.load_from_manifest(manifest.mod_id, manifest.inventory_config)
+
 
 ## Register scenes from a mod manifest
 func _register_mod_scenes(manifest: ModManifest) -> int:
@@ -597,6 +611,9 @@ func reload_mods() -> void:
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()
 	terrain_registry.clear_mod_registrations()
+	# Clear equipment system registries
+	equipment_slot_registry.clear_mod_registrations()
+	inventory_config.reset_to_defaults()
 	# Clear tileset registry
 	_tileset_registry.clear()
 	_discover_and_load_mods()
@@ -616,6 +633,9 @@ func reload_mods_async() -> void:
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()
 	terrain_registry.clear_mod_registrations()
+	# Clear equipment system registries
+	equipment_slot_registry.clear_mod_registrations()
+	inventory_config.reset_to_defaults()
 	# Clear tileset registry
 	_tileset_registry.clear()
 	await _discover_and_load_mods_async()
@@ -636,3 +656,98 @@ func get_resource_directories(mod_id: String) -> Dictionary:
 		dirs[resource_type] = data_dir.path_join(dir_name)
 
 	return dirs
+
+
+# =============================================================================
+# Default Party Resolution
+# =============================================================================
+
+## Get the default party composition based on loaded mods
+## Returns: Array of CharacterData in party order (hero first)
+## The hero is selected from the highest-priority mod that defines one.
+## Default party members are collected from all loaded mods.
+func get_default_party() -> Array[CharacterData]:
+	var party: Array[CharacterData] = []
+
+	# 1. Find the hero (highest priority mod wins)
+	var hero: CharacterData = _find_hero_character()
+	if hero:
+		party.append(hero)
+
+	# 2. Find default party members
+	var members: Array[CharacterData] = _find_default_party_members()
+	for member: CharacterData in members:
+		if member != hero:  # Don't duplicate hero
+			party.append(member)
+
+	return party
+
+
+## Find the hero character from the highest-priority mod
+## Searches mods in descending priority order and returns the first hero found
+func _find_hero_character() -> CharacterData:
+	# Get all characters from registry
+	var all_characters: Array[Resource] = registry.get_all_resources("character")
+
+	# Build a lookup of character resource_id -> CharacterData for heroes
+	var hero_candidates: Array[Dictionary] = []
+	for resource: Resource in all_characters:
+		var character: CharacterData = resource as CharacterData
+		if character and character.is_hero and character.unit_category == "player":
+			# Get the resource ID from the resource path
+			var resource_id: String = character.resource_path.get_file().get_basename()
+			var source_mod: String = registry.get_resource_source(resource_id)
+			hero_candidates.append({
+				"character": character,
+				"mod_id": source_mod
+			})
+
+	if hero_candidates.is_empty():
+		return null
+
+	# Find the hero from the highest-priority mod
+	# loaded_mods is sorted low-to-high, so we iterate in reverse
+	for i: int in range(loaded_mods.size() - 1, -1, -1):
+		var manifest: ModManifest = loaded_mods[i]
+		for candidate: Dictionary in hero_candidates:
+			if candidate.mod_id == manifest.mod_id:
+				return candidate.character
+
+	# Fallback: return first hero if mod lookup fails
+	return hero_candidates[0].character
+
+
+## Get the priority cutoff for default party member selection
+## If a mod has replaces_default_party=true, only characters from that mod
+## and higher-priority mods are included in the default party.
+## Returns: The load_priority of the cutoff mod, or -1 if no cutoff exists
+func _get_party_cutoff_priority() -> int:
+	# Iterate in descending priority order (highest priority first)
+	for i: int in range(loaded_mods.size() - 1, -1, -1):
+		var manifest: ModManifest = loaded_mods[i]
+		if manifest.replaces_default_party:
+			return manifest.load_priority
+	return -1
+
+
+## Find all characters marked as default party members
+## Returns characters from mods at or above the party cutoff priority (player category only)
+## If no mod sets replaces_default_party, returns characters from all loaded mods.
+func _find_default_party_members() -> Array[CharacterData]:
+	var members: Array[CharacterData] = []
+	var all_characters: Array[Resource] = registry.get_all_resources("character")
+	var cutoff_priority: int = _get_party_cutoff_priority()
+
+	for resource: Resource in all_characters:
+		var character: CharacterData = resource as CharacterData
+		if character and character.is_default_party_member and character.unit_category == "player":
+			# If there's a cutoff, check the source mod's priority
+			if cutoff_priority >= 0:
+				var resource_id: String = character.resource_path.get_file().get_basename()
+				var source_mod_id: String = registry.get_resource_source(resource_id)
+				var source_mod: ModManifest = get_mod(source_mod_id)
+				if source_mod and source_mod.load_priority < cutoff_priority:
+					continue  # Skip characters from lower-priority mods
+			members.append(character)
+
+	return members

@@ -28,3 +28,4 @@ base_intelligence = 10
 base_luck = 7
 battle_sprite = ExtResource("4_sprite")
 biography = "A talented mage with a gift for elemental magic. Though physically frail, Maggie's arcane powers can turn the tide of any battle, raining destruction upon enemies from afar."
+is_default_party_member = true
