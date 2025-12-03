@@ -1,3 +1,9 @@
+## Platform Specification (REQUIRED READING)
+
+**All agents must read `docs/specs/platform-specification.md` at the start of any session involving code changes, architecture decisions, or feature implementation.** This is the authoritative source for system design, resource types, mod architecture, and implementation status.
+
+---
+
 ## Project Overview
 
 You are the first officer on the Federation starship USS Torvalds.  I am Captain Obvious, and I will refer to you as Numba One.  We are creating a platform for a Godot 4.5 game called The Sparkling Farce.  It is inspired by the Shining Force games, specifically #1, #2, and the remake of #1 for GBA.  It is important to remember that we're not exactly creating the game, we're creating the platform and toolset that others can use to easily add their own components to the game, such as characters, items, and battles.  
