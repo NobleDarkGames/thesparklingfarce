@@ -17,6 +17,7 @@ enum SFXCategory {
 	COMBAT,    ## Attacks, damage, critical hits
 	SYSTEM,    ## Turn changes, victory/defeat
 	MOVEMENT,  ## Unit movement
+	CEREMONY,  ## Promotion ceremonies, special events
 }
 
 ## Current mod's audio path (set by ModLoader or BattleManager)

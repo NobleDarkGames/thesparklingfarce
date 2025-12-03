@@ -13,8 +13,8 @@ var map_scene_option: OptionButton
 var player_spawn_x_spin: SpinBox
 var player_spawn_y_spin: SpinBox
 
-# Player Forces
-var player_party_option: OptionButton
+# Player Forces - now using ResourcePicker for cross-mod support
+var player_party_picker: ResourcePicker
 
 # Enemy Forces
 var enemies_container: VBoxContainer
@@ -39,10 +39,10 @@ var defeat_conditional_container: VBoxContainer
 var defeat_protect_index_spin: SpinBox
 var defeat_turn_limit_spin: SpinBox
 
-# Battle Flow
-var pre_battle_dialogue_option: OptionButton
-var victory_dialogue_option: OptionButton
-var defeat_dialogue_option: OptionButton
+# Battle Flow - now using ResourcePicker for cross-mod support
+var pre_battle_dialogue_picker: ResourcePicker
+var victory_dialogue_picker: ResourcePicker
+var defeat_dialogue_picker: ResourcePicker
 
 # Environment
 var weather_option: OptionButton
@@ -183,12 +183,14 @@ func _add_player_forces_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 14)
 	detail_panel.add_child(section_label)
 
-	var party_label: Label = Label.new()
-	party_label.text = "Player Party:"
-	detail_panel.add_child(party_label)
-
-	player_party_option = OptionButton.new()
-	detail_panel.add_child(player_party_option)
+	# Use ResourcePicker for cross-mod party selection
+	player_party_picker = ResourcePicker.new()
+	player_party_picker.resource_type = "party"
+	player_party_picker.label_text = "Player Party:"
+	player_party_picker.label_min_width = 120
+	player_party_picker.none_text = "(Use PartyManager)"
+	player_party_picker.allow_none = true
+	detail_panel.add_child(player_party_picker)
 
 	var party_note: Label = Label.new()
 	party_note.text = "If not set, uses PartyManager's current party"
@@ -307,26 +309,27 @@ func _add_battle_flow_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 14)
 	detail_panel.add_child(section_label)
 
-	var pre_label: Label = Label.new()
-	pre_label.text = "Pre-Battle Dialogue:"
-	detail_panel.add_child(pre_label)
+	# Use ResourcePicker for cross-mod dialogue selection
+	pre_battle_dialogue_picker = ResourcePicker.new()
+	pre_battle_dialogue_picker.resource_type = "dialogue"
+	pre_battle_dialogue_picker.label_text = "Pre-Battle Dialogue:"
+	pre_battle_dialogue_picker.label_min_width = 140
+	pre_battle_dialogue_picker.allow_none = true
+	detail_panel.add_child(pre_battle_dialogue_picker)
 
-	pre_battle_dialogue_option = OptionButton.new()
-	detail_panel.add_child(pre_battle_dialogue_option)
+	victory_dialogue_picker = ResourcePicker.new()
+	victory_dialogue_picker.resource_type = "dialogue"
+	victory_dialogue_picker.label_text = "Victory Dialogue:"
+	victory_dialogue_picker.label_min_width = 140
+	victory_dialogue_picker.allow_none = true
+	detail_panel.add_child(victory_dialogue_picker)
 
-	var victory_label: Label = Label.new()
-	victory_label.text = "Victory Dialogue:"
-	detail_panel.add_child(victory_label)
-
-	victory_dialogue_option = OptionButton.new()
-	detail_panel.add_child(victory_dialogue_option)
-
-	var defeat_label: Label = Label.new()
-	defeat_label.text = "Defeat Dialogue:"
-	detail_panel.add_child(defeat_label)
-
-	defeat_dialogue_option = OptionButton.new()
-	detail_panel.add_child(defeat_dialogue_option)
+	defeat_dialogue_picker = ResourcePicker.new()
+	defeat_dialogue_picker.resource_type = "dialogue"
+	defeat_dialogue_picker.label_text = "Defeat Dialogue:"
+	defeat_dialogue_picker.label_min_width = 140
+	defeat_dialogue_picker.allow_none = true
+	detail_panel.add_child(defeat_dialogue_picker)
 
 	var turn_note: Label = Label.new()
 	turn_note.text = "Turn-based dialogues: Phase 3"
@@ -463,13 +466,13 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	header_hbox.add_child(remove_button)
 	enemy_vbox.add_child(header_hbox)
 
-	# Character dropdown
-	var char_label: Label = Label.new()
-	char_label.text = "Character:"
-	enemy_vbox.add_child(char_label)
-
-	var character_option: OptionButton = OptionButton.new()
-	enemy_vbox.add_child(character_option)
+	# Character picker - uses ResourcePicker for cross-mod support
+	var character_picker: ResourcePicker = ResourcePicker.new()
+	character_picker.resource_type = "character"
+	character_picker.label_text = "Character:"
+	character_picker.label_min_width = 80
+	character_picker.allow_none = true
+	enemy_vbox.add_child(character_picker)
 
 	# Position
 	var pos_label: Label = Label.new()
@@ -496,10 +499,10 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	var ai_option: OptionButton = OptionButton.new()
 	enemy_vbox.add_child(ai_option)
 
-	# Track UI elements
+	# Track UI elements - now stores ResourcePicker instead of OptionButton
 	var enemy_ui: Dictionary = {
 		"panel": enemy_panel,
-		"character_option": character_option,
+		"character_picker": character_picker,
 		"pos_x_spin": pos_x_spin,
 		"pos_y_spin": pos_y_spin,
 		"ai_option": ai_option
@@ -508,12 +511,11 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 
 	enemies_container.add_child(enemy_panel)
 
-	# Load character dropdown and set values if provided
-	_update_character_dropdown(character_option)
+	# Load AI dropdown and set values if provided
 	_update_ai_dropdown(ai_option)
 
 	if 'character' in enemy_dict and enemy_dict.character:
-		_select_character_in_dropdown(character_option, enemy_dict.character)
+		character_picker.select_resource(enemy_dict.character)
 	if 'position' in enemy_dict:
 		var pos: Vector2i = enemy_dict.position
 		pos_x_spin.value = pos.x
@@ -561,13 +563,13 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	header_hbox.add_child(remove_button)
 	neutral_vbox.add_child(header_hbox)
 
-	# Character dropdown
-	var char_label: Label = Label.new()
-	char_label.text = "Character:"
-	neutral_vbox.add_child(char_label)
-
-	var character_option: OptionButton = OptionButton.new()
-	neutral_vbox.add_child(character_option)
+	# Character picker - uses ResourcePicker for cross-mod support
+	var character_picker: ResourcePicker = ResourcePicker.new()
+	character_picker.resource_type = "character"
+	character_picker.label_text = "Character:"
+	character_picker.label_min_width = 80
+	character_picker.allow_none = true
+	neutral_vbox.add_child(character_picker)
 
 	# Position
 	var pos_label: Label = Label.new()
@@ -594,10 +596,10 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	var ai_option: OptionButton = OptionButton.new()
 	neutral_vbox.add_child(ai_option)
 
-	# Track UI elements
+	# Track UI elements - now stores ResourcePicker instead of OptionButton
 	var neutral_ui: Dictionary = {
 		"panel": neutral_panel,
-		"character_option": character_option,
+		"character_picker": character_picker,
 		"pos_x_spin": pos_x_spin,
 		"pos_y_spin": pos_y_spin,
 		"ai_option": ai_option
@@ -606,12 +608,11 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 
 	neutrals_container.add_child(neutral_panel)
 
-	# Load character dropdown and set values if provided
-	_update_character_dropdown(character_option)
+	# Load AI dropdown and set values if provided
 	_update_ai_dropdown(ai_option)
 
 	if 'character' in neutral_dict and neutral_dict.character:
-		_select_character_in_dropdown(character_option, neutral_dict.character)
+		character_picker.select_resource(neutral_dict.character)
 	if 'position' in neutral_dict:
 		var pos: Vector2i = neutral_dict.position
 		pos_x_spin.value = pos.x
@@ -635,52 +636,6 @@ func _on_remove_neutral(panel: PanelContainer) -> void:
 	for i in range(neutrals_list.size()):
 		var title_label: Label = neutrals_list[i].panel.get_child(0).get_child(0).get_child(0)
 		title_label.text = "Neutral #%d" % (i + 1)
-
-
-## Update character dropdown with available characters
-func _update_character_dropdown(option: OptionButton) -> void:
-	option.clear()
-	option.add_item("(None)", -1)
-
-	# Use ModLoader to get the correct directory for the active mod
-	var character_dir: String = ""
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			if "character" in resource_dirs:
-				character_dir = resource_dirs["character"]
-
-	# Fallback to legacy path if ModLoader unavailable
-	if character_dir == "":
-		character_dir = "res://data/characters/"
-
-	var dir: DirAccess = DirAccess.open(character_dir)
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		var index: int = 0
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var full_path: String = character_dir.path_join(file_name)
-				var character: CharacterData = load(full_path)
-				if character:
-					option.add_item(character.character_name, index)
-					option.set_item_metadata(index + 1, character)
-					index += 1
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	else:
-		push_warning("Battle Editor: Could not open character directory: " + character_dir)
-
-
-## Select a character in the dropdown
-func _select_character_in_dropdown(option: OptionButton, character: CharacterData) -> void:
-	for i in range(option.item_count):
-		var metadata: Variant = option.get_item_metadata(i)
-		if metadata == character:
-			option.selected = i
-			return
 
 
 ## Load available AI brains from mod directories
@@ -939,9 +894,11 @@ func _load_resource_data() -> void:
 	player_spawn_x_spin.value = battle.player_spawn_point.x
 	player_spawn_y_spin.value = battle.player_spawn_point.y
 
-	# Player party
-	_update_party_dropdown()
-	_select_party_in_dropdown(player_party_option, battle.player_party)
+	# Player party - use ResourcePicker
+	if battle.player_party:
+		player_party_picker.select_resource(battle.player_party)
+	else:
+		player_party_picker.select_none()
 
 	# Clear existing enemies/neutrals UI
 	_clear_enemies_ui()
@@ -988,11 +945,21 @@ func _load_resource_data() -> void:
 			if defeat_protect_index_spin:
 				defeat_protect_index_spin.value = battle.defeat_protect_index
 
-	# Dialogues
-	_update_dialogue_dropdowns()
-	_select_dialogue_in_dropdown(pre_battle_dialogue_option, battle.pre_battle_dialogue)
-	_select_dialogue_in_dropdown(victory_dialogue_option, battle.victory_dialogue)
-	_select_dialogue_in_dropdown(defeat_dialogue_option, battle.defeat_dialogue)
+	# Dialogues - use ResourcePickers
+	if battle.pre_battle_dialogue:
+		pre_battle_dialogue_picker.select_resource(battle.pre_battle_dialogue)
+	else:
+		pre_battle_dialogue_picker.select_none()
+
+	if battle.victory_dialogue:
+		victory_dialogue_picker.select_resource(battle.victory_dialogue)
+	else:
+		victory_dialogue_picker.select_none()
+
+	if battle.defeat_dialogue:
+		defeat_dialogue_picker.select_resource(battle.defeat_dialogue)
+	else:
+		defeat_dialogue_picker.select_none()
 
 	# Environment - use registry for lookups
 	var weather_types: Array[String] = _get_weather_types_from_registry()
@@ -1026,107 +993,6 @@ func _clear_neutrals_ui() -> void:
 	neutrals_list.clear()
 
 
-## Update party dropdown with available parties
-func _update_party_dropdown() -> void:
-	# Use ModLoader to get the correct directory for the active mod
-	var party_dir: String = ""
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			if "party" in resource_dirs:
-				party_dir = resource_dirs["party"]
-
-	# Fallback to legacy path if ModLoader unavailable
-	if party_dir == "":
-		party_dir = "res://data/parties/"
-
-	player_party_option.clear()
-	player_party_option.add_item("(Use PartyManager)", -1)
-
-	var dir: DirAccess = DirAccess.open(party_dir)
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		var index: int = 0
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var full_path: String = party_dir.path_join(file_name)
-				var party: PartyData = load(full_path)
-				if party:
-					player_party_option.add_item(party.party_name, index)
-					player_party_option.set_item_metadata(index + 1, party)
-					index += 1
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	else:
-		push_warning("Battle Editor: Could not open party directory: " + party_dir)
-
-
-## Select a party in dropdown
-func _select_party_in_dropdown(option: OptionButton, party: PartyData) -> void:
-	if not party:
-		option.selected = 0
-		return
-
-	for i in range(option.item_count):
-		var metadata: Variant = option.get_item_metadata(i)
-		if metadata == party:
-			option.selected = i
-			return
-
-
-## Update dialogue dropdowns with available dialogues
-func _update_dialogue_dropdowns() -> void:
-	# Use ModLoader to get the correct directory for the active mod
-	var dialogue_dir: String = ""
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			if "dialogue" in resource_dirs:
-				dialogue_dir = resource_dirs["dialogue"]
-
-	# Fallback to legacy path if ModLoader unavailable
-	if dialogue_dir == "":
-		dialogue_dir = "res://data/dialogues/"
-
-	for option in [pre_battle_dialogue_option, victory_dialogue_option, defeat_dialogue_option]:
-		option.clear()
-		option.add_item("(None)", -1)
-
-		var dir: DirAccess = DirAccess.open(dialogue_dir)
-		if dir:
-			dir.list_dir_begin()
-			var file_name: String = dir.get_next()
-			var index: int = 0
-			while file_name != "":
-				if file_name.ends_with(".tres"):
-					var full_path: String = dialogue_dir.path_join(file_name)
-					var dialogue: DialogueData = load(full_path)
-					if dialogue:
-						option.add_item(dialogue.dialogue_title, index)
-						option.set_item_metadata(index + 1, dialogue)
-						index += 1
-				file_name = dir.get_next()
-			dir.list_dir_end()
-		else:
-			push_warning("Battle Editor: Could not open dialogue directory: " + dialogue_dir)
-
-
-## Select a dialogue in dropdown
-func _select_dialogue_in_dropdown(option: OptionButton, dialogue: DialogueData) -> void:
-	if not dialogue:
-		option.selected = 0
-		return
-
-	for i in range(option.item_count):
-		var metadata: Variant = option.get_item_metadata(i)
-		if metadata == dialogue:
-			option.selected = i
-			return
-
-
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
 	var battle: BattleData = current_resource as BattleData
@@ -1149,20 +1015,13 @@ func _save_resource_data() -> void:
 	# Player spawn point
 	battle.player_spawn_point = Vector2i(int(player_spawn_x_spin.value), int(player_spawn_y_spin.value))
 
-	# Player party
-	var party_index: int = player_party_option.selected
-	if party_index > 0:
-		battle.player_party = player_party_option.get_item_metadata(party_index)
-	else:
-		battle.player_party = null
+	# Player party - use ResourcePicker
+	battle.player_party = player_party_picker.get_selected_resource() as PartyData
 
-	# Enemies
+	# Enemies - use ResourcePicker for character selection
 	var new_enemies: Array[Dictionary] = []
 	for enemy_ui in enemies_list:
-		var char_index: int = enemy_ui.character_option.selected
-		var character: CharacterData = null
-		if char_index > 0:
-			character = enemy_ui.character_option.get_item_metadata(char_index)
+		var character: CharacterData = enemy_ui.character_picker.get_selected_resource() as CharacterData
 
 		var ai_index: int = enemy_ui.ai_option.selected
 		var ai_brain: AIBrain = null
@@ -1177,13 +1036,10 @@ func _save_resource_data() -> void:
 		new_enemies.append(enemy_dict)
 	battle.enemies = new_enemies
 
-	# Neutrals
+	# Neutrals - use ResourcePicker for character selection
 	var new_neutrals: Array[Dictionary] = []
 	for neutral_ui in neutrals_list:
-		var char_index: int = neutral_ui.character_option.selected
-		var character: CharacterData = null
-		if char_index > 0:
-			character = neutral_ui.character_option.get_item_metadata(char_index)
+		var character: CharacterData = neutral_ui.character_picker.get_selected_resource() as CharacterData
 
 		var ai_index: int = neutral_ui.ai_option.selected
 		var ai_brain: AIBrain = null
@@ -1224,24 +1080,10 @@ func _save_resource_data() -> void:
 			if defeat_protect_index_spin:
 				battle.defeat_protect_index = int(defeat_protect_index_spin.value)
 
-	# Dialogues
-	var pre_index: int = pre_battle_dialogue_option.selected
-	if pre_index > 0:
-		battle.pre_battle_dialogue = pre_battle_dialogue_option.get_item_metadata(pre_index)
-	else:
-		battle.pre_battle_dialogue = null
-
-	var victory_index: int = victory_dialogue_option.selected
-	if victory_index > 0:
-		battle.victory_dialogue = victory_dialogue_option.get_item_metadata(victory_index)
-	else:
-		battle.victory_dialogue = null
-
-	var defeat_index: int = defeat_dialogue_option.selected
-	if defeat_index > 0:
-		battle.defeat_dialogue = defeat_dialogue_option.get_item_metadata(defeat_index)
-	else:
-		battle.defeat_dialogue = null
+	# Dialogues - use ResourcePickers
+	battle.pre_battle_dialogue = pre_battle_dialogue_picker.get_selected_resource() as DialogueData
+	battle.victory_dialogue = victory_dialogue_picker.get_selected_resource() as DialogueData
+	battle.defeat_dialogue = defeat_dialogue_picker.get_selected_resource() as DialogueData
 
 	# Environment - use registry for lookups
 	var weather_items: Array[String] = _get_weather_types_from_registry()

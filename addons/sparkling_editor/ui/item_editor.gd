@@ -237,6 +237,7 @@ func _add_basic_info_section() -> void:
 	item_type_option = OptionButton.new()
 	item_type_option.add_item("Weapon", ItemData.ItemType.WEAPON)
 	item_type_option.add_item("Armor", ItemData.ItemType.ARMOR)
+	item_type_option.add_item("Accessory", ItemData.ItemType.ACCESSORY)
 	item_type_option.add_item("Consumable", ItemData.ItemType.CONSUMABLE)
 	item_type_option.add_item("Key Item", ItemData.ItemType.KEY_ITEM)
 	item_type_option.item_selected.connect(_on_item_type_changed)

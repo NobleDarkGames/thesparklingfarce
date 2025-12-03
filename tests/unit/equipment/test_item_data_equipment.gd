@@ -175,7 +175,7 @@ func test_get_default_valid_slots_for_accessory() -> void:
 func test_get_default_valid_slots_for_unknown_type() -> void:
 	var item: ItemData = ItemData.new()
 	item.item_name = "Mystery"
-	item.item_type = ItemData.ItemType.KEY
+	item.item_type = ItemData.ItemType.KEY_ITEM
 	item.equipment_type = "mystery"
 
 	var slots: Array[String] = item._get_default_valid_slots()

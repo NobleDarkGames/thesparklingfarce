@@ -5,7 +5,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Allows browsing and editing CharacterData resources
 
 var name_edit: LineEdit
-var class_option: OptionButton
+var class_picker: ResourcePicker  # Use ResourcePicker for cross-mod class selection
 var level_spin: SpinBox
 var bio_edit: TextEdit
 
@@ -24,7 +24,6 @@ var agi_spin: SpinBox
 var int_spin: SpinBox
 var luk_spin: SpinBox
 
-var available_classes: Array[ClassData] = []
 var available_ai_brains: Array[AIBrain] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "boss", "neutral"
 
@@ -37,14 +36,9 @@ func _ready() -> void:
 	resource_type_name = "Character"
 	resource_type_id = "character"
 	super._ready()
-	_load_available_classes()
 	_setup_filter_buttons()
 
-	# Listen for class changes from other editor tabs via EditorEventBus
-	if EditorEventBus:
-		EditorEventBus.resource_saved.connect(_on_resource_event)
-		EditorEventBus.resource_created.connect(_on_resource_event)
-		EditorEventBus.resource_deleted.connect(_on_resource_deleted_event)
+	# Note: class_picker uses ResourcePicker which auto-refreshes on mod reload via EditorEventBus
 
 
 ## Override: Refresh the editor when mod changes or new resources are created
@@ -55,22 +49,7 @@ func _refresh_list() -> void:
 	# Apply current filter
 	_apply_filter()
 
-	# Also reload the class dropdown when refreshing
-	_load_available_classes()
-
-
-## Handle resource saved/created events from EditorEventBus
-func _on_resource_event(res_type: String, res_id: String, resource: Resource) -> void:
-	# Reload class dropdown when any class is saved or created
-	if res_type == "class":
-		_load_available_classes()
-
-
-## Handle resource deleted events from EditorEventBus
-func _on_resource_deleted_event(res_type: String, res_id: String) -> void:
-	# Reload class dropdown when any class is deleted
-	if res_type == "class":
-		_load_available_classes()
+	# Note: class_picker auto-refreshes via EditorEventBus mods_reloaded signal
 
 
 ## Override: Create the character-specific detail form
@@ -122,12 +101,11 @@ func _load_resource_data() -> void:
 	else:
 		default_ai_option.select(0)  # (None)
 
-	# Set class
+	# Set class using ResourcePicker
 	if character.character_class:
-		for i in range(available_classes.size()):
-			if available_classes[i] == character.character_class:
-				class_option.selected = i + 1
-				break
+		class_picker.select_resource(character.character_class)
+	else:
+		class_picker.select_none()
 
 	# Set stats
 	hp_spin.value = character.base_hp
@@ -165,12 +143,8 @@ func _save_resource_data() -> void:
 	else:
 		character.default_ai_brain = null
 
-	# Update class
-	var class_index: int = class_option.selected - 1
-	if class_index >= 0 and class_index < available_classes.size():
-		character.character_class = available_classes[class_index]
-	else:
-		character.character_class = null
+	# Update class using ResourcePicker
+	character.character_class = class_picker.get_selected_resource() as ClassData
 
 	# Update stats
 	character.base_hp = int(hp_spin.value)
@@ -253,17 +227,13 @@ func _add_basic_info_section() -> void:
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
 
-	# Class
-	var class_container: HBoxContainer = HBoxContainer.new()
-	var class_label: Label = Label.new()
-	class_label.text = "Class:"
-	class_label.custom_minimum_size.x = 120
-	class_container.add_child(class_label)
-
-	class_option = OptionButton.new()
-	class_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	class_container.add_child(class_option)
-	section.add_child(class_container)
+	# Class - use ResourcePicker for cross-mod class selection
+	class_picker = ResourcePicker.new()
+	class_picker.resource_type = "class"
+	class_picker.label_text = "Class:"
+	class_picker.label_min_width = 120
+	class_picker.allow_none = true
+	section.add_child(class_picker)
 
 	# Starting Level
 	var level_container: HBoxContainer = HBoxContainer.new()
@@ -400,40 +370,6 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
 
 	parent.add_child(container)
 	return spin
-
-
-func _load_available_classes() -> void:
-	available_classes.clear()
-	class_option.clear()
-	class_option.add_item("(None)", 0)
-
-	# Use ModLoader to get the correct directory for the active mod
-	var class_dir: String = ""
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			if "class" in resource_dirs:
-				class_dir = resource_dirs["class"]
-
-	# Fallback to legacy path if ModLoader unavailable
-	if class_dir == "":
-		class_dir = "res://data/classes/"
-
-	var dir: DirAccess = DirAccess.open(class_dir)
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var class_data: ClassData = load(class_dir.path_join(file_name))
-				if class_data:
-					available_classes.append(class_data)
-					class_option.add_item(class_data.display_name, available_classes.size())
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	else:
-		push_warning("Character Editor: Could not open class directory: " + class_dir)
 
 
 func _load_available_ai_brains() -> void:

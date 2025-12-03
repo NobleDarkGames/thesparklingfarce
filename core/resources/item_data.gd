@@ -7,6 +7,7 @@ extends Resource
 enum ItemType {
 	WEAPON,
 	ARMOR,
+	ACCESSORY,  ## Rings, amulets, and other accessories
 	CONSUMABLE,
 	KEY_ITEM
 }
