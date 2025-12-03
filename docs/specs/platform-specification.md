@@ -1,8 +1,8 @@
 # The Sparkling Farce Platform Specification
 
-**Version:** 1.2.0
-**Status:** Revised (Phase 4.1 Promotion System)
-**Last Updated:** December 2, 2025
+**Version:** 1.3.0
+**Status:** Revised (Default Party Mod Priority)
+**Last Updated:** December 3, 2025
 **Godot Version:** 4.5.1
 
 ---
@@ -15,7 +15,7 @@
 4. [Mod System](#4-mod-system)
    - Manifest Format, Load Priority, Resource Discovery
    - Type Registries, Trigger Discovery, TileSet Resolution
-   - Namespaced Story Flags
+   - Namespaced Story Flags, Default Party Configuration
 5. [Resource Types](#5-resource-types)
 6. [Map System](#6-map-system) (Five Map Types)
 7. [Battle System](#7-battle-system)
@@ -353,6 +353,43 @@ var my_flags: Dictionary = GameState.get_flags_for_mod("my_mod")
 
 **Best Practice:** Always use namespaced flags for mod-specific state to avoid collisions.
 
+### Default Party Configuration
+
+The default starting party is determined dynamically by the mod system:
+
+1. **Hero Selection**: The hero (`is_hero = true`) is selected from the highest-priority mod
+2. **Party Members**: Characters with `is_default_party_member = true` are collected from all mods
+
+**Accessing Default Party:**
+```gdscript
+var default_party: Array[CharacterData] = ModLoader.get_default_party()
+# Returns: [hero, member1, member2, ...] - hero always first
+```
+
+**Total Conversion Override:**
+
+Total conversion mods can replace the default party entirely using `party_config`:
+
+```json
+{
+  "id": "my_total_conversion",
+  "load_priority": 9000,
+  "party_config": {
+    "replaces_lower_priority": true
+  }
+}
+```
+
+When `replaces_lower_priority` is `true`:
+- Only party members from this mod and higher-priority mods are included
+- Lower-priority mods' `is_default_party_member` flags are ignored
+- Hero selection is unchanged (highest-priority mod wins)
+
+| Mod Type | party_config | Behavior |
+|----------|--------------|----------|
+| Expansion | (none) | Characters ADD to existing party |
+| Total Conversion | `replaces_lower_priority: true` | Clean slate, ignores lower-priority party members |
+
 ---
 
 ## 5. Resource Types
@@ -367,6 +404,7 @@ Defines a playable or enemy character.
 | `character_uid` | String | Unique identifier (auto-generated if empty) |
 | `character_class` | ClassData | Reference to class |
 | `is_hero` | bool | True for protagonist (one per game) |
+| `is_default_party_member` | bool | True to include in starting party (player category only) |
 | `is_unique` | bool | True for named characters (vs generic enemies) |
 | `unit_category` | String | "hero", "ally", "enemy", "npc", etc. |
 | `base_hp/mp/str/def/agi/int/luck` | int | Starting stats |
@@ -817,7 +855,21 @@ if SaveManager.has_save_data(slot_number):
 - One character marked `is_hero = true` per game
 - Hero cannot be removed from party
 - Hero always at party position 0
-- New game auto-initializes with hero
+- New game initializes party via `ModLoader.get_default_party()`
+
+### New Game Initialization
+
+When starting a new game, the party is populated dynamically:
+
+```gdscript
+var default_characters: Array[CharacterData] = ModLoader.get_default_party()
+for character in default_characters:
+    var char_save: CharacterSaveData = CharacterSaveData.new()
+    char_save.populate_from_character_data(character)
+    save_data.party_members.append(char_save)
+```
+
+This ensures mods can provide their own hero and starting party members without hardcoded paths.
 
 ---
 
@@ -903,6 +955,7 @@ var char = load("res://mods/_base_game/data/characters/max.tres")
 | System | Phase | Notes |
 |--------|-------|-------|
 | Map Exploration | 1, 2.5 | Grid movement, collision, party followers |
+| Scene Transitions | 2.5.2 | Battle→map return, position restoration, TransitionContext |
 | Collision Detection | 2.5 | TileMapLayer physics integration |
 | Trigger System | 2.5 | Battle, door, dialog triggers, custom trigger discovery |
 | Story Flags | 2.5 | GameState tracking with namespaced flag support |
@@ -960,13 +1013,11 @@ These are **critical Shining Force mechanics** that define the genre feel:
 
 1. **Battle UI Polish**: Floating damage numbers (level-up/promotion ceremonies complete)
 
-2. **Campaign Flow**: Full explore-battle-explore loop verification needed
+2. **XP Balance**: No catch-up mechanics for underleveled characters (SF historical problem)
 
-3. **XP Balance**: No catch-up mechanics for underleveled characters (SF historical problem)
+3. **World Graph**: Map connection graph and gating logic not yet implemented
 
-4. **World Graph**: Map connection graph and gating logic not yet implemented
-
-5. **Promotion Integration**: PartyManager persistence for promoted classes, Unit.apply_promotion() method
+4. **Promotion Integration**: PartyManager persistence for promoted classes, Unit.apply_promotion() method
 
 ---
 
@@ -1081,6 +1132,15 @@ static func calculate_physical_damage(attacker: UnitStats, defender: UnitStats) 
 | 1.0.0 | 2025-12-02 | Initial baseline specification |
 | 1.1.0 | 2025-12-02 | Senior staff review corrections |
 | 1.2.0 | 2025-12-02 | Phase 4.1 Promotion System implementation |
+| 1.3.0 | 2025-12-03 | Default Party Mod Priority system |
+
+**v1.3.0 Changes:**
+- Added `is_default_party_member` field to `CharacterData`
+- Added `ModLoader.get_default_party()` for mod-aware party initialization
+- Added `party_config.replaces_lower_priority` mod.json option for total conversions
+- Added Default Party Configuration section to Mod System documentation
+- Added New Game Initialization section to Save System documentation
+- Replaced hardcoded default party loading with mod-priority-aware system
 
 **v1.2.0 Changes:**
 - Added `PromotionManager` autoload singleton (18 total autoloads)
