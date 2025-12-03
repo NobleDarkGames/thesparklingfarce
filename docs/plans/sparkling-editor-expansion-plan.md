@@ -1,6 +1,6 @@
 # Sparkling Editor Expansion Plan
 
-**Status:** In Progress (Phase 2)
+**Status:** In Progress (Phase 3 Complete - Awaiting Testing)
 **Priority:** High - Critical for modder accessibility
 **Dependencies:** Phase 2.5.1 complete (mod extensibility)
 **Target:** Before Phase 5 (advanced systems)
@@ -18,9 +18,9 @@
 | 1A | ResourcePicker widget | ✅ Complete | `c09df5f` | Cross-mod dropdowns with `[mod_id]` format |
 | 1A | Editor integration | ✅ Complete | `0493833` | battle_editor, character_editor updated |
 | 1B | mod.json editor | ✅ Complete | `298454a` | All 9 sections, EditorEventBus fix |
-| 2 | MapMetadata editor | 🔄 In Progress | | |
-| 3 | CinematicData editor | ⏳ Pending | | |
-| 4 | CampaignData editor | ⏳ Pending | | |
+| 2 | MapMetadata editor | ✅ Complete | `a0a4352` | JSON-based editor, all map metadata fields |
+| 3 | CinematicData editor | ✅ Complete | (staged) | 19 command types, command inspector panel |
+| 4 | CampaignData editor | ⏳ Pending | | GraphEdit-based node graph |
 | 5 | Dynamic tab registration | ⏳ Pending | | |
 | 6 | UX polish | ⏳ Pending | | |
 
