@@ -16,10 +16,15 @@ var resource_type_id: String = ""
 
 # UI Components (created by base class)
 var resource_list: ItemList
+var search_filter: LineEdit
 var detail_panel: VBoxContainer
 var button_container: HBoxContainer
 var save_button: Button
 var delete_button: Button
+
+# All loaded resources (unfiltered) for search
+var all_resources: Array[Resource] = []
+var all_resource_paths: Array[String] = []
 
 # Current resource being edited
 var current_resource: Resource
@@ -41,6 +46,22 @@ func _ready() -> void:
 	_setup_base_ui()
 	_create_detail_form()
 	_refresh_list()
+
+
+func _input(event: InputEvent) -> void:
+	# Only handle input when this editor is visible and has focus
+	if not is_visible_in_tree():
+		return
+
+	if event is InputEventKey and event.pressed:
+		# Ctrl+S: Save
+		if event.ctrl_pressed and event.keycode == KEY_S:
+			get_viewport().set_input_as_handled()
+			_on_save()
+		# Ctrl+N: Create new
+		elif event.ctrl_pressed and event.keycode == KEY_N:
+			get_viewport().set_input_as_handled()
+			_on_create_new()
 
 
 ## Override this in child classes to create the specific detail form
@@ -111,6 +132,13 @@ func _setup_base_ui() -> void:
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	help_label.add_theme_font_size_override("font_size", 11)
 	left_panel.add_child(help_label)
+
+	# Search filter
+	search_filter = LineEdit.new()
+	search_filter.placeholder_text = "Search..."
+	search_filter.clear_button_enabled = true
+	search_filter.text_changed.connect(_on_search_filter_changed)
+	left_panel.add_child(search_filter)
 
 	resource_list = ItemList.new()
 	resource_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -200,6 +228,8 @@ func _setup_base_ui() -> void:
 func _refresh_list() -> void:
 	resource_list.clear()
 	available_resources.clear()
+	all_resources.clear()
+	all_resource_paths.clear()
 
 	# Use ModRegistry if available and resource_type_id is set
 	if resource_type_id != "" and ModLoader:
@@ -233,13 +263,38 @@ func _scan_directory_for_resources(dir_path: String) -> void:
 				var full_path: String = dir_path.path_join(file_name)
 				var resource: Resource = load(full_path)
 				if resource:
-					resource_list.add_item(_get_resource_display_name(resource))
-					resource_list.set_item_metadata(resource_list.item_count - 1, full_path)
+					# Store in master lists for filtering
+					all_resources.append(resource)
+					all_resource_paths.append(full_path)
 					available_resources.append(resource)
 			file_name = dir.get_next()
 		dir.list_dir_end()
+
+		# Apply current filter (or show all if no filter)
+		_apply_filter()
 	else:
 		push_error("Failed to open directory: " + dir_path)
+
+
+## Apply the current search filter to the resource list
+func _apply_filter() -> void:
+	resource_list.clear()
+
+	var filter_text: String = search_filter.text.strip_edges().to_lower() if search_filter else ""
+
+	for i in range(all_resources.size()):
+		var resource: Resource = all_resources[i]
+		var display_name: String = _get_resource_display_name(resource)
+
+		# Show all if no filter, otherwise check for match
+		if filter_text.is_empty() or display_name.to_lower().contains(filter_text):
+			resource_list.add_item(display_name)
+			resource_list.set_item_metadata(resource_list.item_count - 1, all_resource_paths[i])
+
+
+## Called when search filter text changes
+func _on_search_filter_changed(_new_text: String) -> void:
+	_apply_filter()
 
 
 func _on_resource_selected(index: int) -> void:
