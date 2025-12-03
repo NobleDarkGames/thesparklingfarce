@@ -14,6 +14,7 @@ const BattleEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui
 const ModJsonEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/mod_json_editor.tscn")
 const MapMetadataEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/map_metadata_editor.tscn")
 const CinematicEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/cinematic_editor.tscn")
+const CampaignEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/campaign_editor.tscn")
 
 var character_editor: Control
 var class_editor: Control
@@ -25,6 +26,7 @@ var battle_editor: Control
 var mod_json_editor: Control
 var map_metadata_editor: Control
 var cinematic_editor: Control
+var campaign_editor: Control
 
 var tab_container: TabContainer
 var mod_selector: OptionButton
@@ -77,6 +79,7 @@ func _setup_ui() -> void:
 	_create_battle_editor_tab()
 	_create_map_metadata_tab()
 	_create_cinematic_editor_tab()
+	_create_campaign_editor_tab()
 
 
 func _create_overview_tab() -> void:
@@ -180,6 +183,12 @@ func _create_cinematic_editor_tab() -> void:
 	cinematic_editor = CinematicEditorScene.instantiate()
 	cinematic_editor.name = "Cinematics"
 	tab_container.add_child(cinematic_editor)
+
+
+func _create_campaign_editor_tab() -> void:
+	campaign_editor = CampaignEditorScene.instantiate()
+	campaign_editor.name = "Campaigns"
+	tab_container.add_child(campaign_editor)
 
 
 func _create_mod_selector_ui() -> void:
@@ -321,3 +330,5 @@ func _refresh_all_editors() -> void:
 		map_metadata_editor._refresh_map_list()
 	if cinematic_editor and cinematic_editor.has_method("_refresh_cinematic_list"):
 		cinematic_editor._refresh_cinematic_list()
+	if campaign_editor and campaign_editor.has_method("_refresh_campaign_list"):
+		campaign_editor._refresh_campaign_list()
