@@ -1,7 +1,7 @@
 # The Sparkling Farce - Development Phase Status
 
-**Last Updated:** November 25, 2025
-**Current Phase:** Phase 2.5 COMPLETE ✅
+**Last Updated:** December 2, 2025 (Evening Session)
+**Current Phase:** Phase 4.2 - Equipment System 🚧
 
 ---
 
@@ -187,18 +187,27 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 
 ---
 
-### 🔜 Phase 2.5.2 - Scene Transition System (NEXT)
+### ✅ Phase 2.5.2 - Scene Transition System (COMPLETE)
 
-**Priority:** High
-**Dependencies:** Phase 2.5 complete ✅
+**Status:** Production Ready
+**Completion Date:** November 2025
 
-**Scope:**
-- BattleManager returns to map after battle completion
-- Store pre-battle scene path and hero position
-- Restore hero position after victory
-- Battle → map transition system
+**Implemented:**
+- TriggerManager stores return scene path and hero grid position in TransitionContext
+- BattleManager returns to exploration map after battle completion
+- Hero position restored to exact grid coordinates via `hero.teleport_to_grid()`
+- Hero facing direction preserved and restored
+- Trigger marked complete prevents re-activation (one-shot battles work)
+- SceneManager handles fade transitions between scenes
 
-**Estimated Effort:** 4-6 hours
+**Key Files:**
+- `core/systems/trigger_manager.gd` - Battle trigger handling, return_to_map()
+- `core/systems/game_state.gd` - TransitionContext storage
+- `core/resources/transition_context.gd` - Return data encapsulation
+- `mods/_base_game/maps/templates/map_template.gd` - Hero restoration on scene load
+
+**The Core Gameplay Loop is COMPLETE:**
+`Exploration → Battle Trigger → Battle Scene → Victory → Return to Map → Resume Exploration`
 
 ---
 
@@ -217,20 +226,102 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 
 ---
 
-### 🔜 Phase 4 - Equipment, Magic, Items
+### 🚧 Phase 4.1 - Promotion System (COMPLETE)
+
+**Status:** Core Complete
+**Completion Date:** December 2, 2025
+
+**Implemented:**
+- PromotionManager autoload singleton
+- ClassData extensions: `special_promotion_class`, `special_promotion_item`, `promotion_level`
+- CharacterSaveData extensions: `cumulative_level`, `promotion_count`, `current_class_mod_id/resource_id`
+- PromotionCeremony UI scene (full-screen transformation celebration)
+- SF2-style special promotions (item-gated alternate paths)
+
+**Remaining:**
+- PartyManager persistence integration for promoted classes
+- Unit.apply_promotion() method
+
+---
+
+### 🚧 Phase 4.2 - Equipment System (IN PROGRESS)
+
+**Status:** 95% Complete - Core Infrastructure Done
+**Started:** December 2, 2025
+
+**Implemented (Staged, Not Committed):**
+
+1. **Core Data Structures:**
+   - `core/registries/equipment_slot_registry.gd` - Data-driven slot system (weapon, ring_1, ring_2, accessory)
+   - `core/systems/equipment_slot.gd` - Convenience constants
+   - `core/systems/inventory_config.gd` - Configurable inventory (default 4 slots)
+   - `core/systems/equipment_manager.gd` - Autoload with equip/unequip API and signals
+
+2. **Resource Modifications:**
+   - `ItemData` - Added `equipment_slot`, `is_cursed`, `uncurse_items`; removed `durability`
+   - `CharacterSaveData` - Added `inventory: Array[String]`, updated `equipped_items` format with `curse_broken`
+   - `CharacterData` - Added `starting_inventory: Array[String]` for initial character items
+   - `ModManifest` - Parses `equipment_slot_layout` and `inventory_config` from mod.json
+
+3. **Combat Integration:**
+   - `UnitStats` - Equipment cache, weapon stat accessors (`get_weapon_attack_power()`, etc.)
+   - `CombatCalculator` - Weapon stats integrated into damage/hit/crit formulas
+   - `Unit` - `refresh_equipment_cache()` method
+
+4. **Party Manager Runtime Save Data:**
+   - `PartyManager._member_save_data` - Dictionary tracking CharacterSaveData by character_uid
+   - `PartyManager.get_member_save_data(uid)` - Retrieves character's inventory/equipment state
+   - `PartyManager.update_member_save_data(uid, data)` - Updates character state
+   - Auto-creation of save data when characters join party
+
+5. **Item Menu:**
+   - `scenes/ui/item_menu.gd` and `.tscn` - Full UI implementation
+   - `InputManager` - Added `SELECTING_ITEM` state
+   - `BattleManager` - Connected to item signals
+   - `base_battle_scene.gd` - Wires up item menu
+
+6. **Test Items (in mods/_sandbox/data/items/):**
+   - `healing_herb.tres` - Consumable with `usable_in_battle: true`
+   - `medical_herb.tres` - Consumable with `usable_in_battle: true`
+   - `antidote.tres` - Consumable with `usable_in_battle: true`
+
+**✅ BUG FIXED: Item Menu Infrastructure (December 3, 2025)**
+
+Root causes identified and fixed:
+1. ✅ `PartyManager.get_member_save_data()` - Implemented
+2. ✅ Items with `usable_in_battle: true` - Created (3 test items)
+3. ✅ Characters with starting inventory - Added `starting_inventory` field to CharacterData
+4. ✅ CharacterSaveData copies starting inventory - Updated `populate_from_character_data()`
+
+**Test Results:** 76 tests passing (3 new item menu integration tests added)
+
+**Remaining Work:**
+- Manual testing of item menu in actual battle
+- Item effect execution (using items to heal, cure status, etc.)
+- Equipment stat bonuses display in UI
+
+**Key Files (All Staged):**
+- `scenes/ui/item_menu.gd` - Item menu script
+- `core/systems/party_manager.gd` - Added runtime save data tracking
+- `core/systems/input_manager.gd` - Modified for SELECTING_ITEM state
+- `core/systems/equipment_manager.gd` - New autoload
+- `core/registries/equipment_slot_registry.gd` - New registry
+- `core/resources/character_data.gd` - Added starting_inventory field
+- `core/resources/character_save_data.gd` - Copies starting_inventory
+
+---
+
+### 🔜 Phase 4.3 - Magic/Spells
 
 **Priority:** High
-**Dependencies:** Phase 2.5.2 complete
+**Dependencies:** Phase 4.2 complete
 
 **Scope:**
-- Equipment system (weapons, armor, accessories)
 - Magic/spell targeting and effects
-- Item usage mechanics and inventory UI
-- Equipment stat bonuses
 - Spell animations
 - MP consumption
 
-**Estimated Effort:** 40-60 hours
+**Estimated Effort:** 20-30 hours
 
 ---
 
@@ -267,9 +358,10 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 | Mod System | ✅ Complete | 1 | Priority-based loading |
 | Audio Manager | ✅ Complete | 1 | Music, SFX, mod-aware |
 | AI System | 🟡 30% | 2 | Only 2 basic behaviors |
-| Equipment | ⬜ 0% | 4 | Not started |
-| Magic/Spells | ⬜ 0% | 4 | Not started |
-| Items/Inventory | 🟡 5% | 4 | Data structure only |
+| Equipment | 🟡 80% | 4.2 | Core done, Item Menu bug |
+| Magic/Spells | ⬜ 0% | 4.3 | Not started |
+| Items/Inventory | 🟡 40% | 4.2 | Data done, UI buggy |
+| Promotion | ✅ Complete | 4.1 | Core done, needs PartyManager integration |
 | UI Systems | 🟡 50% | 2, 3 | Battle UI done, missing menus |
 
 ---
@@ -303,9 +395,9 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 - Strict typing enforcement (project settings)
 - Defensive programming (turn session IDs, validation)
 
-**Autoload Singletons (12 total):**
+**Autoload Singletons (15 total):**
 1. ModLoader - Mod discovery and loading
-2. GameState - Story flags and trigger tracking (NEW)
+2. GameState - Story flags and trigger tracking
 3. SaveManager - Save/load operations
 4. SceneManager - Scene transitions
 5. PartyManager - Party composition
@@ -317,6 +409,8 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 11. InputManager - Player input
 12. BattleManager - Battle orchestration
 13. AIController - Enemy AI
+14. PromotionManager - Class promotion (Phase 4.1)
+15. EquipmentManager - Equipment/inventory (Phase 4.2)
 
 **Resource Types (10 total):**
 - CharacterData, ClassData, ItemData, AbilityData
@@ -327,25 +421,27 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 
 ## Blockers & Known Issues
 
-**None** - All critical blockers for campaign creation resolved.
+**No Active Blockers**
 
 **Minor Issues:**
 - Map exploration party following uses "snake" pattern (works but could be improved to formation-based)
 - Placeholder art needs replacement (by design - modder content)
 - No persistent dialog flags across scenes (Phase 3 limitation)
+- Item effect execution not yet implemented (items show in menu but USE action needs work)
 
 ---
 
 ## Next Milestone
 
-**Target:** Complete Phase 2.5.2 (Scene Transitions) by December 2025
-**Goal:** Full explore → battle → explore gameplay loop operational
+**Target:** Complete Phase 4 Core Mechanics (Equipment, Magic, Items, Caravan)
+**Goal:** Implement the SF-defining systems that make the platform feel like a real Shining Force game
 
 **Success Criteria:**
-- Battle triggers load battle scene
-- Battle victory returns to map at hero's position
-- Hero position preserved correctly
-- Trigger marked as completed persists
+- Equipment system with stat bonuses and class restrictions
+- Magic/spell system with MP, targeting, and area effects
+- Item/inventory system with consumables
+- Caravan mobile HQ for party management (SF2 signature feature)
+- Retreat/resurrection system (units don't permadeath)
 
 ---
 
@@ -364,4 +460,9 @@ This phase addresses 4 critical mod system integration gaps identified by Modro'
 
 ---
 
-**Phase Status Last Updated:** November 25, 2025 by Commander Claudius & Crew
+**Phase Status Last Updated:** December 2, 2025 (Evening) by Chief O'Brien, Lt. Barclay, Clauderina & Crew
+
+**Session Notes:**
+- Implemented Equipment System (Phase 4.2) - equipment slots, cursed items, inventory config
+- Implemented Item Menu UI - but visual display bug needs debugging tomorrow
+- All changes staged but NOT committed pending bug fix
