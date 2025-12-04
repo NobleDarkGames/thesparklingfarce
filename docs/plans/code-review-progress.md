@@ -1057,10 +1057,118 @@ N/A - Recommend tests for scene transition edge cases and spawn point resolution
 7. Test infrastructure bugs fixed
 
 ### Deferred Items (Future Work)
-- CharacterData mutation during promotion (requires save system integration)
-- ExperienceConfig mod-overridability
-- Hidden campaigns ModLoader support
-- TransitionContext type safety improvements
-- Legacy return_data API deprecation
 
-**Final Status**: All 76 unit tests + integration tests PASS. Codebase ready for commit.
+#### 1. CharacterData Mutation During Promotion (HIGH PRIORITY)
+
+**Location**: `promotion_manager.gd:426-428`
+
+**Problem**: When a character promotes, `_set_unit_class()` mutates the CharacterData template directly:
+```gdscript
+unit.character_data.character_class = new_class  # MUTATES TEMPLATE!
+```
+
+**Impact**:
+- If the same CharacterData is used for multiple unit instances, all get modified
+- The original class is lost, breaking save/load consistency
+- Violates the "CharacterData = immutable template" design documented in `character_save_data.gd`
+
+**Required Fix**:
+- Update `CharacterSaveData.current_class_mod_id` and `current_class_resource_id` instead
+- Modify `Unit` to resolve its class from save data when available
+- Integrate with `PartyManager._member_save_data`
+
+**Affected Files**: `promotion_manager.gd`, `unit.gd`, `character_save_data.gd`, `party_manager.gd`
+
+---
+
+#### 2. ExperienceConfig Not Mod-Overridable (MEDIUM PRIORITY)
+
+**Location**: `experience_manager.gd:74-75`
+
+**Problem**: XP configuration is loaded from a hardcoded default, not from mod resources:
+```gdscript
+var config: ExperienceConfig = ExperienceConfig.new()  # Always default
+```
+
+**Impact**: Mods cannot customize:
+- XP curves (how much XP per level difference)
+- Anti-spam thresholds
+- Default promotion level
+- Formation XP bonuses
+
+**Required Fix**:
+- Add `"experience_config": "data/experience_configs"` to `ModLoader.RESOURCE_TYPE_DIRS`
+- Load config via `ModLoader.registry.get_resource("experience_config", "default")`
+- Allow mods to provide `mods/<mod_id>/data/experience_configs/*.tres`
+
+**Affected Files**: `mod_loader.gd`, `experience_manager.gd`
+
+---
+
+#### 3. Hidden Campaigns ModLoader Support (MEDIUM PRIORITY)
+
+**Location**: `campaign_manager.gd:166-171`
+
+**Problem**: TODO stub exists but feature not implemented:
+```gdscript
+func _get_hidden_campaign_patterns() -> Array[String]:
+    # TODO: Add hidden_campaigns support to ModLoader
+    return []
+```
+
+**Impact**: Total conversion mods cannot hide base game campaigns from the selection UI. Players see both original and mod campaigns, causing confusion.
+
+**Required Fix**:
+- Add `hidden_campaigns: Array[String]` to `ModManifest`
+- Add parsing in `mod_manifest.gd`
+- Expose via `ModLoader.get_hidden_campaign_patterns()`
+- Filter campaigns in `CampaignManager.get_available_campaigns()`
+
+**Affected Files**: `mod_manifest.gd`, `mod_loader.gd`, `campaign_manager.gd`
+
+---
+
+#### 4. TransitionContext Type Safety (LOW PRIORITY)
+
+**Location**: `transition_context.gd`
+
+**Problem**: Static factory methods return `RefCounted` instead of `TransitionContext`:
+```gdscript
+static func from_current_scene(hero: Node2D) -> RefCounted:  # Should be TransitionContext
+```
+
+This is due to GDScript's cyclic reference limitations with `class_name`.
+
+**Impact**: Consumers lose compile-time type checking, potential runtime errors.
+
+**Required Fix**: Either:
+- Document the pattern clearly with usage examples
+- Use a non-static factory pattern with explicit typing
+- Wait for GDScript improvements in future Godot versions
+
+**Affected Files**: `transition_context.gd`
+
+---
+
+#### 5. Legacy return_data API Deprecation (LOW PRIORITY)
+
+**Location**: `game_state.gd`
+
+**Problem**: Two APIs exist for the same purpose:
+- Legacy: `set_return_data()` / `has_return_data()` / `clear_return_data()`
+- New: `set_transition_context()` / `get_transition_context()` / `clear_transition_context()`
+
+Both are still used across the codebase (e.g., `map_template.gd` vs `map_test_playable.gd`).
+
+**Impact**: Confusing for mod developers; risk of partial state if APIs are mixed.
+
+**Required Fix**:
+- Add deprecation warnings to legacy methods
+- Migrate all usages to new TransitionContext API
+- Remove legacy methods after migration complete
+
+**Affected Files**: `game_state.gd`, `map_template.gd`, and any files using legacy API
+
+---
+
+**Final Status**: All 76 unit tests + integration tests PASS. Code review commit: `58d6697`
