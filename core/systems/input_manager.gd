@@ -132,12 +132,6 @@ func _reconnect_item_menu_signals() -> void:
 
 ## Handle item menu selection signal
 func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
-	print("[InputManager] _on_item_menu_selected() called")
-	print("[InputManager]   item_id: '%s'" % item_id)
-	print("[InputManager]   signal_session_id: %d, current session: %d" % [signal_session_id, _turn_session_id])
-	print("[InputManager]   current_state: %s" % InputState.keys()[current_state])
-	print("[InputManager]   active_unit: %s" % (active_unit.get_display_name() if active_unit else "NULL"))
-
 	# Guard: Reject stale signals from previous turns
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE item selection from session %d (current: %d)" % [
@@ -151,8 +145,6 @@ func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
 		push_warning("InputManager: Ignoring item selection in state %s" % InputState.keys()[current_state])
 		return
 
-	print("[InputManager] Item selection validated - checking if target selection needed")
-
 	# Play selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -165,15 +157,11 @@ func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
 		set_state(InputState.SELECTING_ACTION)
 		return
 
-	print("[InputManager] Item data loaded: %s" % selected_item_data.item_name)
-
 	# Check if item needs target selection
 	if _item_needs_target_selection(selected_item_data):
-		print("[InputManager] Item needs target selection - entering SELECTING_ITEM_TARGET state")
 		set_state(InputState.SELECTING_ITEM_TARGET)
 	else:
 		# Self-target items (or items without effect) - use immediately on self
-		print("[InputManager] Item is self-target - using on self")
 		_use_item_on_target(active_unit)
 
 
@@ -205,14 +193,8 @@ func _item_needs_target_selection(item: ItemData) -> bool:
 
 ## Use the selected item on the given target
 func _use_item_on_target(target: Node2D) -> void:
-	print("[InputManager] _use_item_on_target() called")
-	print("[InputManager]   item_id: '%s'" % selected_item_id)
-	print("[InputManager]   target: %s" % (target.get_display_name() if target else "NULL"))
-
 	# Emit item use signal for BattleManager to handle
-	print("[InputManager] Emitting item_use_requested signal...")
 	item_use_requested.emit(active_unit, selected_item_id, target)
-	print("[InputManager] Signal emitted, transitioning to EXECUTING state")
 
 	# Clear item selection state
 	selected_item_id = ""
@@ -225,10 +207,6 @@ func _use_item_on_target(target: Node2D) -> void:
 
 ## Handle item menu cancellation signal
 func _on_item_menu_cancelled(signal_session_id: int) -> void:
-	print("[InputManager] _on_item_menu_cancelled() - signal session: %d, current: %d" % [
-		signal_session_id,
-		_turn_session_id
-	])
 	# Guard: Reject stale cancel signals from previous turns
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE item cancel from session %d (current: %d)" % [
@@ -237,7 +215,6 @@ func _on_item_menu_cancelled(signal_session_id: int) -> void:
 		])
 		return
 
-	print("[InputManager] Returning to SELECTING_ACTION from item menu cancel")
 	# Return to action menu
 	set_state(InputState.SELECTING_ACTION)
 
@@ -335,12 +312,7 @@ func set_state(new_state: InputState) -> void:
 	var old_state: InputState = current_state
 	current_state = new_state
 
-	print("[InputManager] State change: %s -> %s" % [
-		InputState.keys()[old_state],
-		InputState.keys()[new_state]
-	])
-
-	# Debug: Warn on unexpected transition to WAITING
+	# Warn on unexpected transition to WAITING
 	if new_state == InputState.WAITING and old_state == InputState.EXPLORING_MOVEMENT:
 		push_warning("InputManager: Unexpected transition from EXPLORING_MOVEMENT to WAITING!")
 
@@ -472,7 +444,6 @@ func _on_enter_selecting_action() -> void:
 
 
 func _on_enter_selecting_item() -> void:
-	print("[InputManager] _on_enter_selecting_item() - session: %d" % _turn_session_id)
 	# Disable per-frame processing (menu handles its own input)
 	set_process(false)
 
@@ -485,7 +456,6 @@ func _on_enter_selecting_item() -> void:
 
 
 func _on_enter_selecting_item_target() -> void:
-	print("[InputManager] _on_enter_selecting_item_target() - item: %s" % selected_item_id)
 	# Disable per-frame processing (targeting uses _input for individual key presses)
 	set_process(false)
 
@@ -498,11 +468,9 @@ func _on_enter_selecting_item_target() -> void:
 
 	# Get valid targets for the item and store for snap-to-target navigation
 	_item_valid_targets = _get_valid_item_target_cells()
-	print("[InputManager] Valid item targets: %s" % str(_item_valid_targets))
 
 	if _item_valid_targets.is_empty():
 		# No valid targets - return to action menu (SF-authentic: don't end turn)
-		print("[InputManager] No valid targets for item - returning to action menu")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		selected_item_id = ""
 		selected_item_data = null
@@ -1020,17 +988,10 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 
 ## Show item menu
 func _show_item_menu() -> void:
-	print("[InputManager] _show_item_menu() called")
-	print("[InputManager]   item_menu reference: %s" % (item_menu != null))
-	print("[InputManager]   active_unit: %s" % (active_unit.get_display_name() if active_unit else "NULL"))
-	print("[InputManager]   session_id: %d" % _turn_session_id)
-
 	if not item_menu:
-		push_warning("InputManager: No item menu reference set - falling back to ending turn")
-		# Fall back: end turn immediately (prevents freeze)
-		set_state(InputState.EXECUTING)
-		if active_unit:
-			BattleManager._execute_stay(active_unit)
+		push_warning("InputManager: No item menu reference set - falling back to Stay action")
+		# Fall back: emit stay action via signal (prevents freeze)
+		action_selected.emit(active_unit, "stay")
 		return
 
 	if not active_unit:
@@ -1039,7 +1000,6 @@ func _show_item_menu() -> void:
 		return
 
 	# Show item menu with unit's inventory
-	print("[InputManager] Calling item_menu.show_menu()...")
 	item_menu.show_menu(active_unit, _turn_session_id)
 
 	# Position menu near active unit (similar to action menu)
@@ -1047,7 +1007,6 @@ func _show_item_menu() -> void:
 	var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
 	# Offset to right of unit
 	item_menu.position = unit_screen_pos + Vector2(40, -20)
-	print("[InputManager] Item menu positioned at: %s" % item_menu.position)
 
 
 ## Select action from menu
@@ -1442,6 +1401,12 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
+
+	# Guard: Validate state after async operation
+	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
+		is_direct_moving = false
+		return
+
 	is_direct_moving = false
 
 	# Update visual feedback (remaining movement display)
@@ -1484,6 +1449,12 @@ func _undo_last_step() -> void:
 	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
+
+	# Guard: Validate state after async operation
+	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
+		is_direct_moving = false
+		return
+
 	is_direct_moving = false
 
 	# Update visual feedback
@@ -1601,7 +1572,6 @@ func _handle_item_target_input(event: InputEvent) -> void:
 
 	# Cancel returns to action menu (SF-authentic: don't end turn)
 	if event.is_action_pressed("sf_cancel"):
-		print("[InputManager] Item target selection cancelled - returning to action menu")
 		AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 		selected_item_id = ""
 		selected_item_data = null
@@ -1775,8 +1745,6 @@ func _update_item_target_info() -> void:
 
 ## Confirm item target and use item
 func _confirm_item_target(target: Node2D) -> void:
-	print("[InputManager] _confirm_item_target() - target: %s" % target.get_display_name())
-
 	# Play confirm sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 

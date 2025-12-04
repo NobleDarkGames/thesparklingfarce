@@ -322,7 +322,7 @@ func process_status_effects() -> bool:
 			"regen":
 				# Heal based on power
 				var heal: int = maxi(1, effect.power)
-				current_hp = mini(current_hp + heal, max_hp)
+				current_hp = mini(current_hp + heal, get_effective_max_hp())
 
 		# Decrement duration
 		effect.duration -= 1
@@ -345,7 +345,7 @@ func take_damage(damage: int) -> bool:
 
 ## Heal HP
 func heal(amount: int) -> void:
-	current_hp = mini(current_hp + amount, max_hp)
+	current_hp = mini(current_hp + amount, get_effective_max_hp())
 
 
 ## Spend MP for ability
@@ -359,7 +359,7 @@ func spend_mp(cost: int) -> bool:
 
 ## Restore MP
 func restore_mp(amount: int) -> void:
-	current_mp = mini(current_mp + amount, max_mp)
+	current_mp = mini(current_mp + amount, get_effective_max_mp())
 
 
 ## Check if unit is alive
@@ -369,26 +369,28 @@ func is_alive() -> bool:
 
 ## Check if unit is at full HP
 func is_at_full_hp() -> bool:
-	return current_hp == max_hp
+	return current_hp >= get_effective_max_hp()
 
 
 ## Check if unit is at full MP
 func is_at_full_mp() -> bool:
-	return current_mp == max_mp
+	return current_mp >= get_effective_max_mp()
 
 
 ## Get HP percentage (0.0 to 1.0)
 func get_hp_percent() -> float:
-	if max_hp == 0:
+	var effective_max: int = get_effective_max_hp()
+	if effective_max == 0:
 		return 0.0
-	return float(current_hp) / float(max_hp)
+	return float(current_hp) / float(effective_max)
 
 
 ## Get MP percentage (0.0 to 1.0)
 func get_mp_percent() -> float:
-	if max_mp == 0:
+	var effective_max: int = get_effective_max_mp()
+	if effective_max == 0:
 		return 0.0
-	return float(current_mp) / float(max_mp)
+	return float(current_mp) / float(effective_max)
 
 ## Get summary string for debugging
 func get_stats_string() -> String:

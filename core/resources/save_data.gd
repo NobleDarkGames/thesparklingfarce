@@ -171,7 +171,7 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	if "active_mods" in data:
 		active_mods.clear()
 		var mods_array: Array = data.active_mods
-		for i in range(mods_array.size()):
+		for i: int in range(mods_array.size()):
 			var mod_dict: Dictionary = mods_array[i]
 			active_mods.append(mod_dict)
 	if "game_version" in data:
@@ -196,13 +196,13 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	if "completed_battles" in data:
 		completed_battles.clear()
 		var completed_array: Array = data.completed_battles
-		for i in range(completed_array.size()):
+		for i: int in range(completed_array.size()):
 			var battle_id: String = completed_array[i]
 			completed_battles.append(battle_id)
 	if "available_battles" in data:
 		available_battles.clear()
 		var available_array: Array = data.available_battles
-		for i in range(available_array.size()):
+		for i: int in range(available_array.size()):
 			var battle_id: String = available_array[i]
 			available_battles.append(battle_id)
 	if "max_party_size" in data:
@@ -212,7 +212,7 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	if "inventory" in data:
 		inventory.clear()
 		var inventory_array: Array = data.inventory
-		for i in range(inventory_array.size()):
+		for i: int in range(inventory_array.size()):
 			var item_dict: Dictionary = inventory_array[i]
 			inventory.append(item_dict)
 	if "total_battles" in data:
@@ -230,7 +230,7 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	party_members.clear()
 	if "party_members" in data:
 		var party_array: Array = data.party_members
-		for i in range(party_array.size()):
+		for i: int in range(party_array.size()):
 			var char_dict: Dictionary = party_array[i]
 			var char_save: CharacterSaveData = CharacterSaveData.new()
 			char_save.deserialize_from_dict(char_dict)
@@ -240,7 +240,7 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	reserve_members.clear()
 	if "reserve_members" in data:
 		var reserve_array: Array = data.reserve_members
-		for i in range(reserve_array.size()):
+		for i: int in range(reserve_array.size()):
 			var char_dict: Dictionary = reserve_array[i]
 			var char_save: CharacterSaveData = CharacterSaveData.new()
 			char_save.deserialize_from_dict(char_dict)

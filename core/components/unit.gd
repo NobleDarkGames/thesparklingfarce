@@ -151,7 +151,7 @@ func _update_health_bar(animate: bool = true) -> void:
 	if not health_bar or not stats:
 		return
 
-	health_bar.max_value = stats.max_hp
+	health_bar.max_value = stats.get_effective_max_hp()
 
 	# Check if GameJuice is available and animation is enabled
 	var should_animate: bool = animate and is_inside_tree()
@@ -224,7 +224,6 @@ func move_along_path(path: Array[Vector2i]) -> void:
 		# Path only contains current position, no movement needed
 		return
 
-	var start_cell: Vector2i = path[0]
 	var end_cell: Vector2i = path[path.size() - 1]
 
 	# Validate end position

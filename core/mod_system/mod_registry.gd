@@ -34,7 +34,7 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 		return
 
 	# Ensure type dictionary exists
-	if not resource_type in _resources_by_type:
+	if resource_type not in _resources_by_type:
 		_resources_by_type[resource_type] = {}
 
 	# Register the resource (overrides any existing resource with same ID)
@@ -42,15 +42,15 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 	_resource_sources[resource_id] = mod_id
 
 	# Track mod's resources
-	if not mod_id in _mod_resources:
+	if mod_id not in _mod_resources:
 		_mod_resources[mod_id] = []
-	if not resource_id in _mod_resources[mod_id]:
+	if resource_id not in _mod_resources[mod_id]:
 		_mod_resources[mod_id].append(resource_id)
 
 
 ## Get a specific resource by type and ID
 func get_resource(resource_type: String, resource_id: String) -> Resource:
-	if not resource_type in _resources_by_type:
+	if resource_type not in _resources_by_type:
 		return null
 	return _resources_by_type[resource_type].get(resource_id, null)
 
@@ -70,7 +70,7 @@ func get_character_by_uid(uid: String) -> CharacterData:
 	if uid.is_empty():
 		return null
 
-	if not "character" in _resources_by_type:
+	if "character" not in _resources_by_type:
 		return null
 
 	for character: Resource in _resources_by_type["character"].values():
@@ -93,7 +93,7 @@ func get_character_name_by_uid(uid: String) -> String:
 ## Get the hero character (primary protagonist)
 ## Returns null if no hero exists or if multiple heroes exist (with warning)
 func get_hero_character() -> CharacterData:
-	if not "character" in _resources_by_type:
+	if "character" not in _resources_by_type:
 		return null
 
 	var heroes: Array[CharacterData] = []
@@ -143,7 +143,7 @@ func get_resource_types() -> Array[String]:
 
 ## Get count of resources of a specific type
 func get_resource_count(resource_type: String) -> int:
-	if not resource_type in _resources_by_type:
+	if resource_type not in _resources_by_type:
 		return 0
 	return _resources_by_type[resource_type].size()
 
@@ -158,7 +158,7 @@ func get_total_resource_count() -> int:
 
 ## Check if a resource exists
 func has_resource(resource_type: String, resource_id: String) -> bool:
-	if not resource_type in _resources_by_type:
+	if resource_type not in _resources_by_type:
 		return false
 	return resource_id in _resources_by_type[resource_type]
 
@@ -174,7 +174,7 @@ func clear() -> void:
 
 ## Clear all resources from a specific mod
 func clear_mod_resources(mod_id: String) -> void:
-	if not mod_id in _mod_resources:
+	if mod_id not in _mod_resources:
 		return
 
 	# Remove each resource registered by this mod

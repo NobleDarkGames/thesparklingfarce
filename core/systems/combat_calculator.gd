@@ -274,16 +274,16 @@ static func calculate_hit_chance_with_terrain(
 
 
 ## Calculate effective defense with terrain bonus
-## Returns: Defender's defense + terrain_defense_bonus
+## Returns: Defender's effective defense (including equipment) + terrain_defense_bonus
 static func get_effective_defense_with_terrain(
 	defender_stats: UnitStats,
 	terrain_defense_bonus: int
 ) -> int:
-	return defender_stats.defense + terrain_defense_bonus
+	return defender_stats.get_effective_defense() + terrain_defense_bonus
 
 
 ## Calculate physical damage with terrain defense bonus
-## Formula: (Attacker STR - (Defender DEF + terrain_def)) * variance
+## Formula: (Attacker STR + Weapon ATK - (Defender DEF + terrain_def)) * variance
 ## Returns: Minimum of 1 damage
 static func calculate_physical_damage_with_terrain(
 	attacker_stats: UnitStats,
@@ -294,8 +294,16 @@ static func calculate_physical_damage_with_terrain(
 		push_error("CombatCalculator: Cannot calculate damage with null stats")
 		return 0
 
-	var effective_defense: int = defender_stats.defense + terrain_defense_bonus
-	var base_damage: int = attacker_stats.strength - effective_defense
+	# Get effective strength (includes equipment bonuses)
+	var attack_power: int = attacker_stats.get_effective_strength()
+
+	# Add weapon attack power
+	attack_power += attacker_stats.get_weapon_attack_power()
+
+	# Get effective defense (includes equipment bonuses) + terrain bonus
+	var effective_defense: int = defender_stats.get_effective_defense() + terrain_defense_bonus
+
+	var base_damage: int = attack_power - effective_defense
 
 	# Apply variance (+/- 10%)
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)

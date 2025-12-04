@@ -67,9 +67,11 @@ extends Resource
 
 
 ## Get base stat value by name
+## Returns 0 if stat_name is not a valid stat property
 func get_base_stat(stat_name: String) -> int:
 	if stat_name in self:
 		return get(stat_name)
+	push_warning("CharacterData: Unknown stat name '%s'" % stat_name)
 	return 0
 
 

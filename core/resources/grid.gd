@@ -11,18 +11,16 @@ extends Resource
 @export var grid_size: Vector2i = Vector2i(20, 11)
 
 ## Size of each cell in pixels
-@export var cell_size: int = 32
+@export var cell_size: int = 32:
+	set(value):
+		cell_size = value
+		_update_cache()
 
 ## Half cell size cached for performance (used for centering)
 var _half_cell_size: int
 
 
 func _init() -> void:
-	_update_cache()
-
-
-## Called when resource is loaded or properties change
-func _validate_property(property: Dictionary) -> void:
 	_update_cache()
 
 

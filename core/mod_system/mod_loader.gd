@@ -72,7 +72,6 @@ var _tileset_registry: Dictionary = {}
 
 ## Loading state tracking
 var _is_loading: bool = false
-var _pending_loads: Dictionary = {}  # path -> {resource_type, resource_id, mod_id}
 
 
 func _ready() -> void:

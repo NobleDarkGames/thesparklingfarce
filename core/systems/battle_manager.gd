@@ -390,14 +390,8 @@ func _execute_stay(unit: Node2D) -> void:
 
 ## Handle item use request from InputManager
 func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> void:
-	print("[BattleManager] === ITEM USE REQUEST ===")
-	print("[BattleManager] Unit: %s" % (unit.get_display_name() if unit else "NULL"))
-	print("[BattleManager] Item ID: '%s'" % item_id)
-	print("[BattleManager] Target: %s" % (target.get_display_name() if target else "NULL"))
-
 	# Get the item data
 	var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
-	print("[BattleManager] Item lookup result: %s" % (item != null))
 
 	if not item:
 		push_warning("BattleManager: Item '%s' not found in registry" % item_id)
@@ -405,23 +399,11 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 		TurnManager.end_unit_turn(unit)
 		return
 
-	print("[BattleManager] Item name: %s" % item.item_name)
-	print("[BattleManager] Item type: %s" % ItemData.ItemType.keys()[item.item_type])
-	print("[BattleManager] Usable in battle: %s" % item.usable_in_battle)
-	print("[BattleManager] Effect resource: %s" % (item.effect if item.effect else "NULL"))
-
 	# Apply the item effect
 	var effect_applied: bool = false
 	if item.effect and item.effect is AbilityData:
 		var ability: AbilityData = item.effect as AbilityData
-		print("[BattleManager] Applying effect: %s (type: %s, power: %d)" % [
-			ability.ability_name,
-			AbilityData.AbilityType.keys()[ability.ability_type],
-			ability.power
-		])
 		effect_applied = await _apply_item_effect(unit, target, item, ability)
-	else:
-		print("[BattleManager] No effect to apply - item has no AbilityData")
 
 	if effect_applied:
 		# Consume item from inventory
@@ -430,29 +412,16 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 		# Award XP for item usage (SF-authentic: healers get more XP)
 		_award_item_use_xp(unit, target, item)
 
-		print("[BattleManager] %s used %s on %s successfully" % [
-			unit.get_display_name(),
-			item.item_name,
-			target.get_display_name()
-		])
-	else:
-		print("[BattleManager] Item effect failed or was not applicable")
-
-	print("[BattleManager] Resetting InputManager and ending turn...")
-
 	# Reset InputManager to waiting state
 	InputManager.reset_to_waiting()
 
 	# End unit's turn
 	TurnManager.end_unit_turn(unit)
-	print("[BattleManager] === ITEM USE COMPLETE ===")
 
 
 ## Apply item effect to target
 ## Returns true if effect was successfully applied
 func _apply_item_effect(user: Node2D, target: Node2D, item: ItemData, ability: AbilityData) -> bool:
-	print("[BattleManager] _apply_item_effect() - ability type: %s" % AbilityData.AbilityType.keys()[ability.ability_type])
-
 	match ability.ability_type:
 		AbilityData.AbilityType.HEAL:
 			return await _apply_healing_effect(user, target, ability)
@@ -460,29 +429,28 @@ func _apply_item_effect(user: Node2D, target: Node2D, item: ItemData, ability: A
 			return await _apply_damage_effect(user, target, ability)
 		AbilityData.AbilityType.SUPPORT:
 			# TODO: Implement buff effects
-			print("[BattleManager] Support effects not yet implemented")
+			push_warning("BattleManager: Support effects not yet implemented")
 			return false
 		AbilityData.AbilityType.DEBUFF:
 			# TODO: Implement debuff effects
-			print("[BattleManager] Debuff effects not yet implemented")
+			push_warning("BattleManager: Debuff effects not yet implemented")
 			return false
 		AbilityData.AbilityType.SPECIAL:
 			# TODO: Implement special effects
-			print("[BattleManager] Special effects not yet implemented")
+			push_warning("BattleManager: Special effects not yet implemented")
 			return false
 		_:
-			print("[BattleManager] Unknown ability type")
+			push_warning("BattleManager: Unknown ability type")
 			return false
 
 
 ## Apply healing effect to target
 func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -> bool:
 	if not target or not target.stats:
-		print("[BattleManager] Invalid target for healing")
+		push_warning("BattleManager: Invalid target for healing")
 		return false
 
 	var stats: UnitStats = target.stats
-	var old_hp: int = stats.current_hp
 	var max_hp: int = stats.max_hp
 
 	# Calculate healing amount
@@ -490,16 +458,6 @@ func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -
 
 	# Apply healing (cap at max HP)
 	stats.current_hp = mini(stats.current_hp + heal_amount, max_hp)
-	var actual_heal: int = stats.current_hp - old_hp
-
-	print("[BattleManager] Healing %s: %d HP (was %d/%d, now %d/%d)" % [
-		target.get_display_name(),
-		actual_heal,
-		old_hp,
-		max_hp,
-		stats.current_hp,
-		max_hp
-	])
 
 	# Play healing sound
 	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
@@ -519,13 +477,11 @@ func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -
 ## Apply damage effect to target (for offensive items)
 func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) -> bool:
 	if not target or not target.stats:
-		print("[BattleManager] Invalid target for damage")
+		push_warning("BattleManager: Invalid target for damage")
 		return false
 
 	# Calculate damage (simplified - no defense calculation for items)
 	var damage: int = ability.power
-
-	print("[BattleManager] Dealing %d damage to %s" % [damage, target.get_display_name()])
 
 	# Apply damage
 	if target.has_method("take_damage"):
@@ -546,8 +502,6 @@ func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) ->
 
 ## Consume item from unit's inventory
 func _consume_item_from_inventory(unit: Node2D, item_id: String) -> void:
-	print("[BattleManager] Consuming item '%s' from %s's inventory" % [item_id, unit.get_display_name()])
-
 	if not unit.character_data:
 		push_warning("BattleManager: Unit has no character_data, cannot consume item")
 		return
@@ -556,9 +510,7 @@ func _consume_item_from_inventory(unit: Node2D, item_id: String) -> void:
 	var char_uid: String = unit.character_data.character_uid
 	if PartyManager.has_method("remove_item_from_member"):
 		var removed: bool = PartyManager.remove_item_from_member(char_uid, item_id)
-		if removed:
-			print("[BattleManager] Item removed from inventory successfully")
-		else:
+		if not removed:
 			push_warning("BattleManager: Failed to remove item from inventory")
 	else:
 		push_warning("BattleManager: PartyManager.remove_item_from_member() not available")
@@ -584,11 +536,6 @@ func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
 
 	# Award XP based on whether user is a healer
 	var xp_amount: int = 10 if is_healer else 1
-	print("[BattleManager] Awarding %d XP to %s for item use (is_healer: %s)" % [
-		xp_amount,
-		user.get_display_name(),
-		is_healer
-	])
 
 	# Award through ExperienceManager (using support XP for item usage)
 	ExperienceManager.award_support_xp(user, "item_use", target, xp_amount)
@@ -1065,6 +1012,11 @@ func _show_combat_results() -> void:
 ## Clean up battle
 func end_battle() -> void:
 	battle_active = false
+
+	# Clean up any lingering combat animation
+	if combat_anim_instance and is_instance_valid(combat_anim_instance):
+		combat_anim_instance.queue_free()
+		combat_anim_instance = null
 
 	# Clear units
 	for unit in all_units:
