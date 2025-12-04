@@ -862,20 +862,19 @@ func _on_battle_ended(victory: bool) -> void:
 		return
 
 	# Return to map after battle (if we came from a map trigger)
-	if GameState.has_return_data():
+	var context: RefCounted = GameState.get_transition_context()
+	if context and context.is_valid():
 		# Set battle outcome in transition context
-		var context: RefCounted = GameState.get_transition_context()
-		if context:
-			# Access enum via the context's script
-			var TransitionContextScript: GDScript = context.get_script()
-			if victory:
-				context.battle_outcome = TransitionContextScript.BattleOutcome.VICTORY
-			else:
-				context.battle_outcome = TransitionContextScript.BattleOutcome.DEFEAT
+		# Access enum via the context's script
+		var TransitionContextScript: GDScript = context.get_script()
+		if victory:
+			context.battle_outcome = TransitionContextScript.BattleOutcome.VICTORY
+		else:
+			context.battle_outcome = TransitionContextScript.BattleOutcome.DEFEAT
 
-			# Store completed battle ID for one-shot tracking
-			if current_battle_data and current_battle_data.get("battle_id"):
-				context.completed_battle_id = current_battle_data.battle_id
+		# Store completed battle ID for one-shot tracking
+		if current_battle_data and current_battle_data.get("battle_id"):
+			context.completed_battle_id = current_battle_data.battle_id
 
 		TriggerManager.return_to_map()
 

@@ -28,6 +28,9 @@ var completed_triggers: Dictionary = {}
 ## Set by mod scripts to auto-prefix flags with their mod ID
 var _current_mod_namespace: String = ""
 
+## Deprecation warning tracking (warn once per session)
+var _deprecated_return_data_warned: bool = false
+
 ## Campaign progress data (extensible for future needs)
 var campaign_data: Dictionary = {
 	"current_chapter": 0,
@@ -269,25 +272,48 @@ func reset_all() -> void:
 		"battles_won": 0,
 		"treasures_found": 0,
 	}
-	clear_return_data()
+	clear_transition_context()  # Use new API internally to avoid deprecation warning
 
 
-## Store where to return after battle (legacy API - uses TransitionContext internally)
+## Store where to return after battle.
+## @deprecated Use set_transition_context() with a TransitionContext instance instead.
+## This legacy API is maintained for backwards compatibility but will emit a warning.
 func set_return_data(scene_path: String, hero_pos: Vector2, hero_grid_pos: Vector2i) -> void:
+	_warn_deprecated_return_data_api("set_return_data")
 	_transition_context = TransitionContextScript.new()
 	_transition_context.return_scene_path = scene_path
 	_transition_context.hero_world_position = hero_pos
 	_transition_context.hero_grid_position = hero_grid_pos
 
 
-## Check if there's return data available
+## Check if there's return data available.
+## @deprecated Use get_transition_context() != null instead.
+## This legacy API is maintained for backwards compatibility but will emit a warning.
 func has_return_data() -> bool:
+	_warn_deprecated_return_data_api("has_return_data")
 	return _transition_context != null and _transition_context.is_valid()
 
 
-## Clear return data after using it
+## Clear return data after using it.
+## @deprecated Use clear_transition_context() instead.
+## This legacy API is maintained for backwards compatibility but will emit a warning.
 func clear_return_data() -> void:
+	_warn_deprecated_return_data_api("clear_return_data")
 	_transition_context = null
+
+
+## Internal helper to emit deprecation warnings (once per session)
+func _warn_deprecated_return_data_api(method_name: String) -> void:
+	if not _deprecated_return_data_warned:
+		_deprecated_return_data_warned = true
+		push_warning(
+			"GameState: Legacy return_data API is deprecated. " +
+			"Use TransitionContext API instead:\n" +
+			"  - set_return_data() -> set_transition_context(TransitionContext.new())\n" +
+			"  - has_return_data() -> get_transition_context() != null\n" +
+			"  - clear_return_data() -> clear_transition_context()\n" +
+			"First deprecated call was: %s()" % method_name
+		)
 
 
 ## NEW API: Set full transition context

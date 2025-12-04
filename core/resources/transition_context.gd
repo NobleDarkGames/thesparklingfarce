@@ -45,8 +45,19 @@ var battle_outcome: BattleOutcome = BattleOutcome.NONE
 var completed_battle_id: String = ""
 
 
-## Create from current game state
-## Note: Returns RefCounted (actually TransitionContext) - use type casting if needed
+## Create from current game state.
+##
+## IMPORTANT: GDScript Cyclic Reference Limitation
+## This method returns RefCounted instead of TransitionContext because GDScript
+## cannot reference a class's own class_name in static method return types.
+## The class definition isn't complete when static method signatures are parsed,
+## causing a cyclic dependency error if we try to return "TransitionContext".
+##
+## Callers should either:
+##   1. Use duck typing (the returned object has all TransitionContext methods)
+##   2. Cast explicitly: var ctx: TransitionContext = from_current_scene(hero) as TransitionContext
+##
+## This is a known GDScript limitation, not a design flaw.
 static func from_current_scene(hero: Node2D) -> RefCounted:
 	var script: GDScript = load("res://core/resources/transition_context.gd")
 	var context: RefCounted = script.new()
@@ -96,7 +107,10 @@ func to_dict() -> Dictionary:
 	}
 
 
-## Import from dictionary (for save/load)
+## Import from dictionary (for save/load).
+##
+## Returns RefCounted due to GDScript cyclic reference limitation.
+## See from_current_scene() for detailed explanation.
 static func from_dict(data: Dictionary) -> RefCounted:
 	var script: GDScript = load("res://core/resources/transition_context.gd")
 	var context: RefCounted = script.new()

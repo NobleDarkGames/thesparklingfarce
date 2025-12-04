@@ -32,16 +32,15 @@ func _ready() -> void:
 	_debug_print("===========================================")
 
 	# Check if returning from battle - restore hero position if so
-	var returning_from_battle: bool = GameState.has_return_data()
+	var context: RefCounted = GameState.get_transition_context()
+	var returning_from_battle: bool = context != null and context.is_valid()
 	var saved_position: Vector2 = Vector2.ZERO
 	var battle_outcome: int = 0  # TransitionContext.BattleOutcome.NONE
 
 	if returning_from_battle:
-		var context: RefCounted = GameState.get_transition_context()
-		if context:
-			saved_position = context.hero_world_position
-			battle_outcome = context.battle_outcome
-			_debug_print("Returning from battle at position: %s (outcome: %d)" % [saved_position, battle_outcome])
+		saved_position = context.hero_world_position
+		battle_outcome = context.battle_outcome
+		_debug_print("Returning from battle at position: %s (outcome: %d)" % [saved_position, battle_outcome])
 
 	# Load party from PartyManager or create test party
 	_load_party()

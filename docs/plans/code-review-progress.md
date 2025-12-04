@@ -1177,7 +1177,7 @@ func _get_hidden_campaign_patterns() -> Array[String]:
 
 ---
 
-#### 4. TransitionContext Type Safety (LOW PRIORITY)
+#### 4. TransitionContext Type Safety (LOW PRIORITY) - ✅ RESOLVED
 
 **Location**: `transition_context.gd`
 
@@ -1188,18 +1188,19 @@ static func from_current_scene(hero: Node2D) -> RefCounted:  # Should be Transit
 
 This is due to GDScript's cyclic reference limitations with `class_name`.
 
-**Impact**: Consumers lose compile-time type checking, potential runtime errors.
+**Resolution** (Stardate 2025-12-04 by Chief O'Brien):
 
-**Required Fix**: Either:
-- Document the pattern clearly with usage examples
-- Use a non-static factory pattern with explicit typing
-- Wait for GDScript improvements in future Godot versions
+Documented rather than "fixed" - this is a GDScript language limitation, not a design flaw.
+Added comprehensive comments explaining:
+- Why the limitation exists (class not fully defined when static signatures are parsed)
+- That callers should use duck typing or explicit casting
+- This is a known GDScript issue, not a bug in our code
 
-**Affected Files**: `transition_context.gd`
+**Status**: ✅ COMPLETE - Documented as language limitation
 
 ---
 
-#### 5. Legacy return_data API Deprecation (LOW PRIORITY)
+#### 5. Legacy return_data API Deprecation (LOW PRIORITY) - ✅ RESOLVED
 
 **Location**: `game_state.gd`
 
@@ -1209,15 +1210,28 @@ This is due to GDScript's cyclic reference limitations with `class_name`.
 
 Both are still used across the codebase (e.g., `map_template.gd` vs `map_test_playable.gd`).
 
-**Impact**: Confusing for mod developers; risk of partial state if APIs are mixed.
+**Fix Applied** (Stardate 2025-12-04 by Chief O'Brien):
 
-**Required Fix**:
-- Add deprecation warnings to legacy methods
-- Migrate all usages to new TransitionContext API
-- Remove legacy methods after migration complete
+1. **GameState** (`game_state.gd`):
+   - Added deprecation warnings to legacy methods (once per session)
+   - Legacy methods still work for backwards compatibility
 
-**Affected Files**: `game_state.gd`, `map_template.gd`, and any files using legacy API
+2. **Migrated all production code to TransitionContext API**:
+   - `trigger_manager.gd` - Now uses TransitionContext.new() and set_transition_context()
+   - `battle_manager.gd` - Uses get_transition_context() check
+   - `map_test.gd` - Migrated from has_return_data()
+   - `map_test_playable.gd` - Migrated from has_return_data()
+   - `map_template.gd` - Updated fallback to use clear_transition_context()
+
+**Status**: ✅ COMPLETE - Legacy API deprecated with warnings, all code migrated
 
 ---
 
-**Final Status**: All 76 unit tests + integration tests PASS. Code review commit: `58d6697`
+**Final Status**: All deferred items RESOLVED. Code review complete.
+
+Commits:
+- `58d6697` - Phase 2-4 code review (77 fixes)
+- `ebecd41` - Deferred items documentation
+- `aa283dd` - CharacterData immutability fix (HIGH)
+- `4c912b8` - ExperienceConfig + hidden campaigns (MEDIUM x2)
+- (pending) - TransitionContext docs + legacy API deprecation (LOW x2)

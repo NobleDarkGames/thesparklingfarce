@@ -202,12 +202,15 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 		push_error("  Make sure the battle exists in mods/*/data/battles/")
 		return
 
-	# Store return data in GameState
-	var current_scene_path: String = get_tree().current_scene.scene_file_path
-	var hero_position: Vector2 = player.global_position
-	var hero_grid_position: Vector2i = player.get("grid_position") if player.get("grid_position") != null else Vector2i.ZERO
+	# Store return data in GameState using TransitionContext
+	var context: RefCounted = TransitionContext.new()
+	context.return_scene_path = get_tree().current_scene.scene_file_path
+	context.hero_world_position = player.global_position
+	context.hero_grid_position = player.get("grid_position") if player.get("grid_position") != null else Vector2i.ZERO
+	if player.get("facing"):
+		context.hero_facing = player.facing
 
-	GameState.set_return_data(current_scene_path, hero_position, hero_grid_position)
+	GameState.set_transition_context(context)
 
 	# Transition to battle scene (will load the battle_loader scene)
 	# We need to pass the battle_data to the battle scene somehow
@@ -259,11 +262,12 @@ func start_battle_with_data(battle_data: Resource) -> void:
 
 ## Return to map after battle ends
 func return_to_map() -> void:
-	if not GameState.has_return_data():
-		push_warning("TriggerManager: No return data available")
+	var context: RefCounted = GameState.get_transition_context()
+	if not context or not context.is_valid():
+		push_warning("TriggerManager: No transition context available")
 		return
 
-	var return_scene: String = GameState.return_scene_path
+	var return_scene: String = context.return_scene_path
 
 	# Validate return scene exists
 	if return_scene.is_empty():

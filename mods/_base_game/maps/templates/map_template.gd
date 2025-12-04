@@ -194,17 +194,20 @@ func _spawn_at_default() -> void:
 	# If no default spawn point, hero stays at scene-defined position
 
 
-## Legacy function - redirects to new system
+## Legacy function - redirects to new system.
+## @deprecated Subclasses should use _handle_transition_context() directly.
+## This function is kept for backwards compatibility with existing map subclasses.
 func _restore_from_battle() -> void:
 	var context: RefCounted = GameState.get_transition_context()
 	if context:
 		await _handle_transition_context(context)
 	else:
-		# Fallback to legacy API
+		# Fallback: No context available, try legacy property (will warn)
+		# Note: return_hero_grid_position property still works but is deprecated
 		var return_pos: Vector2i = GameState.return_hero_grid_position
 		if hero and hero.has_method("teleport_to_grid"):
 			hero.teleport_to_grid(return_pos)
-		GameState.clear_return_data()
+		GameState.clear_transition_context()
 
 
 # =============================================================================

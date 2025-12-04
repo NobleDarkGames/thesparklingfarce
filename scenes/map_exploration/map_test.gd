@@ -32,9 +32,10 @@ func _ready() -> void:
 	_debug_print("MapTest: Initializing map exploration test scene")
 
 	# Check if returning from battle
-	if GameState.has_return_data():
+	var context: RefCounted = GameState.get_transition_context()
+	if context:
 		_debug_print("MapTest: Returning from battle - restoring hero position")
-		var return_pos: Vector2i = GameState.return_hero_grid_position
+		var return_pos: Vector2i = context.hero_grid_position
 
 		# Wait one frame for hero to be fully initialized
 		await get_tree().process_frame
@@ -43,8 +44,8 @@ func _ready() -> void:
 			hero.teleport_to_grid(return_pos)
 			_debug_print("  Hero restored to grid position: %s" % return_pos)
 
-		# Clear return data after using it
-		GameState.clear_return_data()
+		# Clear transition context after using it
+		GameState.clear_transition_context()
 
 	# Setup camera to follow hero
 	if camera and hero:
