@@ -108,6 +108,7 @@ static func _build_cinematic_from_dict(data: Dictionary, source_path: String) ->
 
 ## Parse a single command from JSON
 ## Handles shorthand formats and converts to standard command dictionary
+## Also normalizes dialog_line to show_dialog with inline lines
 static func _parse_command(cmd_data: Dictionary, source_path: String) -> Dictionary:
 	if "type" not in cmd_data:
 		push_warning("CinematicLoader: Command missing 'type' in %s" % source_path)
@@ -128,9 +129,23 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 				params[key] = cmd_data[key]
 		params = _convert_params(params, cmd_type)
 
-	# Normalize dialog_line to show_dialog (same executor, inline format)
+	# Normalize dialog_line to show_dialog with inline lines array
+	# This allows simple single-line dialog commands in JSON:
+	#   {"type": "dialog_line", "params": {"character_id": "xyz", "text": "Hello!", "emotion": "happy"}}
+	# Converted to:
+	#   {"type": "show_dialog", "params": {"lines": [{"character_id": "xyz", "text": "Hello!", "emotion": "happy"}]}}
 	if cmd_type == "dialog_line":
 		cmd_type = "show_dialog"
+		var line_data: Dictionary = {}
+		if "character_id" in params:
+			line_data["character_id"] = params["character_id"]
+		if "text" in params:
+			line_data["text"] = params["text"]
+		if "emotion" in params:
+			line_data["emotion"] = params["emotion"]
+		else:
+			line_data["emotion"] = "neutral"
+		params = {"lines": [line_data]}
 
 	var command: Dictionary = {
 		"type": cmd_type,
@@ -152,34 +167,6 @@ static func _convert_params(params: Dictionary, cmd_type: String) -> Dictionary:
 	for key: String in params.keys():
 		var value: Variant = params[key]
 		converted[key] = _convert_value(value, key, cmd_type)
-
-	# Handle dialog_line shorthand -> convert to lines array format
-	if cmd_type == "dialog_line":
-		var line: Dictionary = {}
-
-		# Support character_id lookup (preferred) or direct speaker name
-		if "character_id" in converted:
-			var char_data: Dictionary = _resolve_character_data(str(converted["character_id"]))
-			if not char_data["name"].is_empty():
-				line["speaker_name"] = char_data["name"]
-			if char_data["portrait"] != null:
-				line["portrait"] = char_data["portrait"]
-			converted.erase("character_id")
-		elif "speaker" in converted:
-			line["speaker_name"] = converted["speaker"]
-			converted.erase("speaker")
-
-		if "text" in converted:
-			line["text"] = converted["text"]
-			converted.erase("text")
-		if "emotion" in converted:
-			line["emotion"] = converted["emotion"]
-			converted.erase("emotion")
-		else:
-			line["emotion"] = "neutral"
-
-		if not line.is_empty():
-			converted["lines"] = [line]
 
 	return converted
 

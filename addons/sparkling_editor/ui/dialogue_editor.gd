@@ -3,6 +3,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 
 ## Dialogue Editor UI
 ## Allows browsing and editing DialogueData resources
+## Enhanced with character picker for easy speaker selection
 
 var dialogue_id_edit: LineEdit
 var dialogue_title_edit: LineEdit
@@ -10,6 +11,12 @@ var dialogue_title_edit: LineEdit
 # Lines section
 var lines_container: VBoxContainer
 var lines_list: Array[Dictionary] = []  # Track line UI elements
+
+# Character cache for picker dropdowns
+var _cached_characters: Array[Resource] = []
+
+# Standard emotions (placeholder - will be data-driven later)
+const EMOTIONS: Array[String] = ["neutral", "happy", "sad", "angry", "worried", "surprised", "determined", "thinking"]
 
 # Choices section
 var choices_container: VBoxContainer
@@ -29,7 +36,33 @@ func _ready() -> void:
 	resource_directory = "res://data/dialogues/"
 	resource_type_id = "dialogue"
 	resource_type_name = "Dialogue"
+	_refresh_character_cache()
 	super._ready()
+
+
+## Refresh the cached list of characters from ModLoader
+func _refresh_character_cache() -> void:
+	_cached_characters.clear()
+	if ModLoader and ModLoader.registry:
+		_cached_characters = ModLoader.registry.get_all_resources("character")
+
+
+## Get character by UID from cache
+func _get_character_by_uid(uid: String) -> CharacterData:
+	for char_res: Resource in _cached_characters:
+		var char_data: CharacterData = char_res as CharacterData
+		if char_data and char_data.character_uid == uid:
+			return char_data
+	return null
+
+
+## Find character index in cache by UID (for dropdown selection)
+func _get_character_index_by_uid(uid: String) -> int:
+	for i in range(_cached_characters.size()):
+		var char_data: CharacterData = _cached_characters[i] as CharacterData
+		if char_data and char_data.character_uid == uid:
+			return i
+	return -1
 
 
 ## Override: Create the dialogue-specific detail form
@@ -103,11 +136,32 @@ func _save_resource_data() -> void:
 	# Save dialogue lines
 	var new_lines: Array[Dictionary] = []
 	for line_ui in lines_list:
-		var line_dict: Dictionary = {
-			"speaker_name": line_ui.speaker_edit.text,
-			"text": line_ui.text_edit.text,
-			"emotion": line_ui.emotion_edit.text
-		}
+		var line_dict: Dictionary = {}
+
+		# Get character_id or speaker_name based on picker selection
+		var picker: OptionButton = line_ui.character_picker
+		var picker_idx: int = picker.selected
+		if picker_idx > 0:
+			# Character selected - store character_id
+			var char_idx: int = picker_idx - 1
+			if char_idx >= 0 and char_idx < _cached_characters.size():
+				var char_data: CharacterData = _cached_characters[char_idx] as CharacterData
+				if char_data:
+					line_dict["character_id"] = char_data.character_uid
+					# Also store speaker_name as fallback/display hint
+					line_dict["speaker_name"] = char_data.character_name
+		else:
+			# Custom speaker - store speaker_name only
+			line_dict["speaker_name"] = line_ui.speaker_edit.text
+
+		line_dict["text"] = line_ui.text_edit.text
+		# Get emotion from dropdown
+		var emotion_idx: int = line_ui.emotion_option.selected
+		if emotion_idx >= 0 and emotion_idx < EMOTIONS.size():
+			line_dict["emotion"] = EMOTIONS[emotion_idx]
+		else:
+			line_dict["emotion"] = "neutral"
+
 		new_lines.append(line_dict)
 	dialogue.lines = new_lines
 
@@ -390,7 +444,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var line_container: VBoxContainer = VBoxContainer.new()
 	line_container.add_theme_constant_override("separation", 4)
 
-	# Header with line number and remove button
+	# Header with line number and controls
 	var header: HBoxContainer = HBoxContainer.new()
 	var line_num_label: Label = Label.new()
 	line_num_label.text = "Line " + str(lines_list.size() + 1)
@@ -423,55 +477,136 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 
 	line_container.add_child(header)
 
-	# Speaker
+	# Speaker row with character picker
 	var speaker_container: HBoxContainer = HBoxContainer.new()
-	var speaker_label: Label = Label.new()
-	speaker_label.text = "Speaker:"
-	speaker_label.custom_minimum_size.x = 80
-	speaker_container.add_child(speaker_label)
+	speaker_container.add_theme_constant_override("separation", 8)
 
+	# Portrait preview (32x32 thumbnail)
+	var portrait_preview: TextureRect = TextureRect.new()
+	portrait_preview.custom_minimum_size = Vector2(32, 32)
+	portrait_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	portrait_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait_preview.visible = false
+	speaker_container.add_child(portrait_preview)
+
+	# Character picker dropdown
+	var character_picker: OptionButton = OptionButton.new()
+	character_picker.custom_minimum_size.x = 180
+	character_picker.add_item("(Custom Speaker)", 0)
+	# Populate with characters from registry
+	for i in range(_cached_characters.size()):
+		var char_data: CharacterData = _cached_characters[i] as CharacterData
+		if char_data:
+			character_picker.add_item(char_data.character_name, i + 1)
+	speaker_container.add_child(character_picker)
+
+	# Custom speaker name field (shown when "(Custom Speaker)" selected)
 	var speaker_edit: LineEdit = LineEdit.new()
-	speaker_edit.text = line_dict.get("speaker_name", "Speaker")
-	speaker_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	speaker_edit.placeholder_text = "Speaker name"
+	speaker_edit.custom_minimum_size.x = 120
+	speaker_edit.text = line_dict.get("speaker_name", "")
 	speaker_container.add_child(speaker_edit)
 
+	# Emotion dropdown
 	var emotion_label: Label = Label.new()
 	emotion_label.text = "Emotion:"
-	emotion_label.custom_minimum_size.x = 70
 	speaker_container.add_child(emotion_label)
 
-	var emotion_edit: LineEdit = LineEdit.new()
-	emotion_edit.text = line_dict.get("emotion", "neutral")
-	emotion_edit.placeholder_text = "neutral, happy, sad, angry"
-	emotion_edit.custom_minimum_size.x = 150
-	speaker_container.add_child(emotion_edit)
+	var emotion_option: OptionButton = OptionButton.new()
+	emotion_option.custom_minimum_size.x = 100
+	for emotion: String in EMOTIONS:
+		emotion_option.add_item(emotion)
+	# Set current emotion
+	var current_emotion: String = line_dict.get("emotion", "neutral")
+	var emotion_idx: int = EMOTIONS.find(current_emotion)
+	if emotion_idx >= 0:
+		emotion_option.selected = emotion_idx
+	speaker_container.add_child(emotion_option)
 
 	line_container.add_child(speaker_container)
 
-	# Text
+	# Determine initial state: character_id vs custom speaker
+	var has_character_id: bool = "character_id" in line_dict and not line_dict["character_id"].is_empty()
+	if has_character_id:
+		var char_idx: int = _get_character_index_by_uid(line_dict["character_id"])
+		if char_idx >= 0:
+			character_picker.selected = char_idx + 1  # +1 for "(Custom Speaker)" offset
+			speaker_edit.visible = false
+			# Show portrait
+			var char_data: CharacterData = _cached_characters[char_idx] as CharacterData
+			if char_data and char_data.portrait:
+				portrait_preview.texture = char_data.portrait
+				portrait_preview.visible = true
+		else:
+			# Character ID not found, fall back to custom
+			character_picker.selected = 0
+			speaker_edit.visible = true
+			speaker_edit.text = line_dict.get("speaker_name", "")
+	else:
+		# No character_id, use speaker_name
+		character_picker.selected = 0
+		speaker_edit.visible = true
+
+	# Connect character picker changes
+	character_picker.item_selected.connect(_on_character_selected.bind(
+		character_picker, speaker_edit, portrait_preview
+	))
+
+	# Text field with hint about variables
+	var text_container: VBoxContainer = VBoxContainer.new()
+	var text_header: HBoxContainer = HBoxContainer.new()
 	var text_label: Label = Label.new()
 	text_label.text = "Text:"
-	line_container.add_child(text_label)
+	text_header.add_child(text_label)
+	var text_hint: Label = Label.new()
+	text_hint.text = "(Use {variable_name} for dynamic text)"
+	text_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	text_hint.add_theme_font_size_override("font_size", 10)
+	text_header.add_child(text_hint)
+	text_container.add_child(text_header)
 
 	var text_edit: TextEdit = TextEdit.new()
 	text_edit.text = line_dict.get("text", "")
 	text_edit.custom_minimum_size.y = 60
-	line_container.add_child(text_edit)
+	text_edit.placeholder_text = "Enter dialogue text here..."
+	text_container.add_child(text_edit)
+	line_container.add_child(text_container)
 
 	# Separator
 	var separator: HSeparator = HSeparator.new()
 	line_container.add_child(separator)
 
-	# Store references to UI elements
+	# Store references to UI elements (including new ones)
 	var line_ui: Dictionary = {
 		"container": line_container,
+		"character_picker": character_picker,
 		"speaker_edit": speaker_edit,
-		"emotion_edit": emotion_edit,
+		"emotion_option": emotion_option,
+		"portrait_preview": portrait_preview,
 		"text_edit": text_edit
 	}
 	lines_list.append(line_ui)
 
 	lines_container.add_child(line_container)
+
+
+## Handle character picker selection changes
+func _on_character_selected(index: int, picker: OptionButton, speaker_edit: LineEdit, portrait_preview: TextureRect) -> void:
+	if index == 0:
+		# Custom speaker selected
+		speaker_edit.visible = true
+		portrait_preview.visible = false
+	else:
+		# Character selected
+		speaker_edit.visible = false
+		var char_idx: int = index - 1  # Offset for "(Custom Speaker)"
+		if char_idx >= 0 and char_idx < _cached_characters.size():
+			var char_data: CharacterData = _cached_characters[char_idx] as CharacterData
+			if char_data and char_data.portrait:
+				portrait_preview.texture = char_data.portrait
+				portrait_preview.visible = true
+			else:
+				portrait_preview.visible = false
 
 
 func _on_remove_line(line_container: VBoxContainer) -> void:
