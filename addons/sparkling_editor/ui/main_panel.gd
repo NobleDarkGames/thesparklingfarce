@@ -16,6 +16,7 @@ const ModJsonEditorScene: PackedScene = preload("res://addons/sparkling_editor/u
 const MapMetadataEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/map_metadata_editor.tscn")
 const CinematicEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/cinematic_editor.tscn")
 const CampaignEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/campaign_editor.tscn")
+const TerrainEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/terrain_editor.tscn")
 
 var character_editor: Control
 var class_editor: Control
@@ -28,6 +29,7 @@ var mod_json_editor: Control
 var map_metadata_editor: Control
 var cinematic_editor: Control
 var campaign_editor: Control
+var terrain_editor: Control
 
 # Dynamic editor tabs from mods
 # Format: {"mod_id:tab_id": {"control": Control, "refresh_method": String}}
@@ -85,6 +87,7 @@ func _setup_ui() -> void:
 	_create_map_metadata_tab()
 	_create_cinematic_editor_tab()
 	_create_campaign_editor_tab()
+	_create_terrain_editor_tab()
 
 	# Load dynamic editor tabs from mods
 	_load_mod_editor_extensions()
@@ -196,6 +199,12 @@ func _create_campaign_editor_tab() -> void:
 	campaign_editor = CampaignEditorScene.instantiate()
 	campaign_editor.name = "Campaigns"
 	tab_container.add_child(campaign_editor)
+
+
+func _create_terrain_editor_tab() -> void:
+	terrain_editor = TerrainEditorScene.instantiate()
+	terrain_editor.name = "Terrain"
+	tab_container.add_child(terrain_editor)
 
 
 func _load_mod_editor_extensions() -> void:
@@ -416,6 +425,8 @@ func _refresh_all_editors() -> void:
 		cinematic_editor._refresh_cinematic_list()
 	if campaign_editor and campaign_editor.has_method("_refresh_campaign_list"):
 		campaign_editor._refresh_campaign_list()
+	if terrain_editor and terrain_editor.has_method("_refresh_list"):
+		terrain_editor._refresh_list()
 
 	# Refresh dynamic mod editors
 	for key: String in dynamic_editors.keys():

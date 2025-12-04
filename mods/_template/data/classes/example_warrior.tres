@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3]
+
+; ============================================================================
+; EXAMPLE CLASS: Warrior
+; ============================================================================
+; Classes define the role, stats, and equipment options for characters.
+; A character must have a class assigned to function properly in battle.
+;
+; KEY CONCEPTS:
+; - movement_range: How many tiles this class can move per turn
+; - growth rates: Percentage chance (0-100) of gaining +1 to that stat on level up
+; - equippable_*_types: Which weapon/armor categories this class can use
+;
+; IMPORTANT: Growth rates are percentages. A 70% growth means 70% chance
+; to gain +1 in that stat each level. Shining Force typically uses:
+; - 70-80%: Primary stat (e.g., Strength for Warriors)
+; - 50-60%: Secondary stats
+; - 30-40%: Tertiary stats
+; ============================================================================
+
+[ext_resource type="Script" path="res://core/resources/class_data.gd" id="1_class"]
+
+[resource]
+script = ExtResource("1_class")
+
+; --- IDENTITY ---
+; display_name: Shown in UI. Keep it short but descriptive.
+display_name = "Warrior"
+
+; --- MOVEMENT ---
+; movement_range: Tiles per turn. Infantry typically 4-5, cavalry 6-7, flying 7-8.
+movement_range = 5
+
+; movement_type: Affects terrain costs. Options: WALKING (default), FLOATING, FLYING
+; Walking units pay full terrain costs (forests cost 2, mountains cost 3, etc.)
+; Floating units ignore most terrain but not walls/water
+; Flying units ignore all terrain except ceiling tiles
+movement_type = 0
+
+; --- STAT GROWTH RATES (0-100%) ---
+; These determine how quickly the class gains stats on level up.
+hp_growth = 70
+mp_growth = 20
+strength_growth = 75
+defense_growth = 60
+agility_growth = 45
+intelligence_growth = 25
+luck_growth = 40
+
+; --- EQUIPMENT ---
+; Available weapon types: sword, axe, spear, bow, staff, knife, blade, mace
+; These must match types defined in base_game or your mod's custom_weapon_types
+equippable_weapon_types = Array[String](["sword", "axe"])
+
+; Available armor types: light, medium, heavy, robe
+; These must match types defined in base_game or your mod's custom_armor_types
+equippable_armor_types = Array[String](["medium", "heavy"])
+
+; --- COUNTER ATTACKS ---
+; counter_rate: Chance to counter-attack when hit. Standard values: 3, 6, 12, 25
+counter_rate = 6
+
+; --- PROMOTION (Optional) ---
+; promotion_class: Reference to the ClassData to promote into at promotion_level
+; promotion_level: Level required for standard promotion (typically 10 or 20)
+; Leave these empty/0 for classes that cannot promote
+; promotion_class = null
+; promotion_level = 0
+
+; --- SPECIAL PROMOTION (Optional - Shining Force 2 style) ---
+; Some classes have alternate promotion paths requiring special items
+; special_promotion_class: Alternative class to promote into
+; special_promotion_item: Item ID required for special promotion
+; special_promotion_class = null
+; special_promotion_item = ""
+
+; --- LEARNABLE ABILITIES (Optional) ---
+; Dictionary mapping level -> AbilityData reference
+; Example: {5: preload("res://mods/my_mod/data/abilities/power_strike.tres")}
+; learnable_abilities = {}

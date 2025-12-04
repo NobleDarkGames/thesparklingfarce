@@ -1,0 +1,52 @@
+{
+  "id": "my_mod",
+  "name": "My Awesome Mod",
+  "version": "1.0.0",
+  "author": "Your Name Here",
+  "description": "A brief description of what your mod does. This appears in the mod selector.",
+  "godot_version": "4.5",
+
+  "_comment_dependencies": "List mod IDs that must be loaded before this mod. Most mods depend on base_game.",
+  "dependencies": ["base_game"],
+
+  "_comment_load_priority": "Priority determines load order and override behavior. Higher numbers load later and can override lower numbers.",
+  "_comment_priority_ranges": "0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions",
+  "load_priority": 500,
+
+  "_comment_content": "Paths to your mod's data and assets directories (relative to this mod.json file)",
+  "content": {
+    "data_path": "data/",
+    "assets_path": "assets/"
+  },
+
+  "_comment_scenes": "Register custom scenes by ID. Other mods can override these, and the game can load them by ID.",
+  "scenes": {
+  },
+
+  "_comment_custom_types": "Extend the game's type systems with your own values. These are used by registries.",
+  "custom_weapon_types": [],
+  "custom_armor_types": [],
+  "custom_weather_types": [],
+  "custom_time_of_day": [],
+  "custom_unit_categories": [],
+  "custom_trigger_types": [],
+
+  "_comment_provides": "Document what your mod provides. Use '*' for 'all of this type'. This is informational.",
+  "provides": {
+    "characters": [],
+    "classes": [],
+    "items": [],
+    "abilities": [],
+    "battles": [],
+    "terrain": []
+  },
+
+  "_comment_overrides": "List resource IDs from other mods that you intentionally override.",
+  "overrides": [],
+
+  "_comment_tags": "Searchable tags for your mod.",
+  "tags": ["custom", "example"],
+
+  "_comment_replaces_default_party": "Set to true if your mod provides a complete replacement starting party (total conversions).",
+  "replaces_default_party": false
+}

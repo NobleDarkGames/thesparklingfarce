@@ -1,0 +1,135 @@
+[gd_resource type="Resource" script_class="BattleData" load_steps=2 format=3]
+
+; ============================================================================
+; EXAMPLE BATTLE: Training Grounds
+; ============================================================================
+; Battles define complete tactical combat scenarios including:
+; - The map to fight on
+; - Enemy placement and AI behavior
+; - Victory and defeat conditions
+; - Dialogue and rewards
+;
+; VICTORY CONDITIONS:
+; 0 = DEFEAT_ALL_ENEMIES: Kill every enemy unit
+; 1 = DEFEAT_BOSS: Kill the designated boss enemy
+; 2 = SURVIVE_TURNS: Survive for N turns
+; 3 = REACH_LOCATION: Move a unit to a specific tile
+; 4 = PROTECT_UNIT: Keep an NPC alive until victory
+; 5 = CUSTOM: Use custom script for special conditions
+;
+; DEFEAT CONDITIONS:
+; 0 = ALL_UNITS_DEFEATED: All player units die
+; 1 = LEADER_DEFEATED: Hero (party slot 0) dies
+; 2 = TURN_LIMIT: Exceed turn limit
+; 3 = UNIT_DIES: A specific protected unit dies
+; 4 = CUSTOM: Use custom script for special conditions
+;
+; ENEMY PLACEMENT:
+; Enemies are defined as an Array of Dictionaries with:
+; - character: CharacterData reference
+; - position: Vector2i (grid coordinates)
+; - ai_brain: AIBrain resource defining behavior
+; ============================================================================
+
+[ext_resource type="Script" path="res://core/resources/battle_data.gd" id="1_battle"]
+
+[resource]
+script = ExtResource("1_battle")
+
+; --- IDENTITY ---
+battle_name = "Training Grounds"
+battle_description = "A simple practice battle to test your skills. Defeat all enemies to win!"
+
+; --- MAP CONFIGURATION ---
+; map_scene: PackedScene of the battle map (contains grid, terrain, spawn points)
+; You'll need to create a map scene in Godot's editor
+; map_scene = null
+
+; player_spawn_point: Grid coordinates where the party leader spawns
+; Other party members use formation offsets from this point
+player_spawn_point = Vector2i(2, 5)
+
+; --- PLAYER FORCES ---
+; player_party: Optional PartyData to use for this battle
+; If null, uses the current party from PartyManager
+; player_party = null
+
+; --- ENEMY FORCES ---
+; Array of dictionaries: {character: CharacterData, position: Vector2i, ai_brain: AIBrain}
+; Positions are grid coordinates (x, y) on the battle map
+;
+; EXAMPLE (uncomment and modify):
+; enemies = [{
+;   "character": preload("res://mods/my_mod/data/characters/goblin.tres"),
+;   "position": Vector2i(8, 3),
+;   "ai_brain": preload("res://mods/_base_game/data/ai_brains/aggressive.tres")
+; }, {
+;   "character": preload("res://mods/my_mod/data/characters/goblin.tres"),
+;   "position": Vector2i(9, 4),
+;   "ai_brain": preload("res://mods/_base_game/data/ai_brains/defensive.tres")
+; }]
+enemies = []
+
+; --- NEUTRAL/NPC FORCES ---
+; Same format as enemies, but for friendly NPCs that help in battle
+; neutrals = []
+
+; --- VICTORY CONDITIONS ---
+; victory_condition: 0=DEFEAT_ALL, 1=DEFEAT_BOSS, 2=SURVIVE, 3=REACH_LOCATION, 4=PROTECT, 5=CUSTOM
+victory_condition = 0
+
+; For DEFEAT_BOSS: Which enemy index is the boss
+victory_boss_index = -1
+
+; For SURVIVE_TURNS: How many turns to survive
+victory_turn_count = 0
+
+; For REACH_LOCATION: The target grid position
+victory_target_position = Vector2i(0, 0)
+
+; For PROTECT_UNIT: Which neutral index to protect
+victory_protect_index = -1
+
+; For CUSTOM: Script with custom victory logic
+; custom_victory_script = null
+
+; --- DEFEAT CONDITIONS ---
+; defeat_condition: 0=ALL_DEFEATED, 1=LEADER_DEFEATED, 2=TURN_LIMIT, 3=UNIT_DIES, 4=CUSTOM
+defeat_condition = 1
+
+; For TURN_LIMIT: Maximum turns allowed
+defeat_turn_limit = 0
+
+; For UNIT_DIES: Which neutral index must survive
+defeat_protect_index = -1
+
+; For CUSTOM: Script with custom defeat logic
+; custom_defeat_script = null
+
+; --- BATTLE FLOW (Dialogue) ---
+; Dialogues can be DialogueData resources for cutscenes
+; pre_battle_dialogue = null
+; victory_dialogue = null
+; defeat_dialogue = null
+
+; turn_dialogues: Dictionary of {turn_number: DialogueData}
+; Shows dialogue at specific turns (for story battles)
+; turn_dialogues = {}
+
+; --- AUDIO ---
+; background_music = null
+; victory_music = null
+; defeat_music = null
+
+; --- REWARDS ---
+; Given to player upon victory
+experience_reward = 50
+gold_reward = 100
+; item_rewards = []
+
+; --- ENVIRONMENT ---
+; weather: "none", "rain", "snow", "fog"
+weather = "none"
+
+; time_of_day: "day", "night", "dawn", "dusk"
+time_of_day = "day"
