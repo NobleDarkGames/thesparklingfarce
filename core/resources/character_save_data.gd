@@ -103,6 +103,10 @@ extends Resource
 ## Number of times this character has been promoted
 @export var promotion_count: int = 0
 
+## Whether this character has been promoted at least once
+## Used for quick checks without loading class data
+@export var is_promoted: bool = false
+
 ## Current class (may differ from CharacterData's starting class after promotion)
 ## Stored as mod_id + resource_id for mod-safe loading
 @export var current_class_mod_id: String = ""
@@ -247,6 +251,7 @@ func serialize_to_dict() -> Dictionary:
 		"recruitment_chapter": recruitment_chapter,
 		"cumulative_level": cumulative_level,
 		"promotion_count": promotion_count,
+		"is_promoted": is_promoted,
 		"current_class_mod_id": current_class_mod_id,
 		"current_class_resource_id": current_class_resource_id
 	}
@@ -288,7 +293,7 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	if "equipped_items" in data:
 		equipped_items.clear()
 		var items_array: Array = data.equipped_items
-		for i in range(items_array.size()):
+		for i: int in range(items_array.size()):
 			var item_dict: Dictionary = items_array[i]
 			# Ensure curse_broken field exists (backward compatibility)
 			if "curse_broken" not in item_dict:
@@ -297,14 +302,14 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	if "inventory" in data:
 		inventory.clear()
 		var inv_array: Array = data.inventory
-		for i in range(inv_array.size()):
+		for i: int in range(inv_array.size()):
 			var item_id: Variant = inv_array[i]
 			if item_id is String:
 				inventory.append(item_id)
 	if "learned_abilities" in data:
 		learned_abilities.clear()
 		var abilities_array: Array = data.learned_abilities
-		for i in range(abilities_array.size()):
+		for i: int in range(abilities_array.size()):
 			var ability_dict: Dictionary = abilities_array[i]
 			learned_abilities.append(ability_dict)
 	if "is_alive" in data:
@@ -319,6 +324,8 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		cumulative_level = data.cumulative_level
 	if "promotion_count" in data:
 		promotion_count = data.promotion_count
+	if "is_promoted" in data:
+		is_promoted = data.is_promoted
 	if "current_class_mod_id" in data:
 		current_class_mod_id = data.current_class_mod_id
 	if "current_class_resource_id" in data:
@@ -440,7 +447,6 @@ func remove_item_from_inventory(item_id: String) -> bool:
 		return false
 
 	inventory.remove_at(index)
-	print("[CharacterSaveData] Removed item '%s' from inventory (remaining: %d items)" % [item_id, inventory.size()])
 	return true
 
 
@@ -460,3 +466,38 @@ func get_item_count(item_id: String) -> int:
 		if inv_item == item_id:
 			count += 1
 	return count
+
+
+# ============================================================================
+# CLASS MANAGEMENT
+# ============================================================================
+
+## Get the current class for this character
+## Returns the promoted class if promoted, otherwise falls back to CharacterData's class
+## @param character_data: The base CharacterData to use as fallback
+## @return: ClassData for current class, or null if not found
+func get_current_class(character_data: CharacterData = null) -> ClassData:
+	# If we have a saved current class, use it
+	if not current_class_resource_id.is_empty():
+		var class_resource: Resource = ModLoader.registry.get_resource("class", current_class_resource_id)
+		if class_resource and class_resource is ClassData:
+			return class_resource as ClassData
+		else:
+			push_warning("CharacterSaveData: Could not load saved class '%s', falling back to template" % current_class_resource_id)
+
+	# Fallback to CharacterData's class
+	if character_data and character_data.character_class:
+		return character_data.character_class
+
+	return null
+
+
+## Set the current class (called during promotion)
+## @param new_class: The ClassData to set as current
+func set_current_class(new_class: ClassData) -> void:
+	if not new_class:
+		push_error("CharacterSaveData: Cannot set null class")
+		return
+
+	current_class_mod_id = _get_mod_id_for_resource(new_class)
+	current_class_resource_id = _get_resource_id_for_resource(new_class)

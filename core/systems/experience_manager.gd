@@ -309,7 +309,7 @@ func apply_level_up(unit: Node2D) -> Dictionary:
 	var new_level: int = unit.stats.level
 
 	var stat_increases: Dictionary = {}
-	var class_data: ClassData = unit.character_data.character_class
+	var class_data: ClassData = unit.get_current_class()
 
 	if class_data == null:
 		push_error("ExperienceManager: Unit has no class data")

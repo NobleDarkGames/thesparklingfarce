@@ -91,11 +91,15 @@ func is_in_attack_range(unit: Node2D, target: Node2D) -> bool:
 ## Helper: Move unit toward target position
 ## Returns true if movement succeeded
 func move_toward_target(unit: Node2D, target_position: Vector2i) -> bool:
-	if not unit or not unit.character_data or not unit.character_data.character_class:
+	if not unit:
 		return false
 
-	var movement_range: int = unit.character_data.character_class.movement_range
-	var movement_type: int = unit.character_data.character_class.movement_type
+	var unit_class: ClassData = unit.get_current_class()
+	if not unit_class:
+		return false
+
+	var movement_range: int = unit_class.movement_range
+	var movement_type: int = unit_class.movement_type
 
 	# Find path to target (NOTE: target position is likely occupied)
 	# Pass unit faction to allow passing through allies

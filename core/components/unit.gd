@@ -484,6 +484,22 @@ func get_display_name() -> String:
 	return "Unknown Unit"
 
 
+## Get the unit's current class (respects promotion state)
+## This should be used instead of directly accessing character_data.character_class
+## as it handles promoted characters correctly.
+## @return: ClassData for current class, or null if not available
+func get_current_class() -> ClassData:
+	# First check stats.class_data which is set from CharacterSaveData during init
+	if stats and stats.class_data:
+		return stats.class_data
+
+	# Fallback to character_data template (for unpromoted characters or enemies)
+	if character_data and character_data.character_class:
+		return character_data.character_class
+
+	return null
+
+
 ## Get unit stats summary for debug
 func get_stats_summary() -> String:
 	if stats:
@@ -577,7 +593,8 @@ func initialize_from_save_data(
 
 	# Store character and class references
 	stats.character_data = p_character_data
-	stats.class_data = p_character_data.character_class
+	# Get class from save data (handles promoted characters) with fallback to template
+	stats.class_data = p_save_data.get_current_class(p_character_data)
 
 	# Load equipment from save data
 	stats.load_equipment_from_save(p_save_data)

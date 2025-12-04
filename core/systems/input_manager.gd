@@ -280,9 +280,10 @@ func start_player_turn(unit: Node2D) -> void:
 	# Calculate walkable cells
 	var movement_range: int = 4  # Default fallback
 	var movement_type: int = 0   # Default: FOOT
-	if unit.character_data and unit.character_data.character_class:
-		movement_range = unit.character_data.character_class.movement_range
-		movement_type = unit.character_data.character_class.movement_type
+	var current_class: ClassData = unit.get_current_class()
+	if current_class:
+		movement_range = current_class.movement_range
+		movement_type = current_class.movement_type
 	else:
 		push_warning("InputManager: Unit %s has no character_class, using default movement (range=%d)" % [unit.get_display_name(), movement_range])
 
@@ -709,7 +710,8 @@ func _try_move_to_cell(target_cell: Vector2i) -> void:
 
 	if target_cell != active_unit.grid_position:
 		# Calculate the full path from current position to target
-		var movement_type: int = active_unit.character_data.character_class.movement_type
+		var unit_class: ClassData = active_unit.get_current_class()
+		var movement_type: int = unit_class.movement_type if unit_class else 0
 		var path: Array[Vector2i] = GridManager.find_path(
 			active_unit.grid_position,
 			target_cell,
@@ -807,8 +809,9 @@ func _show_movement_range() -> void:
 		return
 
 	var unit_cell: Vector2i = active_unit.grid_position
-	var movement_range: int = active_unit.character_data.character_class.movement_range
-	var movement_type: int = active_unit.character_data.character_class.movement_type
+	var unit_class: ClassData = active_unit.get_current_class()
+	var movement_range: int = unit_class.movement_range if unit_class else 4
+	var movement_type: int = unit_class.movement_type if unit_class else 0
 
 	GridManager.show_movement_range(unit_cell, movement_range, movement_type, active_unit.faction)
 
@@ -902,10 +905,12 @@ func _update_path_preview() -> void:
 
 	# Calculate new path
 	if active_unit and current_cursor_position != active_unit.grid_position:
+		var unit_class: ClassData = active_unit.get_current_class()
+		var movement_type: int = unit_class.movement_type if unit_class else 0
 		current_path = GridManager.find_path(
 			active_unit.grid_position,
 			current_cursor_position,
-			active_unit.character_data.character_class.movement_type,
+			movement_type,
 			active_unit.faction
 		)
 

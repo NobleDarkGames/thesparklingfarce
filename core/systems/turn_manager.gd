@@ -289,8 +289,9 @@ func _process_terrain_effects(unit: Node2D) -> bool:
 		return false
 
 	# Flying units are immune to ground-based terrain damage
-	if unit.character_data and unit.character_data.character_class:
-		var movement_type: int = unit.character_data.character_class.movement_type
+	var unit_class: ClassData = unit.get_current_class()
+	if unit_class:
+		var movement_type: int = unit_class.movement_type
 		if movement_type == ClassData.MovementType.FLYING:
 			return false  # Flying units ignore terrain DoT
 

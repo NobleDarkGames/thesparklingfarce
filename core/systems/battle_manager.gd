@@ -524,9 +524,9 @@ func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
 
 	# Check if user is a "healer" class (has healing abilities naturally)
 	var is_healer: bool = false
-	if user.character_data.character_class:
+	var class_data: ClassData = user.get_current_class()
+	if class_data:
 		# Check if class has any heal-type abilities
-		var class_data: ClassData = user.character_data.character_class
 		if class_data.has_method("get_abilities"):
 			var abilities: Array = class_data.get_abilities()
 			for ability_res: Resource in abilities:

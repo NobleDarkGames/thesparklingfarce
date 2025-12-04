@@ -407,12 +407,16 @@ If this review is interrupted:
 
 **DEFERRED - Larger Refactoring Required**:
 
-1. **CharacterData Mutation During Promotion** (HIGH)
+1. **CharacterData Mutation During Promotion** (HIGH) - ✅ RESOLVED
    - Location: `promotion_manager.gd:426-428`
    - Issue: `_set_unit_class()` modifies `unit.character_data.character_class` directly, violating the "CharacterData is immutable template" design
    - Impact: If same CharacterData is used for multiple unit instances, all get modified; original class is lost
-   - Proper Fix: Should update `CharacterSaveData.current_class_mod_id` and `current_class_resource_id` instead
-   - Status: Deferred - requires integration with PartyManager's `_member_save_data` and Unit class changes
+   - **Fix Applied**: Stardate 2025-12-04 by Chief O'Brien
+     - Added `is_promoted` and `get_current_class()`/`set_current_class()` to CharacterSaveData
+     - Rewrote `_get_unit_class()` and `_set_unit_class()` to use CharacterSaveData
+     - Added `unit.get_current_class()` helper method
+     - Updated all systems (InputManager, TurnManager, BattleManager, ExperienceManager, AIBrain) to use new API
+   - Status: **COMPLETE** - CharacterData templates now remain immutable
 
 2. **ExperienceConfig Not Mod-Overridable** (MEDIUM)
    - Location: `experience_manager.gd:74-75`
@@ -421,11 +425,11 @@ If this review is interrupted:
    - Proper Fix: Add ExperienceConfig to mod resource types, similar to BattleData
    - Status: Deferred - affects mod system architecture
 
-3. **Cumulative Level Tracking Incomplete** (LOW)
+3. **Cumulative Level Tracking Incomplete** (LOW) - ✅ RESOLVED
    - Location: `promotion_manager.gd:466-483`
    - Issue: TODO stubs for `_get_cumulative_level()`, `_set_cumulative_level()`, `_increment_promotion_count()`
-   - Impact: SF2-style spell learning at cumulative levels not fully functional
-   - Status: Deferred - requires CharacterSaveData integration
+   - **Fix Applied**: Stardate 2025-12-04 by Chief O'Brien - Methods now properly access CharacterSaveData
+   - Status: **COMPLETE** - Fixed as part of CharacterData immutability refactor
 
 #### Tests Created
 N/A - Existing test coverage for ExperienceConfig appears adequate. Potential future tests:
@@ -1058,7 +1062,7 @@ N/A - Recommend tests for scene transition edge cases and spawn point resolution
 
 ### Deferred Items (Future Work)
 
-#### 1. CharacterData Mutation During Promotion (HIGH PRIORITY)
+#### 1. CharacterData Mutation During Promotion (HIGH PRIORITY) - ✅ RESOLVED
 
 **Location**: `promotion_manager.gd:426-428`
 
@@ -1072,12 +1076,31 @@ unit.character_data.character_class = new_class  # MUTATES TEMPLATE!
 - The original class is lost, breaking save/load consistency
 - Violates the "CharacterData = immutable template" design documented in `character_save_data.gd`
 
-**Required Fix**:
-- Update `CharacterSaveData.current_class_mod_id` and `current_class_resource_id` instead
-- Modify `Unit` to resolve its class from save data when available
-- Integrate with `PartyManager._member_save_data`
+**Fix Applied** (Stardate 2025-12-04 by Chief O'Brien):
 
-**Affected Files**: `promotion_manager.gd`, `unit.gd`, `character_save_data.gd`, `party_manager.gd`
+1. **CharacterSaveData** (`character_save_data.gd`):
+   - Added `is_promoted: bool` property with serialization support
+   - Added `get_current_class()` method - returns promoted class from registry or falls back to template
+   - Added `set_current_class()` method - stores class reference via mod_id/resource_id
+
+2. **PromotionManager** (`promotion_manager.gd`):
+   - Rewrote `_get_unit_class()` to check CharacterSaveData first, then fall back to CharacterData
+   - Rewrote `_set_unit_class()` to update CharacterSaveData instead of mutating template
+   - Added `_get_unit_save_data()` helper to retrieve save data from PartyManager
+   - Fixed cumulative level tracking stubs to properly use CharacterSaveData
+
+3. **Unit** (`unit.gd`):
+   - Added `get_current_class()` helper - returns class from stats.class_data or falls back to template
+   - Updated `initialize_from_save_data()` to load class from CharacterSaveData
+
+4. **Consuming Systems Updated**:
+   - `experience_manager.gd` - Uses `unit.get_current_class()` for growth rates
+   - `input_manager.gd` - Uses `unit.get_current_class()` for movement info
+   - `turn_manager.gd` - Uses `unit.get_current_class()` for terrain damage checks
+   - `battle_manager.gd` - Uses `unit.get_current_class()` for healer class checks
+   - `ai_brain.gd` - Uses `unit.get_current_class()` for AI pathfinding
+
+**Status**: ✅ COMPLETE - All 26 promotion tests pass. CharacterData templates remain immutable.
 
 ---
 

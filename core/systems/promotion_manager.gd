@@ -245,6 +245,11 @@ func execute_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 		unit.stats.level = 1
 		stat_changes["level_reset"] = true
 
+		# Also update CharacterSaveData level
+		var save_data: CharacterSaveData = _get_unit_save_data(unit)
+		if save_data:
+			save_data.level = 1
+
 	# Update cumulative level tracking
 	_set_cumulative_level(unit, cumulative_before + current_level)
 
@@ -416,16 +421,51 @@ func _validate_unit(unit: Node2D) -> bool:
 
 
 ## Get unit's current class.
+## Checks CharacterSaveData first (for promoted characters), then falls back to CharacterData.
 func _get_unit_class(unit: Node2D) -> ClassData:
 	if not unit.character_data:
 		return null
+
+	# Try to get from save data first (handles promoted characters)
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if save_data:
+		var current_class: ClassData = save_data.get_current_class(unit.character_data)
+		if current_class:
+			return current_class
+
+	# Fallback to CharacterData's class (unpromoted or no save data)
 	return unit.character_data.character_class
 
 
-## Set unit's class (updates CharacterData reference).
+## Set unit's class via CharacterSaveData (does NOT mutate CharacterData template).
+## @param unit: The unit being promoted
+## @param new_class: The ClassData to set
 func _set_unit_class(unit: Node2D, new_class: ClassData) -> void:
-	if unit.character_data:
-		unit.character_data.character_class = new_class
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if not save_data:
+		push_error("PromotionManager: Cannot set class - no CharacterSaveData for unit '%s'" % unit.get_display_name())
+		return
+
+	save_data.set_current_class(new_class)
+
+	# Also update the Unit's stats to reference the new class
+	if unit.stats:
+		unit.stats.class_data = new_class
+
+
+## Get CharacterSaveData for a unit from PartyManager.
+## @param unit: The unit to get save data for
+## @return: CharacterSaveData or null if not found
+func _get_unit_save_data(unit: Node2D) -> CharacterSaveData:
+	if not unit.character_data:
+		return null
+
+	var character_uid: String = unit.character_data.character_uid
+	if character_uid.is_empty():
+		push_warning("PromotionManager: Unit '%s' has no character_uid" % unit.get_display_name())
+		return null
+
+	return PartyManager.get_member_save_data(character_uid)
 
 
 ## Check if promotion is to special class (not standard path).
@@ -464,20 +504,26 @@ func _should_reset_level() -> bool:
 
 ## Get cumulative level from unit's save data.
 func _get_cumulative_level(unit: Node2D) -> int:
-	# TODO: Integrate with CharacterSaveData when tracking is added
-	# For now, return current level
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if save_data:
+		return save_data.cumulative_level
+
+	# Fallback: return current level if no save data
 	if unit.stats:
 		return unit.stats.level
 	return 1
 
 
-## Set cumulative level in unit's tracking.
+## Set cumulative level in unit's save data.
 func _set_cumulative_level(unit: Node2D, total: int) -> void:
-	# TODO: Integrate with CharacterSaveData when tracking is added
-	pass
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if save_data:
+		save_data.cumulative_level = total
 
 
 ## Increment promotion count for unit.
 func _increment_promotion_count(unit: Node2D) -> void:
-	# TODO: Integrate with CharacterSaveData when tracking is added
-	pass
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if save_data:
+		save_data.promotion_count += 1
+		save_data.is_promoted = true
