@@ -152,6 +152,7 @@ func _configure_slot_button(button: Button, slot_num: int, metadata: SlotMetadat
 
 func _on_slot_selected(slot_num: int) -> void:
 	print("[FLOW] Save slot %d selected (mode: %s)" % [slot_num, SceneManager.save_slot_mode])
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
 	var metadata: SlotMetadata = SaveManager.get_slot_metadata(slot_num)
 	var is_occupied: bool = metadata != null and metadata.is_occupied
@@ -239,4 +240,5 @@ func _load_game(slot_num: int) -> void:
 
 
 func _on_back_pressed() -> void:
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 	SceneManager.goto_main_menu()

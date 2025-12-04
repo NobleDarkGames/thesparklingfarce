@@ -52,6 +52,10 @@ const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_con
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
 
+## Signal emitted when the active mod changes (for systems like AudioManager)
+## @param mod_path: Full path to the mod directory (e.g., "res://mods/_base_game")
+signal active_mod_changed(mod_path: String)
+
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
 var active_mod_id: String = "_base_game"  # Default active mod for editor
@@ -81,6 +85,8 @@ func _ready() -> void:
 	# runtime hot-reloading if needed.
 	_discover_and_load_mods()
 	mods_loaded.emit()
+	# Notify listeners (like AudioManager) of the active mod path
+	_emit_active_mod_changed()
 
 
 ## Discover all mods and load them in priority order (sync version for editor/reload)
@@ -589,14 +595,28 @@ func get_active_mod() -> ModManifest:
 	return get_mod(active_mod_id)
 
 
-## Set the active mod (for editor)
+## Set the active mod (for editor and runtime)
+## Also notifies listeners (like AudioManager) of the change
 func set_active_mod(mod_id: String) -> bool:
 	if _is_mod_loaded(mod_id):
 		active_mod_id = mod_id
+		_emit_active_mod_changed()
 		return true
 	else:
 		push_error("ModLoader: Cannot set active mod - mod '%s' is not loaded" % mod_id)
 		return false
+
+
+## Emit the active_mod_changed signal with the current mod's directory path
+## Called after mods load and when the active mod changes
+func _emit_active_mod_changed() -> void:
+	var manifest: ModManifest = get_active_mod()
+	if manifest:
+		active_mod_changed.emit(manifest.mod_directory)
+	else:
+		# Fallback if no manifest found (shouldn't happen in normal operation)
+		push_warning("ModLoader: No active mod manifest found, using default path")
+		active_mod_changed.emit(MODS_DIRECTORY.path_join(active_mod_id))
 
 
 ## Reload all mods synchronously (useful for editor/development)

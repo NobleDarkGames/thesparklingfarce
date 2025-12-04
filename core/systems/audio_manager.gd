@@ -55,6 +55,25 @@ func _ready() -> void:
 	# Apply volume settings
 	_update_volumes()
 
+	# Connect to ModLoader's active_mod_changed signal for runtime mod switches
+	ModLoader.active_mod_changed.connect(_on_active_mod_changed)
+
+	# Initialize mod path from ModLoader's current active mod
+	# ModLoader runs before AudioManager in autoload order, so it's already loaded
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if active_mod:
+		set_active_mod(active_mod.mod_directory)
+	else:
+		# Fallback: construct path from active_mod_id when manifest unavailable
+		# This can happen if mods directory wasn't accessible during startup
+		var fallback_path: String = "res://mods/".path_join(ModLoader.active_mod_id)
+		set_active_mod(fallback_path)
+
+
+## Called when ModLoader's active mod changes
+func _on_active_mod_changed(mod_path: String) -> void:
+	set_active_mod(mod_path)
+
 
 ## Set the current mod for audio loading
 func set_active_mod(mod_path: String) -> void:
@@ -154,7 +173,6 @@ func _load_audio(audio_name: String, subfolder: String) -> AudioStream:
 				return stream
 
 	# Audio not found - this is expected for optional sounds
-	# Don't spam warnings, just return null
 	return null
 
 
