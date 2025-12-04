@@ -41,7 +41,6 @@ const SELECTION_PULSE_SCALE: float = 1.1
 const SELECTION_PULSE_DURATION: float = 0.08
 
 ## Animation state
-var _original_position: Vector2 = Vector2.ZERO
 var _slide_tween: Tween = null
 var _pulse_tween: Tween = null
 
@@ -51,9 +50,6 @@ func _ready() -> void:
 	visible = false
 	set_process_input(false)  # Disable input processing when hidden
 	set_process(false)  # Disable _process when hidden
-
-	# Store original position for animations
-	_original_position = position
 
 	# Build menu item array
 	menu_items = [
@@ -104,6 +100,7 @@ func _process(_delta: float) -> void:
 
 ## Show menu with specific available actions
 ## session_id: The turn session ID from InputManager - will be emitted with signals
+## NOTE: Position must be set by caller BEFORE calling show_menu()
 func show_menu(actions: Array[String], default_action: String = "", session_id: int = -1) -> void:
 	available_actions = actions
 	_menu_session_id = session_id
@@ -139,15 +136,17 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 	# Update selection visual
 	_update_selection_visual()
 
-	# Animate slide-in from right
-	position = _original_position + Vector2(MENU_SLIDE_OFFSET, 0)
+	# Animate slide-in from right (relative to current position set by caller)
+	# The target position is wherever the caller placed us
+	var target_position: Vector2 = position
+	position = target_position + Vector2(MENU_SLIDE_OFFSET, 0)
 	modulate.a = 0.0
 	visible = true
 
 	_slide_tween = create_tween()
 	_slide_tween.set_parallel(true)
 	_slide_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_slide_tween.tween_property(self, "position", _original_position, MENU_SLIDE_DURATION)
+	_slide_tween.tween_property(self, "position", target_position, MENU_SLIDE_DURATION)
 	_slide_tween.tween_property(self, "modulate:a", 1.0, MENU_SLIDE_DURATION * 0.7)
 
 	set_process_input(true)  # Enable input processing when shown
@@ -169,11 +168,11 @@ func hide_menu(animate: bool = false) -> void:
 		_pulse_tween = null
 
 	if animate and visible:
-		# Slide out to right
+		# Slide out to right (from current position)
 		_slide_tween = create_tween()
 		_slide_tween.set_parallel(true)
 		_slide_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		_slide_tween.tween_property(self, "position", _original_position + Vector2(MENU_SLIDE_OFFSET, 0), MENU_SLIDE_DURATION * 0.7)
+		_slide_tween.tween_property(self, "position", position + Vector2(MENU_SLIDE_OFFSET, 0), MENU_SLIDE_DURATION * 0.7)
 		_slide_tween.tween_property(self, "modulate:a", 0.0, MENU_SLIDE_DURATION * 0.5)
 		_slide_tween.chain().tween_callback(func() -> void: visible = false)
 	else:

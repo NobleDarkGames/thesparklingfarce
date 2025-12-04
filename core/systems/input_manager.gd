@@ -969,11 +969,7 @@ func _show_action_menu() -> void:
 	else:
 		default_action = "Stay"
 
-	# Show menu with available actions AND current session ID
-	# The session ID will be returned with any signals to prevent stale signals
-	action_menu.show_menu(available_actions, default_action, _turn_session_id)
-
-	# Position menu near active unit
+	# Position menu near active unit BEFORE showing (action_menu captures position at show time)
 	if active_unit:
 		# Convert unit's world position to screen position
 		# The action menu is in a CanvasLayer (viewport coordinates)
@@ -982,6 +978,10 @@ func _show_action_menu() -> void:
 		var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
 		# Offset to right of unit
 		action_menu.position = unit_screen_pos + Vector2(40, -20)
+
+	# Show menu with available actions AND current session ID
+	# The session ID will be returned with any signals to prevent stale signals
+	action_menu.show_menu(available_actions, default_action, _turn_session_id)
 
 
 ## Handle action menu input
