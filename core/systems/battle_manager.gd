@@ -10,6 +10,11 @@
 ##
 ## IMPORTANT: This is ENGINE CODE (mechanics).
 ## BattleData, CharacterData, map scenes come from mods/ (content).
+##
+## SF2 AUTHENTIC COMBAT SESSIONS:
+## Combat now uses a session-based approach where the battle screen stays open
+## for the entire combat exchange (Initial -> Double -> Counter), eliminating
+## jarring fade transitions between phases.
 extends Node
 
 ## Signals for battle events
@@ -547,14 +552,37 @@ func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
 	await _execute_attack(attacker, defender)
 
 
-## Execute Attack action
-## SF-AUTHENTIC: Damage is now applied at the IMPACT moment within CombatAnimationScene,
-## not after the animation completes. XP is displayed in the battle screen.
-func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
+# =============================================================================
+# SF2 AUTHENTIC COMBAT SESSION SYSTEM
+# =============================================================================
 
-	# Get stats
-	var attacker_stats: UnitStats = attacker.stats
-	var defender_stats: UnitStats = defender.stats
+## Execute Attack action using the new session-based combat system
+## SF-AUTHENTIC: All phases (initial, double, counter) execute in a SINGLE
+## battle screen session - one fade in, one fade out, no jarring transitions.
+func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
+	# Build the complete combat sequence BEFORE opening the battle screen
+	var phases: Array[CombatPhase] = _build_combat_sequence(attacker, defender)
+
+	# Debug output for combat sequence
+	print("[BattleManager] Combat sequence built with %d phases:" % phases.size())
+	for phase: CombatPhase in phases:
+		print("  - %s" % phase.get_description())
+
+	# Execute the combat session (single fade-in, all phases, single fade-out)
+	await _execute_combat_session(attacker, defender, phases)
+
+	# Reset InputManager to waiting state ONLY if this unit is still the active unit
+	if TurnManager.active_unit == attacker:
+		InputManager.reset_to_waiting()
+
+	# End attacker's turn
+	TurnManager.end_unit_turn(attacker)
+
+
+## Build the complete combat sequence by pre-calculating all phases
+## Order: Initial Attack -> Double Attack (if any) -> Counter (if any)
+func _build_combat_sequence(attacker: Node2D, defender: Node2D) -> Array[CombatPhase]:
+	var phases: Array[CombatPhase] = []
 
 	# Get terrain bonuses for defender's position
 	var terrain_defense: int = 0
@@ -564,19 +592,87 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 		terrain_defense = defender_terrain.defense_bonus
 		terrain_evasion = defender_terrain.evasion_bonus
 
-	# Calculate hit chance (with terrain evasion penalty)
+	# =========================================================================
+	# PHASE 1: Initial Attack
+	# =========================================================================
+	var initial_phase: CombatPhase = _calculate_attack_phase(
+		attacker, defender, terrain_defense, terrain_evasion, false, false
+	)
+	phases.append(initial_phase)
+
+	# Track defender HP for death checks (we'll simulate damage for phase building)
+	var simulated_defender_hp: int = defender.stats.current_hp
+	var defender_would_die: bool = false
+
+	if not initial_phase.was_miss and initial_phase.damage > 0:
+		simulated_defender_hp -= initial_phase.damage
+		defender_would_die = simulated_defender_hp <= 0
+
+	# =========================================================================
+	# PHASE 2: Double Attack (if applicable and defender still alive)
+	# =========================================================================
+	if not initial_phase.was_miss and not defender_would_die:
+		var should_double_attack: bool = _check_double_attack(attacker)
+		if should_double_attack:
+			var double_phase: CombatPhase = _calculate_attack_phase(
+				attacker, defender, terrain_defense, terrain_evasion, false, true
+			)
+			phases.append(double_phase)
+
+			# Update simulated HP
+			if not double_phase.was_miss and double_phase.damage > 0:
+				simulated_defender_hp -= double_phase.damage
+				defender_would_die = simulated_defender_hp <= 0
+
+	# =========================================================================
+	# PHASE 3: Counter Attack (if defender survives and can counter)
+	# =========================================================================
+	if not defender_would_die:
+		# Get terrain bonuses for attacker's position (they're the counter target)
+		var attacker_terrain_defense: int = 0
+		var attacker_terrain_evasion: int = 0
+		var attacker_terrain: TerrainData = GridManager.get_terrain_at_cell(attacker.grid_position)
+		if attacker_terrain:
+			attacker_terrain_defense = attacker_terrain.defense_bonus
+			attacker_terrain_evasion = attacker_terrain.evasion_bonus
+
+		# Check if counter is possible
+		var counter_possible: bool = _can_counterattack(attacker, defender)
+
+		if counter_possible:
+			# Calculate counter attack (defender attacks attacker, 75% damage)
+			var counter_phase: CombatPhase = _calculate_counter_phase(
+				defender, attacker, attacker_terrain_defense, attacker_terrain_evasion
+			)
+			if counter_phase:
+				phases.append(counter_phase)
+
+	return phases
+
+
+## Calculate a single attack phase (initial or double attack)
+func _calculate_attack_phase(
+	attacker: Node2D,
+	defender: Node2D,
+	terrain_defense: int,
+	terrain_evasion: int,
+	is_counter: bool,
+	is_double: bool
+) -> CombatPhase:
+	var attacker_stats: UnitStats = attacker.stats
+	var defender_stats: UnitStats = defender.stats
+
+	# Calculate hit chance
 	var hit_chance: int = CombatCalculator.calculate_hit_chance_with_terrain(
 		attacker_stats, defender_stats, terrain_evasion
 	)
-
-	# Roll to hit
 	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
 
 	var damage: int = 0
 	var was_critical: bool = false
 
 	if not was_miss:
-		# Calculate damage (with terrain defense bonus)
+		# Calculate damage
 		damage = CombatCalculator.calculate_physical_damage_with_terrain(
 			attacker_stats, defender_stats, terrain_defense
 		)
@@ -587,117 +683,25 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 		if was_critical:
 			damage *= 2
-			AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
-		else:
-			AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
+
+	# Create appropriate phase type
+	if is_double:
+		return CombatPhase.create_double_attack(attacker, defender, damage, was_critical, was_miss)
 	else:
-		AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
-
-	# Track if defender died (will be updated by combat animation or skip mode)
-	var defender_died: bool = false
-
-	# Show combat animation OR apply damage directly in skip mode
-	# SF-AUTHENTIC: Damage is applied at IMPACT within CombatAnimationScene
-	if not TurnManager.is_headless and not GameJuice.should_skip_combat_animation():
-		# Full animation mode - damage applied at impact within the scene
-		await _show_combat_animation(attacker, defender, damage, was_critical, was_miss)
-		# Check death state (damage was applied in animation scene)
-		defender_died = defender.is_dead() if defender.has_method("is_dead") else defender.stats.current_hp <= 0
-	else:
-		# Skip mode or headless - apply damage directly here
-		if not was_miss and damage > 0:
-			if defender.has_method("take_damage"):
-				defender.take_damage(damage)
-			else:
-				defender_stats.current_hp -= damage
-				defender_stats.current_hp = maxi(0, defender_stats.current_hp)
-			defender_died = defender.is_dead() if defender.has_method("is_dead") else defender.stats.current_hp <= 0
-
-	# Emit combat result signal (after damage is applied, regardless of mode)
-	combat_resolved.emit(attacker, defender, damage, not was_miss, was_critical)
-
-	# Award XP for combat (damage dealt and kill bonus)
-	# In full animation mode, XP is awarded via damage_applied signal DURING animation
-	# In skip mode, XP is awarded here and shown via combat results panel on the map
-	if not was_miss and damage > 0:
-		# Only award XP here in skip mode (full animation mode awards during animation)
-		if GameJuice.should_skip_combat_animation() or TurnManager.is_headless:
-			ExperienceManager.award_combat_xp(attacker, defender, damage, defender_died)
-			await _show_combat_results()
-		else:
-			# Full animation mode - XP was already awarded and shown in battle screen
-			_pending_xp_entries.clear()
-
-	# Check for double attack (GAP 4 - SF-authentic "attacks twice" mechanic)
-	if not was_miss and defender.is_alive():
-		var should_double_attack: bool = _check_double_attack(attacker)
-		if should_double_attack:
-			await _execute_double_attack(attacker, defender, terrain_defense, terrain_evasion)
-
-	# Counterattack check - defender strikes back if alive and in range
-	await _check_and_execute_counterattack(attacker, defender)
-
-	# Reset InputManager to waiting state ONLY if this unit is still the active unit
-	# (prevents race condition where next turn has already started during the await)
-	if TurnManager.active_unit == attacker:
-		InputManager.reset_to_waiting()
-
-	# End attacker's turn
-	TurnManager.end_unit_turn(attacker)
+		return CombatPhase.create_initial_attack(attacker, defender, damage, was_critical, was_miss)
 
 
-## Check if defender can counterattack and execute if so
-## Counterattacks deal 75% damage and cannot trigger further counters
-func _check_and_execute_counterattack(original_attacker: Node2D, original_defender: Node2D) -> void:
-	# Check if defender is still alive
-	if not original_defender.is_alive():
-		return
-
-	# Check if attacker is still alive (edge case: status effects)
-	if not original_attacker.is_alive():
-		return
-
-	# Get weapon ranges (default to 1 for melee)
-	var attacker_range: int = _get_unit_weapon_range(original_attacker)
-	var defender_range: int = _get_unit_weapon_range(original_defender)
-
-	# Calculate attack distance
-	var attack_distance: int = GridManager.get_distance(
-		original_attacker.grid_position,
-		original_defender.grid_position
-	)
-
-	# Full counter check (range + roll)
-	var counter_result: Dictionary = CombatCalculator.check_counterattack(
-		original_defender.stats,
-		defender_range,
-		attack_distance,
-		original_defender.is_alive()
-	)
-
-	# No counter if can't reach or roll failed
-	if not counter_result.will_counter:
-		return
-
-	# Execute counterattack (defender attacks original attacker)
-	await _execute_counterattack(original_defender, original_attacker)
-
-
-## Execute the actual counterattack (reduced damage, no counter-counter)
-## SF-AUTHENTIC: Damage is applied at IMPACT within CombatAnimationScene
-func _execute_counterattack(counter_attacker: Node2D, counter_target: Node2D) -> void:
+## Calculate a counter attack phase (75% damage)
+func _calculate_counter_phase(
+	counter_attacker: Node2D,
+	counter_target: Node2D,
+	terrain_defense: int,
+	terrain_evasion: int
+) -> CombatPhase:
 	var attacker_stats: UnitStats = counter_attacker.stats
 	var target_stats: UnitStats = counter_target.stats
 
-	# Get terrain bonuses for the counter-target's position
-	var terrain_defense: int = 0
-	var terrain_evasion: int = 0
-	var target_terrain: TerrainData = GridManager.get_terrain_at_cell(counter_target.grid_position)
-	if target_terrain:
-		terrain_defense = target_terrain.defense_bonus
-		terrain_evasion = target_terrain.evasion_bonus
-
-	# Calculate hit chance (with terrain evasion)
+	# Calculate hit chance
 	var hit_chance: int = CombatCalculator.calculate_hit_chance_with_terrain(
 		attacker_stats, target_stats, terrain_evasion
 	)
@@ -707,8 +711,7 @@ func _execute_counterattack(counter_attacker: Node2D, counter_target: Node2D) ->
 	var was_critical: bool = false
 
 	if not was_miss:
-		# Calculate counter damage (75% of normal, with terrain defense)
-		# Note: We calculate full damage with terrain, then apply counter multiplier
+		# Calculate base damage then apply counter multiplier (75%)
 		var base_damage: int = CombatCalculator.calculate_physical_damage_with_terrain(
 			attacker_stats, target_stats, terrain_defense
 		)
@@ -721,51 +724,242 @@ func _execute_counterattack(counter_attacker: Node2D, counter_target: Node2D) ->
 
 		if was_critical:
 			damage *= 2
-			AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
-		else:
-			AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
-	else:
-		AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
 
-	# Track if target died
-	var target_died: bool = false
+	return CombatPhase.create_counter_attack(counter_attacker, counter_target, damage, was_critical, was_miss)
 
-	# Show combat animation OR apply damage directly in skip mode
-	# SF-AUTHENTIC: Damage is applied at IMPACT within CombatAnimationScene
+
+## Check if defender can counterattack
+func _can_counterattack(original_attacker: Node2D, original_defender: Node2D) -> bool:
+	# Check if defender would still be alive (this is called after simulating damage)
+	# The actual HP check happens in _build_combat_sequence
+
+	# Get weapon ranges
+	var attacker_range: int = _get_unit_weapon_range(original_attacker)
+	var defender_range: int = _get_unit_weapon_range(original_defender)
+
+	# Calculate attack distance
+	var attack_distance: int = GridManager.get_distance(
+		original_attacker.grid_position,
+		original_defender.grid_position
+	)
+
+	# Check if defender's weapon can reach (must be in range for counter)
+	if attack_distance > defender_range:
+		return false
+
+	# Roll for counter using class rate
+	var counter_result: Dictionary = CombatCalculator.check_counterattack(
+		original_defender.stats,
+		defender_range,
+		attack_distance,
+		true  # Assume alive (we check this in _build_combat_sequence)
+	)
+
+	return counter_result.will_counter
+
+
+## Execute the complete combat session with all pre-calculated phases
+func _execute_combat_session(
+	initial_attacker: Node2D,
+	initial_defender: Node2D,
+	phases: Array[CombatPhase]
+) -> void:
+	# Track deaths for skip mode XP and signal emission
+	var attacker_died: bool = false
+	var defender_died: bool = false
+
+	# SF2-AUTHENTIC: Pool XP by attacker/defender pair, award ONCE per pair
+	# (Double attacks should not show separate XP entries)
+	var xp_pools: Dictionary = {}  # Key: "attacker_id:defender_id", Value: {attacker, defender, damage, got_kill}
+
+	# =========================================================================
+	# FULL ANIMATION MODE: Single battle screen session
+	# =========================================================================
 	if not TurnManager.is_headless and not GameJuice.should_skip_combat_animation():
-		# Full animation mode - damage applied at impact within the scene
-		await _show_combat_animation(counter_attacker, counter_target, damage, was_critical, was_miss, true)
-		# Check death state (damage was applied in animation scene)
-		target_died = counter_target.is_dead() if counter_target.has_method("is_dead") else counter_target.stats.current_hp <= 0
+		# Hide the battlefield
+		_hide_battlefield()
+
+		# Create and setup the combat animation scene
+		combat_anim_instance = COMBAT_ANIM_SCENE.instantiate()
+		battle_scene_root.add_child(combat_anim_instance)
+		combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
+
+		# Connect XP handler to feed entries to battle screen
+		var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
+			print("[BattleManager] Session XP handler: ", unit.get_display_name(), " +", amount)
+			if combat_anim_instance and is_instance_valid(combat_anim_instance):
+				combat_anim_instance.queue_xp_entry(unit.get_display_name(), amount, source)
+		ExperienceManager.unit_gained_xp.connect(xp_handler)
+
+		# Connect damage handler to POOL damage (not award XP yet - SF2-authentic)
+		var damage_handler: Callable = func(def_unit: Node2D, dmg: int, died: bool) -> void:
+			print("[BattleManager] Session damage applied: ", dmg, " died=", died)
+			# Find which phase this corresponds to
+			var current_phase: CombatPhase = _find_current_phase_for_defender(phases, def_unit)
+			if current_phase and dmg > 0:
+				# Pool damage by attacker/defender pair instead of awarding immediately
+				var pool_key: String = "%d:%d" % [current_phase.attacker.get_instance_id(), def_unit.get_instance_id()]
+				if pool_key not in xp_pools:
+					xp_pools[pool_key] = {
+						"attacker": current_phase.attacker,
+						"defender": def_unit,
+						"total_damage": 0,
+						"got_kill": false
+					}
+				xp_pools[pool_key]["total_damage"] += dmg
+				if died:
+					xp_pools[pool_key]["got_kill"] = true
+				# Track death state
+				if def_unit == initial_attacker:
+					attacker_died = died
+				elif def_unit == initial_defender:
+					defender_died = died
+		combat_anim_instance.damage_applied.connect(damage_handler)
+
+		# Start the session (fade in ONCE)
+		await combat_anim_instance.start_session(initial_attacker, initial_defender)
+
+		# Queue all phases
+		for phase: CombatPhase in phases:
+			combat_anim_instance.queue_phase(phase)
+
+		# Execute all phases (no fading between them!)
+		await combat_anim_instance.execute_all_phases()
+
+		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
+		# (This happens after all phases complete, so double attacks show as one XP entry)
+		for pool: Dictionary in xp_pools.values():
+			ExperienceManager.award_combat_xp(
+				pool["attacker"],
+				pool["defender"],
+				pool["total_damage"],
+				pool["got_kill"]
+			)
+
+		# Finish session (display XP, fade out ONCE)
+		await combat_anim_instance.finish_session()
+
+		# Disconnect handlers
+		if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
+			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
+		if combat_anim_instance and is_instance_valid(combat_anim_instance) and combat_anim_instance.damage_applied.is_connected(damage_handler):
+			combat_anim_instance.damage_applied.disconnect(damage_handler)
+
+		# Clean up
+		combat_anim_instance.queue_free()
+		combat_anim_instance = null
+
+		# Restore battlefield
+		_show_battlefield()
+
+		# Battlefield settle delay
+		await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
+
+	# =========================================================================
+	# SKIP MODE / HEADLESS: Apply damage directly, no animations
+	# =========================================================================
 	else:
-		# Skip mode or headless - apply damage directly here
-		if not was_miss and damage > 0:
-			if counter_target.has_method("take_damage"):
-				counter_target.take_damage(damage)
+		for phase: CombatPhase in phases:
+			# Check if we should skip this phase due to death
+			if phase.attacker == initial_attacker and attacker_died:
+				continue
+			if phase.attacker == initial_defender and defender_died:
+				continue
+			if phase.defender == initial_attacker and attacker_died:
+				continue
+			if phase.defender == initial_defender and defender_died:
+				continue
+
+			# Play sound effect
+			if not phase.was_miss:
+				if phase.was_critical:
+					AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
+				else:
+					AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
 			else:
-				target_stats.current_hp -= damage
-				target_stats.current_hp = maxi(0, target_stats.current_hp)
-			target_died = counter_target.is_dead() if counter_target.has_method("is_dead") else counter_target.stats.current_hp <= 0
+				AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
 
-	# Emit combat result signal for counter
-	combat_resolved.emit(counter_attacker, counter_target, damage, not was_miss, was_critical)
+			# Apply damage directly
+			if not phase.was_miss and phase.damage > 0:
+				if phase.defender.has_method("take_damage"):
+					phase.defender.take_damage(phase.damage)
+				else:
+					phase.defender.stats.current_hp -= phase.damage
+					phase.defender.stats.current_hp = maxi(0, phase.defender.stats.current_hp)
 
-	# Award XP for counter damage
-	# In full animation mode, XP is awarded via damage_applied signal DURING animation
-	# In skip mode, XP is awarded here
-	if not was_miss and damage > 0:
-		if GameJuice.should_skip_combat_animation() or TurnManager.is_headless:
-			ExperienceManager.award_combat_xp(counter_attacker, counter_target, damage, target_died)
-			await _show_combat_results()
-		else:
-			# Full animation mode - XP was already awarded during animation
-			_pending_xp_entries.clear()
+				# Check for death
+				var died: bool = phase.defender.is_dead() if phase.defender.has_method("is_dead") else phase.defender.stats.current_hp <= 0
 
-	# NO further counterattack check - counters don't trigger counters
+				# Update death tracking
+				if phase.defender == initial_attacker:
+					attacker_died = died
+				elif phase.defender == initial_defender:
+					defender_died = died
+
+				# SF2-AUTHENTIC: Pool damage instead of awarding XP immediately
+				var pool_key: String = "%d:%d" % [phase.attacker.get_instance_id(), phase.defender.get_instance_id()]
+				if pool_key not in xp_pools:
+					xp_pools[pool_key] = {
+						"attacker": phase.attacker,
+						"defender": phase.defender,
+						"total_damage": 0,
+						"got_kill": false
+					}
+				xp_pools[pool_key]["total_damage"] += phase.damage
+				if died:
+					xp_pools[pool_key]["got_kill"] = true
+
+			# Emit combat resolved signal
+			combat_resolved.emit(phase.attacker, phase.defender, phase.damage, not phase.was_miss, phase.was_critical)
+
+		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
+		for pool: Dictionary in xp_pools.values():
+			ExperienceManager.award_combat_xp(
+				pool["attacker"],
+				pool["defender"],
+				pool["total_damage"],
+				pool["got_kill"]
+			)
+
+		# Show combat results panel (skip mode shows XP on map)
+		await _show_combat_results()
+
+
+## Helper to find current phase for damage handler
+func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Node2D) -> CombatPhase:
+	# Return the most recent phase where this unit is the defender
+	# (In practice, the damage_applied signal fires during execute_all_phases,
+	#  so we track which phase we're on via the scene's internal state)
+	for i in range(phases.size() - 1, -1, -1):
+		if phases[i].defender == defender:
+			return phases[i]
+	return null
+
+
+## Hide the battlefield for combat animation
+func _hide_battlefield() -> void:
+	if map_instance:
+		map_instance.visible = false
+	if units_parent:
+		units_parent.visible = false
+	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
+	if ui_node:
+		ui_node.visible = false
+
+
+## Show the battlefield after combat animation
+func _show_battlefield() -> void:
+	if map_instance:
+		map_instance.visible = true
+	if units_parent:
+		units_parent.visible = true
+	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
+	if ui_node:
+		ui_node.visible = true
 
 
 # =============================================================================
-# DOUBLE ATTACK SYSTEM (GAP 4 - SF-authentic "attacks twice" mechanic)
+# DOUBLE ATTACK SYSTEM
 # =============================================================================
 
 ## Check if attacker should perform a double attack
@@ -789,241 +983,13 @@ func _check_double_attack(attacker: Node2D) -> bool:
 	return roll <= double_attack_rate
 
 
-## Execute a double attack (second strike after initial attack)
-## This is called when _check_double_attack returns true
-func _execute_double_attack(
-	attacker: Node2D,
-	defender: Node2D,
-	terrain_defense: int,
-	terrain_evasion: int
-) -> void:
-	var attacker_stats: UnitStats = attacker.stats
-	var defender_stats: UnitStats = defender.stats
-
-	# Calculate hit chance for second attack
-	var hit_chance: int = CombatCalculator.calculate_hit_chance_with_terrain(
-		attacker_stats, defender_stats, terrain_evasion
-	)
-	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
-
-	var damage: int = 0
-	var was_critical: bool = false
-
-	if not was_miss:
-		# Calculate damage for second attack (full damage, not reduced like counter)
-		damage = CombatCalculator.calculate_physical_damage_with_terrain(
-			attacker_stats, defender_stats, terrain_defense
-		)
-
-		# Check for critical hit
-		var crit_chance: int = CombatCalculator.calculate_crit_chance(attacker_stats, defender_stats)
-		was_critical = CombatCalculator.roll_crit(crit_chance)
-
-		if was_critical:
-			damage *= 2
-			AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
-		else:
-			AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
-	else:
-		AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
-
-	# Track if defender died
-	var defender_died: bool = false
-
-	# Show combat animation with "DOUBLE ATTACK!" banner OR apply damage in skip mode
-	if not TurnManager.is_headless and not GameJuice.should_skip_combat_animation():
-		# Full animation mode - show double attack animation
-		await _show_double_attack_animation(attacker, defender, damage, was_critical, was_miss)
-		defender_died = defender.is_dead() if defender.has_method("is_dead") else defender.stats.current_hp <= 0
-	else:
-		# Skip mode - apply damage directly
-		if not was_miss and damage > 0:
-			if defender.has_method("take_damage"):
-				defender.take_damage(damage)
-			else:
-				defender_stats.current_hp -= damage
-				defender_stats.current_hp = maxi(0, defender_stats.current_hp)
-			defender_died = defender.is_dead() if defender.has_method("is_dead") else defender.stats.current_hp <= 0
-
-	# Emit combat result signal for double attack
-	combat_resolved.emit(attacker, defender, damage, not was_miss, was_critical)
-
-	# Award XP for double attack damage
-	# In full animation mode, XP is awarded via damage_applied signal DURING animation
-	# In skip mode, XP is awarded here
-	if not was_miss and damage > 0:
-		if GameJuice.should_skip_combat_animation() or TurnManager.is_headless:
-			ExperienceManager.award_combat_xp(attacker, defender, damage, defender_died)
-			await _show_combat_results()
-		else:
-			# Full animation mode - XP was already awarded during animation
-			_pending_xp_entries.clear()
-
-
-## Show double attack animation (similar to regular combat but with "DOUBLE ATTACK!" banner)
-func _show_double_attack_animation(
-	attacker: Node2D,
-	defender: Node2D,
-	damage: int,
-	was_critical: bool,
-	was_miss: bool
-) -> void:
-	if TurnManager.is_headless or GameJuice.should_skip_combat_animation():
-		return
-
-	# HIDE the battlefield
-	if map_instance:
-		map_instance.visible = false
-	if units_parent:
-		units_parent.visible = false
-
-	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
-	if ui_node:
-		ui_node.visible = false
-
-	# Instantiate combat animation scene
-	combat_anim_instance = COMBAT_ANIM_SCENE.instantiate()
-	battle_scene_root.add_child(combat_anim_instance)
-	combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
-
-	# Connect XP handler (feeds XP entries to battle screen for SF-authentic display)
-	var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
-		print("[BattleManager] Double attack XP handler: ", unit.get_display_name(), " +", amount)  # DEBUG
-		if combat_anim_instance and is_instance_valid(combat_anim_instance):
-			combat_anim_instance.queue_xp_entry(unit.get_display_name(), amount, source)
-	ExperienceManager.unit_gained_xp.connect(xp_handler)
-
-	# Connect to damage_applied signal to award XP at impact moment
-	var damage_handler: Callable = func(def_unit: Node2D, dmg: int, died: bool) -> void:
-		print("[BattleManager] Double attack damage applied: ", dmg, " died=", died)  # DEBUG
-		if dmg > 0:
-			ExperienceManager.award_combat_xp(attacker, def_unit, dmg, died)
-	combat_anim_instance.damage_applied.connect(damage_handler)
-
-	# Show "DOUBLE ATTACK!" banner before the attack
-	if combat_anim_instance.has_method("show_custom_banner"):
-		await combat_anim_instance.show_custom_banner("DOUBLE ATTACK!", Color(0.2, 0.8, 1.0))
-
-	# Play the attack animation
-	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss, false)
-	await combat_anim_instance.animation_complete
-
-	# Disconnect handlers
-	if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
-		ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-	if combat_anim_instance and is_instance_valid(combat_anim_instance) and combat_anim_instance.damage_applied.is_connected(damage_handler):
-		combat_anim_instance.damage_applied.disconnect(damage_handler)
-
-	# Clean up
-	combat_anim_instance.queue_free()
-	combat_anim_instance = null
-
-	# RESTORE the battlefield
-	if map_instance:
-		map_instance.visible = true
-	if units_parent:
-		units_parent.visible = true
-	if ui_node:
-		ui_node.visible = true
-
-	await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
-
-
 ## Get weapon range for a unit (default 1 for melee)
 func _get_unit_weapon_range(unit: Node2D) -> int:
-	# Check for weapon_range property or method
 	if "weapon_range" in unit:
 		return unit.weapon_range
 	if unit.has_method("get_weapon_range"):
 		return unit.get_weapon_range()
-	# Default melee range
 	return 1
-
-
-## Show combat animation scene
-## is_counter: if true, displays "COUNTER!" banner on the combat screen
-##
-## SF-AUTHENTIC: This function now:
-## - Passes unit references so damage is applied at IMPACT within the animation
-## - Feeds XP entries to be displayed IN the battle screen before fade-out
-## - Death animations play within the battle screen if defender HP reaches 0
-func _show_combat_animation(
-	attacker: Node2D,
-	defender: Node2D,
-	damage: int,
-	was_critical: bool,
-	was_miss: bool,
-	is_counter: bool = false
-) -> void:
-	# Skip combat animation entirely in headless mode for faster automated testing
-	if TurnManager.is_headless:
-		return
-
-	# Skip combat animation if GameJuice is set to MAP_ONLY mode
-	if GameJuice.should_skip_combat_animation():
-		return
-
-	# HIDE the battlefield completely (Shining Force style - full screen replacement)
-	if map_instance:
-		map_instance.visible = false
-	if units_parent:
-		units_parent.visible = false
-
-	# Also hide any UI elements
-	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
-	if ui_node:
-		ui_node.visible = false
-
-	# Instantiate combat animation scene as full-screen replacement
-	# (uses CanvasLayer with layer=100 to appear above everything)
-	combat_anim_instance = COMBAT_ANIM_SCENE.instantiate()
-	battle_scene_root.add_child(combat_anim_instance)
-
-	# Set animation speed from GameJuice settings
-	combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
-
-	# Connect to XP signals so we can feed entries to the combat animation scene
-	# (SF-authentic: XP is displayed IN the battle screen)
-	var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
-		print("[BattleManager] XP handler received: ", unit.get_display_name(), " +", amount, " (", source, ")")  # DEBUG
-		if combat_anim_instance and is_instance_valid(combat_anim_instance):
-			combat_anim_instance.queue_xp_entry(unit.get_display_name(), amount, source)
-	ExperienceManager.unit_gained_xp.connect(xp_handler)
-
-	# Connect to damage_applied signal to award XP at impact moment
-	# (XP must be awarded DURING animation so xp_handler can feed it to the scene)
-	var damage_handler: Callable = func(def_unit: Node2D, dmg: int, died: bool) -> void:
-		print("[BattleManager] Damage applied during animation: ", dmg, " died=", died)  # DEBUG
-		if dmg > 0:
-			ExperienceManager.award_combat_xp(attacker, def_unit, dmg, died)
-	combat_anim_instance.damage_applied.connect(damage_handler)
-
-	# Play combat animation (scene handles its own fade-in)
-	# SF-AUTHENTIC: Damage is applied at IMPACT within this call
-	combat_anim_instance.play_combat_animation(attacker, defender, damage, was_critical, was_miss, is_counter)
-	await combat_anim_instance.animation_complete
-
-	# Disconnect handlers
-	if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
-		ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-	if combat_anim_instance and is_instance_valid(combat_anim_instance) and combat_anim_instance.damage_applied.is_connected(damage_handler):
-		combat_anim_instance.damage_applied.disconnect(damage_handler)
-
-	# Clean up combat animation
-	combat_anim_instance.queue_free()
-	combat_anim_instance = null
-
-	# RESTORE the battlefield (Shining Force style - return to tactical view)
-	if map_instance:
-		map_instance.visible = true
-	if units_parent:
-		units_parent.visible = true
-	if ui_node:
-		ui_node.visible = true
-
-	# Battlefield "settle" period - give player time to see the result before next action
-	# This visual breathing room is critical for Shining Force-style pacing
-	await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
 
 
 ## Handle unit death - called when unit.died signal is emitted

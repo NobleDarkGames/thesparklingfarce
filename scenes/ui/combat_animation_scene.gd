@@ -3,17 +3,23 @@ extends CanvasLayer
 
 ## Displays combat animation when units attack each other.
 ## Full-screen overlay that completely replaces the tactical map view (Shining Force style).
-## Shows attacker on right, defender on left with animations and damage display.
 ##
-## SF-AUTHENTIC BEHAVIOR:
-## - Damage is applied at the IMPACT moment (not after screen closes)
-## - HP bar updates in real-time to show actual damage
-## - Death animation plays IN this screen if defender HP reaches 0
-## - XP gain is displayed before returning to tactical map
+## SF2 AUTHENTIC SESSION-BASED ARCHITECTURE:
+## The battle screen now stays open for the ENTIRE combat exchange:
+##   Fade In ONCE -> Initial Attack -> Double Attack (if any) -> Counter (if any) -> XP -> Fade Out ONCE
+##
+## This eliminates the jarring fade-in/fade-out between each phase that was present before.
+##
+## POSITIONING CONVENTION (SF2):
+## - Attacker on RIGHT side of screen
+## - Defender on LEFT side of screen
+## - For counter attacks, the visual positions SWAP to show the new attacker
 
 signal animation_complete
 ## Emitted when damage is applied at impact moment (for BattleManager to track)
 signal damage_applied(defender: Node2D, damage: int, defender_died: bool)
+## Emitted when a single phase completes (used internally)
+signal phase_complete
 ## Emitted when XP display is complete (used internally)
 signal xp_display_complete
 
@@ -32,14 +38,22 @@ signal xp_display_complete
 var attacker_sprite: Control = null
 var defender_sprite: Control = null
 
-## Unit references (for applying damage at impact - SF-authentic)
-var _attacker_unit: Node2D = null
-var _defender_unit: Node2D = null
+## Session state tracking
+var _session_active: bool = false
+var _initial_attacker: Node2D = null  ## The unit who initiated the combat (for role tracking)
+var _initial_defender: Node2D = null  ## The unit who was attacked (for role tracking)
 
-## Combat result tracking (set before animation, applied at impact)
-var _pending_damage: int = 0
-var _was_miss: bool = false
-var _defender_died: bool = false
+## Current phase tracking (who is currently attacking/defending visually)
+var _current_attacker: Node2D = null
+var _current_defender: Node2D = null
+
+## Combat phase queue
+var _combat_phases: Array[CombatPhase] = []
+var _current_phase_index: int = 0
+
+## Death tracking across phases
+var _initial_attacker_died: bool = false
+var _initial_defender_died: bool = false
 
 ## XP entries to display before fade-out (SF-authentic: XP shown in battle screen)
 var _xp_entries: Array[Dictionary] = []
@@ -64,7 +78,8 @@ const BASE_CRIT_PAUSE_DURATION: float = 0.4
 const BASE_DEATH_ANIMATION_DURATION: float = 0.8
 const BASE_DEATH_PAUSE_DURATION: float = 0.6
 const BASE_XP_DISPLAY_DURATION: float = 1.2
-const BASE_XP_ENTRY_STAGGER: float = 0.6  # Time between XP entries (SF gives ~1-1.5s to read each)
+const BASE_XP_ENTRY_STAGGER: float = 0.6
+const BASE_PHASE_TRANSITION_PAUSE: float = 0.4  ## Pause between phases (role swap, etc.)
 
 ## Speed multiplier (set by BattleManager based on GameJuice settings)
 var _speed_multiplier: float = 1.0
@@ -72,13 +87,13 @@ var _speed_multiplier: float = 1.0
 
 ## Set animation speed multiplier (called by BattleManager)
 func set_speed_multiplier(multiplier: float) -> void:
-	_speed_multiplier = maxf(multiplier, 0.1)  # Minimum 0.1 to avoid division issues
+	_speed_multiplier = maxf(multiplier, 0.1)
 
 
 ## Get duration adjusted by speed multiplier
 func _get_duration(base_duration: float) -> float:
 	if _speed_multiplier <= 0.1:
-		return 0.01  # Near-instant
+		return 0.01
 	return base_duration / _speed_multiplier
 
 
@@ -96,12 +111,186 @@ func _ready() -> void:
 	combat_log.text = ""
 
 
-## Main entry point: play combat animation sequence
-## is_counter: if true, displays "COUNTER!" banner before the attack
-##
-## SF-AUTHENTIC: Damage is now applied at the IMPACT moment within this function,
-## not after the animation completes. The defender's HP bar updates in real-time,
-## and death animations play within this screen if the defender dies.
+# =============================================================================
+# SESSION-BASED API (NEW - SF2 AUTHENTIC)
+# =============================================================================
+
+## Start a combat session - fades in and sets up the initial combatants
+## Call this ONCE at the start of a combat exchange
+func start_session(initial_attacker: Node2D, initial_defender: Node2D) -> void:
+	_session_active = true
+	_initial_attacker = initial_attacker
+	_initial_defender = initial_defender
+	_current_attacker = initial_attacker
+	_current_defender = initial_defender
+	_combat_phases.clear()
+	_current_phase_index = 0
+	_xp_entries.clear()
+	_initial_attacker_died = false
+	_initial_defender_died = false
+
+	# Set up combatants visually (attacker on RIGHT, defender on LEFT)
+	await _setup_combatant(initial_attacker, attacker_container, attacker_name, attacker_hp_bar, true)
+	await _setup_combatant(initial_defender, defender_container, defender_name, defender_hp_bar, false)
+
+	# Fade in background and contents
+	var tween: Tween = create_tween()
+	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
+	await tween.finished
+
+
+## Queue a combat phase to be executed
+## Phases should be queued in order: Initial -> Double (if any) -> Counter (if any)
+func queue_phase(phase: CombatPhase) -> void:
+	_combat_phases.append(phase)
+
+
+## Execute all queued phases WITHOUT fading between them
+## This is the core of the SF2-authentic experience
+func execute_all_phases() -> void:
+	for i in range(_combat_phases.size()):
+		_current_phase_index = i
+		var phase: CombatPhase = _combat_phases[i]
+
+		# Check if we should skip this phase due to death
+		if _should_skip_phase(phase):
+			continue
+
+		# Handle role swap for counter attacks
+		if phase.phase_type == CombatPhase.PhaseType.COUNTER_ATTACK:
+			await _swap_combatant_roles()
+
+		# Show appropriate banner
+		if phase.is_double_attack:
+			await show_custom_banner("DOUBLE ATTACK!", Color(0.2, 0.8, 1.0))
+		elif phase.is_counter:
+			await show_custom_banner("COUNTER!", Color(1.0, 0.6, 0.0))
+
+		# Execute the phase animation
+		await _execute_phase(phase)
+
+		# Brief pause between phases (unless this is the last one)
+		if i < _combat_phases.size() - 1 and not _should_skip_remaining_phases():
+			await get_tree().create_timer(_get_pause(BASE_PHASE_TRANSITION_PAUSE)).timeout
+
+
+## Finish the combat session - displays XP and fades out ONCE
+func finish_session() -> void:
+	# Display XP gained before fade-out (SF-authentic)
+	if not _xp_entries.is_empty():
+		await _display_xp_entries()
+
+	# Pause to let player see final result
+	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
+
+	# Fade out everything
+	var tween: Tween = create_tween()
+	tween.tween_property(background, "modulate:a", 0.0, _get_duration(BASE_FADE_OUT_DURATION))
+	await tween.finished
+
+	# Hide the entire CanvasLayer
+	visible = false
+	_session_active = false
+
+	# Signal completion
+	animation_complete.emit()
+
+
+## Check if a phase should be skipped due to prior death
+func _should_skip_phase(phase: CombatPhase) -> bool:
+	# If the attacker for this phase is dead, skip it
+	if phase.attacker == _initial_attacker and _initial_attacker_died:
+		return true
+	if phase.attacker == _initial_defender and _initial_defender_died:
+		return true
+
+	# If the defender for this phase is dead, skip it (can't attack a dead unit)
+	if phase.defender == _initial_attacker and _initial_attacker_died:
+		return true
+	if phase.defender == _initial_defender and _initial_defender_died:
+		return true
+
+	return false
+
+
+## Check if all remaining phases should be skipped
+func _should_skip_remaining_phases() -> bool:
+	# If both combatants are dead, skip everything
+	return _initial_attacker_died and _initial_defender_died
+
+
+## Swap the visual positions of combatants for counter attacks
+## The original defender is now attacking, so they move to the attacker position
+func _swap_combatant_roles() -> void:
+	# Animate the swap with a brief transition
+	var swap_duration: float = _get_duration(0.3)
+
+	# Store current positions
+	var attacker_start: Vector2 = attacker_container.position
+	var defender_start: Vector2 = defender_container.position
+
+	# Cross-fade sprites by fading out current and rebuilding
+	var fade_tween: Tween = create_tween()
+	fade_tween.set_parallel(true)
+	fade_tween.tween_property(attacker_sprite, "modulate:a", 0.0, swap_duration * 0.5)
+	fade_tween.tween_property(defender_sprite, "modulate:a", 0.0, swap_duration * 0.5)
+	await fade_tween.finished
+
+	# Clear old sprites
+	if attacker_sprite and is_instance_valid(attacker_sprite):
+		attacker_sprite.queue_free()
+		attacker_sprite = null
+	if defender_sprite and is_instance_valid(defender_sprite):
+		defender_sprite.queue_free()
+		defender_sprite = null
+
+	# Swap the tracked units
+	var temp: Node2D = _current_attacker
+	_current_attacker = _current_defender
+	_current_defender = temp
+
+	# Rebuild with swapped roles (new attacker on RIGHT, new defender on LEFT)
+	await _setup_combatant(_current_attacker, attacker_container, attacker_name, attacker_hp_bar, true)
+	await _setup_combatant(_current_defender, defender_container, defender_name, defender_hp_bar, false)
+
+	# Fade in new sprites
+	attacker_sprite.modulate.a = 0.0
+	defender_sprite.modulate.a = 0.0
+
+	var reveal_tween: Tween = create_tween()
+	reveal_tween.set_parallel(true)
+	reveal_tween.tween_property(attacker_sprite, "modulate:a", 1.0, swap_duration * 0.5)
+	reveal_tween.tween_property(defender_sprite, "modulate:a", 1.0, swap_duration * 0.5)
+	await reveal_tween.finished
+
+
+## Execute a single combat phase
+func _execute_phase(phase: CombatPhase) -> void:
+	# Play appropriate animation based on hit/miss/critical
+	if phase.was_miss:
+		await _play_miss_animation()
+	elif phase.was_critical:
+		await _play_critical_animation(phase.damage, phase.defender)
+	else:
+		await _play_hit_animation(phase.damage, phase.defender)
+
+	# Check for death after this phase
+	if phase.defender == _initial_attacker:
+		_initial_attacker_died = _initial_attacker.is_dead() if _initial_attacker.has_method("is_dead") else _initial_attacker.stats.current_hp <= 0
+		if _initial_attacker_died:
+			await _play_death_animation()
+	elif phase.defender == _initial_defender:
+		_initial_defender_died = _initial_defender.is_dead() if _initial_defender.has_method("is_dead") else _initial_defender.stats.current_hp <= 0
+		if _initial_defender_died:
+			await _play_death_animation()
+
+
+# =============================================================================
+# LEGACY API (For backwards compatibility during transition)
+# =============================================================================
+
+## Legacy entry point: play combat animation sequence
+## This wraps the new session-based API for backwards compatibility
 func play_combat_animation(
 	attacker: Node2D,
 	defender: Node2D,
@@ -110,58 +299,24 @@ func play_combat_animation(
 	was_miss: bool,
 	is_counter: bool = false
 ) -> void:
-	# Store unit references for damage application at impact
-	_attacker_unit = attacker
-	_defender_unit = defender
-	_pending_damage = damage
-	_was_miss = was_miss
-	_defender_died = false
-	_xp_entries.clear()
+	# Create a single-phase session for backwards compatibility
+	await start_session(attacker, defender)
 
-	# Set up combatants
-	await _setup_combatant(attacker, attacker_container, attacker_name, attacker_hp_bar, true)
-	await _setup_combatant(defender, defender_container, defender_name, defender_hp_bar, false)
-
-	# Fade in background and contents
-	var tween: Tween = create_tween()
-	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
-	await tween.finished
-
-	# Show "COUNTER!" banner if this is a counterattack
+	# Create and queue the single phase
+	var phase: CombatPhase
 	if is_counter:
-		await _show_counter_banner()
-
-	# Play appropriate animation sequence
-	# NOTE: Damage is applied at IMPACT within these functions (SF-authentic)
-	if was_miss:
-		await _play_miss_animation()
-	elif was_critical:
-		await _play_critical_animation(damage)
+		phase = CombatPhase.create_counter_attack(attacker, defender, damage, was_critical, was_miss)
 	else:
-		await _play_hit_animation(damage)
+		phase = CombatPhase.create_initial_attack(attacker, defender, damage, was_critical, was_miss)
 
-	# If defender died, play death animation IN the battle screen (GAP 2)
-	if _defender_died:
-		await _play_death_animation()
+	queue_phase(phase)
+	await execute_all_phases()
+	await finish_session()
 
-	# Display XP gained before fade-out (GAP 3 - SF-authentic)
-	if not _xp_entries.is_empty():
-		await _display_xp_entries()
 
-	# Pause to let player see final result
-	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
-
-	# Fade out everything by hiding the entire layer
-	tween = create_tween()
-	tween.tween_property(background, "modulate:a", 0.0, _get_duration(BASE_FADE_OUT_DURATION))
-	await tween.finished
-
-	# Hide the entire CanvasLayer to ensure nothing remains visible
-	visible = false
-
-	# Signal completion
-	animation_complete.emit()
-
+# =============================================================================
+# COMBATANT SETUP
+# =============================================================================
 
 ## Set up a combatant's visual representation
 func _setup_combatant(
@@ -177,6 +332,10 @@ func _setup_combatant(
 	# Set HP bar
 	hp_bar.max_value = unit.stats.max_hp
 	hp_bar.value = unit.stats.current_hp
+
+	# Reset modulate in case it was faded
+	name_label.modulate.a = 1.0
+	hp_bar.modulate.a = 1.0
 
 	# Create sprite (real or placeholder)
 	var sprite: Control = null
@@ -199,9 +358,8 @@ func _setup_combatant(
 ## Create placeholder portrait using colored panel and character initial
 func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	var panel: PanelContainer = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(180, 180)  # Larger for full-screen view
+	panel.custom_minimum_size = Vector2(180, 180)
 
-	# Create styled panel based on character class
 	var style_box: StyleBoxFlat = StyleBoxFlat.new()
 	style_box.bg_color = _get_class_color(unit)
 	style_box.border_width_left = 4
@@ -217,27 +375,24 @@ func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	style_box.shadow_size = 4
 	panel.add_theme_stylebox_override("panel", style_box)
 
-	# Container for content
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(vbox)
 
-	# Character initial (large letter)
 	var initial: Label = Label.new()
 	initial.text = unit.character_data.character_name.substr(0, 1).to_upper()
 	initial.add_theme_font_override("font", monogram_font)
-	initial.add_theme_font_size_override("font_size", 96)  # Even larger for prominence
+	initial.add_theme_font_size_override("font_size", 96)
 	initial.add_theme_color_override("font_color", Color.WHITE)
 	initial.add_theme_color_override("font_outline_color", Color.BLACK)
 	initial.add_theme_constant_override("outline_size", 4)
 	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(initial)
 
-	# Simple ASCII face
 	var face: Label = Label.new()
-	face.text = "• — •\n  ◡"
+	face.text = ".-."
 	face.add_theme_font_override("font", monogram_font)
-	face.add_theme_font_size_override("font_size", 24)  # Larger face too
+	face.add_theme_font_size_override("font_size", 24)
 	face.add_theme_color_override("font_color", Color.WHITE)
 	face.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(face)
@@ -249,7 +404,6 @@ func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	var anim_data: CombatAnimationData = unit.character_data.combat_animation_data
 
-	# Use AnimatedSprite2D if sprite frames provided, otherwise static Sprite2D
 	var sprite_node: Node = null
 	if anim_data.battle_sprite_frames:
 		var animated: AnimatedSprite2D = AnimatedSprite2D.new()
@@ -262,15 +416,13 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 		static_sprite.texture = anim_data.battle_sprite
 		sprite_node = static_sprite
 
-	# Apply scale and offset
 	sprite_node.scale = Vector2.ONE * anim_data.sprite_scale
 	sprite_node.position = anim_data.sprite_offset
 
-	# Flip attacker to face left
+	# Flip attacker to face left (toward defender)
 	if is_attacker:
 		sprite_node.flip_h = true
 
-	# Wrap in control for consistent API
 	var container: Control = Control.new()
 	container.custom_minimum_size = Vector2(120, 120)
 	container.add_child(sprite_node)
@@ -282,58 +434,55 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 func _get_class_color(unit: Node2D) -> Color:
 	var char_class_name: String = unit.character_data.character_class.display_name.to_lower() if unit.character_data.character_class else "unknown"
 
-	# Color coding by class archetype
 	if "warrior" in char_class_name or "knight" in char_class_name or "fighter" in char_class_name:
-		return Color(0.8, 0.2, 0.2)  # Red - Warriors
+		return Color(0.8, 0.2, 0.2)
 	elif "mage" in char_class_name or "wizard" in char_class_name or "sorcerer" in char_class_name:
-		return Color(0.2, 0.2, 0.8)  # Blue - Mages
+		return Color(0.2, 0.2, 0.8)
 	elif "healer" in char_class_name or "priest" in char_class_name or "cleric" in char_class_name:
-		return Color(0.2, 0.8, 0.2)  # Green - Healers
+		return Color(0.2, 0.8, 0.2)
 	elif "archer" in char_class_name or "ranger" in char_class_name or "bow" in char_class_name:
-		return Color(0.6, 0.4, 0.2)  # Brown - Archers
+		return Color(0.6, 0.4, 0.2)
 	elif "thief" in char_class_name or "rogue" in char_class_name or "ninja" in char_class_name:
-		return Color(0.5, 0.3, 0.7)  # Purple - Thieves
+		return Color(0.5, 0.3, 0.7)
 	else:
-		return Color(0.5, 0.5, 0.5)  # Gray - Default/Unknown
+		return Color(0.5, 0.5, 0.5)
 
+
+# =============================================================================
+# ATTACK ANIMATIONS
+# =============================================================================
 
 ## Play standard hit animation
-## SF-AUTHENTIC: Damage is applied at the IMPACT moment, HP bar shows real result
-func _play_hit_animation(damage: int) -> void:
+func _play_hit_animation(damage: int, target: Node2D) -> void:
 	combat_log.text = "Hit!"
+	combat_log.add_theme_color_override("font_color", Color.WHITE)
 
 	var attacker_start_pos: Vector2 = attacker_sprite.position
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 
-	# Attacker slides forward
 	var tween: Tween = create_tween()
 	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
 	await tween.finished
 
-	# Pause at impact moment
 	await get_tree().create_timer(_get_pause(BASE_IMPACT_PAUSE_DURATION)).timeout
 
-	# === IMPACT MOMENT: Apply damage NOW (SF-authentic) ===
-	_apply_damage_at_impact(damage)
+	# Apply damage at impact
+	_apply_damage_at_impact(damage, target)
 
-	# Flash defender red and show damage
 	_flash_sprite(defender_sprite, Color.RED, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, false)
 
-	# Update defender HP bar to show ACTUAL new HP (after damage applied)
-	var new_hp: int = _defender_unit.stats.current_hp
+	# Update defender HP bar
 	var hp_tween: Tween = create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", new_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
+	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
-	# Attacker returns to position
 	tween = create_tween()
 	tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
 
-## Play critical hit animation (more dramatic)
-## SF-AUTHENTIC: Damage is applied at the IMPACT moment, HP bar shows real result
-func _play_critical_animation(damage: int) -> void:
+## Play critical hit animation
+func _play_critical_animation(damage: int, target: Node2D) -> void:
 	combat_log.text = "Critical Hit!"
 	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.YELLOW)
@@ -341,29 +490,23 @@ func _play_critical_animation(damage: int) -> void:
 	var attacker_start_pos: Vector2 = attacker_sprite.position
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 
-	# Attacker slides forward (still dramatic but not too fast)
 	var tween: Tween = create_tween()
 	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE * 1.5, move_duration)
 	await tween.finished
 
-	# Screen shake effect (respects GameJuice intensity setting)
 	_screen_shake()
 
-	# === IMPACT MOMENT: Apply damage NOW (SF-authentic) ===
-	_apply_damage_at_impact(damage)
+	# Apply damage at impact
+	_apply_damage_at_impact(damage, target)
 
-	# Flash defender yellow and show critical damage
 	_flash_sprite(defender_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, true)
 
-	# Update defender HP bar to show ACTUAL new HP (after damage applied)
-	var new_hp: int = _defender_unit.stats.current_hp
 	var hp_tween: Tween = create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", new_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
+	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 
 	await get_tree().create_timer(_get_pause(BASE_CRIT_PAUSE_DURATION)).timeout
 
-	# Attacker returns to position
 	tween = create_tween()
 	tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
@@ -380,17 +523,14 @@ func _play_miss_animation() -> void:
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 
-	# Attacker slides forward
 	var attack_tween: Tween = create_tween()
 	attack_tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
 
-	# Defender dodges (slight movement)
 	var dodge_tween: Tween = create_tween()
 	dodge_tween.tween_property(defender_sprite, "position:x", defender_start_pos.x + 30, move_duration)
 
 	await attack_tween.finished
 
-	# Show "MISS" text
 	damage_label.text = "MISS"
 	damage_label.add_theme_font_override("font", monogram_font)
 	damage_label.add_theme_color_override("font_color", Color.GRAY)
@@ -402,7 +542,6 @@ func _play_miss_animation() -> void:
 	fade_tween.tween_property(damage_label, "position:y", damage_label.position.y - DAMAGE_FLOAT_DISTANCE, float_duration)
 	fade_tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
 
-	# Both return to start positions
 	var return_tween: Tween = create_tween()
 	return_tween.set_parallel(true)
 	return_tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
@@ -420,12 +559,10 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	damage_label.add_theme_constant_override("outline_size", 3)
 
-	# Reset position and visibility
 	var start_y: float = damage_label.position.y
 	damage_label.visible = true
 	damage_label.modulate.a = 1.0
 
-	# Animate upward and fade out
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 	var tween: Tween = create_tween()
 	tween.set_parallel(true)
@@ -436,23 +573,18 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 ## Flash a sprite with a color
 func _flash_sprite(sprite: Control, flash_color: Color, duration: float) -> void:
 	var original_modulate: Color = sprite.modulate
-
-	# Flash to color
 	sprite.modulate = flash_color
-
-	# Return to original
 	await get_tree().create_timer(duration).timeout
 	sprite.modulate = original_modulate
 
 
-## Screen shake effect (using CanvasLayer offset)
+## Screen shake effect
 func _screen_shake() -> void:
 	var original_offset: Vector2 = offset
 	var shake_count: int = 6
 	var shake_delay: float = 0.05
 
 	for i in shake_count:
-		# Random offset
 		var shake_amount: Vector2 = Vector2(
 			randf_range(-SCREEN_SHAKE_AMOUNT, SCREEN_SHAKE_AMOUNT),
 			randf_range(-SCREEN_SHAKE_AMOUNT, SCREEN_SHAKE_AMOUNT)
@@ -460,19 +592,11 @@ func _screen_shake() -> void:
 		offset = original_offset + shake_amount
 		await get_tree().create_timer(shake_delay).timeout
 
-	# Return to original offset
 	offset = original_offset
 
 
-## Show "COUNTER!" banner before counterattack animation
-func _show_counter_banner() -> void:
-	await show_custom_banner("COUNTER!", Color(1.0, 0.6, 0.0))  # Orange
-
-
-## Show a custom banner (used for COUNTER!, DOUBLE ATTACK!, etc.)
-## This is a public method that can be called by BattleManager
+## Show a custom banner (COUNTER!, DOUBLE ATTACK!, etc.)
 func show_custom_banner(text: String, color: Color) -> void:
-	# Create banner label
 	var banner_label: Label = Label.new()
 	banner_label.text = text
 	banner_label.add_theme_font_override("font", monogram_font)
@@ -482,14 +606,11 @@ func show_custom_banner(text: String, color: Color) -> void:
 	banner_label.add_theme_constant_override("outline_size", 4)
 	banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-
-	# Position at center of screen
 	banner_label.set_anchors_preset(Control.PRESET_CENTER)
 	banner_label.pivot_offset = banner_label.size / 2
 
 	add_child(banner_label)
 
-	# Animate: scale up from small, hold, then fade out
 	banner_label.scale = Vector2(0.3, 0.3)
 	banner_label.modulate.a = 0.0
 
@@ -499,10 +620,8 @@ func show_custom_banner(text: String, color: Color) -> void:
 	tween.tween_property(banner_label, "modulate:a", 1.0, _get_duration(0.15))
 	await tween.finished
 
-	# Hold for a moment
 	await get_tree().create_timer(_get_pause(0.4)).timeout
 
-	# Fade out
 	tween = create_tween()
 	tween.tween_property(banner_label, "modulate:a", 0.0, _get_duration(0.2))
 	await tween.finished
@@ -511,44 +630,34 @@ func show_custom_banner(text: String, color: Color) -> void:
 
 
 # =============================================================================
-# SF-AUTHENTIC: DAMAGE APPLICATION AT IMPACT (GAP 1)
+# DAMAGE APPLICATION
 # =============================================================================
 
-## Apply damage to defender at the impact moment (SF-authentic behavior)
-## This is called during the hit/critical animation, NOT after the screen closes.
-## The Unit.take_damage() call will emit the died signal if HP reaches 0.
-func _apply_damage_at_impact(damage: int) -> void:
-	if _defender_unit == null or not is_instance_valid(_defender_unit):
-		push_warning("CombatAnimationScene: Cannot apply damage - defender is null or invalid")
+## Apply damage to target at the impact moment
+func _apply_damage_at_impact(damage: int, target: Node2D) -> void:
+	if target == null or not is_instance_valid(target):
+		push_warning("CombatAnimationScene: Cannot apply damage - target is null or invalid")
 		return
 
 	if damage <= 0:
 		return
 
-	# Apply damage through the Unit's method (handles death signal internally)
-	# IMPORTANT: We suppress the died signal emission here because we handle
-	# death visually within this screen, then let BattleManager know via our signal
-	if _defender_unit.has_method("take_damage"):
-		_defender_unit.take_damage(damage)
+	if target.has_method("take_damage"):
+		target.take_damage(damage)
 	else:
-		# Fallback: apply damage directly to stats
-		_defender_unit.stats.current_hp -= damage
-		_defender_unit.stats.current_hp = maxi(0, _defender_unit.stats.current_hp)
+		target.stats.current_hp -= damage
+		target.stats.current_hp = maxi(0, target.stats.current_hp)
 
-	# Check if defender died
-	_defender_died = _defender_unit.is_dead() if _defender_unit.has_method("is_dead") else _defender_unit.stats.current_hp <= 0
+	var target_died: bool = target.is_dead() if target.has_method("is_dead") else target.stats.current_hp <= 0
 
-	# Emit signal so BattleManager knows damage was applied (for tracking/skip mode)
-	damage_applied.emit(_defender_unit, damage, _defender_died)
+	damage_applied.emit(target, damage, target_died)
 
 
 # =============================================================================
-# SF-AUTHENTIC: DEATH ANIMATION IN BATTLE SCREEN (GAP 2)
+# DEATH ANIMATION
 # =============================================================================
 
-## Play death animation for defender within the battle screen (SF-authentic)
-## In Shining Force, you see the unit collapse/fade IN the battle screen,
-## not after returning to the tactical map.
+## Play death animation for defender
 func _play_death_animation() -> void:
 	if defender_sprite == null:
 		return
@@ -557,31 +666,24 @@ func _play_death_animation() -> void:
 	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.RED)
 
-	# Brief pause before death animation starts
 	await get_tree().create_timer(_get_pause(0.2)).timeout
 
-	# Death animation: fade out and sink down (SF-style collapse)
 	var death_tween: Tween = create_tween()
 	death_tween.set_parallel(true)
 	death_tween.tween_property(defender_sprite, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
 	death_tween.tween_property(defender_sprite, "position:y", defender_sprite.position.y + 30, _get_duration(BASE_DEATH_ANIMATION_DURATION))
-
-	# Also fade the HP bar and name to 0
 	death_tween.tween_property(defender_hp_bar, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
 	death_tween.tween_property(defender_name, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
 
 	await death_tween.finished
-
-	# Dramatic pause to let death sink in
 	await get_tree().create_timer(_get_pause(BASE_DEATH_PAUSE_DURATION)).timeout
 
 
 # =============================================================================
-# SF-AUTHENTIC: XP DISPLAY IN BATTLE SCREEN (GAP 3)
+# XP DISPLAY
 # =============================================================================
 
 ## Queue an XP entry to be displayed before fade-out
-## Called by BattleManager when it receives unit_gained_xp signals
 func queue_xp_entry(unit_name: String, amount: int, source: String) -> void:
 	_xp_entries.append({
 		"name": unit_name,
@@ -590,55 +692,42 @@ func queue_xp_entry(unit_name: String, amount: int, source: String) -> void:
 	})
 
 
-## Display all queued XP entries before the battle screen fades out
-## SF-authentic: XP is shown IN the battle screen in a blue panel at the bottom
+## Display all queued XP entries (SF-authentic blue panel)
 func _display_xp_entries() -> void:
 	if _xp_entries.is_empty():
 		return
 
-	# Create SF-authentic XP panel at bottom of screen
 	var xp_panel: PanelContainer = _create_xp_panel()
 	add_child(xp_panel)
 
-	# Get the RichTextLabel inside the panel for text display
 	var xp_label: RichTextLabel = xp_panel.get_node("MarginContainer/XPLabel")
 
-	# SF-authentic: Display each entry one line at a time, scrolling if needed
-	var displayed_entries: Array[Dictionary] = []  # Track entries with their source for coloring
-	var max_visible_lines: int = 3  # SF typically shows 2-3 lines at once
+	var displayed_entries: Array[Dictionary] = []
+	var max_visible_lines: int = 3
 
 	for entry: Dictionary in _xp_entries:
 		displayed_entries.append(entry)
 
-		# Keep only the most recent entries visible (scroll effect)
 		if displayed_entries.size() > max_visible_lines:
 			displayed_entries.pop_front()
 
-		# Build BBCode text with color-coded lines
 		var bbcode_lines: Array[String] = []
 		for e: Dictionary in displayed_entries:
 			var line: String = "%s gained %d XP" % [e.name, e.amount]
 			if e.source == "kill":
-				# Bright yellow for kills - more exciting!
 				line = "[color=#FFFF66]%s![/color]" % line
 			else:
-				# Warm gold for regular XP
 				line = "[color=#FFF2B3]%s[/color]" % line
 			bbcode_lines.append(line)
 
-		# Update label text with visible lines
 		xp_label.text = "\n".join(bbcode_lines)
 
-		# Play XP gain sound (dedicated sound for feedback)
 		AudioManager.play_sfx("xp_gain", AudioManager.SFXCategory.UI)
 
-		# Wait between entries (SF-authentic pacing)
 		await get_tree().create_timer(_get_pause(BASE_XP_ENTRY_STAGGER * 2.0)).timeout
 
-	# Hold XP display for a moment before continuing
 	await get_tree().create_timer(_get_pause(BASE_XP_DISPLAY_DURATION)).timeout
 
-	# Fade out XP panel
 	var fade_tween: Tween = create_tween()
 	fade_tween.tween_property(xp_panel, "modulate:a", 0.0, _get_duration(0.3))
 	await fade_tween.finished
@@ -647,39 +736,35 @@ func _display_xp_entries() -> void:
 	_xp_entries.clear()
 
 
-## Create SF-authentic XP panel (blue panel at bottom of screen)
+## Create SF-authentic XP panel
 func _create_xp_panel() -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 
-	# Calculate dynamic height based on number of entries (max 3 visible)
 	var visible_entries: int = mini(_xp_entries.size(), 3)
-	var line_height: int = 24  # Approximate height per line with font size 20
-	var padding: int = 24  # Top + bottom padding
-	var panel_height: int = (visible_entries * line_height) + padding + 16  # Extra for margins
+	var line_height: int = 24
+	var padding: int = 24
+	var panel_height: int = (visible_entries * line_height) + padding + 16
 
-	# Position at bottom center of screen with dynamic height
 	panel.anchor_left = 0.1
 	panel.anchor_right = 0.9
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
-	panel.offset_top = -panel_height - 10  # Dynamic height + margin
-	panel.offset_bottom = -10  # Small margin from bottom
+	panel.offset_top = -panel_height - 10
+	panel.offset_bottom = -10
 
-	# SF-authentic blue panel style
 	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.1, 0.25, 0.95)  # Dark blue background
+	style.bg_color = Color(0.05, 0.1, 0.25, 0.95)
 	style.border_width_left = 3
 	style.border_width_right = 3
 	style.border_width_top = 3
 	style.border_width_bottom = 3
-	style.border_color = Color(0.4, 0.5, 0.8, 1.0)  # Light blue border
+	style.border_color = Color(0.4, 0.5, 0.8, 1.0)
 	style.corner_radius_top_left = 4
 	style.corner_radius_top_right = 4
 	style.corner_radius_bottom_left = 4
 	style.corner_radius_bottom_right = 4
 	panel.add_theme_stylebox_override("panel", style)
 
-	# Add margin container for padding
 	var margin: MarginContainer = MarginContainer.new()
 	margin.name = "MarginContainer"
 	margin.add_theme_constant_override("margin_left", 16)
@@ -688,7 +773,6 @@ func _create_xp_panel() -> PanelContainer:
 	margin.add_theme_constant_override("margin_bottom", 8)
 	panel.add_child(margin)
 
-	# Add RichTextLabel for XP text (supports BBCode for colored lines)
 	var label: RichTextLabel = RichTextLabel.new()
 	label.name = "XPLabel"
 	label.bbcode_enabled = true
@@ -696,13 +780,12 @@ func _create_xp_panel() -> PanelContainer:
 	label.scroll_active = false
 	label.add_theme_font_override("normal_font", monogram_font)
 	label.add_theme_font_size_override("normal_font_size", 20)
-	label.add_theme_color_override("default_color", Color(1.0, 0.95, 0.7, 1.0))  # Warm gold default
+	label.add_theme_color_override("default_color", Color(1.0, 0.95, 0.7, 1.0))
 	margin.add_child(label)
 
-	# Fade in with subtle slide-up animation (Clauderina's suggestion)
 	panel.modulate.a = 0.0
 	var start_offset: float = panel.offset_top
-	panel.offset_top = start_offset + 10  # Start 10px lower
+	panel.offset_top = start_offset + 10
 
 	var fade_tween: Tween = create_tween()
 	fade_tween.set_parallel(true)
