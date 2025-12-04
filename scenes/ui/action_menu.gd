@@ -34,12 +34,26 @@ const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
 const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)  # Subtle hover highlight
 
+## Animation settings
+const MENU_SLIDE_DURATION: float = 0.15
+const MENU_SLIDE_OFFSET: float = 30.0  # Pixels to slide from
+const SELECTION_PULSE_SCALE: float = 1.1
+const SELECTION_PULSE_DURATION: float = 0.08
+
+## Animation state
+var _original_position: Vector2 = Vector2.ZERO
+var _slide_tween: Tween = null
+var _pulse_tween: Tween = null
+
 
 func _ready() -> void:
 	# Hide by default
 	visible = false
 	set_process_input(false)  # Disable input processing when hidden
 	set_process(false)  # Disable _process when hidden
+
+	# Store original position for animations
+	_original_position = position
 
 	# Build menu item array
 	menu_items = [
@@ -49,6 +63,12 @@ func _ready() -> void:
 		{"label": item_label, "action": "Item"},
 		{"label": stay_label, "action": "Stay"},
 	]
+
+	# Set pivot for scale animations on each label
+	for item: Dictionary in menu_items:
+		var label: Label = item["label"]
+		# Pivot on left-center for nice scale effect
+		label.pivot_offset = Vector2(0, label.size.y / 2.0)
 
 
 func _process(_delta: float) -> void:
@@ -89,6 +109,11 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 	_menu_session_id = session_id
 	_hover_index = -1  # Reset hover state
 
+	# Kill any existing slide animation
+	if _slide_tween:
+		_slide_tween.kill()
+		_slide_tween = null
+
 	# Update menu item visibility/colors
 	for item in menu_items:
 		var label: Label = item["label"]
@@ -98,6 +123,8 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 			label.modulate = COLOR_NORMAL
 		else:
 			label.modulate = COLOR_DISABLED
+		# Reset scale from any previous pulse
+		label.scale = Vector2.ONE
 
 	# Auto-select default action (context-aware)
 	if default_action != "" and default_action in available_actions:
@@ -112,18 +139,45 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 	# Update selection visual
 	_update_selection_visual()
 
-	# Show menu
+	# Animate slide-in from right
+	position = _original_position + Vector2(MENU_SLIDE_OFFSET, 0)
+	modulate.a = 0.0
 	visible = true
+
+	_slide_tween = create_tween()
+	_slide_tween.set_parallel(true)
+	_slide_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_slide_tween.tween_property(self, "position", _original_position, MENU_SLIDE_DURATION)
+	_slide_tween.tween_property(self, "modulate:a", 1.0, MENU_SLIDE_DURATION * 0.7)
+
 	set_process_input(true)  # Enable input processing when shown
 	set_process(true)  # Enable hover tracking
 
 
-## Hide menu
-func hide_menu() -> void:
+## Hide menu with optional slide-out animation
+func hide_menu(animate: bool = false) -> void:
 	set_process_input(false)  # Disable input processing FIRST
 	set_process(false)  # Disable hover tracking
-	visible = false
 	_hover_index = -1
+
+	# Kill any existing animations
+	if _slide_tween:
+		_slide_tween.kill()
+		_slide_tween = null
+	if _pulse_tween:
+		_pulse_tween.kill()
+		_pulse_tween = null
+
+	if animate and visible:
+		# Slide out to right
+		_slide_tween = create_tween()
+		_slide_tween.set_parallel(true)
+		_slide_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		_slide_tween.tween_property(self, "position", _original_position + Vector2(MENU_SLIDE_OFFSET, 0), MENU_SLIDE_DURATION * 0.7)
+		_slide_tween.tween_property(self, "modulate:a", 0.0, MENU_SLIDE_DURATION * 0.5)
+		_slide_tween.chain().tween_callback(func() -> void: visible = false)
+	else:
+		visible = false
 
 
 ## Reset menu to clean state (called when turn ends to prevent stale state)
@@ -224,6 +278,10 @@ func _input(event: InputEvent) -> void:
 func _move_selection(direction: int) -> void:
 	var start_index: int = selected_index
 
+	# Reset scale on previously selected item
+	if start_index >= 0 and start_index < menu_items.size():
+		menu_items[start_index]["label"].scale = Vector2.ONE
+
 	# Loop until we find an available action
 	for i in range(menu_items.size()):
 		selected_index = wrapi(selected_index + direction, 0, menu_items.size())
@@ -234,6 +292,7 @@ func _move_selection(direction: int) -> void:
 			if selected_index != start_index:
 				AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
 				_update_selection_visual()
+				_pulse_selected_item()
 			return
 
 		# Prevent infinite loop if no actions available
@@ -272,6 +331,24 @@ func _update_selection_visual() -> void:
 			# Disabled
 			label.modulate = COLOR_DISABLED
 			label.remove_theme_color_override("font_color")
+
+
+## Play a quick pulse animation on the selected item
+func _pulse_selected_item() -> void:
+	if selected_index < 0 or selected_index >= menu_items.size():
+		return
+
+	var label: Label = menu_items[selected_index]["label"]
+
+	# Kill existing pulse
+	if _pulse_tween:
+		_pulse_tween.kill()
+
+	# Quick scale pulse
+	_pulse_tween = create_tween()
+	_pulse_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_pulse_tween.tween_property(label, "scale", Vector2(SELECTION_PULSE_SCALE, SELECTION_PULSE_SCALE), SELECTION_PULSE_DURATION)
+	_pulse_tween.tween_property(label, "scale", Vector2.ONE, SELECTION_PULSE_DURATION * 1.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 ## Confirm current selection

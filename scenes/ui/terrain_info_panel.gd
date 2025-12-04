@@ -9,13 +9,24 @@ extends PanelContainer
 @onready var terrain_name_label: Label = %TerrainNameLabel
 @onready var terrain_effect_label: Label = %TerrainEffectLabel
 
+## Animation settings
+const SLIDE_OFFSET: float = 15.0
+const ANIMATION_DURATION: float = 0.2
+
 var _current_tween: Tween = null
+var _original_position: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
 	# Start hidden
 	visible = false
 	modulate.a = 0.0
+	# Store original position once ready
+	call_deferred("_store_original_position")
+
+
+func _store_original_position() -> void:
+	_original_position = position
 
 
 ## Display terrain information for the given cell.
@@ -32,11 +43,18 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 	terrain_name_label.text = terrain.display_name
 	terrain_effect_label.text = _format_terrain_effects(terrain)
 
-	# Force visible and animate in
+	# Setup for animation - slide down from above
 	visible = true
 	modulate.a = 0.0
+	position = _original_position - Vector2(0, SLIDE_OFFSET)
+
+	# Animate in with slide + fade
+	var duration: float = GameJuice.get_adjusted_duration(ANIMATION_DURATION)
 	_current_tween = create_tween()
-	_current_tween.tween_property(self, "modulate:a", 1.0, 0.2)
+	_current_tween.set_parallel(true)
+	_current_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_current_tween.tween_property(self, "modulate:a", 1.0, duration)
+	_current_tween.tween_property(self, "position", _original_position, duration)
 
 
 ## Hide the terrain panel with animation.
@@ -50,9 +68,16 @@ func hide_terrain_info() -> void:
 	if not visible:
 		return
 
+	var duration: float = GameJuice.get_adjusted_duration(ANIMATION_DURATION * 0.7)
 	_current_tween = create_tween()
-	_current_tween.tween_property(self, "modulate:a", 0.0, 0.2)
-	_current_tween.tween_callback(func() -> void: visible = false)
+	_current_tween.set_parallel(true)
+	_current_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_current_tween.tween_property(self, "modulate:a", 0.0, duration)
+	_current_tween.tween_property(self, "position:y", _original_position.y - SLIDE_OFFSET, duration)
+	_current_tween.chain().tween_callback(func() -> void:
+		visible = false
+		position = _original_position
+	)
 
 
 ## Format terrain effects into a readable string

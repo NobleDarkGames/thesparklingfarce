@@ -11,13 +11,24 @@ extends PanelContainer
 @onready var crit_label: Label = %CritLabel
 @onready var counter_label: Label = %CounterLabel
 
+## Animation settings
+const SLIDE_OFFSET: float = 20.0
+const ANIMATION_DURATION: float = 0.15
+
 var _current_tween: Tween = null
+var _original_position: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
 	# Start hidden
 	visible = false
 	modulate.a = 0.0
+	# Store original position once ready
+	call_deferred("_store_original_position")
+
+
+func _store_original_position() -> void:
+	_original_position = position
 
 
 ## Show combat forecast for attacker vs defender
@@ -80,11 +91,18 @@ func show_forecast(attacker: Node2D, defender: Node2D) -> void:
 		counter_label.text = "Counter: --"
 		counter_label.visible = true
 
-	# Show with fade-in
+	# Setup for animation - slide in from right
 	visible = true
 	modulate.a = 0.0
+	position = _original_position + Vector2(SLIDE_OFFSET, 0)
+
+	# Animate in with slide + fade
+	var duration: float = GameJuice.get_adjusted_duration(ANIMATION_DURATION)
 	_current_tween = create_tween()
-	_current_tween.tween_property(self, "modulate:a", 1.0, 0.15)
+	_current_tween.set_parallel(true)
+	_current_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_current_tween.tween_property(self, "modulate:a", 1.0, duration)
+	_current_tween.tween_property(self, "position", _original_position, duration)
 
 
 ## Calculate defender's counter chance for forecast display
@@ -120,6 +138,13 @@ func hide_forecast() -> void:
 	if not visible:
 		return
 
+	var duration: float = GameJuice.get_adjusted_duration(ANIMATION_DURATION * 0.7)
 	_current_tween = create_tween()
-	_current_tween.tween_property(self, "modulate:a", 0.0, 0.15)
-	_current_tween.tween_callback(func() -> void: visible = false)
+	_current_tween.set_parallel(true)
+	_current_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_current_tween.tween_property(self, "modulate:a", 0.0, duration)
+	_current_tween.tween_property(self, "position:x", _original_position.x + SLIDE_OFFSET, duration)
+	_current_tween.chain().tween_callback(func() -> void:
+		visible = false
+		position = _original_position
+	)
