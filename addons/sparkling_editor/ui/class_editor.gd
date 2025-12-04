@@ -22,6 +22,10 @@ var luk_growth_slider: HSlider
 var weapon_types_container: VBoxContainer
 var armor_types_container: VBoxContainer
 
+# Learnable abilities UI
+var learnable_abilities_container: VBoxContainer
+var add_ability_button: Button
+
 
 func _ready() -> void:
 	resource_directory = "res://data/classes/"
@@ -46,6 +50,9 @@ func _create_detail_form() -> void:
 
 	# Promotion section
 	_add_promotion_section()
+
+	# Learnable abilities section
+	_add_learnable_abilities_section()
 
 	# Add the button container at the end
 	detail_panel.add_child(button_container)
@@ -95,6 +102,9 @@ func _load_resource_data() -> void:
 			var type_name: String = child.get_meta("equipment_type")
 			child.button_pressed = type_name in class_data.equippable_armor_types
 
+	# Load learnable abilities
+	_load_learnable_abilities(class_data.learnable_abilities)
+
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
@@ -139,6 +149,9 @@ func _save_resource_data() -> void:
 			var type_name: String = child.get_meta("equipment_type")
 			new_armor_types.append(type_name)
 	class_data.equippable_armor_types = new_armor_types
+
+	# Update learnable abilities
+	class_data.learnable_abilities = _collect_learnable_abilities()
 
 
 ## Override: Validate resource before saving
@@ -416,3 +429,137 @@ func _create_growth_editor(label_text: String, parent: VBoxContainer) -> HSlider
 
 	parent.add_child(container)
 	return slider
+
+
+func _add_learnable_abilities_section() -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Learnable Abilities"
+	section_label.add_theme_font_size_override("font_size", 14)
+	section.add_child(section_label)
+
+	var help_label: Label = Label.new()
+	help_label.text = "Abilities this class learns at specific levels."
+	help_label.add_theme_font_size_override("font_size", 10)
+	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
+	section.add_child(help_label)
+
+	# Scrollable container for the ability list
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.custom_minimum_size.y = 120
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	learnable_abilities_container = VBoxContainer.new()
+	learnable_abilities_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(learnable_abilities_container)
+	section.add_child(scroll)
+
+	# Add Ability button
+	add_ability_button = Button.new()
+	add_ability_button.text = "Add Ability"
+	add_ability_button.pressed.connect(_on_add_learnable_ability)
+	section.add_child(add_ability_button)
+
+	detail_panel.add_child(section)
+
+
+## Load learnable abilities from dictionary into UI
+func _load_learnable_abilities(abilities_dict: Dictionary) -> void:
+	# Clear existing rows
+	for child in learnable_abilities_container.get_children():
+		child.queue_free()
+
+	# Sort levels for consistent display order
+	var levels: Array = abilities_dict.keys()
+	levels.sort()
+
+	for level: int in levels:
+		var ability: Resource = abilities_dict[level]
+		_add_ability_row(level, ability)
+
+
+## Collect learnable abilities from UI into dictionary
+func _collect_learnable_abilities() -> Dictionary:
+	var result: Dictionary = {}
+
+	for child in learnable_abilities_container.get_children():
+		if child is HBoxContainer:
+			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
+			var picker: ResourcePicker = child.get_node_or_null("AbilityPicker")
+
+			if level_spin and picker:
+				var level: int = int(level_spin.value)
+				var ability: Resource = picker.get_selected_resource()
+
+				# Only add if ability is selected and level is not duplicate
+				if ability and level not in result:
+					result[level] = ability
+
+	return result
+
+
+## Add a single ability row to the UI
+func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	# Level label
+	var level_label: Label = Label.new()
+	level_label.text = "Level"
+	row.add_child(level_label)
+
+	# Level spinbox
+	var level_spin: SpinBox = SpinBox.new()
+	level_spin.name = "LevelSpin"
+	level_spin.min_value = 1
+	level_spin.max_value = 99
+	level_spin.value = level
+	level_spin.custom_minimum_size.x = 70
+	row.add_child(level_spin)
+
+	# "learns" label
+	var learns_label: Label = Label.new()
+	learns_label.text = "learns"
+	row.add_child(learns_label)
+
+	# Ability picker
+	var picker: ResourcePicker = ResourcePicker.new()
+	picker.name = "AbilityPicker"
+	picker.resource_type = "ability"
+	picker.allow_none = true
+	picker.none_text = "(Select Ability)"
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(picker)
+
+	# Remove button
+	var remove_btn: Button = Button.new()
+	remove_btn.text = "X"
+	remove_btn.tooltip_text = "Remove this ability"
+	remove_btn.custom_minimum_size.x = 30
+	remove_btn.pressed.connect(_on_remove_ability_row.bind(row))
+	row.add_child(remove_btn)
+
+	learnable_abilities_container.add_child(row)
+
+	# Select the ability after adding to tree (picker needs to be in tree to refresh)
+	if ability:
+		picker.call_deferred("select_resource", ability)
+
+
+## Called when "Add Ability" button is pressed
+func _on_add_learnable_ability() -> void:
+	# Find the next available level (highest current + 1, or 1 if empty)
+	var max_level: int = 0
+	for child in learnable_abilities_container.get_children():
+		if child is HBoxContainer:
+			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
+			if level_spin:
+				max_level = max(max_level, int(level_spin.value))
+
+	_add_ability_row(max_level + 1, null)
+
+
+## Called when a remove button is pressed
+func _on_remove_ability_row(row: HBoxContainer) -> void:
+	row.queue_free()
