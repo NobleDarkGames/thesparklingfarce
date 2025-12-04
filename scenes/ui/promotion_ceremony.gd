@@ -156,9 +156,9 @@ func _phase_anticipation() -> void:
 
 	tween.tween_property(arrow_label, "modulate:a", 1.0, duration)
 
-	# Pulse the sprite (anticipation)
-	tween.tween_property(character_sprite, "scale", Vector2(1.15, 1.15), 0.25)
-	tween.tween_property(character_sprite, "scale", Vector2.ONE, 0.2)
+	# Brightness pulse the sprite (anticipation) - pixel-perfect, no scaling
+	tween.tween_property(character_sprite, "modulate", Color(1.4, 1.4, 1.4, 1.0), 0.25)
+	tween.tween_property(character_sprite, "modulate", Color.WHITE, 0.2)
 
 	await tween.finished
 
@@ -193,11 +193,11 @@ func _phase_transformation() -> void:
 
 ## Phase 4: Revelation (1.5 - 2.5s)
 func _phase_revelation() -> void:
-	# Bounce emphasis on new class name
-	var bounce_tween: Tween = create_tween()
-	bounce_tween.tween_property(new_class_label, "scale", Vector2(1.3, 1.3), 0.1)
-	bounce_tween.tween_property(new_class_label, "scale", Vector2.ONE, 0.15)
-	await bounce_tween.finished
+	# Brightness flash emphasis on new class name (pixel-perfect, no scaling)
+	var flash_tween: Tween = create_tween()
+	flash_tween.tween_property(new_class_label, "modulate", Color(1.6, 1.6, 1.0, 1.0), 0.1)  # Golden flash
+	flash_tween.tween_property(new_class_label, "modulate", Color.WHITE, 0.15)
+	await flash_tween.finished
 
 	# Reveal stat bonuses if any
 	if not _stat_changes.is_empty():

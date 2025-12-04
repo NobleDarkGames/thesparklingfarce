@@ -37,8 +37,8 @@ const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)  # Subtle hover highligh
 ## Animation settings
 const MENU_SLIDE_DURATION: float = 0.15
 const MENU_SLIDE_OFFSET: float = 30.0  # Pixels to slide from
-const SELECTION_PULSE_SCALE: float = 1.1
 const SELECTION_PULSE_DURATION: float = 0.08
+const SELECTION_BRIGHTNESS_BOOST: Color = Color(1.3, 1.3, 1.0, 1.0)  # Bright flash
 
 ## Animation state
 var _slide_tween: Tween = null
@@ -59,12 +59,6 @@ func _ready() -> void:
 		{"label": item_label, "action": "Item"},
 		{"label": stay_label, "action": "Stay"},
 	]
-
-	# Set pivot for scale animations on each label
-	for item: Dictionary in menu_items:
-		var label: Label = item["label"]
-		# Pivot on left-center for nice scale effect
-		label.pivot_offset = Vector2(0, label.size.y / 2.0)
 
 
 func _process(_delta: float) -> void:
@@ -120,8 +114,6 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 			label.modulate = COLOR_NORMAL
 		else:
 			label.modulate = COLOR_DISABLED
-		# Reset scale from any previous pulse
-		label.scale = Vector2.ONE
 
 	# Auto-select default action (context-aware)
 	if default_action != "" and default_action in available_actions:
@@ -277,10 +269,6 @@ func _input(event: InputEvent) -> void:
 func _move_selection(direction: int) -> void:
 	var start_index: int = selected_index
 
-	# Reset scale on previously selected item
-	if start_index >= 0 and start_index < menu_items.size():
-		menu_items[start_index]["label"].scale = Vector2.ONE
-
 	# Loop until we find an available action
 	for i in range(menu_items.size()):
 		selected_index = wrapi(selected_index + direction, 0, menu_items.size())
@@ -332,7 +320,7 @@ func _update_selection_visual() -> void:
 			label.remove_theme_color_override("font_color")
 
 
-## Play a quick pulse animation on the selected item
+## Play a quick brightness pulse on the selected item (pixel-perfect, no scaling)
 func _pulse_selected_item() -> void:
 	if selected_index < 0 or selected_index >= menu_items.size():
 		return
@@ -343,11 +331,10 @@ func _pulse_selected_item() -> void:
 	if _pulse_tween:
 		_pulse_tween.kill()
 
-	# Quick scale pulse
+	# Quick brightness flash (pixel-perfect alternative to scale)
 	_pulse_tween = create_tween()
-	_pulse_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_pulse_tween.tween_property(label, "scale", Vector2(SELECTION_PULSE_SCALE, SELECTION_PULSE_SCALE), SELECTION_PULSE_DURATION)
-	_pulse_tween.tween_property(label, "scale", Vector2.ONE, SELECTION_PULSE_DURATION * 1.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_pulse_tween.tween_property(label, "modulate", SELECTION_BRIGHTNESS_BOOST, SELECTION_PULSE_DURATION)
+	_pulse_tween.tween_property(label, "modulate", COLOR_SELECTED, SELECTION_PULSE_DURATION * 1.5)
 
 
 ## Confirm current selection

@@ -13,9 +13,10 @@ extends Control
 const TITLE_FADE_DURATION: float = 0.6
 const BUTTON_STAGGER_DELAY: float = 0.1
 const BUTTON_SLIDE_DURATION: float = 0.3
-const BUTTON_HOVER_SCALE: float = 1.08
-const BUTTON_FOCUS_SCALE: float = 1.05
-const BUTTON_SCALE_DURATION: float = 0.1
+const BUTTON_EFFECT_DURATION: float = 0.1
+## Pixel-perfect brightness effects (no scaling)
+const BUTTON_HOVER_BRIGHTNESS: Color = Color(1.2, 1.2, 1.0, 1.0)
+const BUTTON_FOCUS_BRIGHTNESS: Color = Color(1.3, 1.3, 0.9, 1.0)  # Golden tint for focus
 
 ## Track original button positions for animations
 var _button_original_positions: Dictionary = {}
@@ -58,9 +59,6 @@ func _position_sparkle_particles() -> void:
 
 ## Setup hover and focus effects for a button
 func _setup_button_effects(button: Button) -> void:
-	# Store original scale
-	button.pivot_offset = button.size / 2.0
-
 	# Connect focus signals
 	button.focus_entered.connect(_on_button_focus_entered.bind(button))
 	button.focus_exited.connect(_on_button_focus_exited.bind(button))
@@ -70,31 +68,27 @@ func _setup_button_effects(button: Button) -> void:
 	button.mouse_exited.connect(_on_button_mouse_exited.bind(button))
 
 
-## Animate button scale on focus
+## Animate button brightness on focus (pixel-perfect, no scaling)
 func _on_button_focus_entered(button: Button) -> void:
 	var tween: Tween = create_tween()
-	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(button, "scale", Vector2(BUTTON_FOCUS_SCALE, BUTTON_FOCUS_SCALE), BUTTON_SCALE_DURATION)
+	tween.tween_property(button, "modulate", BUTTON_FOCUS_BRIGHTNESS, BUTTON_EFFECT_DURATION)
 
 
 func _on_button_focus_exited(button: Button) -> void:
 	var tween: Tween = create_tween()
-	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(button, "scale", Vector2.ONE, BUTTON_SCALE_DURATION)
+	tween.tween_property(button, "modulate", Color.WHITE, BUTTON_EFFECT_DURATION)
 
 
 func _on_button_mouse_entered(button: Button) -> void:
 	if not button.has_focus():
 		var tween: Tween = create_tween()
-		tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tween.tween_property(button, "scale", Vector2(BUTTON_HOVER_SCALE, BUTTON_HOVER_SCALE), BUTTON_SCALE_DURATION)
+		tween.tween_property(button, "modulate", BUTTON_HOVER_BRIGHTNESS, BUTTON_EFFECT_DURATION)
 
 
 func _on_button_mouse_exited(button: Button) -> void:
 	if not button.has_focus():
 		var tween: Tween = create_tween()
-		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(button, "scale", Vector2.ONE, BUTTON_SCALE_DURATION)
+		tween.tween_property(button, "modulate", Color.WHITE, BUTTON_EFFECT_DURATION)
 
 
 ## Play the entrance animation sequence
@@ -113,13 +107,12 @@ func _play_entrance_animation() -> void:
 	# Wait a beat after scene transition
 	await get_tree().create_timer(0.15).timeout
 
-	# Fade in title with slight scale punch
+	# Fade in title with brightness punch (pixel-perfect, no scaling)
 	var title_tween: Tween = create_tween()
-	title_label.pivot_offset = title_label.size / 2.0
-	title_label.scale = Vector2(0.9, 0.9)
+	title_label.modulate = Color(1.5, 1.5, 1.2, 0.0)  # Start bright but invisible
 	title_tween.set_parallel(true)
-	title_tween.tween_property(title_label, "modulate:a", 1.0, TITLE_FADE_DURATION)
-	title_tween.tween_property(title_label, "scale", Vector2.ONE, TITLE_FADE_DURATION).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	title_tween.tween_property(title_label, "modulate:a", 1.0, TITLE_FADE_DURATION * 0.5)
+	title_tween.tween_property(title_label, "modulate", Color.WHITE, TITLE_FADE_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 	# Wait a bit, then stagger in buttons
 	await get_tree().create_timer(0.2).timeout

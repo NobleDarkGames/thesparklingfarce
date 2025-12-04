@@ -13,7 +13,7 @@ const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
 ## Animation constants
 const FADE_IN_DURATION: float = 0.5
-const TITLE_SCALE_BOUNCE: float = 1.3
+const TITLE_FLASH_COLOR: Color = Color(1.6, 1.6, 0.8, 1.0)  # Golden brightness flash
 const GOLD_REVEAL_DELAY: float = 0.5
 
 ## UI References
@@ -49,7 +49,6 @@ func show_victory(gold_earned: int = 0) -> void:
 	# Set title
 	title_label.text = "VICTORY!"
 	title_label.add_theme_color_override("font_color", Color.GOLD)
-	title_label.pivot_offset = title_label.size / 2
 
 	# Set gold (hidden initially)
 	if gold_earned > 0:
@@ -84,9 +83,10 @@ func show_victory(gold_earned: int = 0) -> void:
 
 
 func _animate_title_bounce() -> void:
+	# Brightness flash (pixel-perfect, no scaling)
 	var tween: Tween = create_tween()
-	tween.tween_property(title_label, "scale", Vector2(TITLE_SCALE_BOUNCE, TITLE_SCALE_BOUNCE), 0.15)
-	tween.tween_property(title_label, "scale", Vector2.ONE, 0.2)
+	tween.tween_property(title_label, "modulate", TITLE_FLASH_COLOR, 0.15)
+	tween.tween_property(title_label, "modulate", Color.WHITE, 0.2)
 	await tween.finished
 
 

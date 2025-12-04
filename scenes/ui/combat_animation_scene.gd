@@ -596,6 +596,7 @@ func _screen_shake() -> void:
 
 
 ## Show a custom banner (COUNTER!, DOUBLE ATTACK!, etc.)
+## Uses slide-in + brightness flash (pixel-perfect, no scaling)
 func show_custom_banner(text: String, color: Color) -> void:
 	var banner_label: Label = Label.new()
 	banner_label.text = text
@@ -607,17 +608,22 @@ func show_custom_banner(text: String, color: Color) -> void:
 	banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner_label.set_anchors_preset(Control.PRESET_CENTER)
-	banner_label.pivot_offset = banner_label.size / 2
 
 	add_child(banner_label)
 
-	banner_label.scale = Vector2(0.3, 0.3)
-	banner_label.modulate.a = 0.0
+	# Start above screen, invisible, with bright flash color
+	var target_pos: Vector2 = banner_label.position
+	banner_label.position.y -= 40
+	banner_label.modulate = Color(1.5, 1.5, 1.5, 0.0)  # Bright but invisible
 
 	var tween: Tween = create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(banner_label, "scale", Vector2.ONE, _get_duration(0.2)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	# Slide down into position
+	tween.tween_property(banner_label, "position:y", target_pos.y, _get_duration(0.2)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	# Fade in
 	tween.tween_property(banner_label, "modulate:a", 1.0, _get_duration(0.15))
+	# Settle brightness to normal
+	tween.tween_property(banner_label, "modulate", Color(color.r, color.g, color.b, 1.0), _get_duration(0.25))
 	await tween.finished
 
 	await get_tree().create_timer(_get_pause(0.4)).timeout

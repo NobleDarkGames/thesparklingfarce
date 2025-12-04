@@ -14,7 +14,7 @@ const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 ## Animation constants
 const FADE_IN_DURATION: float = 0.3
 const STAT_REVEAL_DELAY: float = 0.12
-const LEVEL_POP_SCALE: float = 1.4
+const LEVEL_FLASH_COLOR: Color = Color(1.6, 1.6, 0.8, 1.0)  # Golden brightness flash
 
 ## UI References
 @onready var background: ColorRect = $Background
@@ -95,13 +95,13 @@ func _fade_in() -> void:
 func _animate_level_change(old_level: int, new_level: int) -> void:
 	await get_tree().create_timer(0.3).timeout
 
-	# Pop animation on level text
+	# Brightness flash animation on level text (pixel-perfect, no scaling)
 	var tween: Tween = create_tween()
-	tween.tween_property(level_label, "scale", Vector2(LEVEL_POP_SCALE, LEVEL_POP_SCALE), 0.1)
+	tween.tween_property(level_label, "modulate", LEVEL_FLASH_COLOR, 0.1)
 	tween.tween_callback(func() -> void:
 		level_label.text = "Lv %d -> %d" % [old_level, new_level]
 	)
-	tween.tween_property(level_label, "scale", Vector2.ONE, 0.15)
+	tween.tween_property(level_label, "modulate", Color.WHITE, 0.15)
 	await tween.finished
 
 
