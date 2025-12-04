@@ -167,11 +167,7 @@ func get_available_campaigns() -> Array[Resource]:
 
 ## Get hidden campaign patterns from all mods
 func _get_hidden_campaign_patterns() -> Array[String]:
-	var patterns: Array[String] = []
-	# Mods declare hidden_campaigns in mod.json
-	# ModLoader would need to expose this - for now return empty
-	# TODO: Add hidden_campaigns support to ModLoader
-	return patterns
+	return ModLoader.get_hidden_campaign_patterns()
 
 
 ## Check if a campaign matches any hidden pattern

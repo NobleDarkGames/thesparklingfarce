@@ -69,18 +69,38 @@ enum XPSource {
 # ============================================================================
 
 func _ready() -> void:
-	# Create default config if none exists
-	if config == null:
-		config = ExperienceConfig.new()
+	# Load config from mod registry, falling back to default if not found
+	_load_config_from_registry()
+
+
+## Load experience configuration from the mod registry.
+## Falls back to a default ExperienceConfig if no mod provides one.
+## This allows mods to customize XP curves, anti-spam settings, promotion levels, etc.
+func _load_config_from_registry() -> void:
+	if config != null:
+		return  # Config already set (e.g., by BattleData)
+
+	# Try to load from mod registry
+	if ModLoader and ModLoader.registry:
+		var loaded_config: Resource = ModLoader.registry.get_resource("experience_config", "default")
+		if loaded_config is ExperienceConfig:
+			config = loaded_config
+			return
+
+	# Fallback: create default config if no mod provides one
+	config = ExperienceConfig.new()
 
 
 ## Set the configuration for this battle.
 ## Called by BattleManager when battle starts.
+## If null is passed, reloads from registry (or uses default).
 func set_config(new_config: ExperienceConfig) -> void:
 	if new_config != null:
 		config = new_config
 	else:
-		config = ExperienceConfig.new()
+		# Reset to registry config (or default)
+		config = null
+		_load_config_from_registry()
 
 
 # ============================================================================

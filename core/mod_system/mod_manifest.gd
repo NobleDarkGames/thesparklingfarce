@@ -58,6 +58,12 @@ const MAX_PRIORITY: int = 9999
 ## editor_scene is relative to mod directory
 @export var editor_extensions: Dictionary = {}
 
+## Hidden campaigns - patterns for campaigns to hide from the selection UI
+## Total conversion mods use this to hide base game campaigns
+## Supports glob-style patterns: "base_game:*" hides all campaigns with that prefix
+## Exact IDs also work: "base_game:main_story" hides that specific campaign
+@export var hidden_campaigns: Array[String] = []
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -178,6 +184,11 @@ static func load_from_file(json_path: String) -> ModManifest:
 			var ext_data: Variant = data.editor_extensions[ext_id]
 			if ext_data is Dictionary:
 				manifest.editor_extensions[ext_id] = ext_data
+
+	# Parse hidden campaigns (for total conversion mods to hide base content)
+	if "hidden_campaigns" in data and data.hidden_campaigns is Array:
+		for pattern: Variant in data.hidden_campaigns:
+			manifest.hidden_campaigns.append(str(pattern))
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

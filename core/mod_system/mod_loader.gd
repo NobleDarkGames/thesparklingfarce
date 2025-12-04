@@ -27,7 +27,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"battles": "battle",
 	"campaigns": "campaign",
 	"maps": "map",  # MapMetadata resources for exploration maps
-	"terrain": "terrain"  # TerrainData resources for battle terrain effects
+	"terrain": "terrain",  # TerrainData resources for battle terrain effects
+	"experience_configs": "experience_config"  # ExperienceConfig resources for XP/leveling settings
 }
 
 # Resource types that support JSON loading (in addition to .tres)
@@ -750,3 +751,22 @@ func _find_default_party_members() -> Array[CharacterData]:
 			members.append(character)
 
 	return members
+
+
+# =============================================================================
+# Hidden Campaign Patterns (for Total Conversion Mods)
+# =============================================================================
+
+## Get all hidden campaign patterns from loaded mods
+## Returns patterns aggregated from all mods' hidden_campaigns arrays
+## Patterns support glob-style matching: "base_game:*" matches all campaigns with that prefix
+## Used by CampaignManager to filter campaigns from the selection UI
+func get_hidden_campaign_patterns() -> Array[String]:
+	var patterns: Array[String] = []
+
+	for manifest: ModManifest in loaded_mods:
+		for pattern: String in manifest.hidden_campaigns:
+			if pattern not in patterns:
+				patterns.append(pattern)
+
+	return patterns

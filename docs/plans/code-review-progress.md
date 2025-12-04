@@ -418,12 +418,14 @@ If this review is interrupted:
      - Updated all systems (InputManager, TurnManager, BattleManager, ExperienceManager, AIBrain) to use new API
    - Status: **COMPLETE** - CharacterData templates now remain immutable
 
-2. **ExperienceConfig Not Mod-Overridable** (MEDIUM)
+2. **ExperienceConfig Not Mod-Overridable** (MEDIUM) - ✅ RESOLVED
    - Location: `experience_manager.gd:74-75`
    - Issue: Config is loaded from hardcoded path, not from ModLoader registry
-   - Impact: Mods cannot override global XP curves or promotion defaults
-   - Proper Fix: Add ExperienceConfig to mod resource types, similar to BattleData
-   - Status: Deferred - affects mod system architecture
+   - **Fix Applied**: Stardate 2025-12-04 by Chief O'Brien
+     - Added `experience_configs` to ModLoader.RESOURCE_TYPE_DIRS
+     - Updated ExperienceManager to load config from registry with fallback
+     - Created `mods/_base_game/data/experience_configs/default.tres`
+   - Status: **COMPLETE** - Mods can now override XP curves, promotion levels, etc.
 
 3. **Cumulative Level Tracking Incomplete** (LOW) - ✅ RESOLVED
    - Location: `promotion_manager.gd:466-483`
@@ -1104,7 +1106,7 @@ unit.character_data.character_class = new_class  # MUTATES TEMPLATE!
 
 ---
 
-#### 2. ExperienceConfig Not Mod-Overridable (MEDIUM PRIORITY)
+#### 2. ExperienceConfig Not Mod-Overridable (MEDIUM PRIORITY) - ✅ RESOLVED
 
 **Location**: `experience_manager.gd:74-75`
 
@@ -1119,16 +1121,25 @@ var config: ExperienceConfig = ExperienceConfig.new()  # Always default
 - Default promotion level
 - Formation XP bonuses
 
-**Required Fix**:
-- Add `"experience_config": "data/experience_configs"` to `ModLoader.RESOURCE_TYPE_DIRS`
-- Load config via `ModLoader.registry.get_resource("experience_config", "default")`
-- Allow mods to provide `mods/<mod_id>/data/experience_configs/*.tres`
+**Fix Applied** (Stardate 2025-12-04 by Chief O'Brien):
 
-**Affected Files**: `mod_loader.gd`, `experience_manager.gd`
+1. **ModLoader** (`mod_loader.gd`):
+   - Added `"experience_configs": "experience_config"` to RESOURCE_TYPE_DIRS
+
+2. **ExperienceManager** (`experience_manager.gd`):
+   - Added `_load_config_from_registry()` method
+   - Loads config from registry with fallback to default ExperienceConfig.new()
+   - Updated `set_config()` to use registry-first approach
+
+3. **Base Game Config** (`mods/_base_game/data/experience_configs/default.tres`):
+   - Created default experience configuration resource
+   - Contains all standard Shining Force-style XP settings
+
+**Status**: ✅ COMPLETE - Mods can now override XP curves, promotion levels, formation bonuses, etc.
 
 ---
 
-#### 3. Hidden Campaigns ModLoader Support (MEDIUM PRIORITY)
+#### 3. Hidden Campaigns ModLoader Support (MEDIUM PRIORITY) - ✅ RESOLVED
 
 **Location**: `campaign_manager.gd:166-171`
 
@@ -1141,13 +1152,28 @@ func _get_hidden_campaign_patterns() -> Array[String]:
 
 **Impact**: Total conversion mods cannot hide base game campaigns from the selection UI. Players see both original and mod campaigns, causing confusion.
 
-**Required Fix**:
-- Add `hidden_campaigns: Array[String]` to `ModManifest`
-- Add parsing in `mod_manifest.gd`
-- Expose via `ModLoader.get_hidden_campaign_patterns()`
-- Filter campaigns in `CampaignManager.get_available_campaigns()`
+**Fix Applied** (Stardate 2025-12-04 by Chief O'Brien):
 
-**Affected Files**: `mod_manifest.gd`, `mod_loader.gd`, `campaign_manager.gd`
+1. **ModManifest** (`mod_manifest.gd`):
+   - Added `hidden_campaigns: Array[String]` field
+   - Added JSON parsing in `load_from_file()`
+
+2. **ModLoader** (`mod_loader.gd`):
+   - Added `get_hidden_campaign_patterns()` method
+   - Aggregates and deduplicates patterns from all loaded mods
+
+3. **CampaignManager** (`campaign_manager.gd`):
+   - Updated `_get_hidden_campaign_patterns()` to call `ModLoader.get_hidden_campaign_patterns()`
+
+**Example mod.json usage**:
+```json
+{
+  "id": "star_trek_tc",
+  "hidden_campaigns": ["base_game:*", "shining_force:main_story"]
+}
+```
+
+**Status**: ✅ COMPLETE - Total conversion mods can now hide base game campaigns
 
 ---
 
