@@ -41,6 +41,11 @@ var error_panel: PanelContainer
 var error_label: RichTextLabel
 var _pending_confirmation_action: Callable
 
+# Mod workflow buttons (shown when viewing cross-mod resources)
+var copy_to_mod_button: Button
+var create_override_button: Button
+var mod_workflow_container: HBoxContainer
+
 
 func _ready() -> void:
 	_setup_base_ui()
@@ -186,6 +191,28 @@ func _setup_base_ui() -> void:
 	delete_button.pressed.connect(_on_delete)
 	button_container.add_child(delete_button)
 
+	# Mod workflow buttons (shown when viewing resources from other mods)
+	mod_workflow_container = HBoxContainer.new()
+	mod_workflow_container.visible = false
+	mod_workflow_container.add_theme_constant_override("separation", 8)
+
+	var sep: VSeparator = VSeparator.new()
+	mod_workflow_container.add_child(sep)
+
+	copy_to_mod_button = Button.new()
+	copy_to_mod_button.text = "Copy to My Mod"
+	copy_to_mod_button.tooltip_text = "Create a copy in your active mod with a new unique ID"
+	copy_to_mod_button.pressed.connect(_on_copy_to_mod)
+	mod_workflow_container.add_child(copy_to_mod_button)
+
+	create_override_button = Button.new()
+	create_override_button.text = "Create Override"
+	create_override_button.tooltip_text = "Create an override in your active mod with the same ID (higher priority wins)"
+	create_override_button.pressed.connect(_on_create_override)
+	mod_workflow_container.add_child(create_override_button)
+
+	button_container.add_child(mod_workflow_container)
+
 	scroll.add_child(detail_panel)
 	hsplit.add_child(scroll)
 
@@ -311,6 +338,12 @@ func _on_resource_selected(index: int) -> void:
 	# Hide any previous errors when selecting a new resource
 	_hide_errors()
 
+	# Show/hide mod workflow buttons based on whether resource is from another mod
+	_update_mod_workflow_buttons()
+
+	# Check for namespace conflicts and show warning (informational)
+	_check_and_show_namespace_info(path)
+
 	_load_resource_data()
 
 
@@ -392,9 +425,11 @@ func _on_create_new() -> void:
 
 	# Determine save directory
 	var save_dir: String = ""
+	var active_mod_id: String = ""
 	if resource_type_id != "" and ModLoader:
 		var active_mod: ModManifest = ModLoader.get_active_mod()
 		if active_mod:
+			active_mod_id = active_mod.mod_id
 			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
 			save_dir = resource_dirs.get(resource_type_id, "")
 
@@ -406,9 +441,10 @@ func _on_create_new() -> void:
 		push_error("No save directory available for " + resource_type_name.to_lower())
 		return
 
-	# Generate unique filename
+	# Generate unique filename with mod prefix to avoid conflicts
 	var timestamp: int = Time.get_unix_time_from_system()
-	var filename: String = resource_type_name.to_lower() + "_%d.tres" % timestamp
+	var prefix: String = active_mod_id + "_" if active_mod_id != "" and not active_mod_id.begins_with("_") else ""
+	var filename: String = prefix + resource_type_name.to_lower() + "_%d.tres" % timestamp
 	var full_path: String = save_dir.path_join(filename)
 
 	# Save the resource
@@ -544,3 +580,314 @@ func _show_cross_mod_warning(source_mod: String, active_mod: String) -> void:
 		"Are you sure you want to continue?",
 		_perform_save
 	)
+
+
+# =============================================================================
+# Mod Workflow Functions (Copy to My Mod, Create Override)
+# =============================================================================
+
+## Update visibility of mod workflow buttons based on current resource
+func _update_mod_workflow_buttons() -> void:
+	if not mod_workflow_container:
+		return
+
+	var active_mod_folder: String = ""
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			active_mod_folder = active_mod.mod_directory.get_file()
+
+	# Show buttons when viewing a resource from a different mod
+	var is_cross_mod: bool = (
+		current_resource_source_mod != "" and
+		active_mod_folder != "" and
+		current_resource_source_mod != active_mod_folder
+	)
+
+	mod_workflow_container.visible = is_cross_mod
+
+
+## Copy the current resource to the active mod with a new unique ID
+func _on_copy_to_mod() -> void:
+	if not current_resource:
+		_show_errors(["No resource selected"])
+		return
+
+	if not ModLoader:
+		_show_errors(["ModLoader not available"])
+		return
+
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		_show_errors(["No active mod selected"])
+		return
+
+	# Get the save directory
+	var save_dir: String = ""
+	if resource_type_id != "":
+		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+		save_dir = resource_dirs.get(resource_type_id, "")
+
+	if save_dir.is_empty():
+		save_dir = resource_directory
+
+	if save_dir.is_empty():
+		_show_errors(["No save directory available"])
+		return
+
+	# Generate unique filename with timestamp
+	var timestamp: int = Time.get_unix_time_from_system()
+	var original_name: String = _get_resource_display_name(current_resource)
+	var safe_name: String = original_name.to_lower().replace(" ", "_").replace("'", "")
+	var filename: String = "%s_copy_%d.tres" % [safe_name, timestamp]
+	var full_path: String = save_dir.path_join(filename)
+
+	# Create a duplicate resource
+	var new_resource: Resource = current_resource.duplicate(true)
+
+	# Try to update the resource's ID/name if it has common properties
+	_update_resource_id_for_copy(new_resource, original_name)
+
+	# Save the resource
+	var err: Error = ResourceSaver.save(new_resource, full_path)
+	if err == OK:
+		# Notify other editors
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
+			event_bus.resource_copied.emit(resource_type_id, current_resource.resource_path, active_mod.mod_id, full_path)
+
+		# Refresh and select the new resource
+		EditorInterface.get_resource_filesystem().scan()
+		await get_tree().process_frame
+		_refresh_list()
+
+		# Select the newly created resource
+		for i in range(resource_list.item_count):
+			if resource_list.get_item_metadata(i) == full_path:
+				resource_list.select(i)
+				_on_resource_selected(i)
+				break
+
+		_hide_errors()
+	else:
+		_show_errors(["Failed to copy resource: " + str(err)])
+
+
+## Create an override of the current resource in the active mod (same ID)
+func _on_create_override() -> void:
+	if not current_resource:
+		_show_errors(["No resource selected"])
+		return
+
+	if not ModLoader:
+		_show_errors(["ModLoader not available"])
+		return
+
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		_show_errors(["No active mod selected"])
+		return
+
+	# Get the original filename
+	var original_filename: String = current_resource.resource_path.get_file()
+
+	# Get the save directory
+	var save_dir: String = ""
+	if resource_type_id != "":
+		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+		save_dir = resource_dirs.get(resource_type_id, "")
+
+	if save_dir.is_empty():
+		save_dir = resource_directory
+
+	if save_dir.is_empty():
+		_show_errors(["No save directory available"])
+		return
+
+	var full_path: String = save_dir.path_join(original_filename)
+
+	# Check if override already exists
+	if FileAccess.file_exists(full_path):
+		_show_errors(["Override already exists at: " + full_path, "Delete the existing override first or use 'Copy to My Mod' for a new file."])
+		return
+
+	# Show confirmation dialog explaining override behavior
+	_show_confirmation(
+		"Create Override?",
+		"This will create an override of '%s' in your mod '%s'.\n\n" % [_get_resource_display_name(current_resource), active_mod.mod_name] +
+		"Because your mod has higher priority, this override will be used instead of the original.\n\n" +
+		"Original: %s\n" % current_resource.resource_path +
+		"Override: %s\n\n" % full_path +
+		"Continue?",
+		_perform_create_override.bind(full_path)
+	)
+
+
+## Actually create the override after confirmation
+func _perform_create_override(override_path: String) -> void:
+	# Create a duplicate resource (keep all data including any internal IDs)
+	var override_resource: Resource = current_resource.duplicate(true)
+
+	# Save the override
+	var err: Error = ResourceSaver.save(override_resource, override_path)
+	if err == OK:
+		# Notify other editors
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			var active_mod: ModManifest = ModLoader.get_active_mod()
+			event_bus.notify_resource_created(resource_type_id, override_path, override_resource)
+			if event_bus.has_signal("resource_override_created"):
+				event_bus.resource_override_created.emit(resource_type_id, override_path.get_file().get_basename(), active_mod.mod_id if active_mod else "")
+
+		# Refresh and select the override
+		EditorInterface.get_resource_filesystem().scan()
+		await get_tree().process_frame
+		_refresh_list()
+
+		# Select the override
+		for i in range(resource_list.item_count):
+			if resource_list.get_item_metadata(i) == override_path:
+				resource_list.select(i)
+				_on_resource_selected(i)
+				break
+
+		_hide_errors()
+	else:
+		_show_errors(["Failed to create override: " + str(err)])
+
+
+## Update a resource's internal ID/name for copy operation
+## Tries to modify common name properties to indicate it's a copy
+func _update_resource_id_for_copy(resource: Resource, original_name: String) -> void:
+	var copy_suffix: String = " (Copy)"
+
+	# Try common name properties
+	var name_properties: Array[String] = [
+		"display_name",
+		"character_name",
+		"item_name",
+		"ability_name",
+		"party_name",
+		"battle_name",
+		"class_name"
+	]
+
+	for prop: String in name_properties:
+		if prop in resource:
+			var current_value: Variant = resource.get(prop)
+			if current_value is String and not current_value.is_empty():
+				# Don't add multiple copy suffixes
+				if not current_value.ends_with(copy_suffix):
+					resource.set(prop, current_value + copy_suffix)
+				return
+
+	# If no name property found, try to set display_name if it exists
+	if "display_name" in resource:
+		resource.set("display_name", original_name + copy_suffix)
+
+
+# =============================================================================
+# Namespace Conflict Detection
+# =============================================================================
+
+## Check if a resource ID exists in other mods (potential namespace conflict)
+## Returns Array of mod_ids that have the same resource ID
+func _check_namespace_conflicts(resource_id: String, excluding_mod: String) -> Array[String]:
+	var conflicts: Array[String] = []
+
+	if not ModLoader or resource_type_id.is_empty():
+		return conflicts
+
+	# Get the directory name for this resource type
+	var type_dir_map: Dictionary = ModLoader.RESOURCE_TYPE_DIRS if "RESOURCE_TYPE_DIRS" in ModLoader else {}
+	var dir_name: String = type_dir_map.get(resource_type_id, resource_type_id + "s")
+
+	# Scan each mod's data directory
+	var mods_dir: DirAccess = DirAccess.open("res://mods/")
+	if not mods_dir:
+		return conflicts
+
+	mods_dir.list_dir_begin()
+	var mod_name: String = mods_dir.get_next()
+
+	while mod_name != "":
+		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+			if mod_name != excluding_mod:
+				var resource_path: String = "res://mods/%s/data/%s/%s.tres" % [mod_name, dir_name, resource_id]
+				if FileAccess.file_exists(resource_path):
+					conflicts.append(mod_name)
+		mod_name = mods_dir.get_next()
+
+	mods_dir.list_dir_end()
+	return conflicts
+
+
+## Show warning about namespace conflict
+func _show_namespace_conflict_warning(resource_id: String, conflicting_mods: Array[String]) -> void:
+	var mod_list: String = ", ".join(conflicting_mods)
+	_show_errors([
+		"Namespace Warning",
+		"A resource with ID '%s' already exists in: %s" % [resource_id, mod_list],
+		"If you save with this ID, it will create an override (higher priority wins at runtime).",
+		"Consider renaming to avoid unintentional conflicts."
+	])
+
+
+## Check for namespace conflicts and show informational message
+func _check_and_show_namespace_info(resource_path: String) -> void:
+	var resource_id: String = resource_path.get_file().get_basename()
+	var source_mod: String = _get_mod_from_path(resource_path)
+
+	var conflicts: Array[String] = _check_namespace_conflicts(resource_id, source_mod)
+
+	if conflicts.size() > 0:
+		# Show informational message about the override situation
+		var active_mod_folder: String = ""
+		if ModLoader:
+			var active_mod: ModManifest = ModLoader.get_active_mod()
+			if active_mod:
+				active_mod_folder = active_mod.mod_directory.get_file()
+
+		# Determine if this resource is the "winning" override or being overridden
+		var winning_source: String = ""
+		if ModLoader and ModLoader.registry:
+			winning_source = ModLoader.registry.get_resource_source(resource_id)
+
+		if winning_source == source_mod:
+			# This resource is the active override
+			_show_info_message(
+				"Override Active",
+				"This resource overrides the same ID from: " + ", ".join(conflicts)
+			)
+		else:
+			# This resource is being overridden
+			_show_info_message(
+				"Overridden Resource",
+				"This resource is overridden by: " + winning_source
+			)
+
+
+## Show an informational message (less alarming than errors)
+func _show_info_message(title: String, message: String) -> void:
+	if not error_label or not error_panel:
+		return
+
+	# Use a different color for info messages
+	error_label.text = "[color=#6699cc][b]%s:[/b] %s[/color]" % [title, message]
+
+	# Insert error panel if not already there
+	if error_panel.get_parent() != detail_panel:
+		var button_index: int = button_container.get_index()
+		detail_panel.add_child(error_panel)
+		detail_panel.move_child(error_panel, button_index)
+
+	# Use info styling (blue instead of red)
+	var style: StyleBoxFlat = error_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if style:
+		var info_style: StyleBoxFlat = style.duplicate()
+		info_style.bg_color = Color(0.15, 0.25, 0.4, 0.95)
+		info_style.border_color = Color(0.3, 0.5, 0.8, 1.0)
+		error_panel.add_theme_stylebox_override("panel", info_style)
+
+	error_panel.show()

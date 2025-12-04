@@ -33,6 +33,14 @@ signal active_mod_changed(mod_id: String)
 ## Emitted when mods are reloaded
 signal mods_reloaded()
 
+## Emitted when a resource is copied to another mod
+## Parameters: resource_type (String), source_path (String), target_mod_id (String), target_path (String)
+signal resource_copied(resource_type: String, source_path: String, target_mod_id: String, target_path: String)
+
+## Emitted when a resource override is created in a mod
+## Parameters: resource_type (String), resource_id (String), mod_id (String)
+signal resource_override_created(resource_type: String, resource_id: String, mod_id: String)
+
 
 func _ready() -> void:
 	if Engine.is_editor_hint():

@@ -1104,9 +1104,11 @@ func _on_save() -> void:
 	_hide_errors()
 	_refresh_campaign_list()
 
+	# Notify that a campaign was saved (not mods_reloaded - that's for mod manifest changes)
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 	if event_bus:
-		event_bus.mods_reloaded.emit()
+		var campaign_id: String = current_campaign_data.get("campaign_id", "")
+		event_bus.resource_saved.emit("campaign", campaign_id, null)
 
 
 func _collect_metadata_from_ui() -> void:

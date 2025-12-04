@@ -75,6 +75,9 @@ var _refresh_button: Button
 ## Currently selected metadata (empty if none selected)
 var _current_metadata: Dictionary = {}
 
+## Track override information for each resource (resource_id -> Array of mod_ids)
+var _override_info: Dictionary = {}
+
 
 func _init() -> void:
 	# Set up layout
@@ -134,6 +137,7 @@ func refresh() -> void:
 		return
 
 	_option_button.clear()
+	_override_info.clear()
 
 	# Add "(None)" option if allowed
 	if allow_none:
@@ -156,8 +160,12 @@ func refresh() -> void:
 		# No resources found - this might be expected or a configuration issue
 		return
 
-	# Sort resources by display name for consistent ordering
+	# Scan directories to detect override situations (same filename in multiple mods)
+	_override_info = _scan_for_overrides()
+
+	# Collect all resources from the registry
 	var sorted_resources: Array[Dictionary] = []
+
 	for resource: Resource in all_resources:
 		# Apply filter if set
 		if filter_function.is_valid():
@@ -168,27 +176,30 @@ func refresh() -> void:
 		var resource_id: String = _get_resource_id(resource)
 		var mod_id: String = ModLoader.registry.get_resource_source(resource_id)
 
-		sorted_resources.append({
+		var entry: Dictionary = {
 			"display_name": display_name,
 			"resource_id": resource_id,
 			"mod_id": mod_id,
 			"resource": resource
-		})
+		}
+
+		sorted_resources.append(entry)
 
 	# Sort alphabetically by display name
 	sorted_resources.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a.display_name.to_lower() < b.display_name.to_lower()
 	)
 
-	# Add items to dropdown
+	# Add items to dropdown with override indicators
 	for entry: Dictionary in sorted_resources:
-		var item_text: String = "[%s] %s" % [entry.mod_id, entry.display_name]
+		var item_text: String = _format_item_text(entry)
 		var item_index: int = _option_button.item_count
 		_option_button.add_item(item_text)
 		_option_button.set_item_metadata(item_index, {
 			"mod_id": entry.mod_id,
 			"resource_id": entry.resource_id,
-			"resource": entry.resource
+			"resource": entry.resource,
+			"has_override": entry.resource_id in _override_info
 		})
 
 	# Restore previous selection if possible
@@ -196,6 +207,97 @@ func refresh() -> void:
 		_select_by_metadata(_current_metadata)
 
 	picker_refreshed.emit()
+
+
+## Format the display text for an item, including override indicators
+func _format_item_text(entry: Dictionary) -> String:
+	var resource_id: String = entry.resource_id
+	var mod_id: String = entry.mod_id
+	var display_name: String = entry.display_name
+
+	var text: String = "[%s] %s" % [mod_id, display_name]
+
+	# Check if this resource has overrides in other mods
+	if resource_id in _override_info:
+		var mods: Array = _override_info[resource_id]
+		var other_mods: Array = []
+		for m in mods:
+			if m != mod_id:
+				other_mods.append(m)
+
+		if other_mods.size() > 0:
+			# This is the active version - show what it overrides or is overridden by
+			var active_source: String = ModLoader.registry.get_resource_source(resource_id)
+			if active_source == mod_id:
+				# This IS the active version (higher priority won)
+				text += " [ACTIVE - overrides: %s]" % ", ".join(other_mods)
+			else:
+				# This is being overridden by another mod
+				text += " [overridden by: %s]" % active_source
+
+	return text
+
+
+## Scan all mods to detect resources with the same ID across multiple mods
+## Returns a Dictionary mapping resource_id -> Array of mod_ids that have that resource
+func _scan_for_overrides() -> Dictionary:
+	var overrides: Dictionary = {}
+
+	if not ModLoader:
+		return overrides
+
+	# Get the directory name for this resource type
+	var type_dir_map: Dictionary = ModLoader.RESOURCE_TYPE_DIRS if "RESOURCE_TYPE_DIRS" in ModLoader else {}
+	var dir_name: String = type_dir_map.get(resource_type, resource_type + "s")
+
+	# Scan each mod's data directory
+	var mods_dir: DirAccess = DirAccess.open("res://mods/")
+	if not mods_dir:
+		return overrides
+
+	mods_dir.list_dir_begin()
+	var mod_name: String = mods_dir.get_next()
+
+	while mod_name != "":
+		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+			var resource_path: String = "res://mods/%s/data/%s/" % [mod_name, dir_name]
+			var res_dir: DirAccess = DirAccess.open(resource_path)
+
+			if res_dir:
+				res_dir.list_dir_begin()
+				var file_name: String = res_dir.get_next()
+
+				while file_name != "":
+					if not res_dir.current_is_dir() and file_name.ends_with(".tres"):
+						var res_id: String = file_name.get_basename()
+						if res_id not in overrides:
+							overrides[res_id] = []
+						overrides[res_id].append(mod_name)
+					file_name = res_dir.get_next()
+
+				res_dir.list_dir_end()
+
+		mod_name = mods_dir.get_next()
+
+	mods_dir.list_dir_end()
+
+	# Filter to only resources that exist in multiple mods
+	var multi_mod_resources: Dictionary = {}
+	for res_id: String in overrides.keys():
+		if overrides[res_id].size() > 1:
+			multi_mod_resources[res_id] = overrides[res_id]
+
+	return multi_mod_resources
+
+
+## Check if a resource has potential overrides (exists in multiple mods)
+func has_override_info(resource_id: String) -> bool:
+	return resource_id in _override_info
+
+
+## Get the mods that have a specific resource ID
+func get_mods_with_resource(resource_id: String) -> Array:
+	return _override_info.get(resource_id, [])
 
 
 ## Get the display name from a resource (handles different resource types)

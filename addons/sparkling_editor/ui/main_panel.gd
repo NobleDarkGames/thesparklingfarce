@@ -423,5 +423,16 @@ func _refresh_all_editors() -> void:
 		var editor_info: Dictionary = dynamic_editors[key]
 		var editor_control: Control = editor_info.get("control")
 		var refresh_method: String = editor_info.get("refresh_method", "_refresh_list")
+		# Security: Only allow calling methods that start with "refresh" or "_refresh"
+		if not _is_safe_refresh_method(refresh_method):
+			push_warning("Dynamic editor '%s' has unsafe refresh_method '%s' - skipping" % [key, refresh_method])
+			continue
 		if editor_control and editor_control.has_method(refresh_method):
 			editor_control.call(refresh_method)
+
+
+## Validate that a refresh method name is safe to call
+## Only allows methods starting with "refresh" or "_refresh" to prevent calling
+## destructive methods like queue_free, remove_child, etc.
+func _is_safe_refresh_method(method_name: String) -> bool:
+	return method_name.begins_with("refresh") or method_name.begins_with("_refresh")

@@ -522,11 +522,11 @@ func _populate_command_inspector() -> void:
 
 		"conditional":
 			_add_param_field("condition", params, "Condition expression")
-			_add_param_field("true_branch", params, "Commands if true (JSON)")
-			_add_param_field("false_branch", params, "Commands if false (JSON)")
+			_add_json_param_field("true_branch", params, "Commands if true (JSON array)")
+			_add_json_param_field("false_branch", params, "Commands if false (JSON array)")
 
 		"parallel":
-			_add_param_field("commands", params, "Parallel commands (JSON array)")
+			_add_json_param_field("commands", params, "Parallel commands (JSON array)")
 
 
 func _add_param_field(param_name: String, params: Dictionary, placeholder: String, multiline: bool = false) -> void:
@@ -635,6 +635,89 @@ func _add_param_vector2(param_name: String, params: Dictionary) -> void:
 	row.add_child(y_spin)
 
 	command_inspector.add_child(row)
+
+
+## Add a JSON-validated text field for nested command arrays
+func _add_json_param_field(param_name: String, params: Dictionary, placeholder: String) -> void:
+	var container: VBoxContainer = VBoxContainer.new()
+	container.add_theme_constant_override("separation", 2)
+
+	var row: HBoxContainer = _create_field_row(param_name + ":", 100)
+	container.add_child(row)
+
+	var edit: TextEdit = TextEdit.new()
+	edit.custom_minimum_size.y = 60
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.placeholder_text = placeholder
+
+	# Convert current value to JSON string for display
+	var current: Variant = params.get(param_name, [])
+	if current is Array or current is Dictionary:
+		edit.text = JSON.stringify(current, "\t")
+	elif current is String:
+		edit.text = current
+	else:
+		edit.text = "[]"
+
+	row.add_child(edit)
+
+	# Validation label (shows error or success)
+	var validation_label: Label = Label.new()
+	validation_label.add_theme_font_size_override("font_size", 10)
+	validation_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
+	validation_label.text = ""
+	container.add_child(validation_label)
+
+	# Validate on text change
+	edit.text_changed.connect(_on_json_param_changed.bind(param_name, edit, validation_label))
+
+	# Initial validation
+	_validate_json_field(edit, validation_label)
+
+	command_inspector.add_child(container)
+
+
+## Called when a JSON param field changes
+func _on_json_param_changed(param_name: String, edit: TextEdit, validation_label: Label) -> void:
+	var is_valid: bool = _validate_json_field(edit, validation_label)
+
+	if is_valid:
+		var json_text: String = edit.text.strip_edges()
+		if json_text.is_empty():
+			_set_current_param(param_name, [])
+		else:
+			var json: JSON = JSON.new()
+			if json.parse(json_text) == OK:
+				_set_current_param(param_name, json.data)
+
+
+## Validate a JSON field and update the validation label
+## Returns true if valid
+func _validate_json_field(edit: TextEdit, validation_label: Label) -> bool:
+	var json_text: String = edit.text.strip_edges()
+
+	if json_text.is_empty():
+		validation_label.text = "(empty = no commands)"
+		validation_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		return true
+
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(json_text)
+
+	if err != OK:
+		validation_label.text = "Invalid JSON: " + json.get_error_message()
+		validation_label.add_theme_color_override("font_color", Color(0.9, 0.4, 0.4))
+		return false
+
+	if not (json.data is Array):
+		validation_label.text = "Must be a JSON array []"
+		validation_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.3))
+		return false
+
+	var count: int = json.data.size()
+	validation_label.text = "Valid JSON (%d command%s)" % [count, "s" if count != 1 else ""]
+	validation_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
+	return true
 
 
 func _on_command_target_changed(new_text: String) -> void:
@@ -834,9 +917,11 @@ func _on_save() -> void:
 	_hide_errors()
 	_refresh_cinematic_list()
 
+	# Notify that a cinematic was saved (not mods_reloaded - that's for mod manifest changes)
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 	if event_bus:
-		event_bus.mods_reloaded.emit()
+		var cinematic_id: String = current_cinematic_data.get("cinematic_id", "")
+		event_bus.resource_saved.emit("cinematic", cinematic_id, null)
 
 
 func _collect_data_from_ui() -> void:

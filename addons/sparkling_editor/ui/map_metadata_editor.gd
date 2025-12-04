@@ -1052,10 +1052,11 @@ func _on_save() -> void:
 	# Refresh map list to show updated info
 	_refresh_map_list()
 
-	# Notify via EditorEventBus if available
+	# Notify that a map was saved (not mods_reloaded - that's for mod manifest changes)
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 	if event_bus:
-		event_bus.mods_reloaded.emit()
+		var map_id: String = current_map_data.get("map_id", "")
+		event_bus.resource_saved.emit("map", map_id, null)
 
 
 func _on_delete() -> void:
