@@ -29,7 +29,10 @@ sparklingfarce/
       data/                      # Resources by type
         characters/, classes/, items/, abilities/
         battles/, parties/, dialogues/, cinematics/
-        maps/, campaigns/
+        maps/, campaigns/, experience_configs/
+      audio/                     # Sound and music (separate from assets/)
+        sfx/                     # Sound effects (.ogg, .wav, .mp3)
+        music/                   # Background music
       assets/, scenes/, tilesets/, triggers/
     _sandbox/                    # Dev testing (priority 100)
 
@@ -312,6 +315,8 @@ func validate() -> bool:
 | Maps | `mods/<mod_id>/data/maps/*.json` |
 | Dialogues | `mods/<mod_id>/data/dialogues/*.tres` |
 | TileSets | `mods/<mod_id>/tilesets/*.tres` |
+| Sound Effects | `mods/<mod_id>/audio/sfx/*.ogg` |
+| Music | `mods/<mod_id>/audio/music/*.ogg` |
 
 ### Common Mistakes
 - Putting content in `core/` instead of `mods/`

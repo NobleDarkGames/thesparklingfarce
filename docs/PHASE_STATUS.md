@@ -1,6 +1,6 @@
 # The Sparkling Farce - Development Phase Status
 
-**Last Updated:** December 2, 2025 (Evening Session)
+**Last Updated:** December 4, 2025 (Evening Session)
 **Current Phase:** Phase 4.2 - Equipment System 🚧
 
 ---
@@ -347,22 +347,22 @@ Root causes identified and fixed:
 | System | Status | Phase | Notes |
 |--------|--------|-------|-------|
 | Map Exploration | ✅ Complete | 1, 2.5 | Collision & triggers working |
-| Battle Core | 🟡 70% | 2 | Needs UI polish, magic, items |
+| Battle Core | 🟡 85% | 2 | Magic & items remaining |
 | Dialog System | ✅ Complete | 3 | Branching, portraits, choices |
 | Save System | ✅ Complete | 3 | 3-slot, mod-compatible |
 | Party Management | ✅ Complete | 3 | Composition, hero protection |
-| Experience/Leveling | ✅ Complete | 2 | Participation XP, growth rates |
+| Experience/Leveling | ✅ Complete | 2 | SF2-authentic pooled XP, participation |
 | Collision Detection | ✅ Complete | 2.5 | TileMapLayer integration |
 | Trigger System | ✅ Complete | 2.5 | Flag-based, one-shot, extensible |
 | Story Flags | ✅ Complete | 2.5 | GameState tracking |
 | Mod System | ✅ Complete | 1 | Priority-based loading |
-| Audio Manager | ✅ Complete | 1 | Music, SFX, mod-aware |
+| Audio Manager | ✅ Complete | 1 | Music, SFX, mod-aware, init from ModLoader |
 | AI System | 🟡 30% | 2 | Only 2 basic behaviors |
-| Equipment | 🟡 80% | 4.2 | Core done, Item Menu bug |
+| Equipment | 🟡 80% | 4.2 | Core done, Item Menu working |
 | Magic/Spells | ⬜ 0% | 4.3 | Not started |
-| Items/Inventory | 🟡 40% | 4.2 | Data done, UI buggy |
-| Promotion | ✅ Complete | 4.1 | Core done, needs PartyManager integration |
-| UI Systems | 🟡 50% | 2, 3 | Battle UI done, missing menus |
+| Items/Inventory | 🟡 60% | 4.2 | Item Menu functional, effects pending |
+| Promotion | ✅ Complete | 4.1 | Core done, CharacterData immutable |
+| UI Systems | 🟡 70% | 2, 3 | Battle screen polished, pixel-perfect effects |
 
 ---
 
@@ -460,9 +460,23 @@ Root causes identified and fixed:
 
 ---
 
-**Phase Status Last Updated:** December 2, 2025 (Evening) by Chief O'Brien, Lt. Barclay, Clauderina & Crew
+**Phase Status Last Updated:** December 4, 2025 (Evening) by Lt. Clauderina & Crew
 
-**Session Notes:**
+**Session Notes (December 4, 2025):**
+- Replaced all UI zoom/scale effects with pixel-perfect alternatives (brightness flashes, slides)
+- Fixed AudioManager initialization - now receives mod path from ModLoader at startup
+- Added menu_select.ogg sound effect to pre-game menus (main menu, save slot selector)
+- Created `docs/modding/audio-sfx-reference.md` - comprehensive SFX guide for modders
+- Audio directory structure confirmed: `mods/{mod}/audio/sfx/` and `audio/music/`
+- Code review complete - all 77 fixes applied, all deferred items resolved
+
+**Recent Commits:**
+- `ba35e1c` - feat: Add audio system initialization and pre-game menu sounds
+- `3ab8850` - fix: Replace UI zoom effects with pixel-perfect alternatives
+- `628ccb2` - feat: SF2-authentic continuous combat session with pooled XP
+- `22831af` - feat: SF-authentic battle screen with XP display and damage at impact
+
+**Previous Session Notes (December 2-3, 2025):**
 - Implemented Equipment System (Phase 4.2) - equipment slots, cursed items, inventory config
-- Implemented Item Menu UI - but visual display bug needs debugging tomorrow
-- All changes staged but NOT committed pending bug fix
+- Implemented Item Menu UI - visual display bug fixed
+- Full code review completed (103 files, 35,726 LOC, 77 fixes)
