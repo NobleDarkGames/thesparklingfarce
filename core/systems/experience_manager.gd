@@ -46,7 +46,7 @@ signal unit_promoted(unit: Node2D, old_class: Resource, new_class: Resource)
 
 ## Configuration resource with all XP settings.
 ## Set by BattleData or use default values.
-var config: Resource = null  # ExperienceConfig
+var config: ExperienceConfig = null
 
 
 # ============================================================================
@@ -71,18 +71,16 @@ enum XPSource {
 func _ready() -> void:
 	# Create default config if none exists
 	if config == null:
-		var ExperienceConfigClass: GDScript = load("res://core/resources/experience_config.gd")
-		config = ExperienceConfigClass.new()
+		config = ExperienceConfig.new()
 
 
 ## Set the configuration for this battle.
 ## Called by BattleManager when battle starts.
-func set_config(new_config: Resource) -> void:
+func set_config(new_config: ExperienceConfig) -> void:
 	if new_config != null:
 		config = new_config
 	else:
-		var ExperienceConfigClass: GDScript = load("res://core/resources/experience_config.gd")
-		config = ExperienceConfigClass.new()
+		config = ExperienceConfig.new()
 
 
 # ============================================================================
@@ -311,7 +309,7 @@ func apply_level_up(unit: Node2D) -> Dictionary:
 	var new_level: int = unit.stats.level
 
 	var stat_increases: Dictionary = {}
-	var class_data: Resource = unit.character_data.character_class
+	var class_data: ClassData = unit.character_data.character_class
 
 	if class_data == null:
 		push_error("ExperienceManager: Unit has no class data")
@@ -347,7 +345,7 @@ func apply_level_up(unit: Node2D) -> Dictionary:
 					unit.stats.luck += increase
 
 	# Check for ability learning
-	var learned_abilities: Array = _check_learned_abilities(unit, new_level, class_data)
+	var learned_abilities: Array[Resource] = _check_learned_abilities(unit, new_level, class_data)
 	if not learned_abilities.is_empty():
 		stat_increases["abilities"] = learned_abilities
 
@@ -379,8 +377,8 @@ func _calculate_stat_increase(growth_rate: int) -> int:
 ## @param new_level: New level reached
 ## @param class_data: ClassData with learnable abilities
 ## @return: Array of learned AbilityData
-func _check_learned_abilities(unit: Node2D, new_level: int, class_data: Resource) -> Array:
-	var learned: Array = []
+func _check_learned_abilities(unit: Node2D, new_level: int, class_data: ClassData) -> Array[Resource]:
+	var learned: Array[Resource] = []
 
 	# Check if class has learnable_abilities dictionary
 	if "learnable_abilities" not in class_data:

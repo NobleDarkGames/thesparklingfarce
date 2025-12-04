@@ -278,7 +278,7 @@ func _register_mod_editor(mod: ModManifest, ext_id: String, config: Dictionary) 
 		"tab_name": tab_name
 	}
 
-	print("Sparkling Editor: Registered mod editor tab '%s' from mod '%s'" % [tab_name, mod.mod_id])
+	# Mod editor tab registered successfully
 
 
 func _create_mod_selector_ui() -> void:

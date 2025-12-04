@@ -10,6 +10,9 @@
 class_name CampaignData
 extends Resource
 
+## Maximum depth for circular transition detection to prevent infinite loops
+const MAX_TRANSITION_CHAIN_DEPTH: int = 100
+
 ## Unique identifier for this campaign (namespaced: "mod_id:campaign_id")
 @export var campaign_id: String = ""
 
@@ -142,7 +145,7 @@ func _detect_circular_transitions() -> Array[String]:
 			var current_target: String = node_resource.get("on_complete") if node_resource.get("on_complete") else ""
 			var depth: int = 0
 
-			while not current_target.is_empty() and depth < 100:
+			while not current_target.is_empty() and depth < MAX_TRANSITION_CHAIN_DEPTH:
 				depth += 1
 				if current_target in visited:
 					errors.append("Circular transition detected: %s" % " -> ".join(visited + [current_target]))

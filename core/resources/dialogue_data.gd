@@ -27,10 +27,10 @@ enum Emotion {
 ## A single line of dialogue
 class DialogueLine:
 	var speaker_name: String = ""
-	var portrait: Texture2D
+	var portrait: Texture2D = null
 	var text: String = ""
 	var emotion: String = "neutral"  ## For portrait variants
-	var voice_clip: AudioStream
+	var voice_clip: AudioStream = null
 
 	func _init(p_speaker: String = "", p_text: String = "", p_portrait: Texture2D = null) -> void:
 		speaker_name = p_speaker
@@ -40,8 +40,8 @@ class DialogueLine:
 ## A choice option for branching dialogue
 class DialogueChoice:
 	var choice_text: String = ""
-	var next_dialogue: DialogueData
-	var condition_script: GDScript  ## Optional condition to show this choice
+	var next_dialogue: DialogueData = null
+	var condition_script: GDScript = null  ## Optional condition to show this choice
 
 	func _init(p_text: String = "", p_next: DialogueData = null) -> void:
 		choice_text = p_text
@@ -146,9 +146,9 @@ func validate() -> bool:
 		return false
 
 	# Validate each line has required fields
-	for i in range(lines.size()):
+	for i: int in range(lines.size()):
 		var line: Dictionary = lines[i]
-		if not "text" in line or line["text"] == "":
+		if "text" not in line or line["text"] == "":
 			push_error("DialogueData: line " + str(i) + " has no text")
 			return false
 

@@ -279,15 +279,8 @@ func return_to_map() -> void:
 	# Clear battle data (but NOT transition context - map scene needs it for position restoration)
 	clear_current_battle_data()
 
-	# Transition back to map
-	SceneManager.change_scene(return_scene)
-
-	# Wait for scene transition to complete before emitting signal
-	# Map scene will handle restoration in its _ready() using GameState.has_return_data()
-	if SceneManager.has_method("is_transitioning") and SceneManager.is_transitioning:
-		await SceneManager.scene_transition_completed
-	elif SceneManager.has_signal("scene_transition_completed"):
-		await SceneManager.scene_transition_completed
+	# Transition back to map and wait for completion
+	await SceneManager.change_scene(return_scene)
 
 	# Signal that we've returned (map scene can connect to this if needed)
 	returned_from_battle.emit()
@@ -420,16 +413,3 @@ func _handle_custom_trigger(trigger: Node, _player: Node2D) -> void:
 	var _trigger_data: Dictionary = trigger.get("trigger_data")
 	# TODO: Phase 5 - custom trigger system
 	pass
-
-
-## Get human-readable trigger type name
-func _get_trigger_type_name(type: int) -> String:
-	match type:
-		0: return "BATTLE"
-		1: return "DIALOG"
-		2: return "CHEST"
-		3: return "DOOR"
-		4: return "CUTSCENE"
-		5: return "TRANSITION"
-		6: return "CUSTOM"
-		_: return "UNKNOWN"

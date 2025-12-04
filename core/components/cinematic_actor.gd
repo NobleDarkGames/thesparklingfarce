@@ -264,7 +264,7 @@ func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -
 
 
 ## Called when parent entity's movement completes
-func _on_parent_moved(old_pos: Vector2i, new_pos: Vector2i) -> void:
+func _on_parent_moved(_old_pos: Vector2i, _new_pos: Vector2i) -> void:
 	# Parent has finished moving
 	_stop_movement()
 
@@ -374,10 +374,10 @@ func get_world_position() -> Vector2:
 
 
 ## Get current grid position
-func get_grid_position() -> Vector2:
+func get_grid_position() -> Vector2i:
 	if parent_entity != null:
-		return Vector2(GridManager.world_to_cell(parent_entity.global_position))
-	return Vector2.ZERO
+		return GridManager.world_to_cell(parent_entity.global_position)
+	return Vector2i.ZERO
 
 
 ## Simple Manhattan distance pathfinding fallback (for cinematics without battle grid)

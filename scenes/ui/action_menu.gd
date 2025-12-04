@@ -73,7 +73,6 @@ func _process(_delta: float) -> void:
 
 	# Update hover state if changed
 	if new_hover != _hover_index:
-		var old_hover: int = _hover_index
 		_hover_index = new_hover
 
 		# Play hover sound when entering a new valid item (not the selected one)

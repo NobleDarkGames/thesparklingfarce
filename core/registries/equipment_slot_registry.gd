@@ -45,7 +45,6 @@ func register_slot_layout(mod_id: String, slots: Array) -> void:
 	if not typed_slots.is_empty():
 		_slots = typed_slots
 		_slot_source_mod = mod_id
-		print("EquipmentSlotRegistry: Slot layout registered from mod '%s' (%d slots)" % [mod_id, _slots.size()])
 
 
 ## Get the active slot layout (defaults if none registered)

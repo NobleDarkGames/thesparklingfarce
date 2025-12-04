@@ -46,7 +46,7 @@ func _print_summary() -> void:
 
 	if _errors.size() > 0:
 		print("\nFailed Tests:")
-		for error in _errors:
+		for error: String in _errors:
 			print("  - %s" % error)
 
 	print("=".repeat(60))

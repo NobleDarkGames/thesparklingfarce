@@ -110,6 +110,12 @@ func remove_member(character: CharacterData) -> bool:
 		return false
 
 	party_members.remove_at(index)
+
+	# Clean up save data for removed member
+	var uid: String = character.get_uid()
+	if uid in _member_save_data:
+		_member_save_data.erase(uid)
+
 	return true
 
 
@@ -138,6 +144,9 @@ func load_from_party_data(party_data: PartyData) -> void:
 			var character: CharacterData = member_dict.character
 			party_members.append(character)
 			_ensure_save_data(character)
+
+	# Enforce hero-at-position-0 invariant
+	_ensure_hero_is_leader()
 
 
 ## Get party size

@@ -43,8 +43,8 @@ signal resource_override_created(resource_type: String, resource_id: String, mod
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
-		print("EditorEventBus: Initialized")
+	# EditorEventBus ready - debug logging removed for production
+	pass
 
 
 ## Convenience method to emit resource_saved with automatic ID extraction

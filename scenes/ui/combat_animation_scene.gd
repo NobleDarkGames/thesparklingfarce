@@ -19,8 +19,8 @@ signal animation_complete
 @onready var defender_hp_bar: ProgressBar = $CenterContainer/HBoxContainer/DefenderContainer/HPBar
 
 ## Sprite containers (will be populated dynamically)
-var attacker_sprite: Control
-var defender_sprite: Control
+var attacker_sprite: Control = null
+var defender_sprite: Control = null
 
 ## Font reference for dynamically created labels
 @onready var monogram_font: Font = preload("res://assets/fonts/monogram.ttf")
@@ -132,7 +132,7 @@ func _setup_combatant(
 	hp_bar.value = unit.stats.current_hp
 
 	# Create sprite (real or placeholder)
-	var sprite: Control
+	var sprite: Control = null
 	if unit.character_data.combat_animation_data and unit.character_data.combat_animation_data.battle_sprite:
 		sprite = _create_real_sprite(unit, is_attacker)
 	else:
@@ -203,7 +203,7 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	var anim_data: CombatAnimationData = unit.character_data.combat_animation_data
 
 	# Use AnimatedSprite2D if sprite frames provided, otherwise static Sprite2D
-	var sprite_node: Node
+	var sprite_node: Node = null
 	if anim_data.battle_sprite_frames:
 		var animated: AnimatedSprite2D = AnimatedSprite2D.new()
 		animated.sprite_frames = anim_data.battle_sprite_frames

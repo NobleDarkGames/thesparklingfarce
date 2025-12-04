@@ -11,7 +11,7 @@ var event_bus: Node
 
 
 func _enter_tree() -> void:
-	print("Sparkling Editor: Initializing...")
+	# Plugin initialization - debug logging removed for production
 
 	# Create and register the EditorEventBus as an autoload
 	event_bus = EditorEventBus.new()
@@ -24,11 +24,9 @@ func _enter_tree() -> void:
 	# Add as a bottom panel (Godot manages the sizing)
 	add_control_to_bottom_panel(main_panel, "Sparkling Editor")
 
-	print("Sparkling Editor: Ready!")
-
 
 func _exit_tree() -> void:
-	print("Sparkling Editor: Cleaning up...")
+	# Plugin cleanup
 
 	# Remove the panel
 	if main_panel:

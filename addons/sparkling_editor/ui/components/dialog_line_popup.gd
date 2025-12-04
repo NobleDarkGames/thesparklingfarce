@@ -79,7 +79,7 @@ func _setup_ui() -> void:
 	character_picker = OptionButton.new()
 	character_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	character_picker.add_item("(Custom Speaker)", 0)
-	for i in range(_characters.size()):
+	for i: int in range(_characters.size()):
 		var char_data: CharacterData = _characters[i] as CharacterData
 		if char_data:
 			character_picker.add_item(char_data.character_name, i + 1)
@@ -224,14 +224,14 @@ func show_popup(preselect_character_uid: String = "") -> void:
 	# Rebuild character list
 	character_picker.clear()
 	character_picker.add_item("(Custom Speaker)", 0)
-	for i in range(_characters.size()):
+	for i: int in range(_characters.size()):
 		var char_data: CharacterData = _characters[i] as CharacterData
 		if char_data:
 			character_picker.add_item(char_data.character_name, i + 1)
 
 	# Preselect if provided
 	if not preselect_character_uid.is_empty():
-		for i in range(_characters.size()):
+		for i: int in range(_characters.size()):
 			var char_data: CharacterData = _characters[i] as CharacterData
 			if char_data and char_data.character_uid == preselect_character_uid:
 				character_picker.selected = i + 1

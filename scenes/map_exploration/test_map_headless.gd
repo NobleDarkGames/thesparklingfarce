@@ -75,7 +75,8 @@ func _ready() -> void:
 		follower.name = "Follower%d" % (i + 1)
 		follower.set("formation_index", i + 1)  # Position in formation behind hero
 		follower.set("tile_size", 32)
-		follower.set("follow_target", hero)  # All follow hero directly
+		# Use proper method to initialize follow target (sets hero ref, spawn position, etc.)
+		follower.call("set_follow_target", hero)
 
 		var follower_collision: CollisionShape2D = CollisionShape2D.new()
 		var follower_shape: CircleShape2D = CircleShape2D.new()

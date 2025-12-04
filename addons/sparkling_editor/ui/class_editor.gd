@@ -325,7 +325,7 @@ func _get_armor_types_from_registry() -> Array[String]:
 	return ["light", "heavy", "robe", "shield"]
 
 
-func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array) -> void:
+func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String]) -> void:
 	for type_name in types:
 		var checkbox: CheckBox = CheckBox.new()
 		checkbox.text = type_name.capitalize()

@@ -51,7 +51,7 @@ signal equipment_unequipped(unit: Node2D, items: Array)
 
 ## Reference to ExperienceConfig for promotion bonuses.
 ## Set automatically from ExperienceManager.
-var _experience_config: Resource = null
+var _experience_config: ExperienceConfig = null
 
 
 # ============================================================================
@@ -183,7 +183,7 @@ func has_item_for_special_promotion(unit: Node2D, class_data: ClassData = null) 
 ## @param class_data: ClassData to check
 ## @return: true if special_promotion_class is set
 func _has_special_promotion(class_data: ClassData) -> bool:
-	return class_data.has_method("has_special_promotion") and class_data.has_special_promotion()
+	return class_data.has_special_promotion()
 
 
 # ============================================================================

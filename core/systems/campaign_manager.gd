@@ -42,6 +42,9 @@ signal chapter_boundary_reached(chapter: Dictionary)
 ## Emitted when returning to a scene after an encounter (carries return position)
 signal encounter_return(scene_path: String, position: Vector2, facing: String)
 
+## Emitted when a choice node is ready for player input
+signal choice_requested(choices: Array[Dictionary])
+
 # ---- State ----
 
 ## Currently active campaign (CampaignData resource)
@@ -415,9 +418,15 @@ func _process_choice_node(node: Resource) -> void:
 				"description": branch.get("description", "")
 			})
 
-	# TODO: Emit signal for UI to show choice dialog
-	# For now, wait for on_choice_made() to be called
-	pass
+	if choices.is_empty():
+		push_warning("CampaignManager: Choice node '%s' has no choice branches" % node.node_id)
+		# Auto-complete with empty choice if no choices defined
+		complete_current_node({})
+		return
+
+	# Emit signal for UI to display choice dialog
+	# UI should call on_choice_made(choice_value) when player selects
+	choice_requested.emit(choices)
 
 
 # ==== Completion Handlers ====
@@ -677,9 +686,10 @@ func export_state() -> Dictionary:
 ## Import campaign state from saves
 func import_state(state: Dictionary) -> void:
 	node_history.clear()
-	var history: Array = state.get("node_history", [])
-	for node_id: String in history:
-		node_history.append(node_id)
+	var raw_history: Array = state.get("node_history", [])
+	for history_node_id: Variant in raw_history:
+		if history_node_id is String:
+			node_history.append(history_node_id)
 
 	last_hub_id = state.get("last_hub_id", "")
 	var campaign_id: String = state.get("current_campaign_id", "")

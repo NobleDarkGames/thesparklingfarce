@@ -39,7 +39,7 @@ func _print_summary() -> void:
 
 	if _errors.size() > 0:
 		print("\nFailed Tests:")
-		for error in _errors:
+		for error: String in _errors:
 			print("  - %s" % error)
 
 	print("=".repeat(60))
@@ -168,7 +168,7 @@ func _run_combat_calculator_tests() -> void:
 	_test_physical_damage_equal_stats()
 
 	# Hit Chance Tests
-	_test_hit_chance_base_is_80()
+	_test_hit_chance_base_is_90_with_no_weapon()
 	_test_hit_chance_agility_advantage()
 	_test_hit_chance_agility_disadvantage()
 	_test_hit_chance_minimum_is_10()
@@ -288,12 +288,13 @@ func _test_physical_damage_equal_stats() -> void:
 
 # --- Hit Chance Tests ---
 
-func _test_hit_chance_base_is_80() -> void:
-	_start_test("hit_chance_base_is_80")
+func _test_hit_chance_base_is_90_with_no_weapon() -> void:
+	_start_test("hit_chance_base_is_90_with_no_weapon")
 	var attacker: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var defender: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker, defender)
-	if _assert_equal(hit_chance, 80):
+	# Default weapon hit rate is 90% when no weapon equipped
+	if _assert_equal(hit_chance, 90):
 		_pass()
 
 
@@ -311,7 +312,8 @@ func _test_hit_chance_agility_disadvantage() -> void:
 	var attacker: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var defender: UnitStats = _create_test_stats(10, 5, 20, 10, 5)
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker, defender)
-	if _assert_equal(hit_chance, 60):
+	# Base 90 - 20 (agility difference * 2) = 70
+	if _assert_equal(hit_chance, 70):
 		_pass()
 
 

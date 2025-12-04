@@ -260,10 +260,10 @@ func validate() -> bool:
 	# Validate each command has required fields
 	for i: int in range(commands.size()):
 		var command: Dictionary = commands[i]
-		if not "type" in command:
+		if "type" not in command:
 			push_error("CinematicData: command " + str(i) + " has no type")
 			return false
-		if not "params" in command:
+		if "params" not in command:
 			push_error("CinematicData: command " + str(i) + " has no params")
 			return false
 

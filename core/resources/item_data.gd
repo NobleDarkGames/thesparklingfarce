@@ -88,7 +88,7 @@ func has_stat_modifiers() -> bool:
 
 ## Check if item is equippable
 func is_equippable() -> bool:
-	return item_type == ItemType.WEAPON or item_type == ItemType.ARMOR
+	return item_type == ItemType.WEAPON or item_type == ItemType.ARMOR or item_type == ItemType.ACCESSORY
 
 
 ## Check if item is usable

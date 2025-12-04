@@ -225,24 +225,24 @@ func get_scene_path(scene_id: String, fallback: String = "") -> String:
 
 func goto_opening_cinematic(use_fade: bool = true) -> void:
 	var scene_path: String = get_scene_path(SCENE_OPENING_CINEMATIC, FALLBACK_OPENING_CINEMATIC)
-	change_scene(scene_path, use_fade)
+	await change_scene(scene_path, use_fade)
 
 
 func goto_main_menu(use_fade: bool = true) -> void:
 	var scene_path: String = get_scene_path(SCENE_MAIN_MENU, FALLBACK_MAIN_MENU)
-	change_scene(scene_path, use_fade)
+	await change_scene(scene_path, use_fade)
 
 
 func goto_save_slot_selector(mode: String = "new_game", use_fade: bool = true) -> void:
 	save_slot_mode = mode
 	var scene_path: String = get_scene_path(SCENE_SAVE_SLOT_SELECTOR, FALLBACK_SAVE_SLOT_SELECTOR)
-	change_scene(scene_path, use_fade)
+	await change_scene(scene_path, use_fade)
 
 
 func goto_battle(battle_scene_path: String = "", use_fade: bool = true) -> void:
 	if battle_scene_path.is_empty():
 		battle_scene_path = FALLBACK_BATTLE_LOADER
-	change_scene(battle_scene_path, use_fade)
+	await change_scene(battle_scene_path, use_fade)
 
 
 ## Go back to previous scene
@@ -251,7 +251,7 @@ func go_back(use_fade: bool = true) -> void:
 		push_warning("SceneManager: No previous scene to return to")
 		return
 
-	change_scene(previous_scene_path, use_fade)
+	await change_scene(previous_scene_path, use_fade)
 
 
 ## Get the current scene node

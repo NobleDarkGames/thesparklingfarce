@@ -5,9 +5,7 @@ class_name SpawnEntityExecutor
 extends CinematicCommandExecutor
 
 
-func execute(command: Dictionary, manager: Node) -> bool:
-	var params: Dictionary = command.get("params", {})
-
+func execute(_command: Dictionary, _manager: Node) -> bool:
 	# TODO: Implement entity spawning
 	push_warning("SpawnEntityExecutor: spawn_entity not yet implemented")
 

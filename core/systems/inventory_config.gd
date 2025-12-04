@@ -39,7 +39,8 @@ func load_from_manifest(mod_id: String, config: Dictionary) -> void:
 			allow_duplicates = allow
 
 	_source_mod = mod_id
-	print("InventoryConfig: Loaded from mod '%s' (%d slots, duplicates=%s)" % [
+	# Debug logging for mod configuration tracking - use push_warning for visibility
+	push_warning("InventoryConfig: Loaded from mod '%s' (%d slots, duplicates=%s)" % [
 		mod_id,
 		slots_per_character,
 		str(allow_duplicates)

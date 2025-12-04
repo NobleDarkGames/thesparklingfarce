@@ -40,7 +40,7 @@ func validate() -> bool:
 	for i: int in range(members.size()):
 		var member: Dictionary = members[i]
 
-		if not "character" in member:
+		if "character" not in member:
 			push_error("PartyData '%s': Member %d missing 'character' field" % [party_name, i])
 			return false
 

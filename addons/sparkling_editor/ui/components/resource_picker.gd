@@ -220,8 +220,8 @@ func _format_item_text(entry: Dictionary) -> String:
 	# Check if this resource has overrides in other mods
 	if resource_id in _override_info:
 		var mods: Array = _override_info[resource_id]
-		var other_mods: Array = []
-		for m in mods:
+		var other_mods: Array[String] = []
+		for m: String in mods:
 			if m != mod_id:
 				other_mods.append(m)
 

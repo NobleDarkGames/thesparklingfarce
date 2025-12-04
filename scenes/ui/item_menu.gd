@@ -168,10 +168,6 @@ func _process(_delta: float) -> void:
 ## @param unit: The Unit whose inventory to display
 ## @param session_id: Turn session ID from InputManager
 func show_menu(unit: Node2D, session_id: int) -> void:
-	print("[ItemMenu] show_menu called for unit: %s, session: %d" % [
-		unit.get_display_name() if unit else "null",
-		session_id
-	])
 	_menu_session_id = session_id
 	_hover_index = -1
 
@@ -183,8 +179,6 @@ func show_menu(unit: Node2D, session_id: int) -> void:
 
 	# Get inventory from unit's save data
 	_load_inventory_from_unit(unit)
-	print("[ItemMenu] Loaded inventory: %s" % str(_inventory_items))
-	print("[ItemMenu] Item cache size: %d" % _item_data_cache.size())
 
 	# Create labels if needed
 	if _item_labels.size() != _max_slots:
@@ -198,7 +192,6 @@ func show_menu(unit: Node2D, session_id: int) -> void:
 
 	# Check if there are any usable items
 	var has_usable: bool = _has_any_usable_items()
-	print("[ItemMenu] Has usable items: %s" % has_usable)
 
 	# SHINING FORCE AUTHENTIC: Show menu even if empty
 	# Player can see their inventory state and press B to cancel
@@ -215,7 +208,6 @@ func show_menu(unit: Node2D, session_id: int) -> void:
 	visible = true
 	set_process_input(true)
 	set_process(true)
-	print("[ItemMenu] Menu now visible")
 
 
 ## Load inventory from unit's save data
@@ -227,27 +219,16 @@ func _load_inventory_from_unit(unit: Node2D) -> void:
 	var save_data: CharacterSaveData = null
 
 	if unit and unit.character_data:
-		print("[ItemMenu] Unit has character_data: %s (uid: %s)" % [
-			unit.character_data.character_name,
-			unit.character_data.character_uid
-		])
 		# PartyManager may not have get_member_save_data yet
 		# For MVP, we'll check if it exists
 		var has_method: bool = PartyManager.has_method("get_member_save_data")
-		print("[ItemMenu] PartyManager.has_method('get_member_save_data'): %s" % has_method)
 		if has_method:
 			save_data = PartyManager.get_member_save_data(unit.character_data.character_uid)
-			print("[ItemMenu] Got save_data: %s" % (save_data != null))
-	else:
-		print("[ItemMenu] Unit missing character_data!")
 
 	if save_data:
 		# Copy inventory from save data
-		print("[ItemMenu] Save data inventory: %s" % str(save_data.inventory))
 		for item_id in save_data.inventory:
 			_inventory_items.append(item_id)
-	else:
-		print("[ItemMenu] No save_data available - inventory will be empty")
 
 	# Pad with empty strings up to max slots
 	while _inventory_items.size() < _max_slots:
@@ -260,7 +241,6 @@ func _load_inventory_from_unit(unit: Node2D) -> void:
 		else:
 			var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
 			_item_data_cache.append(item)
-			print("[ItemMenu] Loaded item '%s': %s" % [item_id, item != null])
 
 
 ## Populate item labels with inventory contents
@@ -277,25 +257,15 @@ func _populate_item_labels() -> void:
 
 ## Check if an item at index is usable in battle
 func _is_item_usable(index: int) -> bool:
-	print("[ItemMenu] _is_item_usable(%d) checking..." % index)
-
 	if index < 0 or index >= _item_data_cache.size():
-		print("[ItemMenu]   FAIL: index out of range (cache size: %d)" % _item_data_cache.size())
 		return false
 
 	var item: ItemData = _item_data_cache[index]
 	if not item:
-		print("[ItemMenu]   FAIL: item is null at index %d" % index)
 		return false
 
-	print("[ItemMenu]   item_name: %s" % item.item_name)
-	print("[ItemMenu]   item_type: %s (CONSUMABLE=%d)" % [item.item_type, ItemData.ItemType.CONSUMABLE])
-	print("[ItemMenu]   usable_in_battle: %s" % item.usable_in_battle)
-
 	# Only consumables with usable_in_battle = true can be used
-	var is_usable: bool = item.item_type == ItemData.ItemType.CONSUMABLE and item.usable_in_battle
-	print("[ItemMenu]   result: %s" % is_usable)
-	return is_usable
+	return item.item_type == ItemData.ItemType.CONSUMABLE and item.usable_in_battle
 
 
 ## Check if any usable items exist
@@ -507,36 +477,22 @@ func _move_selection(direction: int) -> void:
 
 ## Try to confirm current selection
 func _try_confirm_selection() -> void:
-	print("[ItemMenu] _try_confirm_selection() called")
-	print("[ItemMenu]   selected_index: %d" % selected_index)
-	print("[ItemMenu]   is_processing_input: %s" % is_processing_input())
-	print("[ItemMenu]   visible: %s" % visible)
-	print("[ItemMenu]   _menu_session_id: %d" % _menu_session_id)
-
 	# Safety checks
 	if not is_processing_input():
-		print("[ItemMenu] BLOCKED: Not processing input")
 		return
 	if not visible:
-		print("[ItemMenu] BLOCKED: Menu not visible")
 		return
 
 	# Check if selected item is usable
-	var is_usable: bool = _is_item_usable(selected_index)
-	print("[ItemMenu]   is_item_usable(%d): %s" % [selected_index, is_usable])
-
-	if not is_usable:
+	if not _is_item_usable(selected_index):
 		# Play error sound - can't use this item
-		print("[ItemMenu] BLOCKED: Item not usable - playing error sound")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
 
 	# Get the item ID
 	var item_id: String = _inventory_items[selected_index]
-	print("[ItemMenu]   item_id from inventory: '%s'" % item_id)
 
 	if item_id.is_empty():
-		print("[ItemMenu] BLOCKED: Empty item_id")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
 
@@ -545,9 +501,7 @@ func _try_confirm_selection() -> void:
 
 	# Emit selection signal before hiding
 	var emit_session_id: int = _menu_session_id
-	print("[ItemMenu] Emitting item_selected signal: item_id='%s', session=%d" % [item_id, emit_session_id])
 	item_selected.emit(item_id, emit_session_id)
-	print("[ItemMenu] Signal emitted, hiding menu...")
 	hide_menu()
 
 
