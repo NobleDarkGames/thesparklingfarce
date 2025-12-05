@@ -8,9 +8,16 @@ extends RefCounted
 ## Total conversion mods can replace with: helmet, armor, main_hand, off_hand, etc.
 ##
 ## Slot format: {id: String, display_name: String, accepts_types: Array[String]}
+##
+## ARCHITECTURE NOTE (TODO): The current system requires slots to explicitly list all
+## accepted equipment subtypes (sword, axe, etc.). A planned improvement is to add an
+## EquipmentTypeRegistry that maps subtypes to categories (sword -> weapon category),
+## allowing slots to accept categories instead. This would let modders register new
+## weapon types without modifying slot definitions. See design discussion in
+## docs/design/inventory-equipment-analysis.md for the full plan.
 
 const DEFAULT_SLOTS: Array[Dictionary] = [
-	{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon"]},
+	{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon", "sword", "axe", "lance", "spear", "bow", "staff", "tome", "knife", "dagger"]},
 	{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["ring"]},
 	{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["ring"]},
 	{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory"]}

@@ -1,7 +1,18 @@
-[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3 uid="uid://bre0q6dy6sfur"]
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3 uid="uid://bre0q6dy6sfur"]
 
+[ext_resource type="Texture2D" uid="uid://d1rh3eqv5ybph" path="res://mods/_base_game/assets/icons/items/cursed_ring.png" id="1_5hnfc"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_5vxcl"]
 
 [resource]
 script = ExtResource("1_5vxcl")
-item_name = "New Item"
+item_name = "Cursed Ring"
+item_type = 2
+icon = ExtResource("1_5hnfc")
+equipment_type = "ring"
+equipment_slot = "ring_1"
+is_cursed = true
+uncurse_items = Array[String](["holy_water"])
+strength_modifier = 2
+defense_modifier = -1
+buy_price = 1000
+description = "Cursed!!"

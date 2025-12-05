@@ -567,21 +567,29 @@ func _add_equipment_section() -> void:
 ## Create an equipment filter function that properly captures types by value
 ## This avoids the closure capture-by-reference bug in GDScript
 func _create_equipment_filter(types: Array) -> Callable:
+	print("[DEBUG] Creating equipment filter for types: %s" % [types])
 	return func(resource: Resource) -> bool:
 		var item: ItemData = resource as ItemData
 		if not item:
+			print("[DEBUG] Filter: resource is not ItemData")
 			return false
 		# Check if item type is compatible with this slot
-		return item.equipment_type.to_lower() in types
+		var eq_type: String = item.equipment_type.to_lower()
+		var matches: bool = eq_type in types
+		print("[DEBUG] Filter: item '%s' equipment_type='%s' -> matches=%s" % [item.item_name, eq_type, matches])
+		return matches
 
 
 ## Get equipment slots from registry with fallback
 func _get_equipment_slots() -> Array[Dictionary]:
 	if ModLoader and ModLoader.equipment_slot_registry:
-		return ModLoader.equipment_slot_registry.get_slots()
-	# Fallback to default SF-style slots
+		var slots: Array[Dictionary] = ModLoader.equipment_slot_registry.get_slots()
+		print("[DEBUG] Using equipment_slot_registry, slots: %s" % [slots])
+		return slots
+	# Fallback to default SF-style slots (should match EquipmentSlotRegistry.DEFAULT_SLOTS)
+	print("[DEBUG] Using fallback equipment slots")
 	return [
-		{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon", "sword", "axe", "lance", "bow", "staff"]},
+		{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon", "sword", "axe", "lance", "spear", "bow", "staff", "tome", "knife", "dagger"]},
 		{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["ring"]},
 		{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["ring"]},
 		{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory"]}

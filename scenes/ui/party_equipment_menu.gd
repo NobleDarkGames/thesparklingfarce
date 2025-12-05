@@ -258,7 +258,8 @@ func _create_character_tabs() -> void:
 		tab.add_theme_font_override("font", MONOGRAM_FONT)
 		tab.add_theme_font_size_override("font_size", 16)
 		tab.custom_minimum_size = Vector2(48, 16)
-		tab.toggle_mode = true
+		# NOTE: Removed toggle_mode = true - it was causing click events to be swallowed
+		# during transfer mode. Visual state is managed manually via button_pressed property.
 
 		var normal_style: StyleBoxFlat = StyleBoxFlat.new()
 		normal_style.bg_color = COLOR_TAB_NORMAL
@@ -307,6 +308,7 @@ func _select_character(index: int) -> void:
 # =============================================================================
 
 func _enter_transfer_mode(item_id: String) -> void:
+	print("[DEBUG] _enter_transfer_mode called with item_id='%s'" % item_id)
 	_transfer_mode_active = true
 	_transfer_item_id = item_id
 	_footer_label.text = "Select recipient or press Esc to cancel"
@@ -316,6 +318,7 @@ func _enter_transfer_mode(item_id: String) -> void:
 	for i in range(_character_tabs.size()):
 		if i != _current_index:
 			_character_tabs[i].modulate = Color(0.5, 1.0, 0.5, 1.0)
+	print("[DEBUG] Transfer mode now active, _transfer_mode_active=%s" % _transfer_mode_active)
 
 
 func _cancel_transfer_mode() -> void:
@@ -330,15 +333,19 @@ func _cancel_transfer_mode() -> void:
 
 
 func _execute_transfer(target_index: int) -> void:
+	print("[DEBUG] _execute_transfer called with target_index=%d" % target_index)
 	if target_index == _current_index:
+		print("[DEBUG] _execute_transfer: target == current, aborting")
 		return
 
 	var from_uid: String = _party_character_data[_current_index].character_uid
 	var to_uid: String = _party_character_data[target_index].character_uid
+	print("[DEBUG] Transferring item '%s' from '%s' to '%s'" % [_transfer_item_id, from_uid, to_uid])
 
 	var result: Dictionary = PartyManager.transfer_item_between_members(
 		from_uid, to_uid, _transfer_item_id
 	)
+	print("[DEBUG] Transfer result: %s" % result)
 
 	if result.success:
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
@@ -357,8 +364,13 @@ func _execute_transfer(target_index: int) -> void:
 # =============================================================================
 
 func _on_tab_pressed(index: int) -> void:
+	# DEBUG: Diagnostic output for item transfer flow
+	print("[DEBUG] _on_tab_pressed called: index=%d, _current_index=%d, _transfer_mode_active=%s" % [index, _current_index, _transfer_mode_active])
+
 	if _transfer_mode_active:
+		print("[DEBUG] Transfer mode active, checking if index != _current_index: %d != %d = %s" % [index, _current_index, index != _current_index])
 		if index != _current_index:
+			print("[DEBUG] Executing transfer to index %d" % index)
 			_execute_transfer(index)
 		return
 
@@ -367,14 +379,23 @@ func _on_tab_pressed(index: int) -> void:
 
 
 func _on_inventory_slot_clicked(slot_type: String, slot_index: int, item_id: String) -> void:
-	# Enable/disable action buttons based on selection
-	var has_item: bool = not item_id.is_empty()
-	_give_button.disabled = not has_item or _party_save_data.size() < 2
-	_depot_store_button.disabled = not has_item
+	# DEBUG: Log slot click details
+	print("[DEBUG] _on_inventory_slot_clicked: slot_type='%s', slot_index=%d, item_id='%s'" % [slot_type, slot_index, item_id])
 
-	# Store selected item for actions
-	if has_item:
+	# Only allow Give/Store for inventory items, NOT equipped items
+	# (equipped items must be unequipped first before transferring)
+	var has_item: bool = not item_id.is_empty()
+	var is_inventory_item: bool = slot_type == "inventory"
+
+	_give_button.disabled = not (has_item and is_inventory_item) or _party_save_data.size() < 2
+	_depot_store_button.disabled = not (has_item and is_inventory_item)
+
+	# Store selected item for actions (only if it's an inventory item)
+	if has_item and is_inventory_item:
 		_transfer_item_id = item_id
+	elif slot_type == "equipment":
+		# Clear transfer item if equipment slot was clicked
+		_transfer_item_id = ""
 
 
 func _on_equipment_changed(_slot_id: String, _old_item: String, _new_item: String) -> void:

@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://dhxm25emnclch"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=8 format=3 uid="uid://dhxm25emnclch"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_ewgi5"]
 [ext_resource type="Resource" uid="uid://c78g0ifp1g87w" path="res://mods/_sandbox/data/classes/class_1763081570.tres" id="1_m00m4"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_m00m4"]
 [ext_resource type="Texture2D" uid="uid://dx47ma5bkfwsu" path="res://mods/_sandbox/art/placeholder/portraits/mr_big_hero_face.png" id="3_portrait"]
 [ext_resource type="Texture2D" uid="uid://dd8ce683wq27u" path="res://mods/_sandbox/art/placeholder/sprites/mr_big_hero_face.png" id="4_battle"]
+[ext_resource type="Resource" uid="uid://bcy7yvbp71fvt" path="res://mods/_sandbox/data/items/item_1764949671.tres" id="6_hprnd"]
+[ext_resource type="Resource" uid="uid://y4ccvbam4ube" path="res://mods/_sandbox/data/items/sandbox_item_1764967007.tres" id="6_o6yye"]
 
 [resource]
 script = ExtResource("1_ewgi5")
@@ -15,5 +17,6 @@ base_hp = 20
 base_mp = 10
 portrait = ExtResource("3_portrait")
 battle_sprite = ExtResource("4_battle")
+starting_equipment = Array[ExtResource("2_m00m4")]([ExtResource("6_hprnd"), ExtResource("6_o6yye")])
 starting_inventory = Array[String](["healing_herb", "medical_herb", "antidote"])
 is_hero = true
