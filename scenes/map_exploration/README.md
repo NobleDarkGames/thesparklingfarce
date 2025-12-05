@@ -60,9 +60,10 @@ godot --path /home/user/dev/sparklingfarce res://scenes/map_exploration/map_test
 
 - **Arrow Keys** - Move the hero character
 - **Enter / Z** - Interact (sf_confirm action)
+- **I** - Open/close Party Equipment menu (inventory & equipment)
 - **F1** - Show debug position info
 - **F2** - Teleport test (moves hero to grid 15,10)
-- **ESC** - Quit test scene
+- **ESC** - Quit test scene / Close menus
 
 ## Features Implemented
 
@@ -77,7 +78,7 @@ godot --path /home/user/dev/sparklingfarce res://scenes/map_exploration/map_test
 ✅ Teleportation system
 ✅ Party data integration
 
-### Phase 2.5 - Collision & Triggers (NEW)
+### Phase 2.5 - Collision & Triggers
 ✅ TileMapLayer collision detection (hero blocked by walls/water)
 ✅ Proper 16px tile system with TileSet configuration
 ✅ MapTrigger system (Area2D-based with conditional activation)
@@ -86,6 +87,16 @@ godot --path /home/user/dev/sparklingfarce res://scenes/map_exploration/map_test
 ✅ Story flag conditions (required/forbidden flags)
 ✅ Grid positioning using TileMapLayer.map_to_local() methods
 ✅ Test map with collision and working triggers
+
+### Phase 2.5.5 - Inventory & Equipment UI
+✅ **ExplorationUIManager** autoload - automatic UI for any exploration map
+✅ **PartyEquipmentMenu** - multi-character equipment screen with tabs
+✅ **CaravanDepotPanel** - SF2-style unlimited shared storage
+✅ **InventoryPanel** - single character equipment/inventory display
+✅ **ItemSlot** - 32x32 reusable slot component
+✅ Input blocking - hero movement disabled while menus open
+✅ Toggle behavior - press I to open/close
+✅ Zero setup required - UI auto-activates on any map with "hero" group node
 
 ## What's NOT Yet Implemented
 
@@ -126,10 +137,12 @@ The camera uses lerp-based following with an optional lookahead feature that pre
 ## Integration Points
 
 This system is designed to integrate with:
-- **PartyManager** - Loads party composition
+- **PartyManager** - Loads party composition, item transfers
+- **StorageManager** - Caravan depot shared storage
+- **ExplorationUIManager** - Auto-activating inventory/equipment UI
 - **DialogManager** - Blocks input during dialogs (TODO)
-- **SceneManager** - Handles map transitions (TODO)
-- **BattleManager** - Triggers battle encounters (TODO)
+- **SceneManager** - Handles map transitions
+- **BattleManager** - Triggers battle encounters, UI deactivates during battle
 
 ## Testing
 

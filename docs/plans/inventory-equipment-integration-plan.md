@@ -1,8 +1,9 @@
 # Inventory & Equipment System Integration Plan
 
-**Status**: Design Complete, Ready for Implementation
+**Status**: ✅ Phases 1, 2, 2.5 Complete | Phase 3 (Battle) Pending
 **Created**: 2025-12-05
-**Contributors**: Commander Claudius, Mr. Nerdlinger, Lt. Clauderina, Chief O'Brien
+**Updated**: 2025-12-05
+**Contributors**: Commander Claudius, Mr. Nerdlinger, Lt. Clauderina, Chief O'Brien, Lt. Barclay
 
 ---
 
@@ -435,45 +436,55 @@ Phase 1 must complete before any UI work. Phases 2 and 3 can be developed in par
 
 ### Phase 2.5: Game Flow Integration ✅
 
-**ExplorationUIController Architecture** (2025-12-05)
+**ExplorationUIManager Architecture** (2025-12-05)
 
-Created `ExplorationUIController` as a local scene component (not autoload) to manage exploration UI state:
+Created `ExplorationUIManager` as an **autoload** for automatic UI injection on any exploration map:
 
 ```
-ExplorationScene
-    │
-    ├── HeroController (has ui_controller reference)
-    ├── ExplorationUIController
-    │       ├── state_changed signal
-    │       ├── menu_opened signal
-    │       └── menu_closed signal
-    └── UILayer (CanvasLayer)
-            ├── PartyEquipmentMenu
-            └── CaravanDepotPanel
+ExplorationUIManager (Autoload)
+├── Listens to SceneManager.scene_transition_completed
+├── Listens to BattleManager.battle_started/ended
+├── _ui_layer (CanvasLayer, layer 10)
+│   ├── PartyEquipmentMenu
+│   └── CaravanDepotPanel
+└── _controller (ExplorationUIController)
+        ├── state_changed signal
+        ├── menu_opened signal
+        └── menu_closed signal
+
+HeroController
+└── ui_controller reference (auto-set by ExplorationUIManager)
 ```
 
 **Key Decisions:**
-- ExplorationUIController is scene-local (not autoload) - follows battle scene pattern
+- ExplorationUIManager is an autoload - zero setup required for map creators
+- Automatically activates when scene has a node in `"hero"` group
+- Automatically deactivates during battles (listens to BattleManager signals)
+- Persists UI layer across scene transitions
 - CaravanDepotPanel is sibling of PartyEquipmentMenu (not child)
 - HeroController checks `ui_controller.is_blocking_input()` before processing movement
-- Input action `sf_inventory` mapped to "I" key for inventory hotkey
-- Depot navigation: closing depot returns to inventory if that's where it was opened from
+- Input action `sf_inventory` mapped to "I" key for inventory hotkey (toggle behavior)
+- Depot navigation: closing depot returns to inventory if opened from there
 
 **Files Created:**
+- `core/systems/exploration_ui_manager.gd` - Autoload for automatic UI activation
 - `core/components/exploration_ui_controller.gd` - Menu state management
 
 **Files Modified:**
-- `project.godot` - Added `sf_inventory` input action
+- `project.godot` - Added `sf_inventory` input action, registered ExplorationUIManager autoload
 - `scenes/map_exploration/hero_controller.gd` - Added `ui_controller` ref and blocking checks
-- `scenes/map_exploration/map_test_playable.gd` - Wired up ExplorationUIController
 
 **UI Polish Applied:**
 - DESCRIPTION_HEIGHT increased from 64 to 88 pixels (prevents stat clipping)
 - ITEMS_PER_ROW reduced from 6 to 5 (prevents horizontal scroll in depot)
 
+**Visual Testing Complete:**
+- 32x32 slots display correctly at 640x360 viewport ✅
+- Character tabs, equipment slots (WPN/RNG1/RNG2/ACC), and inventory slots render properly ✅
+- Monogram 16px font readable in all UI elements ✅
+
 ### Pending
 
 - Phase 3: Battle item menu integration (new BattleItemMenu component)
-- Visual testing of 32x32 slots with 16px font
 - Stat comparison deltas for equipment hover (Clauderina recommendation)
 - Inventory capacity indicator in character info (Clauderina recommendation)

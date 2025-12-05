@@ -103,7 +103,9 @@ if dict.has("key"):
 ### Content
 | Singleton | Purpose |
 |-----------|---------|
-| **PartyManager** | Party composition |
+| **PartyManager** | Party composition, item transfers |
+| **StorageManager** | Caravan depot (shared item storage) |
+| **EquipmentManager** | Equipment slot management |
 | **ExperienceManager** | XP distribution, level-up |
 | **PromotionManager** | Class promotion |
 | **DialogManager** | Dialog state machine |
@@ -112,6 +114,16 @@ if dict.has("key"):
 | **TriggerManager** | Map trigger routing |
 | **AudioManager** | Music, SFX |
 | **GameJuice** | Screen shake, effects |
+
+### Exploration UI
+| Singleton | Purpose |
+|-----------|---------|
+| **ExplorationUIManager** | Auto-activating inventory/equipment UI |
+
+ExplorationUIManager automatically provides inventory UI for any exploration map:
+- Activates when scene has a node in `"hero"` group
+- Deactivates during battles
+- No setup required by map creators
 
 ### Static Utility (NOT an autoload)
 | Class | Purpose |
@@ -377,6 +389,50 @@ if SaveManager.has_save_data(slot_number):
 ```
 
 Hero (`is_hero = true`) always at party position 0, cannot be removed.
+
+### SaveData Fields
+| Field | Type | Purpose |
+|-------|------|---------|
+| `depot_items` | Array[String] | Caravan depot contents (item IDs) |
+| `party_members` | Array[CharacterData] | Current party |
+| `story_flags` | Dictionary | Triggered story flags |
+
+---
+
+## Inventory & Equipment System
+
+### Exploration UI (Automatic)
+Press **I** during exploration to open Party Equipment menu:
+- Tab between party members
+- 4 equipment slots: Weapon, Ring 1, Ring 2, Accessory
+- 4 inventory slots per character
+- "Give to..." transfers items between characters
+- "Store in Depot" sends items to Caravan
+
+### Caravan Depot (SF2-Style)
+Unlimited shared storage accessible from the equipment menu:
+```gdscript
+StorageManager.add_to_depot("healing_seed")
+StorageManager.remove_from_depot("bronze_sword")
+var items: Array[String] = StorageManager.get_depot_contents()
+```
+
+### Item Transfers
+```gdscript
+# Between party members
+PartyManager.transfer_item_between_members(from_char, to_char, item_id)
+
+# To/from depot
+StorageManager.add_to_depot(item_id)
+StorageManager.remove_from_depot(item_id)
+```
+
+### Input Actions
+| Action | Default Key | Context |
+|--------|-------------|---------|
+| `sf_confirm` | Enter, Space, Z | Interact, confirm |
+| `sf_cancel` | Escape, X | Cancel, close menu |
+| `sf_inventory` | I | Open equipment menu |
 
 ---
 
