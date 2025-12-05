@@ -33,7 +33,10 @@ sparklingfarce/
       audio/                     # Sound and music (separate from assets/)
         sfx/                     # Sound effects (.ogg, .wav, .mp3)
         music/                   # Background music
-      assets/, scenes/, tilesets/, triggers/
+      assets/                    # Art assets
+        icons/items/             # Item icons (32x32 PNG)
+        icons/abilities/         # Ability icons (32x32 PNG)
+      scenes/, tilesets/, triggers/
     _sandbox/                    # Dev testing (priority 100)
 
   scenes/                        # Engine scenes (battle UI, exploration, tests)
@@ -248,6 +251,7 @@ GameState.has_flag_scoped("boss_defeated")
 - `equipment_type`: "sword", "axe", etc.
 - `attack_power`, `attack_range`
 - `*_modifier`: Stat modifiers
+- `icon`: Texture2D (32x32 PNG recommended, stored in `assets/icons/items/`)
 
 ### AbilityData
 - `ability_name`, `ability_type`
@@ -351,6 +355,8 @@ func validate() -> bool:
 | Dialogues | `mods/<mod_id>/data/dialogues/*.tres` |
 | Cinematics | `mods/<mod_id>/data/cinematics/*.json` |
 | TileSets | `mods/<mod_id>/tilesets/*.tres` |
+| Item Icons | `mods/<mod_id>/assets/icons/items/*.png` |
+| Ability Icons | `mods/<mod_id>/assets/icons/abilities/*.png` |
 | Sound Effects | `mods/<mod_id>/audio/sfx/*.ogg` |
 | Music | `mods/<mod_id>/audio/music/*.ogg` |
 

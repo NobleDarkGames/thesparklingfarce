@@ -49,6 +49,8 @@ my_mod/
     sprites/            # Battle sprites (16x16 or 32x32)
     portraits/          # Character portraits (64x64 or 96x96)
     icons/              # Item/ability icons
+      items/            # Item icons (32x32 PNG recommended)
+      abilities/        # Ability icons (32x32 PNG recommended)
 
   scenes/               # Custom scenes (UI, maps, etc.)
   triggers/             # Custom trigger scripts (*_trigger.gd)
@@ -91,6 +93,7 @@ Items can be equipment or consumables:
 - Armor: Add defense, set armor type
 - Consumables: Reference an ability for the effect
 - Key Items: Quest items with no direct use
+- Icons: Place in `assets/icons/items/`, 32x32 PNG recommended
 
 See: `data/items/example_sword.tres`
 

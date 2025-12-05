@@ -18,7 +18,7 @@ func _ready() -> void:
 	if not ModLoader.is_node_ready():
 		await ModLoader.ready
 
-awdi	# Create test characters
+	# Create test characters
 	_create_test_data()
 
 	# Connect panel signals

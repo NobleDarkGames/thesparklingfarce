@@ -544,12 +544,8 @@ func _add_equipment_section() -> void:
 		picker.none_text = "(Empty)"
 
 		# Filter items to only show compatible types for this slot
-		picker.filter_function = func(resource: Resource) -> bool:
-			var item: ItemData = resource as ItemData
-			if not item:
-				return false
-			# Check if item type is compatible with this slot
-			return item.equipment_type.to_lower() in accepts_types
+		# Note: Use helper function to properly capture accepts_types by value
+		picker.filter_function = _create_equipment_filter(accepts_types)
 
 		picker.resource_selected.connect(_on_equipment_selected.bind(slot_id))
 		slot_container.add_child(picker)
@@ -566,6 +562,17 @@ func _add_equipment_section() -> void:
 		equipment_section.add_child(slot_container)
 
 	detail_panel.add_child(equipment_section)
+
+
+## Create an equipment filter function that properly captures types by value
+## This avoids the closure capture-by-reference bug in GDScript
+func _create_equipment_filter(types: Array) -> Callable:
+	return func(resource: Resource) -> bool:
+		var item: ItemData = resource as ItemData
+		if not item:
+			return false
+		# Check if item type is compatible with this slot
+		return item.equipment_type.to_lower() in types
 
 
 ## Get equipment slots from registry with fallback
@@ -626,13 +633,16 @@ func _infer_slot_from_type(equipment_type: String) -> String:
 
 ## Save equipment from pickers to CharacterData
 func _save_equipment_to_character(character: CharacterData) -> void:
-	character.starting_equipment.clear()
+	# Create a new array to avoid read-only state from duplicated resources
+	var new_equipment: Array[ItemData] = []
 
 	for slot_id: String in equipment_pickers.keys():
 		var picker: ResourcePicker = equipment_pickers[slot_id]
 		var item: ItemData = picker.get_selected_resource() as ItemData
 		if item:
-			character.starting_equipment.append(item)
+			new_equipment.append(item)
+
+	character.starting_equipment = new_equipment
 
 
 ## Handle equipment selection change

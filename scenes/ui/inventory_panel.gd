@@ -86,7 +86,7 @@ var _class_label: Label = null
 var _portrait_rect: TextureRect = null
 var _equipment_container: HBoxContainer = null
 var _inventory_container: HBoxContainer = null
-var _description_label: Label = null
+var _description_label: RichTextLabel = null
 var _description_panel: PanelContainer = null
 var _instruction_label: Label = null
 
@@ -211,17 +211,16 @@ func _build_ui() -> void:
 	_description_panel.clip_contents = true
 	main_vbox.add_child(_description_panel)
 
-	_description_label = Label.new()
+	_description_label = RichTextLabel.new()
 	_description_label.name = "DescriptionLabel"
-	_description_label.add_theme_font_size_override("font_size", 16)
-	_description_label.modulate = COLOR_DESCRIPTION
-	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_description_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	# Prevent label from requesting more space than parent provides
-	_description_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_description_label.add_theme_font_size_override("normal_font_size", 16)
+	_description_label.add_theme_font_size_override("bold_font_size", 16)
+	_description_label.add_theme_color_override("default_color", COLOR_DESCRIPTION)
+	_description_label.bbcode_enabled = true
+	_description_label.fit_content = false
+	_description_label.scroll_active = false
+	_description_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_description_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Clip text that overflows - essential for fixed height
-	_description_label.clip_text = true
 	_description_panel.add_child(_description_label)
 
 
@@ -401,7 +400,8 @@ func _clear_display() -> void:
 
 
 func _update_description(text: String) -> void:
-	_description_label.text = text
+	_description_label.text = ""
+	_description_label.append_text(text)
 
 
 func _update_instruction(text: String) -> void:
@@ -600,55 +600,126 @@ func _on_slot_hovered(item_id: String, slot_type: String, slot_key: String) -> v
 		# Show slot type name for empty slots
 		if slot_type == "equipment":
 			var display_name: String = ModLoader.equipment_slot_registry.get_slot_display_name(slot_key)
-			_update_description(display_name + " (empty)")
+			_update_description("[color=#888888]%s (empty)[/color]" % display_name)
 		else:
-			_update_description("Empty")
+			_update_description("[color=#888888]Empty slot[/color]")
 		return
 
-	# Get item data and show description
+	# Get item data and show formatted description
 	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
 	if item_data:
-		var desc: String = item_data.item_name
-		if not item_data.description.is_empty():
-			desc += "\n" + item_data.description
-
-		# Add stats summary for equipment
-		if item_data.is_equippable():
-			var stats_text: String = _format_item_stats(item_data)
-			if not stats_text.is_empty():
-				desc += "\n" + stats_text
-
-		_update_description(desc)
+		_update_description(_format_item_info(item_data, slot_type, slot_key))
 	else:
-		_update_description("Unknown item: " + item_id)
+		_update_description("[color=#FF6666]Unknown item: %s[/color]" % item_id)
 
 
-func _on_slot_hover_exited() -> void:
-	_update_description("")
+## Format complete item info for description panel (SF2-style)
+func _format_item_info(item: ItemData, slot_type: String, slot_key: String) -> String:
+	var lines: Array[String] = []
+
+	# Line 1: Item name (bold, colored based on cursed status)
+	var name_color: String = "#FFDD44" if slot_type == "equipment" else "#FFFFFF"
+	if item.is_cursed:
+		name_color = "#FF4444"
+	lines.append("[b][color=%s]%s[/color][/b]" % [name_color, item.item_name.to_upper()])
+
+	# Line 2: Slot type
+	var slot_display: String = _get_item_slot_display(item)
+	lines.append("[color=#888888]%s[/color]" % slot_display)
+
+	# Line 3: Stats (color-coded)
+	var stats_text: String = _format_item_stats_colored(item)
+	if not stats_text.is_empty():
+		lines.append(stats_text)
+
+	# Line 4+: Description (white, wrapped)
+	if not item.description.is_empty():
+		lines.append("[color=#CCCCCC]%s[/color]" % item.description)
+
+	# Warning for cursed items
+	if item.is_cursed:
+		lines.append("[color=#FF4444][!] Cursed - cannot be removed![/color]")
+
+	return "\n".join(lines)
 
 
-func _format_item_stats(item: ItemData) -> String:
+## Get display string for item's slot type
+func _get_item_slot_display(item: ItemData) -> String:
+	var type_str: String = ""
+	match item.item_type:
+		ItemData.ItemType.WEAPON:
+			type_str = "Weapon"
+			if not item.equipment_type.is_empty():
+				type_str += " (%s)" % item.equipment_type.capitalize()
+		ItemData.ItemType.ARMOR:
+			type_str = "Armor"
+			if not item.equipment_type.is_empty():
+				type_str += " (%s)" % item.equipment_type.capitalize()
+		ItemData.ItemType.CONSUMABLE:
+			type_str = "Consumable"
+		ItemData.ItemType.KEY_ITEM:
+			type_str = "Key Item"
+		_:
+			if not item.equipment_type.is_empty():
+				type_str = item.equipment_type.capitalize()
+			else:
+				type_str = "Item"
+	return type_str
+
+
+## Format item stats with color coding (green +, red -)
+func _format_item_stats_colored(item: ItemData) -> String:
 	var parts: Array[String] = []
 
+	# Helper to format a stat with color
+	var format_stat: Callable = func(label: String, value: int) -> String:
+		if value == 0:
+			return ""
+		var color: String = "#44FF44" if value > 0 else "#FF4444"
+		return "[color=%s]%s %+d[/color]" % [color, label, value]
+
+	# Attack power (always positive display)
 	if item.attack_power > 0:
-		parts.append("ATK +%d" % item.attack_power)
-	if item.defense_modifier != 0:
-		parts.append("DEF %+d" % item.defense_modifier)
-	if item.strength_modifier != 0:
-		parts.append("STR %+d" % item.strength_modifier)
-	if item.agility_modifier != 0:
-		parts.append("AGI %+d" % item.agility_modifier)
-	if item.intelligence_modifier != 0:
-		parts.append("INT %+d" % item.intelligence_modifier)
-	if item.hp_modifier != 0:
-		parts.append("HP %+d" % item.hp_modifier)
-	if item.mp_modifier != 0:
-		parts.append("MP %+d" % item.mp_modifier)
+		parts.append("[color=#44FF44]ATK +%d[/color]" % item.attack_power)
+
+	# Other stats
+	var def_text: String = format_stat.call("DEF", item.defense_modifier)
+	if not def_text.is_empty():
+		parts.append(def_text)
+
+	var str_text: String = format_stat.call("STR", item.strength_modifier)
+	if not str_text.is_empty():
+		parts.append(str_text)
+
+	var agi_text: String = format_stat.call("AGI", item.agility_modifier)
+	if not agi_text.is_empty():
+		parts.append(agi_text)
+
+	var int_text: String = format_stat.call("INT", item.intelligence_modifier)
+	if not int_text.is_empty():
+		parts.append(int_text)
+
+	var hp_text: String = format_stat.call("HP", item.hp_modifier)
+	if not hp_text.is_empty():
+		parts.append(hp_text)
+
+	var mp_text: String = format_stat.call("MP", item.mp_modifier)
+	if not mp_text.is_empty():
+		parts.append(mp_text)
+
+	var luck_text: String = format_stat.call("LCK", item.luck_modifier)
+	if not luck_text.is_empty():
+		parts.append(luck_text)
 
 	if parts.is_empty():
 		return ""
 
-	return ", ".join(parts)
+	# Join with spaces for compact display
+	return "  ".join(parts)
+
+
+func _on_slot_hover_exited() -> void:
+	_update_description("")
 
 
 func _abbreviate_slot_name(name: String) -> String:

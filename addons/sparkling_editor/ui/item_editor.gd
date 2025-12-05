@@ -5,6 +5,10 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Allows browsing and editing ItemData resources
 
 var name_edit: LineEdit
+var icon_preview: TextureRect
+var icon_path_edit: LineEdit
+var icon_clear_btn: Button
+var icon_file_dialog: EditorFileDialog
 var item_type_option: OptionButton
 var equipment_type_edit: LineEdit
 var equipment_slot_option: OptionButton
@@ -84,6 +88,16 @@ func _load_resource_data() -> void:
 	_select_equipment_slot(item.equipment_slot)
 	description_edit.text = item.description
 
+	# Icon
+	if item.icon:
+		icon_path_edit.text = item.icon.resource_path
+		icon_preview.texture = item.icon
+		icon_preview.tooltip_text = item.icon.resource_path
+	else:
+		icon_path_edit.text = ""
+		icon_preview.texture = null
+		icon_preview.tooltip_text = "No icon assigned"
+
 	# Curse properties
 	is_cursed_check.button_pressed = item.is_cursed
 	uncurse_items_edit.text = ",".join(item.uncurse_items)
@@ -127,6 +141,13 @@ func _save_resource_data() -> void:
 	item.equipment_type = equipment_type_edit.text
 	item.equipment_slot = _get_selected_equipment_slot()
 	item.description = description_edit.text
+
+	# Update icon
+	var icon_path: String = icon_path_edit.text.strip_edges()
+	if not icon_path.is_empty() and ResourceLoader.exists(icon_path):
+		item.icon = load(icon_path) as Texture2D
+	else:
+		item.icon = null
 
 	# Update curse properties
 	item.is_cursed = is_cursed_check.button_pressed
@@ -243,6 +264,52 @@ func _add_basic_info_section() -> void:
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
+
+	# Icon picker (placed right after name - icon is part of item identity)
+	var icon_container: HBoxContainer = HBoxContainer.new()
+	var icon_label: Label = Label.new()
+	icon_label.text = "Icon:"
+	icon_label.custom_minimum_size.x = 150
+	icon_container.add_child(icon_label)
+
+	# Preview at actual game size (32x32) with border
+	var preview_panel: PanelContainer = PanelContainer.new()
+	preview_panel.custom_minimum_size = Vector2(36, 36)
+	var preview_style: StyleBoxFlat = StyleBoxFlat.new()
+	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
+	preview_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
+	preview_style.set_border_width_all(1)
+	preview_style.set_content_margin_all(2)
+	preview_panel.add_theme_stylebox_override("panel", preview_style)
+
+	icon_preview = TextureRect.new()
+	icon_preview.custom_minimum_size = Vector2(32, 32)
+	icon_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview_panel.add_child(icon_preview)
+	icon_container.add_child(preview_panel)
+
+	# Path display (editable for power users)
+	icon_path_edit = LineEdit.new()
+	icon_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	icon_path_edit.placeholder_text = "res://mods/.../assets/icons/items/sword.png"
+	icon_path_edit.text_changed.connect(_on_icon_path_changed)
+	icon_container.add_child(icon_path_edit)
+
+	# Browse button
+	var browse_button: Button = Button.new()
+	browse_button.text = "Browse..."
+	browse_button.pressed.connect(_on_browse_icon)
+	icon_container.add_child(browse_button)
+
+	# Clear button
+	icon_clear_btn = Button.new()
+	icon_clear_btn.text = "X"
+	icon_clear_btn.tooltip_text = "Clear icon"
+	icon_clear_btn.pressed.connect(_on_clear_icon)
+	icon_container.add_child(icon_clear_btn)
+
+	section.add_child(icon_container)
 
 	# Item Type
 	var type_container: HBoxContainer = HBoxContainer.new()
@@ -584,3 +651,71 @@ func _parse_uncurse_items() -> Array[String]:
 		if not trimmed.is_empty():
 			items.append(trimmed)
 	return items
+
+
+# =============================================================================
+# ICON PICKER
+# =============================================================================
+
+func _on_browse_icon() -> void:
+	if not icon_file_dialog:
+		icon_file_dialog = EditorFileDialog.new()
+		icon_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
+		icon_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
+		icon_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
+		icon_file_dialog.file_selected.connect(_on_icon_file_selected)
+		add_child(icon_file_dialog)
+
+	# Default to mod's icon directory if available
+	var default_path: String = "res://mods/_sandbox/assets/icons/"
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var icons_dir: String = active_mod.mod_directory.path_join("assets/icons/")
+			if DirAccess.dir_exists_absolute(icons_dir):
+				default_path = icons_dir
+
+	# Fall back to general assets if icons dir doesn't exist
+	if not DirAccess.dir_exists_absolute(default_path):
+		default_path = "res://mods/_sandbox/assets/"
+	if not DirAccess.dir_exists_absolute(default_path):
+		default_path = "res://mods/"
+
+	icon_file_dialog.current_dir = default_path
+	icon_file_dialog.popup_centered_ratio(0.7)
+
+
+func _on_icon_file_selected(path: String) -> void:
+	icon_path_edit.text = path
+	_load_icon_from_path(path)
+
+
+func _on_icon_path_changed(new_text: String) -> void:
+	_load_icon_from_path(new_text)
+
+
+func _load_icon_from_path(path: String) -> void:
+	var clean_path: String = path.strip_edges()
+	if clean_path.is_empty():
+		icon_preview.texture = null
+		icon_preview.tooltip_text = "No icon assigned"
+		return
+
+	if ResourceLoader.exists(clean_path):
+		var texture: Texture2D = load(clean_path) as Texture2D
+		icon_preview.texture = texture
+		icon_preview.tooltip_text = clean_path
+
+		# Warn if icon is oversized (but allow it)
+		if texture and (texture.get_width() > 64 or texture.get_height() > 64):
+			push_warning("Item icon '%s' is %dx%d - recommend 32x32 or smaller for crisp display" % [
+				clean_path.get_file(), texture.get_width(), texture.get_height()])
+	else:
+		icon_preview.texture = null
+		icon_preview.tooltip_text = "File not found: " + clean_path
+
+
+func _on_clear_icon() -> void:
+	icon_path_edit.text = ""
+	icon_preview.texture = null
+	icon_preview.tooltip_text = "No icon assigned"
