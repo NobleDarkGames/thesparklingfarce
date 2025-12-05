@@ -1,10 +1,39 @@
 # SF2-Style Direct Character Movement System
 
-**Status:** PLANNED
+**Status:** ✅ IMPLEMENTED (90% - Core Complete, Movement Budget Tracking Simplified)
 **Priority:** High - Core UX authenticity improvement
 **Dependencies:** Phase 2.5 complete
 **Target:** Before Phase 4 (Equipment/Magic/Items)
 **Estimated Effort:** 9-13 hours
+**Implemented:** December 2025
+
+---
+
+## Implementation Status (Verified December 5, 2025)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| DIRECT_MOVEMENT state | ✅ Complete | Full enum, state handlers, transitions in InputManager |
+| Tile-by-tile movement | ✅ Complete | `_try_direct_step()`, `_execute_direct_step()` with 0.1s animation |
+| Walk backward to undo | ✅ Complete | Automatic detection, `_undo_last_step()` refunds movement |
+| B button cancel | ✅ Complete | `_cancel_direct_movement()` instant return to start |
+| A button confirm | ✅ Complete | Transitions to SELECTING_ACTION, blocks confirm on allies |
+| Ally pass-through | ✅ Complete | Can walk through allies, cannot stop on them |
+| Movement range display | ✅ Complete | `_update_direct_movement_range()` shows walkable cells |
+| Grid cursor hidden | ✅ Complete | Cursor hidden during DIRECT_MOVEMENT |
+| Camera follow | ✅ Complete | Camera tracks unit during movement |
+| Input blocking during animation | ✅ Complete | `is_direct_moving` flag prevents state corruption |
+| **Movement cost budget** | ⚠️ Simplified | Uses "can reach or can't" validation instead of per-step cost tracking |
+| **movement_remaining variable** | ⚠️ Not implemented | Design called for budget tracking, current impl uses walkable_cells check |
+| **_step_history with costs** | ⚠️ Not implemented | Path tracked via movement_path_taken array without per-step costs |
+
+### Implementation Notes
+
+The current implementation achieves SF2-authentic feel through a simpler approach:
+- Instead of tracking `movement_remaining` points and deducting terrain costs per step, the system checks if the target cell is in the pre-calculated `walkable_cells` array
+- Walking backward is detected by checking if target equals `movement_path_taken[-2]`
+- This approach is functionally correct and feels authentic, but doesn't show a "shrinking movement budget" UI
+- The per-step cost tracking from the design spec could be added later if dynamic range visualization is desired
 
 ---
 

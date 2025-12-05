@@ -1,11 +1,33 @@
 # Terrain Effects for Battle Movement System
 
-**Status:** PLANNED
+**Status:** ✅ IMPLEMENTED (75% - Core Complete, Minor Features Deferred)
 **Priority:** High - Core tactical gameplay feature
 **Dependencies:** None (builds on existing GridManager and movement systems)
 **Estimated Effort:** 15-20 hours
 **Plan Created:** December 2, 2025
+**Implemented:** December 2025
 **Authors:** Lt. Claudbrain
+
+---
+
+## Implementation Status (Verified December 5, 2025)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| TerrainData resource class | ✅ Complete | All properties defined in `core/resources/terrain_data.gd` |
+| TerrainRegistry | ✅ Complete | Integrated with ModLoader, source tracking |
+| GridManager terrain caching | ✅ Complete | `load_terrain_data()`, `get_terrain_at_cell()` |
+| GridManager terrain costs | ✅ Complete | `get_terrain_cost()` uses actual TerrainData |
+| Movement passability | ✅ Complete | Per-movement-type impassable flags |
+| Defense/Evasion bonuses | ✅ Complete | Applied in CombatCalculator for attack AND counter |
+| Damage per turn | ✅ Complete | Processed at turn start, flying units immune |
+| TileSet custom data | ✅ Complete | "terrain_type" layer in terrain_placeholder.tres |
+| Base game terrain content | ✅ Complete | 10+ terrain types in `mods/_base_game/data/terrain/` |
+| TerrainInfoPanel UI | ✅ Complete | Shows all active effects dynamically |
+| **healing_per_turn** | ⚠️ Deferred | Field exists, processing not implemented |
+| **status_effect_on_entry** | ⚠️ Deferred | Field exists, processing not implemented |
+| **footstep_sound** | ⚠️ Deferred | Field exists, not connected to audio |
+| **walk_particle** | ⚠️ Deferred | Field exists, not instantiated |
 
 ---
 

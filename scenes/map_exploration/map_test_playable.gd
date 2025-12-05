@@ -58,6 +58,9 @@ func _ready() -> void:
 	# Create test battle trigger
 	_create_battle_trigger()
 
+	# Note: Exploration UI (inventory menu, depot panel) is automatically
+	# provided by ExplorationUIManager autoload - no manual setup needed!
+
 	# If returning from battle, restore hero position
 	if returning_from_battle and saved_position != Vector2.ZERO:
 		_restore_from_battle(saved_position)
@@ -66,6 +69,7 @@ func _ready() -> void:
 	_debug_print("CONTROLS:")
 	_debug_print("  Arrow Keys - Move hero")
 	_debug_print("  Enter/Z - Interact")
+	_debug_print("  I - Open Inventory/Equipment Menu")
 	_debug_print("  Walk into RED SQUARE to trigger battle")
 	_debug_print("  ESC - Quit test")
 	_debug_print("===========================================\n")

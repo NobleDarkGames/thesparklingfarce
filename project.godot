@@ -21,6 +21,7 @@ config/features=PackedStringArray("4.5", "Forward Plus")
 ModLoader="*res://core/mod_system/mod_loader.gd"
 GameState="*res://core/systems/game_state.gd"
 SaveManager="*res://core/systems/save_manager.gd"
+StorageManager="*res://core/systems/storage_manager.gd"
 SceneManager="*res://core/systems/scene_manager.gd"
 TriggerManager="*res://core/systems/trigger_manager.gd"
 PartyManager="*res://core/systems/party_manager.gd"
@@ -34,6 +35,7 @@ GridManager="*res://core/systems/grid_manager.gd"
 TurnManager="*res://core/systems/turn_manager.gd"
 InputManager="*res://core/systems/input_manager.gd"
 BattleManager="*res://core/systems/battle_manager.gd"
+ExplorationUIManager="*res://core/systems/exploration_ui_manager.gd"
 AIController="*res://core/systems/ai_controller.gd"
 CampaignManager="*res://core/systems/campaign_manager.gd"
 GameJuice="*res://core/systems/game_juice.gd"
@@ -92,6 +94,11 @@ sf_cancel={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194308,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 , Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":88,"key_label":0,"unicode":120,"location":0,"echo":false,"script":null)
+]
+}
+sf_inventory={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":73,"key_label":0,"unicode":105,"location":0,"echo":false,"script":null)
 ]
 }
 

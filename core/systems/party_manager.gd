@@ -16,6 +16,16 @@ extends Node
 ## - Reserve/active member management
 
 # ============================================================================
+# SIGNALS
+# ============================================================================
+
+## Emitted when an item is transferred between party members
+signal item_transferred(from_uid: String, to_uid: String, item_id: String)
+
+## Emitted when a party member's inventory changes
+signal member_inventory_changed(character_uid: String)
+
+# ============================================================================
 # PARTY DATA
 # ============================================================================
 
@@ -339,6 +349,59 @@ func add_item_to_member(character_uid: String, item_id: String) -> bool:
 		return false
 
 	return save_data.add_item_to_inventory(item_id)
+
+
+## Transfer an item between two party members
+## @param from_uid: Source character's unique identifier
+## @param to_uid: Destination character's unique identifier
+## @param item_id: ID of the item to transfer
+## @return: Dictionary with {success: bool, error: String}
+func transfer_item_between_members(from_uid: String, to_uid: String, item_id: String) -> Dictionary:
+	# Validate parameters
+	if from_uid.is_empty() or to_uid.is_empty():
+		return {"success": false, "error": "Invalid character UID"}
+
+	if item_id.is_empty():
+		return {"success": false, "error": "Invalid item ID"}
+
+	if from_uid == to_uid:
+		return {"success": false, "error": "Cannot transfer to same character"}
+
+	# Get save data for both characters
+	var from_save: CharacterSaveData = get_member_save_data(from_uid)
+	var to_save: CharacterSaveData = get_member_save_data(to_uid)
+
+	if not from_save:
+		return {"success": false, "error": "Source character not found"}
+
+	if not to_save:
+		return {"success": false, "error": "Destination character not found"}
+
+	# Check source has the item
+	if not from_save.has_item_in_inventory(item_id):
+		return {"success": false, "error": "Item not in source inventory"}
+
+	# Check destination has room
+	var max_slots: int = 4
+	if ModLoader and ModLoader.inventory_config:
+		max_slots = ModLoader.inventory_config.get_max_slots()
+
+	if to_save.inventory.size() >= max_slots:
+		return {"success": false, "error": "Destination inventory full"}
+
+	# Perform the transfer
+	if not from_save.remove_item_from_inventory(item_id):
+		return {"success": false, "error": "Failed to remove from source"}
+
+	if not to_save.add_item_to_inventory(item_id):
+		# Rollback: return item to source
+		from_save.add_item_to_inventory(item_id)
+		return {"success": false, "error": "Failed to add to destination"}
+
+	# Emit signal for UI updates
+	item_transferred.emit(from_uid, to_uid, item_id)
+
+	return {"success": true, "error": ""}
 
 
 # ============================================================================

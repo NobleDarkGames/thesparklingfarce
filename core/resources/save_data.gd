@@ -14,7 +14,10 @@ extends Resource
 # ============================================================================
 
 ## Save version (for migration if data structure changes)
-@export var save_version: int = 1
+## Version history:
+##   1 = Initial version
+##   2 = Added depot_items for Caravan shared storage
+@export var save_version: int = 2
 
 ## When this save was created (Unix timestamp)
 @export var created_timestamp: int = 0
@@ -91,9 +94,15 @@ extends Resource
 ## Current gold amount
 @export var gold: int = 0
 
-## Items in inventory
+## Items in inventory (legacy field - prefer per-character inventory)
 ## Format: [{item_id: String, mod_id: String, quantity: int}]
 @export var inventory: Array[Dictionary] = []
+
+## Caravan Depot - Shared party storage (SF2-style)
+## Format: Array of item IDs (simple strings, duplicates allowed for stacking)
+## Example: ["healing_seed", "healing_seed", "bronze_sword", "power_ring"]
+## Unlimited capacity by default (SF2-authentic)
+@export var depot_items: Array[String] = []
 
 # ============================================================================
 # STATISTICS (for player reference)
@@ -133,6 +142,7 @@ func serialize_to_dict() -> Dictionary:
 		"max_party_size": max_party_size,
 		"gold": gold,
 		"inventory": inventory.duplicate(),
+		"depot_items": depot_items.duplicate(),
 		"total_battles": total_battles,
 		"battles_won": battles_won,
 		"total_enemies_defeated": total_enemies_defeated,
@@ -215,6 +225,13 @@ func deserialize_from_dict(data: Dictionary) -> void:
 		for i: int in range(inventory_array.size()):
 			var item_dict: Dictionary = inventory_array[i]
 			inventory.append(item_dict)
+	if "depot_items" in data:
+		depot_items.clear()
+		var depot_array: Array = data.depot_items
+		for i: int in range(depot_array.size()):
+			var item_id: Variant = depot_array[i]
+			if item_id is String:
+				depot_items.append(item_id)
 	if "total_battles" in data:
 		total_battles = data.total_battles
 	if "battles_won" in data:

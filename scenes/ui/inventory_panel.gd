@@ -44,8 +44,9 @@ const SLOT_SPACING: int = 4
 const SECTION_SPACING: int = 4
 const PANEL_PADDING: int = 6
 
-## Description box fixed height (enough for ~3 lines at font size 16)
-const DESCRIPTION_HEIGHT: int = 64
+## Description box fixed height (enough for ~5 lines at font size 16)
+## Accommodates item name + description + stat modifiers without clipping
+const DESCRIPTION_HEIGHT: int = 88
 ## Instruction line height (comfortable for font size 16)
 const INSTRUCTION_HEIGHT: int = 24
 

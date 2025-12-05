@@ -1,5 +1,6 @@
-[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3 uid="uid://c78g0ifp1g87w"]
+[gd_resource type="Resource" script_class="ClassData" load_steps=3 format=3 uid="uid://c78g0ifp1g87w"]
 
+[ext_resource type="Resource" path="res://mods/_template/data/abilities/example_heal.tres" id="1_7e3nr"]
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_nbvln"]
 
 [resource]
@@ -7,3 +8,6 @@ script = ExtResource("1_nbvln")
 display_name = "Hero"
 equippable_weapon_types = Array[String](["sword"])
 equippable_armor_types = Array[String](["light", "heavy"])
+learnable_abilities = {
+1: ExtResource("1_7e3nr")
+}

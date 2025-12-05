@@ -14,15 +14,15 @@ script = ExtResource("1_msqh6")
 battle_name = "The Battle of Noobs"
 battle_description = "Enter battle description"
 map_scene = ExtResource("4_oxiof")
-player_spawn_point = Vector2i(5, 5)
+player_spawn_point = Vector2i(14, 12)
 enemies = Array[Dictionary]([{
 "ai_brain": SubResource("Resource_oxiof"),
 "character": ExtResource("3_hugerat"),
-"position": Vector2i(10, 8)
+"position": Vector2i(10, 13)
 }, {
 "ai_brain": SubResource("Resource_oxiof"),
 "character": ExtResource("3_hugerat"),
-"position": Vector2i(12, 9)
+"position": Vector2i(12, 17)
 }])
 experience_reward = 100
 gold_reward = 100

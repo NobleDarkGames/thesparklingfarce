@@ -18,6 +18,10 @@ signal interaction_requested(interaction_position: Vector2i)
 @export var movement_speed: float = 4.0  ## tiles per second
 @export var position_history_size: int = 20  ## Number of positions to track for followers
 
+## Reference to ExplorationUIController for input blocking
+## Set by exploration scene after instantiation
+var ui_controller: Node = null
+
 ## Current facing direction (for sprites and interactions)
 var facing_direction: Vector2i = Vector2i.DOWN
 
@@ -124,6 +128,10 @@ func _process_movement(delta: float) -> void:
 
 ## Handle directional input for movement.
 func _process_input() -> void:
+	# Block input if UI menus are open
+	if ui_controller and ui_controller.is_blocking_input():
+		return
+
 	# TODO: Don't process input if dialog is open or other systems are active
 	# if DialogManager and DialogManager.is_dialog_active():
 	# 	return
@@ -148,6 +156,10 @@ func _process_input() -> void:
 ## Handle interaction input.
 func _input(event: InputEvent) -> void:
 	if is_moving:
+		return
+
+	# Block input if UI menus are open
+	if ui_controller and ui_controller.is_blocking_input():
 		return
 
 	# TODO: Check if dialog is active

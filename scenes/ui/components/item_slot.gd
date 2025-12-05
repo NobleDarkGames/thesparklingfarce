@@ -6,7 +6,7 @@ extends Control
 ## Shows item icon (or placeholder if empty) with visual states for:
 ## - Empty, Filled, Selected, Cursed (red border/tint)
 ##
-## Designed for SF2-authentic 48x48 slot size.
+## Designed for SF2-authentic 32x32 slot size (scaled for 640x360 viewport).
 ## Used in InventoryPanel for both equipment and inventory slots.
 
 ## Emitted when this slot is clicked
@@ -22,8 +22,8 @@ signal hover_exited()
 # CONSTANTS
 # =============================================================================
 
-## Slot dimensions (SF-authentic small slots)
-const SLOT_SIZE: Vector2 = Vector2(48, 48)
+## Slot dimensions (SF-authentic for 640x360 viewport)
+const SLOT_SIZE: Vector2 = Vector2(32, 32)
 
 ## Visual colors
 const COLOR_BORDER_NORMAL: Color = Color(0.6, 0.6, 0.7, 1.0)
@@ -37,7 +37,7 @@ const COLOR_ICON_EMPTY: Color = Color(0.3, 0.3, 0.35, 0.5)
 const COLOR_ICON_NORMAL: Color = Color(1.0, 1.0, 1.0, 1.0)
 const COLOR_ICON_CURSED: Color = Color(1.0, 0.7, 0.7, 1.0)
 
-const BORDER_WIDTH: float = 2.0
+const BORDER_WIDTH: float = 1.0
 
 # =============================================================================
 # PROPERTIES
@@ -108,16 +108,16 @@ func _build_ui() -> void:
 	_icon_texture = TextureRect.new()
 	_icon_texture.name = "Icon"
 	_icon_texture.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_icon_texture.offset_left = 4.0
-	_icon_texture.offset_top = 4.0
-	_icon_texture.offset_right = -4.0
-	_icon_texture.offset_bottom = -4.0
+	_icon_texture.offset_left = 2.0
+	_icon_texture.offset_top = 2.0
+	_icon_texture.offset_right = -2.0
+	_icon_texture.offset_bottom = -2.0
 	_icon_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_icon_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon_texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_background_rect.add_child(_icon_texture)
 
-	# Slot label (shown when empty, e.g., "Weapon", "Ring 1")
+	# Slot label (shown when empty, e.g., "WPN", "RNG1")
 	_slot_label = Label.new()
 	_slot_label.name = "SlotLabel"
 	_slot_label.set_anchors_preset(Control.PRESET_CENTER)
