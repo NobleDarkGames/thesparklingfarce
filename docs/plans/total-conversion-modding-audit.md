@@ -332,7 +332,8 @@ These systems are well-implemented and should be used as patterns:
    - Write protection for other mods' resources
 
 3. **Type Registries** (`core/registries/`)
-   - Mods extend weapon types, equipment slots, triggers
+   - Mods extend weapon types, equipment slots, triggers, equipment subtypes
+   - EquipmentTypeRegistry maps subtypes to categories with wildcard support
    - Consistent pattern across all registries
    - Source tracking per type
 
@@ -388,6 +389,7 @@ These systems are well-implemented and should be used as patterns:
 ### Registries
 - `core/registries/equipment_registry.gd`
 - `core/registries/equipment_slot_registry.gd`
+- `core/registries/equipment_type_registry.gd`
 - `core/registries/trigger_type_registry.gd`
 
 ### Editor

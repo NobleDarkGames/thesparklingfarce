@@ -199,11 +199,45 @@ if ModLoader.registry.has_resource("item", "healing_herb"):
 ```
 
 ### Type Registries
-Mods can extend enum-like values via `custom_types` in mod.json:
+Mods can extend enum-like values via mod.json:
 ```gdscript
-ModLoader.equipment_registry.get_weapon_types()
 ModLoader.trigger_type_registry.is_valid_trigger_type("puzzle")
 ModLoader.unit_category_registry.get_all_categories()
+```
+
+### Equipment Type Registry
+Maps equipment subtypes (sword, bow, ring) to categories (weapon, accessory). Enables slot wildcards and mod-extensible equipment systems.
+
+**mod.json configuration:**
+```json
+{
+  "equipment_types": {
+    "categories": {
+      "weapon": {"display_name": "Weapon"},
+      "accessory": {"display_name": "Accessory"}
+    },
+    "subtypes": {
+      "sword": {"category": "weapon", "display_name": "Sword"},
+      "laser_rifle": {"category": "weapon", "display_name": "Laser Rifle"},
+      "ring": {"category": "accessory", "display_name": "Ring"}
+    }
+  }
+}
+```
+
+**Category wildcards:** Slots and classes can use `weapon:*` to match ANY weapon subtype:
+```json
+{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon:*"]}
+```
+
+**Total conversions:** Use `"replace_all": true` to clear all base equipment types before registering new ones.
+
+**API:**
+```gdscript
+ModLoader.equipment_type_registry.get_category("sword")  # Returns "weapon"
+ModLoader.equipment_type_registry.matches_accept_type("bow", "weapon:*")  # Returns true
+ModLoader.equipment_type_registry.get_subtypes_for_category("weapon")  # Returns ["sword", "bow", ...]
+ModLoader.equipment_type_registry.is_valid_subtype("sword")  # Returns true
 ```
 
 ### TileSet Resolution

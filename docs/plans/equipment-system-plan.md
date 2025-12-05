@@ -957,6 +957,19 @@ description = "Restores 30 HP. Can be used in battle or on the field."
 **Tests**: Manual inventory workflow testing via `test_inventory_panel.tscn`
 **Status**: Implemented and polished by Clauderina, December 5, 2025
 
+### Phase 4.2.7: EquipmentTypeRegistry (Subtype-to-Category Mapping) COMPLETE
+
+1. Create `core/registries/equipment_type_registry.gd`
+2. Maps subtypes (sword, bow, ring) to categories (weapon, accessory)
+3. Supports category wildcards (`weapon:*` matches any weapon subtype)
+4. Populated from `equipment_types` section in mod.json
+5. Total conversions can use `replace_all: true` to clear base types
+6. Integrated with EquipmentSlotRegistry for slot matching
+7. Non-breaking: direct string matches still work
+
+**Status**: COMPLETE - December 5, 2025
+**See**: `docs/plans/equipment-type-registry-plan.md` for full implementation details
+
 ---
 
 ## 17. Out of Scope (Future Phases)
