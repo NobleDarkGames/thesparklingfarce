@@ -184,11 +184,21 @@ func _create_hero() -> void:
 
 
 ## Create party followers from remaining party members.
+## SF2-AUTHENTIC: Followers only appear in towns (caravan_visible = false)
+## On overworld maps, only the hero and caravan are visible.
 func _create_followers() -> void:
 	_debug_print("\n[Creating Followers]")
 
 	if not hero:
 		push_error("Cannot create followers - hero not created!")
+		return
+
+	# SF2-AUTHENTIC: Check if we should show party followers
+	# Followers appear in towns (caravan_visible = false)
+	# On overworld (caravan_visible = true), only hero + caravan are shown
+	var map_meta: MapMetadata = _get_current_map_metadata()
+	if map_meta and map_meta.caravan_visible:
+		_debug_print("⚠️  Overworld map - party followers hidden (caravan mode)")
 		return
 
 	# Skip first member (that's the hero)
@@ -349,6 +359,22 @@ func _create_battle_trigger() -> void:
 
 	_debug_print("✅ Battle trigger created at (480, 180)")
 	_debug_print("   Walk into the red square to start battle")
+
+
+## Get the MapMetadata for the current scene.
+## Returns null if no metadata found.
+func _get_current_map_metadata() -> MapMetadata:
+	if not ModLoader:
+		return null
+
+	# Get all map metadata and find one matching this scene
+	var all_maps: Array[Resource] = ModLoader.registry.get_all_resources("map")
+	for map_resource: Resource in all_maps:
+		var map_meta: MapMetadata = map_resource as MapMetadata
+		if map_meta and map_meta.scene_path == scene_file_path:
+			return map_meta
+
+	return null
 
 
 ## Handle test scene controls.

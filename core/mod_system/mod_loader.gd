@@ -28,7 +28,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"campaigns": "campaign",
 	"maps": "map",  # MapMetadata resources for exploration maps
 	"terrain": "terrain",  # TerrainData resources for battle terrain effects
-	"experience_configs": "experience_config"  # ExperienceConfig resources for XP/leveling settings
+	"experience_configs": "experience_config",  # ExperienceConfig resources for XP/leveling settings
+	"caravans": "caravan"  # CaravanData resources for mobile HQ configuration
 }
 
 # Resource types that support JSON loading (in addition to .tres)

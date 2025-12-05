@@ -2,8 +2,8 @@
 	"ambient_id": "",
 	"base_encounter_rate": 0.0,
 	"camera_zoom": 1.0,
-	"caravan_accessible": false,
-	"caravan_visible": false,
+	"caravan_accessible": true,
+	"caravan_visible": true,
 	"connections": [],
 	"display_name": "Starting Overworld Zone",
 	"edge_connections": {

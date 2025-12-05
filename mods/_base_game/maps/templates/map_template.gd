@@ -329,13 +329,22 @@ func _setup_camera() -> void:
 # =============================================================================
 
 ## Creates visual follower sprites for party members.
-## SF2-style RUBBER BAND: All followers track hero directly with diagonal shortcuts.
+## SF2-AUTHENTIC: Followers only appear in towns (caravan_visible = false).
+## On overworld maps, only hero + caravan are visible.
 ## Uses actual party data from PartyManager for sprites.
 func _setup_party_followers() -> void:
 	_debug_print("MapTemplate: Setting up party followers...")
 
 	if not hero:
 		push_warning("MapTemplate: Cannot create followers - hero not created")
+		return
+
+	# SF2-AUTHENTIC: Check if we should show party followers
+	# Followers appear in towns (caravan_visible = false)
+	# On overworld (caravan_visible = true), only hero + caravan are shown
+	var map_meta: MapMetadata = _get_current_map_metadata()
+	if map_meta and map_meta.caravan_visible:
+		_debug_print("MapTemplate: Overworld map - party followers hidden (caravan mode)")
 		return
 
 	# Skip first member (that's the hero) - create followers from remaining party
@@ -439,6 +448,26 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 	# - Check for NPCs at interaction_pos
 	# - Check for readable signs
 	# - Check for chests
+
+
+# =============================================================================
+# MAP METADATA
+# =============================================================================
+
+## Get the MapMetadata for the current scene.
+## Returns null if no metadata found.
+func _get_current_map_metadata() -> MapMetadata:
+	if not ModLoader:
+		return null
+
+	# Get all map metadata and find one matching this scene
+	var all_maps: Array[Resource] = ModLoader.registry.get_all_resources("map")
+	for map_resource: Resource in all_maps:
+		var map_meta: MapMetadata = map_resource as MapMetadata
+		if map_meta and map_meta.scene_path == scene_file_path:
+			return map_meta
+
+	return null
 
 
 # =============================================================================
