@@ -29,7 +29,7 @@ sparklingfarce/
       data/                      # Resources by type
         characters/, classes/, items/, abilities/
         battles/, parties/, dialogues/, cinematics/
-        maps/, campaigns/, experience_configs/
+        maps/, campaigns/, experience_configs/, terrains/
       audio/                     # Sound and music (separate from assets/)
         sfx/                     # Sound effects (.ogg, .wav, .mp3)
         music/                   # Background music
@@ -135,9 +135,12 @@ Usage: `CombatCalculator.calculate_physical_damage(attacker, defender)`
   "custom_types": {
     "weapon_types": ["laser"],
     "trigger_types": ["puzzle"]
-  }
+  },
+  "hidden_campaigns": ["base_game:*"]
 }
 ```
+
+- `hidden_campaigns`: Array of campaign ID patterns to hide (supports wildcards)
 
 ### Load Priority
 | Range | Purpose |
@@ -164,6 +167,8 @@ ModLoader scans `mods/*/data/<directory>/` automatically:
 | cinematics/ | cinematic | .json |
 | maps/ | map | .json |
 | campaigns/ | campaign | .json |
+| experience_configs/ | experience_config | .tres |
+| terrains/ | terrain | .tres |
 
 ### Accessing Resources
 ```gdscript
@@ -254,6 +259,18 @@ GameState.has_flag_scoped("boss_defeated")
 - `campaign_id`, `campaign_name`
 - `starting_node_id`, `nodes`
 
+### ExperienceConfig
+- `base_xp`, `level_difference_table`: XP curve settings
+- `promotion_level`, `xp_reset_on_promotion`: Promotion behavior
+- `enable_formation_xp`, `formation_radius`: Formation bonuses
+- `spam_threshold_*`, `spam_*_multiplier`: Anti-grinding protection
+
+### TerrainData
+- `terrain_name`, `terrain_type`
+- `movement_cost_*`: Per-movement-type costs
+- `defense_modifier`, `evasion_modifier`: Combat bonuses
+- `blocks_movement`, `blocks_los`: Pathing restrictions
+
 ---
 
 ## Key Patterns
@@ -311,9 +328,16 @@ func validate() -> bool:
 |---------|------|
 | Mod manifest | `mods/<mod_id>/mod.json` |
 | Characters | `mods/<mod_id>/data/characters/*.tres` |
+| Classes | `mods/<mod_id>/data/classes/*.tres` |
+| Items | `mods/<mod_id>/data/items/*.tres` |
+| Abilities | `mods/<mod_id>/data/abilities/*.tres` |
 | Battles | `mods/<mod_id>/data/battles/*.tres` |
+| Terrains | `mods/<mod_id>/data/terrains/*.tres` |
+| XP Config | `mods/<mod_id>/data/experience_configs/*.tres` |
 | Maps | `mods/<mod_id>/data/maps/*.json` |
+| Campaigns | `mods/<mod_id>/data/campaigns/*.json` |
 | Dialogues | `mods/<mod_id>/data/dialogues/*.tres` |
+| Cinematics | `mods/<mod_id>/data/cinematics/*.json` |
 | TileSets | `mods/<mod_id>/tilesets/*.tres` |
 | Sound Effects | `mods/<mod_id>/audio/sfx/*.ogg` |
 | Music | `mods/<mod_id>/audio/music/*.ogg` |
