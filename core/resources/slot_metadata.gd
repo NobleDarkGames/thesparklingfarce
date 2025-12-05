@@ -89,7 +89,7 @@ func populate_from_save_data(save_data: SaveData) -> void:
 ## @return: true if any mods are missing or version mismatch
 func _check_mod_compatibility(saved_mods: Array[Dictionary]) -> bool:
 	for mod_dict: Dictionary in saved_mods:
-		if not "mod_id" in mod_dict:
+		if "mod_id" not in mod_dict:
 			continue
 
 		var mod_id: String = mod_dict.mod_id

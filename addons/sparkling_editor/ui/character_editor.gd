@@ -212,7 +212,7 @@ func _add_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Name
@@ -266,7 +266,7 @@ func _add_battle_configuration_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Battle Configuration"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Unit Category
@@ -326,7 +326,7 @@ func _add_battle_configuration_section() -> void:
 	var ai_help: Label = Label.new()
 	ai_help.text = "AI used when this character is an enemy (can override in Battle Editor)"
 	ai_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	ai_help.add_theme_font_size_override("font_size", 10)
+	ai_help.add_theme_font_size_override("font_size", 16)
 	section.add_child(ai_help)
 
 	detail_panel.add_child(section)
@@ -340,7 +340,7 @@ func _add_stats_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Base Stats"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	hp_spin = _create_stat_editor("HP:", section)

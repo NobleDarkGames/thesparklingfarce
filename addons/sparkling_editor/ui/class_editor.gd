@@ -221,7 +221,7 @@ func _add_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Name
@@ -244,7 +244,7 @@ func _add_movement_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Movement"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Movement Type
@@ -283,7 +283,7 @@ func _add_equipment_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Equipment Restrictions"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Weapon Types - get from registry or use defaults
@@ -338,7 +338,7 @@ func _add_promotion_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Class Promotion"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Promotion Level
@@ -385,12 +385,12 @@ func _add_growth_rates_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Growth Rates (%) - Shining Force Style"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Growth rates determine stat increases on level up. Set per class, not per character."
-	help_label.add_theme_font_size_override("font_size", 10)
+	help_label.add_theme_font_size_override("font_size", 16)
 	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
 	section.add_child(help_label)
 
@@ -436,12 +436,12 @@ func _add_learnable_abilities_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Learnable Abilities"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Abilities this class learns at specific levels."
-	help_label.add_theme_font_size_override("font_size", 10)
+	help_label.add_theme_font_size_override("font_size", 16)
 	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
 	section.add_child(help_label)
 

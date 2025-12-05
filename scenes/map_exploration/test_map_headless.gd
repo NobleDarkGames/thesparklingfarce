@@ -73,10 +73,6 @@ func _ready() -> void:
 		var follower: CharacterBody2D = CharacterBody2D.new()
 		follower.set_script(PartyFollowerScript)
 		follower.name = "Follower%d" % (i + 1)
-		follower.set("formation_index", i + 1)  # Position in formation behind hero
-		follower.set("tile_size", 32)
-		# Use proper method to initialize follow target (sets hero ref, spawn position, etc.)
-		follower.call("set_follow_target", hero)
 
 		var follower_collision: CollisionShape2D = CollisionShape2D.new()
 		var follower_shape: CircleShape2D = CircleShape2D.new()
@@ -87,6 +83,9 @@ func _ready() -> void:
 
 		add_child(follower)
 		followers.append(follower)
+
+		# SF2-style: Initialize with hero reference and formation index
+		follower.call("initialize", hero, i + 1)
 
 	print("✅ Created %d party followers" % followers.size())
 

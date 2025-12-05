@@ -135,7 +135,7 @@ func _setup_base_ui() -> void:
 	var help_label: Label = Label.new()
 	help_label.text = "Select a " + resource_type_name.to_lower() + " to edit"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
 	# Search filter
@@ -175,7 +175,7 @@ func _setup_base_ui() -> void:
 
 	var detail_label: Label = Label.new()
 	detail_label.text = resource_type_name + " Details"
-	detail_label.add_theme_font_size_override("font_size", 18)
+	detail_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(detail_label)
 
 	# Buttons will be added after child creates form

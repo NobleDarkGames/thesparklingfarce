@@ -213,7 +213,7 @@ func _add_identity_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Terrain ID
@@ -252,13 +252,13 @@ func _add_movement_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Movement"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Movement cost: 1 = normal, 2 = half speed, 3+ = very slow. Check 'Impassable' to block entirely."
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(help_label)
 
@@ -334,13 +334,13 @@ func _add_combat_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Combat Modifiers"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Bonuses applied to units standing on this terrain during combat."
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_label)
 
 	# Defense Bonus
@@ -382,13 +382,13 @@ func _add_turn_effects_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Turn Effects"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Effects applied at the start of each turn for units on this terrain."
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_label)
 
 	# Damage per Turn
@@ -471,7 +471,7 @@ func _add_audio_visual_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Audio & Visual"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Footstep Sound
@@ -497,7 +497,7 @@ func _add_audio_visual_section() -> void:
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Walk particle and icon can be assigned in the Godot Inspector"
 	note_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	note_label.add_theme_font_size_override("font_size", 11)
+	note_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(note_label)
 
 	detail_panel.add_child(section)

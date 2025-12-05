@@ -31,12 +31,13 @@ These play during menu navigation and interface interactions.
 
 | Filename | Context | Description |
 |----------|---------|-------------|
+| `menu_hover` | Focus/hover on pre-game menus | Item hovered or navigated to (main menu, save selector) |
 | `menu_select` | Button pressed | Main confirmation sound for menu selections |
 | `menu_confirm` | Action confirmed | Confirming an action in battle menus |
 | `menu_cancel` | Back/cancel pressed | Backing out of menus, canceling actions |
 | `menu_error` | Invalid action | Attempting unavailable actions (grayed out options) |
 | `cursor_move` | Navigation | Moving between menu options or grid tiles |
-| `cursor_hover` | Mouse hover | Mouse entering a selectable element |
+| `cursor_hover` | Mouse hover | Mouse entering a selectable element (battle menus) |
 | `ui_select` | Generic select | Stat reveals, option highlighting |
 | `ui_confirm` | Generic confirm | Dismissing popups, acknowledging messages |
 

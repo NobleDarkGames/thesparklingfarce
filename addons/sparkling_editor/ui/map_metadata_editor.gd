@@ -125,7 +125,7 @@ func _setup_ui() -> void:
 	var help_label: Label = Label.new()
 	help_label.text = "Select a map to edit its configuration"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
 	map_list = ItemList.new()
@@ -162,7 +162,7 @@ func _setup_ui() -> void:
 
 	var detail_label: Label = Label.new()
 	detail_label.text = "Map Configuration"
-	detail_label.add_theme_font_size_override("font_size", 18)
+	detail_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(detail_label)
 
 	# Create all form sections
@@ -211,7 +211,7 @@ func _create_basic_properties_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Properties"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Map ID
@@ -250,7 +250,7 @@ func _create_scene_reference_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Scene Reference"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var path_container: HBoxContainer = HBoxContainer.new()
@@ -274,7 +274,7 @@ func _create_scene_reference_section() -> void:
 	var validation_label: Label = Label.new()
 	validation_label.text = "Scene must be a .tscn file in the mods directory"
 	validation_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	validation_label.add_theme_font_size_override("font_size", 11)
+	validation_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(validation_label)
 
 	detail_panel.add_child(section)
@@ -286,13 +286,13 @@ func _create_caravan_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Caravan Settings"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Controls mobile HQ visibility and interaction (SF2 feature)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	caravan_accessible_check = CheckBox.new()
@@ -312,7 +312,7 @@ func _create_camera_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Camera Settings"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var zoom_container: HBoxContainer = HBoxContainer.new()
@@ -331,7 +331,7 @@ func _create_camera_settings_section() -> void:
 	var zoom_hint: Label = Label.new()
 	zoom_hint.text = "(1.0 recommended for pixel-perfect rendering)"
 	zoom_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	zoom_hint.add_theme_font_size_override("font_size", 11)
+	zoom_hint.add_theme_font_size_override("font_size", 16)
 	zoom_container.add_child(zoom_hint)
 
 	section.add_child(zoom_container)
@@ -345,7 +345,7 @@ func _create_audio_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Audio Settings"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	music_id_edit = _create_line_edit_field("Music ID:", section, "Background music track ID")
@@ -360,7 +360,7 @@ func _create_encounter_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Encounter Settings"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	random_encounters_check = CheckBox.new()
@@ -384,7 +384,7 @@ func _create_encounter_settings_section() -> void:
 	var rate_hint: Label = Label.new()
 	rate_hint.text = "(0.0 = never, 1.0 = always)"
 	rate_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	rate_hint.add_theme_font_size_override("font_size", 11)
+	rate_hint.add_theme_font_size_override("font_size", 16)
 	rate_container.add_child(rate_hint)
 
 	section.add_child(rate_container)
@@ -402,13 +402,13 @@ func _create_spawn_points_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Spawn Points"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Define where players and Caravan can spawn on this map"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	spawn_points_list = ItemList.new()
@@ -505,13 +505,13 @@ func _create_connections_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Connections"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Define doors and transitions to other maps"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	connections_list = ItemList.new()
@@ -591,13 +591,13 @@ func _create_edge_connections_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Edge Connections"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Seamless transitions when walking off map edges (for overworld)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	# North edge

@@ -71,7 +71,7 @@ func _setup_ui() -> void:
 	_create_mod_selector_ui()
 
 	# Make tabs more visible with custom theme overrides
-	tab_container.add_theme_font_size_override("font_size", 14)
+	tab_container.add_theme_font_size_override("font_size", 16)
 	tab_container.add_theme_constant_override("side_margin", 10)
 
 	# Create editor tabs - Overview first so it shows by default
@@ -303,7 +303,7 @@ func _create_mod_selector_ui() -> void:
 	# Label
 	var label: Label = Label.new()
 	label.text = "Active Mod:"
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_size_override("font_size", 16)
 	hbox.add_child(label)
 
 	# Mod selector dropdown
@@ -315,7 +315,7 @@ func _create_mod_selector_ui() -> void:
 	# Mod info label
 	mod_info_label = Label.new()
 	mod_info_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	mod_info_label.add_theme_font_size_override("font_size", 12)
+	mod_info_label.add_theme_font_size_override("font_size", 16)
 	mod_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(mod_info_label)
 

@@ -231,7 +231,7 @@ func create_section(title: String, parent: Node = null) -> VBoxContainer:
 
 	var header: Label = Label.new()
 	header.text = title
-	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_font_size_override("font_size", 16)
 	section.add_child(header)
 
 	var sep: HSeparator = HSeparator.new()

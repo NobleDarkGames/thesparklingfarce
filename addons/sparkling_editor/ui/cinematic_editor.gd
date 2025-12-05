@@ -285,7 +285,7 @@ func _setup_command_list_panel(parent: HSplitContainer) -> void:
 
 	var cmd_label: Label = Label.new()
 	cmd_label.text = "Commands"
-	cmd_label.add_theme_font_size_override("font_size", 14)
+	cmd_label.add_theme_font_size_override("font_size", 16)
 	cmd_header.add_child(cmd_label)
 
 	cmd_header.add_spacer(false)
@@ -418,7 +418,7 @@ func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	# Header
 	var header: Label = Label.new()
 	header.text = "Command Inspector"
-	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_font_size_override("font_size", 16)
 	right_panel.add_child(header)
 
 	var sep: HSeparator = HSeparator.new()

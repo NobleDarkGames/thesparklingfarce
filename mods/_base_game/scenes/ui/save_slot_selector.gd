@@ -59,6 +59,7 @@ func _setup_button_effects(button: Button) -> void:
 
 ## Animate button brightness on focus (pixel-perfect, no scaling)
 func _on_button_focus_entered(button: Button) -> void:
+	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 	var tween: Tween = create_tween()
 	tween.tween_property(button, "modulate", BUTTON_FOCUS_BRIGHTNESS, BUTTON_EFFECT_DURATION)
 
@@ -69,6 +70,7 @@ func _on_button_focus_exited(button: Button) -> void:
 
 
 func _on_button_mouse_entered(button: Button) -> void:
+	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 	if not button.has_focus():
 		var tween: Tween = create_tween()
 		tween.tween_property(button, "modulate", BUTTON_HOVER_BRIGHTNESS, BUTTON_EFFECT_DURATION)

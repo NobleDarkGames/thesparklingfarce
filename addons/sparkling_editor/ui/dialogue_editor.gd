@@ -290,7 +290,7 @@ func _add_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Dialogue ID
@@ -326,7 +326,7 @@ func _add_lines_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Dialogue Lines"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Container for the list of lines
@@ -347,13 +347,13 @@ func _add_choices_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Choices (Optional Branching)"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add choices for yes/no branches. If no choices, dialogue flows to 'Next Dialogue'."
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_label)
 
 	# Container for the list of choices
@@ -374,7 +374,7 @@ func _add_flow_control_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Flow Control"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Next dialogue
@@ -419,13 +419,13 @@ func _add_audio_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Audio & Visuals"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Background music, text sounds, portraits, and backgrounds\ncan be assigned in the Inspector after saving."
 	note_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	note_label.add_theme_font_size_override("font_size", 11)
+	note_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(note_label)
 
 	detail_panel.add_child(section)
@@ -448,7 +448,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	var line_num_label: Label = Label.new()
 	line_num_label.text = "Line " + str(lines_list.size() + 1)
-	line_num_label.add_theme_font_size_override("font_size", 12)
+	line_num_label.add_theme_font_size_override("font_size", 16)
 	header.add_child(line_num_label)
 
 	var spacer: Control = Control.new()
@@ -561,7 +561,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var text_hint: Label = Label.new()
 	text_hint.text = "(Use {variable_name} for dynamic text)"
 	text_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	text_hint.add_theme_font_size_override("font_size", 10)
+	text_hint.add_theme_font_size_override("font_size", 16)
 	text_header.add_child(text_hint)
 	text_container.add_child(text_header)
 
@@ -685,7 +685,7 @@ func _add_choice_ui(choice_dict: Dictionary) -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	var choice_num_label: Label = Label.new()
 	choice_num_label.text = "Choice " + str(choices_list.size() + 1)
-	choice_num_label.add_theme_font_size_override("font_size", 12)
+	choice_num_label.add_theme_font_size_override("font_size", 16)
 	header.add_child(choice_num_label)
 
 	var spacer: Control = Control.new()

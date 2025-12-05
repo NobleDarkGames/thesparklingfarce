@@ -95,7 +95,7 @@ func _setup_ui() -> void:
 
 	var title: Label = Label.new()
 	title.text = "Map Preview"
-	title.add_theme_font_size_override("font_size", 12)
+	title.add_theme_font_size_override("font_size", 16)
 	header.add_child(title)
 
 	var spacer: Control = Control.new()

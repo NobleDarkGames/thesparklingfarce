@@ -334,7 +334,7 @@ func _create_battle_trigger() -> void:
 	var label: Label = Label.new()
 	label.text = "BATTLE"
 	label.position = Vector2(-24, -40)
-	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_font_size_override("font_size", 16)
 	trigger.add_child(label)
 
 	add_child(trigger)

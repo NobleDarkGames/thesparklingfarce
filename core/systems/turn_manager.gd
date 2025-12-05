@@ -328,7 +328,7 @@ func _show_terrain_damage_popup(unit: Node2D, damage: int, terrain_name: String)
 	var label: Label = Label.new()
 	label.text = "-%d (%s)" % [damage, terrain_name]
 	label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))  # Red
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 16)
 	label.position = unit.position + Vector2(0, -20)
 	label.z_index = 100
 

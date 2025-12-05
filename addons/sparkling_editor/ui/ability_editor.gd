@@ -246,7 +246,7 @@ func _add_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Name
@@ -278,7 +278,7 @@ func _add_type_targeting_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Type & Targeting"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Ability Type
@@ -322,7 +322,7 @@ func _add_range_area_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Range & Area of Effect"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Min Range
@@ -377,7 +377,7 @@ func _add_cost_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Cost"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# MP Cost
@@ -416,7 +416,7 @@ func _add_power_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Power"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Power
@@ -456,7 +456,7 @@ func _add_effects_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Status Effects"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Status Effects (comma-separated)
@@ -505,7 +505,7 @@ func _add_animation_audio_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Animation & Audio"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Animation Name
@@ -524,7 +524,7 @@ func _add_animation_audio_section() -> void:
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Sound/particle effects can be assigned in the Inspector"
 	note_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	note_label.add_theme_font_size_override("font_size", 11)
+	note_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(note_label)
 
 	detail_panel.add_child(section)

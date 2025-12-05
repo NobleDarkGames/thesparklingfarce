@@ -137,13 +137,13 @@ func _create_player_party_tab() -> void:
 	# Title
 	var title_label: Label = Label.new()
 	title_label.text = "Save Slot Party Editor"
-	title_label.add_theme_font_size_override("font_size", 14)
+	title_label.add_theme_font_size_override("font_size", 16)
 	player_party_panel.add_child(title_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Edit party composition for save slots. Select a slot, modify the party, then save changes."
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	player_party_panel.add_child(help_label)
 
 	_add_separator_to_panel(player_party_panel)
@@ -234,7 +234,7 @@ func _create_current_party_panel(parent: Control) -> void:
 
 	var current_label: Label = Label.new()
 	current_label.text = "Current Party Members"
-	current_label.add_theme_font_size_override("font_size", 12)
+	current_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(current_label)
 
 	# Party members list
@@ -273,7 +273,7 @@ func _create_available_characters_panel(parent: Control) -> void:
 
 	var available_label: Label = Label.new()
 	available_label.text = "Available Characters"
-	available_label.add_theme_font_size_override("font_size", 12)
+	available_label.add_theme_font_size_override("font_size", 16)
 	right_panel.add_child(available_label)
 
 	# Available characters list
@@ -292,7 +292,7 @@ func _create_available_characters_panel(parent: Control) -> void:
 	# Character preview
 	var preview_label: Label = Label.new()
 	preview_label.text = "Character Preview:"
-	preview_label.add_theme_font_size_override("font_size", 11)
+	preview_label.add_theme_font_size_override("font_size", 16)
 	right_panel.add_child(preview_label)
 
 	character_preview_label = RichTextLabel.new()
@@ -306,7 +306,7 @@ func _create_available_characters_panel(parent: Control) -> void:
 func _create_party_info_panel() -> void:
 	var info_label: Label = Label.new()
 	info_label.text = "Party Statistics:"
-	info_label.add_theme_font_size_override("font_size", 11)
+	info_label.add_theme_font_size_override("font_size", 16)
 	player_party_panel.add_child(info_label)
 
 	party_info_label = RichTextLabel.new()
@@ -825,7 +825,7 @@ func _get_resource_display_name(resource: Resource) -> String:
 func _add_basic_info_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	template_parties_panel.add_child(section_label)
 
 	var name_label: Label = Label.new()
@@ -861,13 +861,13 @@ func _add_basic_info_section() -> void:
 func _add_party_members_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Party Members"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	template_parties_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add characters to this party. Formation offsets determine spawn positions."
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	template_parties_panel.add_child(help_label)
 
 	members_container = VBoxContainer.new()

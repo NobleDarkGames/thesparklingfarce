@@ -212,7 +212,7 @@ func _add_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Name
@@ -290,7 +290,7 @@ func _add_stat_modifiers_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Stat Modifiers"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	hp_mod_spin = _create_modifier_editor("HP:", section)
@@ -309,7 +309,7 @@ func _add_weapon_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Weapon Properties"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	weapon_section.add_child(section_label)
 
 	# Attack Power
@@ -376,7 +376,7 @@ func _add_consumable_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Consumable Properties"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	consumable_section.add_child(section_label)
 
 	usable_battle_check = CheckBox.new()
@@ -400,7 +400,7 @@ func _add_economy_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Economy"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Buy Price

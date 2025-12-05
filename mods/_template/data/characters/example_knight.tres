@@ -1,36 +1,13 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=5 format=3 uid="uid://c0iwkdhisxprv"]
 
-; ============================================================================
-; EXAMPLE CHARACTER: Sir Reginald
-; ============================================================================
-; Characters are the actual units that appear in battles and your party.
-; Each character has:
-; - Base stats (starting values at level 1)
-; - A class (determines growth, equipment, and abilities)
-; - Optional portrait/sprite for visual representation
-; - Biography and other metadata
-;
-; IMPORTANT: Characters require a valid class reference to function!
-; Make sure your class file exists before referencing it here.
-;
-; UNIT CATEGORIES:
-; - "player": Controllable party members
-; - "enemy": AI-controlled opponents
-; - "ally": AI-controlled friendlies (NPCs that help in battle)
-; - "npc": Non-combatant characters
-; ============================================================================
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_char"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="2_class"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_8jydm"]
 
-[ext_resource type="Script" path="res://core/resources/character_data.gd" id="1_char"]
-[ext_resource type="Script" path="res://core/resources/class_data.gd" id="2_class"]
-
-; --- INLINE CLASS DEFINITION ---
-; You can define the class inline (as a SubResource) or reference an external file.
-; Using an external file is preferred for reusable classes.
-; This example uses inline for demonstration purposes.
 [sub_resource type="Resource" id="warrior_class"]
 script = ExtResource("2_class")
 display_name = "Knight"
-movement_range = 4
+counter_rate = 6
 hp_growth = 75
 mp_growth = 15
 strength_growth = 70
@@ -40,66 +17,15 @@ intelligence_growth = 20
 luck_growth = 35
 equippable_weapon_types = Array[String](["sword", "spear"])
 equippable_armor_types = Array[String](["heavy"])
-counter_rate = 6
 
 [resource]
 script = ExtResource("1_char")
-
-; --- IDENTITY ---
-; character_uid: Auto-generated unique ID. Leave empty for new characters.
-character_uid = ""
-
-; character_name: The display name shown in UI
 character_name = "Sir Reginald"
-
-; --- CLASS ---
-; Reference to the character's class (defines growth rates and equipment)
-; Can be a SubResource (inline) or ExtResource (external file)
 character_class = SubResource("warrior_class")
-
-; To reference an external class file instead:
-; character_class = ExtResource("path/to/class.tres")
-
-; --- BASE STATS ---
-; These are the starting stats at level 1. Growth is determined by class.
-; Typical ranges for Shining Force-style games:
-; - HP: 15-30 (heroes higher, mages lower)
-; - MP: 0-15 (warriors 0, mages 10-15)
-; - Other stats: 4-10 at level 1
 base_hp = 28
 base_mp = 0
 base_strength = 8
 base_defense = 9
-base_agility = 5
 base_intelligence = 4
-base_luck = 5
-
-; --- UNIT CATEGORY ---
-; Determines how the unit is controlled and displayed
-; "player" = Party member, "enemy" = Opponent, "ally" = Friendly NPC, "npc" = Non-combat
-unit_category = "player"
-
-; --- HERO FLAGS ---
-; is_hero: Only ONE character should be the hero. Hero is always party slot 0.
-; is_default_party_member: Include in starting party when game begins.
-is_hero = false
-is_default_party_member = true
-
-; --- VISUALS ---
-; portrait: Texture2D for dialogue and menus (typically 64x64 or 96x96)
-; battle_sprite: Texture2D for battle map representation (typically 16x16 or 32x32)
-; portrait = null
-; battle_sprite = null
-
-; --- STARTING EQUIPMENT ---
-; Array of item IDs (strings) that this character starts with
-; Items will be auto-equipped if possible, otherwise placed in inventory
-starting_inventory = Array[String]([])
-
-; --- BIOGRAPHY ---
-; Character's backstory for display in menus
 biography = "A stalwart knight who has served the realm for many years. Known for his unwavering loyalty and skill with both sword and spear."
-
-; --- CURRENT STATS (runtime, not typically set in .tres) ---
-; These are managed by the game at runtime. Don't set these manually.
-; current_hp, current_mp, current_level, current_experience, etc.
+is_default_party_member = true

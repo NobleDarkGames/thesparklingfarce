@@ -130,7 +130,7 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 
 	var header: Label = Label.new()
 	header.text = "Campaign Metadata"
-	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_font_size_override("font_size", 16)
 	section.add_child(header)
 
 	# Error panel
@@ -233,7 +233,7 @@ func _setup_graph_section(parent: VBoxContainer) -> void:
 
 	var graph_label: Label = Label.new()
 	graph_label.text = "Campaign Flow"
-	graph_label.add_theme_font_size_override("font_size", 14)
+	graph_label.add_theme_font_size_override("font_size", 16)
 	graph_header.add_child(graph_label)
 
 	add_node_button = Button.new()
@@ -275,7 +275,7 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 
 	var header: Label = Label.new()
 	header.text = "Node Inspector"
-	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_font_size_override("font_size", 16)
 	inspector_panel.add_child(header)
 
 	var sep: HSeparator = HSeparator.new()
@@ -646,14 +646,14 @@ func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) 
 	# Add type label
 	var type_label: Label = Label.new()
 	type_label.text = node_type.to_upper()
-	type_label.add_theme_font_size_override("font_size", 10)
+	type_label.add_theme_font_size_override("font_size", 16)
 	type_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	graph_node.add_child(type_label)
 
 	# Add ID label
 	var id_label: Label = Label.new()
 	id_label.text = "ID: " + node_id
-	id_label.add_theme_font_size_override("font_size", 9)
+	id_label.add_theme_font_size_override("font_size", 16)
 	id_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	graph_node.add_child(id_label)
 

@@ -113,7 +113,7 @@ func _setup_ui() -> void:
 	var help_label: Label = Label.new()
 	help_label.text = "Select a mod to edit its settings"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
 	mod_list = ItemList.new()
@@ -140,7 +140,7 @@ func _setup_ui() -> void:
 
 	var detail_label: Label = Label.new()
 	detail_label.text = "Mod Settings"
-	detail_label.add_theme_font_size_override("font_size", 18)
+	detail_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(detail_label)
 
 	# Create all form sections
@@ -177,7 +177,7 @@ func _create_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# ID (read-only after creation)
@@ -216,13 +216,13 @@ func _create_load_priority_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Load Priority"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Higher priority mods override lower priority content with matching IDs"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	var priority_container: HBoxContainer = HBoxContainer.new()
@@ -250,7 +250,7 @@ func _create_load_priority_section() -> void:
 	var ranges_text: Label = Label.new()
 	ranges_text.text = "0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions"
 	ranges_text.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	ranges_text.add_theme_font_size_override("font_size", 11)
+	ranges_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(ranges_text)
 
 	detail_panel.add_child(section)
@@ -262,13 +262,13 @@ func _create_dependencies_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Dependencies"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Other mods that must be loaded before this one"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	dependencies_container = VBoxContainer.new()
@@ -307,13 +307,13 @@ func _create_custom_types_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Custom Types"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Register new enum-like values (one per line)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	weapon_types_edit = _create_type_editor("Weapon Types:", section, "e.g., laser, plasma, energy_blade")
@@ -333,13 +333,13 @@ func _create_equipment_slots_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Equipment Slot Layout"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Define custom equipment slots (for total conversions)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	equipment_slots_container = VBoxContainer.new()
@@ -418,7 +418,7 @@ func _create_inventory_config_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Inventory Configuration"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	# Slots per character
@@ -449,7 +449,7 @@ func _create_party_config_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Party Configuration"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	replaces_lower_priority_check = CheckBox.new()
@@ -459,7 +459,7 @@ func _create_party_config_section() -> void:
 	var warning_label: Label = Label.new()
 	warning_label.text = "Warning: When enabled, party members from lower-priority mods will be ignored.\nUse this for total conversions that provide their own starting party."
 	warning_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
-	warning_label.add_theme_font_size_override("font_size", 11)
+	warning_label.add_theme_font_size_override("font_size", 16)
 	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(warning_label)
 
@@ -472,13 +472,13 @@ func _create_scene_overrides_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Scene Overrides"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Replace engine scenes with custom versions (for total conversions)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	scene_overrides_container = VBoxContainer.new()
@@ -541,13 +541,13 @@ func _create_content_paths_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Content Paths"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Relative paths within the mod folder"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 11)
+	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
 	data_path_edit = _create_line_edit_field("Data Path:", section, "Resource files (default: data/)")

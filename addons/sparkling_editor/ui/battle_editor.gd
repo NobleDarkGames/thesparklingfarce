@@ -118,7 +118,7 @@ func _create_detail_form() -> void:
 func _add_basic_info_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var name_label: Label = Label.new()
@@ -144,7 +144,7 @@ func _add_basic_info_section() -> void:
 func _add_map_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Map Configuration"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var map_label: Label = Label.new()
@@ -158,7 +158,7 @@ func _add_map_section() -> void:
 	var map_note: Label = Label.new()
 	map_note.text = "Maps are loaded from mods/*/maps/ directories"
 	map_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	map_note.add_theme_font_size_override("font_size", 10)
+	map_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(map_note)
 
 	# Player Spawn Point with place button
@@ -192,7 +192,7 @@ func _add_map_section() -> void:
 	var spawn_note: Label = Label.new()
 	spawn_note.text = "Party members spawn in formation around this point"
 	spawn_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	spawn_note.add_theme_font_size_override("font_size", 10)
+	spawn_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(spawn_note)
 
 	# Map Preview Panel
@@ -205,7 +205,7 @@ func _add_map_section() -> void:
 func _add_player_forces_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Player Forces"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	# Use ResourcePicker for cross-mod party selection
@@ -220,7 +220,7 @@ func _add_player_forces_section() -> void:
 	var party_note: Label = Label.new()
 	party_note.text = "If not set, uses PartyManager's current party"
 	party_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	party_note.add_theme_font_size_override("font_size", 10)
+	party_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(party_note)
 
 	_add_separator()
@@ -230,7 +230,7 @@ func _add_player_forces_section() -> void:
 func _add_enemy_forces_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Enemy Forces"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
@@ -253,7 +253,7 @@ func _add_enemy_forces_section() -> void:
 func _add_neutral_forces_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Neutral/NPC Forces"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
@@ -276,7 +276,7 @@ func _add_neutral_forces_section() -> void:
 func _add_victory_conditions_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Victory Conditions"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var condition_label: Label = Label.new()
@@ -304,7 +304,7 @@ func _add_victory_conditions_section() -> void:
 func _add_defeat_conditions_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Defeat Conditions"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var condition_label: Label = Label.new()
@@ -331,7 +331,7 @@ func _add_defeat_conditions_section() -> void:
 func _add_battle_flow_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Battle Flow & Dialogue"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	# Use ResourcePicker for cross-mod dialogue selection
@@ -368,7 +368,7 @@ func _add_battle_flow_section() -> void:
 func _add_environment_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Environment"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var weather_label: Label = Label.new()
@@ -416,7 +416,7 @@ func _get_time_of_day_from_registry() -> Array[String]:
 func _add_audio_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Audio"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var audio_note: Label = Label.new()
@@ -431,7 +431,7 @@ func _add_audio_section() -> void:
 func _add_rewards_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Rewards"
-	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(section_label)
 
 	var exp_label: Label = Label.new()
@@ -478,13 +478,13 @@ func _add_map_preview_panel() -> void:
 
 	var preview_label: Label = Label.new()
 	preview_label.text = "Battle Map Preview"
-	preview_label.add_theme_font_size_override("font_size", 12)
+	preview_label.add_theme_font_size_override("font_size", 16)
 	preview_header.add_child(preview_label)
 
 	var help_icon: Label = Label.new()
 	help_icon.text = "(Click markers for info, use Place buttons to position)"
 	help_icon.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	help_icon.add_theme_font_size_override("font_size", 10)
+	help_icon.add_theme_font_size_override("font_size", 16)
 	preview_header.add_child(help_icon)
 
 	preview_container.add_child(preview_header)
@@ -503,19 +503,19 @@ func _add_map_preview_panel() -> void:
 	var spawn_legend: Label = Label.new()
 	spawn_legend.text = "[P] Player Spawn"
 	spawn_legend.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
-	spawn_legend.add_theme_font_size_override("font_size", 10)
+	spawn_legend.add_theme_font_size_override("font_size", 16)
 	legend_hbox.add_child(spawn_legend)
 
 	var enemy_legend: Label = Label.new()
 	enemy_legend.text = "[1,2...] Enemies"
 	enemy_legend.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	enemy_legend.add_theme_font_size_override("font_size", 10)
+	enemy_legend.add_theme_font_size_override("font_size", 16)
 	legend_hbox.add_child(enemy_legend)
 
 	var neutral_legend: Label = Label.new()
 	neutral_legend.text = "[N1...] Neutrals"
 	neutral_legend.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
-	neutral_legend.add_theme_font_size_override("font_size", 10)
+	neutral_legend.add_theme_font_size_override("font_size", 16)
 	legend_hbox.add_child(neutral_legend)
 
 	preview_container.add_child(legend_hbox)
