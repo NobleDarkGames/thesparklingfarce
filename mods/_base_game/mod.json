@@ -1,12 +1,32 @@
 {
   "id": "base_game",
   "name": "The Sparkling Farce - Base Game",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "author": "Sparkling Farce Team",
   "description": "Reference implementation and base content for The Sparkling Farce tactical RPG platform. Demonstrates proper mod structure for tilesets, maps, triggers, characters, classes, items, and battles. Placeholder art should be replaced with final assets.",
   "godot_version": "4.5",
   "dependencies": [],
   "load_priority": 0,
+  "equipment_types": {
+    "categories": {
+      "weapon": {"display_name": "Weapon"},
+      "accessory": {"display_name": "Accessory"}
+    },
+    "subtypes": {
+      "sword": {"category": "weapon", "display_name": "Sword"},
+      "axe": {"category": "weapon", "display_name": "Axe"},
+      "lance": {"category": "weapon", "display_name": "Lance"},
+      "spear": {"category": "weapon", "display_name": "Spear"},
+      "bow": {"category": "weapon", "display_name": "Bow"},
+      "staff": {"category": "weapon", "display_name": "Staff"},
+      "tome": {"category": "weapon", "display_name": "Tome"},
+      "knife": {"category": "weapon", "display_name": "Knife"},
+      "dagger": {"category": "weapon", "display_name": "Dagger"},
+      "wand": {"category": "weapon", "display_name": "Wand"},
+      "ring": {"category": "accessory", "display_name": "Ring"},
+      "accessory": {"category": "accessory", "display_name": "Accessory"}
+    }
+  },
   "content": {
     "data_path": "data/",
     "assets_path": "assets/"

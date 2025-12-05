@@ -45,6 +45,15 @@ const MAX_PRIORITY: int = 9999
 ## If set, completely replaces the default SF-style layout
 @export var equipment_slot_layout: Array[Dictionary] = []
 
+## Equipment type configuration - maps subtypes to categories for slot matching
+## Format: {
+##   "replace_all": bool (optional, wipes all previous registrations),
+##   "subtypes": {subtype_id: {category: String, display_name: String}},
+##   "categories": {category_id: {display_name: String}}
+## }
+## Example: {"subtypes": {"laser": {"category": "weapon", "display_name": "Laser Gun"}}}
+@export var equipment_type_config: Dictionary = {}
+
 ## Inventory configuration - allows mods to change inventory behavior
 ## Format: {slots_per_character: int, allow_duplicates: bool}
 @export var inventory_config: Dictionary = {}
@@ -167,6 +176,15 @@ static func load_from_file(json_path: String) -> ModManifest:
 		for slot_def: Variant in data.equipment_slot_layout:
 			if slot_def is Dictionary:
 				manifest.equipment_slot_layout.append(slot_def)
+
+	# Parse equipment type configuration (subtype -> category mappings)
+	# Can be at top level or nested under custom_types
+	if "equipment_types" in data and data.equipment_types is Dictionary:
+		manifest.equipment_type_config = data.equipment_types
+	elif "custom_types" in data and data.custom_types is Dictionary:
+		var custom_types_dict: Dictionary = data.custom_types
+		if "equipment_types" in custom_types_dict and custom_types_dict.equipment_types is Dictionary:
+			manifest.equipment_type_config = custom_types_dict.equipment_types
 
 	# Parse inventory configuration
 	if "inventory_config" in data and data.inventory_config is Dictionary:

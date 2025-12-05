@@ -47,6 +47,7 @@ const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/an
 const TriggerTypeRegistryClass: GDScript = preload("res://core/registries/trigger_type_registry.gd")
 const TerrainRegistryClass: GDScript = preload("res://core/registries/terrain_registry.gd")
 const EquipmentSlotRegistryClass: GDScript = preload("res://core/registries/equipment_slot_registry.gd")
+const EquipmentTypeRegistryClass: GDScript = preload("res://core/registries/equipment_type_registry.gd")
 const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_config.gd")
 
 ## Signal emitted when all mods have finished loading
@@ -70,6 +71,7 @@ var terrain_registry: RefCounted = TerrainRegistryClass.new()
 
 # Equipment system configuration (data-driven slots and inventory)
 var equipment_slot_registry: RefCounted = EquipmentSlotRegistryClass.new()
+var equipment_type_registry: RefCounted = EquipmentTypeRegistryClass.new()
 var inventory_config: RefCounted = InventoryConfigClass.new()
 
 # TileSet registry: tileset_name -> {path: String, mod_id: String, resource: TileSet}
@@ -401,6 +403,10 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	if not manifest.equipment_slot_layout.is_empty():
 		equipment_slot_registry.register_slot_layout(manifest.mod_id, manifest.equipment_slot_layout)
 
+	# Equipment type mappings (subtype -> category for slot matching)
+	if not manifest.equipment_type_config.is_empty():
+		equipment_type_registry.register_from_config(manifest.mod_id, manifest.equipment_type_config)
+
 	# Inventory configuration (higher priority mods completely replace the config)
 	if not manifest.inventory_config.is_empty():
 		inventory_config.load_from_manifest(manifest.mod_id, manifest.inventory_config)
@@ -633,6 +639,7 @@ func reload_mods() -> void:
 	terrain_registry.clear_mod_registrations()
 	# Clear equipment system registries
 	equipment_slot_registry.clear_mod_registrations()
+	equipment_type_registry.clear_mod_registrations()
 	inventory_config.reset_to_defaults()
 	# Clear tileset registry
 	_tileset_registry.clear()
@@ -655,6 +662,7 @@ func reload_mods_async() -> void:
 	terrain_registry.clear_mod_registrations()
 	# Clear equipment system registries
 	equipment_slot_registry.clear_mod_registrations()
+	equipment_type_registry.clear_mod_registrations()
 	inventory_config.reset_to_defaults()
 	# Clear tileset registry
 	_tileset_registry.clear()

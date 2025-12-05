@@ -61,13 +61,39 @@ enum MovementType {
 
 
 ## Check if this class can equip a specific weapon type
+## Supports category wildcards: "weapon:*" matches any weapon subtype
 func can_equip_weapon(weapon_type: String) -> bool:
-	return weapon_type in equippable_weapon_types
+	var lower_type: String = weapon_type.to_lower()
+
+	for allowed: String in equippable_weapon_types:
+		# Use EquipmentTypeRegistry for wildcard matching if available
+		if ModLoader and ModLoader.equipment_type_registry:
+			if ModLoader.equipment_type_registry.matches_accept_type(lower_type, allowed):
+				return true
+		else:
+			# Fallback: direct match only
+			if allowed.to_lower() == lower_type:
+				return true
+
+	return false
 
 
 ## Check if this class can equip a specific armor type
+## Supports category wildcards: "armor:*" matches any armor subtype
 func can_equip_armor(armor_type: String) -> bool:
-	return armor_type in equippable_armor_types
+	var lower_type: String = armor_type.to_lower()
+
+	for allowed: String in equippable_armor_types:
+		# Use EquipmentTypeRegistry for wildcard matching if available
+		if ModLoader and ModLoader.equipment_type_registry:
+			if ModLoader.equipment_type_registry.matches_accept_type(lower_type, allowed):
+				return true
+		else:
+			# Fallback: direct match only
+			if allowed.to_lower() == lower_type:
+				return true
+
+	return false
 
 
 ## Get ability learned at a specific level (if any)

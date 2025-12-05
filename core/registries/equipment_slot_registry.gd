@@ -9,18 +9,16 @@ extends RefCounted
 ##
 ## Slot format: {id: String, display_name: String, accepts_types: Array[String]}
 ##
-## ARCHITECTURE NOTE (TODO): The current system requires slots to explicitly list all
-## accepted equipment subtypes (sword, axe, etc.). A planned improvement is to add an
-## EquipmentTypeRegistry that maps subtypes to categories (sword -> weapon category),
-## allowing slots to accept categories instead. This would let modders register new
-## weapon types without modifying slot definitions. See design discussion in
-## docs/design/inventory-equipment-analysis.md for the full plan.
+## accepts_types supports category wildcards via EquipmentTypeRegistry:
+##   - "weapon:*" matches ANY subtype in the "weapon" category (sword, axe, bow, etc.)
+##   - "sword" matches ONLY the literal "sword" subtype
+##   - Category wildcards require EquipmentTypeRegistry to be populated from mod.json
 
 const DEFAULT_SLOTS: Array[Dictionary] = [
-	{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon", "sword", "axe", "lance", "spear", "bow", "staff", "tome", "knife", "dagger"]},
-	{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["ring"]},
-	{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["ring"]},
-	{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory"]}
+	{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon:*"]},
+	{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["accessory:*"]},
+	{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["accessory:*"]},
+	{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory:*"]}
 ]
 
 var _slots: Array[Dictionary] = []
@@ -82,12 +80,29 @@ func is_valid_slot(slot_id: String) -> bool:
 
 
 ## Check if an item type can go in a slot
+## Supports category wildcards via EquipmentTypeRegistry (e.g., "weapon:*" matches any weapon subtype)
 func slot_accepts_type(slot_id: String, item_type: String) -> bool:
 	var slot: Dictionary = get_slot(slot_id)
 	if slot.is_empty():
 		return false
+
 	var accepts: Array = slot.get("accepts_types", [])
-	return item_type.to_lower() in accepts
+	var lower_type: String = item_type.to_lower()
+
+	# Check each accept entry (may include wildcards like "weapon:*")
+	for accept_entry: Variant in accepts:
+		var accept_str: String = str(accept_entry).to_lower()
+
+		# Try to use EquipmentTypeRegistry for wildcard matching
+		if ModLoader and ModLoader.equipment_type_registry:
+			if ModLoader.equipment_type_registry.matches_accept_type(lower_type, accept_str):
+				return true
+		else:
+			# Fallback: direct match only (no wildcard support)
+			if lower_type == accept_str:
+				return true
+
+	return false
 
 
 ## Get display name for a slot

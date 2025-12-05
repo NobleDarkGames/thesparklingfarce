@@ -308,7 +308,6 @@ func _select_character(index: int) -> void:
 # =============================================================================
 
 func _enter_transfer_mode(item_id: String) -> void:
-	print("[DEBUG] _enter_transfer_mode called with item_id='%s'" % item_id)
 	_transfer_mode_active = true
 	_transfer_item_id = item_id
 	_footer_label.text = "Select recipient or press Esc to cancel"
@@ -318,7 +317,6 @@ func _enter_transfer_mode(item_id: String) -> void:
 	for i in range(_character_tabs.size()):
 		if i != _current_index:
 			_character_tabs[i].modulate = Color(0.5, 1.0, 0.5, 1.0)
-	print("[DEBUG] Transfer mode now active, _transfer_mode_active=%s" % _transfer_mode_active)
 
 
 func _cancel_transfer_mode() -> void:
@@ -333,19 +331,15 @@ func _cancel_transfer_mode() -> void:
 
 
 func _execute_transfer(target_index: int) -> void:
-	print("[DEBUG] _execute_transfer called with target_index=%d" % target_index)
 	if target_index == _current_index:
-		print("[DEBUG] _execute_transfer: target == current, aborting")
 		return
 
 	var from_uid: String = _party_character_data[_current_index].character_uid
 	var to_uid: String = _party_character_data[target_index].character_uid
-	print("[DEBUG] Transferring item '%s' from '%s' to '%s'" % [_transfer_item_id, from_uid, to_uid])
 
 	var result: Dictionary = PartyManager.transfer_item_between_members(
 		from_uid, to_uid, _transfer_item_id
 	)
-	print("[DEBUG] Transfer result: %s" % result)
 
 	if result.success:
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
@@ -364,13 +358,8 @@ func _execute_transfer(target_index: int) -> void:
 # =============================================================================
 
 func _on_tab_pressed(index: int) -> void:
-	# DEBUG: Diagnostic output for item transfer flow
-	print("[DEBUG] _on_tab_pressed called: index=%d, _current_index=%d, _transfer_mode_active=%s" % [index, _current_index, _transfer_mode_active])
-
 	if _transfer_mode_active:
-		print("[DEBUG] Transfer mode active, checking if index != _current_index: %d != %d = %s" % [index, _current_index, index != _current_index])
 		if index != _current_index:
-			print("[DEBUG] Executing transfer to index %d" % index)
 			_execute_transfer(index)
 		return
 
@@ -379,9 +368,6 @@ func _on_tab_pressed(index: int) -> void:
 
 
 func _on_inventory_slot_clicked(slot_type: String, slot_index: int, item_id: String) -> void:
-	# DEBUG: Log slot click details
-	print("[DEBUG] _on_inventory_slot_clicked: slot_type='%s', slot_index=%d, item_id='%s'" % [slot_type, slot_index, item_id])
-
 	# Only allow Give/Store for inventory items, NOT equipped items
 	# (equipped items must be unequipped first before transferring)
 	var has_item: bool = not item_id.is_empty()

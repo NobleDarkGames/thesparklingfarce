@@ -155,11 +155,8 @@ func refresh() -> void:
 
 	# Get all resources of the specified type from the registry
 	var all_resources: Array[Resource] = ModLoader.registry.get_all_resources(resource_type)
-	print("[DEBUG] ResourcePicker refresh: type='%s', found %d resources" % [resource_type, all_resources.size()])
 
 	if all_resources.is_empty():
-		# No resources found - this might be expected or a configuration issue
-		print("[DEBUG] ResourcePicker: No resources found for type '%s'" % resource_type)
 		return
 
 	# Scan directories to detect override situations (same filename in multiple mods)

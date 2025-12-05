@@ -567,32 +567,33 @@ func _add_equipment_section() -> void:
 ## Create an equipment filter function that properly captures types by value
 ## This avoids the closure capture-by-reference bug in GDScript
 func _create_equipment_filter(types: Array) -> Callable:
-	print("[DEBUG] Creating equipment filter for types: %s" % [types])
 	return func(resource: Resource) -> bool:
 		var item: ItemData = resource as ItemData
 		if not item:
-			print("[DEBUG] Filter: resource is not ItemData")
 			return false
-		# Check if item type is compatible with this slot
+		# Check if item type is compatible with this slot using wildcard matching
 		var eq_type: String = item.equipment_type.to_lower()
-		var matches: bool = eq_type in types
-		print("[DEBUG] Filter: item '%s' equipment_type='%s' -> matches=%s" % [item.item_name, eq_type, matches])
-		return matches
+		# Use EquipmentTypeRegistry for wildcard matching (e.g., "weapon:*" matches "sword")
+		if ModLoader and ModLoader.equipment_type_registry:
+			for accept_type: Variant in types:
+				if ModLoader.equipment_type_registry.matches_accept_type(eq_type, str(accept_type)):
+					return true
+			return false
+		# Fallback: direct match only
+		return eq_type in types
 
 
 ## Get equipment slots from registry with fallback
 func _get_equipment_slots() -> Array[Dictionary]:
 	if ModLoader and ModLoader.equipment_slot_registry:
-		var slots: Array[Dictionary] = ModLoader.equipment_slot_registry.get_slots()
-		print("[DEBUG] Using equipment_slot_registry, slots: %s" % [slots])
-		return slots
+		return ModLoader.equipment_slot_registry.get_slots()
 	# Fallback to default SF-style slots (should match EquipmentSlotRegistry.DEFAULT_SLOTS)
-	print("[DEBUG] Using fallback equipment slots")
+	# Uses category wildcards - requires EquipmentTypeRegistry to be populated
 	return [
-		{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon", "sword", "axe", "lance", "spear", "bow", "staff", "tome", "knife", "dagger"]},
-		{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["ring"]},
-		{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["ring"]},
-		{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory"]}
+		{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon:*"]},
+		{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["accessory:*"]},
+		{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["accessory:*"]},
+		{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory:*"]}
 	]
 
 
