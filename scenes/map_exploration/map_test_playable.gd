@@ -48,11 +48,8 @@ func _ready() -> void:
 	# Create hero from first party member
 	_create_hero()
 
-	# Initialize hero's tile history with formation trail BEFORE creating followers
-	if hero and hero.has_method("initialize_formation_history"):
-		hero.call("initialize_formation_history")
-
 	# Create followers from remaining party members
+	# SF2-authentic: followers spawn at hero position, fan out as hero moves
 	_create_followers()
 
 	# Setup camera
@@ -186,6 +183,10 @@ func _create_hero() -> void:
 func _create_followers() -> void:
 	_debug_print("\n[Creating Followers]")
 
+	if not hero:
+		push_error("Cannot create followers - hero not created!")
+		return
+
 	# Skip first member (that's the hero)
 	for i in range(1, party_characters.size()):
 		var char_data: CharacterData = party_characters[i]
@@ -195,9 +196,8 @@ func _create_followers() -> void:
 		follower.name = "Follower_%s" % char_data.character_name
 		follower.z_index = 90 - i  # Followers below hero, in reverse order (closer = higher)
 
-		# Set follow parameters - SF2 CHAIN style: each follows the previous
-		follower.set("formation_index", i)  # 1, 2, 3... for identification
-		follower.set("tile_size", 32)
+		# CRITICAL: Hide follower until properly positioned to prevent flash at (0,0)
+		follower.visible = false
 
 		# Add visual representation using character's battle_sprite
 		var visual_container: Node2D = Node2D.new()
@@ -222,14 +222,6 @@ func _create_followers() -> void:
 			sprite_rect.name = "SpriteRect"
 			visual_container.add_child(sprite_rect)
 
-		# Character name label (hidden in map mode to avoid overlap)
-		# var name_label: Label = Label.new()
-		# name_label.text = char_data.character_name
-		# name_label.position = Vector2(-20, -28)
-		# name_label.add_theme_font_size_override("font_size", 9)
-		# name_label.modulate = Color(1, 1, 1, 0.8)
-		# visual_container.add_child(name_label)
-
 		# Collision shape
 		var collision: CollisionShape2D = CollisionShape2D.new()
 		var shape: CircleShape2D = CircleShape2D.new()
@@ -241,12 +233,12 @@ func _create_followers() -> void:
 		add_child(follower)
 		followers.append(follower)
 
-		# CHAIN FOLLOWING: Set up after adding to scene so set_follow_target() works correctly
-		# Follower 1 follows hero, Follower 2 follows Follower 1, etc.
-		if i == 1:
-			follower.call("set_follow_target", hero)  # First follower follows hero
-		else:
-			follower.call("set_follow_target", followers[i - 2])  # Follow previous follower
+		# SF2-style: Initialize follower with hero reference and formation index
+		# Follower spawns at correct position relative to hero automatically
+		follower.call("initialize", hero, i)
+
+		# NOW make follower visible - they're at correct position
+		follower.visible = true
 
 		_debug_print("✅ Follower created: %s (formation index %d)" % [char_data.character_name, i])
 
@@ -288,14 +280,13 @@ func _restore_from_battle(saved_position: Vector2) -> void:
 	var grid_pos: Vector2i = GridManager.world_to_cell(saved_position)
 	hero.set("grid_position", grid_pos)
 
-	# Rebuild position history for followers
-	var position_history_size: int = hero.get("position_history_size") if hero.get("position_history_size") else 30
-	var position_history: Array = []
-	for i in range(position_history_size):
-		position_history.append(saved_position)
-	hero.set("position_history", position_history)
-
 	_debug_print("✅ Hero restored to position: %s (grid: %s)" % [saved_position, grid_pos])
+
+	# Reposition all followers relative to hero's new position
+	for follower in followers:
+		if follower and follower.has_method("reposition_to_hero"):
+			follower.call("reposition_to_hero")
+	_debug_print("✅ Followers repositioned around hero")
 
 	# Snap camera to restored position
 	if camera:

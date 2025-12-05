@@ -90,11 +90,8 @@ func _ready() -> void:
 	# Dynamically create hero from first party member
 	_create_hero()
 
-	# Initialize hero's tile history for formation trail BEFORE creating followers
-	if hero and hero.has_method("initialize_formation_history"):
-		hero.call("initialize_formation_history")
-
 	# Create party followers from remaining party members
+	# SF2-authentic: followers spawn at hero position, fan out as hero moves
 	_setup_party_followers()
 
 	# CRITICAL: Handle transitions (restores hero position after battle/door)
@@ -150,6 +147,12 @@ func _handle_transition_context(context: RefCounted) -> void:
 		_spawn_at_default()
 		_debug_print("  Hero spawned at default position")
 
+	# Reposition all followers relative to hero's new position
+	for follower in party_followers:
+		if follower and follower.has_method("reposition_to_hero"):
+			follower.reposition_to_hero()
+	_debug_print("  Followers repositioned around hero")
+
 	# Snap camera to avoid jarring interpolation
 	if camera:
 		camera.snap_to_target()
@@ -191,6 +194,16 @@ func _spawn_at_default() -> void:
 			if hero.has_method("set_facing"):
 				hero.set_facing(default_spawn.facing)
 			_debug_print("MapTemplate: Hero spawned at default spawn point")
+
+			# SF2-AUTHENTIC: Reposition followers at hero's new location
+			for follower in party_followers:
+				if follower and follower.has_method("reposition_to_hero"):
+					follower.reposition_to_hero()
+			_debug_print("MapTemplate: Followers repositioned to hero")
+
+			# Snap camera to new position
+			if camera:
+				camera.snap_to_target()
 	# If no default spawn point, hero stays at scene-defined position
 
 
@@ -316,7 +329,7 @@ func _setup_camera() -> void:
 # =============================================================================
 
 ## Creates visual follower sprites for party members.
-## SF2-style CHAIN FOLLOWING: Each follower follows the one in front of them.
+## SF2-style RUBBER BAND: All followers track hero directly with diagonal shortcuts.
 ## Uses actual party data from PartyManager for sprites.
 func _setup_party_followers() -> void:
 	_debug_print("MapTemplate: Setting up party followers...")
@@ -336,30 +349,27 @@ func _setup_party_followers() -> void:
 		followers_container.add_child(follower)
 		party_followers.append(follower)
 
-		# CHAIN FOLLOWING: First follower follows hero, rest follow previous follower
-		if i == 0:
-			follower.set_follow_target(hero)
-		else:
-			follower.set_follow_target(party_followers[i - 1])
+		# SF2-style: Initialize with hero reference and formation index
+		# Follower spawns at correct position relative to hero automatically
+		var formation_index: int = i + 1
+		follower.initialize(hero, formation_index)
 
-		_debug_print("  Follower %d: %s (following %s)" % [
-			i + 1,
-			char_data.character_name,
-			"hero" if i == 0 else party_characters[i].character_name
-		])
+		# Now make visible - follower is at correct position
+		follower.visible = true
 
-	_debug_print("MapTemplate: Created %d party followers (chain following)" % num_followers)
+		_debug_print("  Follower %d: %s" % [formation_index, char_data.character_name])
+
+	_debug_print("MapTemplate: Created %d party followers" % num_followers)
 
 
 ## Creates a single follower node from CharacterData.
-## SF2-style: each follower is positioned behind hero based on formation_index.
+## Note: formation_index is set by initialize() call in _setup_party_followers()
 func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 	var follower: CharacterBody2D = CharacterBody2D.new()
 	follower.set_script(PartyFollowerScript)
 	follower.name = "Follower_%s" % char_data.character_name
-	follower.formation_index = index + 1  # SF2-style: position in formation behind hero
-	follower.tile_size = hero.tile_size if hero else 32
 	follower.z_index = 90 - index  # Followers below hero, in reverse order
+	follower.visible = false  # Hide until positioned by initialize()
 
 	# Add visual representation using character's battle_sprite
 	var visual_container: Node2D = Node2D.new()
@@ -389,8 +399,6 @@ func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 	shape.radius = 4.0
 	collision.shape = shape
 	follower.add_child(collision)
-
-	# NOTE: follow_target is set in _setup_party_followers() for chain following
 
 	return follower
 

@@ -55,21 +55,23 @@ func _ready() -> void:
 	if not tile_map:
 		push_warning("HeroController: No TileMapLayer found - collision detection disabled")
 
-	# Initialize position
-	grid_position = world_to_grid(global_position)
+	# Initialize position - use 'position' not 'global_position' as transforms
+	# may not be fully computed yet during _ready()
+	var initial_pos: Vector2 = position if position != Vector2.ZERO else global_position
+	grid_position = world_to_grid(initial_pos)
 	target_position = grid_to_world(grid_position)  # Snap to grid center
-	global_position = target_position  # Actually snap the position
+	position = target_position  # Snap to grid center using local position
 
 	if DEBUG_MODE:
 		print("[HeroController] Init - tile_size: %d" % tile_size)
-		print("[HeroController] Init - global_position: %s" % global_position)
+		print("[HeroController] Init - initial position (from .tscn): %s" % initial_pos)
 		print("[HeroController] Init - grid_position: %s" % grid_position)
 		print("[HeroController] Init - target_position: %s" % target_position)
 
 	# Initialize position history with current position
 	position_history.clear()
 	for i: int in range(position_history_size):
-		position_history.append(global_position)
+		position_history.append(target_position)
 
 	# Initialize tile history with current grid position (SF2-style)
 	tile_history.clear()
@@ -306,8 +308,8 @@ func get_historical_tile(tiles_back: int) -> Vector2i:
 
 ## Convert world position to grid coordinates.
 func world_to_grid(world_pos: Vector2) -> Vector2i:
-	# Use TileMapLayer's built-in method if available (recommended)
-	if tile_map:
+	# Use TileMapLayer's built-in method if available AND it has a tile_set
+	if tile_map and tile_map.tile_set:
 		return tile_map.local_to_map(world_pos)
 	else:
 		# Fallback for testing without tilemap
@@ -316,8 +318,8 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 
 ## Convert grid coordinates to world position (centered on tile).
 func grid_to_world(grid_pos: Vector2i) -> Vector2:
-	# Use TileMapLayer's built-in method if available (recommended)
-	if tile_map:
+	# Use TileMapLayer's built-in method if available AND it has a tile_set
+	if tile_map and tile_map.tile_set:
 		return tile_map.map_to_local(grid_pos)
 	else:
 		# Fallback for testing without tilemap

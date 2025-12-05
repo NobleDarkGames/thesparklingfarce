@@ -31,7 +31,21 @@ var party_followers: Array[Node2D] = []
 func _ready() -> void:
 	_debug_print("MapTest: Initializing map exploration test scene")
 
-	# Check if returning from battle
+	# Setup camera to follow hero
+	if camera and hero:
+		camera.set_follow_target(hero)
+		camera.snap_to_target()
+
+	# Create test party followers FIRST (before handling transitions)
+	# SF2-authentic: followers spawn at hero position, fan out as hero moves
+	_setup_party_followers()
+
+	# Connect hero signals
+	if hero:
+		hero.moved_to_tile.connect(_on_hero_moved)
+		hero.interaction_requested.connect(_on_hero_interaction)
+
+	# Handle battle return AFTER followers are created
 	var context: RefCounted = GameState.get_transition_context()
 	if context:
 		_debug_print("MapTest: Returning from battle - restoring hero position")
@@ -44,25 +58,20 @@ func _ready() -> void:
 			hero.teleport_to_grid(return_pos)
 			_debug_print("  Hero restored to grid position: %s" % return_pos)
 
+		# Reposition followers after hero teleport
+		for follower in party_followers:
+			if follower and follower.has_method("reposition_to_hero"):
+				follower.reposition_to_hero()
+		_debug_print("  Followers repositioned around hero")
+
+		# Snap camera to restored position
+		if camera:
+			camera.snap_to_target()
+
 		# Clear transition context after using it
 		GameState.clear_transition_context()
 
-	# Setup camera to follow hero
-	if camera and hero:
-		camera.set_follow_target(hero)
-		camera.snap_to_target()
-
-	# Create test party followers
-	_setup_party_followers()
-
-	# Connect hero signals
-	if hero:
-		hero.moved_to_tile.connect(_on_hero_moved)
-		hero.interaction_requested.connect(_on_hero_interaction)
-
 	# Note: TriggerManager now handles all trigger connections automatically
-	# No need to manually connect to triggers in map scenes anymore!
-	# But we'll keep the old code for backward compatibility
 	var battle_trigger: Node = get_node_or_null("BattleTrigger")
 	if battle_trigger:
 		_debug_print("MapTest: Battle trigger found (will be handled by TriggerManager)")
@@ -79,8 +88,7 @@ func _setup_party_followers() -> void:
 		var follower: CharacterBody2D = CharacterBody2D.new()
 		follower.set_script(PartyFollowerScript)
 		follower.name = "Follower%d" % (i + 1)
-		follower.formation_index = i + 1  # SF2-style: position in formation behind hero
-		follower.tile_size = hero.tile_size
+		follower.visible = false  # Hide until positioned
 
 		# Add visual components (placeholder colored squares)
 		var sprite_placeholder: ColorRect = ColorRect.new()
@@ -98,12 +106,13 @@ func _setup_party_followers() -> void:
 		collision.name = "CollisionShape2D"
 		follower.add_child(collision)
 
-		# Set follow target - all followers follow hero directly
-		follower.set_follow_target(hero)
-
 		# Add to scene
 		followers_container.add_child(follower)
 		party_followers.append(follower)
+
+		# SF2-style: Initialize with hero reference and formation index
+		follower.initialize(hero, i + 1)
+		follower.visible = true  # Now positioned correctly
 
 	_debug_print("MapTest: Created %d party followers" % num_followers)
 
