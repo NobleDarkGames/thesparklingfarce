@@ -1,6 +1,6 @@
 # Equipment System Plan
 
-**Status:** Phases 4.2.1-4.2.4 COMPLETE | Phases 4.2.5-4.2.6 Ready for Implementation
+**Status:** Phases 4.2.1-4.2.6 COMPLETE
 **Authors:** Commander Claudius (Design), Lt. Claudbrain (Architecture), Modro (Mod Review)
 **Date:** 2025-12-02
 **Last Updated:** December 5, 2025
@@ -937,19 +937,25 @@ description = "Restores 30 HP. Can be used in battle or on the field."
 
 **Status**: Verified by Lt. Claudbrain (December 5, 2025)
 
-### Phase 4.2.5: Editor Integration 🔲 NEEDS VERIFICATION
-1. Update `item_editor.gd` - remove durability, add equipment slot and curse UI
-2. Update `character_editor.gd` - add equipment preview
+### Phase 4.2.5: Editor Integration ✅ COMPLETE
+1. ✅ Update `item_editor.gd` - remove durability, add equipment slot and curse UI
+2. ✅ Update `character_editor.gd` - add equipment preview
+3. ✅ Fix all editor `resource_directory` paths to use `mods/_sandbox/data/`
 
 **Tests**: Manual editor workflow testing
+**Status**: Verified December 5, 2025
 
-### Phase 4.2.6: Inventory UI 🔲 READY FOR IMPLEMENTATION
-1. Create basic inventory display scene
-2. Implement equip/unequip from inventory
-3. Add visual feedback for cursed items
-4. Implement consumable item usage (uncurse items)
+### Phase 4.2.6: Inventory UI ✅ COMPLETE
+1. ✅ Create `ItemSlot` component (48x48 with visual states: empty, filled, selected, cursed)
+2. ✅ Create `InventoryPanel` with equipment slots and inventory grid
+3. ✅ Implement equip/unequip flow with slot validation
+4. ✅ Add visual feedback for cursed items (red border/tint, unequip blocked)
+5. ✅ Add slot labels (WPN, RNG1, RNG2, ACC) shown when empty
+6. ✅ Fixed-height description box (prevents layout shifts)
+7. ✅ Compact centered layout with proper Monogram font sizing (16px intervals)
 
-**Tests**: Manual inventory workflow testing
+**Tests**: Manual inventory workflow testing via `test_inventory_panel.tscn`
+**Status**: Implemented and polished by Clauderina, December 5, 2025
 
 ---
 
