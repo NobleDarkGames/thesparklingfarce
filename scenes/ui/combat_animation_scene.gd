@@ -382,7 +382,7 @@ func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 	var initial: Label = Label.new()
 	initial.text = unit.character_data.character_name.substr(0, 1).to_upper()
 	initial.add_theme_font_override("font", monogram_font)
-	initial.add_theme_font_size_override("font_size", 96)
+	initial.add_theme_font_size_override("font_size", 64)
 	initial.add_theme_color_override("font_color", Color.WHITE)
 	initial.add_theme_color_override("font_outline_color", Color.BLACK)
 	initial.add_theme_constant_override("outline_size", 4)
@@ -785,7 +785,7 @@ func _create_xp_panel() -> PanelContainer:
 	label.fit_content = true
 	label.scroll_active = false
 	label.add_theme_font_override("normal_font", monogram_font)
-	label.add_theme_font_size_override("normal_font_size", 20)
+	label.add_theme_font_size_override("normal_font_size", 24)
 	label.add_theme_color_override("default_color", Color(1.0, 0.95, 0.7, 1.0))
 	margin.add_child(label)
 

@@ -147,7 +147,7 @@ func _create_formation_batch_row(label_text: String, total_xp: int) -> HBoxConta
 	var name_label: Label = Label.new()
 	name_label.text = label_text
 	name_label.add_theme_font_override("font", MONOGRAM_FONT)
-	name_label.add_theme_font_size_override("font_size", 18)
+	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
 	name_label.custom_minimum_size.x = 160
 	row.add_child(name_label)
@@ -156,7 +156,7 @@ func _create_formation_batch_row(label_text: String, total_xp: int) -> HBoxConta
 	var xp_label: Label = Label.new()
 	xp_label.text = "+%d XP" % total_xp
 	xp_label.add_theme_font_override("font", MONOGRAM_FONT)
-	xp_label.add_theme_font_size_override("font_size", 18)
+	xp_label.add_theme_font_size_override("font_size", 16)
 	xp_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
 	row.add_child(xp_label)
 
@@ -172,7 +172,7 @@ func _create_xp_row(unit_name: String, amount: int, source: String) -> HBoxConta
 	var name_label: Label = Label.new()
 	name_label.text = unit_name
 	name_label.add_theme_font_override("font", MONOGRAM_FONT)
-	name_label.add_theme_font_size_override("font_size", 18)
+	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.add_theme_color_override("font_color", Color.WHITE)
 	name_label.custom_minimum_size.x = 120
 	row.add_child(name_label)
@@ -181,7 +181,7 @@ func _create_xp_row(unit_name: String, amount: int, source: String) -> HBoxConta
 	var xp_label: Label = Label.new()
 	xp_label.text = "+%d XP" % amount
 	xp_label.add_theme_font_override("font", MONOGRAM_FONT)
-	xp_label.add_theme_font_size_override("font_size", 18)
+	xp_label.add_theme_font_size_override("font_size", 16)
 	xp_label.custom_minimum_size.x = 60
 	row.add_child(xp_label)
 

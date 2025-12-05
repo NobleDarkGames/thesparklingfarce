@@ -52,7 +52,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 32
 text = "Character Name"
 
 [node name="LevelLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/HBox/StatsVBox"]

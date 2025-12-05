@@ -23,9 +23,9 @@ const STAT_REVEAL_DELAY: float = 0.12
 ## Visual constants
 const TITLE_FONT_SIZE: int = 48
 const NAME_FONT_SIZE: int = 32
-const CLASS_FONT_SIZE: int = 28
+const CLASS_FONT_SIZE: int = 32
 const BONUS_FONT_SIZE: int = 24
-const CONTINUE_FONT_SIZE: int = 20
+const CONTINUE_FONT_SIZE: int = 24
 
 ## Colors (royal gold theme)
 const COLOR_GOLD: Color = Color(1.0, 0.843, 0.0, 1.0)  # #FFD700

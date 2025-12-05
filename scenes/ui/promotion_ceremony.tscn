@@ -69,7 +69,7 @@ theme_override_constants/separation = 16
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 32
 text = "SDMN"
 
 [node name="ArrowLabel" type="Label" parent="CenterContainer/CeremonyVBox/ClassTransitionBox"]
@@ -83,7 +83,7 @@ text = "-->"
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 32
 text = "PLDN"
 
 [node name="BonusesContainer" type="VBoxContainer" parent="CenterContainer/CeremonyVBox"]
@@ -94,6 +94,6 @@ theme_override_constants/separation = 4
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "Press Z to continue"
 horizontal_alignment = 1

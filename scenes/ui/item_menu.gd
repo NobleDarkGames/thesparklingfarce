@@ -86,7 +86,7 @@ func _build_ui() -> void:
 	_header_label = Label.new()
 	_header_label.name = "Header"
 	_header_label.text = "Items"
-	_header_label.add_theme_font_size_override("font_size", 14)
+	_header_label.add_theme_font_size_override("font_size", 16)
 	_header_label.modulate = COLOR_NORMAL
 	_container.add_child(_header_label)
 
@@ -101,7 +101,7 @@ func _build_ui() -> void:
 	_description_label = Label.new()
 	_description_label.name = "Description"
 	_description_label.text = ""
-	_description_label.add_theme_font_size_override("font_size", 12)
+	_description_label.add_theme_font_size_override("font_size", 16)
 	_description_label.modulate = Color(0.7, 0.7, 0.7, 1.0)
 	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 

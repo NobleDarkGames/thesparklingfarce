@@ -183,7 +183,7 @@ func _reveal_abilities(abilities: Array[Resource]) -> void:
 		var lbl: Label = Label.new()
 		lbl.text = "Learned: %s" % ability_name
 		lbl.add_theme_font_override("font", MONOGRAM_FONT)
-		lbl.add_theme_font_size_override("font_size", 20)
+		lbl.add_theme_font_size_override("font_size", 24)
 		lbl.add_theme_color_override("font_color", Color.CYAN)
 		lbl.modulate.a = 0.0
 		abilities_container.add_child(lbl)

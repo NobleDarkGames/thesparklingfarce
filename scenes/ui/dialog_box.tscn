@@ -94,7 +94,7 @@ theme_override_constants/separation = 4
 
 [node name="SpeakerNameLabel" type="Label" parent="ContentMargin/ContentHBox/DialogVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "Speaker Name"
 
 [node name="DialogTextLabel" type="RichTextLabel" parent="ContentMargin/ContentHBox/DialogVBox"]
