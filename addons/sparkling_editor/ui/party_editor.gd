@@ -62,7 +62,7 @@ var available_characters: Array[CharacterData] = []
 
 
 func _ready() -> void:
-	resource_directory = "res://data/parties/"
+	resource_directory = "res://mods/_sandbox/data/parties/"
 	resource_type_name = "Party"
 	resource_type_id = "party"
 	super._ready()

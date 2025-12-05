@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/inventory_panel.gd" id="1_inventory_panel"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
+
+[node name="InventoryPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(260, 240)
+offset_right = 260.0
+offset_bottom = 240.0
+theme = ExtResource("2_ui_theme")
+script = ExtResource("1_inventory_panel")

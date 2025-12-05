@@ -34,7 +34,7 @@ var footstep_sound_edit: LineEdit
 
 
 func _ready() -> void:
-	resource_directory = "res://data/terrain/"
+	resource_directory = "res://mods/_sandbox/data/terrain/"
 	resource_type_id = "terrain"
 	resource_type_name = "Terrain"
 	super._ready()

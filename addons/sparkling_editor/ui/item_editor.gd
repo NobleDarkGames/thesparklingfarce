@@ -7,8 +7,13 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 var name_edit: LineEdit
 var item_type_option: OptionButton
 var equipment_type_edit: LineEdit
-var durability_spin: SpinBox
+var equipment_slot_option: OptionButton
 var description_edit: TextEdit
+
+# Curse properties
+var curse_section: VBoxContainer
+var is_cursed_check: CheckBox
+var uncurse_items_edit: LineEdit
 
 # Stat modifiers
 var hp_mod_spin: SpinBox
@@ -37,7 +42,7 @@ var sell_price_spin: SpinBox
 
 
 func _ready() -> void:
-	resource_directory = "res://data/items/"
+	resource_directory = "res://mods/_sandbox/data/items/"
 	resource_type_id = "item"
 	resource_type_name = "Item"
 	super._ready()
@@ -47,6 +52,9 @@ func _ready() -> void:
 func _create_detail_form() -> void:
 	# Basic info section
 	_add_basic_info_section()
+
+	# Curse properties section (for equippable items)
+	_add_curse_section()
 
 	# Stat modifiers section
 	_add_stat_modifiers_section()
@@ -73,8 +81,12 @@ func _load_resource_data() -> void:
 	name_edit.text = item.item_name
 	item_type_option.selected = item.item_type
 	equipment_type_edit.text = item.equipment_type
-	durability_spin.value = item.durability
+	_select_equipment_slot(item.equipment_slot)
 	description_edit.text = item.description
+
+	# Curse properties
+	is_cursed_check.button_pressed = item.is_cursed
+	uncurse_items_edit.text = ",".join(item.uncurse_items)
 
 	# Stat modifiers
 	hp_mod_spin.value = item.hp_modifier
@@ -113,8 +125,12 @@ func _save_resource_data() -> void:
 	item.item_name = name_edit.text
 	item.item_type = item_type_option.selected
 	item.equipment_type = equipment_type_edit.text
-	item.durability = int(durability_spin.value)
+	item.equipment_slot = _get_selected_equipment_slot()
 	item.description = description_edit.text
+
+	# Update curse properties
+	item.is_cursed = is_cursed_check.button_pressed
+	item.uncurse_items = _parse_uncurse_items()
 
 	# Update stat modifiers
 	item.hp_modifier = int(hp_mod_spin.value)
@@ -169,16 +185,16 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 	var references: Array[String] = []
 
 	# Check all characters for references to this item in their equipment arrays
-	var dir: DirAccess = DirAccess.open("res://data/characters/")
+	var dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/characters/")
 	if dir:
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
 		while file_name != "":
 			if file_name.ends_with(".tres"):
-				var character: CharacterData = load("res://data/characters/" + file_name)
+				var character: CharacterData = load("res://mods/_sandbox/data/characters/" + file_name)
 				if character:
 					if item_to_check in character.starting_equipment:
-						references.append("res://data/characters/" + file_name)
+						references.append("res://mods/_sandbox/data/characters/" + file_name)
 			file_name = dir.get_next()
 		dir.list_dir_end()
 
@@ -192,7 +208,8 @@ func _create_new_resource() -> Resource:
 	var new_item: ItemData = ItemData.new()
 	new_item.item_name = "New Item"
 	new_item.item_type = ItemData.ItemType.WEAPON
-	new_item.durability = -1
+	new_item.equipment_slot = "weapon"
+	new_item.is_cursed = false
 	new_item.buy_price = 100
 	new_item.sell_price = 50
 
@@ -258,20 +275,19 @@ func _add_basic_info_section() -> void:
 	equip_container.add_child(equipment_type_edit)
 	section.add_child(equip_container)
 
-	# Durability
-	var dur_container: HBoxContainer = HBoxContainer.new()
-	var dur_label: Label = Label.new()
-	dur_label.text = "Durability:"
-	dur_label.custom_minimum_size.x = 150
-	dur_label.tooltip_text = "Number of uses (-1 for unlimited)"
-	dur_container.add_child(dur_label)
+	# Equipment Slot
+	var slot_container: HBoxContainer = HBoxContainer.new()
+	var slot_label: Label = Label.new()
+	slot_label.text = "Equipment Slot:"
+	slot_label.custom_minimum_size.x = 150
+	slot_label.tooltip_text = "Which slot this item occupies when equipped"
+	slot_container.add_child(slot_label)
 
-	durability_spin = SpinBox.new()
-	durability_spin.min_value = -1
-	durability_spin.max_value = 999
-	durability_spin.value = -1
-	dur_container.add_child(durability_spin)
-	section.add_child(dur_container)
+	equipment_slot_option = OptionButton.new()
+	equipment_slot_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_populate_equipment_slot_options()
+	slot_container.add_child(equipment_slot_option)
+	section.add_child(slot_container)
 
 	# Description
 	var desc_label: Label = Label.new()
@@ -460,3 +476,111 @@ func _on_item_type_changed(index: int) -> void:
 
 	weapon_section.visible = (item_type == ItemData.ItemType.WEAPON)
 	consumable_section.visible = (item_type == ItemData.ItemType.CONSUMABLE)
+
+	# Curse section visible for equippable items (weapons, armor, accessories)
+	var is_equippable: bool = (
+		item_type == ItemData.ItemType.WEAPON or
+		item_type == ItemData.ItemType.ARMOR or
+		item_type == ItemData.ItemType.ACCESSORY
+	)
+	curse_section.visible = is_equippable
+
+
+func _add_curse_section() -> void:
+	curse_section = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Curse Properties"
+	section_label.add_theme_font_size_override("font_size", 16)
+	curse_section.add_child(section_label)
+
+	# Is Cursed checkbox
+	is_cursed_check = CheckBox.new()
+	is_cursed_check.text = "Is Cursed (cannot be unequipped normally)"
+	is_cursed_check.button_pressed = false
+	is_cursed_check.toggled.connect(_on_cursed_toggled)
+	curse_section.add_child(is_cursed_check)
+
+	# Uncurse Items (comma-separated list)
+	var uncurse_container: HBoxContainer = HBoxContainer.new()
+	var uncurse_label: Label = Label.new()
+	uncurse_label.text = "Uncurse Items:"
+	uncurse_label.custom_minimum_size.x = 150
+	uncurse_label.tooltip_text = "Item IDs that can remove this curse (comma-separated)"
+	uncurse_container.add_child(uncurse_label)
+
+	uncurse_items_edit = LineEdit.new()
+	uncurse_items_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	uncurse_items_edit.placeholder_text = "e.g., purify_scroll, holy_water"
+	uncurse_items_edit.editable = false  # Only enabled when cursed
+	uncurse_container.add_child(uncurse_items_edit)
+	curse_section.add_child(uncurse_container)
+
+	var help_label: Label = Label.new()
+	help_label.text = "Leave empty if only church service can remove curse"
+	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_font_size_override("font_size", 14)
+	curse_section.add_child(help_label)
+
+	detail_panel.add_child(curse_section)
+
+
+func _on_cursed_toggled(pressed: bool) -> void:
+	# Enable/disable uncurse items field based on curse state
+	uncurse_items_edit.editable = pressed
+	if not pressed:
+		uncurse_items_edit.text = ""
+
+
+func _populate_equipment_slot_options() -> void:
+	equipment_slot_option.clear()
+
+	# Try to get slots from ModLoader registry
+	var slots: Array[Dictionary] = []
+	if ModLoader and ModLoader.equipment_slot_registry:
+		slots = ModLoader.equipment_slot_registry.get_slots()
+	else:
+		# Fallback to default SF-style slots
+		slots = [
+			{"id": "weapon", "display_name": "Weapon"},
+			{"id": "ring_1", "display_name": "Ring 1"},
+			{"id": "ring_2", "display_name": "Ring 2"},
+			{"id": "accessory", "display_name": "Accessory"}
+		]
+
+	for slot: Dictionary in slots:
+		var slot_id: String = slot.get("id", "")
+		var display_name: String = slot.get("display_name", slot_id.capitalize())
+		equipment_slot_option.add_item(display_name)
+		equipment_slot_option.set_item_metadata(equipment_slot_option.item_count - 1, slot_id)
+
+
+func _select_equipment_slot(slot_id: String) -> void:
+	for i in range(equipment_slot_option.item_count):
+		if equipment_slot_option.get_item_metadata(i) == slot_id:
+			equipment_slot_option.select(i)
+			return
+	# Default to first item if not found
+	if equipment_slot_option.item_count > 0:
+		equipment_slot_option.select(0)
+
+
+func _get_selected_equipment_slot() -> String:
+	var selected: int = equipment_slot_option.selected
+	if selected >= 0:
+		return equipment_slot_option.get_item_metadata(selected)
+	return "weapon"
+
+
+func _parse_uncurse_items() -> Array[String]:
+	var items: Array[String] = []
+	var text: String = uncurse_items_edit.text.strip_edges()
+	if text.is_empty():
+		return items
+
+	var parts: PackedStringArray = text.split(",")
+	for part: String in parts:
+		var trimmed: String = part.strip_edges()
+		if not trimmed.is_empty():
+			items.append(trimmed)
+	return items

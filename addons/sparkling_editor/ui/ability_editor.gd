@@ -32,7 +32,7 @@ var animation_edit: LineEdit
 
 
 func _ready() -> void:
-	resource_directory = "res://data/abilities/"
+	resource_directory = "res://mods/_sandbox/data/abilities/"
 	resource_type_id = "ability"
 	resource_type_name = "Ability"
 	super._ready()
@@ -184,33 +184,33 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 	var references: Array[String] = []
 
 	# Check all classes for references in learnable_abilities
-	var class_dir: DirAccess = DirAccess.open("res://data/classes/")
+	var class_dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/classes/")
 	if class_dir:
 		class_dir.list_dir_begin()
 		var file_name: String = class_dir.get_next()
 		while file_name != "":
 			if file_name.ends_with(".tres"):
-				var class_data: ClassData = load("res://data/classes/" + file_name)
+				var class_data: ClassData = load("res://mods/_sandbox/data/classes/" + file_name)
 				if class_data:
 					# Check if ability is in learnable_abilities dictionary
 					for level in class_data.learnable_abilities.keys():
 						var learnable_ability: Resource = class_data.learnable_abilities[level]
 						if learnable_ability == ability_to_check:
-							references.append("res://data/classes/" + file_name)
+							references.append("res://mods/_sandbox/data/classes/" + file_name)
 							break
 			file_name = class_dir.get_next()
 		class_dir.list_dir_end()
 
 	# Check all items for references in consumable_effect
-	var item_dir: DirAccess = DirAccess.open("res://data/items/")
+	var item_dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/items/")
 	if item_dir:
 		item_dir.list_dir_begin()
 		var file_name: String = item_dir.get_next()
 		while file_name != "":
 			if file_name.ends_with(".tres"):
-				var item_data: ItemData = load("res://data/items/" + file_name)
+				var item_data: ItemData = load("res://mods/_sandbox/data/items/" + file_name)
 				if item_data and item_data.consumable_effect == ability_to_check:
-					references.append("res://data/items/" + file_name)
+					references.append("res://mods/_sandbox/data/items/" + file_name)
 			file_name = item_dir.get_next()
 		item_dir.list_dir_end()
 

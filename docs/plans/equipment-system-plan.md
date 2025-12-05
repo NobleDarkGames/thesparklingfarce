@@ -1,10 +1,93 @@
 # Equipment System Plan
 
-**Status:** Draft
+**Status:** Phases 4.2.1-4.2.4 COMPLETE | Phases 4.2.5-4.2.6 Ready for Implementation
 **Authors:** Commander Claudius (Design), Lt. Claudbrain (Architecture), Modro (Mod Review)
 **Date:** 2025-12-02
+**Last Updated:** December 5, 2025
 **Phase:** 4.2
 **Moddability Score:** 9/10 (after Modro's revisions)
+
+**Officer Reviews (December 5, 2025):**
+- ✅ Lt. Claudbrain (Architecture): APPROVED - Found phases 4.2.1-4.2.4 already implemented
+- ✅ Commander Claudius (SF Vision): APPROVED WITH CHANGES - Minor clarifications needed
+- ✅ Mr. Nerdlinger (SF2 Purist): APPROVED WITH CHANGES - Authenticity deviation documented
+- ✅ Chief O'Brien (Engineering): Recommends keeping current architecture
+- ✅ Modro (Mod Architecture): Recommends keeping current architecture
+
+---
+
+## Priority Note (December 5, 2025)
+
+With the completion of:
+- ✅ SF2-style direct movement
+- ✅ Terrain effects system
+- ✅ Sparkling Editor expansion (all phases)
+- ✅ Total conversion modding P0 items
+
+**This equipment system is now the next major feature to implement.** It will enable:
+- Weapons with attack power and range
+- Rings for SF-signature stat customization
+- Cursed items with uncurse mechanics
+- Class-restricted equipment
+- 4-slot inventory per character (configurable)
+
+---
+
+## Architectural Decision: Typed Slots vs SF2 Generic Slots
+
+**Decision Date:** December 5, 2025
+**Decision:** Keep current typed-slot architecture
+
+### Background
+
+Mr. Nerdlinger's SF2 purist review identified that our architecture differs from SF2's authentic model:
+
+| Aspect | Our Implementation | SF2 Authentic |
+|--------|-------------------|---------------|
+| Equipment slots | 4 typed (weapon, ring_1, ring_2, accessory) | 4 generic slots |
+| Inventory slots | 4 separate slots | N/A (same 4 slots) |
+| Total capacity | 8 effective slots | 4 slots total |
+| Item placement | Items go in designated slot types | Any item in any slot |
+| Equip state | Implicit (in equipment array) | Explicit `is_equipped` flag |
+
+### Why We're Keeping Typed Slots
+
+**Platform Mission Over Purist Authenticity:**
+
+After review by Chief O'Brien (Engineering) and Modro (Mod Architecture), the consensus is that our current architecture better serves the platform mission:
+
+1. **Broader mod support**: Typed slots enable Fire Emblem, D&D, Diablo-style equipment systems out of the box
+2. **Refactoring cost**: 22-32 hours with medium-high risk to achieve SF2 authenticity
+3. **Configuration solution**: Mods wanting SF2-authentic 4-slot behavior can set `inventory_config.slots_per_character = 0`
+4. **Save compatibility**: Current saves would break with architectural change
+5. **Working system**: Phases 4.2.1-4.2.4 are already implemented and tested
+
+**Moddability Scores:**
+- Current (typed slots): 7/10 - strong for most tactical RPGs
+- SF2-only (generic slots): 5/10 - perfect for SF2, awkward for everything else
+- Hybrid (future): 9/10 - would support both paradigms
+
+### SF2-Authentic Mode (Future Enhancement)
+
+For mods requiring true SF2 inventory behavior, a future phase may add:
+- `item_system_mode: "unified"` option in mod.json
+- `UnifiedInventoryManager` with generic slots and equip flags
+- `ItemSystemAdapter` to abstract the difference from game systems
+
+This is documented but not blocking for current implementation.
+
+### Achieving SF2 Feel With Current Architecture
+
+Mods wanting constrained SF2-style inventory can configure:
+```json
+{
+  "inventory_config": {
+    "slots_per_character": 0
+  }
+}
+```
+
+This gives 4 effective slots (equipment only), closer to SF2's tactical scarcity.
 
 ---
 
@@ -84,6 +167,9 @@ Characters have **four equipment slots** that define their combat capabilities a
 - **Class Restrictions**: Enforced via `ClassData.equippable_weapon_types`
 - **Range Impact**: Weapon's `attack_range` property determines melee (1) vs ranged (2+) combat
 - **Empty Slot Behavior**: Character can still attack with base stats (unarmed strike) but at reduced effectiveness
+  - **Unarmed Damage Formula**: `STR + 0` (no weapon attack bonus) - matches SF2 where unarmed attacks deal ~1-5 damage
+  - **Unarmed Hit Rate**: Base 70% (no weapon accuracy bonus)
+  - **Unarmed Range**: Always 1 (melee only)
 
 ### RING_1 and RING_2 Slots
 - **Purpose**: Primary stat customization and build crafting
@@ -378,6 +464,13 @@ Update `core/resources/character_save_data.gd`:
 @export var inventory: Array[String] = []
 ```
 
+**Why `mod_id` in equipped_items?** (Per Commander Claudius's review)
+
+The `mod_id` field tracks which mod provided each equipped item. This enables safe handling when mods are uninstalled:
+- On save load, validate that the item's source mod is still active
+- If mod is missing, gracefully unequip the item to inventory (or drop if inventory full)
+- Prevents crashes from references to items that no longer exist
+
 ---
 
 ## 9. Class Restriction Rules
@@ -408,6 +501,15 @@ Update `core/resources/character_save_data.gd`:
 ### Promotion Impact
 
 When a character promotes, their `current_class` changes, which **updates their equipment restrictions**. If promoted class loses access to currently equipped weapon type, item is auto-unequipped to inventory.
+
+**Inventory-Full Edge Case** (Per Commander Claudius's review):
+
+If a character promotes and their weapon must be auto-unequipped but inventory is full:
+1. **Primary**: Move item to Caravan storage (if available and accessible)
+2. **Fallback**: Create temporary overflow slot (UI warns player)
+3. **Never**: Block promotion - this would be poor UX
+
+**Note**: This is an intentional improvement over SF2, which left invalid equipment equipped but unusable. Our approach provides clearer feedback to players.
 
 ---
 
@@ -449,6 +551,22 @@ signal pre_equip(context: Dictionary)
 
 ## Emitted after successful equip
 signal post_equip(context: Dictionary)
+
+# ============================================================================
+# SIGNAL EMISSION ORDER (Per Commander Claudius's review)
+# ============================================================================
+# When equip_item() is called, signals emit in this order:
+# 1. pre_equip(context) - mods can set context.cancel = true to abort
+# 2. custom_equip_validation(context, result) - mods can set result.can_equip = false
+# 3. [internal equip logic]
+# 4. item_equipped(uid, slot, item_id, old_item_id)
+# 5. curse_applied(uid, slot, item_id) - only if item.is_cursed
+# 6. post_equip(context)
+#
+# IMPORTANT: Mods should NOT emit equipment signals from signal handlers
+# to avoid infinite loops. The context.cancel mechanism is the safe way
+# to prevent equips from within a pre_equip handler.
+# ============================================================================
 
 # ============================================================================
 # PUBLIC API
@@ -676,7 +794,7 @@ static func can_attack_at_range(attacker_stats: UnitStats, distance: int) -> boo
 item_name = "Bronze Sword"
 item_type = WEAPON
 equipment_type = "sword"
-equipment_slot = "WEAPON"
+equipment_slot = "weapon"
 attack_power = 5
 attack_range = 1
 hit_rate = 90
@@ -692,7 +810,7 @@ description = "A standard bronze blade. Reliable and affordable."
 item_name = "Power Ring"
 item_type = ARMOR
 equipment_type = "ring"
-equipment_slot = "RING"
+equipment_slot = "ring"
 strength_modifier = 3
 buy_price = 1000
 sell_price = 500
@@ -704,7 +822,7 @@ description = "Increases strength. Favored by warriors."
 item_name = "Sword of Darkness"
 item_type = WEAPON
 equipment_type = "sword"
-equipment_slot = "WEAPON"
+equipment_slot = "weapon"
 is_cursed = true
 uncurse_items = ["purify_scroll", "holy_water"]
 attack_power = 18
@@ -782,50 +900,50 @@ description = "Restores 30 HP. Can be used in battle or on the field."
 
 ## 16. Implementation Phases
 
-### Phase 4.2.1: Core Data Structures & Registries
-1. Create `core/registries/equipment_slot_registry.gd` (data-driven slots)
-2. Create `core/systems/equipment_slot.gd` (convenience constants)
-3. Create `core/systems/inventory_config.gd` (configurable inventory)
-4. Modify `ItemData` to add `equipment_slot` (String), `is_cursed`, `uncurse_items`
-5. Remove `durability` field from `ItemData`
-6. Update `CharacterSaveData` equipped_items format and add inventory array
-7. Update `ModLoader` to read `equipment_slot_layout` and `inventory_config` from mod.json
+### Phase 4.2.1: Core Data Structures & Registries ✅ COMPLETE
+1. ✅ Create `core/registries/equipment_slot_registry.gd` (data-driven slots)
+2. ✅ Create `core/systems/equipment_slot.gd` (convenience constants)
+3. ✅ Create `core/systems/inventory_config.gd` (configurable inventory)
+4. ✅ Modify `ItemData` to add `equipment_slot` (String), `is_cursed`, `uncurse_items`
+5. ✅ Remove `durability` field from `ItemData`
+6. ✅ Update `CharacterSaveData` equipped_items format and add inventory array
+7. ✅ Update `ModLoader` to read `equipment_slot_layout` and `inventory_config` from mod.json
 
-**Tests**: Unit tests for EquipmentSlotRegistry, InventoryConfig, serialization round-trip
+**Status**: Verified by Lt. Claudbrain (December 5, 2025)
 
-### Phase 4.2.2: EquipmentManager with Signals
-1. Create `core/systems/equipment_manager.gd` as autoload
-2. Implement signals: `item_equipped`, `item_unequipped`, `curse_applied`, `curse_removed`
-3. Implement `pre_equip`, `post_equip`, `custom_equip_validation` hooks
-4. Implement `equip_item()`, `unequip_item()`, `can_equip()`
-5. Implement `attempt_uncurse()` with method parameter
-6. Add class equipment restriction validation
+### Phase 4.2.2: EquipmentManager with Signals ✅ COMPLETE
+1. ✅ Create `core/systems/equipment_manager.gd` as autoload
+2. ✅ Implement signals: `item_equipped`, `item_unequipped`, `curse_applied`, `curse_removed`
+3. ✅ Implement `pre_equip`, `post_equip`, `custom_equip_validation` hooks
+4. ✅ Implement `equip_item()`, `unequip_item()`, `can_equip()`
+5. ✅ Implement `attempt_uncurse()` with method parameter
+6. ✅ Add class equipment restriction validation
 
-**Tests**: Unit tests for equip/unequip, curse mechanics, class restrictions, signal emission
+**Status**: Verified by Lt. Claudbrain (December 5, 2025)
 
-### Phase 4.2.3: UnitStats Equipment Cache
-1. Add equipment cache fields to `UnitStats`
-2. Implement `load_equipment_from_save()`
-3. Add weapon stat accessor methods
-4. Add `refresh_equipment_cache()` to `Unit`
+### Phase 4.2.3: UnitStats Equipment Cache ✅ COMPLETE
+1. ✅ Add equipment cache fields to `UnitStats`
+2. ✅ Implement `load_equipment_from_save()`
+3. ✅ Add weapon stat accessor methods
+4. ✅ Add `refresh_equipment_cache()` to `Unit`
 
-**Tests**: Equipment loading, stat bonus application
+**Status**: Verified by Lt. Claudbrain (December 5, 2025)
 
-### Phase 4.2.4: CombatCalculator Updates
-1. Update `calculate_physical_damage()` to include weapon attack power
-2. Update `calculate_hit_chance()` to use weapon hit rate
-3. Update `calculate_crit_chance()` to include weapon crit bonus
-4. Add `can_attack_at_range()` method
+### Phase 4.2.4: CombatCalculator Updates ✅ COMPLETE
+1. ✅ Update `calculate_physical_damage()` to include weapon attack power
+2. ✅ Update `calculate_hit_chance()` to use weapon hit rate
+3. ✅ Update `calculate_crit_chance()` to include weapon crit bonus
+4. ✅ Add `can_attack_at_range()` method
 
-**Tests**: Damage calculations with/without weapon, range validation
+**Status**: Verified by Lt. Claudbrain (December 5, 2025)
 
-### Phase 4.2.5: Editor Integration
+### Phase 4.2.5: Editor Integration 🔲 NEEDS VERIFICATION
 1. Update `item_editor.gd` - remove durability, add equipment slot and curse UI
 2. Update `character_editor.gd` - add equipment preview
 
 **Tests**: Manual editor workflow testing
 
-### Phase 4.2.6: Inventory UI
+### Phase 4.2.6: Inventory UI 🔲 READY FOR IMPLEMENTATION
 1. Create basic inventory display scene
 2. Implement equip/unequip from inventory
 3. Add visual feedback for cursed items

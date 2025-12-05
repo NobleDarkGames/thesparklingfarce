@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3 uid="uid://bcy7yvbp71fvt"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_jyfsj"]
+
+[resource]
+script = ExtResource("1_jyfsj")
+item_name = "Basic Sword"
+equipment_type = "sword"
+attack_power = 1
+buy_price = 100
+sell_price = 50

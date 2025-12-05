@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+
+; A cursed weapon for testing the curse mechanics
+item_name = "Cursed Blade"
+description = "A dark blade that binds to its wielder. High power, but cannot be unequipped!"
+item_type = 0
+equipment_type = "sword"
+equipment_slot = "weapon"
+attack_power = 15
+attack_range = 1
+strength_modifier = 3
+agility_modifier = -2
+is_cursed = true
+buy_price = 500
+sell_price = 1

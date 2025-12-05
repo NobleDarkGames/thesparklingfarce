@@ -24,6 +24,11 @@ var agi_spin: SpinBox
 var int_spin: SpinBox
 var luk_spin: SpinBox
 
+# Equipment section
+var equipment_section: VBoxContainer
+var equipment_pickers: Dictionary = {}  # {slot_id: ResourcePicker}
+var equipment_warning_labels: Dictionary = {}  # {slot_id: Label}
+
 var available_ai_brains: Array[AIBrain] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "boss", "neutral"
 
@@ -32,7 +37,7 @@ var filter_buttons: Dictionary = {}  # {category: Button}
 
 
 func _ready() -> void:
-	resource_directory = "res://data/characters/"
+	resource_directory = "res://mods/_sandbox/data/characters/"
 	resource_type_name = "Character"
 	resource_type_id = "character"
 	super._ready()
@@ -62,6 +67,9 @@ func _create_detail_form() -> void:
 
 	# Stats section
 	_add_stats_section()
+
+	# Equipment section (starting equipment for this character)
+	_add_equipment_section()
 
 	# Add the button container at the end
 	detail_panel.add_child(button_container)
@@ -116,6 +124,9 @@ func _load_resource_data() -> void:
 	int_spin.value = character.base_intelligence
 	luk_spin.value = character.base_luck
 
+	# Load starting equipment into pickers
+	_load_equipment_from_character(character)
+
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
@@ -154,6 +165,9 @@ func _save_resource_data() -> void:
 	character.base_agility = int(agi_spin.value)
 	character.base_intelligence = int(int_spin.value)
 	character.base_luck = int(luk_spin.value)
+
+	# Update starting equipment from pickers
+	_save_equipment_to_character(character)
 
 
 ## Override: Validate resource before saving
@@ -490,3 +504,192 @@ func _get_unit_categories_from_registry() -> Array[String]:
 		return ModLoader.unit_category_registry.get_categories()
 	# Fallback to defaults if registry not available
 	return ["player", "enemy", "boss", "neutral"]
+
+
+## Add the starting equipment section with pickers for each slot
+func _add_equipment_section() -> void:
+	equipment_section = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Starting Equipment"
+	section_label.add_theme_font_size_override("font_size", 16)
+	equipment_section.add_child(section_label)
+
+	var help_label: Label = Label.new()
+	help_label.text = "Equipment the character starts with when recruited"
+	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_font_size_override("font_size", 14)
+	equipment_section.add_child(help_label)
+
+	# Get available equipment slots from registry
+	var slots: Array[Dictionary] = _get_equipment_slots()
+
+	equipment_pickers.clear()
+	equipment_warning_labels.clear()
+
+	for slot: Dictionary in slots:
+		var slot_id: String = slot.get("id", "")
+		var display_name: String = slot.get("display_name", slot_id.capitalize())
+		var accepts_types: Array = slot.get("accepts_types", [])
+
+		# Create a container for each slot
+		var slot_container: VBoxContainer = VBoxContainer.new()
+
+		# Create the picker
+		var picker: ResourcePicker = ResourcePicker.new()
+		picker.resource_type = "item"
+		picker.label_text = display_name + ":"
+		picker.label_min_width = 120
+		picker.allow_none = true
+		picker.none_text = "(Empty)"
+
+		# Filter items to only show compatible types for this slot
+		picker.filter_function = func(resource: Resource) -> bool:
+			var item: ItemData = resource as ItemData
+			if not item:
+				return false
+			# Check if item type is compatible with this slot
+			return item.equipment_type.to_lower() in accepts_types
+
+		picker.resource_selected.connect(_on_equipment_selected.bind(slot_id))
+		slot_container.add_child(picker)
+		equipment_pickers[slot_id] = picker
+
+		# Add warning label (hidden by default)
+		var warning: Label = Label.new()
+		warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
+		warning.add_theme_font_size_override("font_size", 12)
+		warning.visible = false
+		slot_container.add_child(warning)
+		equipment_warning_labels[slot_id] = warning
+
+		equipment_section.add_child(slot_container)
+
+	detail_panel.add_child(equipment_section)
+
+
+## Get equipment slots from registry with fallback
+func _get_equipment_slots() -> Array[Dictionary]:
+	if ModLoader and ModLoader.equipment_slot_registry:
+		return ModLoader.equipment_slot_registry.get_slots()
+	# Fallback to default SF-style slots
+	return [
+		{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon", "sword", "axe", "lance", "bow", "staff"]},
+		{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["ring"]},
+		{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["ring"]},
+		{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory"]}
+	]
+
+
+## Load starting equipment from CharacterData into pickers
+func _load_equipment_from_character(character: CharacterData) -> void:
+	# Clear all pickers first
+	for slot_id: String in equipment_pickers.keys():
+		var picker: ResourcePicker = equipment_pickers[slot_id]
+		picker.select_none()
+		_clear_equipment_warning(slot_id)
+
+	if not character or character.starting_equipment.is_empty():
+		return
+
+	# Map items to their slots
+	for item: ItemData in character.starting_equipment:
+		if not item:
+			continue
+
+		var slot_id: String = item.equipment_slot
+		if slot_id.is_empty():
+			# Try to infer slot from equipment type
+			slot_id = _infer_slot_from_type(item.equipment_type)
+
+		if slot_id in equipment_pickers:
+			var picker: ResourcePicker = equipment_pickers[slot_id]
+			picker.select_resource(item)
+
+			# Validate class restrictions
+			_validate_equipment_for_class(slot_id, item, character)
+
+
+## Infer equipment slot from equipment type
+func _infer_slot_from_type(equipment_type: String) -> String:
+	var lower_type: String = equipment_type.to_lower()
+	match lower_type:
+		"weapon", "sword", "axe", "lance", "bow", "staff", "tome":
+			return "weapon"
+		"ring":
+			return "ring_1"  # Default to first ring slot
+		"accessory":
+			return "accessory"
+		_:
+			return "weapon"  # Default fallback
+
+
+## Save equipment from pickers to CharacterData
+func _save_equipment_to_character(character: CharacterData) -> void:
+	character.starting_equipment.clear()
+
+	for slot_id: String in equipment_pickers.keys():
+		var picker: ResourcePicker = equipment_pickers[slot_id]
+		var item: ItemData = picker.get_selected_resource() as ItemData
+		if item:
+			character.starting_equipment.append(item)
+
+
+## Handle equipment selection change
+func _on_equipment_selected(metadata: Dictionary, slot_id: String) -> void:
+	var item: ItemData = metadata.get("resource", null) as ItemData
+
+	if item:
+		var character: CharacterData = current_resource as CharacterData
+		if character:
+			_validate_equipment_for_class(slot_id, item, character)
+	else:
+		_clear_equipment_warning(slot_id)
+
+
+## Validate that equipment can be used by the character's class
+func _validate_equipment_for_class(slot_id: String, item: ItemData, character: CharacterData) -> void:
+	_clear_equipment_warning(slot_id)
+
+	if not item or not character:
+		return
+
+	var class_data: ClassData = character.character_class
+	if not class_data:
+		return
+
+	# Check weapon type restrictions
+	if item.item_type == ItemData.ItemType.WEAPON:
+		if not class_data.equippable_weapon_types.is_empty():
+			var item_weapon_type: String = item.equipment_type.to_lower()
+			var can_equip: bool = false
+			for allowed_type: String in class_data.equippable_weapon_types:
+				if allowed_type.to_lower() == item_weapon_type:
+					can_equip = true
+					break
+			if not can_equip:
+				_show_equipment_warning(
+					slot_id,
+					"Warning: %s cannot equip %s weapons" % [class_data.display_name, item.equipment_type]
+				)
+				return
+
+	# Check if item is cursed
+	if item.is_cursed:
+		_show_equipment_warning(slot_id, "Note: This is a cursed item")
+
+
+## Show a warning message for an equipment slot
+func _show_equipment_warning(slot_id: String, message: String) -> void:
+	if slot_id in equipment_warning_labels:
+		var label: Label = equipment_warning_labels[slot_id]
+		label.text = message
+		label.visible = true
+
+
+## Clear the warning for an equipment slot
+func _clear_equipment_warning(slot_id: String) -> void:
+	if slot_id in equipment_warning_labels:
+		var label: Label = equipment_warning_labels[slot_id]
+		label.text = ""
+		label.visible = false
