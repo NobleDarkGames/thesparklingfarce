@@ -483,6 +483,19 @@ HeroController
 - Character tabs, equipment slots (WPN/RNG1/RNG2/ACC), and inventory slots render properly ✅
 - Monogram 16px font readable in all UI elements ✅
 
+**Item Info Display** (2025-12-05):
+- Description panel shows SF2-style item info on hover
+- Item name in CAPS (bold, yellow for equipped, red for cursed)
+- Slot type display (Weapon, Ring, Accessory, etc.)
+- Color-coded stats: green for positive (+), red for negative (-)
+- Item description and cursed warning
+- Uses RichTextLabel with BBCode for flexible formatting
+
+**Editor Enhancements** (2025-12-05):
+- Item Editor: Added icon picker (32x32 preview, browse/clear buttons)
+- Character Editor: Fixed closure capture bug in equipment filters
+- Character Editor: Fixed read-only array error when saving starting equipment
+
 ### Pending
 
 - Phase 3: Battle item menu integration (new BattleItemMenu component)
