@@ -49,6 +49,8 @@ signal party_healed()
 
 const CaravanDataScript: GDScript = preload("res://core/resources/caravan_data.gd")
 const CaravanFollowerScript: GDScript = preload("res://core/components/caravan_follower.gd")
+const CaravanMainMenuScript: GDScript = preload("res://scenes/ui/caravan_main_menu.gd")
+const PartyManagementPanelScript: GDScript = preload("res://scenes/ui/party_management_panel.gd")
 
 # =============================================================================
 # CONFIGURATION
@@ -95,6 +97,19 @@ var _has_saved_position: bool = false
 var _initialized: bool = false
 
 # =============================================================================
+# UI STATE
+# =============================================================================
+
+## Persistent UI layer for caravan menus
+var _ui_layer: CanvasLayer = null
+
+## The main caravan menu instance
+var _main_menu: Control = null
+
+## The party management panel instance
+var _party_panel: Control = null
+
+# =============================================================================
 # LIFECYCLE
 # =============================================================================
 
@@ -103,9 +118,25 @@ func _ready() -> void:
 	call_deferred("_initialize")
 
 
+func _input(event: InputEvent) -> void:
+	# Handle caravan interaction when player is in range
+	if not _player_in_range or not is_spawned():
+		return
+
+	if _menu_open:
+		return  # Menu handles its own input
+
+	if event.is_action_pressed("sf_confirm"):
+		open_menu()
+		get_viewport().set_input_as_handled()
+
+
 func _initialize() -> void:
 	if _initialized:
 		return
+
+	# Create UI layer and menu
+	_setup_ui()
 
 	# Load caravan configuration from mods
 	_load_caravan_config()
@@ -143,6 +174,90 @@ func _load_caravan_config() -> void:
 		current_config.display_name = "Caravan"
 		current_config.follow_distance_tiles = 3
 		push_warning("CaravanController: No caravan config found, using defaults")
+
+
+func _setup_ui() -> void:
+	# Create persistent UI layer (survives scene changes)
+	_ui_layer = CanvasLayer.new()
+	_ui_layer.name = "CaravanUILayer"
+	_ui_layer.layer = 15  # Above most game content
+	_ui_layer.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while paused
+	get_tree().root.call_deferred("add_child", _ui_layer)
+
+	# Create main menu
+	_main_menu = Control.new()
+	_main_menu.set_script(CaravanMainMenuScript)
+	_main_menu.name = "CaravanMainMenu"
+	_main_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_main_menu.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while paused
+	_main_menu.visible = false
+	_ui_layer.call_deferred("add_child", _main_menu)
+
+	# Create party management panel
+	_party_panel = Control.new()
+	_party_panel.set_script(PartyManagementPanelScript)
+	_party_panel.name = "PartyManagementPanel"
+	_party_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_party_panel.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while paused
+	_party_panel.visible = false
+	_ui_layer.call_deferred("add_child", _party_panel)
+
+	# Connect menu signals (deferred to ensure menu is ready)
+	call_deferred("_connect_menu_signals")
+
+
+func _connect_menu_signals() -> void:
+	if not _main_menu:
+		return
+
+	if _main_menu.has_signal("close_requested"):
+		_main_menu.close_requested.connect(_on_menu_close_requested)
+	if _main_menu.has_signal("party_requested"):
+		_main_menu.party_requested.connect(_on_party_requested)
+	if _main_menu.has_signal("items_requested"):
+		_main_menu.items_requested.connect(_on_items_requested)
+	if _main_menu.has_signal("rest_requested"):
+		_main_menu.rest_requested.connect(_on_rest_requested)
+
+	# Connect party panel signals
+	if _party_panel:
+		if _party_panel.has_signal("close_requested"):
+			_party_panel.close_requested.connect(_on_party_panel_closed)
+
+
+func _on_menu_close_requested() -> void:
+	close_menu()
+
+
+func _on_party_requested() -> void:
+	# Hide main menu and show party panel
+	if _main_menu and _main_menu.has_method("hide_menu"):
+		_main_menu.hide_menu()
+
+	if _party_panel and _party_panel.has_method("show_panel"):
+		_party_panel.show_panel()
+
+
+func _on_party_panel_closed() -> void:
+	# Hide party panel and return to main menu
+	if _party_panel and _party_panel.has_method("hide_panel"):
+		_party_panel.hide_panel()
+
+	if _main_menu and _main_menu.has_method("show_menu"):
+		_main_menu.show_menu()
+
+
+func _on_items_requested() -> void:
+	# Open depot via ExplorationUIManager
+	if ExplorationUIManager:
+		ExplorationUIManager.open_depot(true)  # true = from caravan interaction
+	close_menu()
+
+
+func _on_rest_requested() -> void:
+	rest_and_heal()
+	# Show confirmation message (could be dialog or just close menu)
+	close_menu()
 
 
 # =============================================================================
@@ -389,9 +504,15 @@ func open_menu() -> void:
 		return
 
 	_menu_open = true
-	menu_opened.emit()
 
-	# TODO: Phase 2 - Open actual caravan main menu UI
+	# Pause the game tree to stop player movement
+	get_tree().paused = true
+
+	# Show the main menu
+	if _main_menu and _main_menu.has_method("show_menu"):
+		_main_menu.show_menu()
+
+	menu_opened.emit()
 
 
 ## Close the caravan menu
@@ -400,9 +521,15 @@ func close_menu() -> void:
 		return
 
 	_menu_open = false
-	menu_closed.emit()
 
-	# TODO: Phase 2 - Close caravan main menu UI
+	# Hide the main menu
+	if _main_menu and _main_menu.has_method("hide_menu"):
+		_main_menu.hide_menu()
+
+	# Unpause the game tree
+	get_tree().paused = false
+
+	menu_closed.emit()
 
 
 ## Use the rest/heal service (free heal all party)

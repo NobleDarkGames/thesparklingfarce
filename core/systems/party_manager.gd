@@ -38,9 +38,12 @@ var party_members: Array[CharacterData] = []
 ## Initialized when characters are added to the party
 var _member_save_data: Dictionary = {}
 
-## Maximum party size (Shining Force allows 12)
-## For now, we'll use a smaller limit for testing
-const MAX_PARTY_SIZE: int = 8
+## Maximum ACTIVE party size (goes into battle) - SF2 allows 12
+const MAX_ACTIVE_SIZE: int = 12
+
+## Maximum party size is unlimited (roster can grow indefinitely)
+## This constant is kept for backwards compatibility but no longer enforced
+const MAX_PARTY_SIZE: int = 12
 
 ## Default spawn formation (relative positions from spawn point)
 ## Format: Array of Vector2i offsets
@@ -71,15 +74,9 @@ func _ready() -> void:
 
 ## Set the entire party at once
 ## @param characters: Array of CharacterData resources
+## Note: Roster size is unlimited. First MAX_ACTIVE_SIZE are active (battle), rest are reserve.
 func set_party(characters: Array[CharacterData]) -> void:
-	if characters.size() > MAX_PARTY_SIZE:
-		push_warning("PartyManager: Party size (%d) exceeds maximum (%d), truncating" % [
-			characters.size(),
-			MAX_PARTY_SIZE
-		])
-		party_members = characters.slice(0, MAX_PARTY_SIZE)
-	else:
-		party_members = characters.duplicate()
+	party_members = characters.duplicate()
 
 	# Ensure hero is always first
 	_ensure_hero_is_leader()
@@ -89,18 +86,21 @@ func set_party(characters: Array[CharacterData]) -> void:
 		_ensure_save_data(character)
 
 
-## Add a character to the party
+## Add a character to the party (roster)
 ## @param character: CharacterData to add
-## @return: true if added successfully, false if party full
-func add_member(character: CharacterData) -> bool:
-	if party_members.size() >= MAX_PARTY_SIZE:
-		push_warning("PartyManager: Cannot add member, party full (%d/%d)" % [
-			party_members.size(),
-			MAX_PARTY_SIZE
-		])
-		return false
+## @param to_active: If true, insert into active party (if room), else add to reserves
+## @return: true if added successfully
+func add_member(character: CharacterData, to_active: bool = true) -> bool:
+	if to_active and party_members.size() < MAX_ACTIVE_SIZE:
+		# Add to active party (before reserves)
+		party_members.append(character)
+	elif to_active:
+		# Active party full, insert at end of active section
+		party_members.insert(MAX_ACTIVE_SIZE, character)
+	else:
+		# Add to reserves (end of roster)
+		party_members.append(character)
 
-	party_members.append(character)
 	_ensure_save_data(character)
 	return true
 
@@ -177,6 +177,117 @@ func get_leader() -> CharacterData:
 	if party_members.is_empty():
 		return null
 	return party_members[0]
+
+
+# ============================================================================
+# ACTIVE / RESERVE ROSTER MANAGEMENT (SF2-style Caravan system)
+# ============================================================================
+
+## Get the active party (first MAX_ACTIVE_SIZE members who go into battle)
+## @return: Array of CharacterData for active party members
+func get_active_party() -> Array[CharacterData]:
+	if party_members.size() <= MAX_ACTIVE_SIZE:
+		return party_members.duplicate()
+	return party_members.slice(0, MAX_ACTIVE_SIZE)
+
+
+## Get the reserve party (members beyond MAX_ACTIVE_SIZE, waiting at Caravan)
+## @return: Array of CharacterData for reserve party members
+func get_reserve_party() -> Array[CharacterData]:
+	if party_members.size() <= MAX_ACTIVE_SIZE:
+		return []
+	return party_members.slice(MAX_ACTIVE_SIZE)
+
+
+## Get the number of active party members
+func get_active_count() -> int:
+	return mini(party_members.size(), MAX_ACTIVE_SIZE)
+
+
+## Get the number of reserve party members
+func get_reserve_count() -> int:
+	return maxi(0, party_members.size() - MAX_ACTIVE_SIZE)
+
+
+## Check if active party is full
+func is_active_party_full() -> bool:
+	return party_members.size() >= MAX_ACTIVE_SIZE
+
+
+## Swap a character between active and reserve roster
+## @param active_index: Index within active party (0 to MAX_ACTIVE_SIZE-1)
+## @param reserve_index: Index within reserve party (0-based)
+## @return: Dictionary with {success: bool, error: String}
+func swap_active_reserve(active_index: int, reserve_index: int) -> Dictionary:
+	var active_count: int = get_active_count()
+	var reserve_count: int = get_reserve_count()
+
+	# Validate indices
+	if active_index < 0 or active_index >= active_count:
+		return {"success": false, "error": "Invalid active party index"}
+
+	if reserve_index < 0 or reserve_index >= reserve_count:
+		return {"success": false, "error": "Invalid reserve party index"}
+
+	# SACRED COW: Hero (slot 0) cannot be swapped out
+	if active_index == 0:
+		return {"success": false, "error": "Cannot swap hero out of active party"}
+
+	# Calculate actual array indices
+	var active_array_index: int = active_index
+	var reserve_array_index: int = MAX_ACTIVE_SIZE + reserve_index
+
+	# Perform the swap
+	var temp: CharacterData = party_members[active_array_index]
+	party_members[active_array_index] = party_members[reserve_array_index]
+	party_members[reserve_array_index] = temp
+
+	return {"success": true, "error": ""}
+
+
+## Move a reserve character to the active party (if room)
+## @param reserve_index: Index within reserve party (0-based)
+## @return: Dictionary with {success: bool, error: String}
+func promote_to_active(reserve_index: int) -> Dictionary:
+	var reserve_count: int = get_reserve_count()
+
+	if reserve_index < 0 or reserve_index >= reserve_count:
+		return {"success": false, "error": "Invalid reserve index"}
+
+	if is_active_party_full():
+		return {"success": false, "error": "Active party is full"}
+
+	# Remove from reserve position and insert at end of active
+	var reserve_array_index: int = MAX_ACTIVE_SIZE + reserve_index
+	var character: CharacterData = party_members[reserve_array_index]
+	party_members.remove_at(reserve_array_index)
+
+	# Insert at end of current active members
+	var insert_pos: int = mini(party_members.size(), MAX_ACTIVE_SIZE - 1)
+	party_members.insert(insert_pos, character)
+
+	return {"success": true, "error": ""}
+
+
+## Move an active character to reserves
+## @param active_index: Index within active party (0 to MAX_ACTIVE_SIZE-1)
+## @return: Dictionary with {success: bool, error: String}
+func demote_to_reserve(active_index: int) -> Dictionary:
+	var active_count: int = get_active_count()
+
+	if active_index < 0 or active_index >= active_count:
+		return {"success": false, "error": "Invalid active index"}
+
+	# SACRED COW: Hero cannot be demoted
+	if active_index == 0:
+		return {"success": false, "error": "Cannot move hero to reserves"}
+
+	# Move character to beginning of reserves
+	var character: CharacterData = party_members[active_index]
+	party_members.remove_at(active_index)
+	party_members.append(character)  # Goes to end (reserve section)
+
+	return {"success": true, "error": ""}
 
 
 # ============================================================================

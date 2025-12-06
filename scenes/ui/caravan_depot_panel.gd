@@ -21,6 +21,9 @@ signal close_requested()
 ## Emitted when item is taken from depot
 signal item_taken(item_id: String, character_uid: String)
 
+## Emitted when item is stored to depot
+signal item_stored(item_id: String, character_uid: String)
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -44,7 +47,13 @@ const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 var _filter_type: String = ""
 
 ## Currently selected item in depot
-var _selected_item_id: String = ""
+var _selected_depot_item_id: String = ""
+
+## Currently selected item in character inventory
+var _selected_inventory_item_id: String = ""
+
+## Index of selected inventory item (for removal)
+var _selected_inventory_index: int = -1
 
 ## Target character for taking items
 var _target_character_index: int = 0
@@ -69,10 +78,16 @@ var _char_dropdown: OptionButton = null
 var _description_panel: PanelContainer = null
 var _description_label: Label = null
 var _take_button: Button = null
+var _inventory_label: Label = null
+var _inventory_grid: GridContainer = null
+var _store_button: Button = null
 var _item_count_label: Label = null
 
-## Pool of ItemSlot nodes for display
+## Pool of ItemSlot nodes for depot display
 var _slot_pool: Array[Control] = []
+
+## Pool of ItemSlot nodes for character inventory display
+var _inventory_slot_pool: Array[Control] = []
 
 # =============================================================================
 # LIFECYCLE
@@ -83,6 +98,7 @@ func _ready() -> void:
 	_refresh_party_data()
 	_populate_character_dropdown()
 	_refresh_depot_display()
+	_refresh_inventory_display()
 
 	# Connect to StorageManager signals
 	StorageManager.depot_changed.connect(_on_depot_changed)
@@ -105,7 +121,7 @@ func _build_ui() -> void:
 	# Main panel (centered) - sized for 640x360 viewport
 	var panel: PanelContainer = PanelContainer.new()
 	panel.name = "MainPanel"
-	panel.custom_minimum_size = Vector2(300, 200)
+	panel.custom_minimum_size = Vector2(300, 280)
 	panel.size = panel.custom_minimum_size
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_KEEP_SIZE)
 
@@ -214,6 +230,7 @@ func _build_ui() -> void:
 	_char_dropdown.add_theme_font_override("font", MONOGRAM_FONT)
 	_char_dropdown.add_theme_font_size_override("font_size", 16)
 	_char_dropdown.custom_minimum_size = Vector2(80, 16)
+	_char_dropdown.item_selected.connect(_on_character_changed)
 	_side_panel.add_child(_char_dropdown)
 
 	# Description panel
@@ -252,6 +269,31 @@ func _build_ui() -> void:
 	_take_button.disabled = true
 	_take_button.pressed.connect(_on_take_pressed)
 	_side_panel.add_child(_take_button)
+
+	# Character inventory section
+	_inventory_label = Label.new()
+	_inventory_label.text = "Inventory:"
+	_inventory_label.add_theme_font_override("font", MONOGRAM_FONT)
+	_inventory_label.add_theme_font_size_override("font_size", 16)
+	_side_panel.add_child(_inventory_label)
+
+	# Inventory grid (2x2 layout to fit in side panel)
+	_inventory_grid = GridContainer.new()
+	_inventory_grid.name = "InventoryGrid"
+	_inventory_grid.columns = 2
+	_inventory_grid.add_theme_constant_override("h_separation", 2)
+	_inventory_grid.add_theme_constant_override("v_separation", 2)
+	_side_panel.add_child(_inventory_grid)
+
+	# Store button
+	_store_button = Button.new()
+	_store_button.text = "Store"
+	_store_button.add_theme_font_override("font", MONOGRAM_FONT)
+	_store_button.add_theme_font_size_override("font_size", 16)
+	_store_button.custom_minimum_size = Vector2(48, 16)
+	_store_button.disabled = true
+	_store_button.pressed.connect(_on_store_pressed)
+	_side_panel.add_child(_store_button)
 
 	# Item count
 	_item_count_label = Label.new()
@@ -323,7 +365,7 @@ func _refresh_depot_display() -> void:
 		var item_id: String = items[i]
 		var slot: Control = _slot_pool[i]
 		slot.set_item(item_id, false)
-		slot.set_selected(item_id == _selected_item_id)
+		slot.set_selected(item_id == _selected_depot_item_id)
 		_depot_grid.add_child(slot)
 
 	# Update take button state
@@ -348,7 +390,7 @@ func _get_filtered_items() -> Array[String]:
 
 
 func _update_take_button() -> void:
-	if _selected_item_id.is_empty():
+	if _selected_depot_item_id.is_empty():
 		_take_button.disabled = true
 		_take_button.text = "Take"
 		return
@@ -377,12 +419,74 @@ func _update_take_button() -> void:
 
 
 # =============================================================================
+# CHARACTER INVENTORY DISPLAY
+# =============================================================================
+
+func _refresh_inventory_display() -> void:
+	if _party_save_data.is_empty():
+		# Clear grid
+		for child: Node in _inventory_grid.get_children():
+			_inventory_grid.remove_child(child)
+		_update_store_button()
+		return
+
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_save_data.size():
+		return
+
+	var save_data: CharacterSaveData = _party_save_data[target_index]
+	var inventory: Array[String] = save_data.inventory
+
+	# Ensure enough slots in pool
+	var max_slots: int = 4
+	if ModLoader and ModLoader.inventory_config:
+		max_slots = ModLoader.inventory_config.get_max_slots()
+
+	while _inventory_slot_pool.size() < max_slots:
+		var slot: Control = ItemSlotScript.new()
+		slot.clicked.connect(_on_inventory_slot_clicked)
+		slot.hovered.connect(_on_slot_hovered)
+		slot.hover_exited.connect(_on_slot_hover_exited)
+		_inventory_slot_pool.append(slot)
+
+	# Clear grid
+	for child: Node in _inventory_grid.get_children():
+		_inventory_grid.remove_child(child)
+
+	# Add slots for inventory items (show empty slots too)
+	for i in range(max_slots):
+		var slot: Control = _inventory_slot_pool[i]
+		if i < inventory.size():
+			var item_id: String = inventory[i]
+			slot.set_item(item_id, false)
+			slot.set_selected(i == _selected_inventory_index)
+		else:
+			slot.set_item("", false)
+			slot.set_selected(false)
+		_inventory_grid.add_child(slot)
+
+	_update_store_button()
+
+
+func _update_store_button() -> void:
+	if _selected_inventory_item_id.is_empty():
+		_store_button.disabled = true
+		_store_button.text = "Store"
+		return
+
+	_store_button.disabled = false
+	_store_button.text = "Store"
+
+
+# =============================================================================
 # EVENT HANDLERS
 # =============================================================================
 
 func _on_depot_changed() -> void:
+	_refresh_party_data()
 	_refresh_depot_display()
 	_populate_character_dropdown()
+	_refresh_inventory_display()
 
 
 func _on_filter_changed(index: int) -> void:
@@ -393,19 +497,66 @@ func _on_filter_changed(index: int) -> void:
 		3: _filter_type = "accessory"
 		4: _filter_type = "consumable"
 
-	_selected_item_id = ""
+	_selected_depot_item_id = ""
 	_refresh_depot_display()
 	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 
 
 func _on_slot_clicked(item_id: String) -> void:
-	_selected_item_id = item_id
+	_selected_depot_item_id = item_id
+	# Deselect inventory item when depot item is selected
+	_selected_inventory_item_id = ""
+	_selected_inventory_index = -1
 
 	# Update selection visuals
 	for slot: Control in _depot_grid.get_children():
 		slot.set_selected(slot.item_id == item_id)
+	for slot: Control in _inventory_grid.get_children():
+		slot.set_selected(false)
 
 	_update_take_button()
+	_update_store_button()
+	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
+
+
+func _on_inventory_slot_clicked(item_id: String) -> void:
+	if item_id.is_empty():
+		return  # Don't select empty slots
+
+	# Find the index of this item
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_save_data.size():
+		return
+
+	var save_data: CharacterSaveData = _party_save_data[target_index]
+	var inventory: Array[String] = save_data.inventory
+
+	# Find which slot was clicked
+	var clicked_index: int = -1
+	for i in range(_inventory_grid.get_child_count()):
+		var slot: Control = _inventory_grid.get_child(i) as Control
+		if slot and slot.item_id == item_id:
+			clicked_index = i
+			break
+
+	if clicked_index < 0 or clicked_index >= inventory.size():
+		return
+
+	_selected_inventory_item_id = item_id
+	_selected_inventory_index = clicked_index
+	# Deselect depot item when inventory item is selected
+	_selected_depot_item_id = ""
+
+	# Update selection visuals
+	for slot: Control in _depot_grid.get_children():
+		slot.set_selected(false)
+	for i in range(_inventory_grid.get_child_count()):
+		var slot: Control = _inventory_grid.get_child(i) as Control
+		if slot:
+			slot.set_selected(i == clicked_index)
+
+	_update_take_button()
+	_update_store_button()
 	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 
 
@@ -425,14 +576,14 @@ func _on_slot_hovered(item_id: String) -> void:
 
 
 func _on_slot_hover_exited() -> void:
-	if _selected_item_id.is_empty():
+	if _selected_depot_item_id.is_empty():
 		_description_label.text = "Select an item..."
 	else:
-		_on_slot_hovered(_selected_item_id)
+		_on_slot_hovered(_selected_depot_item_id)
 
 
 func _on_take_pressed() -> void:
-	if _selected_item_id.is_empty():
+	if _selected_depot_item_id.is_empty():
 		return
 
 	var target_index: int = _char_dropdown.get_selected_id()
@@ -443,20 +594,57 @@ func _on_take_pressed() -> void:
 	var character: CharacterData = _party_character_data[target_index]
 
 	# Remove from depot
-	if StorageManager.remove_from_depot(_selected_item_id):
+	if StorageManager.remove_from_depot(_selected_depot_item_id):
 		# Add to character inventory
-		if save_data.add_item_to_inventory(_selected_item_id):
+		if save_data.add_item_to_inventory(_selected_depot_item_id):
 			AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
-			item_taken.emit(_selected_item_id, character.character_uid)
-			_selected_item_id = ""
+			item_taken.emit(_selected_depot_item_id, character.character_uid)
+			_selected_depot_item_id = ""
 			_description_label.text = "Item taken!"
+			_refresh_inventory_display()
 		else:
 			# Rollback - put back in depot
-			StorageManager.add_to_depot(_selected_item_id)
+			StorageManager.add_to_depot(_selected_depot_item_id)
 			AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 			_description_label.text = "Inventory full!"
 	else:
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+
+
+func _on_store_pressed() -> void:
+	if _selected_inventory_item_id.is_empty() or _selected_inventory_index < 0:
+		return
+
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_save_data.size():
+		return
+
+	var save_data: CharacterSaveData = _party_save_data[target_index]
+	var character: CharacterData = _party_character_data[target_index]
+
+	# Remove from character inventory (uses item_id, not index)
+	if save_data.remove_item_from_inventory(_selected_inventory_item_id):
+		# Add to depot
+		StorageManager.add_to_depot(_selected_inventory_item_id)
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+		item_stored.emit(_selected_inventory_item_id, character.character_uid)
+		_description_label.text = "Item stored!"
+		_selected_inventory_item_id = ""
+		_selected_inventory_index = -1
+		_refresh_inventory_display()
+		_populate_character_dropdown()
+	else:
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		_description_label.text = "Failed to remove item!"
+
+
+func _on_character_changed(_index: int) -> void:
+	# Reset selections when character changes
+	_selected_inventory_item_id = ""
+	_selected_inventory_index = -1
+	_refresh_inventory_display()
+	_update_take_button()
+	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 
 
 func _on_close_pressed() -> void:
@@ -487,3 +675,4 @@ func refresh() -> void:
 	_refresh_party_data()
 	_populate_character_dropdown()
 	_refresh_depot_display()
+	_refresh_inventory_display()

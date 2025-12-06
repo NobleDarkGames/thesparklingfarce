@@ -1,8 +1,9 @@
 # Caravan System Implementation Plan
 
 **Created:** 2025-12-05
-**Status:** IN PROGRESS
+**Status:** PHASE 2 IN PROGRESS
 **Priority:** CRITICAL (Mission Priority One)
+**Last Updated:** 2025-12-05
 
 ---
 
@@ -16,23 +17,29 @@ The Caravan system is the heart of SF2's open-world design and the critical feat
 
 ## Current State Assessment
 
-### What We Have (Excellent Foundation)
+### PHASE 1 COMPLETE (Committed: 812d82f)
 
-- [x] **StorageManager autoload** - Depot backend with unlimited storage
-- [x] **CaravanDepotPanel** - Item storage UI with Take/Store functionality
-- [x] **Item type filters** - Better than SF2 (which had none!)
-- [x] **MapMetadata flags** - `caravan_visible` and `caravan_accessible` exist
-- [x] **PartyFollower chain system** - Can be reused for Caravan following
-- [x] **PartyManager** - Manages party members and save data
+- [x] **CaravanData resource** (`core/resources/caravan_data.gd`) - Moddable wagon config
+- [x] **CaravanController autoload** (`core/systems/caravan_controller.gd`) - Lifecycle management
+- [x] **CaravanFollower component** (`core/components/caravan_follower.gd`) - Breadcrumb following
+- [x] **Default caravan config** (`mods/_base_game/data/caravans/default_caravan.tres`)
+- [x] **Placeholder wagon sprite** (`mods/_base_game/assets/sprites/caravan_wagon.png`)
+- [x] **SF2-authentic visibility** - Party followers in towns, caravan on overworld
+- [x] **MapMetadata integration** - Caravan spawns when `caravan_visible=true`
 
-### Critical Gaps
+### PHASE 2 IN PROGRESS (Staged, not committed)
 
-- [ ] **Caravan sprite on overworld** - No visible wagon following hero
-- [ ] **Caravan Main Menu** - No hub menu (Party/Storage/Rest/Exit)
-- [ ] **Party Management UI** - Cannot swap active/reserve members
-- [ ] **CaravanController** - No lifecycle management for caravan
-- [ ] **CaravanData resource** - No moddable wagon configuration
-- [ ] **Overworld interaction** - No way to interact with Caravan sprite
+- [x] **CaravanMainMenu UI** (`scenes/ui/caravan_main_menu.gd`) - Party/Items/Rest/Exit
+- [x] **Interaction trigger** - Press sf_confirm when near caravan opens menu
+- [x] **Items option** - Wired to existing CaravanDepotPanel via ExplorationUIManager
+- [x] **Menu centering fix** - Panel now properly centered using PRESET_FULL_RECT + child anchoring
+- [x] **Input isolation fix** - Game pauses while menu open (PROCESS_MODE_ALWAYS on UI)
+- [x] **Party Management Panel** - `scenes/ui/party_management_panel.gd` with grid UI
+- [x] **PartyManager roster methods** - `get_active_party()`, `get_reserve_party()`, `swap_active_reserve()`, etc.
+- [ ] **Rest & Heal** - Signal exists but no actual HP/MP restoration yet
+
+### Remaining Gaps
+- [ ] **Rest & Heal implementation** - Need CharacterSaveData HP/MP tracking
 
 ---
 
