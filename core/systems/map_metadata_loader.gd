@@ -1,47 +1,41 @@
 class_name MapMetadataLoader
 extends RefCounted
 
-## Loads MapMetadata from JSON files
+## Loads MapMetadata from JSON files with scene-as-truth architecture
 ##
-## This allows modders to define map metadata in pure JSON without writing GDScript.
-## JSON maps define the configuration, spawn points, and connections for exploration maps.
+## ARCHITECTURE: Scene is source of truth for visual/physical elements.
+## JSON provides runtime configuration only.
 ##
-## Example JSON format:
+## What comes from SCENE (via populate_from_scene()):
+##   - map_id, display_name, map_type (from @export vars)
+##   - spawn_points (extracted from SpawnPoint nodes)
+##   - connections (extracted from MapTrigger DOOR nodes)
+##
+## What comes from JSON (runtime config):
+##   - scene_path (REQUIRED - links to the scene file)
+##   - caravan_visible, caravan_accessible
+##   - camera_zoom
+##   - music_id, ambient_id
+##   - random_encounters_enabled, base_encounter_rate
+##   - save_anywhere
+##   - edge_connections (overworld only - cannot derive from scene)
+##
+## Minimal JSON example:
 ## {
-##   "map_id": "base_game:granseal",
-##   "display_name": "Granseal Town",
-##   "map_type": "TOWN",
+##   "scene_path": "res://mods/my_mod/maps/my_town.tscn"
+## }
+##
+## Full JSON example (with optional overrides):
+## {
+##   "scene_path": "res://mods/my_mod/maps/my_town.tscn",
 ##   "caravan_visible": false,
 ##   "caravan_accessible": false,
 ##   "camera_zoom": 1.0,
-##   "scene_path": "res://mods/_base_game/maps/granseal.tscn",
 ##   "music_id": "town_theme",
-##   "spawn_points": {
-##     "entrance": {
-##       "grid_position": [10, 15],
-##       "facing": "up",
-##       "is_default": true
-##     },
-##     "from_castle": {
-##       "grid_position": [5, 5],
-##       "facing": "down"
-##     }
-##   },
-##   "connections": [
-##     {
-##       "trigger_id": "north_gate",
-##       "target_map_id": "base_game:overworld_south",
-##       "target_spawn_id": "granseal_entrance",
-##       "transition_type": "fade"
-##     }
-##   ],
-##   "edge_connections": {
-##     "north": {
-##       "target_map_id": "base_game:overworld_central",
-##       "target_spawn_id": "south_edge",
-##       "overlap_tiles": 1
-##     }
-##   }
+##   "ambient_id": "",
+##   "random_encounters_enabled": false,
+##   "save_anywhere": true,
+##   "edge_connections": {}
 ## }
 
 const MapMetadataScript: GDScript = preload("res://core/resources/map_metadata.gd")
@@ -86,23 +80,27 @@ static func load_from_json_string(json_text: String, source_path: String = "<str
 
 
 ## Build MapMetadata from a parsed JSON dictionary
+## Scene-as-truth: map_id, display_name, map_type, spawn_points, connections are OPTIONAL
+## They will be populated from the scene via populate_from_scene() after loading
 static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> Resource:
 	var metadata: Resource = MapMetadataScript.new()
 
-	# Required fields
+	# Scene path is REQUIRED - it's how we link to the scene
+	if "scene_path" in data:
+		metadata.scene_path = str(data["scene_path"])
+	else:
+		push_error("MapMetadataLoader: Missing required 'scene_path' in %s" % source_path)
+		return null
+
+	# Identity fields are OPTIONAL - will be populated from scene
+	# But we accept them for backward compatibility or JSON-only override
 	if "map_id" in data:
 		metadata.map_id = str(data["map_id"])
-	else:
-		push_error("MapMetadataLoader: Missing required 'map_id' in %s" % source_path)
-		return null
 
 	if "display_name" in data:
 		metadata.display_name = str(data["display_name"])
-	else:
-		push_error("MapMetadataLoader: Missing required 'display_name' in %s" % source_path)
-		return null
 
-	# Map type (parse from string)
+	# Map type (parse from string) - OPTIONAL
 	if "map_type" in data:
 		var type_str: String = str(data["map_type"]).to_upper()
 		match type_str:
@@ -120,32 +118,25 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 				push_warning("MapMetadataLoader: Unknown map_type '%s' in %s, defaulting to TOWN" % [type_str, source_path])
 				metadata.map_type = MapMetadataScript.MapType.TOWN
 
-	# Caravan settings
+	# Caravan settings (runtime config)
 	if "caravan_visible" in data:
 		metadata.caravan_visible = bool(data["caravan_visible"])
 
 	if "caravan_accessible" in data:
 		metadata.caravan_accessible = bool(data["caravan_accessible"])
 
-	# Camera zoom
+	# Camera zoom (runtime config)
 	if "camera_zoom" in data:
 		metadata.camera_zoom = clampf(float(data["camera_zoom"]), 0.5, 2.0)
 
-	# Scene path
-	if "scene_path" in data:
-		metadata.scene_path = str(data["scene_path"])
-	else:
-		push_error("MapMetadataLoader: Missing required 'scene_path' in %s" % source_path)
-		return null
-
-	# Audio settings
+	# Audio settings (runtime config - placeholder for vertical mixing)
 	if "music_id" in data:
 		metadata.music_id = str(data["music_id"])
 
 	if "ambient_id" in data:
 		metadata.ambient_id = str(data["ambient_id"])
 
-	# Encounter settings
+	# Encounter settings (runtime config)
 	if "random_encounters_enabled" in data:
 		metadata.random_encounters_enabled = bool(data["random_encounters_enabled"])
 
@@ -155,14 +146,11 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 	if "save_anywhere" in data:
 		metadata.save_anywhere = bool(data["save_anywhere"])
 
-	# Spawn points
+	# Spawn points - OPTIONAL in JSON (will be extracted from scene)
 	if "spawn_points" in data and data["spawn_points"] is Dictionary:
 		metadata.spawn_points = _parse_spawn_points(data["spawn_points"] as Dictionary, source_path)
-	else:
-		push_error("MapMetadataLoader: Missing required 'spawn_points' in %s" % source_path)
-		return null
 
-	# Connections
+	# Connections - OPTIONAL in JSON (will be extracted from scene)
 	if "connections" in data and data["connections"] is Array:
 		metadata.connections.clear()
 		for conn_data: Variant in data["connections"]:
@@ -171,17 +159,13 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 				if not connection.is_empty():
 					metadata.connections.append(connection)
 
-	# Edge connections
+	# Edge connections - must be in JSON (cannot derive from scene geometry)
 	if "edge_connections" in data and data["edge_connections"] is Dictionary:
 		metadata.edge_connections = _parse_edge_connections(data["edge_connections"] as Dictionary, source_path)
 
-	# Validate the metadata
-	var errors: Array[String] = metadata.validate()
-	if not errors.is_empty():
-		push_error("MapMetadataLoader: Map '%s' validation failed:" % metadata.map_id)
-		for err: String in errors:
-			push_error("  - %s" % err)
-		return null
+	# Mark as needing scene population if identity fields are missing
+	metadata.set_meta("needs_scene_population", metadata.map_id.is_empty())
+	metadata.set_meta("source_json_path", source_path)
 
 	return metadata
 
@@ -199,7 +183,7 @@ static func _parse_spawn_points(data: Dictionary, source_path: String) -> Dictio
 		var spawn_dict: Dictionary = spawn_data as Dictionary
 		var parsed: Dictionary = {}
 
-		# Grid position (required)
+		# Grid position (required for JSON-defined spawn points)
 		if "grid_position" in spawn_dict:
 			var pos: Variant = spawn_dict["grid_position"]
 			if pos is Array and pos.size() >= 2:

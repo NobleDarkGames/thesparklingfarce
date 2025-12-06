@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=4 uid="uid://721d0y08a54u"]
+[gd_scene load_steps=7 format=4 uid="uid://721d0y08a54u"]
 
 [ext_resource type="Script" uid="uid://noa4vgvd1uux" path="res://mods/_base_game/maps/templates/map_template.gd" id="1_hvlp2"]
 [ext_resource type="TileSet" uid="uid://dsgco58wfm80c" path="res://mods/_base_game/tilesets/terrain_placeholder.tres" id="2_o5vq8"]
 [ext_resource type="Script" uid="uid://iijt33alqt3j" path="res://scenes/map_exploration/map_camera.gd" id="4_juiv6"]
 [ext_resource type="PackedScene" path="res://mods/_base_game/triggers/battle_trigger.tscn" id="5_o5vq8"]
 [ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="6_spawn"]
+[ext_resource type="PackedScene" path="res://mods/_base_game/triggers/door_trigger.tscn" id="7_door"]
 
 [node name="OpeningWorldMap" type="Node2D"]
 script = ExtResource("1_hvlp2")
@@ -27,15 +28,30 @@ script = ExtResource("6_spawn")
 spawn_id = "from_battle"
 facing = "up"
 
+[node name="FromNoobington" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(430, 192)
+script = ExtResource("6_spawn")
+spawn_id = "from_noobington"
+
 [node name="Followers" type="Node2D" parent="."]
 
 [node name="MapCamera" type="Camera2D" parent="."]
 position = Vector2(88, 88)
 script = ExtResource("4_juiv6")
 
-[node name="BattleTrigger" parent="." instance=ExtResource("5_o5vq8")]
+[node name="Triggers" type="Node2D" parent="."]
+
+[node name="BattleTrigger" parent="Triggers" instance=ExtResource("5_o5vq8")]
 position = Vector2(527, 563)
 trigger_id = "opening_battle_trigger"
 trigger_data = {
 "battle_id": "battle_1763763677"
+}
+
+[node name="NoobingtonDoor" parent="Triggers" instance=ExtResource("7_door")]
+position = Vector2(432, 170)
+trigger_id = "noobington_door"
+trigger_data = {
+"destination_scene": "res://mods/_sandbox/maps/noobington.tscn",
+"spawn_point": "from_overworld"
 }

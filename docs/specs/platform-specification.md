@@ -171,20 +171,20 @@ Higher priority overrides same-ID resources from lower priority.
 
 ModLoader scans `mods/*/data/<directory>/` automatically:
 
-| Directory | Type | Format |
-|-----------|------|--------|
-| characters/ | character | .tres |
-| classes/ | class | .tres |
-| items/ | item | .tres |
-| abilities/ | ability | .tres |
-| battles/ | battle | .tres |
-| parties/ | party | .tres |
-| dialogues/ | dialogue | .tres |
-| cinematics/ | cinematic | .json |
-| maps/ | map | .json |
-| campaigns/ | campaign | .json |
-| experience_configs/ | experience_config | .tres |
-| terrains/ | terrain | .tres |
+| Directory | Type | Format | Notes |
+|-----------|------|--------|-------|
+| characters/ | character | .tres | |
+| classes/ | class | .tres | |
+| items/ | item | .tres | |
+| abilities/ | ability | .tres | |
+| battles/ | battle | .tres | |
+| parties/ | party | .tres | |
+| dialogues/ | dialogue | .tres | |
+| cinematics/ | cinematic | .json | |
+| maps/ | map | .json | Runtime config only; scene is source of truth |
+| campaigns/ | campaign | .json | |
+| experience_configs/ | experience_config | .tres | |
+| terrains/ | terrain | .tres | |
 
 ### Accessing Resources
 ```gdscript
@@ -301,10 +301,24 @@ GameState.has_flag_scoped("boss_defeated")
 - `cinematic_id`, `commands`
 - Commands: move_entity, show_dialog, camera_move, wait, fade_screen, etc.
 
-### MapMetadata (JSON)
-- `map_id`, `display_name`, `scene_path`
-- `map_type`: town, overworld, dungeon, battle, interior
-- `spawn_points`: Dictionary of named positions
+### MapMetadata (Scene + JSON)
+
+**Scene is source of truth** for visual/physical elements:
+- `@export var map_id: String` - Unique namespaced ID (e.g., "my_mod:granseal")
+- `@export var map_type: MapType` - TOWN, OVERWORLD, DUNGEON, INTERIOR, BATTLE
+- `@export var display_name: String` - Human-readable name for UI
+- SpawnPoint nodes - Extracted automatically at load time
+- MapTrigger (DOOR) nodes - Connections extracted automatically
+
+**JSON provides runtime configuration only** (in `data/maps/*.json`):
+- `scene_path` - Links to scene file (required)
+- `caravan_visible`, `caravan_accessible` - Behavioral flags
+- `music_id`, `ambient_id` - Audio (placeholder for future vertical mixing system)
+- `random_encounters_enabled`, `save_anywhere` - Map behaviors
+- `edge_connections` - Overworld map stitching (cannot be derived from scene)
+
+**Battle positions are separate** - defined in BattleData, not MapMetadata.
+Same scene can serve as both exploration map and battle arena.
 
 ### CampaignData (JSON)
 - `campaign_id`, `campaign_name`
@@ -385,7 +399,8 @@ func validate() -> bool:
 | Battles | `mods/<mod_id>/data/battles/*.tres` |
 | Terrains | `mods/<mod_id>/data/terrains/*.tres` |
 | XP Config | `mods/<mod_id>/data/experience_configs/*.tres` |
-| Maps | `mods/<mod_id>/data/maps/*.json` |
+| Map Metadata | `mods/<mod_id>/data/maps/*.json` |
+| Map Scenes | `mods/<mod_id>/maps/*.tscn` |
 | Campaigns | `mods/<mod_id>/data/campaigns/*.json` |
 | Dialogues | `mods/<mod_id>/data/dialogues/*.tres` |
 | Cinematics | `mods/<mod_id>/data/cinematics/*.json` |
@@ -404,17 +419,42 @@ func validate() -> bool:
 
 ---
 
-## Map Types
+## Map System Architecture
 
-| Type | Scale | Caravan | Battles |
-|------|-------|---------|---------|
-| Town | 1:1 | No | No |
-| Overworld | Abstract | Yes | Yes |
-| Dungeon | Mixed | Maybe | Yes |
-| Battle | Grid | No | Yes |
-| Interior | 1:1 | No | No |
+### Scene as Source of Truth
+
+Map scenes (`.tscn`) define all visual and physical elements:
+- `map_id`, `map_type`, `display_name` as `@export` variables
+- SpawnPoint nodes for exploration entry points
+- MapTrigger (DOOR) nodes for connections
+- TileMapLayer for terrain and collision
+
+Map metadata JSON provides **runtime configuration only**:
+- `scene_path` (required link to scene)
+- `caravan_visible`, `caravan_accessible`
+- `music_id`, `ambient_id` (placeholders for vertical mixing system)
+- `random_encounters_enabled`, `save_anywhere`
+- `edge_connections` (overworld stitching)
+
+### Map Types
+
+| Type | Scale | Caravan | Encounters | Party Followers |
+|------|-------|---------|------------|-----------------|
+| Town | 1:1 | Hidden | No | Visible (SF2-style chain) |
+| Overworld | Abstract | Visible | Yes | Hidden |
+| Dungeon | Mixed | Optional | Yes | Visible |
+| Battle | Grid | No | N/A | N/A |
+| Interior | 1:1 | Hidden | No | Visible |
 
 SF2 open-world model: free backtracking, mobile Caravan, no permanent lockouts.
+
+### Battle Positions vs Exploration Spawns
+
+**These are separate systems:**
+- **SpawnPoints** in scenes = exploration entry points ("from_overworld", "from_castle")
+- **BattleData.player_spawn_point** = where party starts combat (independent of scene SpawnPoints)
+
+The same scene can serve as both exploration map AND battle arena. When used for battle, SpawnPoints are ignored; BattleData defines unit placement.
 
 ---
 

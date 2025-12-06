@@ -52,7 +52,8 @@ my_mod/
       items/            # Item icons (32x32 PNG recommended)
       abilities/        # Ability icons (32x32 PNG recommended)
 
-  scenes/               # Custom scenes (UI, maps, etc.)
+  maps/                 # Map scenes (.tscn) with matching scripts (.gd)
+  scenes/               # Custom scenes (UI, etc.)
   triggers/             # Custom trigger scripts (*_trigger.gd)
   tilesets/             # TileSet .tres files
 ```
@@ -123,6 +124,28 @@ Battles are complete combat scenarios:
 - Add dialogue and rewards
 
 See: `data/battles/example_battle.tres`
+
+### Maps (Town/Overworld/Dungeon)
+Maps are explorable scenes the player navigates:
+- **Town maps**: Detailed areas with NPCs, shops, buildings
+- **Overworld maps**: Abstract scale terrain with the Caravan
+- **Dungeon maps**: Mix of detailed and abstract, combat encounters
+
+Creating a new town map:
+1. Copy `maps/town_map_template.tscn` and `maps/town_map_template.gd` to your mod
+2. Rename them (e.g., `granseal.tscn`, `granseal.gd`)
+3. Update the script reference in the scene to point to your new .gd file
+4. Draw your town using the TileMapLayer
+5. Position spawn points for entrances/exits
+6. Add door triggers to connect to other maps
+7. Create a map metadata JSON in `data/maps/`
+
+Map templates in this mod:
+- `maps/town_map_template.tscn` - Base town scene with spawn points and door examples
+- `maps/town_map_template.gd` - Town-specific script extending the base map template
+- `data/maps/example_town.json` - Example map metadata configuration
+
+See the town_map_template files for a complete working example.
 
 ## Overriding Base Game Content
 

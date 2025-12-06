@@ -388,64 +388,75 @@ func is_accessible(flag_checker: Callable, current_chapter: int) -> bool:
 
 ## 5. Campaign Integration
 
-### Creating a MapMetadata JSON File
+### Scene as Source of Truth
+
+**Important architectural change**: The scene file is now the canonical source for map identity, spawn points, and door connections. The JSON metadata provides runtime configuration only.
+
+**In your map scene script**, add these exports:
+
+```gdscript
+# granseal.gd
+extends "res://mods/_base_game/maps/templates/map_template.gd"
+
+## Unique identifier (namespaced: "mod_id:map_name")
+@export var map_id: String = "your_mod:granseal"
+
+## Map type determines Caravan visibility and party follower behavior
+@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "TOWN"
+
+## Display name for UI (save menu, map popups)
+@export var display_name: String = "Granseal Town"
+```
+
+**SpawnPoints** are defined as nodes in the scene (see Section 3). They are extracted automatically at load time.
+
+**Door triggers** with their `trigger_data` define connections. They are also extracted automatically.
+
+### Creating a MapMetadata JSON File (Simplified)
+
+The JSON now contains **runtime configuration only** - no spawn_points or connections!
 
 Place in `mods/your_mod/data/maps/granseal.json`:
 
 ```json
 {
-  "map_id": "your_mod:granseal",
-  "display_name": "Granseal Town",
-  "map_type": "TOWN",
+  "scene_path": "res://mods/your_mod/maps/granseal.tscn",
   "caravan_visible": false,
   "caravan_accessible": false,
   "camera_zoom": 1.0,
-  "scene_path": "res://mods/your_mod/maps/granseal.tscn",
   "music_id": "town_theme",
   "ambient_id": "",
   "random_encounters_enabled": false,
-  "save_anywhere": true,
-  "spawn_points": {
-    "default_start": {
-      "grid_position": [5, 10],
-      "facing": "down",
-      "is_default": true
-    },
-    "from_overworld": {
-      "grid_position": [15, 28],
-      "facing": "up"
-    },
-    "from_castle": {
-      "grid_position": [10, 5],
-      "facing": "down"
-    }
-  },
-  "connections": [
-    {
-      "trigger_id": "south_gate",
-      "target_map_id": "your_mod:overworld_central",
-      "target_spawn_id": "granseal_entrance",
-      "transition_type": "fade"
-    },
-    {
-      "trigger_id": "castle_door",
-      "target_map_id": "your_mod:granseal_castle",
-      "target_spawn_id": "entrance",
-      "transition_type": "fade"
-    }
-  ]
+  "save_anywhere": true
 }
 ```
 
+That's it! The `map_id`, `display_name`, `map_type`, spawn points, and connections are all extracted from your scene file automatically.
+
+### What's Extracted from Scene vs JSON
+
+| Data | Source | Notes |
+|------|--------|-------|
+| map_id | Scene `@export` | Unique identifier |
+| display_name | Scene `@export` | UI display |
+| map_type | Scene `@export` | TOWN, OVERWORLD, etc. |
+| spawn_points | SpawnPoint nodes | Positions, facing, defaults |
+| connections | MapTrigger DOOR nodes | Door destinations |
+| caravan_visible | JSON | Runtime behavior |
+| caravan_accessible | JSON | Runtime behavior |
+| music_id | JSON | Audio config (placeholder for vertical mixing) |
+| random_encounters | JSON | Runtime behavior |
+| edge_connections | JSON | Overworld map stitching only |
+
 **MapType Values:**
 
-| Type | Caravan Visible | Camera Zoom | Random Encounters |
-|------|-----------------|-------------|-------------------|
-| TOWN | false | 1.0 | false |
-| OVERWORLD | true | 0.75-0.85 | true |
-| DUNGEON | false | 0.9-1.0 | true |
-| INTERIOR | false | 1.0-1.2 | false |
-| BATTLE | false | 1.0 | false |
+| Type | Caravan Visible | Camera Zoom | Random Encounters | Party Followers |
+|------|-----------------|-------------|-------------------|-----------------|
+| TOWN | false | 1.0 | false | Visible (SF2 chain) |
+| OVERWORLD | true | 0.75-0.85 | true | Hidden |
+| DUNGEON | false | 0.9-1.0 | true | Visible |
+| INTERIOR | false | 1.0-1.2 | false | Visible |
+| BATTLE | false | 1.0 | false | N/A |
 
 ### Creating a Campaign Node
 
@@ -703,14 +714,22 @@ func test_hero_in_group() -> void:
 ### Minimum Viable Town Checklist
 
 **Required for production:**
-- [ ] Scene with root Node2D extending map_template.gd
+- [ ] Scene with root Node2D extending map_template.gd (or town_map_template.gd)
+- [ ] Scene exports: `map_id`, `map_type`, `display_name`
 - [ ] TileMapLayer with walkable/blocked tiles
 - [ ] SpawnPoints container with at least one default spawn
 - [ ] Followers container (dynamically populated from PartyManager)
 - [ ] MapCamera (follows hero)
 - [ ] At least one door trigger to exit
-- [ ] MapMetadata JSON file
+- [ ] MapMetadata JSON file (simplified - runtime config only)
 - [ ] Campaign node registration
+
+**Scene exports (in your map script):**
+```gdscript
+@export var map_id: String = "your_mod:town_name"
+@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "TOWN"
+@export var display_name: String = "Town Name"
+```
 
 **For isolated testing (optional but recommended during development):**
 - [ ] Placeholder Hero CharacterBody2D in "hero" group with HeroController

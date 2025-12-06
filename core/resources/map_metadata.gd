@@ -1,23 +1,29 @@
 ## MapMetadata - Configuration resource for exploration maps
 ##
-## Defines the type, behavior, and connections of a map scene following
-## the SF2 open world model. Each map declares its type (Town, Overworld,
-## Dungeon, etc.) which controls Caravan visibility, camera zoom, and
-## other type-specific behaviors.
+## ARCHITECTURE: Scene is source of truth for visual/physical elements.
+## JSON provides runtime configuration only.
+##
+## What comes from SCENE (via populate_from_scene()):
+##   - map_id, display_name, map_type (from @export vars on scene root)
+##   - spawn_points (extracted from SpawnPoint nodes)
+##   - connections (extracted from MapTrigger DOOR nodes)
+##
+## What comes from JSON (runtime config):
+##   - scene_path (REQUIRED - links to the scene file)
+##   - caravan_visible, caravan_accessible
+##   - camera_zoom, music_id, ambient_id
+##   - random_encounters_enabled, save_anywhere
+##   - edge_connections (overworld only)
 ##
 ## Usage:
-##   # Create in editor or code:
-##   var metadata = MapMetadata.new()
-##   metadata.map_id = "base_game:granseal"
-##   metadata.map_type = MapMetadata.MapType.TOWN
-##   metadata.camera_zoom = 1.0
+##   # Load from JSON (minimal):
+##   var metadata = MapMetadataLoader.load_from_json("path/to/map.json")
 ##
-##   # Register spawn points:
-##   metadata.add_spawn_point("entrance", Vector2i(10, 15), "up")
-##   metadata.add_spawn_point("from_castle", Vector2i(5, 5), "down", false, true)
-##
-##   # Define connections to other maps:
-##   metadata.add_connection("north_gate", "base_game:overworld_south", "town_entrance")
+##   # Populate from scene (extracts identity, spawns, connections):
+##   var scene = load(metadata.scene_path)
+##   var instance = scene.instantiate()
+##   metadata.populate_from_scene(instance)
+##   instance.queue_free()
 class_name MapMetadata
 extends Resource
 
@@ -274,24 +280,19 @@ func apply_type_defaults() -> void:
 
 ## Validate the map metadata configuration
 ## Returns array of error strings (empty if valid)
+## Note: With scene-as-truth, map_id/display_name/spawn_points may be empty
+## until populate_from_scene() is called. Use validate_after_scene_population()
+## for full validation after scene extraction.
 func validate() -> Array[String]:
 	var errors: Array[String] = []
 
-	if map_id.is_empty():
-		errors.append("map_id is required")
-
-	if display_name.is_empty():
-		errors.append("display_name is required")
-
+	# scene_path is always required (it's how we find the scene)
 	if scene_path.is_empty():
 		errors.append("scene_path is required")
 	elif not scene_path.ends_with(".tscn"):
 		errors.append("scene_path must be a .tscn file")
 
-	if spawn_points.is_empty():
-		errors.append("At least one spawn point is required")
-
-	# Validate spawn point data
+	# Validate spawn point data if present
 	for spawn_id: String in spawn_points.keys():
 		var data: Dictionary = spawn_points[spawn_id]
 		if "grid_position" not in data:
@@ -301,15 +302,13 @@ func validate() -> Array[String]:
 		elif data["facing"] not in ["up", "down", "left", "right"]:
 			errors.append("Spawn point '%s' has invalid facing: %s" % [spawn_id, data["facing"]])
 
-	# Validate connections reference valid spawn points in target maps
-	# (Can't fully validate without loading target maps, so just check format)
+	# Validate connections format if present
 	for connection: Dictionary in connections:
 		if "trigger_id" not in connection:
 			errors.append("Connection missing trigger_id")
-		if "target_map_id" not in connection:
+		# target_map_id OR destination_scene (legacy) required
+		if "target_map_id" not in connection and "destination_scene" not in connection:
 			errors.append("Connection missing target_map_id")
-		if "target_spawn_id" not in connection:
-			errors.append("Connection missing target_spawn_id")
 
 	# Validate Caravan settings match map type
 	if map_type == MapType.TOWN and caravan_visible:
@@ -317,6 +316,24 @@ func validate() -> Array[String]:
 
 	if caravan_visible and not caravan_accessible:
 		errors.append("caravan_visible requires caravan_accessible to be useful")
+
+	return errors
+
+
+## Full validation after scene population
+## Use this after calling populate_from_scene() to ensure all required data exists
+func validate_after_scene_population() -> Array[String]:
+	var errors: Array[String] = validate()
+
+	# These fields should be populated from scene
+	if map_id.is_empty():
+		errors.append("map_id is required (should come from scene @export)")
+
+	if display_name.is_empty():
+		errors.append("display_name is required (should come from scene @export)")
+
+	if spawn_points.is_empty():
+		errors.append("At least one spawn point is required (should come from SpawnPoint nodes)")
 
 	return errors
 
@@ -395,3 +412,124 @@ static func from_dict(data: Dictionary) -> Resource:
 ## Get human-readable map type name
 func get_type_name() -> String:
 	return MapType.keys()[map_type]
+
+
+# =============================================================================
+# Scene Population (Source of Truth)
+# =============================================================================
+
+## Populate metadata from a scene instance
+## Extracts map_id, display_name, map_type from scene exports
+## Extracts spawn_points from SpawnPoint nodes
+## Extracts connections from MapTrigger DOOR nodes
+## Call this after loading the JSON and instantiating the scene
+func populate_from_scene(scene_root: Node) -> void:
+	_extract_identity_from_scene(scene_root)
+	_extract_spawn_points_from_scene(scene_root)
+	_extract_connections_from_scene(scene_root)
+
+
+## Extract map identity from scene exports (map_id, display_name, map_type)
+func _extract_identity_from_scene(scene_root: Node) -> void:
+	# Only extract if not already set (JSON can override for special cases)
+	if map_id.is_empty() and "map_id" in scene_root:
+		map_id = str(scene_root.get("map_id"))
+
+	if display_name.is_empty() and "display_name" in scene_root:
+		display_name = str(scene_root.get("display_name"))
+
+	# Extract map_type if scene has it
+	if "map_type" in scene_root:
+		var scene_type: Variant = scene_root.get("map_type")
+		if scene_type is String:
+			match scene_type.to_upper():
+				"TOWN":
+					map_type = MapType.TOWN
+				"OVERWORLD":
+					map_type = MapType.OVERWORLD
+				"DUNGEON":
+					map_type = MapType.DUNGEON
+				"BATTLE":
+					map_type = MapType.BATTLE
+				"INTERIOR":
+					map_type = MapType.INTERIOR
+
+
+## Extract spawn points from SpawnPoint nodes in the scene
+func _extract_spawn_points_from_scene(scene_root: Node) -> void:
+	# Only extract if spawn_points is empty (JSON can override)
+	if not spawn_points.is_empty():
+		return
+
+	# Use SpawnPoint's static helper to find all spawn points
+	var spawn_point_script: GDScript = load("res://core/components/spawn_point.gd") as GDScript
+	if spawn_point_script and spawn_point_script.has_method("find_all_in_tree"):
+		var found_spawns: Array = spawn_point_script.find_all_in_tree(scene_root)
+		for spawn_node: Node in found_spawns:
+			if spawn_node.has_method("to_dict"):
+				var spawn_data: Dictionary = spawn_node.to_dict()
+				var spawn_id: String = spawn_node.get("spawn_id") if "spawn_id" in spawn_node else ""
+				if not spawn_id.is_empty():
+					spawn_points[spawn_id] = spawn_data
+	else:
+		# Fallback: manually search for SpawnPoint nodes
+		_find_spawn_points_recursive(scene_root)
+
+
+## Recursive fallback for finding spawn points
+func _find_spawn_points_recursive(node: Node) -> void:
+	# Check if this node is a SpawnPoint
+	if node.has_method("to_dict") and "spawn_id" in node:
+		var spawn_id: String = node.get("spawn_id")
+		if not spawn_id.is_empty():
+			spawn_points[spawn_id] = node.to_dict()
+
+	# Recurse into children
+	for child: Node in node.get_children():
+		_find_spawn_points_recursive(child)
+
+
+## Extract door connections from MapTrigger DOOR nodes in the scene
+func _extract_connections_from_scene(scene_root: Node) -> void:
+	# Only extract if connections is empty (JSON can override)
+	if not connections.is_empty():
+		return
+
+	_find_door_triggers_recursive(scene_root)
+
+
+## Recursive search for door triggers
+func _find_door_triggers_recursive(node: Node) -> void:
+	# Check if this node is a MapTrigger with DOOR type
+	if "trigger_type" in node and "trigger_data" in node:
+		var trigger_type: Variant = node.get("trigger_type")
+		# DOOR = 3 in the enum
+		if trigger_type == 3 or (trigger_type is String and trigger_type.to_upper() == "DOOR"):
+			var trigger_id: String = node.get("trigger_id") if "trigger_id" in node else ""
+			var trigger_data: Variant = node.get("trigger_data")
+
+			if not trigger_id.is_empty() and trigger_data is Dictionary:
+				var data: Dictionary = trigger_data as Dictionary
+				var connection: Dictionary = {
+					"trigger_id": trigger_id,
+					"transition_type": "fade"
+				}
+
+				# Extract target info from trigger_data
+				if "target_map_id" in data:
+					connection["target_map_id"] = str(data["target_map_id"])
+				if "target_spawn_id" in data:
+					connection["target_spawn_id"] = str(data["target_spawn_id"])
+				# Legacy format support
+				if "destination_scene" in data and "target_map_id" not in connection:
+					connection["destination_scene"] = str(data["destination_scene"])
+				if "spawn_point" in data and "target_spawn_id" not in connection:
+					connection["target_spawn_id"] = str(data["spawn_point"])
+
+				# Only add if we have meaningful connection data
+				if "target_map_id" in connection or "destination_scene" in connection:
+					connections.append(connection)
+
+	# Recurse into children
+	for child: Node in node.get_children():
+		_find_door_triggers_recursive(child)

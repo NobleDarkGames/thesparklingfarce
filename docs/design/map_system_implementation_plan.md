@@ -76,6 +76,31 @@ enum MapType {
 }
 ```
 
+### MapMetadata Architecture: Scene as Source of Truth
+
+**Design Decision**: The scene file (`.tscn`) is the canonical source for visual/physical map elements. The JSON metadata provides runtime configuration only.
+
+**Rationale**:
+- Modders should drag SpawnPoints in the Godot editor, not calculate grid coordinates in JSON
+- Eliminates duplication between scene nodes and JSON definitions
+- Visual editing is the natural Godot workflow
+
+**What lives in the scene** (via `@export` vars and nodes):
+- `map_id: String` - Unique namespaced identifier
+- `map_type: MapType` - TOWN, OVERWORLD, DUNGEON, etc.
+- `display_name: String` - Human-readable name
+- SpawnPoint nodes - Extracted automatically at load time
+- MapTrigger (DOOR) nodes - Connections extracted automatically
+
+**What lives in JSON** (runtime config only):
+- `scene_path` - Required link to scene file
+- `caravan_visible`, `caravan_accessible` - Behavioral flags
+- `music_id`, `ambient_id` - Audio (placeholder for vertical mixing system)
+- `random_encounters_enabled`, `save_anywhere` - Map behaviors
+- `edge_connections` - Overworld map stitching
+
+**Battle positions are separate**: BattleData defines `player_spawn_point` and `enemies[].position` independently of map SpawnPoints. The same scene can serve as both exploration map and battle arena.
+
 ### MapMetadata Resource
 
 **File**: `core/resources/map_metadata.gd`
@@ -84,40 +109,45 @@ enum MapType {
 class_name MapMetadata
 extends Resource
 
-## Unique identifier for this map (namespaced: "mod_id:map_id")
-@export var map_id: String = ""
+## Runtime-populated from scene @export or JSON
+var map_id: String = ""
+var display_name: String = ""
+var map_type: MapType = MapType.TOWN
 
-## Display name for UI and save files
-@export var display_name: String = ""
-
-## Type classification
-@export var map_type: MapType = MapType.TOWN
-
-## Can the Caravan be accessed on this map?
-@export var caravan_accessible: bool = false
-
-## Should the Caravan sprite be visible on this map?
-@export var caravan_visible: bool = false
-
-## Camera zoom level (1.0 = default, <1.0 = zoomed out for overworld feel)
-@export_range(0.5, 2.0, 0.1) var camera_zoom: float = 1.0
-
-## Scene path for this map
+## Runtime configuration (from JSON)
 @export var scene_path: String = ""
-
-## Spawn points defined in this map
-## Key: spawn_id, Value: {"grid_position": Vector2i, "facing": String}
-@export var spawn_points: Dictionary = {}
-
-## Connections to other maps
-## Each entry: {"trigger_id": String, "target_map_id": String, "target_spawn_id": String}
-@export var connections: Array[Dictionary] = []
-
-## Background music track ID
+@export var caravan_accessible: bool = false
+@export var caravan_visible: bool = false
+@export_range(0.5, 2.0, 0.1) var camera_zoom: float = 1.0
 @export var music_id: String = ""
-
-## Ambient sound ID
 @export var ambient_id: String = ""
+@export var random_encounters_enabled: bool = false
+@export var save_anywhere: bool = true
+
+## Extracted from scene at load time (not stored in JSON)
+var spawn_points: Dictionary = {}  # spawn_id -> {grid_position, facing, is_default}
+var connections: Array[Dictionary] = []  # trigger_id, target info
+
+## Overworld-specific (must be in JSON - cannot derive from scene)
+@export var edge_connections: Dictionary = {}
+
+## Populate spawn_points and connections from loaded scene
+func populate_from_scene(scene_root: Node) -> void:
+    # Extract SpawnPoints
+    var found_spawns: Array = SpawnPoint.find_all_in_tree(scene_root)
+    for spawn in found_spawns:
+        spawn_points[spawn.spawn_id] = spawn.to_dict()
+
+    # Extract DOOR triggers as connections
+    _extract_door_connections(scene_root)
+
+    # Extract identity from scene exports
+    if scene_root.get("map_id"):
+        map_id = scene_root.map_id
+    if scene_root.get("display_name"):
+        display_name = scene_root.display_name
+    if scene_root.get("map_type") != null:
+        map_type = scene_root.map_type
 ```
 
 ### Type-Specific Behaviors
@@ -502,33 +532,47 @@ MyTownMap (Node2D)
   +-- Decorations (Node2D container)
 ```
 
-### MapMetadata JSON Format (for mods)
+### MapMetadata JSON Format (Simplified)
 
-Modders can define maps via JSON:
+With scene-as-truth, the JSON is now minimal - runtime configuration only:
 
 ```json
 {
-  "map_id": "my_mod:hometown",
-  "display_name": "Hometown",
-  "map_type": "TOWN",
+  "scene_path": "res://mods/my_mod/maps/hometown.tscn",
   "caravan_visible": false,
   "caravan_accessible": false,
   "camera_zoom": 1.0,
-  "scene_path": "res://mods/my_mod/maps/hometown.tscn",
-  "spawn_points": {
-    "entrance": {"grid_position": [10, 15], "facing": "up"},
-    "from_castle": {"grid_position": [5, 5], "facing": "down"}
-  },
-  "connections": [
-    {
-      "trigger_id": "north_gate",
-      "target_map_id": "my_mod:overworld_south",
-      "target_spawn_id": "hometown_entrance"
-    }
-  ],
-  "music_id": "town_theme_01"
+  "music_id": "town_theme_01",
+  "ambient_id": "",
+  "random_encounters_enabled": false,
+  "save_anywhere": true
 }
 ```
+
+**What's NOT in JSON anymore** (extracted from scene):
+- `map_id` - Scene export `@export var map_id: String`
+- `display_name` - Scene export `@export var display_name: String`
+- `map_type` - Scene export `@export var map_type: MapType`
+- `spawn_points` - Extracted from SpawnPoint nodes in scene
+- `connections` - Extracted from MapTrigger DOOR nodes in scene
+
+**Exception - edge_connections** (overworld only):
+```json
+{
+  "scene_path": "res://mods/my_mod/maps/overworld_south.tscn",
+  "caravan_visible": true,
+  "caravan_accessible": true,
+  "random_encounters_enabled": true,
+  "edge_connections": {
+    "north": {
+      "target_map_id": "my_mod:overworld_central",
+      "target_spawn_id": "south_edge",
+      "overlap_tiles": 1
+    }
+  }
+}
+```
+Edge connections cannot be derived from scene geometry, so they remain in JSON.
 
 ### CampaignNode Scene Type Enhancement
 

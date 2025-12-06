@@ -83,10 +83,12 @@ func _build_title_card() -> void:
 
 	# Center container for text
 	var center: CenterContainer = CenterContainer.new()
+	center.name = "CenterContainer"
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_title_card.add_child(center)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.name = "VBoxContainer"
 	vbox.add_theme_constant_override("separation", 16)
 	center.add_child(vbox)
 
