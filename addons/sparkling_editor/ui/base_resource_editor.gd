@@ -81,6 +81,28 @@ func _input(event: InputEvent) -> void:
 		elif event.ctrl_pressed and event.keycode == KEY_N:
 			get_viewport().set_input_as_handled()
 			_on_create_new()
+		# Ctrl+F: Focus search filter
+		elif event.ctrl_pressed and event.keycode == KEY_F:
+			get_viewport().set_input_as_handled()
+			if search_filter:
+				search_filter.grab_focus()
+				search_filter.select_all()
+		# Ctrl+D: Duplicate selected resource
+		elif event.ctrl_pressed and event.keycode == KEY_D:
+			get_viewport().set_input_as_handled()
+			_on_duplicate_resource()
+		# Delete: Delete selected resource (with confirmation)
+		elif event.keycode == KEY_DELETE and not event.ctrl_pressed:
+			# Only if list has focus and not editing text
+			if resource_list and resource_list.has_focus():
+				get_viewport().set_input_as_handled()
+				_on_delete()
+		# Escape: Clear search filter
+		elif event.keycode == KEY_ESCAPE:
+			if search_filter and not search_filter.text.is_empty():
+				get_viewport().set_input_as_handled()
+				search_filter.text = ""
+				_on_search_filter_changed("")
 
 
 ## Override this in child classes to create the specific detail form
@@ -492,6 +514,72 @@ func _on_create_new() -> void:
 				break
 	else:
 		push_error("Failed to create " + resource_type_name.to_lower() + ": " + str(err))
+
+
+func _on_duplicate_resource() -> void:
+	if not current_resource:
+		_show_errors(["No " + resource_type_name.to_lower() + " selected to duplicate"])
+		return
+
+	# Get the file path of the current resource
+	var selected_items: PackedInt32Array = resource_list.get_selected_items()
+	if selected_items.size() == 0:
+		_show_errors(["No " + resource_type_name.to_lower() + " selected in list"])
+		return
+
+	# Determine save directory (use active mod)
+	var save_dir: String = ""
+	var active_mod_id: String = ""
+	if resource_type_id != "" and ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			active_mod_id = active_mod.mod_id
+			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+			save_dir = resource_dirs.get(resource_type_id, "")
+
+	if save_dir.is_empty():
+		save_dir = resource_directory
+
+	if save_dir.is_empty():
+		_show_errors(["No save directory available for duplicating " + resource_type_name.to_lower()])
+		return
+
+	# Create a duplicate resource
+	var new_resource: Resource = current_resource.duplicate(true)
+
+	# Update the resource's name to indicate it's a copy
+	var original_name: String = _get_resource_display_name(current_resource)
+	_update_resource_id_for_copy(new_resource, original_name)
+
+	# Generate unique filename with timestamp
+	var timestamp: int = Time.get_unix_time_from_system()
+	var safe_name: String = original_name.to_lower().replace(" ", "_").replace("'", "")
+	var filename: String = "%s_copy_%d.tres" % [safe_name, timestamp]
+	var full_path: String = save_dir.path_join(filename)
+
+	# Save the resource
+	var err: Error = ResourceSaver.save(new_resource, full_path)
+	if err == OK:
+		# Notify other editors
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
+
+		# Refresh and select the new resource
+		EditorInterface.get_resource_filesystem().scan()
+		await get_tree().process_frame
+		_refresh_list()
+
+		# Select the newly created resource
+		for i in range(resource_list.item_count):
+			if resource_list.get_item_metadata(i) == full_path:
+				resource_list.select(i)
+				_on_resource_selected(i)
+				break
+
+		_show_success_message("Duplicated '%s' successfully!" % original_name)
+	else:
+		_show_errors(["Failed to duplicate " + resource_type_name.to_lower() + ": " + str(err)])
 
 
 func _on_delete() -> void:

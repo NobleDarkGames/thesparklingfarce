@@ -875,14 +875,17 @@ func _on_new_map_dialog_close() -> void:
 func _scan_tilesets() -> void:
 	available_tilesets.clear()
 
-	# Scan for .tres files in tileset directories across mods
-	var results: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("tilesets", ".tres")
-
-	for res: Dictionary in results:
-		var path: String = res.get("path", "")
-		# Verify it's actually a TileSet resource
-		if ResourceLoader.exists(path):
-			available_tilesets.append(path)
+	# Use the Tileset Registry for discovery (supports mod.json declarations + auto-discovery)
+	if ModLoader and ModLoader.tileset_registry:
+		available_tilesets = ModLoader.tileset_registry.get_all_tileset_paths()
+	else:
+		# Fallback: Scan for .tres files in tileset directories across mods
+		var results: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("tilesets", ".tres")
+		for res: Dictionary in results:
+			var path: String = res.get("path", "")
+			# Verify it's actually a TileSet resource
+			if ResourceLoader.exists(path):
+				available_tilesets.append(path)
 
 	# Note: If no tilesets found, the dropdown will be empty
 	# This is intentional - total conversion mods shouldn't depend on _base_game
@@ -893,10 +896,18 @@ func _scan_tilesets() -> void:
 func _refresh_tileset_dropdown() -> void:
 	new_map_tileset_dropdown.clear()
 
+	# Use registry for display names if available
 	for tileset_path: String in available_tilesets:
-		# Extract a friendly name
-		var file_name: String = tileset_path.get_file().get_basename()
-		new_map_tileset_dropdown.add_item(file_name)
+		var display_name: String = ""
+		# Try to get display name from registry
+		if ModLoader and ModLoader.tileset_registry:
+			var tileset_id: String = tileset_path.get_file().get_basename().to_lower()
+			var info: Dictionary = ModLoader.tileset_registry.get_tileset_info(tileset_id)
+			display_name = info.get("display_name", "")
+		# Fallback to extracting from filename
+		if display_name.is_empty():
+			display_name = tileset_path.get_file().get_basename()
+		new_map_tileset_dropdown.add_item(display_name)
 		new_map_tileset_dropdown.set_item_metadata(new_map_tileset_dropdown.item_count - 1, tileset_path)
 
 

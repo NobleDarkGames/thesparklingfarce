@@ -393,42 +393,17 @@ func _load_available_ai_brains() -> void:
 	default_ai_option.clear()
 	default_ai_option.add_item("(None)", 0)
 
-	# Build list of AI directories to scan
-	# Scan core/ai/ for built-in AI brains, then all mods for ai_brains/ directories
-	var ai_dirs: Array[String] = [
-		"res://core/ai/"  # Built-in AI brains
-	]
-
-	# Dynamically discover ai_brains directories in all mods
-	var mods_dir: DirAccess = DirAccess.open("res://mods/")
-	if mods_dir:
-		mods_dir.list_dir_begin()
-		var mod_name: String = mods_dir.get_next()
-		while mod_name != "":
-			if mods_dir.current_is_dir() and not mod_name.begins_with("."):
-				var mod_ai_dir: String = "res://mods/%s/ai_brains/" % mod_name
-				if DirAccess.dir_exists_absolute(mod_ai_dir):
-					ai_dirs.append(mod_ai_dir)
-			mod_name = mods_dir.get_next()
-		mods_dir.list_dir_end()
-
-	for ai_dir: String in ai_dirs:
-		var dir: DirAccess = DirAccess.open(ai_dir)
-		if dir:
-			dir.list_dir_begin()
-			var file_name: String = dir.get_next()
-			while file_name != "":
-				if file_name.ends_with(".gd") and not file_name.begins_with("."):
-					var ai_script: GDScript = load(ai_dir.path_join(file_name))
-					if ai_script:
-						# Create an instance to get the class name/type
-						var ai_instance: AIBrain = ai_script.new()
-						if ai_instance:
-							var display_name: String = file_name.get_basename().replace("ai_", "").capitalize()
-							available_ai_brains.append(ai_instance)
-							default_ai_option.add_item(display_name, available_ai_brains.size())
-				file_name = dir.get_next()
-			dir.list_dir_end()
+	# Use the AI Brain Registry for discovery (supports mod.json declarations + auto-discovery)
+	if ModLoader and ModLoader.ai_brain_registry:
+		var brains: Array[Dictionary] = ModLoader.ai_brain_registry.get_all_brains()
+		for brain_info: Dictionary in brains:
+			var instance: Resource = ModLoader.ai_brain_registry.get_brain_instance(brain_info.get("id", ""))
+			if instance:
+				var ai_brain: AIBrain = instance as AIBrain
+				if ai_brain:
+					available_ai_brains.append(ai_brain)
+					var display_name: String = brain_info.get("display_name", "Unknown")
+					default_ai_option.add_item(display_name, available_ai_brains.size())
 
 
 func _setup_filter_buttons() -> void:

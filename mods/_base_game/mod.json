@@ -35,6 +35,30 @@
     "main_menu": "scenes/ui/main_menu.tscn",
     "save_slot_selector": "scenes/ui/save_slot_selector.tscn"
   },
+  "ai_brains": {
+    "aggressive": {
+      "path": "ai_brains/ai_aggressive.gd",
+      "display_name": "Aggressive",
+      "description": "Always moves toward and attacks the nearest enemy"
+    },
+    "stationary": {
+      "path": "ai_brains/ai_stationary.gd",
+      "display_name": "Stationary",
+      "description": "Stays in place and only attacks enemies within range"
+    }
+  },
+  "tilesets": {
+    "terrain_placeholder": {
+      "path": "tilesets/terrain_placeholder.tres",
+      "display_name": "Terrain (Placeholder)",
+      "description": "Basic outdoor terrain tileset with grass, water, and obstacles"
+    },
+    "interaction_placeholder": {
+      "path": "tilesets/interaction_placeholder.tres",
+      "display_name": "Interaction (Placeholder)",
+      "description": "Overlay tileset for interactive elements like doors and NPCs"
+    }
+  },
   "provides": {
     "tilesets": ["terrain_placeholder", "interaction_placeholder"],
     "maps": ["test/*", "campaign/*"],

@@ -51,6 +51,8 @@ const TerrainRegistryClass: GDScript = preload("res://core/registries/terrain_re
 const EquipmentSlotRegistryClass: GDScript = preload("res://core/registries/equipment_slot_registry.gd")
 const EquipmentTypeRegistryClass: GDScript = preload("res://core/registries/equipment_type_registry.gd")
 const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_config.gd")
+const AIBrainRegistryClass: GDScript = preload("res://core/registries/ai_brain_registry.gd")
+const TilesetRegistryClass: GDScript = preload("res://core/registries/tileset_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -76,7 +78,14 @@ var equipment_slot_registry: RefCounted = EquipmentSlotRegistryClass.new()
 var equipment_type_registry: RefCounted = EquipmentTypeRegistryClass.new()
 var inventory_config: RefCounted = InventoryConfigClass.new()
 
-# TileSet registry: tileset_name -> {path: String, mod_id: String, resource: TileSet}
+# AI brain registry (declared in mod.json with metadata)
+var ai_brain_registry: RefCounted = AIBrainRegistryClass.new()
+
+# Tileset registry (declared in mod.json with metadata, also auto-discovered)
+var tileset_registry: RefCounted = TilesetRegistryClass.new()
+
+# Legacy tileset registry for backwards compatibility
+# TODO: Migrate to tileset_registry and remove this
 var _tileset_registry: Dictionary = {}
 
 ## Loading state tracking
@@ -420,6 +429,14 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	if not manifest.inventory_config.is_empty():
 		inventory_config.load_from_manifest(manifest.mod_id, manifest.inventory_config)
 
+	# AI brain declarations (from mod.json)
+	if not manifest.ai_brains.is_empty():
+		ai_brain_registry.register_from_config(manifest.mod_id, manifest.ai_brains, manifest.mod_directory)
+
+	# Tileset declarations (from mod.json)
+	if not manifest.tilesets.is_empty():
+		tileset_registry.register_from_config(manifest.mod_id, manifest.tilesets, manifest.mod_directory)
+
 
 ## Register scenes from a mod manifest
 func _register_mod_scenes(manifest: ModManifest) -> int:
@@ -478,12 +495,19 @@ func _discover_trigger_scripts(manifest: ModManifest) -> int:
 ## TileSets are registered by their filename (without extension) as the tileset name
 ## Higher-priority mods override lower-priority tilesets with the same name
 func _discover_tilesets(manifest: ModManifest) -> int:
+	# Use the new tileset registry for discovery (handles both declared and auto-discovered)
+	var new_count: int = tileset_registry.discover_from_directory(manifest.mod_id, manifest.mod_directory)
+
+	# Also discover AI brains from directory for backwards compatibility
+	ai_brain_registry.discover_from_directory(manifest.mod_id, manifest.mod_directory)
+
+	# Legacy registry support - keep in sync for backwards compatibility
 	var tilesets_dir: String = manifest.mod_directory.path_join("tilesets")
 	var dir: DirAccess = DirAccess.open(tilesets_dir)
 
 	if not dir:
 		# No tilesets directory - that's okay
-		return 0
+		return new_count
 
 	var count: int = 0
 	dir.list_dir_begin()
@@ -496,7 +520,7 @@ func _discover_tilesets(manifest: ModManifest) -> int:
 			var tileset_name: String = file_name.get_basename().to_lower()
 
 			if not tileset_name.is_empty():
-				# Register (or override) the tileset
+				# Register (or override) the tileset in legacy registry
 				_tileset_registry[tileset_name] = {
 					"path": full_path,
 					"mod_id": manifest.mod_id,
@@ -507,7 +531,7 @@ func _discover_tilesets(manifest: ModManifest) -> int:
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
-	return count
+	return count + new_count
 
 
 ## Get a TileSet resource by name
@@ -676,7 +700,10 @@ func reload_mods() -> void:
 	equipment_slot_registry.clear_mod_registrations()
 	equipment_type_registry.clear_mod_registrations()
 	inventory_config.reset_to_defaults()
-	# Clear tileset registry
+	# Clear AI brain and tileset registries
+	ai_brain_registry.clear_mod_registrations()
+	tileset_registry.clear_mod_registrations()
+	# Clear legacy tileset registry
 	_tileset_registry.clear()
 	_discover_and_load_mods()
 	mods_loaded.emit()
@@ -699,7 +726,10 @@ func reload_mods_async() -> void:
 	equipment_slot_registry.clear_mod_registrations()
 	equipment_type_registry.clear_mod_registrations()
 	inventory_config.reset_to_defaults()
-	# Clear tileset registry
+	# Clear AI brain and tileset registries
+	ai_brain_registry.clear_mod_registrations()
+	tileset_registry.clear_mod_registrations()
+	# Clear legacy tileset registry
 	_tileset_registry.clear()
 	await _discover_and_load_mods_async()
 	mods_loaded.emit()

@@ -81,6 +81,17 @@ const MAX_PRIORITY: int = 9999
 ## }
 @export var caravan_config: Dictionary = {}
 
+## AI brain declarations - allows mods to provide AI brains with metadata
+## Format: {brain_id: {path: String, display_name: String, description: String}}
+## Example: {"aggressive": {"path": "ai_brains/ai_aggressive.gd", "display_name": "Aggressive"}}
+@export var ai_brains: Dictionary = {}
+
+## Tileset declarations - allows mods to provide tilesets with metadata
+## Format: {tileset_id: {path: String, display_name: String, description: String}}
+## Example: {"terrain": {"path": "tilesets/terrain.tres", "display_name": "Terrain Tiles"}}
+## Note: Tilesets are also auto-discovered from tilesets/ directory for backwards compatibility
+@export var tilesets: Dictionary = {}
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -219,6 +230,20 @@ static func load_from_file(json_path: String) -> ModManifest:
 	# Parse caravan configuration
 	if "caravan_config" in data and data.caravan_config is Dictionary:
 		manifest.caravan_config = data.caravan_config
+
+	# Parse AI brain declarations
+	if "ai_brains" in data and data.ai_brains is Dictionary:
+		for brain_id: String in data.ai_brains.keys():
+			var brain_data: Variant = data.ai_brains[brain_id]
+			if brain_data is Dictionary:
+				manifest.ai_brains[brain_id] = brain_data
+
+	# Parse tileset declarations
+	if "tilesets" in data and data.tilesets is Dictionary:
+		for tileset_id: String in data.tilesets.keys():
+			var tileset_data: Variant = data.tilesets[tileset_id]
+			if tileset_data is Dictionary:
+				manifest.tilesets[tileset_id] = tileset_data
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()
