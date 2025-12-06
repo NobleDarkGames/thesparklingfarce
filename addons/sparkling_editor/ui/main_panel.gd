@@ -17,6 +17,7 @@ const MapMetadataEditorScene: PackedScene = preload("res://addons/sparkling_edit
 const CinematicEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/cinematic_editor.tscn")
 const CampaignEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/campaign_editor.tscn")
 const TerrainEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/terrain_editor.tscn")
+const NpcEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/npc_editor.tscn")
 
 # Editor settings persistence
 const EDITOR_SETTINGS_PATH: String = "user://sparkling_editor_settings.json"
@@ -33,6 +34,7 @@ var map_metadata_editor: Control
 var cinematic_editor: Control
 var campaign_editor: Control
 var terrain_editor: Control
+var npc_editor: Control
 
 # Dynamic editor tabs from mods
 # Format: {"mod_id:tab_id": {"control": Control, "refresh_method": String}}
@@ -100,6 +102,7 @@ func _setup_ui() -> void:
 	_create_cinematic_editor_tab()
 	_create_campaign_editor_tab()
 	_create_terrain_editor_tab()
+	_create_npc_editor_tab()
 
 	# Load dynamic editor tabs from mods
 	_load_mod_editor_extensions()
@@ -217,6 +220,12 @@ func _create_terrain_editor_tab() -> void:
 	terrain_editor = TerrainEditorScene.instantiate()
 	terrain_editor.name = "Terrain"
 	tab_container.add_child(terrain_editor)
+
+
+func _create_npc_editor_tab() -> void:
+	npc_editor = NpcEditorScene.instantiate()
+	npc_editor.name = "NPCs"
+	tab_container.add_child(npc_editor)
 
 
 func _load_mod_editor_extensions() -> void:
@@ -439,6 +448,15 @@ func _on_refresh_mods() -> void:
 		_refresh_all_editors()
 
 
+## Get the active mod's root path (for saving resources to the correct mod)
+func get_active_mod_path() -> String:
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			return "res://mods/" + active_mod.mod_id + "/"
+	return ""
+
+
 func _refresh_all_editors() -> void:
 	# Refresh all editor lists to show content from active mod
 	if character_editor and character_editor.has_method("_refresh_list"):
@@ -464,6 +482,8 @@ func _refresh_all_editors() -> void:
 		campaign_editor._refresh_campaign_list()
 	if terrain_editor and terrain_editor.has_method("_refresh_list"):
 		terrain_editor._refresh_list()
+	if npc_editor and npc_editor.has_method("_refresh_list"):
+		npc_editor._refresh_list()
 
 	# Refresh dynamic mod editors
 	for key: String in dynamic_editors.keys():
@@ -747,6 +767,7 @@ func _create_mod_structure(mod_id: String, mod_name: String, author: String, des
 		"data/campaigns",
 		"data/cinematics",
 		"data/maps",
+		"data/npcs",
 		"data/terrain",
 		"assets/icons",
 		"assets/portraits",

@@ -307,8 +307,8 @@ func _handle_dialog_trigger(trigger: Node, player: Node2D) -> void:
 		push_error("TriggerManager: Failed to find DialogueData for ID: %s" % dialog_id)
 		return
 
-	# Start dialogue
-	DialogManager.start_dialogue(dialogue_data)
+	# Start dialogue (method is start_dialog_from_resource, not start_dialogue)
+	DialogManager.start_dialog_from_resource(dialogue_data)
 
 
 ## Handle CHEST trigger - grant rewards

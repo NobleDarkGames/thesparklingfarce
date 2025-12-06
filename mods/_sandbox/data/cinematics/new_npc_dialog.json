@@ -1,0 +1,17 @@
+{
+  "can_skip": true,
+  "cinematic_id": "new_npc_dialog",
+  "cinematic_name": "New NPC Dialog",
+  "commands": [
+    {
+      "params": {
+        "emotion": "neutral",
+        "speaker_name": "New NPC",
+        "text": "Move along, now!"
+      },
+      "type": "dialog_line"
+    }
+  ],
+  "description": "Auto-generated dialog for New NPC",
+  "disable_player_input": true
+}

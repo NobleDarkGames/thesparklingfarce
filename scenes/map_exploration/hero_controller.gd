@@ -8,6 +8,9 @@ extends CharacterBody2D
 ## Debug mode - set to true for verbose logging
 const DEBUG_MODE: bool = false
 
+## Preload CinematicActor for hero control during cinematics
+const CinematicActorScript: GDScript = preload("res://core/components/cinematic_actor.gd")
+
 ## Emitted when hero completes movement to a new tile
 signal moved_to_tile(tile_position: Vector2i)
 
@@ -44,6 +47,10 @@ var collision_shape: CollisionShape2D = null
 var interaction_ray: RayCast2D = null
 var tile_map: TileMapLayer = null
 
+## CinematicActor child for cutscene control
+## Allows cinematics to move and animate the hero during cutscenes
+var cinematic_actor: Node = null
+
 
 func _ready() -> void:
 	# Add to "hero" group for trigger detection
@@ -53,6 +60,10 @@ func _ready() -> void:
 	sprite = get_node_or_null("AnimatedSprite2D")
 	collision_shape = get_node_or_null("CollisionShape2D")
 	interaction_ray = get_node_or_null("InteractionRay")
+
+	# Create CinematicActor child for cutscene control
+	# This allows cinematics to control the hero's movement and animation
+	_create_cinematic_actor()
 
 	# Get TileMapLayer reference (sibling node in map scenes)
 	tile_map = get_node_or_null("../TileMapLayer")
@@ -235,6 +246,7 @@ func _check_tile_triggers() -> void:
 ## Attempt to interact with whatever is in front of the hero.
 func _try_interact() -> void:
 	var interaction_pos: Vector2i = grid_position + facing_direction
+	print("HeroController: Trying to interact at %s (hero at %s, facing %s)" % [interaction_pos, grid_position, facing_direction])
 	interaction_requested.emit(interaction_pos)
 
 
@@ -356,3 +368,23 @@ func teleport_to_grid(new_grid_pos: Vector2i) -> void:
 		tile_history.append(grid_position)
 	if DEBUG_MODE:
 		print("[HeroController] Teleported to %s - tile history reset" % grid_position)
+
+
+## Create a CinematicActor child for cutscene control.
+## This allows the CinematicsManager to control the hero during cinematics.
+## The hero is registered with actor_id "hero" for use in cinematic scripts.
+func _create_cinematic_actor() -> void:
+	# Check if already created (in case _ready is called multiple times)
+	if cinematic_actor:
+		return
+
+	cinematic_actor = Node.new()
+	cinematic_actor.set_script(CinematicActorScript)
+	cinematic_actor.name = "CinematicActor"
+	cinematic_actor.set("actor_id", "hero")
+
+	# CinematicActor auto-registers with CinematicsManager in its _ready()
+	add_child(cinematic_actor)
+
+	if DEBUG_MODE:
+		print("[HeroController] CinematicActor created with actor_id 'hero'")

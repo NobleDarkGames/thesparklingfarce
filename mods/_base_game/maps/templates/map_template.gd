@@ -47,6 +47,7 @@ const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/her
 const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
 const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
 const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd")
+const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
 
 
 # =============================================================================
@@ -64,6 +65,12 @@ var hero: CharacterBody2D = null
 
 ## Container for dynamically created party followers
 @onready var followers_container: Node2D = $Followers
+
+## UI layer for dialog box (dynamically created)
+var ui_layer: CanvasLayer = null
+
+## Dialog box for NPC conversations
+var dialog_box: Control = null
 
 ## Party data loaded from PartyManager
 var party_characters: Array[CharacterData] = []
@@ -105,10 +112,13 @@ func _ready() -> void:
 	# Setup camera to follow hero
 	_setup_camera()
 
+	# Setup dialog box for NPC conversations
+	_setup_dialog_box()
+
 	# Connect hero signals for custom behavior
 	_connect_hero_signals()
 
-	_debug_print("MapTemplate: Ready! Arrow keys to move, Z/Enter to interact")
+	_debug_print("MapTemplate: Ready! Arrow keys to move, Space/Enter to interact")
 
 
 # =============================================================================
@@ -325,6 +335,32 @@ func _setup_camera() -> void:
 
 
 # =============================================================================
+# DIALOG BOX SETUP
+# =============================================================================
+
+## Creates UI layer and dialog box for NPC conversations.
+## Registers the dialog box with DialogManager so cinematics can show dialog.
+func _setup_dialog_box() -> void:
+	# Create UI layer (renders above game world)
+	ui_layer = CanvasLayer.new()
+	ui_layer.name = "UILayer"
+	ui_layer.layer = 10  # Above game elements
+	add_child(ui_layer)
+
+	# Instantiate dialog box
+	dialog_box = DialogBoxScene.instantiate()
+	dialog_box.hide()  # Start hidden
+	ui_layer.add_child(dialog_box)
+
+	# Register with DialogManager
+	if DialogManager:
+		DialogManager.dialog_box = dialog_box
+		_debug_print("MapTemplate: Dialog box registered with DialogManager")
+	else:
+		push_warning("MapTemplate: DialogManager not available - dialog won't display")
+
+
+# =============================================================================
 # PARTY FOLLOWERS
 # =============================================================================
 
@@ -440,14 +476,46 @@ func _on_hero_moved(tile_pos: Vector2i) -> void:
 
 
 ## Called when hero presses the interaction button.
-## Override to handle NPC conversations, inspecting objects, etc.
+## Handles NPC interactions automatically; override to add custom behavior.
 func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 	_debug_print("MapTemplate: Interaction at tile %s" % interaction_pos)
 
-	# TODO: Add your custom logic here:
-	# - Check for NPCs at interaction_pos
+	# Check for NPCs at interaction position
+	var npc: Node = _find_npc_at_position(interaction_pos)
+	if npc:
+		_debug_print("MapTemplate: Found NPC at interaction position: %s" % npc.name)
+		if npc.has_method("interact"):
+			npc.interact(hero)
+			return
+
+	# Override in subclass to add custom logic:
 	# - Check for readable signs
 	# - Check for chests
+	# - Other interactable objects
+
+
+## Find an NPC at the given grid position.
+## Returns the first NPC found at that position, or null if none.
+func _find_npc_at_position(grid_pos: Vector2i) -> Node:
+	# Get all nodes in the "npcs" group
+	var npcs: Array[Node] = get_tree().get_nodes_in_group("npcs")
+
+	for npc: Node in npcs:
+		# Check if NPC has grid_position property or method
+		if npc.has_method("is_at_grid_position"):
+			if npc.is_at_grid_position(grid_pos):
+				return npc
+		elif "grid_position" in npc:
+			if npc.grid_position == grid_pos:
+				return npc
+		else:
+			# Fallback: convert world position to grid
+			if "global_position" in npc:
+				var npc_grid: Vector2i = GridManager.world_to_cell(npc.global_position)
+				if npc_grid == grid_pos:
+					return npc
+
+	return null
 
 
 # =============================================================================

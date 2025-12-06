@@ -139,6 +139,8 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 		var line_data: Dictionary = {}
 		if "character_id" in params:
 			line_data["character_id"] = params["character_id"]
+		if "speaker_name" in params:
+			line_data["speaker_name"] = params["speaker_name"]
 		if "text" in params:
 			line_data["text"] = params["text"]
 		if "emotion" in params:

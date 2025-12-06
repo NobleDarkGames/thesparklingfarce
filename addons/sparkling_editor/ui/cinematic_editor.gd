@@ -195,6 +195,30 @@ func _ready() -> void:
 	_setup_ui()
 	_refresh_cinematic_list()
 
+	# Connect to EditorEventBus for mod reload notifications
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+			event_bus.mods_reloaded.connect(_on_mods_reloaded)
+		# Also refresh when characters are saved/created
+		if not event_bus.resource_saved.is_connected(_on_resource_changed):
+			event_bus.resource_saved.connect(_on_resource_changed)
+		if not event_bus.resource_created.is_connected(_on_resource_changed):
+			event_bus.resource_created.connect(_on_resource_changed)
+
+
+## Called when mods are reloaded via Refresh Mods button
+func _on_mods_reloaded() -> void:
+	_refresh_characters()
+	_refresh_cinematic_list()
+
+
+## Called when any resource is saved or created
+func _on_resource_changed(resource_type: String, _resource_id: String, _resource: Resource) -> void:
+	# Refresh characters if a character was modified
+	if resource_type == "character" or resource_type == "characters":
+		_refresh_characters()
+
 
 func _refresh_characters() -> void:
 	_characters.clear()

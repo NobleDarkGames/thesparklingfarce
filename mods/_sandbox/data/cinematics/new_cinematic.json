@@ -1,0 +1,17 @@
+{
+	"can_skip": true,
+	"cinematic_id": "noobington_guard_1",
+	"cinematic_name": "Noobington Guard 1",
+	"commands": [
+		{
+			"params": {
+				"character_id": "",
+				"emotion": "neutral",
+				"text": "Move along!"
+			},
+			"type": "dialog_line"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}

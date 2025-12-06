@@ -29,7 +29,7 @@ sparklingfarce/
       data/                      # Resources by type
         characters/, classes/, items/, abilities/
         battles/, parties/, dialogues/, cinematics/
-        maps/, campaigns/, experience_configs/, terrains/
+        maps/, campaigns/, experience_configs/, terrains/, npcs/
       audio/                     # Sound and music (separate from assets/)
         sfx/                     # Sound effects (.ogg, .wav, .mp3)
         music/                   # Background music
@@ -300,6 +300,17 @@ GameState.has_flag_scoped("boss_defeated")
 ### CinematicData
 - `cinematic_id`, `commands`
 - Commands: move_entity, show_dialog, camera_move, wait, fade_screen, etc.
+
+### NPCData
+- `npc_id`, `npc_name`: Identity
+- `character_data`: Optional CharacterData reference for portrait/sprite
+- `portrait`, `map_sprite`: Fallback textures if no character_data
+- `interaction_cinematic_id`: Primary cinematic to trigger
+- `fallback_cinematic_id`: Default if no conditions match
+- `conditional_cinematics`: Array of `{flag, cinematic_id, negate}` for flag-based responses
+- `face_player_on_interact`: Turn toward player on interaction
+
+**Key Design**: NPCs trigger cinematics, not dialogs directly. Dialog IS a cinematic (with `dialog_line` commands). This unifies simple conversations and complex scripted interactions.
 
 ### MapMetadata (Scene + JSON)
 

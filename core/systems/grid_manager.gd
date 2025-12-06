@@ -599,4 +599,5 @@ func world_to_cell(world_pos: Vector2) -> Vector2i:
 		return grid.local_to_map(world_pos)
 	else:
 		# Fallback: use default tile size for simple conversion
-		return Vector2i(world_pos / DEFAULT_TILE_SIZE)
+		# Use floori to correctly handle negative coordinates
+		return Vector2i(floori(world_pos.x / DEFAULT_TILE_SIZE), floori(world_pos.y / DEFAULT_TILE_SIZE))

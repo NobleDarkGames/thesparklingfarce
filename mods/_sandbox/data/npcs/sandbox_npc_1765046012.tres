@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="NPCData" load_steps=4 format=3 uid="uid://5lpvp1ti6xj2"]
+
+[ext_resource type="Texture2D" uid="uid://crt0vonvys1wt" path="res://mods/_sandbox/art/placeholder/sprites/npc.png" id="1_0uf8y"]
+[ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="1_53plk"]
+[ext_resource type="Texture2D" uid="uid://bj2n0klir1s7w" path="res://mods/_sandbox/art/placeholder/portraits/npc.png" id="2_fneom"]
+
+[resource]
+script = ExtResource("1_53plk")
+npc_id = "noobington_guard_1"
+npc_name = "Guard 1"
+portrait = ExtResource("2_fneom")
+map_sprite = ExtResource("1_0uf8y")
+interaction_cinematic_id = "noobington_guard_1_dialog"
