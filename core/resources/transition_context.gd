@@ -34,6 +34,12 @@ var spawn_point_id: String = ""
 ## Hero's facing direction before transition (for restoration)
 var hero_facing: String = "down"
 
+## Caravan grid position before transition (for restoration)
+var caravan_grid_position: Vector2i = Vector2i.ZERO
+
+## Whether caravan position should be restored
+var has_caravan_position: bool = false
+
 ## Additional context data for extensibility
 var extra_data: Dictionary = {}
 
@@ -75,6 +81,11 @@ static func from_current_scene(hero: Node2D) -> RefCounted:
 		if hero.get("facing"):
 			context.hero_facing = hero.facing
 
+	# Get caravan position if available
+	if CaravanController and CaravanController.is_spawned():
+		context.caravan_grid_position = CaravanController.get_grid_position()
+		context.has_caravan_position = true
+
 	return context
 
 
@@ -101,6 +112,8 @@ func to_dict() -> Dictionary:
 		"hero_grid_position": {"x": hero_grid_position.x, "y": hero_grid_position.y},
 		"spawn_point_id": spawn_point_id,
 		"hero_facing": hero_facing,
+		"caravan_grid_position": {"x": caravan_grid_position.x, "y": caravan_grid_position.y},
+		"has_caravan_position": has_caravan_position,
 		"extra_data": extra_data,
 		"battle_outcome": battle_outcome,
 		"completed_battle_id": completed_battle_id,
@@ -125,6 +138,11 @@ static func from_dict(data: Dictionary) -> RefCounted:
 
 	context.spawn_point_id = data.get("spawn_point_id", "")
 	context.hero_facing = data.get("hero_facing", "down")
+
+	var caravan_pos: Dictionary = data.get("caravan_grid_position", {})
+	context.caravan_grid_position = Vector2i(caravan_pos.get("x", 0), caravan_pos.get("y", 0))
+	context.has_caravan_position = data.get("has_caravan_position", false)
+
 	context.extra_data = data.get("extra_data", {})
 	context.battle_outcome = data.get("battle_outcome", BattleOutcome.NONE)
 	context.completed_battle_id = data.get("completed_battle_id", "")

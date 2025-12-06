@@ -202,7 +202,7 @@ func _build_ui() -> void:
 # MENU CONTROL
 # =============================================================================
 
-## Show the menu and activate input
+## Show the menu and activate input with smooth transition
 func show_menu() -> void:
 	_selected_index = 0
 	_update_selection_visual()
@@ -210,16 +210,34 @@ func show_menu() -> void:
 	_active = true
 	set_process_input(true)
 
+	# Smooth fade-in animation
+	if _panel:
+		_panel.modulate.a = 0.0
+		_panel.scale = Vector2(0.9, 0.9)
+		var tween: Tween = create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(_panel, "modulate:a", 1.0, 0.15).set_ease(Tween.EASE_OUT)
+		tween.tween_property(_panel, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
 	# Play open sound
 	if AudioManager:
 		AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
 
 
-## Hide the menu and deactivate input
+## Hide the menu and deactivate input with smooth transition
 func hide_menu() -> void:
-	visible = false
 	_active = false
 	set_process_input(false)
+
+	# Smooth fade-out animation
+	if _panel and visible:
+		var tween: Tween = create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(_panel, "modulate:a", 0.0, 0.1).set_ease(Tween.EASE_IN)
+		tween.tween_property(_panel, "scale", Vector2(0.95, 0.95), 0.1).set_ease(Tween.EASE_IN)
+		await tween.finished
+
+	visible = false
 
 
 ## Set which options are disabled

@@ -46,6 +46,9 @@ const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 ## Current filter type (empty = show all)
 var _filter_type: String = ""
 
+## Current sort method (none, name, type, value)
+var _sort_method: String = "none"
+
 ## Currently selected item in depot
 var _selected_depot_item_id: String = ""
 
@@ -69,6 +72,7 @@ var _party_character_data: Array[CharacterData] = []
 var _main_container: VBoxContainer = null
 var _header_bar: HBoxContainer = null
 var _filter_dropdown: OptionButton = null
+var _sort_dropdown: OptionButton = null
 var _close_button: Button = null
 var _content_split: HBoxContainer = null
 var _depot_scroll: ScrollContainer = null
@@ -81,6 +85,8 @@ var _take_button: Button = null
 var _inventory_label: Label = null
 var _inventory_grid: GridContainer = null
 var _store_button: Button = null
+var _store_all_button: Button = null
+var _take_all_button: Button = null
 var _item_count_label: Label = null
 
 ## Pool of ItemSlot nodes for depot display
@@ -180,6 +186,24 @@ func _build_ui() -> void:
 	_filter_dropdown.add_item("Consumables", 4)
 	_filter_dropdown.item_selected.connect(_on_filter_changed)
 	_header_bar.add_child(_filter_dropdown)
+
+	# Sort dropdown
+	var sort_label: Label = Label.new()
+	sort_label.text = "Sort:"
+	sort_label.add_theme_font_override("font", MONOGRAM_FONT)
+	sort_label.add_theme_font_size_override("font_size", 16)
+	_header_bar.add_child(sort_label)
+
+	_sort_dropdown = OptionButton.new()
+	_sort_dropdown.add_theme_font_override("font", MONOGRAM_FONT)
+	_sort_dropdown.add_theme_font_size_override("font_size", 16)
+	_sort_dropdown.custom_minimum_size = Vector2(52, 16)
+	_sort_dropdown.add_item("--", 0)
+	_sort_dropdown.add_item("Name", 1)
+	_sort_dropdown.add_item("Type", 2)
+	_sort_dropdown.add_item("Value", 3)
+	_sort_dropdown.item_selected.connect(_on_sort_changed)
+	_header_bar.add_child(_sort_dropdown)
 
 	_close_button = Button.new()
 	_close_button.text = "X"
@@ -295,13 +319,43 @@ func _build_ui() -> void:
 	_store_button.pressed.connect(_on_store_pressed)
 	_side_panel.add_child(_store_button)
 
+	# Bottom bar with batch operations and item count
+	var bottom_bar: HBoxContainer = HBoxContainer.new()
+	bottom_bar.add_theme_constant_override("separation", 8)
+	_main_container.add_child(bottom_bar)
+
+	# Store All Consumables button
+	_store_all_button = Button.new()
+	_store_all_button.text = "Store All"
+	_store_all_button.tooltip_text = "Store all consumables from party"
+	_store_all_button.add_theme_font_override("font", MONOGRAM_FONT)
+	_store_all_button.add_theme_font_size_override("font_size", 16)
+	_store_all_button.custom_minimum_size = Vector2(56, 16)
+	_store_all_button.pressed.connect(_on_store_all_pressed)
+	bottom_bar.add_child(_store_all_button)
+
+	# Take All (filtered) button
+	_take_all_button = Button.new()
+	_take_all_button.text = "Take All"
+	_take_all_button.tooltip_text = "Take all items (filtered)"
+	_take_all_button.add_theme_font_override("font", MONOGRAM_FONT)
+	_take_all_button.add_theme_font_size_override("font_size", 16)
+	_take_all_button.custom_minimum_size = Vector2(52, 16)
+	_take_all_button.pressed.connect(_on_take_all_pressed)
+	bottom_bar.add_child(_take_all_button)
+
+	# Spacer
+	var bottom_spacer: Control = Control.new()
+	bottom_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom_bar.add_child(bottom_spacer)
+
 	# Item count
 	_item_count_label = Label.new()
 	_item_count_label.add_theme_font_override("font", MONOGRAM_FONT)
 	_item_count_label.add_theme_font_size_override("font_size", 16)
 	_item_count_label.modulate = Color(0.5, 0.5, 0.6, 1.0)
-	_item_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_main_container.add_child(_item_count_label)
+	_item_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	bottom_bar.add_child(_item_count_label)
 
 
 # =============================================================================
@@ -373,20 +427,55 @@ func _refresh_depot_display() -> void:
 
 
 func _get_filtered_items() -> Array[String]:
-	if _filter_type.is_empty():
-		return StorageManager.get_depot_contents()
-
 	var all_items: Array[String] = StorageManager.get_depot_contents()
-	var filtered: Array[String] = []
+	var result: Array[String] = []
 
-	for item_id: String in all_items:
-		var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
-		if item_data:
-			var type_name: String = ItemData.ItemType.keys()[item_data.item_type].to_lower()
-			if type_name == _filter_type:
-				filtered.append(item_id)
+	# Apply filter
+	if _filter_type.is_empty():
+		result = all_items.duplicate()
+	else:
+		for item_id: String in all_items:
+			var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+			if item_data:
+				var type_name: String = ItemData.ItemType.keys()[item_data.item_type].to_lower()
+				if type_name == _filter_type:
+					result.append(item_id)
 
-	return filtered
+	# Apply sort
+	if _sort_method != "none" and result.size() > 1:
+		result.sort_custom(_sort_items)
+
+	return result
+
+
+## Comparison function for sorting items
+func _sort_items(a_id: String, b_id: String) -> bool:
+	var a_data: ItemData = ModLoader.registry.get_resource("item", a_id) as ItemData
+	var b_data: ItemData = ModLoader.registry.get_resource("item", b_id) as ItemData
+
+	# Handle missing data
+	if not a_data:
+		return false
+	if not b_data:
+		return true
+
+	match _sort_method:
+		"name":
+			return a_data.item_name.to_lower() < b_data.item_name.to_lower()
+		"type":
+			# Sort by type, then name within type
+			if a_data.item_type != b_data.item_type:
+				return a_data.item_type < b_data.item_type
+			return a_data.item_name.to_lower() < b_data.item_name.to_lower()
+		"value":
+			# Sort by value descending (most valuable first), then name
+			if a_data.buy_price != b_data.buy_price:
+				return a_data.buy_price > b_data.buy_price
+			return a_data.item_name.to_lower() < b_data.item_name.to_lower()
+		_:
+			return false
+
+	return false
 
 
 func _update_take_button() -> void:
@@ -498,6 +587,17 @@ func _on_filter_changed(index: int) -> void:
 		4: _filter_type = "consumable"
 
 	_selected_depot_item_id = ""
+	_refresh_depot_display()
+	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
+
+
+func _on_sort_changed(index: int) -> void:
+	match index:
+		0: _sort_method = "none"
+		1: _sort_method = "name"
+		2: _sort_method = "type"
+		3: _sort_method = "value"
+
 	_refresh_depot_display()
 	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 
@@ -650,6 +750,94 @@ func _on_character_changed(_index: int) -> void:
 func _on_close_pressed() -> void:
 	close_requested.emit()
 	AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
+
+
+func _on_store_all_pressed() -> void:
+	## Store all consumables from the selected character's inventory
+	if _party_save_data.is_empty():
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_save_data.size():
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	var save_data: CharacterSaveData = _party_save_data[target_index]
+	var items_to_store: Array[String] = []
+
+	# Find all consumables in inventory
+	for item_id: String in save_data.inventory:
+		var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		if item_data and item_data.item_type == ItemData.ItemType.CONSUMABLE:
+			items_to_store.append(item_id)
+
+	if items_to_store.is_empty():
+		_description_label.text = "No consumables"
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	# Store each consumable
+	var stored_count: int = 0
+	for item_id: String in items_to_store:
+		if save_data.remove_item_from_inventory(item_id):
+			StorageManager.add_to_depot(item_id)
+			stored_count += 1
+
+	if stored_count > 0:
+		_description_label.text = "Stored %d items" % stored_count
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+		_refresh_inventory_display()
+		_populate_character_dropdown()
+	else:
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+
+
+func _on_take_all_pressed() -> void:
+	## Take all filtered items from depot (as many as will fit)
+	if _party_save_data.is_empty():
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_save_data.size():
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	var save_data: CharacterSaveData = _party_save_data[target_index]
+	var max_slots: int = 4
+	if ModLoader and ModLoader.inventory_config:
+		max_slots = ModLoader.inventory_config.get_max_slots()
+
+	var items_to_take: Array[String] = _get_filtered_items()
+	if items_to_take.is_empty():
+		_description_label.text = "Nothing to take"
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	# Take items until inventory is full
+	var taken_count: int = 0
+	for item_id: String in items_to_take:
+		if save_data.inventory.size() >= max_slots:
+			break  # Inventory full
+
+		if StorageManager.remove_from_depot(item_id):
+			if save_data.add_item_to_inventory(item_id):
+				taken_count += 1
+			else:
+				# Rollback
+				StorageManager.add_to_depot(item_id)
+				break
+
+	if taken_count > 0:
+		_description_label.text = "Took %d items" % taken_count
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+		_selected_depot_item_id = ""
+		_refresh_inventory_display()
+		_populate_character_dropdown()
+	else:
+		_description_label.text = "Inventory full"
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 
 
 # =============================================================================

@@ -51,13 +51,18 @@ var _tile_map: TileMapLayer = null
 ## The sprite displaying the wagon
 var _sprite: Sprite2D = null
 
+## Directional sprites (loaded if available)
+var _direction_sprites: Dictionary = {}  # "down", "up", "left", "right" -> Texture2D
+
+## Current facing direction
+var _current_direction: String = "down"
+
 ## Interaction area for player proximity
 var _interaction_area: Area2D = null
 
 ## Whether to track our own tile history (for future features)
 var _tile_history: Array[Vector2i] = []
 var _max_history_size: int = 20
-
 
 func _ready() -> void:
 	set_physics_process(false)  # Disabled until initialize() is called
@@ -271,23 +276,91 @@ func _apply_sprite_config() -> void:
 	if not _sprite or not _config:
 		return
 
-	if _config.wagon_sprite:
+	# Try to load directional sprites
+	_load_directional_sprites()
+
+	# Apply main sprite if no directional sprites or as fallback
+	if _config.wagon_sprite and _direction_sprites.is_empty():
 		_sprite.texture = _config.wagon_sprite
+	elif not _direction_sprites.is_empty():
+		# Start with down-facing sprite
+		_set_sprite_direction("down")
 
 	_sprite.scale = _config.wagon_scale
 	z_index = _config.z_index_offset
+
+
+func _load_directional_sprites() -> void:
+	_direction_sprites.clear()
+
+	if not _config:
+		return
+
+	# Try to find directional sprites based on wagon_sprite path
+	# If wagon_sprite is "sprites/caravan_wagon.png", look for:
+	#   "sprites/caravan/wagon_down.png", etc.
+	var base_path: String = ""
+
+	if _config.wagon_sprite:
+		base_path = _config.wagon_sprite.resource_path.get_base_dir()
+	else:
+		# Default path for base game
+		base_path = "res://mods/_base_game/assets/sprites"
+
+	# Look for directional sprites in caravan subdirectory
+	var caravan_dir: String = base_path.path_join("caravan")
+	var directions: Array[String] = ["down", "up", "left", "right"]
+
+	for dir: String in directions:
+		var sprite_path: String = caravan_dir.path_join("wagon_%s.png" % dir)
+		if ResourceLoader.exists(sprite_path):
+			var texture: Texture2D = load(sprite_path) as Texture2D
+			if texture:
+				_direction_sprites[dir] = texture
+				if DEBUG_MODE:
+					print("[Caravan] Loaded directional sprite: %s" % sprite_path)
+
+	if not _direction_sprites.is_empty():
+		print("[Caravan] Loaded %d directional wagon sprites" % _direction_sprites.size())
+
+
+func _set_sprite_direction(direction: String) -> void:
+	if not _sprite:
+		return
+
+	if direction in _direction_sprites:
+		_sprite.texture = _direction_sprites[direction]
+		_sprite.flip_h = false  # Reset flip since we have proper directional sprites
+		_current_direction = direction
+	elif _config and _config.wagon_sprite:
+		# Fallback to main sprite with flip for horizontal
+		_sprite.texture = _config.wagon_sprite
+		_sprite.flip_h = (direction == "left")
 
 
 func _update_sprite_direction(direction: Vector2) -> void:
 	if not _sprite:
 		return
 
-	# Simple flip based on horizontal direction
-	# For full directional sprites, would use animation frames
+	# Determine primary direction from movement vector
+	var new_direction: String = _current_direction
+
 	if abs(direction.x) > abs(direction.y):
-		# Horizontal movement
-		_sprite.flip_h = direction.x < 0
-	# Could add vertical handling with different frames in Phase 4
+		# Horizontal movement dominates
+		new_direction = "right" if direction.x > 0 else "left"
+	elif abs(direction.y) > 0.1:
+		# Vertical movement dominates
+		new_direction = "down" if direction.y > 0 else "up"
+
+	# Only update if direction changed
+	if new_direction != _current_direction:
+		if not _direction_sprites.is_empty():
+			_set_sprite_direction(new_direction)
+		else:
+			# Fallback: simple horizontal flip
+			_current_direction = new_direction
+			if new_direction in ["left", "right"]:
+				_sprite.flip_h = (new_direction == "left")
 
 
 # =============================================================================

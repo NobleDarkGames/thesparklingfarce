@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://caravan_mod_test"]
+
+[ext_resource type="Script" path="res://tests/test_caravan_modding.gd" id="1_test"]
+
+[node name="CaravanModdingTest" type="Node"]
+script = ExtResource("1_test")
