@@ -36,10 +36,9 @@ The Caravan system is the heart of SF2's open-world design and the critical feat
 - [x] **Input isolation fix** - Game pauses while menu open (PROCESS_MODE_ALWAYS on UI)
 - [x] **Party Management Panel** - `scenes/ui/party_management_panel.gd` with grid UI
 - [x] **PartyManager roster methods** - `get_active_party()`, `get_reserve_party()`, `swap_active_reserve()`, etc.
-- [ ] **Rest & Heal** - Signal exists but no actual HP/MP restoration yet
+- [x] **Rest & Heal** - Fully implemented (disabled in base game per Sacred Cow #3, available for mods)
 
-### Remaining Gaps
-- [ ] **Rest & Heal implementation** - Need CharacterSaveData HP/MP tracking
+### Phase 2 COMPLETE
 
 ---
 

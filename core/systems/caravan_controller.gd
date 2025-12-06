@@ -256,7 +256,11 @@ func _on_items_requested() -> void:
 
 func _on_rest_requested() -> void:
 	rest_and_heal()
-	# Show confirmation message (could be dialog or just close menu)
+	# Show brief confirmation before closing
+	if _main_menu and _main_menu.has_method("show_message"):
+		_main_menu.show_message("Party fully healed!")
+		# Delay close to let user see message
+		await get_tree().create_timer(1.0).timeout
 	close_menu()
 
 
@@ -264,7 +268,7 @@ func _on_rest_requested() -> void:
 # SCENE CHANGE HANDLING
 # =============================================================================
 
-func _on_scene_transition_started() -> void:
+func _on_scene_transition_started(_from_scene: String, _to_scene: String) -> void:
 	# Save position before transition if we have a caravan
 	if _caravan_instance:
 		_save_caravan_position()
@@ -508,9 +512,20 @@ func open_menu() -> void:
 	# Pause the game tree to stop player movement
 	get_tree().paused = true
 
+	# Configure disabled options based on caravan config
+	var disabled: Array[String] = []
+	if current_config:
+		if not current_config.has_rest_service:
+			disabled.append("rest")
+		if not current_config.has_party_management:
+			disabled.append("party")
+
 	# Show the main menu
-	if _main_menu and _main_menu.has_method("show_menu"):
-		_main_menu.show_menu()
+	if _main_menu:
+		if _main_menu.has_method("set_disabled_options"):
+			_main_menu.set_disabled_options(disabled)
+		if _main_menu.has_method("show_menu"):
+			_main_menu.show_menu()
 
 	menu_opened.emit()
 
@@ -538,10 +553,23 @@ func rest_and_heal() -> void:
 		push_warning("CaravanController: Rest service not available")
 		return
 
-	# TODO: Phase 2 - Implement healing via PartyManager runtime state
-	# For now, just emit the signal - actual HP/MP restoration requires
-	# the CharacterSaveData system to track current HP/MP values
-	party_healed.emit()
+	if not PartyManager:
+		push_warning("CaravanController: PartyManager not available")
+		return
+
+	# Restore HP/MP for all party members
+	var healed_count: int = 0
+	for character: CharacterData in PartyManager.party_members:
+		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
+		if save_data:
+			save_data.current_hp = save_data.max_hp
+			save_data.current_mp = save_data.max_mp
+			healed_count += 1
+
+	if healed_count > 0:
+		party_healed.emit()
+		if AudioManager:
+			AudioManager.play_sfx("heal", AudioManager.SFXCategory.UI)
 
 
 ## Check if a specific service is available

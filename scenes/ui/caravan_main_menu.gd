@@ -192,7 +192,7 @@ func _build_ui() -> void:
 	_description_label = Label.new()
 	_description_label.text = MENU_OPTIONS[0].description
 	_description_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_description_label.add_theme_font_size_override("font_size", 12)
+	_description_label.add_theme_font_size_override("font_size", 16)
 	_description_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	_description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(_description_label)
@@ -303,3 +303,10 @@ func _cancel() -> void:
 		AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 
 	close_requested.emit()
+
+
+## Show a temporary message in the description area
+func show_message(message: String) -> void:
+	if _description_label:
+		_description_label.text = message
+		_description_label.add_theme_color_override("font_color", COLOR_OPTION_SELECTED)
