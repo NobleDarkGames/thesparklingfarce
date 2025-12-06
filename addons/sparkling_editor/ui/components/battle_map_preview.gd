@@ -9,7 +9,7 @@ extends Control
 ##
 ## Usage:
 ##   var preview = BattleMapPreview.new()
-##   preview.set_map_scene_path("res://mods/_sandbox/maps/intro_battle.tscn")
+##   preview.set_map_scene_path("res://mods/<mod_id>/maps/battle_map.tscn")
 ##   preview.set_player_spawn(Vector2i(2, 2))
 ##   preview.add_enemy_marker(0, Vector2i(10, 5))
 ##   preview.position_clicked.connect(_on_position_clicked)
@@ -435,19 +435,19 @@ func _extract_map_info() -> void:
 
 func _find_tilemap_layer(node: Node) -> TileMapLayer:
 	# First check immediate children
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		if child is TileMapLayer:
 			return child as TileMapLayer
 
 	# Check one level deeper (Map/GroundLayer pattern)
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		if child.name == "Map":
-			for grandchild in child.get_children():
+			for grandchild: Node in child.get_children():
 				if grandchild is TileMapLayer:
 					return grandchild as TileMapLayer
 
 	# Recursive search as fallback
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		var result: TileMapLayer = _find_tilemap_layer(child)
 		if result:
 			return result
@@ -461,7 +461,7 @@ func _find_grid_resource(node: Node) -> Grid:
 		return node.grid as Grid
 
 	# Check children
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		var result: Grid = _find_grid_resource(child)
 		if result:
 			return result
@@ -475,7 +475,7 @@ func _update_viewport_camera() -> void:
 
 	# Find or create camera
 	var camera: Camera2D = null
-	for child in _viewport.get_children():
+	for child: Node in _viewport.get_children():
 		if child is Camera2D:
 			camera = child as Camera2D
 			break
@@ -611,14 +611,14 @@ func _draw_markers() -> void:
 	_draw_marker(overlay, spawn_screen, PLAYER_SPAWN_COLOR, "P")
 
 	# Draw enemy markers (red)
-	for enemy_data in _enemy_positions:
+	for enemy_data: Dictionary in _enemy_positions:
 		var pos: Vector2i = enemy_data.position
 		var label: String = enemy_data.label
 		var enemy_screen: Vector2 = _grid_to_screen(pos)
 		_draw_marker(overlay, enemy_screen, ENEMY_COLOR, label)
 
 	# Draw neutral markers (yellow)
-	for neutral_data in _neutral_positions:
+	for neutral_data: Dictionary in _neutral_positions:
 		var pos: Vector2i = neutral_data.position
 		var label: String = neutral_data.label
 		var neutral_screen: Vector2 = _grid_to_screen(pos)

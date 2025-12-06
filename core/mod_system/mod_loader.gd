@@ -609,6 +609,32 @@ func get_active_mod() -> ModManifest:
 	return get_mod(active_mod_id)
 
 
+## Get the currently active mod's ID
+## Convenience method for editors that just need the ID string
+func get_active_mod_id() -> String:
+	return active_mod_id
+
+
+## Get the active mod's data directory path
+## Returns the full path like "res://mods/_sandbox/data"
+## Returns empty string if no active mod is set
+func get_active_mod_data_path() -> String:
+	var manifest: ModManifest = get_active_mod()
+	if manifest:
+		return manifest.get_data_directory()
+	return ""
+
+
+## Get the active mod's base directory path
+## Returns the full path like "res://mods/_sandbox"
+## Returns empty string if no active mod is set
+func get_active_mod_path() -> String:
+	var manifest: ModManifest = get_active_mod()
+	if manifest:
+		return manifest.mod_directory
+	return ""
+
+
 ## Set the active mod (for editor and runtime)
 ## Also notifies listeners (like AudioManager) of the change
 func set_active_mod(mod_id: String) -> bool:
@@ -692,6 +718,119 @@ func get_resource_directories(mod_id: String) -> Dictionary:
 		dirs[resource_type] = data_dir.path_join(dir_name)
 
 	return dirs
+
+
+# =============================================================================
+# Mod Creation Support (for Editor Mod Wizard)
+# =============================================================================
+
+## Create a new mod with minimal mod.json
+## @param mod_folder_name: The folder name (e.g., "my_mod")
+## @param mod_name: Human-readable name (e.g., "My Awesome Mod")
+## @param author: Author name
+## @param load_priority: Load priority (100-8999 for user mods, 9000+ for total conversions)
+## @return: Dictionary with {success: bool, error: String, mod_path: String}
+func create_mod(mod_folder_name: String, mod_name: String, author: String = "", load_priority: int = 100) -> Dictionary:
+	# Validate folder name
+	if mod_folder_name.is_empty():
+		return {"success": false, "error": "Mod folder name cannot be empty", "mod_path": ""}
+
+	# Sanitize folder name (only alphanumeric, underscore, hyphen)
+	var safe_folder_name: String = ""
+	for c in mod_folder_name:
+		if c.is_valid_identifier() or c == "-" or c == "_":
+			safe_folder_name += c
+		elif c == " ":
+			safe_folder_name += "_"
+
+	if safe_folder_name.is_empty():
+		return {"success": false, "error": "Invalid folder name - use only letters, numbers, underscores, hyphens", "mod_path": ""}
+
+	var mod_path: String = MODS_DIRECTORY.path_join(safe_folder_name)
+
+	# Check if folder already exists
+	if DirAccess.dir_exists_absolute(mod_path):
+		return {"success": false, "error": "Mod folder already exists: " + safe_folder_name, "mod_path": ""}
+
+	# Create folder structure
+	var dir: DirAccess = DirAccess.open(MODS_DIRECTORY)
+	if not dir:
+		return {"success": false, "error": "Cannot access mods directory", "mod_path": ""}
+
+	var err: Error = dir.make_dir(safe_folder_name)
+	if err != OK:
+		return {"success": false, "error": "Failed to create mod folder: " + str(err), "mod_path": ""}
+
+	# Create standard subdirectories
+	var subdirs: Array[String] = ["data", "assets", "scenes", "tilesets", "triggers"]
+	var data_subdirs: Array[String] = ["characters", "classes", "items", "abilities", "battles", "parties", "dialogues", "cinematics", "maps", "campaigns", "terrain", "experience_configs"]
+
+	for subdir: String in subdirs:
+		err = DirAccess.make_dir_absolute(mod_path.path_join(subdir))
+		if err != OK and err != ERR_ALREADY_EXISTS:
+			push_warning("ModLoader: Failed to create subdir %s: %s" % [subdir, str(err)])
+
+	for data_subdir: String in data_subdirs:
+		err = DirAccess.make_dir_absolute(mod_path.path_join("data").path_join(data_subdir))
+		if err != OK and err != ERR_ALREADY_EXISTS:
+			push_warning("ModLoader: Failed to create data subdir %s: %s" % [data_subdir, str(err)])
+
+	# Create mod.json
+	var mod_json: Dictionary = {
+		"id": safe_folder_name.replace("-", "_"),  # IDs use underscores
+		"name": mod_name if not mod_name.is_empty() else safe_folder_name,
+		"version": "1.0.0",
+		"author": author if not author.is_empty() else "Unknown",
+		"description": "",
+		"godot_version": "4.5",
+		"load_priority": load_priority,
+		"dependencies": [],
+		"content": {
+			"data_path": "data/",
+			"assets_path": "assets/"
+		}
+	}
+
+	var mod_json_path: String = mod_path.path_join("mod.json")
+	var file: FileAccess = FileAccess.open(mod_json_path, FileAccess.WRITE)
+	if not file:
+		return {"success": false, "error": "Failed to create mod.json", "mod_path": mod_path}
+
+	file.store_string(JSON.stringify(mod_json, "\t"))
+	file.close()
+
+	return {"success": true, "error": "", "mod_path": mod_path}
+
+
+## Check if a mod folder name is available (doesn't already exist)
+func is_mod_folder_available(folder_name: String) -> bool:
+	if folder_name.is_empty():
+		return false
+	var mod_path: String = MODS_DIRECTORY.path_join(folder_name)
+	return not DirAccess.dir_exists_absolute(mod_path)
+
+
+## Check if a mod is a total conversion (priority 9000+)
+## Total conversions typically hide base game content and provide complete replacements
+func is_total_conversion(mod_id: String) -> bool:
+	var manifest: ModManifest = get_mod(mod_id)
+	if not manifest:
+		return false
+	return manifest.load_priority >= 9000
+
+
+## Check if the active mod is a total conversion
+func is_active_mod_total_conversion() -> bool:
+	return is_total_conversion(active_mod_id)
+
+
+## Get all mods that are total conversions (priority 9000+)
+func get_total_conversion_mods() -> Array[ModManifest]:
+	var result: Array[ModManifest] = []
+	for manifest: ModManifest in loaded_mods:
+		if manifest.load_priority >= 9000:
+			result.append(manifest)
+	return result
 
 
 # =============================================================================

@@ -33,9 +33,9 @@ var text_sound_note_label: Label
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/dialogues/"
 	resource_type_id = "dialogue"
 	resource_type_name = "Dialogue"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	_refresh_character_cache()
 	super._ready()
 
@@ -220,48 +220,36 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 
 	var references: Array[String] = []
 
-	# Check all dialogues for references in next_dialogue or choices
-	var dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/dialogues/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var dialogue: DialogueData = load("res://mods/_sandbox/data/dialogues/" + file_name)
-				if dialogue:
-					# Check next_dialogue
-					if dialogue.next_dialogue == dialogue_to_check:
-						references.append("res://mods/_sandbox/data/dialogues/" + file_name)
-					else:
-						# Check choices
-						for choice in dialogue.choices:
-							if "next_dialogue" in choice and choice["next_dialogue"] == dialogue_to_check:
-								references.append("res://mods/_sandbox/data/dialogues/" + file_name)
-								break
-			file_name = dir.get_next()
-		dir.list_dir_end()
+	# Check all dialogues across all mods for references in next_dialogue or choices
+	var dialogue_files: Array[Dictionary] = _scan_all_mods_for_resource_type("dialogue")
+	for file_info: Dictionary in dialogue_files:
+		var dialogue: DialogueData = load(file_info.path) as DialogueData
+		if dialogue:
+			# Check next_dialogue
+			if dialogue.next_dialogue == dialogue_to_check:
+				references.append(file_info.path)
+			else:
+				# Check choices
+				for choice: Dictionary in dialogue.choices:
+					if "next_dialogue" in choice and choice["next_dialogue"] == dialogue_to_check:
+						references.append(file_info.path)
+						break
 
-	# Check battles for references
-	var battle_dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/battles/")
-	if battle_dir:
-		battle_dir.list_dir_begin()
-		var file_name: String = battle_dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var battle: BattleData = load("res://mods/_sandbox/data/battles/" + file_name)
-				if battle:
-					if battle.pre_battle_dialogue == dialogue_to_check or \
-					   battle.victory_dialogue == dialogue_to_check or \
-					   battle.defeat_dialogue == dialogue_to_check:
-						references.append("res://mods/_sandbox/data/battles/" + file_name)
-					else:
-						# Check turn dialogues
-						for turn in battle.turn_dialogues.keys():
-							if battle.turn_dialogues[turn] == dialogue_to_check:
-								references.append("res://mods/_sandbox/data/battles/" + file_name)
-								break
-			file_name = battle_dir.get_next()
-		battle_dir.list_dir_end()
+	# Check battles across all mods for references
+	var battle_files: Array[Dictionary] = _scan_all_mods_for_resource_type("battle")
+	for file_info: Dictionary in battle_files:
+		var battle: BattleData = load(file_info.path) as BattleData
+		if battle:
+			if battle.pre_battle_dialogue == dialogue_to_check or \
+			   battle.victory_dialogue == dialogue_to_check or \
+			   battle.defeat_dialogue == dialogue_to_check:
+				references.append(file_info.path)
+			else:
+				# Check turn dialogues
+				for turn: int in battle.turn_dialogues.keys():
+					if battle.turn_dialogues[turn] == dialogue_to_check:
+						references.append(file_info.path)
+						break
 
 	return references
 

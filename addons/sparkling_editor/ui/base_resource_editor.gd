@@ -14,6 +14,9 @@ var resource_type_name: String = "Resource"
 # Values: "character", "class", "item", "ability", "dialogue", "battle"
 var resource_type_id: String = ""
 
+# Undo/Redo manager for editor operations
+var undo_redo: EditorUndoRedoManager
+
 # UI Components (created by base class)
 var resource_list: ItemList
 var search_filter: LineEdit
@@ -48,6 +51,9 @@ var mod_workflow_container: HBoxContainer
 
 
 func _ready() -> void:
+	# Get the EditorUndoRedoManager from EditorInterface
+	if Engine.is_editor_hint():
+		undo_redo = EditorInterface.get_editor_undo_redo()
 	_setup_base_ui()
 	_create_detail_form()
 	_refresh_list()
@@ -891,3 +897,119 @@ func _show_info_message(title: String, message: String) -> void:
 		error_panel.add_theme_stylebox_override("panel", info_style)
 
 	error_panel.show()
+
+
+# =============================================================================
+# Active Mod Helper Methods
+# =============================================================================
+
+## Get the active mod's ID (or empty string if none)
+func _get_active_mod_id() -> String:
+	if not ModLoader:
+		return ""
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if active_mod:
+		return active_mod.mod_id
+	return ""
+
+
+## Get the active mod's folder name (e.g., "_sandbox" from "res://mods/_sandbox/")
+func _get_active_mod_folder() -> String:
+	if not ModLoader:
+		return ""
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if active_mod:
+		return active_mod.mod_directory.get_file()
+	return ""
+
+
+## Get the active mod's base directory path
+func _get_active_mod_directory() -> String:
+	if not ModLoader:
+		return ""
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if active_mod:
+		return active_mod.mod_directory
+	return ""
+
+
+## Get the directory path for a specific resource type in the active mod
+func _get_active_mod_resource_directory(type_id: String) -> String:
+	if not ModLoader:
+		return ""
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		return ""
+
+	var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+	if type_id in resource_dirs:
+		return resource_dirs[type_id]
+	return ""
+
+
+## Scan a resource directory across all mods (for reference checking)
+## Returns Array of {path: String, mod_id: String} for all matching resources
+func _scan_all_mods_for_resource_type(type_id: String) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+
+	if not ModLoader:
+		return results
+
+	var mods: Array[ModManifest] = ModLoader.get_all_mods()
+	for mod: ModManifest in mods:
+		var resource_dirs: Dictionary = ModLoader.get_resource_directories(mod.mod_id)
+		if type_id in resource_dirs:
+			var dir_path: String = resource_dirs[type_id]
+			var dir: DirAccess = DirAccess.open(dir_path)
+			if dir:
+				dir.list_dir_begin()
+				var file_name: String = dir.get_next()
+				while file_name != "":
+					if file_name.ends_with(".tres"):
+						results.append({
+							"path": dir_path.path_join(file_name),
+							"mod_id": mod.mod_id
+						})
+					file_name = dir.get_next()
+				dir.list_dir_end()
+
+	return results
+
+
+# =============================================================================
+# Undo/Redo Helper Methods
+# =============================================================================
+
+## Begin an undoable action with a descriptive name
+func _begin_undo_action(action_name: String) -> void:
+	if undo_redo:
+		undo_redo.create_action(action_name)
+
+
+## Add an undo method to the current action
+## Note: EditorUndoRedoManager uses (Object, StringName, ...) not Callable
+## For methods with arguments, call add_undo_method directly with varargs
+func _add_undo_method(obj: Object, method: StringName) -> void:
+	if undo_redo:
+		undo_redo.add_undo_method(obj, method)
+
+
+## Add a do method to the current action
+## Note: EditorUndoRedoManager uses (Object, StringName, ...) not Callable
+## For methods with arguments, call add_do_method directly with varargs
+func _add_do_method(obj: Object, method: StringName) -> void:
+	if undo_redo:
+		undo_redo.add_do_method(obj, method)
+
+
+## Add a do/undo property pair to the current action
+func _add_undo_property(obj: Object, property: StringName, old_value: Variant, new_value: Variant) -> void:
+	if undo_redo:
+		undo_redo.add_do_property(obj, property, new_value)
+		undo_redo.add_undo_property(obj, property, old_value)
+
+
+## Commit the current undoable action
+func _commit_undo_action() -> void:
+	if undo_redo:
+		undo_redo.commit_action()

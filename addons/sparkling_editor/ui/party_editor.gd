@@ -62,9 +62,9 @@ var available_characters: Array[CharacterData] = []
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/parties/"
 	resource_type_name = "Party"
 	resource_type_id = "party"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 	_load_available_characters()
 

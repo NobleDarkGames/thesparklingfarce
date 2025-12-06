@@ -42,6 +42,15 @@ var tab_container: TabContainer
 var mod_selector: OptionButton
 var mod_info_label: Label
 
+# Mod Creation Wizard
+var create_mod_dialog: ConfirmationDialog
+var wizard_mod_id_edit: LineEdit
+var wizard_mod_name_edit: LineEdit
+var wizard_author_edit: LineEdit
+var wizard_description_edit: TextEdit
+var wizard_type_dropdown: OptionButton
+var wizard_error_label: Label
+
 
 func _init() -> void:
 	# Editor plugins don't reliably call _ready, so we use _init with deferred setup
@@ -328,6 +337,13 @@ func _create_mod_selector_ui() -> void:
 	refresh_button.pressed.connect(_on_refresh_mods)
 	hbox.add_child(refresh_button)
 
+	# Create New Mod button
+	var create_mod_button: Button = Button.new()
+	create_mod_button.text = "Create New Mod"
+	create_mod_button.tooltip_text = "Create a new mod with folder structure and mod.json"
+	create_mod_button.pressed.connect(_show_create_mod_wizard)
+	hbox.add_child(create_mod_button)
+
 	# Populate mod list
 	_refresh_mod_list()
 
@@ -514,3 +530,266 @@ func _save_editor_settings(settings: Dictionary) -> void:
 
 	file.store_string(JSON.stringify(settings, "\t"))
 	file.close()
+
+
+# =============================================================================
+# Mod Creation Wizard
+# =============================================================================
+
+## Show the Create New Mod wizard dialog
+func _show_create_mod_wizard() -> void:
+	if not create_mod_dialog:
+		_create_mod_wizard_dialog()
+
+	# Reset fields
+	wizard_mod_id_edit.text = ""
+	wizard_mod_name_edit.text = ""
+	wizard_author_edit.text = ""
+	wizard_description_edit.text = ""
+	wizard_type_dropdown.select(0)
+	wizard_error_label.text = ""
+	wizard_error_label.visible = false
+
+	create_mod_dialog.popup_centered()
+
+
+## Create the wizard dialog UI
+func _create_mod_wizard_dialog() -> void:
+	create_mod_dialog = ConfirmationDialog.new()
+	create_mod_dialog.title = "Create New Mod"
+	create_mod_dialog.ok_button_text = "Create Mod"
+	create_mod_dialog.min_size = Vector2(500, 400)
+	create_mod_dialog.confirmed.connect(_on_create_mod_confirmed)
+	add_child(create_mod_dialog)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	create_mod_dialog.add_child(vbox)
+
+	# Mod ID
+	var id_label: Label = Label.new()
+	id_label.text = "Mod ID (folder name, no spaces):"
+	vbox.add_child(id_label)
+
+	wizard_mod_id_edit = LineEdit.new()
+	wizard_mod_id_edit.placeholder_text = "my_awesome_mod"
+	wizard_mod_id_edit.text_changed.connect(_on_wizard_mod_id_changed)
+	vbox.add_child(wizard_mod_id_edit)
+
+	# Mod Name
+	var name_label: Label = Label.new()
+	name_label.text = "Display Name:"
+	vbox.add_child(name_label)
+
+	wizard_mod_name_edit = LineEdit.new()
+	wizard_mod_name_edit.placeholder_text = "My Awesome Mod"
+	vbox.add_child(wizard_mod_name_edit)
+
+	# Author
+	var author_label: Label = Label.new()
+	author_label.text = "Author:"
+	vbox.add_child(author_label)
+
+	wizard_author_edit = LineEdit.new()
+	wizard_author_edit.placeholder_text = "Your Name"
+	vbox.add_child(wizard_author_edit)
+
+	# Description
+	var desc_label: Label = Label.new()
+	desc_label.text = "Description:"
+	vbox.add_child(desc_label)
+
+	wizard_description_edit = TextEdit.new()
+	wizard_description_edit.placeholder_text = "A brief description of your mod..."
+	wizard_description_edit.custom_minimum_size = Vector2(0, 60)
+	vbox.add_child(wizard_description_edit)
+
+	# Mod Type
+	var type_label: Label = Label.new()
+	type_label.text = "Mod Type:"
+	vbox.add_child(type_label)
+
+	wizard_type_dropdown = OptionButton.new()
+	wizard_type_dropdown.add_item("Content Expansion (Priority 100-199)")
+	wizard_type_dropdown.set_item_metadata(0, {"priority": 100, "type": "expansion"})
+	wizard_type_dropdown.add_item("Override Pack (Priority 500-899)")
+	wizard_type_dropdown.set_item_metadata(1, {"priority": 500, "type": "override"})
+	wizard_type_dropdown.add_item("Total Conversion (Priority 9000+)")
+	wizard_type_dropdown.set_item_metadata(2, {"priority": 9000, "type": "total_conversion"})
+	vbox.add_child(wizard_type_dropdown)
+
+	# Type help text
+	var type_help: Label = Label.new()
+	type_help.text = "Content Expansion: Adds new content alongside base game\n" + \
+		"Override Pack: Replaces specific base game content\n" + \
+		"Total Conversion: Completely replaces the base game"
+	type_help.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	type_help.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(type_help)
+
+	# Error label
+	wizard_error_label = Label.new()
+	wizard_error_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	wizard_error_label.visible = false
+	vbox.add_child(wizard_error_label)
+
+
+## Auto-generate mod name from ID
+func _on_wizard_mod_id_changed(new_id: String) -> void:
+	# Convert snake_case to Title Case for display name
+	if wizard_mod_name_edit.text.is_empty() or _is_auto_generated_name(wizard_mod_name_edit.text):
+		var words: PackedStringArray = new_id.split("_")
+		var title_words: Array = []
+		for word: String in words:
+			if not word.is_empty():
+				title_words.append(word.capitalize())
+		wizard_mod_name_edit.text = " ".join(title_words)
+
+
+## Check if the name looks auto-generated
+func _is_auto_generated_name(name: String) -> bool:
+	var id: String = wizard_mod_id_edit.text
+	var words: PackedStringArray = id.split("_")
+	var title_words: Array = []
+	for word: String in words:
+		if not word.is_empty():
+			title_words.append(word.capitalize())
+	return name == " ".join(title_words)
+
+
+## Validate and create the mod
+func _on_create_mod_confirmed() -> void:
+	var mod_id: String = wizard_mod_id_edit.text.strip_edges()
+	var mod_name: String = wizard_mod_name_edit.text.strip_edges()
+	var author: String = wizard_author_edit.text.strip_edges()
+	var description: String = wizard_description_edit.text.strip_edges()
+	var type_data: Dictionary = wizard_type_dropdown.get_item_metadata(wizard_type_dropdown.selected)
+
+	# Validation
+	if mod_id.is_empty():
+		_show_wizard_error("Mod ID is required")
+		return
+
+	# Validate mod ID format
+	if not _is_valid_mod_id(mod_id):
+		_show_wizard_error("Mod ID can only contain lowercase letters, numbers, and underscores")
+		return
+
+	# Check if mod already exists
+	var mod_path: String = "res://mods/" + mod_id + "/"
+	if DirAccess.dir_exists_absolute(mod_path):
+		_show_wizard_error("A mod with this ID already exists")
+		return
+
+	if mod_name.is_empty():
+		mod_name = mod_id.replace("_", " ").capitalize()
+
+	# Create the mod
+	var success: bool = _create_mod_structure(mod_id, mod_name, author, description, type_data)
+	if success:
+		# Reload mods to pick up the new one
+		if ModLoader:
+			ModLoader.reload_mods()
+			_refresh_mod_list()
+
+			# Select the new mod
+			ModLoader.set_active_mod(mod_id)
+			for i in range(mod_selector.item_count):
+				if mod_selector.get_item_metadata(i) == mod_id:
+					mod_selector.select(i)
+					_on_mod_selected(i)
+					break
+
+			# Notify all editors
+			var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+			if event_bus:
+				event_bus.active_mod_changed.emit(mod_id)
+
+			_refresh_all_editors()
+
+		create_mod_dialog.hide()
+	else:
+		_show_wizard_error("Failed to create mod folder structure")
+
+
+## Validate mod ID format
+func _is_valid_mod_id(mod_id: String) -> bool:
+	var regex: RegEx = RegEx.new()
+	regex.compile("^[a-z][a-z0-9_]*$")
+	return regex.search(mod_id) != null
+
+
+## Show error in wizard dialog
+func _show_wizard_error(message: String) -> void:
+	wizard_error_label.text = message
+	wizard_error_label.visible = true
+
+
+## Create the mod folder structure and mod.json
+func _create_mod_structure(mod_id: String, mod_name: String, author: String, description: String, type_data: Dictionary) -> bool:
+	var mod_path: String = "res://mods/" + mod_id + "/"
+
+	# Create main folder
+	var err: Error = DirAccess.make_dir_recursive_absolute(mod_path)
+	if err != OK:
+		push_error("Failed to create mod directory: " + mod_path)
+		return false
+
+	# Create standard subdirectories
+	var subdirs: Array = [
+		"data/characters",
+		"data/classes",
+		"data/items",
+		"data/abilities",
+		"data/battles",
+		"data/parties",
+		"data/dialogues",
+		"data/campaigns",
+		"data/cinematics",
+		"data/maps",
+		"data/terrain",
+		"assets/icons",
+		"assets/portraits",
+		"assets/sprites",
+		"assets/audio",
+		"maps",
+		"scenes",
+		"tilesets",
+		"triggers"
+	]
+
+	for subdir: String in subdirs:
+		err = DirAccess.make_dir_recursive_absolute(mod_path + subdir)
+		if err != OK:
+			push_warning("Failed to create subdirectory: " + subdir)
+
+	# Generate mod.json
+	var mod_json: Dictionary = {
+		"id": mod_id,
+		"name": mod_name,
+		"version": "1.0.0",
+		"author": author if not author.is_empty() else "Unknown",
+		"description": description if not description.is_empty() else "A new mod for The Sparkling Farce",
+		"godot_version": "4.5",
+		"load_priority": type_data.priority,
+		"dependencies": []
+	}
+
+	# Add type-specific settings
+	if type_data.type == "total_conversion":
+		mod_json["hidden_campaigns"] = ["_base_game:*"]
+		mod_json["party_config"] = {"replaces_lower_priority": true}
+	elif type_data.type == "override":
+		mod_json["party_config"] = {"replaces_lower_priority": false}
+
+	# Write mod.json
+	var json_path: String = mod_path + "mod.json"
+	var file: FileAccess = FileAccess.open(json_path, FileAccess.WRITE)
+	if not file:
+		push_error("Failed to create mod.json: " + json_path)
+		return false
+
+	file.store_string(JSON.stringify(mod_json, "\t"))
+	file.close()
+
+	return true

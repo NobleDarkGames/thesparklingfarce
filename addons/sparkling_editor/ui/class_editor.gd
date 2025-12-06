@@ -28,9 +28,9 @@ var add_ability_button: Button
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/classes/"
 	resource_type_name = "Class"
 	resource_type_id = "class"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 
 
@@ -179,18 +179,12 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 
 	var references: Array[String] = []
 
-	# Check all characters for references to this class
-	var dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/characters/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var character: CharacterData = load("res://mods/_sandbox/data/characters/" + file_name)
-				if character and character.character_class == class_to_check:
-					references.append("res://mods/_sandbox/data/characters/" + file_name)
-			file_name = dir.get_next()
-		dir.list_dir_end()
+	# Check all characters across all mods for references to this class
+	var character_files: Array[Dictionary] = _scan_all_mods_for_resource_type("character")
+	for file_info: Dictionary in character_files:
+		var character: CharacterData = load(file_info.path) as CharacterData
+		if character and character.character_class == class_to_check:
+			references.append(file_info.path)
 
 	# TODO: In Phase 2+, also check battles, dialogues, etc.
 

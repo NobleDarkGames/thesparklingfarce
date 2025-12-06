@@ -37,9 +37,9 @@ var filter_buttons: Dictionary = {}  # {category: Button}
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/characters/"
 	resource_type_name = "Character"
 	resource_type_id = "character"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 	_setup_filter_buttons()
 

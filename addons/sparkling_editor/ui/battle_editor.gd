@@ -69,9 +69,9 @@ var available_ai_brains: Array[AIBrain] = []  # Track loaded AI brain instances
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/battles/"
 	resource_type_id = "battle"
 	resource_type_name = "Battle"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 
 

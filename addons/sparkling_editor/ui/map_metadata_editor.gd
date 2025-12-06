@@ -897,11 +897,7 @@ func _show_new_map_dialog() -> void:
 	_hide_dialog_error()
 
 	# Set default map ID prefix from active mod
-	var active_mod_id: String = "_sandbox"
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			active_mod_id = active_mod.mod_id
+	var active_mod_id: String = _get_active_mod_id_safe()
 	new_map_id_edit.placeholder_text = "%s:map_name" % active_mod_id
 
 	# Refresh tileset dropdown
@@ -923,11 +919,7 @@ func _hide_dialog_error() -> void:
 
 func _on_new_map_name_changed(new_name: String) -> void:
 	# Auto-generate map ID from name
-	var active_mod_id: String = "_sandbox"
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			active_mod_id = active_mod.mod_id
+	var active_mod_id: String = _get_active_mod_id_safe()
 
 	# Convert name to snake_case ID
 	var id_name: String = new_name.to_lower().strip_edges()
@@ -1019,13 +1011,8 @@ func _on_confirm_create_map() -> void:
 			tileset_path = metadata
 
 	# Determine active mod
-	var active_mod_id: String = "_sandbox"
-	var mod_dir: String = "res://mods/_sandbox/"
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			active_mod_id = active_mod.mod_id
-			mod_dir = active_mod.mod_directory
+	var active_mod_id: String = _get_active_mod_id_safe()
+	var mod_dir: String = _get_active_mod_directory_safe()
 
 	# Generate file name from map_name
 	var file_base: String = map_name.to_lower().strip_edges().replace(" ", "_").replace("-", "_")
@@ -1284,3 +1271,25 @@ func _show_errors(errors: Array) -> void:
 func _hide_errors() -> void:
 	error_panel.hide()
 	error_label.text = ""
+
+
+# =============================================================================
+# Active Mod Helpers
+# =============================================================================
+
+## Get active mod ID with safe fallback
+func _get_active_mod_id_safe() -> String:
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			return active_mod.mod_id
+	return "_base_game"
+
+
+## Get active mod directory with safe fallback
+func _get_active_mod_directory_safe() -> String:
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			return active_mod.mod_directory
+	return "res://mods/_base_game/"

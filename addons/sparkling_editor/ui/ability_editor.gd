@@ -32,9 +32,9 @@ var animation_edit: LineEdit
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/abilities/"
 	resource_type_id = "ability"
 	resource_type_name = "Ability"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 
 
@@ -183,36 +183,24 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 
 	var references: Array[String] = []
 
-	# Check all classes for references in learnable_abilities
-	var class_dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/classes/")
-	if class_dir:
-		class_dir.list_dir_begin()
-		var file_name: String = class_dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var class_data: ClassData = load("res://mods/_sandbox/data/classes/" + file_name)
-				if class_data:
-					# Check if ability is in learnable_abilities dictionary
-					for level in class_data.learnable_abilities.keys():
-						var learnable_ability: Resource = class_data.learnable_abilities[level]
-						if learnable_ability == ability_to_check:
-							references.append("res://mods/_sandbox/data/classes/" + file_name)
-							break
-			file_name = class_dir.get_next()
-		class_dir.list_dir_end()
+	# Check all classes across all mods for references in learnable_abilities
+	var class_files: Array[Dictionary] = _scan_all_mods_for_resource_type("class")
+	for file_info: Dictionary in class_files:
+		var class_data: ClassData = load(file_info.path) as ClassData
+		if class_data:
+			# Check if ability is in learnable_abilities dictionary
+			for level: int in class_data.learnable_abilities.keys():
+				var learnable_ability: Resource = class_data.learnable_abilities[level]
+				if learnable_ability == ability_to_check:
+					references.append(file_info.path)
+					break
 
-	# Check all items for references in consumable_effect
-	var item_dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/items/")
-	if item_dir:
-		item_dir.list_dir_begin()
-		var file_name: String = item_dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var item_data: ItemData = load("res://mods/_sandbox/data/items/" + file_name)
-				if item_data and item_data.consumable_effect == ability_to_check:
-					references.append("res://mods/_sandbox/data/items/" + file_name)
-			file_name = item_dir.get_next()
-		item_dir.list_dir_end()
+	# Check all items across all mods for references in consumable_effect
+	var item_files: Array[Dictionary] = _scan_all_mods_for_resource_type("item")
+	for file_info: Dictionary in item_files:
+		var item_data: ItemData = load(file_info.path) as ItemData
+		if item_data and item_data.consumable_effect == ability_to_check:
+			references.append(file_info.path)
 
 	# TODO: In Phase 2+, check battles, character known_abilities, etc.
 

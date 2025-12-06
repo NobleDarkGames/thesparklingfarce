@@ -1215,12 +1215,11 @@ func _validate_cinematic() -> Array[String]:
 
 
 func _get_active_mod() -> String:
-	var parent: Node = get_parent()
-	while parent:
-		if parent.has_method("get_active_mod_id"):
-			return parent.get_active_mod_id()
-		parent = parent.get_parent()
-	return "_sandbox"
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			return active_mod.mod_id
+	return "_base_game"
 
 
 ## Refresh when tab becomes visible

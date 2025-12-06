@@ -46,9 +46,9 @@ var sell_price_spin: SpinBox
 
 
 func _ready() -> void:
-	resource_directory = "res://mods/_sandbox/data/items/"
 	resource_type_id = "item"
 	resource_type_name = "Item"
+	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 
 
@@ -205,19 +205,12 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 
 	var references: Array[String] = []
 
-	# Check all characters for references to this item in their equipment arrays
-	var dir: DirAccess = DirAccess.open("res://mods/_sandbox/data/characters/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name: String = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tres"):
-				var character: CharacterData = load("res://mods/_sandbox/data/characters/" + file_name)
-				if character:
-					if item_to_check in character.starting_equipment:
-						references.append("res://mods/_sandbox/data/characters/" + file_name)
-			file_name = dir.get_next()
-		dir.list_dir_end()
+	# Check all characters across all mods for references to this item in their equipment arrays
+	var character_files: Array[Dictionary] = _scan_all_mods_for_resource_type("character")
+	for file_info: Dictionary in character_files:
+		var character: CharacterData = load(file_info.path) as CharacterData
+		if character and item_to_check in character.starting_equipment:
+			references.append(file_info.path)
 
 	# TODO: In Phase 2+, also check shop inventories, treasure chests, etc.
 
@@ -666,20 +659,19 @@ func _on_browse_icon() -> void:
 		icon_file_dialog.file_selected.connect(_on_icon_file_selected)
 		add_child(icon_file_dialog)
 
-	# Default to mod's icon directory if available
-	var default_path: String = "res://mods/_sandbox/assets/icons/"
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			var icons_dir: String = active_mod.mod_directory.path_join("assets/icons/")
-			if DirAccess.dir_exists_absolute(icons_dir):
-				default_path = icons_dir
-
-	# Fall back to general assets if icons dir doesn't exist
-	if not DirAccess.dir_exists_absolute(default_path):
-		default_path = "res://mods/_sandbox/assets/"
-	if not DirAccess.dir_exists_absolute(default_path):
-		default_path = "res://mods/"
+	# Default to active mod's icon directory if available
+	var default_path: String = "res://mods/"
+	var active_mod_dir: String = _get_active_mod_directory()
+	if not active_mod_dir.is_empty():
+		var icons_dir: String = active_mod_dir.path_join("assets/icons/")
+		if DirAccess.dir_exists_absolute(icons_dir):
+			default_path = icons_dir
+		else:
+			var assets_dir: String = active_mod_dir.path_join("assets/")
+			if DirAccess.dir_exists_absolute(assets_dir):
+				default_path = assets_dir
+			else:
+				default_path = active_mod_dir
 
 	icon_file_dialog.current_dir = default_path
 	icon_file_dialog.popup_centered_ratio(0.7)
