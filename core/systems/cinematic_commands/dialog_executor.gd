@@ -26,6 +26,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	# Start dialog via DialogManager (proper delegation pattern)
 	if DialogManager.start_dialog(dialogue_id):
 		manager.current_state = manager.State.WAITING_FOR_DIALOG
+		# CRITICAL: Set _is_waiting to prevent the "continue immediately" logic
+		# in _execute_next_command() from overriding our async state
+		manager._is_waiting = true
 		return false  # Async - dialog_ended signal will set _command_completed
 	else:
 		push_error("DialogExecutor: Failed to start dialog '%s'" % dialogue_id)
@@ -67,6 +70,9 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 	# Start dialog from the temporary resource
 	if DialogManager.start_dialog_from_resource(dialogue):
 		manager.current_state = manager.State.WAITING_FOR_DIALOG
+		# CRITICAL: Set _is_waiting to prevent the "continue immediately" logic
+		# in _execute_next_command() from overriding our async state
+		manager._is_waiting = true
 		return false  # Async
 	else:
 		push_error("DialogExecutor: Failed to start inline dialog")

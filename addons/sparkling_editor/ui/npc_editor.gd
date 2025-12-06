@@ -13,8 +13,66 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 
 # UI field references - Basic Information
 var npc_id_edit: LineEdit
+var npc_id_lock_btn: Button
 var npc_name_edit: LineEdit
 var character_picker: ResourcePicker
+var template_option: OptionButton
+
+# Track if ID should auto-generate from name
+var _id_is_locked: bool = false
+
+# NPC Templates - preset configurations for common NPC types
+const NPC_TEMPLATES: Dictionary = {
+	"custom": {
+		"label": "Custom NPC",
+		"name": "",
+		"dialog": "",
+		"face_player": true
+	},
+	"town_guard": {
+		"label": "Town Guard",
+		"name": "Town Guard",
+		"dialog": "Move along, citizen.\nNo trouble here.",
+		"face_player": true
+	},
+	"shopkeeper": {
+		"label": "Shopkeeper",
+		"name": "Shopkeeper",
+		"dialog": "Welcome to my shop!\nTake a look around.",
+		"face_player": true
+	},
+	"elder": {
+		"label": "Village Elder",
+		"name": "Elder",
+		"dialog": "Greetings, young one.\nI have lived many years in this village.\nPerhaps I can offer some wisdom.",
+		"face_player": true
+	},
+	"villager": {
+		"label": "Villager",
+		"name": "Villager",
+		"dialog": "What a lovely day!\nI hope nothing bad happens.",
+		"face_player": true
+	},
+	"innkeeper": {
+		"label": "Innkeeper",
+		"name": "Innkeeper",
+		"dialog": "Welcome, weary traveler!\nWould you like to rest here?",
+		"face_player": true
+	},
+	"mysterious": {
+		"label": "Mysterious Figure",
+		"name": "???",
+		"dialog": "...\n...Who are you?",
+		"face_player": false,
+		"facing": "down"
+	},
+	"child": {
+		"label": "Child",
+		"name": "Child",
+		"dialog": "Hey mister!\nWanna play?",
+		"face_player": true
+	}
+}
 
 # Appearance Fallback section (visible when character_data is null)
 var appearance_section: VBoxContainer
@@ -42,6 +100,26 @@ var add_conditional_btn: Button
 # Behavior section
 var face_player_check: CheckBox
 var facing_override_option: OptionButton
+
+# Advanced options section (collapsible)
+var advanced_section: VBoxContainer
+var advanced_toggle_btn: Button
+var advanced_content: VBoxContainer
+
+# Place on Map section
+var place_on_map_btn: Button
+var map_selection_popup: PopupPanel
+var map_list: ItemList
+var place_confirm_btn: Button
+var place_position_x: SpinBox
+var place_position_y: SpinBox
+
+# Live Preview Panel
+var preview_panel: PanelContainer
+var preview_portrait: TextureRect
+var preview_sprite: TextureRect
+var preview_name_label: Label
+var preview_dialog_label: Label
 
 # Track conditional entries for dynamic UI
 var conditional_entries: Array[Dictionary] = []
@@ -75,26 +153,43 @@ func _on_mods_reloaded() -> void:
 
 ## Override: Create the NPC-specific detail form
 func _create_detail_form() -> void:
-	# Basic info section
+	# Create a horizontal split for form + preview
+	var main_split: HSplitContainer = HSplitContainer.new()
+	main_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# Left side: Form content
+	var form_container: VBoxContainer = VBoxContainer.new()
+	form_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form_container.custom_minimum_size.x = 400
+
+	# Right side: Preview panel
+	_create_preview_panel()
+
+	main_split.add_child(form_container)
+	main_split.add_child(preview_panel)
+
+	detail_panel.add_child(main_split)
+
+	# Store reference to form container for adding sections
+	var original_detail_panel: Control = detail_panel
+	detail_panel = form_container
+
+	# Basic info section (Name, ID, Character)
 	_add_basic_info_section()
 
-	# Appearance fallback section (shown when no CharacterData)
-	_add_appearance_fallback_section()
-
-	# Quick Dialog section (for simple NPCs - type text, auto-create cinematic)
+	# Quick Dialog section - THE PRIMARY WORKFLOW for simple NPCs
 	_add_quick_dialog_section()
 
-	# Interaction section (advanced cinematic configuration)
-	_add_interaction_section()
+	# Place on Map section - easy map placement
+	_add_place_on_map_section()
 
-	# Conditional cinematics section
-	_add_conditional_cinematics_section()
+	# Advanced Options (collapsed by default)
+	_add_advanced_options_section()
 
-	# Behavior section
-	_add_behavior_section()
-
-	# Add the button container at the end
-	detail_panel.add_child(button_container)
+	# Restore detail_panel and add button container
+	detail_panel = original_detail_panel
+	form_container.add_child(button_container)
 
 
 ## Override: Load NPC data from resource into UI
@@ -105,9 +200,18 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	# Basic info
-	npc_id_edit.text = npc.npc_id
+	# Reset template selector to "Custom" (index 0) when loading existing NPC
+	if template_option:
+		template_option.select(0)
+
+	# Basic info - load name first, then ID
 	npc_name_edit.text = npc.npc_name
+	npc_id_edit.text = npc.npc_id
+
+	# Determine if ID should be locked (was manually set vs auto-generated)
+	var expected_auto_id: String = _generate_id_from_name(npc.npc_name)
+	_id_is_locked = (npc.npc_id != expected_auto_id) and not npc.npc_id.is_empty()
+	_update_lock_button()
 
 	# Character data picker
 	if npc.character_data:
@@ -153,6 +257,7 @@ func _load_resource_data() -> void:
 	# Validate cinematics after loading (deferred to ensure UI is ready)
 	call_deferred("_update_cinematic_warnings")
 	call_deferred("_update_quick_dialog_status")
+	call_deferred("_update_preview")
 
 
 ## Override: Save UI data to resource
@@ -301,21 +406,38 @@ func _add_basic_info_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
-	# NPC ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "NPC ID:"
-	id_label.custom_minimum_size.x = 140
-	id_container.add_child(id_label)
+	# Template selector (first thing users see!)
+	var template_container: HBoxContainer = HBoxContainer.new()
+	var template_label: Label = Label.new()
+	template_label.text = "Start from:"
+	template_label.custom_minimum_size.x = 140
+	template_container.add_child(template_label)
 
-	npc_id_edit = LineEdit.new()
-	npc_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_id_edit.placeholder_text = "unique_npc_id"
-	npc_id_edit.text_changed.connect(_on_field_changed)
-	id_container.add_child(npc_id_edit)
-	section.add_child(id_container)
+	template_option = OptionButton.new()
+	template_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Populate template options
+	var idx: int = 0
+	for key: String in NPC_TEMPLATES.keys():
+		var template: Dictionary = NPC_TEMPLATES[key]
+		template_option.add_item(template.get("label", key), idx)
+		template_option.set_item_metadata(idx, key)
+		idx += 1
+	template_option.item_selected.connect(_on_template_selected)
+	template_container.add_child(template_option)
+	section.add_child(template_container)
 
-	# NPC Name
+	var template_hint: Label = Label.new()
+	template_hint.text = "Choose a template to pre-fill common NPC types"
+	template_hint.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
+	template_hint.add_theme_font_size_override("font_size", 11)
+	section.add_child(template_hint)
+
+	# Spacer
+	var spacer: Control = Control.new()
+	spacer.custom_minimum_size.y = 8
+	section.add_child(spacer)
+
+	# NPC Name (FIRST - so ID can auto-generate from it)
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Display Name:"
@@ -324,10 +446,38 @@ func _add_basic_info_section() -> void:
 
 	npc_name_edit = LineEdit.new()
 	npc_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_name_edit.placeholder_text = "NPC Display Name"
-	npc_name_edit.text_changed.connect(_on_field_changed)
+	npc_name_edit.placeholder_text = "Guard, Shopkeeper, Elder..."
+	npc_name_edit.text_changed.connect(_on_name_changed)
 	name_container.add_child(npc_name_edit)
 	section.add_child(name_container)
+
+	# NPC ID (auto-generated from name unless locked)
+	var id_container: HBoxContainer = HBoxContainer.new()
+	var id_label: Label = Label.new()
+	id_label.text = "NPC ID:"
+	id_label.custom_minimum_size.x = 140
+	id_container.add_child(id_label)
+
+	npc_id_edit = LineEdit.new()
+	npc_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	npc_id_edit.placeholder_text = "(auto-generated from name)"
+	npc_id_edit.text_changed.connect(_on_id_manually_changed)
+	id_container.add_child(npc_id_edit)
+
+	npc_id_lock_btn = Button.new()
+	npc_id_lock_btn.text = "🔓"
+	npc_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	npc_id_lock_btn.custom_minimum_size.x = 30
+	npc_id_lock_btn.pressed.connect(_on_id_lock_toggled)
+	id_container.add_child(npc_id_lock_btn)
+
+	section.add_child(id_container)
+
+	var id_hint: Label = Label.new()
+	id_hint.text = "ID auto-generates from name. Click 🔒 to set custom ID."
+	id_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	id_hint.add_theme_font_size_override("font_size", 11)
+	section.add_child(id_hint)
 
 	# Character Data - use ResourcePicker
 	character_picker = ResourcePicker.new()
@@ -348,18 +498,18 @@ func _add_basic_info_section() -> void:
 	detail_panel.add_child(section)
 
 
-func _add_appearance_fallback_section() -> void:
+func _add_appearance_fallback_section_to(parent: Control) -> void:
 	appearance_section = VBoxContainer.new()
 
 	var section_label: Label = Label.new()
 	section_label.text = "Appearance (Fallback)"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", 14)
 	appearance_section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Used when no Character Data is assigned"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 12)
+	help_label.add_theme_font_size_override("font_size", 11)
 	appearance_section.add_child(help_label)
 
 	# Portrait path
@@ -404,27 +554,17 @@ func _add_appearance_fallback_section() -> void:
 
 	appearance_section.add_child(sprite_container)
 
-	detail_panel.add_child(appearance_section)
+	parent.add_child(appearance_section)
 
 
 func _add_quick_dialog_section() -> void:
 	quick_dialog_section = VBoxContainer.new()
 
-	var header_container: HBoxContainer = HBoxContainer.new()
-
+	# Prominent header with visual emphasis
 	var section_label: Label = Label.new()
-	section_label.text = "⚡ Quick Dialog"
+	section_label.text = "⚡ What does this NPC say?"
 	section_label.add_theme_font_size_override("font_size", 16)
-	section_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_container.add_child(section_label)
-
-	var collapse_hint: Label = Label.new()
-	collapse_hint.text = "(for simple NPCs)"
-	collapse_hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	collapse_hint.add_theme_font_size_override("font_size", 12)
-	header_container.add_child(collapse_hint)
-
-	quick_dialog_section.add_child(header_container)
+	quick_dialog_section.add_child(section_label)
 
 	# Status label - shows current state (created, in use, etc.)
 	quick_dialog_status = Label.new()
@@ -432,56 +572,343 @@ func _add_quick_dialog_section() -> void:
 	quick_dialog_status.visible = false
 	quick_dialog_section.add_child(quick_dialog_status)
 
-	var help_label: Label = Label.new()
-	help_label.text = "Type what this NPC says, then click the button to auto-create a cinematic."
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 12)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	quick_dialog_section.add_child(help_label)
-
-	# Multi-line text input for dialog
+	# Multi-line text input for dialog - THE MAIN FOCUS
 	quick_dialog_text = TextEdit.new()
 	quick_dialog_text.placeholder_text = "Welcome to our village!\nFeel free to look around."
-	quick_dialog_text.custom_minimum_size.y = 80
+	quick_dialog_text.custom_minimum_size.y = 100
 	quick_dialog_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quick_dialog_text.scroll_fit_content_height = true
+	quick_dialog_text.text_changed.connect(_on_quick_dialog_changed)
 	quick_dialog_section.add_child(quick_dialog_text)
 
-	# Button to create cinematic
+	# Button to create cinematic - prominent action
 	create_dialog_btn = Button.new()
-	create_dialog_btn.text = "Create Dialog Cinematic"
+	create_dialog_btn.text = "✓ Create Dialog"
 	create_dialog_btn.tooltip_text = "Generate a cinematic from this dialog and link it to this NPC"
 	create_dialog_btn.pressed.connect(_on_create_dialog_cinematic)
 	quick_dialog_section.add_child(create_dialog_btn)
 
-	# Separator before advanced section
-	var separator: HSeparator = HSeparator.new()
-	separator.add_theme_constant_override("separation", 16)
-	quick_dialog_section.add_child(separator)
-
-	var advanced_label: Label = Label.new()
-	advanced_label.text = "─── OR configure Advanced Cinematics below ───"
-	advanced_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	advanced_label.add_theme_font_size_override("font_size", 11)
-	advanced_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	quick_dialog_section.add_child(advanced_label)
-
-	var advanced_note: Label = Label.new()
-	advanced_note.text = "(Advanced settings override Quick Dialog if both are set)"
-	advanced_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	advanced_note.add_theme_font_size_override("font_size", 10)
-	advanced_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	quick_dialog_section.add_child(advanced_note)
+	var hint: Label = Label.new()
+	hint.text = "For most NPCs, just type their dialog above and click Create!"
+	hint.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
+	hint.add_theme_font_size_override("font_size", 11)
+	quick_dialog_section.add_child(hint)
 
 	detail_panel.add_child(quick_dialog_section)
 
 
-func _add_interaction_section() -> void:
+func _add_place_on_map_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
 	var section_label: Label = Label.new()
-	section_label.text = "Interaction"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.text = "Place on Map"
+	section_label.add_theme_font_size_override("font_size", 14)
+	section.add_child(section_label)
+
+	# Position controls row
+	var pos_container: HBoxContainer = HBoxContainer.new()
+
+	var pos_label: Label = Label.new()
+	pos_label.text = "Grid Position:"
+	pos_label.custom_minimum_size.x = 100
+	pos_container.add_child(pos_label)
+
+	var x_label: Label = Label.new()
+	x_label.text = "X:"
+	pos_container.add_child(x_label)
+
+	place_position_x = SpinBox.new()
+	place_position_x.min_value = -100
+	place_position_x.max_value = 100
+	place_position_x.value = 5
+	place_position_x.custom_minimum_size.x = 70
+	pos_container.add_child(place_position_x)
+
+	var y_label: Label = Label.new()
+	y_label.text = "Y:"
+	pos_container.add_child(y_label)
+
+	place_position_y = SpinBox.new()
+	place_position_y.min_value = -100
+	place_position_y.max_value = 100
+	place_position_y.value = 5
+	place_position_y.custom_minimum_size.x = 70
+	pos_container.add_child(place_position_y)
+
+	section.add_child(pos_container)
+
+	# Place button
+	place_on_map_btn = Button.new()
+	place_on_map_btn.text = "📍 Place on Map..."
+	place_on_map_btn.tooltip_text = "Add this NPC to a map in the current mod"
+	place_on_map_btn.pressed.connect(_on_place_on_map_pressed)
+	section.add_child(place_on_map_btn)
+
+	var hint: Label = Label.new()
+	hint.text = "Save the NPC first, then click to add it to a map"
+	hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	hint.add_theme_font_size_override("font_size", 11)
+	section.add_child(hint)
+
+	detail_panel.add_child(section)
+
+	# Create the popup for map selection (will be shown when button pressed)
+	_create_map_selection_popup()
+
+
+func _create_map_selection_popup() -> void:
+	map_selection_popup = PopupPanel.new()
+	map_selection_popup.title = "Select Map"
+
+	var popup_content: VBoxContainer = VBoxContainer.new()
+	popup_content.custom_minimum_size = Vector2(400, 300)
+
+	var popup_label: Label = Label.new()
+	popup_label.text = "Select a map to place the NPC on:"
+	popup_content.add_child(popup_label)
+
+	map_list = ItemList.new()
+	map_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_list.custom_minimum_size.y = 200
+	map_list.item_activated.connect(_on_map_double_clicked)
+	popup_content.add_child(map_list)
+
+	var btn_container: HBoxContainer = HBoxContainer.new()
+	btn_container.alignment = BoxContainer.ALIGNMENT_END
+
+	var cancel_btn: Button = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.pressed.connect(func(): map_selection_popup.hide())
+	btn_container.add_child(cancel_btn)
+
+	place_confirm_btn = Button.new()
+	place_confirm_btn.text = "Place NPC"
+	place_confirm_btn.pressed.connect(_on_place_confirmed)
+	btn_container.add_child(place_confirm_btn)
+
+	popup_content.add_child(btn_container)
+	map_selection_popup.add_child(popup_content)
+
+	# Add popup to the tree
+	add_child(map_selection_popup)
+
+
+func _create_preview_panel() -> void:
+	preview_panel = PanelContainer.new()
+	preview_panel.custom_minimum_size = Vector2(200, 0)
+	preview_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.15, 0.15, 0.18)
+	panel_style.corner_radius_top_left = 4
+	panel_style.corner_radius_top_right = 4
+	panel_style.corner_radius_bottom_left = 4
+	panel_style.corner_radius_bottom_right = 4
+	panel_style.content_margin_left = 10
+	panel_style.content_margin_right = 10
+	panel_style.content_margin_top = 10
+	panel_style.content_margin_bottom = 10
+	preview_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var content: VBoxContainer = VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+
+	# Title
+	var title: Label = Label.new()
+	title.text = "Preview"
+	title.add_theme_font_size_override("font_size", 16)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(title)
+
+	# Portrait preview
+	var portrait_section: VBoxContainer = VBoxContainer.new()
+	var portrait_label: Label = Label.new()
+	portrait_label.text = "Portrait"
+	portrait_label.add_theme_font_size_override("font_size", 12)
+	portrait_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	portrait_section.add_child(portrait_label)
+
+	var portrait_container: CenterContainer = CenterContainer.new()
+	portrait_container.custom_minimum_size = Vector2(0, 80)
+	preview_portrait = TextureRect.new()
+	preview_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview_portrait.custom_minimum_size = Vector2(64, 64)
+	preview_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait_container.add_child(preview_portrait)
+	portrait_section.add_child(portrait_container)
+	content.add_child(portrait_section)
+
+	# Sprite preview
+	var sprite_section: VBoxContainer = VBoxContainer.new()
+	var sprite_label: Label = Label.new()
+	sprite_label.text = "Map Sprite"
+	sprite_label.add_theme_font_size_override("font_size", 12)
+	sprite_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	sprite_section.add_child(sprite_label)
+
+	var sprite_container: CenterContainer = CenterContainer.new()
+	sprite_container.custom_minimum_size = Vector2(0, 48)
+	preview_sprite = TextureRect.new()
+	preview_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview_sprite.custom_minimum_size = Vector2(32, 32)
+	preview_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # Pixel-perfect
+	sprite_container.add_child(preview_sprite)
+	sprite_section.add_child(sprite_container)
+	content.add_child(sprite_section)
+
+	# NPC Name preview
+	var name_section: VBoxContainer = VBoxContainer.new()
+	var name_label_title: Label = Label.new()
+	name_label_title.text = "Display Name"
+	name_label_title.add_theme_font_size_override("font_size", 12)
+	name_label_title.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	name_section.add_child(name_label_title)
+
+	preview_name_label = Label.new()
+	preview_name_label.text = "(not set)"
+	preview_name_label.add_theme_font_size_override("font_size", 14)
+	preview_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_section.add_child(preview_name_label)
+	content.add_child(name_section)
+
+	# Dialog preview
+	var dialog_section: VBoxContainer = VBoxContainer.new()
+	var dialog_label_title: Label = Label.new()
+	dialog_label_title.text = "Dialog Preview"
+	dialog_label_title.add_theme_font_size_override("font_size", 12)
+	dialog_label_title.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	dialog_section.add_child(dialog_label_title)
+
+	var dialog_box: PanelContainer = PanelContainer.new()
+	var dialog_style: StyleBoxFlat = StyleBoxFlat.new()
+	dialog_style.bg_color = Color(0.1, 0.1, 0.12)
+	dialog_style.corner_radius_top_left = 4
+	dialog_style.corner_radius_top_right = 4
+	dialog_style.corner_radius_bottom_left = 4
+	dialog_style.corner_radius_bottom_right = 4
+	dialog_style.content_margin_left = 8
+	dialog_style.content_margin_right = 8
+	dialog_style.content_margin_top = 8
+	dialog_style.content_margin_bottom = 8
+	dialog_box.add_theme_stylebox_override("panel", dialog_style)
+
+	preview_dialog_label = Label.new()
+	preview_dialog_label.text = "(enter dialog text)"
+	preview_dialog_label.add_theme_font_size_override("font_size", 11)
+	preview_dialog_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	preview_dialog_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_dialog_label.custom_minimum_size.y = 60
+	dialog_box.add_child(preview_dialog_label)
+	dialog_section.add_child(dialog_box)
+	content.add_child(dialog_section)
+
+	preview_panel.add_child(content)
+
+
+## Update the preview panel with current NPC data
+func _update_preview() -> void:
+	if not preview_panel:
+		return
+
+	# Update name
+	if preview_name_label:
+		var name_text: String = npc_name_edit.text.strip_edges() if npc_name_edit else ""
+		if name_text.is_empty():
+			preview_name_label.text = "(not set)"
+			preview_name_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		else:
+			preview_name_label.text = name_text
+			preview_name_label.add_theme_color_override("font_color", Color(1, 1, 1))
+
+	# Update dialog preview
+	if preview_dialog_label and quick_dialog_text:
+		var dialog_text: String = quick_dialog_text.text.strip_edges()
+		if dialog_text.is_empty():
+			preview_dialog_label.text = "(enter dialog text)"
+			preview_dialog_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		else:
+			# Show first line or truncated preview
+			var lines: PackedStringArray = dialog_text.split("\n")
+			var preview_text: String = lines[0]
+			if lines.size() > 1:
+				preview_text += "\n..."
+			preview_dialog_label.text = preview_text
+			preview_dialog_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+
+	# Update portrait
+	if preview_portrait:
+		var portrait_tex: Texture2D = null
+		# Try character data first
+		if character_picker and character_picker.has_selection():
+			var char_data: CharacterData = character_picker.get_selected_resource() as CharacterData
+			if char_data and char_data.portrait:
+				portrait_tex = char_data.portrait
+		# Fall back to direct portrait path
+		if not portrait_tex and portrait_path_edit:
+			var path: String = portrait_path_edit.text.strip_edges()
+			if not path.is_empty() and ResourceLoader.exists(path):
+				portrait_tex = load(path) as Texture2D
+		preview_portrait.texture = portrait_tex
+
+	# Update sprite
+	if preview_sprite:
+		var sprite_tex: Texture2D = null
+		# Try character data first
+		if character_picker and character_picker.has_selection():
+			var char_data: CharacterData = character_picker.get_selected_resource() as CharacterData
+			if char_data and char_data.map_sprite:
+				sprite_tex = char_data.map_sprite
+		# Fall back to direct sprite path
+		if not sprite_tex and map_sprite_path_edit:
+			var path: String = map_sprite_path_edit.text.strip_edges()
+			if not path.is_empty() and ResourceLoader.exists(path):
+				sprite_tex = load(path) as Texture2D
+		preview_sprite.texture = sprite_tex
+
+
+## Add collapsible advanced options section
+func _add_advanced_options_section() -> void:
+	advanced_section = VBoxContainer.new()
+
+	# Toggle button for expanding/collapsing
+	advanced_toggle_btn = Button.new()
+	advanced_toggle_btn.text = "▶ Advanced Options"
+	advanced_toggle_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	advanced_toggle_btn.flat = true
+	advanced_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
+	advanced_section.add_child(advanced_toggle_btn)
+
+	# Container for advanced content (hidden by default)
+	advanced_content = VBoxContainer.new()
+	advanced_content.visible = false
+	advanced_section.add_child(advanced_content)
+
+	# Add all the advanced sub-sections to the content container
+	_add_appearance_fallback_section_to(advanced_content)
+	_add_interaction_section_to(advanced_content)
+	_add_conditional_cinematics_section_to(advanced_content)
+	_add_behavior_section_to(advanced_content)
+
+	detail_panel.add_child(advanced_section)
+
+
+## Toggle advanced options visibility
+func _on_advanced_toggle() -> void:
+	advanced_content.visible = not advanced_content.visible
+	if advanced_content.visible:
+		advanced_toggle_btn.text = "▼ Advanced Options"
+	else:
+		advanced_toggle_btn.text = "▶ Advanced Options"
+
+
+func _add_interaction_section_to(parent: Control) -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Manual Cinematic Assignment"
+	section_label.add_theme_font_size_override("font_size", 14)
 	section.add_child(section_label)
 
 	# Primary interaction cinematic
@@ -538,10 +965,10 @@ func _add_interaction_section() -> void:
 	fallback_help.add_theme_font_size_override("font_size", 12)
 	section.add_child(fallback_help)
 
-	detail_panel.add_child(section)
+	parent.add_child(section)
 
 
-func _add_conditional_cinematics_section() -> void:
+func _add_conditional_cinematics_section_to(parent: Control) -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
 	var header_container: HBoxContainer = HBoxContainer.new()
@@ -570,15 +997,15 @@ func _add_conditional_cinematics_section() -> void:
 	conditionals_container.add_theme_constant_override("separation", 4)
 	section.add_child(conditionals_container)
 
-	detail_panel.add_child(section)
+	parent.add_child(section)
 
 
-func _add_behavior_section() -> void:
+func _add_behavior_section_to(parent: Control) -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
 	var section_label: Label = Label.new()
 	section_label.text = "Behavior"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", 14)
 	section.add_child(section_label)
 
 	# Face player on interact
@@ -619,7 +1046,7 @@ func _add_behavior_section() -> void:
 	facing_help.add_theme_font_size_override("font_size", 12)
 	section.add_child(facing_help)
 
-	detail_panel.add_child(section)
+	parent.add_child(section)
 
 
 # =============================================================================
@@ -772,6 +1199,13 @@ func _on_character_selected(_metadata: Dictionary) -> void:
 		return
 	_update_appearance_section_visibility()
 	_mark_dirty()
+	_update_preview()
+
+
+func _on_quick_dialog_changed() -> void:
+	if _updating_ui:
+		return
+	_update_preview()
 
 
 func _update_appearance_section_visibility() -> void:
@@ -784,6 +1218,85 @@ func _on_field_changed(_text: String) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()
+	# Update preview for portrait/sprite path changes
+	_update_preview()
+
+
+## Handle name changes - auto-generate ID if not locked
+func _on_name_changed(new_name: String) -> void:
+	if _updating_ui:
+		return
+
+	# Auto-generate ID from name if not locked
+	if not _id_is_locked:
+		var generated_id: String = _generate_id_from_name(new_name)
+		npc_id_edit.text = generated_id
+
+	_mark_dirty()
+	_update_preview()
+
+
+## Handle manual ID edits - lock the ID if user types directly
+func _on_id_manually_changed(_text: String) -> void:
+	if _updating_ui:
+		return
+
+	# If user is typing in the ID field, lock it
+	if not _id_is_locked and npc_id_edit.has_focus():
+		_id_is_locked = true
+		_update_lock_button()
+
+	_mark_dirty()
+
+
+## Toggle ID lock state
+func _on_id_lock_toggled() -> void:
+	_id_is_locked = not _id_is_locked
+	_update_lock_button()
+
+	# If unlocking, regenerate ID from current name
+	if not _id_is_locked:
+		var generated_id: String = _generate_id_from_name(npc_name_edit.text)
+		npc_id_edit.text = generated_id
+
+
+## Update lock button appearance
+func _update_lock_button() -> void:
+	if _id_is_locked:
+		npc_id_lock_btn.text = "🔒"
+		npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate."
+	else:
+		npc_id_lock_btn.text = "🔓"
+		npc_id_lock_btn.tooltip_text = "ID auto-generates from name. Click to lock."
+
+
+## Generate a valid ID from a display name
+func _generate_id_from_name(display_name: String) -> String:
+	var name_text: String = display_name.strip_edges()
+	if name_text.is_empty():
+		return ""
+
+	# Convert to snake_case: "Town Guard" -> "town_guard"
+	var id: String = name_text.to_lower()
+	id = id.replace(" ", "_")
+	id = id.replace("-", "_")
+
+	# Remove non-alphanumeric characters except underscore and digits
+	var valid_id: String = ""
+	for c: String in id:
+		# is_valid_identifier checks letters, but not digits
+		# Digits (0-9) have unicode values 48-57
+		var code: int = c.unicode_at(0)
+		var is_digit: bool = code >= 48 and code <= 57
+		if c.is_valid_identifier() or c == "_" or is_digit:
+			valid_id += c
+
+	# Remove consecutive underscores and trim
+	while "__" in valid_id:
+		valid_id = valid_id.replace("__", "_")
+	valid_id = valid_id.strip_edges()
+
+	return valid_id
 
 
 func _on_check_changed(_pressed: bool) -> void:
@@ -796,6 +1309,61 @@ func _on_option_changed(_index: int) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()
+
+
+## Apply a template to the current NPC
+func _on_template_selected(index: int) -> void:
+	if _updating_ui:
+		return
+
+	var template_key: String = template_option.get_item_metadata(index)
+	if template_key.is_empty() or template_key == "custom":
+		return  # Don't apply "Custom NPC" template
+
+	var template: Dictionary = NPC_TEMPLATES.get(template_key, {})
+	if template.is_empty():
+		return
+
+	# Apply template values
+	_updating_ui = true
+
+	# Set name (triggers auto-ID generation)
+	var template_name: String = template.get("name", "")
+	if not template_name.is_empty():
+		npc_name_edit.text = template_name
+		# Auto-generate ID from name if not locked
+		if not _id_is_locked:
+			npc_id_edit.text = _generate_id_from_name(template_name)
+
+	# Set quick dialog
+	var template_dialog: String = template.get("dialog", "")
+	if not template_dialog.is_empty() and quick_dialog_text:
+		quick_dialog_text.text = template_dialog
+
+	# Set behavior options
+	if template.has("face_player") and face_player_check:
+		face_player_check.button_pressed = template.get("face_player", true)
+
+	# Set facing override if specified
+	if template.has("facing") and facing_override_option:
+		var facing: String = template.get("facing", "")
+		var facing_index: int = 0
+		match facing:
+			"up":
+				facing_index = 1
+			"down":
+				facing_index = 2
+			"left":
+				facing_index = 3
+			"right":
+				facing_index = 4
+		facing_override_option.select(facing_index)
+
+	_updating_ui = false
+	_mark_dirty()
+
+	# Show feedback
+	_show_quick_dialog_status("Applied '%s' template - customize as needed!" % template.get("label", template_key), Color(0.5, 0.8, 1.0))
 
 
 func _mark_dirty() -> void:
@@ -1134,3 +1702,255 @@ func _update_quick_dialog_status() -> void:
 		_show_quick_dialog_status("✓ Using Quick Dialog: '%s'" % primary_id, Color(0.4, 0.9, 0.4))
 	else:
 		_show_quick_dialog_status("ℹ Using cinematic: '%s' (edit below)" % primary_id, Color(0.6, 0.8, 1.0))
+
+
+# =============================================================================
+# Place on Map Functionality
+# =============================================================================
+
+## Open the map selection popup
+func _on_place_on_map_pressed() -> void:
+	# Check that NPC has been saved first
+	if not current_resource or not current_resource.resource_path or current_resource.resource_path.is_empty():
+		_show_error("Please save the NPC first before placing on a map.")
+		return
+
+	# Populate available maps and show the selection popup
+	_populate_map_list()
+	map_selection_popup.popup_centered()
+
+
+## Populate the map list with available maps in the active mod
+func _populate_map_list() -> void:
+	if not map_list:
+		return
+
+	map_list.clear()
+
+	var mod_path: String = _get_active_mod_base_path()
+	var maps_path: String = mod_path + "maps/"
+
+	# Check if maps directory exists
+	if not DirAccess.dir_exists_absolute(maps_path):
+		map_list.add_item("(No maps folder found)")
+		return
+
+	# Scan for .tscn files
+	var dir: DirAccess = DirAccess.open(maps_path)
+	if not dir:
+		map_list.add_item("(Cannot open maps folder)")
+		return
+
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	var found_maps: int = 0
+
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".tscn"):
+			var display_name: String = file_name.get_basename()
+			var full_path: String = maps_path + file_name
+			map_list.add_item(display_name)
+			map_list.set_item_metadata(found_maps, full_path)
+			found_maps += 1
+		file_name = dir.get_next()
+
+	dir.list_dir_end()
+
+	if found_maps == 0:
+		map_list.add_item("(No maps found)")
+
+
+## Handle double-click on map item
+func _on_map_double_clicked(index: int) -> void:
+	map_list.select(index)
+	_on_place_confirmed()
+
+
+## Place the NPC on the selected map
+func _on_place_confirmed() -> void:
+	if not map_list:
+		return
+
+	var selected_items: PackedInt32Array = map_list.get_selected_items()
+	if selected_items.is_empty():
+		_show_error("Please select a map first.")
+		return
+
+	var selected_index: int = selected_items[0]
+	var map_path: String = map_list.get_item_metadata(selected_index)
+
+	if map_path.is_empty() or not FileAccess.file_exists(map_path):
+		_show_error("Invalid map selection.")
+		return
+
+	# Get NPC resource path
+	var npc_path: String = current_resource.resource_path
+
+	# Get position from spinboxes (convert grid coords to pixels)
+	var grid_x: int = int(place_position_x.value)
+	var grid_y: int = int(place_position_y.value)
+	var pixel_pos: Vector2 = Vector2(grid_x * 32, grid_y * 32)  # 32 is default tile size
+
+	# Generate a unique node name
+	var npc_id: String = npc_id_edit.text.strip_edges()
+	var node_name: String = npc_id.to_pascal_case() if not npc_id.is_empty() else "NPC"
+
+	# Check if scene is currently open (for user feedback)
+	var edited_root: Node = EditorInterface.get_edited_scene_root()
+	var scene_is_open: bool = edited_root != null and edited_root.scene_file_path == map_path
+
+	# Perform the scene modification
+	var success: bool = _add_npc_to_scene(map_path, npc_path, node_name, pixel_pos)
+
+	if success:
+		map_selection_popup.hide()
+		if scene_is_open:
+			_show_quick_dialog_status("✓ NPC added to scene - save to keep changes!", Color(0.4, 0.9, 0.4))
+		else:
+			_show_quick_dialog_status("✓ NPC placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y], Color(0.4, 0.9, 0.4))
+		print("NPC Editor: Placed %s on %s at position %s" % [node_name, map_path, pixel_pos])
+	else:
+		_show_error("Failed to place NPC on map. Check the output for details.")
+
+
+## Add an NPC node to a scene file using EditorInterface API
+## This approach works even when the scene is open in the editor
+func _add_npc_to_scene(scene_path: String, npc_resource_path: String, node_name: String, position: Vector2) -> bool:
+	if not Engine.is_editor_hint():
+		push_error("NPC Editor: _add_npc_to_scene can only be called in the editor")
+		return false
+
+	# Check if this scene is currently being edited
+	var edited_root: Node = EditorInterface.get_edited_scene_root()
+	var scene_is_open: bool = edited_root != null and edited_root.scene_file_path == scene_path
+
+	if scene_is_open:
+		# Scene is open - modify the live scene directly
+		return _add_npc_to_open_scene(edited_root, npc_resource_path, node_name, position)
+	else:
+		# Scene is not open - use PackedScene approach
+		return _add_npc_to_closed_scene(scene_path, npc_resource_path, node_name, position)
+
+
+## Add NPC to a scene that's currently open in the editor
+func _add_npc_to_open_scene(scene_root: Node, npc_resource_path: String, node_name: String, position: Vector2) -> bool:
+	# Find or create NPCs container
+	var npcs_container: Node2D = scene_root.get_node_or_null("NPCs") as Node2D
+	if not npcs_container:
+		npcs_container = Node2D.new()
+		npcs_container.name = "NPCs"
+		scene_root.add_child(npcs_container)
+		npcs_container.owner = scene_root
+
+	# Generate unique node name if needed
+	var final_node_name: String = _make_unique_node_name(npcs_container, node_name)
+
+	# Load the NPC script and data
+	var npc_script: GDScript = load("res://core/components/npc_node.gd") as GDScript
+	if not npc_script:
+		push_error("NPC Editor: Failed to load npc_node.gd script")
+		return false
+
+	var npc_data: Resource = load(npc_resource_path)
+	if not npc_data:
+		push_error("NPC Editor: Failed to load NPC data: %s" % npc_resource_path)
+		return false
+
+	# Create the NPC node
+	var npc_node: Area2D = Area2D.new()
+	npc_node.name = final_node_name
+	npc_node.position = position
+	npc_node.set_script(npc_script)
+	npc_node.set("npc_data", npc_data)
+
+	# Add to scene tree with proper ownership
+	npcs_container.add_child(npc_node)
+	npc_node.owner = scene_root
+
+	# Mark the scene as modified so user knows to save
+	EditorInterface.mark_scene_as_unsaved()
+
+	print("NPC Editor: Added %s to open scene (remember to save!)" % final_node_name)
+	return true
+
+
+## Add NPC to a scene that's not currently open
+func _add_npc_to_closed_scene(scene_path: String, npc_resource_path: String, node_name: String, position: Vector2) -> bool:
+	# Load the scene as a PackedScene
+	var packed_scene: PackedScene = load(scene_path) as PackedScene
+	if not packed_scene:
+		push_error("NPC Editor: Failed to load scene: %s" % scene_path)
+		return false
+
+	# Instantiate the scene to modify it
+	var scene_root: Node = packed_scene.instantiate()
+	if not scene_root:
+		push_error("NPC Editor: Failed to instantiate scene")
+		return false
+
+	# Find or create NPCs container
+	var npcs_container: Node2D = scene_root.get_node_or_null("NPCs") as Node2D
+	if not npcs_container:
+		npcs_container = Node2D.new()
+		npcs_container.name = "NPCs"
+		scene_root.add_child(npcs_container)
+		npcs_container.owner = scene_root
+
+	# Generate unique node name if needed
+	var final_node_name: String = _make_unique_node_name(npcs_container, node_name)
+
+	# Load the NPC script and data
+	var npc_script: GDScript = load("res://core/components/npc_node.gd") as GDScript
+	if not npc_script:
+		push_error("NPC Editor: Failed to load npc_node.gd script")
+		scene_root.queue_free()
+		return false
+
+	var npc_data: Resource = load(npc_resource_path)
+	if not npc_data:
+		push_error("NPC Editor: Failed to load NPC data: %s" % npc_resource_path)
+		scene_root.queue_free()
+		return false
+
+	# Create the NPC node
+	var npc_node: Area2D = Area2D.new()
+	npc_node.name = final_node_name
+	npc_node.position = position
+	npc_node.set_script(npc_script)
+	npc_node.set("npc_data", npc_data)
+
+	# Add to scene tree with proper ownership
+	npcs_container.add_child(npc_node)
+	npc_node.owner = scene_root
+
+	# Pack the modified scene back
+	var new_packed: PackedScene = PackedScene.new()
+	var pack_result: Error = new_packed.pack(scene_root)
+	if pack_result != OK:
+		push_error("NPC Editor: Failed to pack scene: %s" % error_string(pack_result))
+		scene_root.queue_free()
+		return false
+
+	# Save the modified scene
+	var save_result: Error = ResourceSaver.save(new_packed, scene_path)
+	scene_root.queue_free()
+
+	if save_result != OK:
+		push_error("NPC Editor: Failed to save scene: %s" % error_string(save_result))
+		return false
+
+	# Notify the editor to refresh
+	EditorInterface.get_resource_filesystem().scan()
+
+	return true
+
+
+## Generate a unique node name by appending numbers if needed
+func _make_unique_node_name(parent: Node, base_name: String) -> String:
+	if not parent.has_node(base_name):
+		return base_name
+
+	var counter: int = 2
+	while parent.has_node("%s%d" % [base_name, counter]):
+		counter += 1
+	return "%s%d" % [base_name, counter]

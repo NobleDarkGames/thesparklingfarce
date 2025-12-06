@@ -360,6 +360,7 @@ func _on_animation_completed() -> void:
 func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 	if current_state == State.WAITING_FOR_DIALOG:
 		current_state = State.PLAYING
+		_is_waiting = false  # Clear the waiting flag set by DialogExecutor
 		_command_completed = true
 
 
