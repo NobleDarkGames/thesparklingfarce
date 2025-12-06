@@ -25,12 +25,6 @@ var loaded_maps: Dictionary = {}  # map_id -> path for connection dropdowns
 var error_panel: PanelContainer
 var error_label: RichTextLabel
 
-# Basic Properties section
-var map_id_edit: LineEdit
-var display_name_edit: LineEdit
-var map_type_dropdown: OptionButton
-var apply_defaults_button: Button
-
 # Scene Reference section
 var scene_path_edit: LineEdit
 var scene_picker_button: Button
@@ -51,30 +45,6 @@ var random_encounters_check: CheckBox
 var encounter_rate_spin: SpinBox
 var save_anywhere_check: CheckBox
 
-# Spawn Points section
-var spawn_points_list: ItemList
-var spawn_id_edit: LineEdit
-var spawn_grid_x_spin: SpinBox
-var spawn_grid_y_spin: SpinBox
-var spawn_facing_dropdown: OptionButton
-var spawn_is_default_check: CheckBox
-var spawn_is_caravan_check: CheckBox
-var add_spawn_button: Button
-var remove_spawn_button: Button
-var update_spawn_button: Button
-
-# Connections section
-var connections_list: ItemList
-var connection_trigger_id_edit: LineEdit
-var connection_target_map_dropdown: OptionButton
-var connection_target_spawn_edit: LineEdit
-var connection_transition_dropdown: OptionButton
-var connection_requires_key_edit: LineEdit
-var connection_one_way_check: CheckBox
-var add_connection_button: Button
-var remove_connection_button: Button
-var update_connection_button: Button
-
 # Edge Connections section
 var edge_north_map_dropdown: OptionButton
 var edge_north_spawn_edit: LineEdit
@@ -85,10 +55,21 @@ var edge_east_spawn_edit: LineEdit
 var edge_west_map_dropdown: OptionButton
 var edge_west_spawn_edit: LineEdit
 
+# New Map Dialog components
+var new_map_dialog: Window
+var new_map_name_edit: LineEdit
+var new_map_id_edit: LineEdit
+var new_map_type_dropdown: OptionButton
+var new_map_tileset_dropdown: OptionButton
+var new_map_create_button: Button
+var new_map_cancel_button: Button
+var new_map_error_label: Label
+
 # Map type enum values (matching MapMetadata.MapType)
 const MAP_TYPES: Array[String] = ["TOWN", "OVERWORLD", "DUNGEON", "BATTLE", "INTERIOR"]
-const FACING_DIRECTIONS: Array[String] = ["down", "up", "left", "right"]
-const TRANSITION_TYPES: Array[String] = ["fade", "instant", "scroll"]
+
+# Available tilesets for new maps
+var available_tilesets: Array[String] = []
 
 
 func _init() -> void:
@@ -165,15 +146,12 @@ func _setup_ui() -> void:
 	detail_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(detail_label)
 
-	# Create all form sections
-	_create_basic_properties_section()
+	# Create all form sections (scene-as-truth: only runtime config in JSON)
 	_create_scene_reference_section()
 	_create_caravan_settings_section()
 	_create_camera_settings_section()
 	_create_audio_settings_section()
 	_create_encounter_settings_section()
-	_create_spawn_points_section()
-	_create_connections_section()
 	_create_edge_connections_section()
 
 	# Error panel (hidden by default)
@@ -198,6 +176,12 @@ func _setup_ui() -> void:
 	detail_scroll.add_child(detail_panel)
 	hsplit.add_child(detail_scroll)
 
+	# Create the new map dialog
+	_create_new_map_dialog()
+
+	# Scan for available tilesets
+	_scan_tilesets()
+
 	# Initial refresh
 	_refresh_map_list()
 
@@ -205,45 +189,6 @@ func _setup_ui() -> void:
 # =============================================================================
 # Section Builders
 # =============================================================================
-
-func _create_basic_properties_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Properties"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Map ID
-	map_id_edit = _create_line_edit_field("Map ID:", section, "Unique identifier (e.g., mod_id:map_name)")
-
-	# Display Name
-	display_name_edit = _create_line_edit_field("Display Name:", section, "Human-readable name for UI")
-
-	# Map Type
-	var type_container: HBoxContainer = HBoxContainer.new()
-	var type_label: Label = Label.new()
-	type_label.text = "Map Type:"
-	type_label.custom_minimum_size.x = 150
-	type_container.add_child(type_label)
-
-	map_type_dropdown = OptionButton.new()
-	map_type_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for map_type in MAP_TYPES:
-		map_type_dropdown.add_item(map_type)
-	type_container.add_child(map_type_dropdown)
-
-	apply_defaults_button = Button.new()
-	apply_defaults_button.text = "Apply Type Defaults"
-	apply_defaults_button.tooltip_text = "Auto-fill settings based on map type"
-	apply_defaults_button.pressed.connect(_on_apply_type_defaults)
-	type_container.add_child(apply_defaults_button)
-
-	section.add_child(type_container)
-
-	detail_panel.add_child(section)
-	_add_separator()
-
 
 func _create_scene_reference_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
@@ -397,195 +342,6 @@ func _create_encounter_settings_section() -> void:
 	_add_separator()
 
 
-func _create_spawn_points_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Spawn Points"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Define where players and Caravan can spawn on this map"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 16)
-	section.add_child(help_text)
-
-	spawn_points_list = ItemList.new()
-	spawn_points_list.custom_minimum_size = Vector2(0, 100)
-	spawn_points_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spawn_points_list.item_selected.connect(_on_spawn_point_selected)
-	section.add_child(spawn_points_list)
-
-	# Spawn point editing fields
-	var edit_container: VBoxContainer = VBoxContainer.new()
-
-	spawn_id_edit = _create_line_edit_field("Spawn ID:", edit_container, "e.g., default, from_town, from_battle")
-
-	# Grid position
-	var grid_container: HBoxContainer = HBoxContainer.new()
-	var grid_label: Label = Label.new()
-	grid_label.text = "Grid Position:"
-	grid_label.custom_minimum_size.x = 150
-	grid_container.add_child(grid_label)
-
-	var x_label: Label = Label.new()
-	x_label.text = "X:"
-	grid_container.add_child(x_label)
-
-	spawn_grid_x_spin = SpinBox.new()
-	spawn_grid_x_spin.min_value = 0
-	spawn_grid_x_spin.max_value = 999
-	spawn_grid_x_spin.custom_minimum_size.x = 70
-	grid_container.add_child(spawn_grid_x_spin)
-
-	var y_label: Label = Label.new()
-	y_label.text = "Y:"
-	grid_container.add_child(y_label)
-
-	spawn_grid_y_spin = SpinBox.new()
-	spawn_grid_y_spin.min_value = 0
-	spawn_grid_y_spin.max_value = 999
-	spawn_grid_y_spin.custom_minimum_size.x = 70
-	grid_container.add_child(spawn_grid_y_spin)
-
-	edit_container.add_child(grid_container)
-
-	# Facing direction
-	var facing_container: HBoxContainer = HBoxContainer.new()
-	var facing_label: Label = Label.new()
-	facing_label.text = "Facing:"
-	facing_label.custom_minimum_size.x = 150
-	facing_container.add_child(facing_label)
-
-	spawn_facing_dropdown = OptionButton.new()
-	for direction in FACING_DIRECTIONS:
-		spawn_facing_dropdown.add_item(direction)
-	facing_container.add_child(spawn_facing_dropdown)
-
-	edit_container.add_child(facing_container)
-
-	# Flags
-	spawn_is_default_check = CheckBox.new()
-	spawn_is_default_check.text = "Is Default (fallback spawn point)"
-	edit_container.add_child(spawn_is_default_check)
-
-	spawn_is_caravan_check = CheckBox.new()
-	spawn_is_caravan_check.text = "Is Caravan Spawn (where Caravan appears)"
-	edit_container.add_child(spawn_is_caravan_check)
-
-	section.add_child(edit_container)
-
-	# Buttons
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_spawn_button = Button.new()
-	add_spawn_button.text = "Add Spawn"
-	add_spawn_button.pressed.connect(_on_add_spawn_point)
-	button_row.add_child(add_spawn_button)
-
-	update_spawn_button = Button.new()
-	update_spawn_button.text = "Update Selected"
-	update_spawn_button.pressed.connect(_on_update_spawn_point)
-	button_row.add_child(update_spawn_button)
-
-	remove_spawn_button = Button.new()
-	remove_spawn_button.text = "Remove Selected"
-	remove_spawn_button.pressed.connect(_on_remove_spawn_point)
-	button_row.add_child(remove_spawn_button)
-
-	section.add_child(button_row)
-
-	detail_panel.add_child(section)
-	_add_separator()
-
-
-func _create_connections_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Connections"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Define doors and transitions to other maps"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 16)
-	section.add_child(help_text)
-
-	connections_list = ItemList.new()
-	connections_list.custom_minimum_size = Vector2(0, 100)
-	connections_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	connections_list.item_selected.connect(_on_connection_selected)
-	section.add_child(connections_list)
-
-	# Connection editing fields
-	var edit_container: VBoxContainer = VBoxContainer.new()
-
-	connection_trigger_id_edit = _create_line_edit_field("Trigger ID:", edit_container, "ID of the MapTrigger that activates this")
-
-	# Target map dropdown
-	var target_map_container: HBoxContainer = HBoxContainer.new()
-	var target_map_label: Label = Label.new()
-	target_map_label.text = "Target Map:"
-	target_map_label.custom_minimum_size.x = 150
-	target_map_container.add_child(target_map_label)
-
-	connection_target_map_dropdown = OptionButton.new()
-	connection_target_map_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	target_map_container.add_child(connection_target_map_dropdown)
-
-	edit_container.add_child(target_map_container)
-
-	connection_target_spawn_edit = _create_line_edit_field("Target Spawn ID:", edit_container, "Spawn point in destination map")
-
-	# Transition type
-	var transition_container: HBoxContainer = HBoxContainer.new()
-	var transition_label: Label = Label.new()
-	transition_label.text = "Transition Type:"
-	transition_label.custom_minimum_size.x = 150
-	transition_container.add_child(transition_label)
-
-	connection_transition_dropdown = OptionButton.new()
-	for trans_type in TRANSITION_TYPES:
-		connection_transition_dropdown.add_item(trans_type)
-	transition_container.add_child(connection_transition_dropdown)
-
-	edit_container.add_child(transition_container)
-
-	connection_requires_key_edit = _create_line_edit_field("Requires Key:", edit_container, "Item ID if door is locked (empty = unlocked)")
-
-	connection_one_way_check = CheckBox.new()
-	connection_one_way_check.text = "One-Way (cannot return through this connection)"
-	edit_container.add_child(connection_one_way_check)
-
-	section.add_child(edit_container)
-
-	# Buttons
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_connection_button = Button.new()
-	add_connection_button.text = "Add Connection"
-	add_connection_button.pressed.connect(_on_add_connection)
-	button_row.add_child(add_connection_button)
-
-	update_connection_button = Button.new()
-	update_connection_button.text = "Update Selected"
-	update_connection_button.pressed.connect(_on_update_connection)
-	button_row.add_child(update_connection_button)
-
-	remove_connection_button = Button.new()
-	remove_connection_button.text = "Remove Selected"
-	remove_connection_button.pressed.connect(_on_remove_connection)
-	button_row.add_child(remove_connection_button)
-
-	section.add_child(button_row)
-
-	detail_panel.add_child(section)
-	_add_separator()
-
-
 func _create_edge_connections_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
@@ -703,6 +459,121 @@ func _create_error_panel() -> void:
 	detail_panel.add_child(error_panel)
 
 
+func _create_new_map_dialog() -> void:
+	new_map_dialog = Window.new()
+	new_map_dialog.title = "Create New Map"
+	new_map_dialog.size = Vector2i(450, 400)
+	new_map_dialog.transient = true
+	new_map_dialog.exclusive = true
+	new_map_dialog.visible = false
+	new_map_dialog.close_requested.connect(_on_new_map_dialog_close)
+	add_child(new_map_dialog)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	new_map_dialog.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	margin.add_child(vbox)
+
+	# Title
+	var title_label: Label = Label.new()
+	title_label.text = "Create a new map with scene, script, and metadata"
+	title_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	vbox.add_child(title_label)
+
+	# Map Name
+	var name_row: HBoxContainer = HBoxContainer.new()
+	var name_label: Label = Label.new()
+	name_label.text = "Map Name:"
+	name_label.custom_minimum_size.x = 100
+	name_row.add_child(name_label)
+	new_map_name_edit = LineEdit.new()
+	new_map_name_edit.placeholder_text = "My Town"
+	new_map_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	new_map_name_edit.text_changed.connect(_on_new_map_name_changed)
+	name_row.add_child(new_map_name_edit)
+	vbox.add_child(name_row)
+
+	# Map ID (auto-generated)
+	var id_row: HBoxContainer = HBoxContainer.new()
+	var id_label: Label = Label.new()
+	id_label.text = "Map ID:"
+	id_label.custom_minimum_size.x = 100
+	id_row.add_child(id_label)
+	new_map_id_edit = LineEdit.new()
+	new_map_id_edit.placeholder_text = "mod_id:my_town"
+	new_map_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	new_map_id_edit.editable = true
+	id_row.add_child(new_map_id_edit)
+	vbox.add_child(id_row)
+
+	# Map Type
+	var type_row: HBoxContainer = HBoxContainer.new()
+	var type_label: Label = Label.new()
+	type_label.text = "Map Type:"
+	type_label.custom_minimum_size.x = 100
+	type_row.add_child(type_label)
+	new_map_type_dropdown = OptionButton.new()
+	new_map_type_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for map_type: String in MAP_TYPES:
+		new_map_type_dropdown.add_item(map_type)
+	type_row.add_child(new_map_type_dropdown)
+	vbox.add_child(type_row)
+
+	# Tileset
+	var tileset_row: HBoxContainer = HBoxContainer.new()
+	var tileset_label: Label = Label.new()
+	tileset_label.text = "Tileset:"
+	tileset_label.custom_minimum_size.x = 100
+	tileset_row.add_child(tileset_label)
+	new_map_tileset_dropdown = OptionButton.new()
+	new_map_tileset_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tileset_row.add_child(new_map_tileset_dropdown)
+	vbox.add_child(tileset_row)
+
+	# Info text
+	var info_label: Label = Label.new()
+	info_label.text = "This will create:\n• maps/<name>.gd - Map script\n• maps/<name>.tscn - Map scene\n• data/maps/<name>.json - Metadata"
+	info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	info_label.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(info_label)
+
+	# Error label (hidden by default)
+	new_map_error_label = Label.new()
+	new_map_error_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	new_map_error_label.visible = false
+	new_map_error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(new_map_error_label)
+
+	# Spacer
+	var spacer: Control = Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(spacer)
+
+	# Buttons
+	var button_row: HBoxContainer = HBoxContainer.new()
+	button_row.alignment = BoxContainer.ALIGNMENT_END
+	button_row.add_theme_constant_override("separation", 10)
+
+	new_map_cancel_button = Button.new()
+	new_map_cancel_button.text = "Cancel"
+	new_map_cancel_button.pressed.connect(_on_new_map_dialog_close)
+	button_row.add_child(new_map_cancel_button)
+
+	new_map_create_button = Button.new()
+	new_map_create_button.text = "Create Map"
+	new_map_create_button.pressed.connect(_on_confirm_create_map)
+	button_row.add_child(new_map_create_button)
+
+	vbox.add_child(button_row)
+
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -801,9 +672,8 @@ func _load_map_id_from_file(path: String) -> String:
 
 
 func _update_map_dropdowns() -> void:
-	# Clear and repopulate all map selection dropdowns
+	# Clear and repopulate edge connection map dropdowns
 	var dropdowns: Array[OptionButton] = [
-		connection_target_map_dropdown,
 		edge_north_map_dropdown,
 		edge_south_map_dropdown,
 		edge_east_map_dropdown,
@@ -847,82 +717,28 @@ func _load_map_json(path: String) -> void:
 
 
 func _populate_ui_from_data() -> void:
-	# Basic properties
-	map_id_edit.text = current_map_data.get("map_id", "")
-	display_name_edit.text = current_map_data.get("display_name", "")
-
-	var map_type_str: String = current_map_data.get("map_type", "TOWN")
-	var type_index: int = MAP_TYPES.find(map_type_str.to_upper())
-	if type_index >= 0:
-		map_type_dropdown.select(type_index)
-
-	# Scene reference
+	# Scene reference (REQUIRED - the only mandatory field in scene-as-truth)
 	scene_path_edit.text = current_map_data.get("scene_path", "")
 
-	# Caravan settings
+	# Caravan settings (runtime config)
 	caravan_accessible_check.button_pressed = current_map_data.get("caravan_accessible", false)
 	caravan_visible_check.button_pressed = current_map_data.get("caravan_visible", false)
 
-	# Camera settings
+	# Camera settings (runtime config)
 	camera_zoom_spin.value = current_map_data.get("camera_zoom", 1.0)
 
-	# Audio settings
+	# Audio settings (runtime config)
 	music_id_edit.text = current_map_data.get("music_id", "")
 	ambient_id_edit.text = current_map_data.get("ambient_id", "")
 
-	# Encounter settings
+	# Encounter settings (runtime config)
 	random_encounters_check.button_pressed = current_map_data.get("random_encounters_enabled", false)
 	encounter_rate_spin.value = current_map_data.get("base_encounter_rate", 0.0)
 	save_anywhere_check.button_pressed = current_map_data.get("save_anywhere", true)
 	_on_random_encounters_toggled(random_encounters_check.button_pressed)
 
-	# Spawn points
-	_populate_spawn_points()
-
-	# Connections
-	_populate_connections()
-
-	# Edge connections
+	# Edge connections (overworld only - cannot derive from scene)
 	_populate_edge_connections()
-
-
-func _populate_spawn_points() -> void:
-	spawn_points_list.clear()
-
-	var spawn_points: Dictionary = current_map_data.get("spawn_points", {})
-	for spawn_id in spawn_points.keys():
-		var spawn_data: Dictionary = spawn_points[spawn_id]
-		var grid_pos: Array = spawn_data.get("grid_position", [0, 0])
-		var facing: String = spawn_data.get("facing", "down")
-		var is_default: bool = spawn_data.get("is_default", false)
-		var is_caravan: bool = spawn_data.get("is_caravan_spawn", false)
-
-		var display_text: String = "%s (%d, %d) %s" % [spawn_id, grid_pos[0], grid_pos[1], facing]
-		if is_default:
-			display_text += " [default]"
-		if is_caravan:
-			display_text += " [caravan]"
-
-		spawn_points_list.add_item(display_text)
-		spawn_points_list.set_item_metadata(spawn_points_list.item_count - 1, {
-			"id": spawn_id,
-			"data": spawn_data
-		})
-
-
-func _populate_connections() -> void:
-	connections_list.clear()
-
-	var connections: Array = current_map_data.get("connections", [])
-	for connection in connections:
-		if connection is Dictionary:
-			var trigger_id: String = connection.get("trigger_id", "")
-			var target_map: String = connection.get("target_map_id", "")
-			var target_spawn: String = connection.get("target_spawn_id", "")
-
-			var display_text: String = "%s -> %s:%s" % [trigger_id, target_map, target_spawn]
-			connections_list.add_item(display_text)
-			connections_list.set_item_metadata(connections_list.item_count - 1, connection)
 
 
 func _populate_edge_connections() -> void:
@@ -955,49 +771,26 @@ func _set_edge_dropdown_value(dropdown: OptionButton, spawn_edit: LineEdit, edge
 # =============================================================================
 
 func _collect_data_from_ui() -> void:
-	# Basic properties
-	current_map_data["map_id"] = map_id_edit.text
-	current_map_data["display_name"] = display_name_edit.text
-	current_map_data["map_type"] = MAP_TYPES[map_type_dropdown.selected]
-
-	# Scene reference
+	# Scene reference (REQUIRED - the only mandatory field with scene-as-truth)
 	current_map_data["scene_path"] = scene_path_edit.text
 
-	# Caravan settings
+	# Caravan settings (runtime config)
 	current_map_data["caravan_accessible"] = caravan_accessible_check.button_pressed
 	current_map_data["caravan_visible"] = caravan_visible_check.button_pressed
 
-	# Camera settings
+	# Camera settings (runtime config)
 	current_map_data["camera_zoom"] = camera_zoom_spin.value
 
-	# Audio settings
+	# Audio settings (runtime config)
 	current_map_data["music_id"] = music_id_edit.text
 	current_map_data["ambient_id"] = ambient_id_edit.text
 
-	# Encounter settings
+	# Encounter settings (runtime config)
 	current_map_data["random_encounters_enabled"] = random_encounters_check.button_pressed
 	current_map_data["base_encounter_rate"] = encounter_rate_spin.value
 	current_map_data["save_anywhere"] = save_anywhere_check.button_pressed
 
-	# Spawn points (already stored in list metadata during editing)
-	var spawn_points: Dictionary = {}
-	for i in range(spawn_points_list.item_count):
-		var metadata: Dictionary = spawn_points_list.get_item_metadata(i)
-		var spawn_id: String = metadata.get("id", "")
-		var spawn_data: Dictionary = metadata.get("data", {})
-		if not spawn_id.is_empty():
-			spawn_points[spawn_id] = spawn_data
-	current_map_data["spawn_points"] = spawn_points
-
-	# Connections (already stored in list metadata during editing)
-	var connections: Array = []
-	for i in range(connections_list.item_count):
-		var connection: Dictionary = connections_list.get_item_metadata(i)
-		if connection is Dictionary:
-			connections.append(connection)
-	current_map_data["connections"] = connections
-
-	# Edge connections
+	# Edge connections (overworld only - cannot derive from scene)
 	var edge_connections: Dictionary = {}
 	_collect_edge_connection(edge_connections, "north", edge_north_map_dropdown, edge_north_spawn_edit)
 	_collect_edge_connection(edge_connections, "south", edge_south_map_dropdown, edge_south_spawn_edit)
@@ -1064,11 +857,25 @@ func _on_delete() -> void:
 		_show_errors(["No map selected"])
 		return
 
-	# Delete the file
+	# Delete the JSON metadata file
 	var err: Error = DirAccess.remove_absolute(current_map_path)
 	if err != OK:
 		_show_errors(["Failed to delete map file: " + error_string(err)])
 		return
+
+	# Also delete associated scene and script files if they exist
+	var scene_path: String = current_map_data.get("scene_path", "")
+	if not scene_path.is_empty() and FileAccess.file_exists(scene_path):
+		var scene_err: Error = DirAccess.remove_absolute(scene_path)
+		if scene_err != OK:
+			push_warning("Failed to delete scene file: %s" % scene_path)
+
+		# Try to delete the script file too (same name, .gd extension)
+		var script_path: String = scene_path.replace(".tscn", ".gd")
+		if FileAccess.file_exists(script_path):
+			var script_err: Error = DirAccess.remove_absolute(script_path)
+			if script_err != OK:
+				push_warning("Failed to delete script file: %s" % script_path)
 
 	current_map_path = ""
 	current_map_data = {}
@@ -1078,81 +885,327 @@ func _on_delete() -> void:
 
 
 func _on_create_map() -> void:
-	# Determine active mod path
+	# Show the new map dialog instead of directly creating files
+	_show_new_map_dialog()
+
+
+func _show_new_map_dialog() -> void:
+	# Reset dialog fields
+	new_map_name_edit.text = ""
+	new_map_id_edit.text = ""
+	new_map_type_dropdown.select(0)  # Default to TOWN
+	_hide_dialog_error()
+
+	# Set default map ID prefix from active mod
+	var active_mod_id: String = "_sandbox"
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			active_mod_id = active_mod.mod_id
+	new_map_id_edit.placeholder_text = "%s:map_name" % active_mod_id
+
+	# Refresh tileset dropdown
+	_refresh_tileset_dropdown()
+
+	# Show dialog
+	new_map_dialog.popup_centered()
+
+
+func _show_dialog_error(message: String) -> void:
+	new_map_error_label.text = message
+	new_map_error_label.visible = true
+
+
+func _hide_dialog_error() -> void:
+	new_map_error_label.text = ""
+	new_map_error_label.visible = false
+
+
+func _on_new_map_name_changed(new_name: String) -> void:
+	# Auto-generate map ID from name
 	var active_mod_id: String = "_sandbox"
 	if ModLoader:
 		var active_mod: ModManifest = ModLoader.get_active_mod()
 		if active_mod:
 			active_mod_id = active_mod.mod_id
 
-	# Generate unique map ID
-	var timestamp: int = int(Time.get_unix_time_from_system())
-	var new_map_id: String = "%s:new_map_%d" % [active_mod_id, timestamp]
+	# Convert name to snake_case ID
+	var id_name: String = new_name.to_lower().strip_edges()
+	id_name = id_name.replace(" ", "_")
+	id_name = id_name.replace("-", "_")
+	# Remove non-alphanumeric characters except underscore
+	var clean_id: String = ""
+	for c: String in id_name:
+		if c.is_valid_identifier() or c == "_":
+			clean_id += c
+	new_map_id_edit.text = "%s:%s" % [active_mod_id, clean_id]
 
-	# Create default map data
-	var new_map_data: Dictionary = {
-		"map_id": new_map_id,
-		"display_name": "New Map",
-		"map_type": "TOWN",
-		"caravan_accessible": false,
-		"caravan_visible": false,
-		"camera_zoom": 1.0,
-		"scene_path": "",
-		"spawn_points": {
-			"default": {
-				"grid_position": [5, 5],
-				"facing": "down",
-				"is_default": true
-			}
-		},
-		"connections": [],
-		"edge_connections": {},
-		"music_id": "",
-		"ambient_id": "",
-		"random_encounters_enabled": false,
-		"base_encounter_rate": 0.0,
-		"save_anywhere": true
-	}
 
-	# Create maps directory if needed
-	var maps_dir: String = "res://mods/%s/data/maps/" % active_mod_id
+func _on_new_map_dialog_close() -> void:
+	new_map_dialog.hide()
+
+
+func _scan_tilesets() -> void:
+	available_tilesets.clear()
+
+	# Scan for .tres files in tileset directories across mods
+	var mods_dir: DirAccess = DirAccess.open("res://mods/")
+	if not mods_dir:
+		return
+
+	mods_dir.list_dir_begin()
+	var mod_name: String = mods_dir.get_next()
+
+	while mod_name != "":
+		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+			var tilesets_path: String = "res://mods/%s/tilesets/" % mod_name
+			_scan_tileset_directory(tilesets_path)
+		mod_name = mods_dir.get_next()
+
+	mods_dir.list_dir_end()
+
+	# Add default fallback
+	if available_tilesets.is_empty():
+		available_tilesets.append("res://mods/_base_game/tilesets/terrain_placeholder.tres")
+
+
+func _scan_tileset_directory(path: String) -> void:
+	var dir: DirAccess = DirAccess.open(path)
+	if not dir:
+		return
+
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".tres"):
+			var full_path: String = path + file_name
+			# Verify it's actually a TileSet resource
+			if ResourceLoader.exists(full_path):
+				available_tilesets.append(full_path)
+		file_name = dir.get_next()
+
+	dir.list_dir_end()
+
+
+func _refresh_tileset_dropdown() -> void:
+	new_map_tileset_dropdown.clear()
+
+	for tileset_path: String in available_tilesets:
+		# Extract a friendly name
+		var file_name: String = tileset_path.get_file().get_basename()
+		new_map_tileset_dropdown.add_item(file_name)
+		new_map_tileset_dropdown.set_item_metadata(new_map_tileset_dropdown.item_count - 1, tileset_path)
+
+
+func _on_confirm_create_map() -> void:
+	var map_name: String = new_map_name_edit.text.strip_edges()
+	var map_id: String = new_map_id_edit.text.strip_edges()
+	var map_type: String = MAP_TYPES[new_map_type_dropdown.selected]
+
+	# Validation
+	if map_name.is_empty():
+		_show_dialog_error("Map name cannot be empty")
+		return
+	if map_id.is_empty() or ":" not in map_id:
+		_show_dialog_error("Map ID must be in format 'mod_id:map_name'")
+		return
+
+	# Get selected tileset
+	var tileset_path: String = "res://mods/_base_game/tilesets/terrain_placeholder.tres"
+	if new_map_tileset_dropdown.selected >= 0:
+		var metadata: Variant = new_map_tileset_dropdown.get_item_metadata(new_map_tileset_dropdown.selected)
+		if metadata != null:
+			tileset_path = metadata
+
+	# Determine active mod
+	var active_mod_id: String = "_sandbox"
+	var mod_dir: String = "res://mods/_sandbox/"
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			active_mod_id = active_mod.mod_id
+			mod_dir = active_mod.mod_directory
+
+	# Generate file name from map_name
+	var file_base: String = map_name.to_lower().strip_edges().replace(" ", "_").replace("-", "_")
+	var clean_base: String = ""
+	for c: String in file_base:
+		if c.is_valid_identifier() or c == "_":
+			clean_base += c
+	if clean_base.is_empty():
+		clean_base = "new_map"
+
+	# Define file paths
+	var maps_dir: String = mod_dir.path_join("maps/")
+	var data_maps_dir: String = mod_dir.path_join("data/maps/")
+
+	var script_path: String = maps_dir + clean_base + ".gd"
+	var scene_path: String = maps_dir + clean_base + ".tscn"
+	var json_path: String = data_maps_dir + clean_base + ".json"
+
+	# Check for existing files
+	if FileAccess.file_exists(script_path) or FileAccess.file_exists(scene_path) or FileAccess.file_exists(json_path):
+		_show_dialog_error("A map with name '%s' already exists in this mod" % clean_base)
+		return
+
+	# Create directories if needed
 	if not DirAccess.dir_exists_absolute(maps_dir):
 		var err: Error = DirAccess.make_dir_recursive_absolute(maps_dir)
 		if err != OK:
-			_show_errors(["Failed to create maps directory: " + error_string(err)])
+			_show_dialog_error("Failed to create maps directory: " + error_string(err))
 			return
 
-	# Save new map file
-	var file_name: String = "new_map_%d.json" % timestamp
-	var file_path: String = maps_dir + file_name
+	if not DirAccess.dir_exists_absolute(data_maps_dir):
+		var err: Error = DirAccess.make_dir_recursive_absolute(data_maps_dir)
+		if err != OK:
+			_show_dialog_error("Failed to create data/maps directory: " + error_string(err))
+			return
 
-	var json_text: String = JSON.stringify(new_map_data, "\t")
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
-	if not file:
-		_show_errors(["Failed to create new map file"])
+	# Generate and save all files
+	var script_content: String = _generate_map_script(map_id, map_name, map_type)
+	var scene_content: String = _generate_map_scene(clean_base, script_path, tileset_path, map_id, map_name, map_type)
+	var json_content: String = _generate_map_json(scene_path)
+
+	# Write script file
+	var script_file: FileAccess = FileAccess.open(script_path, FileAccess.WRITE)
+	if not script_file:
+		_show_dialog_error("Failed to create script file: " + script_path)
 		return
+	script_file.store_string(script_content)
+	script_file.close()
 
-	file.store_string(json_text)
-	file.close()
+	# Write scene file
+	var scene_file: FileAccess = FileAccess.open(scene_path, FileAccess.WRITE)
+	if not scene_file:
+		_show_dialog_error("Failed to create scene file: " + scene_path)
+		return
+	scene_file.store_string(scene_content)
+	scene_file.close()
 
-	# Refresh and select new map
+	# Write JSON file
+	var json_file: FileAccess = FileAccess.open(json_path, FileAccess.WRITE)
+	if not json_file:
+		_show_dialog_error("Failed to create JSON file: " + json_path)
+		return
+	json_file.store_string(json_content)
+	json_file.close()
+
+	# Close dialog
+	new_map_dialog.hide()
+
+	# Refresh map list
 	_refresh_map_list()
 
-	# Find and select the new map
+	# Select the new map
 	for i in range(map_list.item_count):
 		var path: String = map_list.get_item_metadata(i)
-		if path == file_path:
+		if path == json_path:
 			map_list.select(i)
 			_on_map_selected(i)
 			break
 
 	_hide_errors()
 
+	# Notify user and offer to open the scene
+	print("MapMetadataEditor: Created new map '%s' with files:" % map_name)
+	print("  Script: %s" % script_path)
+	print("  Scene:  %s" % scene_path)
+	print("  JSON:   %s" % json_path)
+
+
+func _generate_map_script(p_map_id: String, p_map_name: String, p_map_type: String) -> String:
+	# Build script content with string concatenation to avoid % formatting issues
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append('extends "res://mods/_base_game/maps/templates/map_template.gd"')
+	lines.append("")
+	lines.append("# =============================================================================")
+	lines.append("# MAP IDENTITY (Scene as Source of Truth)")
+	lines.append("# =============================================================================")
+	lines.append("")
+	lines.append('## Unique identifier for this map (namespaced: "mod_id:map_name")')
+	lines.append('@export var map_id: String = "%s"' % p_map_id)
+	lines.append("")
+	lines.append("## Map type determines Caravan visibility and party follower behavior")
+	lines.append('@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "%s"' % p_map_type)
+	lines.append("")
+	lines.append("## Display name for UI (save menu, map name popups)")
+	lines.append('@export var display_name: String = "%s"' % p_map_name)
+	lines.append("")
+	lines.append("")
+	lines.append("# =============================================================================")
+	lines.append("# LIFECYCLE")
+	lines.append("# =============================================================================")
+	lines.append("")
+	lines.append("func _ready() -> void:")
+	lines.append("\tsuper._ready()")
+	lines.append('\t_debug_print("Map \'%s\' ready!" % display_name)')
+	lines.append("")
+
+	return "\n".join(lines)
+
+
+func _generate_map_scene(node_name: String, script_path: String, tileset_path: String, map_id: String, map_name: String, map_type: String) -> String:
+	# Capitalize node name
+	var capitalized_name: String = ""
+	var capitalize_next: bool = true
+	for c: String in node_name:
+		if c == "_":
+			capitalize_next = true
+		elif capitalize_next:
+			capitalized_name += c.to_upper()
+			capitalize_next = false
+		else:
+			capitalized_name += c
+
+	if capitalized_name.is_empty():
+		capitalized_name = "NewMap"
+
+	var scene: String = """[gd_scene load_steps=5 format=4]
+
+[ext_resource type="Script" path="%s" id="1_script"]
+[ext_resource type="TileSet" path="%s" id="2_tileset"]
+[ext_resource type="Script" uid="uid://iijt33alqt3j" path="res://scenes/map_exploration/map_camera.gd" id="3_camera"]
+[ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="4_spawn"]
+
+[node name="%s" type="Node2D"]
+script = ExtResource("1_script")
+map_id = "%s"
+map_type = "%s"
+display_name = "%s"
+
+[node name="TileMapLayer" type="TileMapLayer" parent="."]
+tile_set = ExtResource("2_tileset")
+
+[node name="SpawnPoints" type="Node2D" parent="."]
+
+[node name="DefaultStart" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(176, 176)
+script = ExtResource("4_spawn")
+spawn_id = "default_start"
+is_default = true
+description = "Default starting position"
+
+[node name="Followers" type="Node2D" parent="."]
+
+[node name="MapCamera" type="Camera2D" parent="."]
+position = Vector2(176, 176)
+script = ExtResource("3_camera")
+
+[node name="Triggers" type="Node2D" parent="."]
+""" % [script_path, tileset_path, capitalized_name, map_id, map_type, map_name]
+
+	return scene
+
+
+func _generate_map_json(scene_path: String) -> String:
+	var json_data: Dictionary = {
+		"scene_path": scene_path
+	}
+	return JSON.stringify(json_data, "\t") + "\n"
+
 
 func _clear_ui() -> void:
-	map_id_edit.text = ""
-	display_name_edit.text = ""
-	map_type_dropdown.select(0)
 	scene_path_edit.text = ""
 	caravan_accessible_check.button_pressed = false
 	caravan_visible_check.button_pressed = false
@@ -1162,8 +1215,6 @@ func _clear_ui() -> void:
 	random_encounters_check.button_pressed = false
 	encounter_rate_spin.value = 0.0
 	save_anywhere_check.button_pressed = true
-	spawn_points_list.clear()
-	connections_list.clear()
 	edge_north_map_dropdown.select(0)
 	edge_north_spawn_edit.text = ""
 	edge_south_map_dropdown.select(0)
@@ -1181,21 +1232,16 @@ func _clear_ui() -> void:
 func _validate_map_data() -> Array[String]:
 	var errors: Array[String] = []
 
-	if map_id_edit.text.strip_edges().is_empty():
-		errors.append("Map ID cannot be empty")
-
-	if display_name_edit.text.strip_edges().is_empty():
-		errors.append("Display name cannot be empty")
-
+	# Scene path is REQUIRED - the only mandatory field with scene-as-truth
 	var scene_path: String = scene_path_edit.text.strip_edges()
-	if not scene_path.is_empty():
-		if not scene_path.ends_with(".tscn"):
-			errors.append("Scene path must be a .tscn file")
-		elif not FileAccess.file_exists(scene_path):
-			errors.append("Scene file does not exist: " + scene_path)
+	if scene_path.is_empty():
+		errors.append("Scene path is required")
+	elif not scene_path.ends_with(".tscn"):
+		errors.append("Scene path must be a .tscn file")
+	elif not FileAccess.file_exists(scene_path):
+		errors.append("Scene file does not exist: " + scene_path)
 
-	if spawn_points_list.item_count == 0:
-		errors.append("At least one spawn point is required")
+	# Map ID, display_name, spawn points are all in scene now (scene-as-truth)
 
 	# Check Caravan consistency
 	if caravan_visible_check.button_pressed and not caravan_accessible_check.button_pressed:
@@ -1205,53 +1251,8 @@ func _validate_map_data() -> Array[String]:
 
 
 # =============================================================================
-# Event Handlers - Type Defaults
+# Event Handlers
 # =============================================================================
-
-func _on_apply_type_defaults() -> void:
-	var type_index: int = map_type_dropdown.selected
-	var map_type: String = MAP_TYPES[type_index]
-
-	match map_type:
-		"TOWN":
-			caravan_visible_check.button_pressed = false
-			caravan_accessible_check.button_pressed = false
-			camera_zoom_spin.value = 1.0
-			random_encounters_check.button_pressed = false
-			encounter_rate_spin.value = 0.0
-			save_anywhere_check.button_pressed = true
-		"OVERWORLD":
-			caravan_visible_check.button_pressed = true
-			caravan_accessible_check.button_pressed = true
-			camera_zoom_spin.value = 1.0
-			random_encounters_check.button_pressed = true
-			encounter_rate_spin.value = 0.1
-			save_anywhere_check.button_pressed = true
-		"DUNGEON":
-			caravan_visible_check.button_pressed = false
-			caravan_accessible_check.button_pressed = false
-			camera_zoom_spin.value = 1.0
-			random_encounters_check.button_pressed = true
-			encounter_rate_spin.value = 0.15
-			save_anywhere_check.button_pressed = false
-		"INTERIOR":
-			caravan_visible_check.button_pressed = false
-			caravan_accessible_check.button_pressed = false
-			camera_zoom_spin.value = 1.0
-			random_encounters_check.button_pressed = false
-			encounter_rate_spin.value = 0.0
-			save_anywhere_check.button_pressed = true
-		"BATTLE":
-			caravan_visible_check.button_pressed = false
-			caravan_accessible_check.button_pressed = false
-			camera_zoom_spin.value = 1.0
-			random_encounters_check.button_pressed = false
-			encounter_rate_spin.value = 0.0
-			save_anywhere_check.button_pressed = false
-
-	_on_random_encounters_toggled(random_encounters_check.button_pressed)
-	is_dirty = true
-
 
 func _on_random_encounters_toggled(enabled: bool) -> void:
 	encounter_rate_spin.editable = enabled
@@ -1261,237 +1262,6 @@ func _on_browse_scene() -> void:
 	# In editor context, we cannot easily launch a file dialog
 	# Instead, show a hint about where to find scenes
 	_show_errors(["Browse not available in plugin context. Enter the scene path manually.\nFormat: res://mods/<mod_id>/maps/<scene_name>.tscn"])
-
-
-# =============================================================================
-# Spawn Point Handlers
-# =============================================================================
-
-func _on_spawn_point_selected(index: int) -> void:
-	var metadata: Dictionary = spawn_points_list.get_item_metadata(index)
-	var spawn_data: Dictionary = metadata.get("data", {})
-
-	spawn_id_edit.text = metadata.get("id", "")
-
-	var grid_pos: Array = spawn_data.get("grid_position", [0, 0])
-	spawn_grid_x_spin.value = grid_pos[0] if grid_pos.size() > 0 else 0
-	spawn_grid_y_spin.value = grid_pos[1] if grid_pos.size() > 1 else 0
-
-	var facing: String = spawn_data.get("facing", "down")
-	var facing_index: int = FACING_DIRECTIONS.find(facing)
-	if facing_index >= 0:
-		spawn_facing_dropdown.select(facing_index)
-
-	spawn_is_default_check.button_pressed = spawn_data.get("is_default", false)
-	spawn_is_caravan_check.button_pressed = spawn_data.get("is_caravan_spawn", false)
-
-
-func _on_add_spawn_point() -> void:
-	var spawn_id: String = spawn_id_edit.text.strip_edges()
-	if spawn_id.is_empty():
-		_show_errors(["Spawn ID cannot be empty"])
-		return
-
-	# Check for duplicate ID
-	for i in range(spawn_points_list.item_count):
-		var metadata: Dictionary = spawn_points_list.get_item_metadata(i)
-		if metadata.get("id", "") == spawn_id:
-			_show_errors(["Spawn ID '%s' already exists" % spawn_id])
-			return
-
-	var spawn_data: Dictionary = _build_spawn_data()
-	var display_text: String = _build_spawn_display_text(spawn_id, spawn_data)
-
-	spawn_points_list.add_item(display_text)
-	spawn_points_list.set_item_metadata(spawn_points_list.item_count - 1, {
-		"id": spawn_id,
-		"data": spawn_data
-	})
-
-	_clear_spawn_fields()
-	is_dirty = true
-	_hide_errors()
-
-
-func _on_update_spawn_point() -> void:
-	var selected: PackedInt32Array = spawn_points_list.get_selected_items()
-	if selected.size() == 0:
-		_show_errors(["No spawn point selected"])
-		return
-
-	var spawn_id: String = spawn_id_edit.text.strip_edges()
-	if spawn_id.is_empty():
-		_show_errors(["Spawn ID cannot be empty"])
-		return
-
-	var spawn_data: Dictionary = _build_spawn_data()
-	var display_text: String = _build_spawn_display_text(spawn_id, spawn_data)
-
-	var index: int = selected[0]
-	spawn_points_list.set_item_text(index, display_text)
-	spawn_points_list.set_item_metadata(index, {
-		"id": spawn_id,
-		"data": spawn_data
-	})
-
-	is_dirty = true
-	_hide_errors()
-
-
-func _on_remove_spawn_point() -> void:
-	var selected: PackedInt32Array = spawn_points_list.get_selected_items()
-	if selected.size() > 0:
-		spawn_points_list.remove_item(selected[0])
-		_clear_spawn_fields()
-		is_dirty = true
-
-
-func _build_spawn_data() -> Dictionary:
-	return {
-		"grid_position": [int(spawn_grid_x_spin.value), int(spawn_grid_y_spin.value)],
-		"facing": FACING_DIRECTIONS[spawn_facing_dropdown.selected],
-		"is_default": spawn_is_default_check.button_pressed,
-		"is_caravan_spawn": spawn_is_caravan_check.button_pressed
-	}
-
-
-func _build_spawn_display_text(spawn_id: String, spawn_data: Dictionary) -> String:
-	var grid_pos: Array = spawn_data.get("grid_position", [0, 0])
-	var facing: String = spawn_data.get("facing", "down")
-	var is_default: bool = spawn_data.get("is_default", false)
-	var is_caravan: bool = spawn_data.get("is_caravan_spawn", false)
-
-	var display_text: String = "%s (%d, %d) %s" % [spawn_id, grid_pos[0], grid_pos[1], facing]
-	if is_default:
-		display_text += " [default]"
-	if is_caravan:
-		display_text += " [caravan]"
-
-	return display_text
-
-
-func _clear_spawn_fields() -> void:
-	spawn_id_edit.text = ""
-	spawn_grid_x_spin.value = 0
-	spawn_grid_y_spin.value = 0
-	spawn_facing_dropdown.select(0)
-	spawn_is_default_check.button_pressed = false
-	spawn_is_caravan_check.button_pressed = false
-
-
-# =============================================================================
-# Connection Handlers
-# =============================================================================
-
-func _on_connection_selected(index: int) -> void:
-	var connection: Dictionary = connections_list.get_item_metadata(index)
-
-	connection_trigger_id_edit.text = connection.get("trigger_id", "")
-
-	var target_map: String = connection.get("target_map_id", "")
-	_select_dropdown_by_text(connection_target_map_dropdown, target_map)
-
-	connection_target_spawn_edit.text = connection.get("target_spawn_id", "")
-
-	var transition_type: String = connection.get("transition_type", "fade")
-	var trans_index: int = TRANSITION_TYPES.find(transition_type)
-	if trans_index >= 0:
-		connection_transition_dropdown.select(trans_index)
-
-	connection_requires_key_edit.text = connection.get("requires_key", "")
-	connection_one_way_check.button_pressed = connection.get("one_way", false)
-
-
-func _on_add_connection() -> void:
-	var trigger_id: String = connection_trigger_id_edit.text.strip_edges()
-	if trigger_id.is_empty():
-		_show_errors(["Trigger ID cannot be empty"])
-		return
-
-	var connection: Dictionary = _build_connection_data()
-	var display_text: String = "%s -> %s:%s" % [
-		connection.get("trigger_id", ""),
-		connection.get("target_map_id", ""),
-		connection.get("target_spawn_id", "")
-	]
-
-	connections_list.add_item(display_text)
-	connections_list.set_item_metadata(connections_list.item_count - 1, connection)
-
-	_clear_connection_fields()
-	is_dirty = true
-	_hide_errors()
-
-
-func _on_update_connection() -> void:
-	var selected: PackedInt32Array = connections_list.get_selected_items()
-	if selected.size() == 0:
-		_show_errors(["No connection selected"])
-		return
-
-	var trigger_id: String = connection_trigger_id_edit.text.strip_edges()
-	if trigger_id.is_empty():
-		_show_errors(["Trigger ID cannot be empty"])
-		return
-
-	var connection: Dictionary = _build_connection_data()
-	var display_text: String = "%s -> %s:%s" % [
-		connection.get("trigger_id", ""),
-		connection.get("target_map_id", ""),
-		connection.get("target_spawn_id", "")
-	]
-
-	var index: int = selected[0]
-	connections_list.set_item_text(index, display_text)
-	connections_list.set_item_metadata(index, connection)
-
-	is_dirty = true
-	_hide_errors()
-
-
-func _on_remove_connection() -> void:
-	var selected: PackedInt32Array = connections_list.get_selected_items()
-	if selected.size() > 0:
-		connections_list.remove_item(selected[0])
-		_clear_connection_fields()
-		is_dirty = true
-
-
-func _build_connection_data() -> Dictionary:
-	var target_map: String = ""
-	if connection_target_map_dropdown.selected > 0:
-		target_map = connection_target_map_dropdown.get_item_text(connection_target_map_dropdown.selected)
-
-	return {
-		"trigger_id": connection_trigger_id_edit.text.strip_edges(),
-		"target_map_id": target_map,
-		"target_spawn_id": connection_target_spawn_edit.text.strip_edges(),
-		"transition_type": TRANSITION_TYPES[connection_transition_dropdown.selected],
-		"requires_key": connection_requires_key_edit.text.strip_edges(),
-		"one_way": connection_one_way_check.button_pressed
-	}
-
-
-func _clear_connection_fields() -> void:
-	connection_trigger_id_edit.text = ""
-	connection_target_map_dropdown.select(0)
-	connection_target_spawn_edit.text = ""
-	connection_transition_dropdown.select(0)
-	connection_requires_key_edit.text = ""
-	connection_one_way_check.button_pressed = false
-
-
-func _select_dropdown_by_text(dropdown: OptionButton, text: String) -> void:
-	if text.is_empty():
-		dropdown.select(0)
-		return
-
-	for i in range(dropdown.item_count):
-		if dropdown.get_item_text(i) == text:
-			dropdown.select(i)
-			return
-
-	dropdown.select(0)
 
 
 # =============================================================================

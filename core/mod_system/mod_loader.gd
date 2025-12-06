@@ -60,7 +60,7 @@ signal active_mod_changed(mod_path: String)
 
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
-var active_mod_id: String = "_base_game"  # Default active mod for editor
+var active_mod_id: String = "base_game"  # Default active mod for editor
 
 # Type registries for mod-extensible enums
 var equipment_registry: RefCounted = EquipmentRegistryClass.new()
@@ -87,6 +87,13 @@ func _ready() -> void:
 	# before any scenes try to use them. Use reload_mods_async() for
 	# runtime hot-reloading if needed.
 	_discover_and_load_mods()
+
+	# Safety net: validate active_mod_id exists, fall back to first loaded mod if not
+	if not loaded_mods.is_empty() and not get_mod(active_mod_id):
+		var fallback_mod: ModManifest = loaded_mods[0]
+		push_warning("ModLoader: Default active mod '%s' not found, falling back to '%s'" % [active_mod_id, fallback_mod.mod_id])
+		active_mod_id = fallback_mod.mod_id
+
 	mods_loaded.emit()
 	# Notify listeners (like AudioManager) of the active mod path
 	_emit_active_mod_changed()

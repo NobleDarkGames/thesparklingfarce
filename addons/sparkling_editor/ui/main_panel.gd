@@ -18,6 +18,9 @@ const CinematicEditorScene: PackedScene = preload("res://addons/sparkling_editor
 const CampaignEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/campaign_editor.tscn")
 const TerrainEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/terrain_editor.tscn")
 
+# Editor settings persistence
+const EDITOR_SETTINGS_PATH: String = "user://sparkling_editor_settings.json"
+
 var character_editor: Control
 var class_editor: Control
 var item_editor: Control
@@ -340,27 +343,45 @@ func _refresh_mod_list() -> void:
 		return
 
 	var mods: Array[ModManifest] = ModLoader.get_all_mods()
-	var active_mod: ModManifest = ModLoader.get_active_mod()
 	var active_index: int = 0
+
+	# Try to restore persisted mod selection, fall back to ModLoader's active mod
+	var persisted_mod_id: String = _load_last_selected_mod()
+	var target_mod_id: String = ""
+
+	if not persisted_mod_id.is_empty() and ModLoader.get_mod(persisted_mod_id):
+		target_mod_id = persisted_mod_id
+	else:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			target_mod_id = active_mod.mod_id
 
 	for i in range(mods.size()):
 		var mod: ModManifest = mods[i]
 		mod_selector.add_item(mod.mod_name, i)
 		mod_selector.set_item_metadata(i, mod.mod_id)
 
-		if active_mod and mod.mod_id == active_mod.mod_id:
+		if mod.mod_id == target_mod_id:
 			active_index = i
 
-	# Select the active mod
+	# Select and sync the active mod
 	if mods.size() > 0:
 		mod_selector.select(active_index)
 		_update_mod_info(active_index)
+
+		# Ensure ModLoader is synced with our selection
+		var selected_mod_id: String = mod_selector.get_item_metadata(active_index)
+		if ModLoader.get_active_mod() == null or ModLoader.get_active_mod().mod_id != selected_mod_id:
+			ModLoader.set_active_mod(selected_mod_id)
 
 
 func _on_mod_selected(index: int) -> void:
 	var mod_id: String = mod_selector.get_item_metadata(index)
 
 	if ModLoader and ModLoader.set_active_mod(mod_id):
+		# Persist the selection for next session
+		_save_last_selected_mod(mod_id)
+
 		# Notify all editors that the active mod changed
 		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 		if event_bus:
@@ -446,3 +467,50 @@ func _refresh_all_editors() -> void:
 ## destructive methods like queue_free, remove_child, etc.
 func _is_safe_refresh_method(method_name: String) -> bool:
 	return method_name.begins_with("refresh") or method_name.begins_with("_refresh")
+
+
+# =============================================================================
+# Settings Persistence
+# =============================================================================
+
+## Save the last selected mod ID for restoration on next editor load
+func _save_last_selected_mod(mod_id: String) -> void:
+	var settings: Dictionary = _load_editor_settings()
+	settings["last_selected_mod"] = mod_id
+	_save_editor_settings(settings)
+
+
+## Load the last selected mod ID, returns empty string if not set
+func _load_last_selected_mod() -> String:
+	var settings: Dictionary = _load_editor_settings()
+	return settings.get("last_selected_mod", "")
+
+
+## Load editor settings from file
+func _load_editor_settings() -> Dictionary:
+	if not FileAccess.file_exists(EDITOR_SETTINGS_PATH):
+		return {}
+
+	var file: FileAccess = FileAccess.open(EDITOR_SETTINGS_PATH, FileAccess.READ)
+	if not file:
+		return {}
+
+	var json_text: String = file.get_as_text()
+	file.close()
+
+	var parsed: Variant = JSON.parse_string(json_text)
+	if parsed is Dictionary:
+		return parsed
+
+	return {}
+
+
+## Save editor settings to file
+func _save_editor_settings(settings: Dictionary) -> void:
+	var file: FileAccess = FileAccess.open(EDITOR_SETTINGS_PATH, FileAccess.WRITE)
+	if not file:
+		push_warning("Failed to save editor settings to: " + EDITOR_SETTINGS_PATH)
+		return
+
+	file.store_string(JSON.stringify(settings, "\t"))
+	file.close()
