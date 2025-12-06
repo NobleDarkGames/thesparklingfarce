@@ -1,7 +1,7 @@
 # The Sparkling Farce - Development Phase Status
 
-**Last Updated:** December 4, 2025 (Evening Session)
-**Current Phase:** Phase 4.2 - Equipment System 🚧
+**Last Updated:** December 5, 2025
+**Current Phase:** Phase 4 - Core Mechanics (Equipment, Magic, Items) 🚧
 
 ---
 
@@ -311,6 +311,70 @@ Root causes identified and fixed:
 
 ---
 
+### ✅ Phase 4.4 - Caravan System (COMPLETE)
+
+**Status:** Production Ready
+**Completion Date:** December 5, 2025
+
+**SF2-Authentic Mobile HQ Implementation:**
+
+The Caravan system provides the signature Shining Force 2 mobile headquarters experience, following the player on overworld maps and offering essential services.
+
+**Core Systems:**
+- **CaravanController Autoload** - Central lifecycle management, service delegation
+- **CaravanMainMenu** - Data-driven service menu (dynamically queries available services)
+- **Party Management Panel** - Active/reserve party swap with hero protection
+- **Caravan Depot Panel** - Unlimited shared storage with inventory integration
+- **Overworld Caravan Scene** - Visible wagon sprite that follows hero
+
+**Key Features:**
+- SF2-authentic "Check on soldiers" menu flow
+- Active party (12 max) / Reserve party split
+- Depot storage (unlimited, saved/loaded with game)
+- Custom service registration for mod extensibility
+- Accessibility feedback when caravan unavailable
+
+**Key Files:**
+- `core/systems/caravan_controller.gd` - Autoload singleton
+- `scenes/ui/caravan_main_menu.gd` - Service menu
+- `scenes/ui/party_management_panel.gd` - Party UI
+- `scenes/ui/caravan_depot_panel.gd` - Storage UI
+- `scenes/map_exploration/overworld_caravan.gd` - Visual sprite
+
+**Detailed Plan:** See `/docs/plans/caravan-system-implementation-plan.md`
+
+---
+
+### ✅ Phase 4.5 - Campaign Progression (COMPLETE)
+
+**Status:** Production Ready
+**Completion Date:** December 5, 2025
+
+**Campaign System for Story-Driven Gameplay:**
+
+The Campaign system manages story progression through a node-graph structure, tracking chapter boundaries, handling transitions, and providing UI for chapter title cards and save prompts.
+
+**Core Systems:**
+- **CampaignManager Autoload** - Node graph traversal, chapter tracking
+- **CampaignData Resource** - JSON-based campaign definitions
+- **ChapterTransitionUI** - Animated title cards and save prompts
+
+**Key Features:**
+- Node-graph campaign structure (battles, dialogues, cinematics, choices)
+- Chapter boundary detection with save prompts
+- Animated chapter title cards (fade in/hold/fade out)
+- Progress persistence via SaveManager integration
+- Error recovery for missing nodes/resources
+
+**Key Files:**
+- `core/systems/campaign_manager.gd` - Campaign orchestration
+- `core/resources/campaign_data.gd` - Campaign schema
+- `scenes/ui/chapter_transition_ui.gd` - Chapter UI
+
+**Detailed Plan:** See `/docs/plans/campaign_progression_plan.md`
+
+---
+
 ### 🔜 Phase 4.3 - Magic/Spells
 
 **Priority:** High
@@ -362,6 +426,8 @@ Root causes identified and fixed:
 | Magic/Spells | ⬜ 0% | 4.3 | Not started |
 | Items/Inventory | 🟡 60% | 4.2 | Item Menu functional, effects pending |
 | Promotion | ✅ Complete | 4.1 | Core done, CharacterData immutable |
+| Caravan System | ✅ Complete | 4.4 | SF2-authentic mobile HQ |
+| Campaign System | ✅ Complete | 4.5 | Node-graph progression, chapter UI |
 | UI Systems | 🟡 70% | 2, 3 | Battle screen polished, pixel-perfect effects |
 
 ---
@@ -395,22 +461,24 @@ Root causes identified and fixed:
 - Strict typing enforcement (project settings)
 - Defensive programming (turn session IDs, validation)
 
-**Autoload Singletons (15 total):**
+**Autoload Singletons (17 total):**
 1. ModLoader - Mod discovery and loading
 2. GameState - Story flags and trigger tracking
 3. SaveManager - Save/load operations
 4. SceneManager - Scene transitions
 5. PartyManager - Party composition
-6. ExperienceManager - XP and leveling
-7. AudioManager - Sound/music
-8. DialogManager - Dialog state machine
-9. GridManager - Pathfinding and grid state
-10. TurnManager - Turn order
-11. InputManager - Player input
-12. BattleManager - Battle orchestration
-13. AIController - Enemy AI
-14. PromotionManager - Class promotion (Phase 4.1)
-15. EquipmentManager - Equipment/inventory (Phase 4.2)
+6. StorageManager - Caravan depot storage
+7. ExperienceManager - XP and leveling
+8. AudioManager - Sound/music
+9. DialogManager - Dialog state machine
+10. CinematicsManager - Cutscene execution
+11. CampaignManager - Campaign progression
+12. CaravanController - Caravan HQ lifecycle (Phase 4.4)
+13. GridManager - Pathfinding and grid state
+14. TurnManager - Turn order
+15. InputManager - Player input
+16. BattleManager - Battle orchestration
+17. AIController - Enemy AI
 
 **Resource Types (10 total):**
 - CharacterData, ClassData, ItemData, AbilityData
@@ -433,14 +501,15 @@ Root causes identified and fixed:
 
 ## Next Milestone
 
-**Target:** Complete Phase 4 Core Mechanics (Equipment, Magic, Items, Caravan)
-**Goal:** Implement the SF-defining systems that make the platform feel like a real Shining Force game
+**Target:** Complete Phase 4 Core Mechanics (Magic, Items, Retreat)
+**Goal:** Finish remaining SF-defining systems for a complete tactical RPG experience
 
 **Success Criteria:**
-- Equipment system with stat bonuses and class restrictions
+- ✅ Equipment system with stat bonuses and class restrictions
 - Magic/spell system with MP, targeting, and area effects
-- Item/inventory system with consumables
-- Caravan mobile HQ for party management (SF2 signature feature)
+- Item/inventory system with consumables (USE action effects)
+- ✅ Caravan mobile HQ for party management (SF2 signature feature)
+- ✅ Campaign progression with chapter UI
 - Retreat/resurrection system (units don't permadeath)
 
 ---
@@ -460,21 +529,27 @@ Root causes identified and fixed:
 
 ---
 
-**Phase Status Last Updated:** December 4, 2025 (Evening) by Lt. Clauderina & Crew
+**Phase Status Last Updated:** December 5, 2025 by Lt. Clauderina & Crew
 
-**Session Notes (December 4, 2025):**
+**Session Notes (December 5, 2025):**
+- Completed Caravan System (Phase 4.4) - SF2-authentic mobile HQ with party management and depot
+- Completed Campaign Progression (Phase 4.5) - node-graph progression with chapter UI
+- Fixed Caravan technical debt: data-driven menus, PartyManager encapsulation, depot selection bug
+- Added ChapterTransitionUI for animated chapter title cards and save prompts
+- Added CaravanController autoload singleton
+- Documentation updated: platform-specification.md, PHASE_STATUS.md, caravan-system-implementation-plan.md
+
+**Recent Commits:**
+- `c58c95d` - feat: Implement Caravan Phase 3 - Modding support infrastructure
+- `f39feec` - feat: Complete Caravan Phase 2 - Rest service and bug fixes
+- `80c0731` - feat: Implement Caravan Phase 2 - Party Management and menu fixes
+- `812d82f` - feat: Implement Caravan system Phase 1 - SF2-authentic mobile HQ
+
+**Previous Session Notes (December 4, 2025):**
 - Replaced all UI zoom/scale effects with pixel-perfect alternatives (brightness flashes, slides)
 - Fixed AudioManager initialization - now receives mod path from ModLoader at startup
 - Added menu_select.ogg sound effect to pre-game menus (main menu, save slot selector)
 - Created `docs/modding/audio-sfx-reference.md` - comprehensive SFX guide for modders
-- Audio directory structure confirmed: `mods/{mod}/audio/sfx/` and `audio/music/`
-- Code review complete - all 77 fixes applied, all deferred items resolved
-
-**Recent Commits:**
-- `ba35e1c` - feat: Add audio system initialization and pre-game menu sounds
-- `3ab8850` - fix: Replace UI zoom effects with pixel-perfect alternatives
-- `628ccb2` - feat: SF2-authentic continuous combat session with pooled XP
-- `22831af` - feat: SF-authentic battle screen with XP display and damage at impact
 
 **Previous Session Notes (December 2-3, 2025):**
 - Implemented Equipment System (Phase 4.2) - equipment slots, cursed items, inventory config

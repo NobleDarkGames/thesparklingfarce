@@ -114,6 +114,7 @@ if dict.has("key"):
 | **DialogManager** | Dialog state machine |
 | **CinematicsManager** | Cutscene execution |
 | **CampaignManager** | Campaign progression |
+| **CaravanController** | Caravan HQ lifecycle, party/item services |
 | **TriggerManager** | Map trigger routing |
 | **AudioManager** | Music, SFX |
 | **GameJuice** | Screen shake, effects |
