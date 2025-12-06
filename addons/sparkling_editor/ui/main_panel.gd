@@ -10,7 +10,9 @@ const ItemEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/i
 const AbilityEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/ability_editor.tscn")
 # DialogueEditorScene removed - dialog editing is now integrated into Cinematic Editor
 # const DialogueEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/dialogue_editor.tscn")
-const PartyEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/party_editor.tscn")
+# PartyEditorScene split into PartyTemplateEditor and SaveSlotEditor
+const PartyTemplateEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/party_template_editor.tscn")
+const SaveSlotEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/save_slot_editor.tscn")
 const BattleEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/battle_editor.tscn")
 const ModJsonEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/mod_json_editor.tscn")
 const MapMetadataEditorScene: PackedScene = preload("res://addons/sparkling_editor/ui/map_metadata_editor.tscn")
@@ -27,7 +29,9 @@ var class_editor: Control
 var item_editor: Control
 var ability_editor: Control
 # dialogue_editor removed - dialog editing is now integrated into Cinematic Editor
-var party_editor: Control
+# party_editor split into party_template_editor and save_slot_editor
+var party_template_editor: Control
+var save_slot_editor: Control
 var battle_editor: Control
 var mod_json_editor: Control
 var map_metadata_editor: Control
@@ -96,7 +100,8 @@ func _setup_ui() -> void:
 	_create_item_editor_tab()
 	_create_ability_editor_tab()
 	# _create_dialogue_editor_tab() removed - dialog editing is now in Cinematic Editor
-	_create_party_editor_tab()
+	_create_party_template_editor_tab()
+	_create_save_slot_editor_tab()
 	_create_battle_editor_tab()
 	_create_map_metadata_tab()
 	_create_cinematic_editor_tab()
@@ -188,9 +193,16 @@ func _create_ability_editor_tab() -> void:
 # _create_dialogue_editor_tab() removed - dialog editing is now in Cinematic Editor
 
 
-func _create_party_editor_tab() -> void:
-	party_editor = PartyEditorScene.instantiate()
-	tab_container.add_child(party_editor)
+func _create_party_template_editor_tab() -> void:
+	party_template_editor = PartyTemplateEditorScene.instantiate()
+	party_template_editor.name = "Party Templates"
+	tab_container.add_child(party_template_editor)
+
+
+func _create_save_slot_editor_tab() -> void:
+	save_slot_editor = SaveSlotEditorScene.instantiate()
+	save_slot_editor.name = "Save Slots"
+	tab_container.add_child(save_slot_editor)
 
 
 func _create_battle_editor_tab() -> void:
@@ -468,8 +480,10 @@ func _refresh_all_editors() -> void:
 	if ability_editor and ability_editor.has_method("_refresh_list"):
 		ability_editor._refresh_list()
 	# dialogue_editor removed - dialog editing is now in Cinematic Editor
-	if party_editor and party_editor.has_method("_refresh_list"):
-		party_editor._refresh_list()
+	# party_editor split into party_template_editor and save_slot_editor
+	if party_template_editor and party_template_editor.has_method("_refresh_list"):
+		party_template_editor._refresh_list()
+	# save_slot_editor doesn't need refresh - it operates on save files, not mod resources
 	if battle_editor and battle_editor.has_method("_refresh_list"):
 		battle_editor._refresh_list()
 	if mod_json_editor and mod_json_editor.has_method("_refresh_mod_list"):

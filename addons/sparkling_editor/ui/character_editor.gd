@@ -24,8 +24,8 @@ var agi_spin: SpinBox
 var int_spin: SpinBox
 var luk_spin: SpinBox
 
-# Equipment section
-var equipment_section: VBoxContainer
+# Equipment section (collapsible)
+var equipment_section: CollapseSection
 var equipment_pickers: Dictionary = {}  # {slot_id: ResourcePicker}
 var equipment_warning_labels: Dictionary = {}  # {slot_id: Label}
 
@@ -496,20 +496,17 @@ func _get_unit_categories_from_registry() -> Array[String]:
 	return ["player", "enemy", "boss", "neutral"]
 
 
-## Add the starting equipment section with pickers for each slot
+## Add the starting equipment section with pickers for each slot (collapsible)
 func _add_equipment_section() -> void:
-	equipment_section = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Starting Equipment"
-	section_label.add_theme_font_size_override("font_size", 16)
-	equipment_section.add_child(section_label)
+	equipment_section = CollapseSection.new()
+	equipment_section.title = "Starting Equipment"
+	equipment_section.start_collapsed = false
 
 	var help_label: Label = Label.new()
 	help_label.text = "Equipment the character starts with when recruited"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	help_label.add_theme_font_size_override("font_size", 14)
-	equipment_section.add_child(help_label)
+	equipment_section.add_content_child(help_label)
 
 	# Get available equipment slots from registry
 	var slots: Array[Dictionary] = _get_equipment_slots()
@@ -549,7 +546,7 @@ func _add_equipment_section() -> void:
 		slot_container.add_child(warning)
 		equipment_warning_labels[slot_id] = warning
 
-		equipment_section.add_child(slot_container)
+		equipment_section.add_content_child(slot_container)
 
 	detail_panel.add_child(equipment_section)
 

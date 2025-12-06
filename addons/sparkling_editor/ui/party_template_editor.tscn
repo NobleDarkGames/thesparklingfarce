@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dqr6pv2h8mkjx"]
+
+[ext_resource type="Script" path="res://addons/sparkling_editor/ui/party_template_editor.gd" id="1_party_template"]
+
+[node name="PartyTemplates" type="Control"]
+script = ExtResource("1_party_template")

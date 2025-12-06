@@ -28,11 +28,13 @@ var preview_update_pending: bool = false
 # Player Forces - now using ResourcePicker for cross-mod support
 var player_party_picker: ResourcePicker
 
-# Enemy Forces
+# Enemy Forces (collapsible)
+var enemies_section: CollapseSection
 var enemies_container: VBoxContainer
 var enemies_list: Array[Dictionary] = []  # Track enemy UI elements
 
-# Neutral Forces
+# Neutral Forces (collapsible)
+var neutrals_section: CollapseSection
 var neutrals_container: VBoxContainer
 var neutrals_list: Array[Dictionary] = []  # Track neutral UI elements
 
@@ -226,48 +228,48 @@ func _add_player_forces_section() -> void:
 	_add_separator()
 
 
-## Section 4: Enemy Forces
+## Section 4: Enemy Forces (collapsible)
 func _add_enemy_forces_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Enemy Forces"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
+	enemies_section = CollapseSection.new()
+	enemies_section.title = "Enemy Forces"
+	enemies_section.start_collapsed = false
+	detail_panel.add_child(enemies_section)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Configure enemy units, positions, and AI behaviors"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	detail_panel.add_child(help_label)
+	enemies_section.add_content_child(help_label)
 
 	enemies_container = VBoxContainer.new()
-	detail_panel.add_child(enemies_container)
+	enemies_section.add_content_child(enemies_container)
 
 	var add_enemy_button: Button = Button.new()
 	add_enemy_button.text = "Add Enemy"
 	add_enemy_button.pressed.connect(_on_add_enemy)
-	detail_panel.add_child(add_enemy_button)
+	enemies_section.add_content_child(add_enemy_button)
 
 	_add_separator()
 
 
-## Section 4: Neutral Forces
+## Section 4: Neutral Forces (collapsible)
 func _add_neutral_forces_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Neutral/NPC Forces"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
+	neutrals_section = CollapseSection.new()
+	neutrals_section.title = "Neutral/NPC Forces"
+	neutrals_section.start_collapsed = true  # Start collapsed since less commonly used
+	detail_panel.add_child(neutrals_section)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Configure neutral units (for PROTECT_UNIT objectives)"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	detail_panel.add_child(help_label)
+	neutrals_section.add_content_child(help_label)
 
 	neutrals_container = VBoxContainer.new()
-	detail_panel.add_child(neutrals_container)
+	neutrals_section.add_content_child(neutrals_container)
 
 	var add_neutral_button: Button = Button.new()
 	add_neutral_button.text = "Add Neutral Unit"
 	add_neutral_button.pressed.connect(_on_add_neutral)
-	detail_panel.add_child(add_neutral_button)
+	neutrals_section.add_content_child(add_neutral_button)
 
 	_add_separator()
 
