@@ -1,11 +1,13 @@
 @tool
-extends Control
+extends JsonEditorBase
 
 ## MapMetadata Editor
 ## Visual editor for map configuration files (*.json in mods/*/data/maps/)
 ## Supports all MapMetadata properties including spawn points, connections, and type defaults
 ##
 ## Unlike resource editors, this edits JSON files directly rather than .tres resources
+##
+## Now extends JsonEditorBase for shared error handling, JSON operations, and mod helpers
 
 # UI Components - Main layout
 var map_list: ItemList
@@ -18,12 +20,7 @@ var delete_button: Button
 # Current state
 var current_map_path: String = ""
 var current_map_data: Dictionary = {}
-var is_dirty: bool = false
 var loaded_maps: Dictionary = {}  # map_id -> path for connection dropdowns
-
-# Error panel
-var error_panel: PanelContainer
-var error_label: RichTextLabel
 
 # Scene Reference section
 var scene_path_edit: LineEdit
@@ -73,6 +70,11 @@ var available_tilesets: Array[String] = []
 
 
 func _init() -> void:
+	# Configure base class settings
+	resource_type_name = "Map"
+	resource_dir_name = "maps"
+	file_extension = ".json"
+
 	call_deferred("_setup_ui")
 
 
@@ -100,13 +102,13 @@ func _setup_ui() -> void:
 
 	var list_label: Label = Label.new()
 	list_label.text = "Map Metadata Files"
-	list_label.add_theme_font_size_override("font_size", 16)
+	list_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(list_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a map to edit its configuration"
 	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 16)
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(help_label)
 
 	map_list = ItemList.new()
@@ -143,7 +145,7 @@ func _setup_ui() -> void:
 
 	var detail_label: Label = Label.new()
 	detail_label.text = "Map Configuration"
-	detail_label.add_theme_font_size_override("font_size", 16)
+	detail_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(detail_label)
 
 	# Create all form sections (scene-as-truth: only runtime config in JSON)
@@ -154,8 +156,9 @@ func _setup_ui() -> void:
 	_create_encounter_settings_section()
 	_create_edge_connections_section()
 
-	# Error panel (hidden by default)
-	_create_error_panel()
+	# Error panel from base class
+	var base_error_panel: PanelContainer = create_error_panel()
+	detail_panel.add_child(base_error_panel)
 
 	# Action buttons
 	var action_container: HBoxContainer = HBoxContainer.new()
@@ -195,13 +198,13 @@ func _create_scene_reference_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Scene Reference"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var path_container: HBoxContainer = HBoxContainer.new()
 	var path_label: Label = Label.new()
 	path_label.text = "Scene Path:"
-	path_label.custom_minimum_size.x = 150
+	path_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	path_container.add_child(path_label)
 
 	scene_path_edit = LineEdit.new()
@@ -219,7 +222,7 @@ func _create_scene_reference_section() -> void:
 	var validation_label: Label = Label.new()
 	validation_label.text = "Scene must be a .tscn file in the mods directory"
 	validation_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	validation_label.add_theme_font_size_override("font_size", 16)
+	validation_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(validation_label)
 
 	detail_panel.add_child(section)
@@ -231,13 +234,13 @@ func _create_caravan_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Caravan Settings"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Controls mobile HQ visibility and interaction (SF2 feature)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_text)
 
 	caravan_accessible_check = CheckBox.new()
@@ -257,13 +260,13 @@ func _create_camera_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Camera Settings"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var zoom_container: HBoxContainer = HBoxContainer.new()
 	var zoom_label: Label = Label.new()
 	zoom_label.text = "Camera Zoom:"
-	zoom_label.custom_minimum_size.x = 150
+	zoom_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	zoom_container.add_child(zoom_label)
 
 	camera_zoom_spin = SpinBox.new()
@@ -276,7 +279,7 @@ func _create_camera_settings_section() -> void:
 	var zoom_hint: Label = Label.new()
 	zoom_hint.text = "(1.0 recommended for pixel-perfect rendering)"
 	zoom_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	zoom_hint.add_theme_font_size_override("font_size", 16)
+	zoom_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	zoom_container.add_child(zoom_hint)
 
 	section.add_child(zoom_container)
@@ -290,7 +293,7 @@ func _create_audio_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Audio Settings"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	music_id_edit = _create_line_edit_field("Music ID:", section, "Background music track ID")
@@ -305,7 +308,7 @@ func _create_encounter_settings_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Encounter Settings"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	random_encounters_check = CheckBox.new()
@@ -316,7 +319,7 @@ func _create_encounter_settings_section() -> void:
 	var rate_container: HBoxContainer = HBoxContainer.new()
 	var rate_label: Label = Label.new()
 	rate_label.text = "Base Encounter Rate:"
-	rate_label.custom_minimum_size.x = 150
+	rate_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	rate_container.add_child(rate_label)
 
 	encounter_rate_spin = SpinBox.new()
@@ -329,7 +332,7 @@ func _create_encounter_settings_section() -> void:
 	var rate_hint: Label = Label.new()
 	rate_hint.text = "(0.0 = never, 1.0 = always)"
 	rate_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	rate_hint.add_theme_font_size_override("font_size", 16)
+	rate_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	rate_container.add_child(rate_hint)
 
 	section.add_child(rate_container)
@@ -347,13 +350,13 @@ func _create_edge_connections_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Edge Connections"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Seamless transitions when walking off map edges (for overworld)"
 	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_text)
 
 	# North edge
@@ -426,37 +429,6 @@ func _create_edge_connections_section() -> void:
 
 	detail_panel.add_child(section)
 	_add_separator()
-
-
-func _create_error_panel() -> void:
-	error_panel = PanelContainer.new()
-	error_panel.visible = false
-
-	var error_style: StyleBoxFlat = StyleBoxFlat.new()
-	error_style.bg_color = Color(0.6, 0.15, 0.15, 0.95)
-	error_style.border_width_left = 3
-	error_style.border_width_right = 3
-	error_style.border_width_top = 3
-	error_style.border_width_bottom = 3
-	error_style.border_color = Color(0.9, 0.3, 0.3, 1.0)
-	error_style.corner_radius_top_left = 4
-	error_style.corner_radius_top_right = 4
-	error_style.corner_radius_bottom_left = 4
-	error_style.corner_radius_bottom_right = 4
-	error_style.content_margin_left = 8
-	error_style.content_margin_right = 8
-	error_style.content_margin_top = 6
-	error_style.content_margin_bottom = 6
-	error_panel.add_theme_stylebox_override("panel", error_style)
-
-	error_label = RichTextLabel.new()
-	error_label.bbcode_enabled = true
-	error_label.fit_content = true
-	error_label.custom_minimum_size = Vector2(0, 40)
-	error_label.scroll_active = false
-	error_panel.add_child(error_label)
-
-	detail_panel.add_child(error_panel)
 
 
 func _create_new_map_dialog() -> void:
@@ -539,7 +511,7 @@ func _create_new_map_dialog() -> void:
 
 	# Info text
 	var info_label: Label = Label.new()
-	info_label.text = "This will create:\n• maps/<name>.gd - Map script\n• maps/<name>.tscn - Map scene\n• data/maps/<name>.json - Metadata"
+	info_label.text = "This will create:\n* maps/<name>.gd - Map script\n* maps/<name>.tscn - Map scene\n* data/maps/<name>.json - Metadata"
 	info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
 	info_label.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(info_label)
@@ -583,7 +555,7 @@ func _create_line_edit_field(label_text: String, parent: VBoxContainer, tooltip:
 
 	var label: Label = Label.new()
 	label.text = label_text
-	label.custom_minimum_size.x = 150
+	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	if tooltip != "":
 		label.tooltip_text = tooltip
 	container.add_child(label)
@@ -605,6 +577,15 @@ func _add_separator() -> void:
 
 
 # =============================================================================
+# Public refresh method (standard interface)
+# =============================================================================
+
+## Public refresh method for standard editor interface
+func refresh() -> void:
+	_refresh_map_list()
+
+
+# =============================================================================
 # Map List Management
 # =============================================================================
 
@@ -612,51 +593,27 @@ func _refresh_map_list() -> void:
 	map_list.clear()
 	loaded_maps.clear()
 
-	var mods_dir: DirAccess = DirAccess.open("res://mods/")
-	if not mods_dir:
-		push_error("Cannot open mods directory")
-		return
+	# Use base class scanning to find all map metadata files
+	var resources: Array[Dictionary] = scan_all_mods_for_resources()
 
-	mods_dir.list_dir_begin()
-	var mod_name: String = mods_dir.get_next()
+	for res_info: Dictionary in resources:
+		var mod_id: String = res_info.get("mod_id", "")
+		var path: String = res_info.get("path", "")
+		var resource_id: String = res_info.get("resource_id", "")
 
-	while mod_name != "":
-		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
-			var maps_path: String = "res://mods/%s/data/maps/" % mod_name
-			_scan_maps_directory(maps_path, mod_name)
-		mod_name = mods_dir.get_next()
+		# Try to load the map_id from the JSON file
+		var map_id: String = _load_map_id_from_file(path)
+		if map_id.is_empty():
+			map_id = resource_id
 
-	mods_dir.list_dir_end()
+		var display_text: String = "[%s] %s" % [mod_id, map_id]
+		map_list.add_item(display_text)
+		map_list.set_item_metadata(map_list.item_count - 1, path)
+
+		loaded_maps[map_id] = path
 
 	# Update connection dropdowns with loaded maps
 	_update_map_dropdowns()
-
-
-func _scan_maps_directory(maps_path: String, mod_name: String) -> void:
-	var maps_dir: DirAccess = DirAccess.open(maps_path)
-	if not maps_dir:
-		return
-
-	maps_dir.list_dir_begin()
-	var file_name: String = maps_dir.get_next()
-
-	while file_name != "":
-		if not maps_dir.current_is_dir() and file_name.ends_with(".json"):
-			var full_path: String = maps_path + file_name
-			var map_id: String = _load_map_id_from_file(full_path)
-
-			if map_id.is_empty():
-				map_id = file_name.get_basename()
-
-			var display_text: String = "[%s] %s" % [mod_name, map_id]
-			map_list.add_item(display_text)
-			map_list.set_item_metadata(map_list.item_count - 1, full_path)
-
-			loaded_maps[map_id] = full_path
-
-		file_name = maps_dir.get_next()
-
-	maps_dir.list_dir_end()
 
 
 func _load_map_id_from_file(path: String) -> String:
@@ -700,15 +657,10 @@ func _on_map_selected(index: int) -> void:
 func _load_map_json(path: String) -> void:
 	current_map_path = path
 
-	var json_text: String = FileAccess.get_file_as_string(path)
-	if json_text.is_empty():
-		_show_errors(["Failed to read map JSON file"])
-		return
-
-	var json_data: Variant = JSON.parse_string(json_text)
-	if not json_data is Dictionary:
-		_show_errors(["Invalid JSON format in map file"])
-		return
+	# Use base class JSON loading
+	var json_data: Dictionary = load_json_file(path)
+	if json_data.is_empty():
+		return  # Error already shown by base class
 
 	current_map_data = json_data
 	_populate_ui_from_data()
@@ -829,15 +781,9 @@ func _on_save() -> void:
 	# Collect data from UI
 	_collect_data_from_ui()
 
-	# Write to file
-	var json_text: String = JSON.stringify(current_map_data, "\t")
-	var file: FileAccess = FileAccess.open(current_map_path, FileAccess.WRITE)
-	if not file:
-		_show_errors(["Failed to open file for writing: " + current_map_path])
-		return
-
-	file.store_string(json_text)
-	file.close()
+	# Use base class JSON saving
+	if not save_json_file(current_map_path, current_map_data):
+		return  # Error already shown by base class
 
 	_hide_errors()
 	is_dirty = false
@@ -845,11 +791,9 @@ func _on_save() -> void:
 	# Refresh map list to show updated info
 	_refresh_map_list()
 
-	# Notify that a map was saved (not mods_reloaded - that's for mod manifest changes)
-	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus:
-		var map_id: String = current_map_data.get("map_id", "")
-		event_bus.resource_saved.emit("map", map_id, null)
+	# Notify that a map was saved
+	var map_id: String = current_map_data.get("map_id", "")
+	notify_resource_saved(map_id)
 
 
 func _on_delete() -> void:
@@ -897,7 +841,7 @@ func _show_new_map_dialog() -> void:
 	_hide_dialog_error()
 
 	# Set default map ID prefix from active mod
-	var active_mod_id: String = _get_active_mod_id_safe()
+	var active_mod_id: String = SparklingEditorUtils.get_active_mod_id()
 	new_map_id_edit.placeholder_text = "%s:map_name" % active_mod_id
 
 	# Refresh tileset dropdown
@@ -919,17 +863,8 @@ func _hide_dialog_error() -> void:
 
 func _on_new_map_name_changed(new_name: String) -> void:
 	# Auto-generate map ID from name
-	var active_mod_id: String = _get_active_mod_id_safe()
-
-	# Convert name to snake_case ID
-	var id_name: String = new_name.to_lower().strip_edges()
-	id_name = id_name.replace(" ", "_")
-	id_name = id_name.replace("-", "_")
-	# Remove non-alphanumeric characters except underscore
-	var clean_id: String = ""
-	for c: String in id_name:
-		if c.is_valid_identifier() or c == "_":
-			clean_id += c
+	var active_mod_id: String = SparklingEditorUtils.get_active_mod_id()
+	var clean_id: String = SparklingEditorUtils.generate_id_from_name(new_name)
 	new_map_id_edit.text = "%s:%s" % [active_mod_id, clean_id]
 
 
@@ -941,43 +876,18 @@ func _scan_tilesets() -> void:
 	available_tilesets.clear()
 
 	# Scan for .tres files in tileset directories across mods
-	var mods_dir: DirAccess = DirAccess.open("res://mods/")
-	if not mods_dir:
-		return
+	var results: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("tilesets", ".tres")
 
-	mods_dir.list_dir_begin()
-	var mod_name: String = mods_dir.get_next()
+	for res: Dictionary in results:
+		var path: String = res.get("path", "")
+		# Verify it's actually a TileSet resource
+		if ResourceLoader.exists(path):
+			available_tilesets.append(path)
 
-	while mod_name != "":
-		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
-			var tilesets_path: String = "res://mods/%s/tilesets/" % mod_name
-			_scan_tileset_directory(tilesets_path)
-		mod_name = mods_dir.get_next()
-
-	mods_dir.list_dir_end()
-
-	# Add default fallback
+	# Note: If no tilesets found, the dropdown will be empty
+	# This is intentional - total conversion mods shouldn't depend on _base_game
 	if available_tilesets.is_empty():
-		available_tilesets.append("res://mods/_base_game/tilesets/terrain_placeholder.tres")
-
-
-func _scan_tileset_directory(path: String) -> void:
-	var dir: DirAccess = DirAccess.open(path)
-	if not dir:
-		return
-
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
-			var full_path: String = path + file_name
-			# Verify it's actually a TileSet resource
-			if ResourceLoader.exists(full_path):
-				available_tilesets.append(full_path)
-		file_name = dir.get_next()
-
-	dir.list_dir_end()
+		push_warning("MapMetadataEditor: No tilesets found in any mod. Please create a tileset in your mod's tilesets/ directory.")
 
 
 func _refresh_tileset_dropdown() -> void:
@@ -1004,22 +914,27 @@ func _on_confirm_create_map() -> void:
 		return
 
 	# Get selected tileset
-	var tileset_path: String = "res://mods/_base_game/tilesets/terrain_placeholder.tres"
+	var tileset_path: String = ""
 	if new_map_tileset_dropdown.selected >= 0:
 		var metadata: Variant = new_map_tileset_dropdown.get_item_metadata(new_map_tileset_dropdown.selected)
 		if metadata != null:
 			tileset_path = metadata
 
+	# Validate tileset selection - don't require a specific mod's tileset
+	if tileset_path.is_empty():
+		_show_dialog_error("Please select a tileset. If none are available, create one in your mod's tilesets/ directory.")
+		return
+
 	# Determine active mod
-	var active_mod_id: String = _get_active_mod_id_safe()
-	var mod_dir: String = _get_active_mod_directory_safe()
+	var active_mod_id: String = SparklingEditorUtils.get_active_mod_id()
+	var mod_dir: String = SparklingEditorUtils.get_active_mod_path()
+
+	if active_mod_id.is_empty() or mod_dir.is_empty():
+		_show_dialog_error("No active mod selected. Please select a mod from the Active Mod dropdown before creating a map.")
+		return
 
 	# Generate file name from map_name
-	var file_base: String = map_name.to_lower().strip_edges().replace(" ", "_").replace("-", "_")
-	var clean_base: String = ""
-	for c: String in file_base:
-		if c.is_valid_identifier() or c == "_":
-			clean_base += c
+	var clean_base: String = SparklingEditorUtils.generate_id_from_name(map_name)
 	if clean_base.is_empty():
 		clean_base = "new_map"
 
@@ -1037,17 +952,13 @@ func _on_confirm_create_map() -> void:
 		return
 
 	# Create directories if needed
-	if not DirAccess.dir_exists_absolute(maps_dir):
-		var err: Error = DirAccess.make_dir_recursive_absolute(maps_dir)
-		if err != OK:
-			_show_dialog_error("Failed to create maps directory: " + error_string(err))
-			return
+	if not SparklingEditorUtils.ensure_directory_exists(maps_dir):
+		_show_dialog_error("Failed to create maps directory")
+		return
 
-	if not DirAccess.dir_exists_absolute(data_maps_dir):
-		var err: Error = DirAccess.make_dir_recursive_absolute(data_maps_dir)
-		if err != OK:
-			_show_dialog_error("Failed to create data/maps directory: " + error_string(err))
-			return
+	if not SparklingEditorUtils.ensure_directory_exists(data_maps_dir):
+		_show_dialog_error("Failed to create data/maps directory")
+		return
 
 	# Generate and save all files
 	var script_content: String = _generate_map_script(map_id, map_name, map_type)
@@ -1104,7 +1015,7 @@ func _on_confirm_create_map() -> void:
 func _generate_map_script(p_map_id: String, p_map_name: String, p_map_type: String) -> String:
 	# Build script content with string concatenation to avoid % formatting issues
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append('extends "res://mods/_base_game/maps/templates/map_template.gd"')
+	lines.append('extends "res://core/templates/map_template.gd"')
 	lines.append("")
 	lines.append("# =============================================================================")
 	lines.append("# MAP IDENTITY (Scene as Source of Truth)")
@@ -1249,47 +1160,3 @@ func _on_browse_scene() -> void:
 	# In editor context, we cannot easily launch a file dialog
 	# Instead, show a hint about where to find scenes
 	_show_errors(["Browse not available in plugin context. Enter the scene path manually.\nFormat: res://mods/<mod_id>/maps/<scene_name>.tscn"])
-
-
-# =============================================================================
-# Error Display
-# =============================================================================
-
-func _show_errors(errors: Array) -> void:
-	var error_text: String = "[b]Error:[/b]\n"
-	for error in errors:
-		error_text += "* " + str(error) + "\n"
-	error_label.text = error_text
-	error_panel.show()
-
-	# Brief pulse animation
-	var tween: Tween = create_tween()
-	tween.tween_property(error_panel, "modulate:a", 0.6, 0.15)
-	tween.tween_property(error_panel, "modulate:a", 1.0, 0.15)
-
-
-func _hide_errors() -> void:
-	error_panel.hide()
-	error_label.text = ""
-
-
-# =============================================================================
-# Active Mod Helpers
-# =============================================================================
-
-## Get active mod ID with safe fallback
-func _get_active_mod_id_safe() -> String:
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			return active_mod.mod_id
-	return "_base_game"
-
-
-## Get active mod directory with safe fallback
-func _get_active_mod_directory_safe() -> String:
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			return active_mod.mod_directory
-	return "res://mods/_base_game/"

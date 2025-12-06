@@ -250,7 +250,7 @@ func _add_basic_info_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Item Name:"
-	name_label.custom_minimum_size.x = 150
+	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	name_container.add_child(name_label)
 
 	name_edit = LineEdit.new()
@@ -262,7 +262,7 @@ func _add_basic_info_section() -> void:
 	var icon_container: HBoxContainer = HBoxContainer.new()
 	var icon_label: Label = Label.new()
 	icon_label.text = "Icon:"
-	icon_label.custom_minimum_size.x = 150
+	icon_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	icon_container.add_child(icon_label)
 
 	# Preview at actual game size (32x32) with border
@@ -308,7 +308,7 @@ func _add_basic_info_section() -> void:
 	var type_container: HBoxContainer = HBoxContainer.new()
 	var type_label: Label = Label.new()
 	type_label.text = "Item Type:"
-	type_label.custom_minimum_size.x = 150
+	type_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	type_container.add_child(type_label)
 
 	item_type_option = OptionButton.new()
@@ -325,7 +325,7 @@ func _add_basic_info_section() -> void:
 	var equip_container: HBoxContainer = HBoxContainer.new()
 	var equip_label: Label = Label.new()
 	equip_label.text = "Equipment Type:"
-	equip_label.custom_minimum_size.x = 150
+	equip_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	equip_label.tooltip_text = "For weapons: sword, axe, bow, etc.\nFor armor: light, heavy, robe, etc."
 	equip_container.add_child(equip_label)
 
@@ -339,7 +339,7 @@ func _add_basic_info_section() -> void:
 	var slot_container: HBoxContainer = HBoxContainer.new()
 	var slot_label: Label = Label.new()
 	slot_label.text = "Equipment Slot:"
-	slot_label.custom_minimum_size.x = 150
+	slot_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	slot_label.tooltip_text = "Which slot this item occupies when equipped"
 	slot_container.add_child(slot_label)
 
@@ -355,7 +355,7 @@ func _add_basic_info_section() -> void:
 	section.add_child(desc_label)
 
 	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 80
+	description_edit.custom_minimum_size.y = 120
 	section.add_child(description_edit)
 
 	detail_panel.add_child(section)
@@ -392,7 +392,7 @@ func _add_weapon_section() -> void:
 	var power_container: HBoxContainer = HBoxContainer.new()
 	var power_label: Label = Label.new()
 	power_label.text = "Attack Power:"
-	power_label.custom_minimum_size.x = 150
+	power_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	power_container.add_child(power_label)
 
 	attack_power_spin = SpinBox.new()
@@ -406,7 +406,7 @@ func _add_weapon_section() -> void:
 	var range_container: HBoxContainer = HBoxContainer.new()
 	var range_label: Label = Label.new()
 	range_label.text = "Attack Range:"
-	range_label.custom_minimum_size.x = 150
+	range_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	range_container.add_child(range_label)
 
 	attack_range_spin = SpinBox.new()
@@ -420,7 +420,7 @@ func _add_weapon_section() -> void:
 	var hit_container: HBoxContainer = HBoxContainer.new()
 	var hit_label: Label = Label.new()
 	hit_label.text = "Hit Rate (%):"
-	hit_label.custom_minimum_size.x = 150
+	hit_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	hit_container.add_child(hit_label)
 
 	hit_rate_spin = SpinBox.new()
@@ -434,7 +434,7 @@ func _add_weapon_section() -> void:
 	var crit_container: HBoxContainer = HBoxContainer.new()
 	var crit_label: Label = Label.new()
 	crit_label.text = "Critical Rate (%):"
-	crit_label.custom_minimum_size.x = 150
+	crit_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	crit_container.add_child(crit_label)
 
 	crit_rate_spin = SpinBox.new()
@@ -483,7 +483,7 @@ func _add_economy_section() -> void:
 	var buy_container: HBoxContainer = HBoxContainer.new()
 	var buy_label: Label = Label.new()
 	buy_label.text = "Buy Price:"
-	buy_label.custom_minimum_size.x = 150
+	buy_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	buy_container.add_child(buy_label)
 
 	buy_price_spin = SpinBox.new()
@@ -497,7 +497,7 @@ func _add_economy_section() -> void:
 	var sell_container: HBoxContainer = HBoxContainer.new()
 	var sell_label: Label = Label.new()
 	sell_label.text = "Sell Price:"
-	sell_label.custom_minimum_size.x = 150
+	sell_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	sell_container.add_child(sell_label)
 
 	sell_price_spin = SpinBox.new()
@@ -515,7 +515,7 @@ func _create_modifier_editor(label_text: String, parent: VBoxContainer) -> SpinB
 
 	var label: Label = Label.new()
 	label.text = label_text
-	label.custom_minimum_size.x = 150
+	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	container.add_child(label)
 
 	var spin: SpinBox = SpinBox.new()
@@ -565,7 +565,7 @@ func _add_curse_section() -> void:
 	var uncurse_container: HBoxContainer = HBoxContainer.new()
 	var uncurse_label: Label = Label.new()
 	uncurse_label.text = "Uncurse Items:"
-	uncurse_label.custom_minimum_size.x = 150
+	uncurse_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	uncurse_label.tooltip_text = "Item IDs that can remove this curse (comma-separated)"
 	uncurse_container.add_child(uncurse_label)
 

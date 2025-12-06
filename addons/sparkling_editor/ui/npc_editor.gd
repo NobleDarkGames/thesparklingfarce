@@ -10,6 +10,11 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## - Primary interaction cinematic
 ## - Fallback cinematic
 ## - Conditional cinematics that trigger based on game flags
+##
+## Component Architecture:
+## - NPCPreviewPanel: Live preview rendering (extracted)
+## - MapPlacementHelper: Scene modification for "Place on Map" (extracted)
+## - QuickDialogGenerator: Cinematic creation from quick dialog (extracted)
 
 # UI field references - Basic Information
 var npc_id_edit: LineEdit
@@ -23,65 +28,22 @@ var _id_is_locked: bool = false
 
 # NPC Templates - preset configurations for common NPC types
 const NPC_TEMPLATES: Dictionary = {
-	"custom": {
-		"label": "Custom NPC",
-		"name": "",
-		"dialog": "",
-		"face_player": true
-	},
-	"town_guard": {
-		"label": "Town Guard",
-		"name": "Town Guard",
-		"dialog": "Move along, citizen.\nNo trouble here.",
-		"face_player": true
-	},
-	"shopkeeper": {
-		"label": "Shopkeeper",
-		"name": "Shopkeeper",
-		"dialog": "Welcome to my shop!\nTake a look around.",
-		"face_player": true
-	},
-	"elder": {
-		"label": "Village Elder",
-		"name": "Elder",
-		"dialog": "Greetings, young one.\nI have lived many years in this village.\nPerhaps I can offer some wisdom.",
-		"face_player": true
-	},
-	"villager": {
-		"label": "Villager",
-		"name": "Villager",
-		"dialog": "What a lovely day!\nI hope nothing bad happens.",
-		"face_player": true
-	},
-	"innkeeper": {
-		"label": "Innkeeper",
-		"name": "Innkeeper",
-		"dialog": "Welcome, weary traveler!\nWould you like to rest here?",
-		"face_player": true
-	},
-	"mysterious": {
-		"label": "Mysterious Figure",
-		"name": "???",
-		"dialog": "...\n...Who are you?",
-		"face_player": false,
-		"facing": "down"
-	},
-	"child": {
-		"label": "Child",
-		"name": "Child",
-		"dialog": "Hey mister!\nWanna play?",
-		"face_player": true
-	}
+	"custom": {"label": "Custom NPC", "name": "", "dialog": "", "face_player": true},
+	"town_guard": {"label": "Town Guard", "name": "Town Guard", "dialog": "Move along, citizen.\nNo trouble here.", "face_player": true},
+	"shopkeeper": {"label": "Shopkeeper", "name": "Shopkeeper", "dialog": "Welcome to my shop!\nTake a look around.", "face_player": true},
+	"elder": {"label": "Village Elder", "name": "Elder", "dialog": "Greetings, young one.\nI have lived many years in this village.\nPerhaps I can offer some wisdom.", "face_player": true},
+	"villager": {"label": "Villager", "name": "Villager", "dialog": "What a lovely day!\nI hope nothing bad happens.", "face_player": true},
+	"innkeeper": {"label": "Innkeeper", "name": "Innkeeper", "dialog": "Welcome, weary traveler!\nWould you like to rest here?", "face_player": true},
+	"mysterious": {"label": "Mysterious Figure", "name": "???", "dialog": "...\n...Who are you?", "face_player": false, "facing": "down"},
+	"child": {"label": "Child", "name": "Child", "dialog": "Hey mister!\nWanna play?", "face_player": true}
 }
 
-# Appearance Fallback section (visible when character_data is null)
+# Appearance Fallback section
 var appearance_section: VBoxContainer
 var portrait_path_edit: LineEdit
-var portrait_browse_btn: Button
 var map_sprite_path_edit: LineEdit
-var map_sprite_browse_btn: Button
 
-# Quick Dialog section (for simple NPCs)
+# Quick Dialog section
 var quick_dialog_section: VBoxContainer
 var quick_dialog_status: Label
 var quick_dialog_text: TextEdit
@@ -114,12 +76,10 @@ var place_confirm_btn: Button
 var place_position_x: SpinBox
 var place_position_y: SpinBox
 
-# Live Preview Panel
-var preview_panel: PanelContainer
-var preview_portrait: TextureRect
-var preview_sprite: TextureRect
-var preview_name_label: Label
-var preview_dialog_label: Label
+# Extracted Components
+var preview_panel: NPCPreviewPanel
+var map_placement_helper: MapPlacementHelper
+var quick_dialog_generator: QuickDialogGenerator
 
 # Track conditional entries for dynamic UI
 var conditional_entries: Array[Dictionary] = []
@@ -133,18 +93,20 @@ func _ready() -> void:
 	resource_type_id = "npc"
 	super._ready()
 
+	# Initialize helper components
+	map_placement_helper = MapPlacementHelper.new()
+	quick_dialog_generator = QuickDialogGenerator.new()
+
 	# Connect to EditorEventBus for refresh notifications
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus:
-		if not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
-			event_bus.mods_reloaded.connect(_on_mods_reloaded)
+	if event_bus and not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+		event_bus.mods_reloaded.connect(_on_mods_reloaded)
 
 
 func _exit_tree() -> void:
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus:
-		if event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
-			event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
+	if event_bus and event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+		event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
 
 
 func _on_mods_reloaded() -> void:
@@ -153,7 +115,6 @@ func _on_mods_reloaded() -> void:
 
 ## Override: Create the NPC-specific detail form
 func _create_detail_form() -> void:
-	# Create a horizontal split for form + preview
 	var main_split: HSplitContainer = HSplitContainer.new()
 	main_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -163,8 +124,8 @@ func _create_detail_form() -> void:
 	form_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	form_container.custom_minimum_size.x = 400
 
-	# Right side: Preview panel
-	_create_preview_panel()
+	# Right side: Preview panel (using extracted component)
+	preview_panel = NPCPreviewPanel.new()
 
 	main_split.add_child(form_container)
 	main_split.add_child(preview_panel)
@@ -175,19 +136,14 @@ func _create_detail_form() -> void:
 	var original_detail_panel: Control = detail_panel
 	detail_panel = form_container
 
-	# Basic info section (Name, ID, Character)
 	_add_basic_info_section()
-
-	# Quick Dialog section - THE PRIMARY WORKFLOW for simple NPCs
 	_add_quick_dialog_section()
-
-	# Place on Map section - easy map placement
 	_add_place_on_map_section()
-
-	# Advanced Options (collapsed by default)
 	_add_advanced_options_section()
 
-	# Restore detail_panel and add button container
+	# Bind preview panel to data sources
+	preview_panel.bind_sources(npc_name_edit, quick_dialog_text, character_picker, portrait_path_edit, map_sprite_path_edit)
+
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
 
@@ -200,61 +156,43 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	# Reset template selector to "Custom" (index 0) when loading existing NPC
 	if template_option:
 		template_option.select(0)
 
-	# Basic info - load name first, then ID
 	npc_name_edit.text = npc.npc_name
 	npc_id_edit.text = npc.npc_id
 
-	# Determine if ID should be locked (was manually set vs auto-generated)
-	var expected_auto_id: String = _generate_id_from_name(npc.npc_name)
+	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(npc.npc_name)
 	_id_is_locked = (npc.npc_id != expected_auto_id) and not npc.npc_id.is_empty()
 	_update_lock_button()
 
-	# Character data picker
 	if npc.character_data:
 		character_picker.select_resource(npc.character_data)
 	else:
 		character_picker.select_none()
 
-	# Update appearance section visibility
 	_update_appearance_section_visibility()
 
-	# Appearance fallback (textures stored as paths for simplicity)
 	portrait_path_edit.text = npc.portrait.resource_path if npc.portrait else ""
 	map_sprite_path_edit.text = npc.map_sprite.resource_path if npc.map_sprite else ""
 
-	# Interaction cinematics
 	interaction_cinematic_edit.text = npc.interaction_cinematic_id
 	fallback_cinematic_edit.text = npc.fallback_cinematic_id
 
-	# Try to load Quick Dialog text from existing cinematic
-	_load_quick_dialog_text(npc.npc_id, npc.interaction_cinematic_id)
+	# Load Quick Dialog text using extracted component
+	var cinematics_dir: String = _get_active_mod_cinematics_path()
+	var dialog_text: String = QuickDialogGenerator.load_dialog_text_from_cinematic(
+		cinematics_dir, npc.interaction_cinematic_id, npc.npc_id
+	)
+	quick_dialog_text.text = dialog_text
 
-	# Load conditional cinematics
 	_load_conditional_cinematics(npc.conditional_cinematics)
 
-	# Behavior
 	face_player_check.button_pressed = npc.face_player_on_interact
-
-	# Set facing override dropdown
-	var facing_index: int = 0
-	match npc.facing_override:
-		"up":
-			facing_index = 1
-		"down":
-			facing_index = 2
-		"left":
-			facing_index = 3
-		"right":
-			facing_index = 4
-	facing_override_option.select(facing_index)
+	_set_facing_dropdown(npc.facing_override)
 
 	_updating_ui = false
 
-	# Validate cinematics after loading (deferred to ensure UI is ready)
 	call_deferred("_update_cinematic_warnings")
 	call_deferred("_update_quick_dialog_status")
 	call_deferred("_update_preview")
@@ -266,49 +204,21 @@ func _save_resource_data() -> void:
 	if not npc:
 		return
 
-	# Basic info
 	npc.npc_id = npc_id_edit.text.strip_edges()
 	npc.npc_name = npc_name_edit.text.strip_edges()
-
-	# Character data
 	npc.character_data = character_picker.get_selected_resource() as CharacterData
 
-	# Appearance fallback - load textures if paths are valid
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
-	if not portrait_path.is_empty() and ResourceLoader.exists(portrait_path):
-		npc.portrait = load(portrait_path) as Texture2D
-	else:
-		npc.portrait = null
+	npc.portrait = load(portrait_path) as Texture2D if not portrait_path.is_empty() and ResourceLoader.exists(portrait_path) else null
 
 	var sprite_path: String = map_sprite_path_edit.text.strip_edges()
-	if not sprite_path.is_empty() and ResourceLoader.exists(sprite_path):
-		npc.map_sprite = load(sprite_path) as Texture2D
-	else:
-		npc.map_sprite = null
+	npc.map_sprite = load(sprite_path) as Texture2D if not sprite_path.is_empty() and ResourceLoader.exists(sprite_path) else null
 
-	# Interaction cinematics
 	npc.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
 	npc.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
-
-	# Build conditional cinematics array from UI
 	npc.conditional_cinematics = _collect_conditional_cinematics()
-
-	# Behavior
 	npc.face_player_on_interact = face_player_check.button_pressed
-
-	# Get facing override from dropdown
-	var facing_idx: int = facing_override_option.selected
-	match facing_idx:
-		0:
-			npc.facing_override = ""
-		1:
-			npc.facing_override = "up"
-		2:
-			npc.facing_override = "down"
-		3:
-			npc.facing_override = "left"
-		4:
-			npc.facing_override = "right"
+	npc.facing_override = _get_facing_from_dropdown()
 
 
 ## Override: Validate resource before saving
@@ -316,12 +226,10 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
 
-	# npc_id is required
 	var npc_id: String = npc_id_edit.text.strip_edges()
 	if npc_id.is_empty():
 		errors.append("NPC ID is required")
 
-	# Check that at least one cinematic is defined
 	var primary_id: String = interaction_cinematic_edit.text.strip_edges()
 	var fallback_id: String = fallback_cinematic_edit.text.strip_edges()
 	var has_primary: bool = not primary_id.is_empty()
@@ -331,28 +239,22 @@ func _validate_resource() -> Dictionary:
 	if not has_primary and not has_fallback and not has_conditional:
 		errors.append("At least one cinematic must be defined (primary, fallback, or conditional)")
 
-	# Warn about missing cinematics (not errors, but important to know)
-	if has_primary and not _cinematic_exists(primary_id):
+	var cinematics_dir: String = _get_active_mod_cinematics_path()
+	if has_primary and not QuickDialogGenerator.cinematic_exists(cinematics_dir, primary_id):
 		warnings.append("Primary cinematic '%s' not found in loaded mods" % primary_id)
-
-	if has_fallback and not _cinematic_exists(fallback_id):
+	if has_fallback and not QuickDialogGenerator.cinematic_exists(cinematics_dir, fallback_id):
 		warnings.append("Fallback cinematic '%s' not found in loaded mods" % fallback_id)
 
-	# Validate each conditional entry
 	for i in range(conditional_entries.size()):
 		var entry: Dictionary = conditional_entries[i]
 		var flag_edit: LineEdit = entry.get("flag_edit") as LineEdit
 		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
-
 		if flag_edit and cinematic_edit:
 			var flag_text: String = flag_edit.text.strip_edges()
 			var cine_text: String = cinematic_edit.text.strip_edges()
-
-			# If either field has content, both must have content
-			if (not flag_text.is_empty() and cine_text.is_empty()) or \
-			   (flag_text.is_empty() and not cine_text.is_empty()):
+			if (not flag_text.is_empty() and cine_text.is_empty()) or (flag_text.is_empty() and not cine_text.is_empty()):
 				errors.append("Conditional entry %d: Both flag and cinematic ID are required" % (i + 1))
-			elif not cine_text.is_empty() and not _cinematic_exists(cine_text):
+			elif not cine_text.is_empty() and not QuickDialogGenerator.cinematic_exists(cinematics_dir, cine_text):
 				warnings.append("Conditional cinematic '%s' not found in loaded mods" % cine_text)
 
 	return {valid = errors.is_empty(), errors = errors, warnings = warnings}
@@ -368,18 +270,6 @@ func _create_new_resource() -> Resource:
 	new_npc.interaction_cinematic_id = ""
 	new_npc.fallback_cinematic_id = ""
 	new_npc.conditional_cinematics = []
-
-	# Try to set default placeholder textures from active mod
-	var mod_path: String = _get_active_mod_base_path()
-	if not mod_path.is_empty():
-		var default_portrait: String = mod_path + "art/placeholder/portraits/npc.png"
-		var default_sprite: String = mod_path + "art/placeholder/sprites/npc.png"
-
-		if ResourceLoader.exists(default_portrait):
-			new_npc.portrait = load(default_portrait) as Texture2D
-		if ResourceLoader.exists(default_sprite):
-			new_npc.map_sprite = load(default_sprite) as Texture2D
-
 	return new_npc
 
 
@@ -399,23 +289,12 @@ func _get_resource_display_name(resource: Resource) -> String:
 # =============================================================================
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
 
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Template selector (first thing users see!)
-	var template_container: HBoxContainer = HBoxContainer.new()
-	var template_label: Label = Label.new()
-	template_label.text = "Start from:"
-	template_label.custom_minimum_size.x = 140
-	template_container.add_child(template_label)
-
+	# Template selector
+	var template_row: HBoxContainer = SparklingEditorUtils.create_field_row("Start from:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	template_option = OptionButton.new()
 	template_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Populate template options
 	var idx: int = 0
 	for key: String in NPC_TEMPLATES.keys():
 		var template: Dictionary = NPC_TEMPLATES[key]
@@ -423,156 +302,75 @@ func _add_basic_info_section() -> void:
 		template_option.set_item_metadata(idx, key)
 		idx += 1
 	template_option.item_selected.connect(_on_template_selected)
-	template_container.add_child(template_option)
-	section.add_child(template_container)
+	template_row.add_child(template_option)
 
-	var template_hint: Label = Label.new()
-	template_hint.text = "Choose a template to pre-fill common NPC types"
-	template_hint.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
-	template_hint.add_theme_font_size_override("font_size", 11)
-	section.add_child(template_hint)
+	SparklingEditorUtils.create_help_label("Choose a template to pre-fill common NPC types", section)
 
-	# Spacer
-	var spacer: Control = Control.new()
-	spacer.custom_minimum_size.y = 8
-	section.add_child(spacer)
-
-	# NPC Name (FIRST - so ID can auto-generate from it)
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = 140
-	name_container.add_child(name_label)
-
+	# NPC Name
+	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Display Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	npc_name_edit = LineEdit.new()
 	npc_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	npc_name_edit.placeholder_text = "Guard, Shopkeeper, Elder..."
 	npc_name_edit.text_changed.connect(_on_name_changed)
-	name_container.add_child(npc_name_edit)
-	section.add_child(name_container)
+	name_row.add_child(npc_name_edit)
 
-	# NPC ID (auto-generated from name unless locked)
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "NPC ID:"
-	id_label.custom_minimum_size.x = 140
-	id_container.add_child(id_label)
-
+	# NPC ID
+	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("NPC ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	npc_id_edit = LineEdit.new()
 	npc_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	npc_id_edit.placeholder_text = "(auto-generated from name)"
 	npc_id_edit.text_changed.connect(_on_id_manually_changed)
-	id_container.add_child(npc_id_edit)
+	id_row.add_child(npc_id_edit)
 
 	npc_id_lock_btn = Button.new()
-	npc_id_lock_btn.text = "🔓"
+	npc_id_lock_btn.text = "Unlock"
 	npc_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
-	npc_id_lock_btn.custom_minimum_size.x = 30
+	npc_id_lock_btn.custom_minimum_size.x = 60
 	npc_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_container.add_child(npc_id_lock_btn)
+	id_row.add_child(npc_id_lock_btn)
 
-	section.add_child(id_container)
+	SparklingEditorUtils.create_help_label("ID auto-generates from name. Click lock to set custom ID.", section)
 
-	var id_hint: Label = Label.new()
-	id_hint.text = "ID auto-generates from name. Click 🔒 to set custom ID."
-	id_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	id_hint.add_theme_font_size_override("font_size", 11)
-	section.add_child(id_hint)
-
-	# Character Data - use ResourcePicker
+	# Character Data picker
 	character_picker = ResourcePicker.new()
 	character_picker.resource_type = "character"
 	character_picker.label_text = "Character Data:"
-	character_picker.label_min_width = 140
+	character_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	character_picker.allow_none = true
 	character_picker.none_text = "(Use fallback appearance)"
 	character_picker.resource_selected.connect(_on_character_selected)
 	section.add_child(character_picker)
 
-	var char_help: Label = Label.new()
-	char_help.text = "If set, portrait and sprite come from the character. Otherwise use fallback below."
-	char_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	char_help.add_theme_font_size_override("font_size", 12)
-	section.add_child(char_help)
-
-	detail_panel.add_child(section)
+	SparklingEditorUtils.create_help_label("If set, portrait and sprite come from the character. Otherwise use fallback below.", section)
 
 
 func _add_appearance_fallback_section_to(parent: Control) -> void:
-	appearance_section = VBoxContainer.new()
+	appearance_section = SparklingEditorUtils.create_section("Appearance (Fallback)", parent)
+	SparklingEditorUtils.create_help_label("Used when no Character Data is assigned", appearance_section)
 
-	var section_label: Label = Label.new()
-	section_label.text = "Appearance (Fallback)"
-	section_label.add_theme_font_size_override("font_size", 14)
-	appearance_section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Used when no Character Data is assigned"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 11)
-	appearance_section.add_child(help_label)
-
-	# Portrait path
-	var portrait_container: HBoxContainer = HBoxContainer.new()
-	var portrait_label: Label = Label.new()
-	portrait_label.text = "Portrait:"
-	portrait_label.custom_minimum_size.x = 140
-	portrait_container.add_child(portrait_label)
-
+	var portrait_row: HBoxContainer = SparklingEditorUtils.create_field_row("Portrait:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
 	portrait_path_edit = LineEdit.new()
 	portrait_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	portrait_path_edit.placeholder_text = "res://mods/<mod>/art/placeholder/portraits/npc.png"
+	portrait_path_edit.placeholder_text = "res://mods/<mod>/art/portraits/npc.png"
 	portrait_path_edit.text_changed.connect(_on_field_changed)
-	portrait_container.add_child(portrait_path_edit)
+	portrait_row.add_child(portrait_path_edit)
 
-	portrait_browse_btn = Button.new()
-	portrait_browse_btn.text = "..."
-	portrait_browse_btn.tooltip_text = "Browse for portrait texture"
-	portrait_browse_btn.pressed.connect(_on_browse_portrait)
-	portrait_container.add_child(portrait_browse_btn)
-
-	appearance_section.add_child(portrait_container)
-
-	# Map sprite path
-	var sprite_container: HBoxContainer = HBoxContainer.new()
-	var sprite_label: Label = Label.new()
-	sprite_label.text = "Map Sprite:"
-	sprite_label.custom_minimum_size.x = 140
-	sprite_container.add_child(sprite_label)
-
+	var sprite_row: HBoxContainer = SparklingEditorUtils.create_field_row("Map Sprite:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
 	map_sprite_path_edit = LineEdit.new()
 	map_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_sprite_path_edit.placeholder_text = "res://mods/<mod>/art/placeholder/sprites/npc.png"
+	map_sprite_path_edit.placeholder_text = "res://mods/<mod>/art/sprites/npc.png"
 	map_sprite_path_edit.text_changed.connect(_on_field_changed)
-	sprite_container.add_child(map_sprite_path_edit)
-
-	map_sprite_browse_btn = Button.new()
-	map_sprite_browse_btn.text = "..."
-	map_sprite_browse_btn.tooltip_text = "Browse for map sprite texture"
-	map_sprite_browse_btn.pressed.connect(_on_browse_map_sprite)
-	sprite_container.add_child(map_sprite_browse_btn)
-
-	appearance_section.add_child(sprite_container)
-
-	parent.add_child(appearance_section)
+	sprite_row.add_child(map_sprite_path_edit)
 
 
 func _add_quick_dialog_section() -> void:
-	quick_dialog_section = VBoxContainer.new()
+	quick_dialog_section = SparklingEditorUtils.create_section("What does this NPC say?", detail_panel)
 
-	# Prominent header with visual emphasis
-	var section_label: Label = Label.new()
-	section_label.text = "⚡ What does this NPC say?"
-	section_label.add_theme_font_size_override("font_size", 16)
-	quick_dialog_section.add_child(section_label)
-
-	# Status label - shows current state (created, in use, etc.)
 	quick_dialog_status = Label.new()
-	quick_dialog_status.add_theme_font_size_override("font_size", 12)
+	quick_dialog_status.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	quick_dialog_status.visible = false
 	quick_dialog_section.add_child(quick_dialog_status)
 
-	# Multi-line text input for dialog - THE MAIN FOCUS
 	quick_dialog_text = TextEdit.new()
 	quick_dialog_text.placeholder_text = "Welcome to our village!\nFeel free to look around."
 	quick_dialog_text.custom_minimum_size.y = 100
@@ -581,78 +379,48 @@ func _add_quick_dialog_section() -> void:
 	quick_dialog_text.text_changed.connect(_on_quick_dialog_changed)
 	quick_dialog_section.add_child(quick_dialog_text)
 
-	# Button to create cinematic - prominent action
 	create_dialog_btn = Button.new()
-	create_dialog_btn.text = "✓ Create Dialog"
+	create_dialog_btn.text = "Create Dialog"
 	create_dialog_btn.tooltip_text = "Generate a cinematic from this dialog and link it to this NPC"
 	create_dialog_btn.pressed.connect(_on_create_dialog_cinematic)
 	quick_dialog_section.add_child(create_dialog_btn)
 
-	var hint: Label = Label.new()
-	hint.text = "For most NPCs, just type their dialog above and click Create!"
-	hint.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
-	hint.add_theme_font_size_override("font_size", 11)
-	quick_dialog_section.add_child(hint)
-
-	detail_panel.add_child(quick_dialog_section)
+	SparklingEditorUtils.create_help_label("For most NPCs, just type their dialog above and click Create!", quick_dialog_section)
 
 
 func _add_place_on_map_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Place on Map", detail_panel)
 
-	var section_label: Label = Label.new()
-	section_label.text = "Place on Map"
-	section_label.add_theme_font_size_override("font_size", 14)
-	section.add_child(section_label)
-
-	# Position controls row
-	var pos_container: HBoxContainer = HBoxContainer.new()
-
-	var pos_label: Label = Label.new()
-	pos_label.text = "Grid Position:"
-	pos_label.custom_minimum_size.x = 100
-	pos_container.add_child(pos_label)
-
+	var pos_row: HBoxContainer = SparklingEditorUtils.create_field_row("Grid Position:", 100, section)
 	var x_label: Label = Label.new()
 	x_label.text = "X:"
-	pos_container.add_child(x_label)
+	pos_row.add_child(x_label)
 
 	place_position_x = SpinBox.new()
 	place_position_x.min_value = -100
 	place_position_x.max_value = 100
 	place_position_x.value = 5
 	place_position_x.custom_minimum_size.x = 70
-	pos_container.add_child(place_position_x)
+	pos_row.add_child(place_position_x)
 
 	var y_label: Label = Label.new()
 	y_label.text = "Y:"
-	pos_container.add_child(y_label)
+	pos_row.add_child(y_label)
 
 	place_position_y = SpinBox.new()
 	place_position_y.min_value = -100
 	place_position_y.max_value = 100
 	place_position_y.value = 5
 	place_position_y.custom_minimum_size.x = 70
-	pos_container.add_child(place_position_y)
+	pos_row.add_child(place_position_y)
 
-	section.add_child(pos_container)
-
-	# Place button
 	place_on_map_btn = Button.new()
-	place_on_map_btn.text = "📍 Place on Map..."
+	place_on_map_btn.text = "Place on Map..."
 	place_on_map_btn.tooltip_text = "Add this NPC to a map in the current mod"
 	place_on_map_btn.pressed.connect(_on_place_on_map_pressed)
 	section.add_child(place_on_map_btn)
 
-	var hint: Label = Label.new()
-	hint.text = "Save the NPC first, then click to add it to a map"
-	hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	hint.add_theme_font_size_override("font_size", 11)
-	section.add_child(hint)
-
-	detail_panel.add_child(section)
-
-	# Create the popup for map selection (will be shown when button pressed)
+	SparklingEditorUtils.create_help_label("Save the NPC first, then click to add it to a map", section)
 	_create_map_selection_popup()
 
 
@@ -688,204 +456,24 @@ func _create_map_selection_popup() -> void:
 
 	popup_content.add_child(btn_container)
 	map_selection_popup.add_child(popup_content)
-
-	# Add popup to the tree
 	add_child(map_selection_popup)
 
 
-func _create_preview_panel() -> void:
-	preview_panel = PanelContainer.new()
-	preview_panel.custom_minimum_size = Vector2(200, 0)
-	preview_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.15, 0.15, 0.18)
-	panel_style.corner_radius_top_left = 4
-	panel_style.corner_radius_top_right = 4
-	panel_style.corner_radius_bottom_left = 4
-	panel_style.corner_radius_bottom_right = 4
-	panel_style.content_margin_left = 10
-	panel_style.content_margin_right = 10
-	panel_style.content_margin_top = 10
-	panel_style.content_margin_bottom = 10
-	preview_panel.add_theme_stylebox_override("panel", panel_style)
-
-	var content: VBoxContainer = VBoxContainer.new()
-	content.add_theme_constant_override("separation", 10)
-
-	# Title
-	var title: Label = Label.new()
-	title.text = "Preview"
-	title.add_theme_font_size_override("font_size", 16)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	content.add_child(title)
-
-	# Portrait preview
-	var portrait_section: VBoxContainer = VBoxContainer.new()
-	var portrait_label: Label = Label.new()
-	portrait_label.text = "Portrait"
-	portrait_label.add_theme_font_size_override("font_size", 12)
-	portrait_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	portrait_section.add_child(portrait_label)
-
-	var portrait_container: CenterContainer = CenterContainer.new()
-	portrait_container.custom_minimum_size = Vector2(0, 80)
-	preview_portrait = TextureRect.new()
-	preview_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview_portrait.custom_minimum_size = Vector2(64, 64)
-	preview_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait_container.add_child(preview_portrait)
-	portrait_section.add_child(portrait_container)
-	content.add_child(portrait_section)
-
-	# Sprite preview
-	var sprite_section: VBoxContainer = VBoxContainer.new()
-	var sprite_label: Label = Label.new()
-	sprite_label.text = "Map Sprite"
-	sprite_label.add_theme_font_size_override("font_size", 12)
-	sprite_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	sprite_section.add_child(sprite_label)
-
-	var sprite_container: CenterContainer = CenterContainer.new()
-	sprite_container.custom_minimum_size = Vector2(0, 48)
-	preview_sprite = TextureRect.new()
-	preview_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview_sprite.custom_minimum_size = Vector2(32, 32)
-	preview_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	preview_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # Pixel-perfect
-	sprite_container.add_child(preview_sprite)
-	sprite_section.add_child(sprite_container)
-	content.add_child(sprite_section)
-
-	# NPC Name preview
-	var name_section: VBoxContainer = VBoxContainer.new()
-	var name_label_title: Label = Label.new()
-	name_label_title.text = "Display Name"
-	name_label_title.add_theme_font_size_override("font_size", 12)
-	name_label_title.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	name_section.add_child(name_label_title)
-
-	preview_name_label = Label.new()
-	preview_name_label.text = "(not set)"
-	preview_name_label.add_theme_font_size_override("font_size", 14)
-	preview_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_section.add_child(preview_name_label)
-	content.add_child(name_section)
-
-	# Dialog preview
-	var dialog_section: VBoxContainer = VBoxContainer.new()
-	var dialog_label_title: Label = Label.new()
-	dialog_label_title.text = "Dialog Preview"
-	dialog_label_title.add_theme_font_size_override("font_size", 12)
-	dialog_label_title.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	dialog_section.add_child(dialog_label_title)
-
-	var dialog_box: PanelContainer = PanelContainer.new()
-	var dialog_style: StyleBoxFlat = StyleBoxFlat.new()
-	dialog_style.bg_color = Color(0.1, 0.1, 0.12)
-	dialog_style.corner_radius_top_left = 4
-	dialog_style.corner_radius_top_right = 4
-	dialog_style.corner_radius_bottom_left = 4
-	dialog_style.corner_radius_bottom_right = 4
-	dialog_style.content_margin_left = 8
-	dialog_style.content_margin_right = 8
-	dialog_style.content_margin_top = 8
-	dialog_style.content_margin_bottom = 8
-	dialog_box.add_theme_stylebox_override("panel", dialog_style)
-
-	preview_dialog_label = Label.new()
-	preview_dialog_label.text = "(enter dialog text)"
-	preview_dialog_label.add_theme_font_size_override("font_size", 11)
-	preview_dialog_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
-	preview_dialog_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	preview_dialog_label.custom_minimum_size.y = 60
-	dialog_box.add_child(preview_dialog_label)
-	dialog_section.add_child(dialog_box)
-	content.add_child(dialog_section)
-
-	preview_panel.add_child(content)
-
-
-## Update the preview panel with current NPC data
-func _update_preview() -> void:
-	if not preview_panel:
-		return
-
-	# Update name
-	if preview_name_label:
-		var name_text: String = npc_name_edit.text.strip_edges() if npc_name_edit else ""
-		if name_text.is_empty():
-			preview_name_label.text = "(not set)"
-			preview_name_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-		else:
-			preview_name_label.text = name_text
-			preview_name_label.add_theme_color_override("font_color", Color(1, 1, 1))
-
-	# Update dialog preview
-	if preview_dialog_label and quick_dialog_text:
-		var dialog_text: String = quick_dialog_text.text.strip_edges()
-		if dialog_text.is_empty():
-			preview_dialog_label.text = "(enter dialog text)"
-			preview_dialog_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-		else:
-			# Show first line or truncated preview
-			var lines: PackedStringArray = dialog_text.split("\n")
-			var preview_text: String = lines[0]
-			if lines.size() > 1:
-				preview_text += "\n..."
-			preview_dialog_label.text = preview_text
-			preview_dialog_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
-
-	# Update portrait
-	if preview_portrait:
-		var portrait_tex: Texture2D = null
-		# Try character data first
-		if character_picker and character_picker.has_selection():
-			var char_data: CharacterData = character_picker.get_selected_resource() as CharacterData
-			if char_data and char_data.portrait:
-				portrait_tex = char_data.portrait
-		# Fall back to direct portrait path
-		if not portrait_tex and portrait_path_edit:
-			var path: String = portrait_path_edit.text.strip_edges()
-			if not path.is_empty() and ResourceLoader.exists(path):
-				portrait_tex = load(path) as Texture2D
-		preview_portrait.texture = portrait_tex
-
-	# Update sprite
-	if preview_sprite:
-		var sprite_tex: Texture2D = null
-		# Try character data first
-		if character_picker and character_picker.has_selection():
-			var char_data: CharacterData = character_picker.get_selected_resource() as CharacterData
-			if char_data and char_data.map_sprite:
-				sprite_tex = char_data.map_sprite
-		# Fall back to direct sprite path
-		if not sprite_tex and map_sprite_path_edit:
-			var path: String = map_sprite_path_edit.text.strip_edges()
-			if not path.is_empty() and ResourceLoader.exists(path):
-				sprite_tex = load(path) as Texture2D
-		preview_sprite.texture = sprite_tex
-
-
-## Add collapsible advanced options section
 func _add_advanced_options_section() -> void:
 	advanced_section = VBoxContainer.new()
 
-	# Toggle button for expanding/collapsing
 	advanced_toggle_btn = Button.new()
-	advanced_toggle_btn.text = "▶ Advanced Options"
+	advanced_toggle_btn.text = "Advanced Options"
 	advanced_toggle_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	advanced_toggle_btn.flat = true
 	advanced_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
 	advanced_section.add_child(advanced_toggle_btn)
 
-	# Container for advanced content (hidden by default)
 	advanced_content = VBoxContainer.new()
 	advanced_content.visible = false
 	advanced_section.add_child(advanced_content)
 
-	# Add all the advanced sub-sections to the content container
 	_add_appearance_fallback_section_to(advanced_content)
 	_add_interaction_section_to(advanced_content)
 	_add_conditional_cinematics_section_to(advanced_content)
@@ -894,141 +482,71 @@ func _add_advanced_options_section() -> void:
 	detail_panel.add_child(advanced_section)
 
 
-## Toggle advanced options visibility
 func _on_advanced_toggle() -> void:
 	advanced_content.visible = not advanced_content.visible
-	if advanced_content.visible:
-		advanced_toggle_btn.text = "▼ Advanced Options"
-	else:
-		advanced_toggle_btn.text = "▶ Advanced Options"
+	advanced_toggle_btn.text = "Advanced Options (expanded)" if advanced_content.visible else "Advanced Options"
 
 
 func _add_interaction_section_to(parent: Control) -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Manual Cinematic Assignment", parent)
 
-	var section_label: Label = Label.new()
-	section_label.text = "Manual Cinematic Assignment"
-	section_label.add_theme_font_size_override("font_size", 14)
-	section.add_child(section_label)
-
-	# Primary interaction cinematic
-	var primary_container: HBoxContainer = HBoxContainer.new()
-	var primary_label: Label = Label.new()
-	primary_label.text = "Primary Cinematic:"
-	primary_label.custom_minimum_size.x = 140
-	primary_container.add_child(primary_label)
-
+	var primary_row: HBoxContainer = SparklingEditorUtils.create_field_row("Primary Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	interaction_cinematic_edit = LineEdit.new()
 	interaction_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	interaction_cinematic_edit.placeholder_text = "cinematic_id"
 	interaction_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("primary"))
-	primary_container.add_child(interaction_cinematic_edit)
-	section.add_child(primary_container)
+	primary_row.add_child(interaction_cinematic_edit)
 
-	# Warning label for primary cinematic
 	interaction_warning = Label.new()
 	interaction_warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
-	interaction_warning.add_theme_font_size_override("font_size", 11)
+	interaction_warning.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	interaction_warning.visible = false
 	section.add_child(interaction_warning)
 
-	var primary_help: Label = Label.new()
-	primary_help.text = "Default cinematic when player interacts (if no conditionals match)"
-	primary_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	primary_help.add_theme_font_size_override("font_size", 12)
-	section.add_child(primary_help)
+	SparklingEditorUtils.create_help_label("Default cinematic when player interacts (if no conditionals match)", section)
 
-	# Fallback cinematic
-	var fallback_container: HBoxContainer = HBoxContainer.new()
-	var fallback_label: Label = Label.new()
-	fallback_label.text = "Fallback Cinematic:"
-	fallback_label.custom_minimum_size.x = 140
-	fallback_container.add_child(fallback_label)
-
+	var fallback_row: HBoxContainer = SparklingEditorUtils.create_field_row("Fallback Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	fallback_cinematic_edit = LineEdit.new()
 	fallback_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fallback_cinematic_edit.placeholder_text = "fallback_cinematic_id"
 	fallback_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("fallback"))
-	fallback_container.add_child(fallback_cinematic_edit)
-	section.add_child(fallback_container)
+	fallback_row.add_child(fallback_cinematic_edit)
 
-	# Warning label for fallback cinematic
 	fallback_warning = Label.new()
 	fallback_warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
-	fallback_warning.add_theme_font_size_override("font_size", 11)
+	fallback_warning.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	fallback_warning.visible = false
 	section.add_child(fallback_warning)
 
-	var fallback_help: Label = Label.new()
-	fallback_help.text = "Last resort if no conditions match and no primary cinematic"
-	fallback_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	fallback_help.add_theme_font_size_override("font_size", 12)
-	section.add_child(fallback_help)
-
-	parent.add_child(section)
+	SparklingEditorUtils.create_help_label("Last resort if no conditions match and no primary cinematic", section)
 
 
 func _add_conditional_cinematics_section_to(parent: Control) -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var header_container: HBoxContainer = HBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Conditional Cinematics"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_container.add_child(section_label)
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Conditional Cinematics", parent)
 
 	add_conditional_btn = Button.new()
 	add_conditional_btn.text = "+ Add Condition"
 	add_conditional_btn.pressed.connect(_on_add_conditional)
-	header_container.add_child(add_conditional_btn)
+	section.add_child(add_conditional_btn)
 
-	section.add_child(header_container)
+	SparklingEditorUtils.create_help_label("Conditions checked in order. First matching condition's cinematic plays.", section)
 
-	var help_label: Label = Label.new()
-	help_label.text = "Conditions checked in order. First matching condition's cinematic plays."
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	help_label.add_theme_font_size_override("font_size", 12)
-	section.add_child(help_label)
-
-	# Container for conditional entries (will be populated dynamically)
 	conditionals_container = VBoxContainer.new()
 	conditionals_container.add_theme_constant_override("separation", 4)
 	section.add_child(conditionals_container)
 
-	parent.add_child(section)
-
 
 func _add_behavior_section_to(parent: Control) -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Behavior", parent)
 
-	var section_label: Label = Label.new()
-	section_label.text = "Behavior"
-	section_label.add_theme_font_size_override("font_size", 14)
-	section.add_child(section_label)
-
-	# Face player on interact
-	var face_container: HBoxContainer = HBoxContainer.new()
-	var face_label: Label = Label.new()
-	face_label.text = "Face Player:"
-	face_label.custom_minimum_size.x = 140
-	face_container.add_child(face_label)
-
+	var face_row: HBoxContainer = SparklingEditorUtils.create_field_row("Face Player:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	face_player_check = CheckBox.new()
 	face_player_check.text = "Turn to face player when interaction starts"
 	face_player_check.button_pressed = true
 	face_player_check.toggled.connect(_on_check_changed)
-	face_container.add_child(face_player_check)
-	section.add_child(face_container)
+	face_row.add_child(face_player_check)
 
-	# Facing override
-	var facing_container: HBoxContainer = HBoxContainer.new()
-	var facing_label: Label = Label.new()
-	facing_label.text = "Facing Override:"
-	facing_label.custom_minimum_size.x = 140
-	facing_container.add_child(facing_label)
-
+	var facing_row: HBoxContainer = SparklingEditorUtils.create_field_row("Facing Override:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	facing_override_option = OptionButton.new()
 	facing_override_option.add_item("(Auto)", 0)
 	facing_override_option.add_item("Up", 1)
@@ -1037,16 +555,9 @@ func _add_behavior_section_to(parent: Control) -> void:
 	facing_override_option.add_item("Right", 4)
 	facing_override_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	facing_override_option.item_selected.connect(_on_option_changed)
-	facing_container.add_child(facing_override_option)
-	section.add_child(facing_container)
+	facing_row.add_child(facing_override_option)
 
-	var facing_help: Label = Label.new()
-	facing_help.text = "Force NPC to always face a specific direction (overrides face player)"
-	facing_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	facing_help.add_theme_font_size_override("font_size", 12)
-	section.add_child(facing_help)
-
-	parent.add_child(section)
+	SparklingEditorUtils.create_help_label("Force NPC to always face a specific direction (overrides face player)", section)
 
 
 # =============================================================================
@@ -1054,23 +565,15 @@ func _add_behavior_section_to(parent: Control) -> void:
 # =============================================================================
 
 func _load_conditional_cinematics(conditionals: Array[Dictionary]) -> void:
-	# Clear existing UI
 	_clear_conditional_entries()
-
-	# Create UI for each conditional
 	for cond: Dictionary in conditionals:
-		_add_conditional_entry(
-			cond.get("flag", ""),
-			cond.get("negate", false),
-			cond.get("cinematic_id", "")
-		)
+		_add_conditional_entry(cond.get("flag", ""), cond.get("negate", false), cond.get("cinematic_id", ""))
 
 
 func _add_conditional_entry(flag_name: String = "", negate: bool = false, cinematic_id: String = "") -> void:
 	var entry_container: HBoxContainer = HBoxContainer.new()
 	entry_container.add_theme_constant_override("separation", 4)
 
-	# Flag name
 	var flag_edit: LineEdit = LineEdit.new()
 	flag_edit.placeholder_text = "flag_name"
 	flag_edit.text = flag_name
@@ -1079,7 +582,6 @@ func _add_conditional_entry(flag_name: String = "", negate: bool = false, cinema
 	flag_edit.text_changed.connect(_on_field_changed)
 	entry_container.add_child(flag_edit)
 
-	# Negate checkbox
 	var negate_check: CheckBox = CheckBox.new()
 	negate_check.text = "NOT"
 	negate_check.tooltip_text = "Trigger when flag is NOT set"
@@ -1087,12 +589,10 @@ func _add_conditional_entry(flag_name: String = "", negate: bool = false, cinema
 	negate_check.toggled.connect(_on_check_changed)
 	entry_container.add_child(negate_check)
 
-	# Arrow label
 	var arrow: Label = Label.new()
 	arrow.text = "->"
 	entry_container.add_child(arrow)
 
-	# Cinematic ID
 	var cinematic_edit: LineEdit = LineEdit.new()
 	cinematic_edit.placeholder_text = "cinematic_id"
 	cinematic_edit.text = cinematic_id
@@ -1101,7 +601,6 @@ func _add_conditional_entry(flag_name: String = "", negate: bool = false, cinema
 	cinematic_edit.text_changed.connect(_on_field_changed)
 	entry_container.add_child(cinematic_edit)
 
-	# Remove button
 	var remove_btn: Button = Button.new()
 	remove_btn.text = "X"
 	remove_btn.tooltip_text = "Remove this condition"
@@ -1110,14 +609,7 @@ func _add_conditional_entry(flag_name: String = "", negate: bool = false, cinema
 	entry_container.add_child(remove_btn)
 
 	conditionals_container.add_child(entry_container)
-
-	# Track entry for later collection
-	conditional_entries.append({
-		"container": entry_container,
-		"flag_edit": flag_edit,
-		"negate_check": negate_check,
-		"cinematic_edit": cinematic_edit
-	})
+	conditional_entries.append({"container": entry_container, "flag_edit": flag_edit, "negate_check": negate_check, "cinematic_edit": cinematic_edit})
 
 
 func _clear_conditional_entries() -> void:
@@ -1125,39 +617,25 @@ func _clear_conditional_entries() -> void:
 		var container: Control = entry.get("container") as Control
 		if container and is_instance_valid(container):
 			container.queue_free()
-
 	conditional_entries.clear()
 
 
 func _collect_conditional_cinematics() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-
 	for entry: Dictionary in conditional_entries:
 		var flag_edit: LineEdit = entry.get("flag_edit") as LineEdit
 		var negate_check: CheckBox = entry.get("negate_check") as CheckBox
 		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
-
 		if not flag_edit or not cinematic_edit:
 			continue
-
 		var flag_text: String = flag_edit.text.strip_edges()
 		var cine_text: String = cinematic_edit.text.strip_edges()
-
-		# Skip empty entries
 		if flag_text.is_empty() and cine_text.is_empty():
 			continue
-
-		var cond_dict: Dictionary = {
-			"flag": flag_text,
-			"cinematic_id": cine_text
-		}
-
-		# Only include negate if true (to keep data clean)
+		var cond_dict: Dictionary = {"flag": flag_text, "cinematic_id": cine_text}
 		if negate_check and negate_check.button_pressed:
 			cond_dict["negate"] = true
-
 		result.append(cond_dict)
-
 	return result
 
 
@@ -1165,12 +643,9 @@ func _has_valid_conditional() -> bool:
 	for entry: Dictionary in conditional_entries:
 		var flag_edit: LineEdit = entry.get("flag_edit") as LineEdit
 		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
-
 		if flag_edit and cinematic_edit:
-			if not flag_edit.text.strip_edges().is_empty() and \
-			   not cinematic_edit.text.strip_edges().is_empty():
+			if not flag_edit.text.strip_edges().is_empty() and not cinematic_edit.text.strip_edges().is_empty():
 				return true
-
 	return false
 
 
@@ -1180,25 +655,20 @@ func _has_valid_conditional() -> bool:
 
 func _on_add_conditional() -> void:
 	_add_conditional_entry()
-	_mark_dirty()
 
 
 func _on_remove_conditional(entry_container: HBoxContainer) -> void:
-	# Find and remove from tracking array
 	for i in range(conditional_entries.size()):
 		if conditional_entries[i].get("container") == entry_container:
 			conditional_entries.remove_at(i)
 			break
-
 	entry_container.queue_free()
-	_mark_dirty()
 
 
 func _on_character_selected(_metadata: Dictionary) -> void:
 	if _updating_ui:
 		return
 	_update_appearance_section_visibility()
-	_mark_dirty()
 	_update_preview()
 
 
@@ -1209,7 +679,6 @@ func _on_quick_dialog_changed() -> void:
 
 
 func _update_appearance_section_visibility() -> void:
-	# Show fallback appearance section only when no character is selected
 	var has_character: bool = character_picker.has_selection()
 	appearance_section.visible = not has_character
 
@@ -1217,465 +686,133 @@ func _update_appearance_section_visibility() -> void:
 func _on_field_changed(_text: String) -> void:
 	if _updating_ui:
 		return
-	_mark_dirty()
-	# Update preview for portrait/sprite path changes
 	_update_preview()
 
 
-## Handle name changes - auto-generate ID if not locked
 func _on_name_changed(new_name: String) -> void:
 	if _updating_ui:
 		return
-
-	# Auto-generate ID from name if not locked
 	if not _id_is_locked:
-		var generated_id: String = _generate_id_from_name(new_name)
-		npc_id_edit.text = generated_id
-
-	_mark_dirty()
+		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_update_preview()
 
 
-## Handle manual ID edits - lock the ID if user types directly
 func _on_id_manually_changed(_text: String) -> void:
 	if _updating_ui:
 		return
-
-	# If user is typing in the ID field, lock it
 	if not _id_is_locked and npc_id_edit.has_focus():
 		_id_is_locked = true
 		_update_lock_button()
 
-	_mark_dirty()
 
-
-## Toggle ID lock state
 func _on_id_lock_toggled() -> void:
 	_id_is_locked = not _id_is_locked
 	_update_lock_button()
-
-	# If unlocking, regenerate ID from current name
 	if not _id_is_locked:
-		var generated_id: String = _generate_id_from_name(npc_name_edit.text)
-		npc_id_edit.text = generated_id
+		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(npc_name_edit.text)
 
 
-## Update lock button appearance
 func _update_lock_button() -> void:
-	if _id_is_locked:
-		npc_id_lock_btn.text = "🔒"
-		npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate."
-	else:
-		npc_id_lock_btn.text = "🔓"
-		npc_id_lock_btn.tooltip_text = "ID auto-generates from name. Click to lock."
-
-
-## Generate a valid ID from a display name
-func _generate_id_from_name(display_name: String) -> String:
-	var name_text: String = display_name.strip_edges()
-	if name_text.is_empty():
-		return ""
-
-	# Convert to snake_case: "Town Guard" -> "town_guard"
-	var id: String = name_text.to_lower()
-	id = id.replace(" ", "_")
-	id = id.replace("-", "_")
-
-	# Remove non-alphanumeric characters except underscore and digits
-	var valid_id: String = ""
-	for c: String in id:
-		# is_valid_identifier checks letters, but not digits
-		# Digits (0-9) have unicode values 48-57
-		var code: int = c.unicode_at(0)
-		var is_digit: bool = code >= 48 and code <= 57
-		if c.is_valid_identifier() or c == "_" or is_digit:
-			valid_id += c
-
-	# Remove consecutive underscores and trim
-	while "__" in valid_id:
-		valid_id = valid_id.replace("__", "_")
-	valid_id = valid_id.strip_edges()
-
-	return valid_id
+	npc_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
+	npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "ID auto-generates from name. Click to lock."
 
 
 func _on_check_changed(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
+	pass
 
 
 func _on_option_changed(_index: int) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
+	pass
 
 
-## Apply a template to the current NPC
 func _on_template_selected(index: int) -> void:
 	if _updating_ui:
 		return
-
 	var template_key: String = template_option.get_item_metadata(index)
 	if template_key.is_empty() or template_key == "custom":
-		return  # Don't apply "Custom NPC" template
-
+		return
 	var template: Dictionary = NPC_TEMPLATES.get(template_key, {})
 	if template.is_empty():
 		return
 
-	# Apply template values
 	_updating_ui = true
-
-	# Set name (triggers auto-ID generation)
 	var template_name: String = template.get("name", "")
 	if not template_name.is_empty():
 		npc_name_edit.text = template_name
-		# Auto-generate ID from name if not locked
 		if not _id_is_locked:
-			npc_id_edit.text = _generate_id_from_name(template_name)
-
-	# Set quick dialog
+			npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(template_name)
 	var template_dialog: String = template.get("dialog", "")
 	if not template_dialog.is_empty() and quick_dialog_text:
 		quick_dialog_text.text = template_dialog
-
-	# Set behavior options
 	if template.has("face_player") and face_player_check:
 		face_player_check.button_pressed = template.get("face_player", true)
-
-	# Set facing override if specified
 	if template.has("facing") and facing_override_option:
-		var facing: String = template.get("facing", "")
-		var facing_index: int = 0
-		match facing:
-			"up":
-				facing_index = 1
-			"down":
-				facing_index = 2
-			"left":
-				facing_index = 3
-			"right":
-				facing_index = 4
-		facing_override_option.select(facing_index)
-
+		_set_facing_dropdown(template.get("facing", ""))
 	_updating_ui = false
-	_mark_dirty()
 
-	# Show feedback
 	_show_quick_dialog_status("Applied '%s' template - customize as needed!" % template.get("label", template_key), Color(0.5, 0.8, 1.0))
 
 
-func _mark_dirty() -> void:
-	# The base class doesn't have an is_dirty property by default,
-	# but we track changes for potential future undo/redo support
-	pass
-
-
-func _on_browse_portrait() -> void:
-	# For now, just show a hint - proper file dialog requires EditorFileDialog
-	# which has complex setup in editor plugins
-	portrait_path_edit.placeholder_text = "Enter res:// path to portrait texture"
-
-
-func _on_browse_map_sprite() -> void:
-	map_sprite_path_edit.placeholder_text = "Enter res:// path to sprite texture"
-
-
-## Handle cinematic field changes with validation
 func _on_cinematic_field_changed(text: String, field_type: String) -> void:
 	if _updating_ui:
 		return
-
-	# Validate the cinematic exists
-	var cinematic_id: String = text.strip_edges()
-	_validate_cinematic_field(cinematic_id, field_type)
-	_mark_dirty()
+	_validate_cinematic_field(text.strip_edges(), field_type)
 
 
-## Validate a single cinematic field and update its warning label
 func _validate_cinematic_field(cinematic_id: String, field_type: String) -> void:
-	var warning_label: Label
-	if field_type == "primary":
-		warning_label = interaction_warning
-	elif field_type == "fallback":
-		warning_label = fallback_warning
-	else:
-		return
-
+	var warning_label: Label = interaction_warning if field_type == "primary" else fallback_warning if field_type == "fallback" else null
 	if not warning_label:
 		return
-
-	# Empty field is valid (not required)
 	if cinematic_id.is_empty():
 		warning_label.visible = false
 		return
-
-	# Check if cinematic exists in registry
-	if _cinematic_exists(cinematic_id):
+	var cinematics_dir: String = _get_active_mod_cinematics_path()
+	if QuickDialogGenerator.cinematic_exists(cinematics_dir, cinematic_id):
 		warning_label.visible = false
 	else:
-		warning_label.text = "⚠ Cinematic '%s' not found in any loaded mod" % cinematic_id
+		warning_label.text = "Cinematic '%s' not found in any loaded mod" % cinematic_id
 		warning_label.visible = true
 
 
-## Check if a cinematic exists (in registry OR as file on disk)
-func _cinematic_exists(cinematic_id: String) -> bool:
-	# First check: file exists on disk in active mod
-	var mod_path: String = _get_active_mod_cinematics_path()
-	if not mod_path.is_empty():
-		var file_path: String = mod_path + cinematic_id + ".json"
-		if FileAccess.file_exists(file_path):
-			return true
-
-	# Second check: try ModLoader registry
-	var mod_loader_node: Node = null
-	if Engine.get_main_loop():
-		mod_loader_node = Engine.get_main_loop().root.get_node_or_null("/root/ModLoader")
-
-	if mod_loader_node:
-		var registry: Variant = mod_loader_node.get("registry")
-		if registry and registry.has_method("has_resource"):
-			if registry.has_resource("cinematic", cinematic_id):
-				return true
-
-	# If we can't check registry and file doesn't exist, it's missing
-	return false
-
-
-## Update all cinematic warnings (called after loading or refreshing)
 func _update_cinematic_warnings() -> void:
-	var primary_id: String = interaction_cinematic_edit.text.strip_edges() if interaction_cinematic_edit else ""
-	var fallback_id: String = fallback_cinematic_edit.text.strip_edges() if fallback_cinematic_edit else ""
-
-	_validate_cinematic_field(primary_id, "primary")
-	_validate_cinematic_field(fallback_id, "fallback")
+	_validate_cinematic_field(interaction_cinematic_edit.text.strip_edges() if interaction_cinematic_edit else "", "primary")
+	_validate_cinematic_field(fallback_cinematic_edit.text.strip_edges() if fallback_cinematic_edit else "", "fallback")
 
 
 # =============================================================================
-# Quick Dialog Creation
+# Quick Dialog Creation (using QuickDialogGenerator)
 # =============================================================================
 
-## Handle the "Create Dialog Cinematic" button press
 func _on_create_dialog_cinematic() -> void:
-	# Validate dialog text
 	var dialog_text: String = quick_dialog_text.text.strip_edges()
 	if dialog_text.is_empty():
 		_show_error("Please enter dialog text first.")
 		return
 
-	# Get NPC ID for cinematic naming
 	var npc_id: String = npc_id_edit.text.strip_edges()
 	if npc_id.is_empty():
 		_show_error("Please set an NPC ID first.")
 		return
 
-	# Get NPC display name for speaker
 	var speaker_name: String = npc_name_edit.text.strip_edges()
-	if speaker_name.is_empty():
-		speaker_name = npc_id.capitalize().replace("_", " ")
-
-	# Generate cinematic ID
-	var cinematic_id: String = npc_id + "_dialog"
-
-	# Get active mod path
-	var mod_path: String = _get_active_mod_cinematics_path()
-	if mod_path.is_empty():
+	var cinematics_dir: String = _get_active_mod_cinematics_path()
+	if cinematics_dir.is_empty():
 		_show_error("Could not determine active mod path.")
 		return
 
-	# Create the cinematic JSON
-	var cinematic_data: Dictionary = _build_dialog_cinematic(cinematic_id, speaker_name, dialog_text)
-
-	# Save the cinematic file
-	var file_path: String = mod_path + cinematic_id + ".json"
-	var success: bool = _save_cinematic_json(file_path, cinematic_data)
-
-	if not success:
-		_show_error("Failed to save cinematic file.")
+	var cinematic_id: String = quick_dialog_generator.create_dialog_cinematic(npc_id, speaker_name, dialog_text, cinematics_dir)
+	if cinematic_id.is_empty():
+		_show_error("Failed to create cinematic.")
 		return
 
-	# Set the primary cinematic field in UI
 	interaction_cinematic_edit.text = cinematic_id
-
-	# ALSO update the resource directly so it survives a refresh
 	if current_resource and current_resource is NPCData:
-		var npc: NPCData = current_resource as NPCData
-		npc.interaction_cinematic_id = cinematic_id
+		(current_resource as NPCData).interaction_cinematic_id = cinematic_id
 
-	# Show success feedback
-	_show_quick_dialog_status("✓ Created '%s' - Dialog is now attached!" % cinematic_id, Color(0.4, 0.9, 0.4))
-
-	# Keep the text visible so user can see what was saved
-	# (Don't clear it - helps user remember what the NPC says)
-
-	# DON'T trigger mod reload - it causes list deselection issues
-	# The cinematic file exists on disk, validation will check file existence
-	# User can click "Refresh Mods" manually if needed for other features
-
-	# Update warnings (should clear since cinematic file now exists)
+	_show_quick_dialog_status("Created '%s' - Dialog is now attached!" % cinematic_id, Color(0.4, 0.9, 0.4))
 	call_deferred("_update_cinematic_warnings")
 
-	# Show success feedback
-	print("NPC Editor: Created cinematic '%s' at %s" % [cinematic_id, file_path])
 
-
-## Load Quick Dialog text from an existing cinematic file
-func _load_quick_dialog_text(npc_id: String, cinematic_id: String) -> void:
-	if not quick_dialog_text:
-		return
-
-	# Clear by default
-	quick_dialog_text.text = ""
-
-	# Only load if it's a Quick Dialog cinematic (matches expected pattern)
-	if cinematic_id.is_empty():
-		return
-
-	var expected_quick_id: String = npc_id + "_dialog"
-	if cinematic_id != expected_quick_id:
-		# Not a Quick Dialog cinematic, don't populate
-		return
-
-	# Try to load the cinematic JSON file
-	var mod_path: String = _get_active_mod_cinematics_path()
-	if mod_path.is_empty():
-		return
-
-	var file_path: String = mod_path + cinematic_id + ".json"
-	if not FileAccess.file_exists(file_path):
-		return
-
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if not file:
-		return
-
-	var json_text: String = file.get_as_text()
-	file.close()
-
-	var json: JSON = JSON.new()
-	var parse_result: Error = json.parse(json_text)
-	if parse_result != OK:
-		return
-
-	var data: Dictionary = json.data as Dictionary
-	if not data:
-		return
-
-	# Extract dialog text from commands
-	var dialog_lines: PackedStringArray = []
-	var commands: Array = data.get("commands", [])
-
-	for command: Variant in commands:
-		if command is Dictionary:
-			var cmd: Dictionary = command as Dictionary
-			if cmd.get("type") == "dialog_line":
-				var params: Dictionary = cmd.get("params", {})
-				var text: String = params.get("text", "")
-				if not text.is_empty():
-					dialog_lines.append(text)
-
-	# Join lines and populate the text box
-	if not dialog_lines.is_empty():
-		quick_dialog_text.text = "\n".join(dialog_lines)
-
-
-## Build a cinematic dictionary from dialog text
-func _build_dialog_cinematic(cinematic_id: String, speaker_name: String, dialog_text: String) -> Dictionary:
-	var commands: Array = []
-
-	# Split dialog into lines for multi-line support
-	var lines: PackedStringArray = dialog_text.split("\n")
-
-	for line: String in lines:
-		var trimmed: String = line.strip_edges()
-		if trimmed.is_empty():
-			continue
-
-		commands.append({
-			"type": "dialog_line",
-			"params": {
-				"speaker_name": speaker_name,
-				"text": trimmed,
-				"emotion": "neutral"
-			}
-		})
-
-	return {
-		"cinematic_id": cinematic_id,
-		"cinematic_name": "%s Dialog" % speaker_name,
-		"description": "Auto-generated dialog for %s" % speaker_name,
-		"can_skip": true,
-		"disable_player_input": true,
-		"commands": commands
-	}
-
-
-## Get the base path for the active mod
-func _get_active_mod_base_path() -> String:
-	# Try to get active mod from main panel
-	var main_panel: Node = get_parent()
-	while main_panel and not main_panel.has_method("get_active_mod_path"):
-		main_panel = main_panel.get_parent()
-
-	if main_panel and main_panel.has_method("get_active_mod_path"):
-		var mod_path: String = main_panel.get_active_mod_path()
-		if not mod_path.is_empty():
-			return mod_path
-
-	# Fallback: use _sandbox mod
-	return "res://mods/_sandbox/"
-
-
-## Get the cinematics folder path for the active mod
-func _get_active_mod_cinematics_path() -> String:
-	var base_path: String = _get_active_mod_base_path()
-	return base_path + "data/cinematics/"
-
-
-## Save cinematic data as JSON file
-func _save_cinematic_json(file_path: String, data: Dictionary) -> bool:
-	# Ensure directory exists
-	var dir_path: String = file_path.get_base_dir()
-	if not DirAccess.dir_exists_absolute(dir_path):
-		var err: Error = DirAccess.make_dir_recursive_absolute(dir_path)
-		if err != OK:
-			push_error("Failed to create directory: " + dir_path)
-			return false
-
-	# Convert to JSON with pretty formatting
-	var json_string: String = JSON.stringify(data, "  ")
-
-	# Write file
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
-	if not file:
-		push_error("Failed to open file for writing: " + file_path)
-		return false
-
-	file.store_string(json_string)
-	file.close()
-
-	return true
-
-
-## Trigger mod reload to pick up new resources
-func _trigger_mod_reload() -> void:
-	# Find main panel and trigger refresh
-	var main_panel: Node = get_parent()
-	while main_panel and not main_panel.has_method("_on_refresh_mods"):
-		main_panel = main_panel.get_parent()
-
-	if main_panel and main_panel.has_method("_on_refresh_mods"):
-		main_panel._on_refresh_mods()
-
-
-## Show an error message to the user
-func _show_error(message: String) -> void:
-	push_error("NPC Editor: " + message)
-	_show_quick_dialog_status("✗ " + message, Color(1.0, 0.4, 0.4))
-
-
-## Show status message in the Quick Dialog section
 func _show_quick_dialog_status(message: String, color: Color) -> void:
 	if quick_dialog_status:
 		quick_dialog_status.text = message
@@ -1683,274 +820,125 @@ func _show_quick_dialog_status(message: String, color: Color) -> void:
 		quick_dialog_status.visible = true
 
 
-## Update Quick Dialog status based on current NPC state
 func _update_quick_dialog_status() -> void:
 	if not quick_dialog_status:
 		return
-
 	var primary_id: String = interaction_cinematic_edit.text.strip_edges() if interaction_cinematic_edit else ""
-
 	if primary_id.is_empty():
 		quick_dialog_status.visible = false
 		return
-
-	# Check if it's a quick dialog cinematic (ends with _dialog)
 	var npc_id: String = npc_id_edit.text.strip_edges() if npc_id_edit else ""
-	var expected_quick_id: String = npc_id + "_dialog"
-
+	var expected_quick_id: String = QuickDialogGenerator.get_quick_dialog_id(npc_id)
 	if primary_id == expected_quick_id:
-		_show_quick_dialog_status("✓ Using Quick Dialog: '%s'" % primary_id, Color(0.4, 0.9, 0.4))
+		_show_quick_dialog_status("Using Quick Dialog: '%s'" % primary_id, Color(0.4, 0.9, 0.4))
 	else:
-		_show_quick_dialog_status("ℹ Using cinematic: '%s' (edit below)" % primary_id, Color(0.6, 0.8, 1.0))
+		_show_quick_dialog_status("Using cinematic: '%s' (edit below)" % primary_id, Color(0.6, 0.8, 1.0))
+
+
+func _show_error(message: String) -> void:
+	push_error("NPC Editor: " + message)
+	_show_quick_dialog_status(message, Color(1.0, 0.4, 0.4))
 
 
 # =============================================================================
-# Place on Map Functionality
+# Place on Map (using MapPlacementHelper)
 # =============================================================================
 
-## Open the map selection popup
 func _on_place_on_map_pressed() -> void:
-	# Check that NPC has been saved first
 	if not current_resource or not current_resource.resource_path or current_resource.resource_path.is_empty():
 		_show_error("Please save the NPC first before placing on a map.")
 		return
-
-	# Populate available maps and show the selection popup
 	_populate_map_list()
 	map_selection_popup.popup_centered()
 
 
-## Populate the map list with available maps in the active mod
 func _populate_map_list() -> void:
 	if not map_list:
 		return
-
 	map_list.clear()
-
-	var mod_path: String = _get_active_mod_base_path()
-	var maps_path: String = mod_path + "maps/"
-
-	# Check if maps directory exists
-	if not DirAccess.dir_exists_absolute(maps_path):
-		map_list.add_item("(No maps folder found)")
+	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
+	if mod_path.is_empty():
+		map_list.add_item("(No active mod selected)")
 		return
-
-	# Scan for .tscn files
-	var dir: DirAccess = DirAccess.open(maps_path)
-	if not dir:
-		map_list.add_item("(Cannot open maps folder)")
-		return
-
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	var found_maps: int = 0
-
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tscn"):
-			var display_name: String = file_name.get_basename()
-			var full_path: String = maps_path + file_name
-			map_list.add_item(display_name)
-			map_list.set_item_metadata(found_maps, full_path)
-			found_maps += 1
-		file_name = dir.get_next()
-
-	dir.list_dir_end()
-
-	if found_maps == 0:
+	var maps: Array[Dictionary] = MapPlacementHelper.get_available_maps(mod_path)
+	if maps.is_empty():
 		map_list.add_item("(No maps found)")
+		return
+	for map_info: Dictionary in maps:
+		map_list.add_item(map_info.get("display_name", "Unknown"))
+		map_list.set_item_metadata(map_list.item_count - 1, map_info.get("path", ""))
 
 
-## Handle double-click on map item
 func _on_map_double_clicked(index: int) -> void:
 	map_list.select(index)
 	_on_place_confirmed()
 
 
-## Place the NPC on the selected map
 func _on_place_confirmed() -> void:
 	if not map_list:
 		return
-
 	var selected_items: PackedInt32Array = map_list.get_selected_items()
 	if selected_items.is_empty():
 		_show_error("Please select a map first.")
 		return
-
 	var selected_index: int = selected_items[0]
 	var map_path: String = map_list.get_item_metadata(selected_index)
-
 	if map_path.is_empty() or not FileAccess.file_exists(map_path):
 		_show_error("Invalid map selection.")
 		return
 
-	# Get NPC resource path
 	var npc_path: String = current_resource.resource_path
-
-	# Get position from spinboxes (convert grid coords to pixels)
 	var grid_x: int = int(place_position_x.value)
 	var grid_y: int = int(place_position_y.value)
-	var pixel_pos: Vector2 = Vector2(grid_x * 32, grid_y * 32)  # 32 is default tile size
-
-	# Generate a unique node name
 	var npc_id: String = npc_id_edit.text.strip_edges()
 	var node_name: String = npc_id.to_pascal_case() if not npc_id.is_empty() else "NPC"
 
-	# Check if scene is currently open (for user feedback)
-	var edited_root: Node = EditorInterface.get_edited_scene_root()
-	var scene_is_open: bool = edited_root != null and edited_root.scene_file_path == map_path
-
-	# Perform the scene modification
-	var success: bool = _add_npc_to_scene(map_path, npc_path, node_name, pixel_pos)
-
+	var success: bool = map_placement_helper.place_npc_on_map(map_path, npc_path, node_name, Vector2i(grid_x, grid_y))
 	if success:
 		map_selection_popup.hide()
+		var scene_is_open: bool = MapPlacementHelper.is_scene_open(map_path)
 		if scene_is_open:
-			_show_quick_dialog_status("✓ NPC added to scene - save to keep changes!", Color(0.4, 0.9, 0.4))
+			_show_quick_dialog_status("NPC added to scene - save to keep changes!", Color(0.4, 0.9, 0.4))
 		else:
-			_show_quick_dialog_status("✓ NPC placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y], Color(0.4, 0.9, 0.4))
-		print("NPC Editor: Placed %s on %s at position %s" % [node_name, map_path, pixel_pos])
+			_show_quick_dialog_status("NPC placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y], Color(0.4, 0.9, 0.4))
 	else:
 		_show_error("Failed to place NPC on map. Check the output for details.")
 
 
-## Add an NPC node to a scene file using EditorInterface API
-## This approach works even when the scene is open in the editor
-func _add_npc_to_scene(scene_path: String, npc_resource_path: String, node_name: String, position: Vector2) -> bool:
-	if not Engine.is_editor_hint():
-		push_error("NPC Editor: _add_npc_to_scene can only be called in the editor")
-		return false
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
-	# Check if this scene is currently being edited
-	var edited_root: Node = EditorInterface.get_edited_scene_root()
-	var scene_is_open: bool = edited_root != null and edited_root.scene_file_path == scene_path
-
-	if scene_is_open:
-		# Scene is open - modify the live scene directly
-		return _add_npc_to_open_scene(edited_root, npc_resource_path, node_name, position)
-	else:
-		# Scene is not open - use PackedScene approach
-		return _add_npc_to_closed_scene(scene_path, npc_resource_path, node_name, position)
+func _update_preview() -> void:
+	if preview_panel:
+		preview_panel.update_preview()
 
 
-## Add NPC to a scene that's currently open in the editor
-func _add_npc_to_open_scene(scene_root: Node, npc_resource_path: String, node_name: String, position: Vector2) -> bool:
-	# Find or create NPCs container
-	var npcs_container: Node2D = scene_root.get_node_or_null("NPCs") as Node2D
-	if not npcs_container:
-		npcs_container = Node2D.new()
-		npcs_container.name = "NPCs"
-		scene_root.add_child(npcs_container)
-		npcs_container.owner = scene_root
-
-	# Generate unique node name if needed
-	var final_node_name: String = _make_unique_node_name(npcs_container, node_name)
-
-	# Load the NPC script and data
-	var npc_script: GDScript = load("res://core/components/npc_node.gd") as GDScript
-	if not npc_script:
-		push_error("NPC Editor: Failed to load npc_node.gd script")
-		return false
-
-	var npc_data: Resource = load(npc_resource_path)
-	if not npc_data:
-		push_error("NPC Editor: Failed to load NPC data: %s" % npc_resource_path)
-		return false
-
-	# Create the NPC node
-	var npc_node: Area2D = Area2D.new()
-	npc_node.name = final_node_name
-	npc_node.position = position
-	npc_node.set_script(npc_script)
-	npc_node.set("npc_data", npc_data)
-
-	# Add to scene tree with proper ownership
-	npcs_container.add_child(npc_node)
-	npc_node.owner = scene_root
-
-	# Mark the scene as modified so user knows to save
-	EditorInterface.mark_scene_as_unsaved()
-
-	print("NPC Editor: Added %s to open scene (remember to save!)" % final_node_name)
-	return true
+func _get_active_mod_cinematics_path() -> String:
+	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
+	if mod_path.is_empty():
+		return ""
+	return mod_path.path_join("data/cinematics/")
 
 
-## Add NPC to a scene that's not currently open
-func _add_npc_to_closed_scene(scene_path: String, npc_resource_path: String, node_name: String, position: Vector2) -> bool:
-	# Load the scene as a PackedScene
-	var packed_scene: PackedScene = load(scene_path) as PackedScene
-	if not packed_scene:
-		push_error("NPC Editor: Failed to load scene: %s" % scene_path)
-		return false
-
-	# Instantiate the scene to modify it
-	var scene_root: Node = packed_scene.instantiate()
-	if not scene_root:
-		push_error("NPC Editor: Failed to instantiate scene")
-		return false
-
-	# Find or create NPCs container
-	var npcs_container: Node2D = scene_root.get_node_or_null("NPCs") as Node2D
-	if not npcs_container:
-		npcs_container = Node2D.new()
-		npcs_container.name = "NPCs"
-		scene_root.add_child(npcs_container)
-		npcs_container.owner = scene_root
-
-	# Generate unique node name if needed
-	var final_node_name: String = _make_unique_node_name(npcs_container, node_name)
-
-	# Load the NPC script and data
-	var npc_script: GDScript = load("res://core/components/npc_node.gd") as GDScript
-	if not npc_script:
-		push_error("NPC Editor: Failed to load npc_node.gd script")
-		scene_root.queue_free()
-		return false
-
-	var npc_data: Resource = load(npc_resource_path)
-	if not npc_data:
-		push_error("NPC Editor: Failed to load NPC data: %s" % npc_resource_path)
-		scene_root.queue_free()
-		return false
-
-	# Create the NPC node
-	var npc_node: Area2D = Area2D.new()
-	npc_node.name = final_node_name
-	npc_node.position = position
-	npc_node.set_script(npc_script)
-	npc_node.set("npc_data", npc_data)
-
-	# Add to scene tree with proper ownership
-	npcs_container.add_child(npc_node)
-	npc_node.owner = scene_root
-
-	# Pack the modified scene back
-	var new_packed: PackedScene = PackedScene.new()
-	var pack_result: Error = new_packed.pack(scene_root)
-	if pack_result != OK:
-		push_error("NPC Editor: Failed to pack scene: %s" % error_string(pack_result))
-		scene_root.queue_free()
-		return false
-
-	# Save the modified scene
-	var save_result: Error = ResourceSaver.save(new_packed, scene_path)
-	scene_root.queue_free()
-
-	if save_result != OK:
-		push_error("NPC Editor: Failed to save scene: %s" % error_string(save_result))
-		return false
-
-	# Notify the editor to refresh
-	EditorInterface.get_resource_filesystem().scan()
-
-	return true
+func _set_facing_dropdown(facing: String) -> void:
+	if not facing_override_option:
+		return
+	var facing_index: int = 0
+	match facing:
+		"up": facing_index = 1
+		"down": facing_index = 2
+		"left": facing_index = 3
+		"right": facing_index = 4
+	facing_override_option.select(facing_index)
 
 
-## Generate a unique node name by appending numbers if needed
-func _make_unique_node_name(parent: Node, base_name: String) -> String:
-	if not parent.has_node(base_name):
-		return base_name
-
-	var counter: int = 2
-	while parent.has_node("%s%d" % [base_name, counter]):
-		counter += 1
-	return "%s%d" % [base_name, counter]
+func _get_facing_from_dropdown() -> String:
+	if not facing_override_option:
+		return ""
+	match facing_override_option.selected:
+		1: return "up"
+		2: return "down"
+		3: return "left"
+		4: return "right"
+	return ""

@@ -39,6 +39,8 @@ var filter_buttons: Dictionary = {}  # {category: Button}
 func _ready() -> void:
 	resource_type_name = "Character"
 	resource_type_id = "character"
+	# Enable undo/redo for save operations (Ctrl+Z support)
+	enable_undo_redo = true
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 	_setup_filter_buttons()
@@ -233,7 +235,7 @@ func _add_basic_info_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Name:"
-	name_label.custom_minimum_size.x = 120
+	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	name_container.add_child(name_label)
 
 	name_edit = LineEdit.new()
@@ -253,7 +255,7 @@ func _add_basic_info_section() -> void:
 	var level_container: HBoxContainer = HBoxContainer.new()
 	var level_label: Label = Label.new()
 	level_label.text = "Starting Level:"
-	level_label.custom_minimum_size.x = 120
+	level_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	level_container.add_child(level_label)
 
 	level_spin = SpinBox.new()
@@ -269,7 +271,7 @@ func _add_basic_info_section() -> void:
 	section.add_child(bio_label)
 
 	bio_edit = TextEdit.new()
-	bio_edit.custom_minimum_size.y = 100
+	bio_edit.custom_minimum_size.y = 120
 	section.add_child(bio_edit)
 
 	detail_panel.add_child(section)
@@ -287,7 +289,7 @@ func _add_battle_configuration_section() -> void:
 	var category_container: HBoxContainer = HBoxContainer.new()
 	var category_label: Label = Label.new()
 	category_label.text = "Unit Category:"
-	category_label.custom_minimum_size.x = 120
+	category_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	category_container.add_child(category_label)
 
 	category_option = OptionButton.new()
@@ -303,7 +305,7 @@ func _add_battle_configuration_section() -> void:
 	var unique_container: HBoxContainer = HBoxContainer.new()
 	var unique_label: Label = Label.new()
 	unique_label.text = "Is Unique:"
-	unique_label.custom_minimum_size.x = 120
+	unique_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	unique_container.add_child(unique_label)
 
 	is_unique_check = CheckBox.new()
@@ -316,7 +318,7 @@ func _add_battle_configuration_section() -> void:
 	var hero_container: HBoxContainer = HBoxContainer.new()
 	var hero_label: Label = Label.new()
 	hero_label.text = "Is Hero:"
-	hero_label.custom_minimum_size.x = 120
+	hero_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	hero_container.add_child(hero_label)
 
 	is_hero_check = CheckBox.new()
@@ -329,7 +331,7 @@ func _add_battle_configuration_section() -> void:
 	var ai_container: HBoxContainer = HBoxContainer.new()
 	var ai_label: Label = Label.new()
 	ai_label.text = "Default AI:"
-	ai_label.custom_minimum_size.x = 120
+	ai_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	ai_container.add_child(ai_label)
 
 	default_ai_option = OptionButton.new()
@@ -373,7 +375,7 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
 
 	var label: Label = Label.new()
 	label.text = label_text
-	label.custom_minimum_size.x = 120
+	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	container.add_child(label)
 
 	var spin: SpinBox = SpinBox.new()
@@ -391,13 +393,26 @@ func _load_available_ai_brains() -> void:
 	default_ai_option.clear()
 	default_ai_option.add_item("(None)", 0)
 
-	# Scan for AI brain files in mods
+	# Build list of AI directories to scan
+	# Scan core/ai/ for built-in AI brains, then all mods for ai_brains/ directories
 	var ai_dirs: Array[String] = [
-		"res://mods/_base_game/ai_brains/",
-		"res://core/ai/"  # Future location for built-in AI
+		"res://core/ai/"  # Built-in AI brains
 	]
 
-	for ai_dir in ai_dirs:
+	# Dynamically discover ai_brains directories in all mods
+	var mods_dir: DirAccess = DirAccess.open("res://mods/")
+	if mods_dir:
+		mods_dir.list_dir_begin()
+		var mod_name: String = mods_dir.get_next()
+		while mod_name != "":
+			if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+				var mod_ai_dir: String = "res://mods/%s/ai_brains/" % mod_name
+				if DirAccess.dir_exists_absolute(mod_ai_dir):
+					ai_dirs.append(mod_ai_dir)
+			mod_name = mods_dir.get_next()
+		mods_dir.list_dir_end()
+
+	for ai_dir: String in ai_dirs:
 		var dir: DirAccess = DirAccess.open(ai_dir)
 		if dir:
 			dir.list_dir_begin()

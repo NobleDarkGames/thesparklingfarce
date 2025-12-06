@@ -457,6 +457,11 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 	parent.add_child(inspector_scroll)
 
 
+## Public refresh method for standard editor interface
+func refresh() -> void:
+	_refresh_campaign_list()
+
+
 func _refresh_campaign_list() -> void:
 	campaign_list.clear()
 

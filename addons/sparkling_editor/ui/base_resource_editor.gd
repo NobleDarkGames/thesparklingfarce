@@ -17,6 +17,9 @@ var resource_type_id: String = ""
 # Undo/Redo manager for editor operations
 var undo_redo: EditorUndoRedoManager
 
+# Enable undo/redo for save operations (set in subclass)
+var enable_undo_redo: bool = false
+
 # UI Components (created by base class)
 var resource_list: ItemList
 var search_filter: LineEdit
@@ -38,11 +41,16 @@ var current_resource_source_mod: String = ""
 # Available resources for reference (e.g., classes list for character editor)
 var available_resources: Array[Resource] = []
 
+# Track unsaved changes
+var is_dirty: bool = false
+
 # Dialogs and feedback panels
 var confirmation_dialog: ConfirmationDialog
+var unsaved_changes_dialog: AcceptDialog
 var error_panel: PanelContainer
 var error_label: RichTextLabel
 var _pending_confirmation_action: Callable
+var _pending_unsaved_callback: Callable
 
 # Mod workflow buttons (shown when viewing cross-mod resources)
 var copy_to_mod_button: Button
@@ -228,24 +236,13 @@ func _setup_base_ui() -> void:
 	confirmation_dialog.confirmed.connect(_on_confirmation_confirmed)
 	add_child(confirmation_dialog)
 
+	# Create unsaved changes dialog
+	_create_unsaved_changes_dialog()
+
 	# Create error panel (hidden by default)
 	error_panel = PanelContainer.new()
 	error_panel.visible = false
-	var error_style: StyleBoxFlat = StyleBoxFlat.new()
-	error_style.bg_color = Color(0.6, 0.15, 0.15, 0.95)
-	error_style.border_width_left = 3
-	error_style.border_width_right = 3
-	error_style.border_width_top = 3
-	error_style.border_width_bottom = 3
-	error_style.border_color = Color(0.9, 0.3, 0.3, 1.0)
-	error_style.corner_radius_top_left = 4
-	error_style.corner_radius_top_right = 4
-	error_style.corner_radius_bottom_left = 4
-	error_style.corner_radius_bottom_right = 4
-	error_style.content_margin_left = 8
-	error_style.content_margin_right = 8
-	error_style.content_margin_top = 6
-	error_style.content_margin_bottom = 6
+	var error_style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
 	error_panel.add_theme_stylebox_override("panel", error_style)
 
 	error_label = RichTextLabel.new()
@@ -331,6 +328,15 @@ func _on_search_filter_changed(_new_text: String) -> void:
 
 
 func _on_resource_selected(index: int) -> void:
+	# Check for unsaved changes before switching resources
+	if not _check_unsaved_changes(_do_resource_selection.bind(index)):
+		return
+
+	_do_resource_selection(index)
+
+
+## Internal: Perform the actual resource selection (after unsaved changes check)
+func _do_resource_selection(index: int) -> void:
 	var path: String = resource_list.get_item_metadata(index)
 	# Load and duplicate to make it editable (load() returns read-only cached resource)
 	var loaded_resource: Resource = load(path)
@@ -340,6 +346,9 @@ func _on_resource_selected(index: int) -> void:
 
 	# Track source mod for write protection
 	current_resource_source_mod = _get_mod_from_path(path)
+
+	# Clear dirty flag when loading a new resource
+	is_dirty = false
 
 	# Hide any previous errors when selecting a new resource
 	_hide_errors()
@@ -398,8 +407,11 @@ func _on_save() -> void:
 		_show_errors(validation.errors)
 		return
 
-	# Perform the actual save
-	_perform_save()
+	# Perform the actual save (with or without undo/redo)
+	if enable_undo_redo and undo_redo:
+		_perform_save_with_undo()
+	else:
+		_perform_save()
 
 
 ## Actually perform the save operation (called after validation/confirmation)
@@ -412,12 +424,17 @@ func _perform_save() -> void:
 	var path: String = resource_list.get_item_metadata(selected_items[0])
 	var err: Error = ResourceSaver.save(current_resource, path)
 	if err == OK:
+		# Clear dirty flag on successful save
+		is_dirty = false
+
 		# Notify other editors that a resource was saved
 		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 		if event_bus:
 			event_bus.notify_resource_saved(resource_type_id, path, current_resource)
 
 		_hide_errors()
+		var display_name: String = _get_resource_display_name(current_resource)
+		_show_success_message("Saved '%s' successfully!" % display_name)
 		_refresh_list()
 	else:
 		_show_errors(["Failed to save " + resource_type_name.to_lower() + ": " + str(err)])
@@ -560,6 +577,43 @@ func _show_errors(errors: Array) -> void:
 func _hide_errors() -> void:
 	error_panel.hide()
 	error_label.text = ""
+
+
+## Show a success message (auto-dismisses after 2 seconds)
+func _show_success_message(message: String) -> void:
+	if not error_label or not error_panel:
+		return
+
+	# Use success styling
+	var success_color: Color = EditorThemeUtils.get_success_color()
+	error_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
+
+	# Apply success panel style
+	var success_style: StyleBoxFlat = EditorThemeUtils.create_success_panel_style()
+	error_panel.add_theme_stylebox_override("panel", success_style)
+
+	# Insert error panel if not already there
+	if error_panel.get_parent() != detail_panel:
+		var button_index: int = button_container.get_index()
+		detail_panel.add_child(error_panel)
+		detail_panel.move_child(error_panel, button_index)
+
+	error_panel.show()
+
+	# Auto-dismiss after 2 seconds
+	var tween: Tween = create_tween()
+	tween.tween_interval(2.0)
+	tween.tween_callback(_hide_success_and_restore_style)
+
+
+## Hide success message and restore error styling for future errors
+func _hide_success_and_restore_style() -> void:
+	error_panel.hide()
+	error_label.text = ""
+
+	# Restore error styling for next use
+	var error_style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
+	error_panel.add_theme_stylebox_override("panel", error_style)
 
 
 ## Show a confirmation dialog
@@ -1013,3 +1067,210 @@ func _add_undo_property(obj: Object, property: StringName, old_value: Variant, n
 func _commit_undo_action() -> void:
 	if undo_redo:
 		undo_redo.commit_action()
+
+
+# =============================================================================
+# Undo/Redo State Management
+# =============================================================================
+
+## Override this in subclasses to capture resource state for undo
+## Returns a Dictionary containing all relevant resource properties
+## This is called before save operations to preserve old state
+func _capture_resource_state(resource: Resource) -> Dictionary:
+	# Default implementation: use Godot's property list
+	var state: Dictionary = {}
+	for prop: Dictionary in resource.get_property_list():
+		var prop_name: String = prop.get("name", "")
+		var usage: int = prop.get("usage", 0)
+		# Only capture exported/stored properties (not built-in ones)
+		if usage & PROPERTY_USAGE_STORAGE:
+			state[prop_name] = resource.get(prop_name)
+	return state
+
+
+## Override this in subclasses to restore resource state for undo
+## Applies the state Dictionary back to the resource
+func _restore_resource_state(resource: Resource, state: Dictionary) -> void:
+	for prop_name: String in state.keys():
+		if prop_name in resource:
+			resource.set(prop_name, state[prop_name])
+
+
+## Perform a save with undo/redo support
+## Call this instead of _perform_save() when undo/redo is desired
+func _perform_save_with_undo() -> void:
+	if not current_resource or not undo_redo:
+		# Fall back to regular save if undo not available
+		_perform_save()
+		return
+
+	var selected_items: PackedInt32Array = resource_list.get_selected_items()
+	if selected_items.is_empty():
+		_perform_save()
+		return
+
+	var path: String = resource_list.get_item_metadata(selected_items[0])
+
+	# Capture state before changes
+	var old_state: Dictionary = _capture_resource_state(current_resource)
+
+	# Create a temporary copy to hold new values
+	_save_resource_data()  # Apply UI to resource
+
+	# Capture state after changes
+	var new_state: Dictionary = _capture_resource_state(current_resource)
+
+	# Restore old state temporarily for proper undo setup
+	_restore_resource_state(current_resource, old_state)
+
+	# Create undo/redo action
+	_begin_undo_action("Edit %s" % resource_type_name)
+
+	# Store old and new states for property-based undo
+	for prop_name: String in new_state.keys():
+		if prop_name in old_state:
+			var old_val: Variant = old_state.get(prop_name)
+			var new_val: Variant = new_state.get(prop_name)
+			# Only record if value actually changed
+			if not _values_equal(old_val, new_val):
+				undo_redo.add_do_property(current_resource, prop_name, new_val)
+				undo_redo.add_undo_property(current_resource, prop_name, old_val)
+
+	# Add do/undo callbacks for file saving and UI refresh
+	undo_redo.add_do_method(self, &"_do_save_resource", path)
+	undo_redo.add_undo_method(self, &"_do_save_resource", path)
+
+	# Add UI refresh after undo/redo
+	undo_redo.add_do_method(self, &"_refresh_current_resource_ui")
+	undo_redo.add_undo_method(self, &"_refresh_current_resource_ui")
+
+	_commit_undo_action()
+
+
+## Internal: Save resource to disk (called by undo/redo system)
+func _do_save_resource(path: String) -> void:
+	if current_resource:
+		var err: Error = ResourceSaver.save(current_resource, path)
+		if err != OK:
+			push_error("Failed to save resource: %s" % error_string(err))
+		else:
+			# Notify other editors
+			var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+			if event_bus:
+				event_bus.notify_resource_saved(resource_type_id, path, current_resource)
+
+
+## Internal: Refresh UI after undo/redo
+func _refresh_current_resource_ui() -> void:
+	if current_resource:
+		_load_resource_data()
+
+
+## Compare two values for equality (handles arrays and dictionaries)
+func _values_equal(a: Variant, b: Variant) -> bool:
+	if typeof(a) != typeof(b):
+		return false
+	if a is Array:
+		var arr_a: Array = a
+		var arr_b: Array = b
+		if arr_a.size() != arr_b.size():
+			return false
+		for i in range(arr_a.size()):
+			if not _values_equal(arr_a[i], arr_b[i]):
+				return false
+		return true
+	if a is Dictionary:
+		var dict_a: Dictionary = a
+		var dict_b: Dictionary = b
+		if dict_a.size() != dict_b.size():
+			return false
+		for key: Variant in dict_a.keys():
+			if key not in dict_b or not _values_equal(dict_a[key], dict_b[key]):
+				return false
+		return true
+	return a == b
+
+
+# =============================================================================
+# Unsaved Changes Warning
+# =============================================================================
+
+## Create the unsaved changes dialog with Save/Discard/Cancel options
+func _create_unsaved_changes_dialog() -> void:
+	unsaved_changes_dialog = AcceptDialog.new()
+	unsaved_changes_dialog.title = "Unsaved Changes"
+	unsaved_changes_dialog.dialog_text = "You have unsaved changes. What would you like to do?"
+	unsaved_changes_dialog.ok_button_text = "Save"
+
+	# Add Discard button
+	var discard_btn: Button = unsaved_changes_dialog.add_button("Discard", false, "discard")
+
+	# Add Cancel button (right side)
+	var cancel_btn: Button = unsaved_changes_dialog.add_cancel_button("Cancel")
+
+	# Connect signals
+	unsaved_changes_dialog.confirmed.connect(_on_unsaved_dialog_save)
+	unsaved_changes_dialog.custom_action.connect(_on_unsaved_dialog_custom_action)
+	unsaved_changes_dialog.canceled.connect(_on_unsaved_dialog_cancel)
+
+	add_child(unsaved_changes_dialog)
+
+
+## Check for unsaved changes before performing an action
+## If there are unsaved changes, shows dialog and stores callback for later execution
+## Returns true if the action can proceed immediately (no unsaved changes)
+## Returns false if dialog was shown (action will proceed via callback if user chooses)
+func _check_unsaved_changes(callback: Callable) -> bool:
+	if not is_dirty:
+		return true
+
+	# Store callback for later execution
+	_pending_unsaved_callback = callback
+
+	# Show the dialog
+	unsaved_changes_dialog.popup_centered()
+
+	return false
+
+
+## Called when user clicks "Save" in unsaved changes dialog
+func _on_unsaved_dialog_save() -> void:
+	# Save the current resource
+	_perform_save()
+
+	# Clear dirty flag
+	is_dirty = false
+
+	# Execute the pending callback
+	if _pending_unsaved_callback.is_valid():
+		_pending_unsaved_callback.call()
+	_pending_unsaved_callback = Callable()
+
+
+## Called when user clicks a custom button (Discard)
+func _on_unsaved_dialog_custom_action(action: StringName) -> void:
+	if action == &"discard":
+		# Discard changes and proceed
+		is_dirty = false
+
+		# Execute the pending callback
+		if _pending_unsaved_callback.is_valid():
+			_pending_unsaved_callback.call()
+		_pending_unsaved_callback = Callable()
+
+
+## Called when user clicks "Cancel" or closes the dialog
+func _on_unsaved_dialog_cancel() -> void:
+	# Clear the pending callback - action is cancelled
+	_pending_unsaved_callback = Callable()
+
+
+## Mark the editor as having unsaved changes
+## Call this from subclasses when user modifies any field
+func _mark_dirty() -> void:
+	is_dirty = true
+
+
+## Clear the dirty flag (typically after saving)
+func _clear_dirty() -> void:
+	is_dirty = false

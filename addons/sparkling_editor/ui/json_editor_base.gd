@@ -177,12 +177,7 @@ func create_error_panel() -> PanelContainer:
 	error_panel = PanelContainer.new()
 	error_panel.visible = false
 
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.4, 0.1, 0.1, 0.9)
-	style.border_color = Color(0.8, 0.2, 0.2)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
-	style.set_content_margin_all(8)
+	var style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
 	error_panel.add_theme_stylebox_override("panel", style)
 
 	error_label = RichTextLabel.new()

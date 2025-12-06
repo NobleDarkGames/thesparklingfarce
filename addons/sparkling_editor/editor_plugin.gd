@@ -7,15 +7,13 @@ const MainPanelScene: PackedScene = preload("res://addons/sparkling_editor/ui/ma
 const EditorEventBus: GDScript = preload("res://addons/sparkling_editor/editor_event_bus.gd")
 
 var main_panel: Control
-var event_bus: Node
 
 
 func _enter_tree() -> void:
 	# Plugin initialization - debug logging removed for production
 
-	# Create and register the EditorEventBus as an autoload
-	event_bus = EditorEventBus.new()
-	event_bus.name = "EditorEventBus"
+	# Register the EditorEventBus as an autoload
+	# Note: Godot creates the instance from the script path - don't create our own
 	add_autoload_singleton("EditorEventBus", "res://addons/sparkling_editor/editor_event_bus.gd")
 
 	# Instantiate the main panel from scene

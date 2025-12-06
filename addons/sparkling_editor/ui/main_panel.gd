@@ -335,7 +335,7 @@ func _create_mod_selector_ui() -> void:
 
 	# Mod info label
 	mod_info_label = Label.new()
-	mod_info_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	mod_info_label.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
 	mod_info_label.add_theme_font_size_override("font_size", 16)
 	mod_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(mod_info_label)
@@ -643,13 +643,13 @@ func _create_mod_wizard_dialog() -> void:
 	type_help.text = "Content Expansion: Adds new content alongside base game\n" + \
 		"Override Pack: Replaces specific base game content\n" + \
 		"Total Conversion: Completely replaces the base game"
-	type_help.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	type_help.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
 	type_help.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(type_help)
 
 	# Error label
 	wizard_error_label = Label.new()
-	wizard_error_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	wizard_error_label.add_theme_color_override("font_color", EditorThemeUtils.get_error_color())
 	wizard_error_label.visible = false
 	vbox.add_child(wizard_error_label)
 

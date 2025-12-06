@@ -463,7 +463,7 @@ func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	var placeholder: Label = Label.new()
 	placeholder.name = "Placeholder"
 	placeholder.text = "Select a command to edit its parameters"
-	placeholder.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	placeholder.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
 	inspector_panel.add_child(placeholder)
 
 
@@ -527,6 +527,11 @@ func _add_new_command(cmd_type: String) -> void:
 	_rebuild_command_list()
 	_select_command(insert_idx)
 	is_dirty = true
+
+
+## Public refresh method for standard editor interface
+func refresh() -> void:
+	_refresh_cinematic_list()
 
 
 func _refresh_cinematic_list() -> void:
@@ -734,7 +739,7 @@ func _clear_inspector() -> void:
 	var placeholder: Label = Label.new()
 	placeholder.name = "Placeholder"
 	placeholder.text = "Select a command to edit its parameters"
-	placeholder.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	placeholder.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
 	inspector_panel.add_child(placeholder)
 
 
@@ -765,7 +770,7 @@ func _build_inspector_for_command(index: int) -> void:
 	if cmd_type in COMMAND_DEFINITIONS:
 		var desc_label: Label = Label.new()
 		desc_label.text = COMMAND_DEFINITIONS[cmd_type].description
-		desc_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		desc_label.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inspector_panel.add_child(desc_label)
 
@@ -1243,7 +1248,8 @@ func _get_active_mod() -> String:
 		var active_mod: ModManifest = ModLoader.get_active_mod()
 		if active_mod:
 			return active_mod.mod_id
-	return "_base_game"
+	push_error("CinematicEditor: No active mod selected. Please select a mod from the dropdown.")
+	return ""
 
 
 ## Refresh when tab becomes visible

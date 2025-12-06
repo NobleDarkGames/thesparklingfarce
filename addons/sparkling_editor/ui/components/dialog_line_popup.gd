@@ -121,7 +121,7 @@ func _setup_ui() -> void:
 	result_preview = TextEdit.new()
 	result_preview.custom_minimum_size.y = 80
 	result_preview.editable = false
-	result_preview.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	result_preview.add_theme_color_override("font_color", EditorThemeUtils.get_success_color())
 	main_vbox.add_child(result_preview)
 
 	# Buttons

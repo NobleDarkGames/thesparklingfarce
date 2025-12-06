@@ -742,6 +742,11 @@ func _add_separator() -> void:
 	detail_panel.add_child(sep)
 
 
+## Public refresh method for standard editor interface
+func refresh() -> void:
+	_refresh_mod_list()
+
+
 ## Refresh the list of available mods
 func _refresh_mod_list() -> void:
 	mod_list.clear()
