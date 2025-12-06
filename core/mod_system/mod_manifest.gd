@@ -73,6 +73,14 @@ const MAX_PRIORITY: int = 9999
 ## Exact IDs also work: "base_game:main_story" hides that specific campaign
 @export var hidden_campaigns: Array[String] = []
 
+## Caravan configuration - allows mods to customize or disable the Caravan system
+## Format: {
+##   "enabled": bool (default true, set false to disable caravan entirely),
+##   "caravan_data_id": String (override which CaravanData resource to use),
+##   "custom_services": {service_id: {scene_path: String, display_name: String}}
+## }
+@export var caravan_config: Dictionary = {}
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -207,6 +215,10 @@ static func load_from_file(json_path: String) -> ModManifest:
 	if "hidden_campaigns" in data and data.hidden_campaigns is Array:
 		for pattern: Variant in data.hidden_campaigns:
 			manifest.hidden_campaigns.append(str(pattern))
+
+	# Parse caravan configuration
+	if "caravan_config" in data and data.caravan_config is Dictionary:
+		manifest.caravan_config = data.caravan_config
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

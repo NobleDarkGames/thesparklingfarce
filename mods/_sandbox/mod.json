@@ -14,6 +14,9 @@
   "scenes": {
     "opening_cinematic": "scenes/cinematics/opening_cinematic_stage.tscn"
   },
+  "caravan_config": {
+    "caravan_data_id": "test_caravan"
+  },
   "overrides": [],
   "tags": ["development", "testing", "sandbox"]
 }

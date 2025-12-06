@@ -1,7 +1,7 @@
 # Caravan System Implementation Plan
 
 **Created:** 2025-12-05
-**Status:** PHASE 2 IN PROGRESS
+**Status:** PHASE 3 IN PROGRESS
 **Priority:** CRITICAL (Mission Priority One)
 **Last Updated:** 2025-12-05
 
@@ -192,32 +192,32 @@ Layer 3: CONTENT (mods/)
 
 ### Tasks
 
-- [ ] **3.1 Add caravan_config to mod.json parsing**
-  - Support `caravan_data_id` override
-  - Support `enabled: false` to disable caravan
-  - Support custom `interior_scene_path`
+- [x] **3.1 Add caravan_config to mod.json parsing**
+  - Added `caravan_config` to ModManifest with fields: `enabled`, `caravan_data_id`, `custom_services`
+  - CaravanController reads from mod manifests in priority order
 
-- [ ] **3.2 Register CaravanData in ModLoader**
-  - Add "caravan" to RESOURCE_TYPE_DIRS
-  - Auto-discover from `mods/*/data/caravans/`
+- [x] **3.2 Register CaravanData in ModLoader**
+  - Already registered in RESOURCE_TYPE_DIRS as "caravans" -> "caravan"
+  - Auto-discovers from `mods/*/data/caravans/`
 
-- [ ] **3.3 Support CaravanData override**
-  - Higher priority mods can replace wagon config
-  - Verify with test mod
+- [x] **3.3 Support CaravanData override**
+  - Higher priority mods override via `caravan_data_id` in mod.json
+  - CaravanController._load_caravan_config() iterates mods by priority
 
-- [ ] **3.4 Support custom services**
-  - `CaravanController.register_service(id, scene)`
-  - Mods can add blacksmith, promotion altar, etc.
+- [x] **3.4 Support custom services**
+  - `_custom_services` dict in CaravanController
+  - `_register_custom_service()` parses from mod's caravan_config.custom_services
+  - Format: `{service_id: {scene_path: String, display_name: String}}`
 
-- [ ] **3.5 Create test mod**
-  - `mods/_sandbox/data/caravans/test_caravan.tres`
-  - Different sprite, different follow distance
-  - Verify override works
+- [x] **3.5 Create test mod**
+  - Created `mods/_sandbox/data/caravans/test_caravan.tres`
+  - Settings: has_rest_service=true, wagon_scale=1.5, follow_distance=2, speed=128
+  - Added caravan_config to _sandbox/mod.json pointing to test_caravan
 
-### Phase 3 Verification
+### Phase 3 Verification (NEEDS TESTING)
 
-- [ ] Test mod can override default caravan appearance
-- [ ] Test mod can disable caravan entirely
+- [ ] Test mod can override default caravan appearance (Rest should be enabled)
+- [ ] Test mod can disable caravan entirely (set enabled: false)
 - [ ] Custom services can be registered by mods
 
 ---

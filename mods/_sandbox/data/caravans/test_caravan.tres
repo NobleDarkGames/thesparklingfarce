@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CaravanData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/caravan_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+caravan_id = "test_caravan"
+display_name = "Test Caravan (Sandbox)"
+wagon_sprite = null
+wagon_animation_frames = null
+wagon_scale = Vector2(1.5, 1.5)
+z_index_offset = 0
+follow_distance_tiles = 2
+follow_speed = 128.0
+use_chain_following = true
+max_history_size = 20
+can_cross_water = true
+blocked_terrain_types = Array[String](["mountain", "deep_water", "wall"])
+can_enter_forest = true
+has_item_storage = true
+has_party_management = true
+has_rest_service = true
+has_shop_service = false
+has_promotion_service = false
+interior_scene_path = ""
+interior_npcs = {}
+menu_open_sfx = ""
+menu_close_sfx = ""
+heal_sfx = ""
+ambient_sfx = ""

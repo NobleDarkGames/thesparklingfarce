@@ -96,6 +96,9 @@ var _has_saved_position: bool = false
 ## Whether the system is initialized
 var _initialized: bool = false
 
+## Custom services registered by mods
+var _custom_services: Dictionary = {}
+
 # =============================================================================
 # UI STATE
 # =============================================================================
@@ -163,17 +166,69 @@ func _load_caravan_config() -> void:
 		push_warning("CaravanController: ModLoader not available")
 		return
 
-	# Try to load caravan config from registry
-	var caravan: Resource = ModLoader.registry.get_resource("caravan", DEFAULT_CARAVAN_ID)
+	# Check mod manifests for caravan configuration (highest priority wins)
+	var caravan_data_id: String = DEFAULT_CARAVAN_ID
+	var caravan_enabled: bool = true
+
+	# Iterate mods in priority order (highest first) to find overrides
+	var manifests: Array = ModLoader.get_mods_by_priority_descending()
+	for manifest: ModManifest in manifests:
+		if manifest.caravan_config.is_empty():
+			continue
+
+		# Check if mod disables caravan entirely
+		if "enabled" in manifest.caravan_config:
+			caravan_enabled = manifest.caravan_config.enabled
+			if not caravan_enabled:
+				break  # Highest priority mod disabled it
+
+		# Check for caravan_data_id override
+		if "caravan_data_id" in manifest.caravan_config:
+			caravan_data_id = manifest.caravan_config.caravan_data_id
+
+		# Register custom services
+		if "custom_services" in manifest.caravan_config:
+			var services: Dictionary = manifest.caravan_config.custom_services
+			for service_id: String in services.keys():
+				var service_data: Dictionary = services[service_id]
+				_register_custom_service(service_id, service_data, manifest.mod_directory)
+
+	# Apply enabled state
+	enabled = caravan_enabled
+	if not enabled:
+		return
+
+	# Load the caravan data resource
+	var caravan: Resource = ModLoader.registry.get_resource("caravan", caravan_data_id)
 	if caravan and caravan.get_script() == CaravanDataScript:
 		current_config = caravan
 	else:
-		# Create default config if none found
-		current_config = CaravanDataScript.new()
-		current_config.caravan_id = DEFAULT_CARAVAN_ID
-		current_config.display_name = "Caravan"
-		current_config.follow_distance_tiles = 3
-		push_warning("CaravanController: No caravan config found, using defaults")
+		# Fallback to default if specified ID not found
+		caravan = ModLoader.registry.get_resource("caravan", DEFAULT_CARAVAN_ID)
+		if caravan and caravan.get_script() == CaravanDataScript:
+			current_config = caravan
+		else:
+			# Create default config if none found
+			current_config = CaravanDataScript.new()
+			current_config.caravan_id = DEFAULT_CARAVAN_ID
+			current_config.display_name = "Caravan"
+			current_config.follow_distance_tiles = 3
+			push_warning("CaravanController: No caravan config found, using defaults")
+
+
+## Register a custom service from mod configuration
+func _register_custom_service(service_id: String, service_data: Dictionary, mod_dir: String) -> void:
+	if "scene_path" not in service_data:
+		push_warning("CaravanController: Custom service '%s' missing scene_path" % service_id)
+		return
+
+	var scene_path: String = mod_dir.path_join(service_data.scene_path)
+	var display_name: String = service_data.get("display_name", service_id.capitalize())
+
+	_custom_services[service_id] = {
+		"scene_path": scene_path,
+		"display_name": display_name
+	}
 
 
 func _setup_ui() -> void:
