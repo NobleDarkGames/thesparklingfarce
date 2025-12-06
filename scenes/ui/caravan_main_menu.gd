@@ -30,6 +30,9 @@ signal items_requested()
 ## Emitted when rest service is requested
 signal rest_requested()
 
+## Emitted when a custom service is requested (from mods)
+signal custom_service_requested(service_id: String, scene_path: String)
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -40,14 +43,15 @@ const COLOR_OPTION_NORMAL: Color = Color(0.85, 0.85, 0.85, 1.0)
 const COLOR_OPTION_SELECTED: Color = Color(1.0, 0.95, 0.4, 1.0)
 const COLOR_OPTION_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 
-const MENU_OPTIONS: Array[Dictionary] = [
+const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
+
+## Fallback menu options if CaravanController unavailable
+const FALLBACK_OPTIONS: Array[Dictionary] = [
 	{"id": "party", "label": "Party", "description": "Manage party members"},
 	{"id": "items", "label": "Items", "description": "Access item storage"},
 	{"id": "rest", "label": "Rest", "description": "Heal all party members"},
 	{"id": "exit", "label": "Exit", "description": "Leave the Caravan"},
 ]
-
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
 # =============================================================================
 # STATE
@@ -59,8 +63,11 @@ var _selected_index: int = 0
 ## Whether the menu is actively accepting input
 var _active: bool = false
 
-## Options that are currently disabled
+## Options that are currently disabled (legacy, kept for compatibility)
 var _disabled_options: Array[String] = []
+
+## Dynamic menu options (populated from CaravanController)
+var _menu_options: Array[Dictionary] = []
 
 # =============================================================================
 # UI REFERENCES
@@ -131,6 +138,7 @@ func _build_ui() -> void:
 
 	# Content container
 	var content: VBoxContainer = VBoxContainer.new()
+	content.name = "Content"
 	content.add_theme_constant_override("separation", 4)
 	_panel.add_child(content)
 
@@ -148,14 +156,50 @@ func _build_ui() -> void:
 	sep.custom_minimum_size.y = 8
 	content.add_child(sep)
 
-	# Options container
+	# Options container (populated dynamically)
 	_options_container = VBoxContainer.new()
+	_options_container.name = "OptionsContainer"
 	_options_container.add_theme_constant_override("separation", 2)
 	content.add_child(_options_container)
 
-	# Create option labels
-	for i in range(MENU_OPTIONS.size()):
-		var option: Dictionary = MENU_OPTIONS[i]
+	# Description area
+	var desc_sep: HSeparator = HSeparator.new()
+	desc_sep.custom_minimum_size.y = 8
+	content.add_child(desc_sep)
+
+	_description_label = Label.new()
+	_description_label.text = "Select an option..."
+	_description_label.add_theme_font_override("font", MONOGRAM_FONT)
+	_description_label.add_theme_font_size_override("font_size", 16)
+	_description_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	_description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(_description_label)
+
+	# Build initial options (will be refreshed on show_menu)
+	_refresh_menu_options()
+
+
+## Refresh menu options from CaravanController (supports mod custom services)
+func _refresh_menu_options() -> void:
+	# Clear existing option UI
+	for child in _options_container.get_children():
+		child.queue_free()
+	_option_labels.clear()
+
+	# Get options from CaravanController or use fallback
+	if CaravanController and CaravanController.has_method("get_menu_options"):
+		_menu_options = CaravanController.get_menu_options()
+	else:
+		_menu_options = []
+		for opt in FALLBACK_OPTIONS:
+			_menu_options.append(opt.duplicate())
+
+	# Wait a frame for queue_free to complete
+	await get_tree().process_frame
+
+	# Create option labels dynamically
+	for i in range(_menu_options.size()):
+		var option: Dictionary = _menu_options[i]
 
 		var option_row: HBoxContainer = HBoxContainer.new()
 		option_row.add_theme_constant_override("separation", 8)
@@ -176,26 +220,23 @@ func _build_ui() -> void:
 
 		# Option label
 		var label: Label = Label.new()
-		label.text = option.label
+		label.text = option.get("label", "???")
 		label.add_theme_font_override("font", MONOGRAM_FONT)
 		label.add_theme_font_size_override("font_size", 16)
-		label.add_theme_color_override("font_color", COLOR_OPTION_NORMAL)
-		option_row.add_child(label)
 
+		# Check if option is enabled
+		var is_enabled: bool = option.get("enabled", true)
+		if is_enabled:
+			label.add_theme_color_override("font_color", COLOR_OPTION_NORMAL)
+		else:
+			label.add_theme_color_override("font_color", COLOR_OPTION_DISABLED)
+
+		option_row.add_child(label)
 		_option_labels.append(label)
 
-	# Description area
-	var desc_sep: HSeparator = HSeparator.new()
-	desc_sep.custom_minimum_size.y = 8
-	content.add_child(desc_sep)
-
-	_description_label = Label.new()
-	_description_label.text = MENU_OPTIONS[0].description
-	_description_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_description_label.add_theme_font_size_override("font_size", 16)
-	_description_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	_description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	content.add_child(_description_label)
+	# Update description for first option
+	if not _menu_options.is_empty():
+		_description_label.text = _menu_options[0].get("description", "")
 
 
 # =============================================================================
@@ -204,6 +245,9 @@ func _build_ui() -> void:
 
 ## Show the menu and activate input with smooth transition
 func show_menu() -> void:
+	# Refresh options from CaravanController (picks up mod custom services)
+	await _refresh_menu_options()
+
 	_selected_index = 0
 	_update_selection_visual()
 	visible = true
@@ -247,14 +291,18 @@ func set_disabled_options(disabled: Array[String]) -> void:
 
 
 func _move_selection(direction: int) -> void:
+	if _menu_options.is_empty():
+		return
+
 	var new_index: int = _selected_index
 	var attempts: int = 0
 
-	# Find next valid (non-disabled) option
-	while attempts < MENU_OPTIONS.size():
-		new_index = (new_index + direction + MENU_OPTIONS.size()) % MENU_OPTIONS.size()
-		var option_id: String = MENU_OPTIONS[new_index].id
-		if option_id not in _disabled_options:
+	# Find next valid (enabled) option
+	while attempts < _menu_options.size():
+		new_index = (new_index + direction + _menu_options.size()) % _menu_options.size()
+		var option: Dictionary = _menu_options[new_index]
+		var is_enabled: bool = option.get("enabled", true)
+		if is_enabled:
 			break
 		attempts += 1
 
@@ -268,30 +316,49 @@ func _move_selection(direction: int) -> void:
 
 
 func _update_selection_visual() -> void:
-	for i in range(_option_labels.size()):
-		var label: Label = _option_labels[i]
-		var option_id: String = MENU_OPTIONS[i].id
-		var cursor: Label = _options_container.get_child(i).get_child(0) as Label
+	if _menu_options.is_empty():
+		return
 
-		if option_id in _disabled_options:
+	for i in range(_option_labels.size()):
+		if i >= _menu_options.size():
+			break
+
+		var label: Label = _option_labels[i]
+		var option: Dictionary = _menu_options[i]
+		var is_enabled: bool = option.get("enabled", true)
+
+		# Get cursor from row
+		var row: Node = _options_container.get_child(i)
+		var cursor: Label = row.get_child(0) as Label if row.get_child_count() > 0 else null
+
+		if not is_enabled:
 			label.add_theme_color_override("font_color", COLOR_OPTION_DISABLED)
-			cursor.visible = false
+			if cursor:
+				cursor.visible = false
 		elif i == _selected_index:
 			label.add_theme_color_override("font_color", COLOR_OPTION_SELECTED)
-			cursor.visible = true
+			if cursor:
+				cursor.visible = true
 		else:
 			label.add_theme_color_override("font_color", COLOR_OPTION_NORMAL)
-			cursor.visible = false
+			if cursor:
+				cursor.visible = false
 
 	# Update description
-	_description_label.text = MENU_OPTIONS[_selected_index].description
+	if _selected_index < _menu_options.size():
+		_description_label.text = _menu_options[_selected_index].get("description", "")
 
 
 func _confirm_selection() -> void:
-	var option: Dictionary = MENU_OPTIONS[_selected_index]
-	var option_id: String = option.id
+	if _menu_options.is_empty() or _selected_index >= _menu_options.size():
+		return
 
-	if option_id in _disabled_options:
+	var option: Dictionary = _menu_options[_selected_index]
+	var option_id: String = option.get("id", "")
+	var is_enabled: bool = option.get("enabled", true)
+	var is_custom: bool = option.get("is_custom", false)
+
+	if not is_enabled:
 		# Play error sound
 		if AudioManager:
 			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
@@ -301,7 +368,14 @@ func _confirm_selection() -> void:
 	if AudioManager:
 		AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
-	# Emit appropriate signal
+	# Handle custom services from mods
+	if is_custom:
+		var scene_path: String = option.get("scene_path", "")
+		custom_service_requested.emit(option_id, scene_path)
+		option_selected.emit(option_id)
+		return
+
+	# Emit appropriate signal for built-in services
 	match option_id:
 		"party":
 			party_requested.emit()

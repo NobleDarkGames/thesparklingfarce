@@ -290,6 +290,64 @@ func demote_to_reserve(active_index: int) -> Dictionary:
 	return {"success": true, "error": ""}
 
 
+## Swap two positions within the active party
+## @param idx1: First index (0 to MAX_ACTIVE_SIZE-1)
+## @param idx2: Second index (0 to MAX_ACTIVE_SIZE-1)
+## @return: Dictionary with {success: bool, error: String}
+func swap_within_active(idx1: int, idx2: int) -> Dictionary:
+	var active_count: int = get_active_count()
+
+	# Validate indices
+	if idx1 < 0 or idx1 >= active_count:
+		return {"success": false, "error": "Invalid first index"}
+	if idx2 < 0 or idx2 >= active_count:
+		return {"success": false, "error": "Invalid second index"}
+
+	# SACRED COW: Hero (slot 0) cannot be moved
+	if idx1 == 0 or idx2 == 0:
+		return {"success": false, "error": "Cannot swap hero position"}
+
+	# Same position is a no-op
+	if idx1 == idx2:
+		return {"success": true, "error": ""}
+
+	# Perform the swap
+	var temp: CharacterData = party_members[idx1]
+	party_members[idx1] = party_members[idx2]
+	party_members[idx2] = temp
+
+	return {"success": true, "error": ""}
+
+
+## Swap two positions within the reserve party
+## @param idx1: First index within reserve (0-based)
+## @param idx2: Second index within reserve (0-based)
+## @return: Dictionary with {success: bool, error: String}
+func swap_within_reserve(idx1: int, idx2: int) -> Dictionary:
+	var reserve_count: int = get_reserve_count()
+
+	# Validate indices
+	if idx1 < 0 or idx1 >= reserve_count:
+		return {"success": false, "error": "Invalid first reserve index"}
+	if idx2 < 0 or idx2 >= reserve_count:
+		return {"success": false, "error": "Invalid second reserve index"}
+
+	# Same position is a no-op
+	if idx1 == idx2:
+		return {"success": true, "error": ""}
+
+	# Calculate actual array indices (reserve starts after active section)
+	var real_idx1: int = MAX_ACTIVE_SIZE + idx1
+	var real_idx2: int = MAX_ACTIVE_SIZE + idx2
+
+	# Perform the swap
+	var temp: CharacterData = party_members[real_idx1]
+	party_members[real_idx1] = party_members[real_idx2]
+	party_members[real_idx2] = temp
+
+	return {"success": true, "error": ""}
+
+
 # ============================================================================
 # HERO MANAGEMENT
 # ============================================================================

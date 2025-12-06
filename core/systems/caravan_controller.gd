@@ -43,6 +43,9 @@ signal player_out_of_range()
 ## Emitted when rest/heal service is used
 signal party_healed()
 
+## Emitted when player attempts to access caravan but it's not available
+signal access_denied(reason: String)
+
 # =============================================================================
 # PRELOADS
 # =============================================================================
@@ -273,6 +276,8 @@ func _connect_menu_signals() -> void:
 		_main_menu.items_requested.connect(_on_items_requested)
 	if _main_menu.has_signal("rest_requested"):
 		_main_menu.rest_requested.connect(_on_rest_requested)
+	if _main_menu.has_signal("custom_service_requested"):
+		_main_menu.custom_service_requested.connect(_on_custom_service_requested)
 
 	# Connect party panel signals
 	if _party_panel:
@@ -317,6 +322,77 @@ func _on_rest_requested() -> void:
 		# Delay close to let user see message
 		await get_tree().create_timer(1.0).timeout
 	close_menu()
+
+
+func _on_custom_service_requested(service_id: String, scene_path: String) -> void:
+	# Handle custom service from mods
+	if scene_path.is_empty():
+		push_warning("CaravanController: Custom service '%s' has no scene_path" % service_id)
+		return
+
+	# Verify the scene exists
+	if not ResourceLoader.exists(scene_path):
+		push_error("CaravanController: Custom service scene not found: %s" % scene_path)
+		return
+
+	# Load and instantiate the custom service scene
+	var scene: PackedScene = load(scene_path) as PackedScene
+	if not scene:
+		push_error("CaravanController: Failed to load custom service scene: %s" % scene_path)
+		return
+
+	var instance: Control = scene.instantiate() as Control
+	if not instance:
+		push_error("CaravanController: Custom service scene is not a Control: %s" % scene_path)
+		return
+
+	# Hide main menu while custom service is active
+	if _main_menu and _main_menu.has_method("hide_menu"):
+		_main_menu.hide_menu()
+
+	# Add to UI layer
+	instance.process_mode = Node.PROCESS_MODE_ALWAYS
+	_ui_layer.add_child(instance)
+
+	# Connect close signal if available (standard pattern for custom services)
+	if instance.has_signal("close_requested"):
+		instance.close_requested.connect(func() -> void:
+			instance.queue_free()
+			if _main_menu and _main_menu.has_method("show_menu"):
+				_main_menu.show_menu()
+		)
+	elif instance.has_signal("closed"):
+		instance.closed.connect(func() -> void:
+			instance.queue_free()
+			if _main_menu and _main_menu.has_method("show_menu"):
+				_main_menu.show_menu()
+		)
+
+
+## Show a brief floating notification when caravan access is denied
+func _show_access_denied_notification(message: String) -> void:
+	if not _ui_layer:
+		return
+
+	# Create a simple floating label notification
+	var notification: Label = Label.new()
+	notification.text = message
+	notification.add_theme_font_override("font", preload("res://assets/fonts/monogram.ttf"))
+	notification.add_theme_font_size_override("font_size", 16)
+	notification.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4, 1.0))
+	notification.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notification.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	notification.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	notification.position.y = 60  # Below typical UI elements
+
+	_ui_layer.add_child(notification)
+
+	# Animate fade out and rise
+	var tween: Tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(notification, "modulate:a", 0.0, 1.5).set_ease(Tween.EASE_IN)
+	tween.tween_property(notification, "position:y", notification.position.y - 20, 1.5).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_callback(notification.queue_free)
 
 
 # =============================================================================
@@ -553,10 +629,92 @@ func get_grid_position() -> Vector2i:
 	return _saved_grid_position
 
 
+## Get all available menu options for the caravan menu
+## Returns array of dictionaries with: id, label, description, enabled, is_custom
+## This allows mods to add custom services that appear in the menu
+func get_menu_options() -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+
+	# Built-in services (order matters for SF2-authentic feel)
+	if current_config:
+		if current_config.has_party_management:
+			options.append({
+				"id": "party",
+				"label": "Party",
+				"description": "Manage party members",
+				"enabled": true,
+				"is_custom": false
+			})
+
+		if current_config.has_item_storage:
+			options.append({
+				"id": "items",
+				"label": "Items",
+				"description": "Access item storage",
+				"enabled": true,
+				"is_custom": false
+			})
+
+		if current_config.has_rest_service:
+			options.append({
+				"id": "rest",
+				"label": "Rest",
+				"description": "Heal all party members",
+				"enabled": true,
+				"is_custom": false
+			})
+
+		if current_config.has_shop_service:
+			options.append({
+				"id": "shop",
+				"label": "Shop",
+				"description": "Buy and sell items",
+				"enabled": true,
+				"is_custom": false
+			})
+
+		if current_config.has_promotion_service:
+			options.append({
+				"id": "promotion",
+				"label": "Promote",
+				"description": "Promote characters",
+				"enabled": true,
+				"is_custom": false
+			})
+
+	# Custom services from mods
+	for service_id: String in _custom_services.keys():
+		var service: Dictionary = _custom_services[service_id]
+		options.append({
+			"id": service_id,
+			"label": service.get("display_name", service_id),
+			"description": service.get("description", "Custom service"),
+			"enabled": true,
+			"is_custom": true,
+			"scene_path": service.get("scene_path", "")
+		})
+
+	# Exit is always last
+	options.append({
+		"id": "exit",
+		"label": "Exit",
+		"description": "Leave the Caravan",
+		"enabled": true,
+		"is_custom": false
+	})
+
+	return options
+
+
 ## Open the caravan main menu
 func open_menu() -> void:
 	if not _current_map or not _current_map.caravan_accessible:
-		push_warning("CaravanController: Caravan not accessible on this map")
+		# Provide user feedback when caravan is not accessible
+		var reason: String = "Caravan not accessible here"
+		if AudioManager:
+			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
+		access_denied.emit(reason)
+		_show_access_denied_notification(reason)
 		return
 
 	if _menu_open:

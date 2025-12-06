@@ -599,39 +599,14 @@ func _swap_within_active(idx1: int, idx2: int) -> Dictionary:
 	if not PartyManager:
 		return {"success": false, "error": "No PartyManager"}
 
-	# Cannot swap hero
-	if idx1 == 0 or idx2 == 0:
-		return {"success": false, "error": "Cannot swap hero position"}
-
-	var party: Array = PartyManager.party_members
-	if idx1 >= party.size() or idx2 >= party.size():
-		return {"success": false, "error": "Invalid index"}
-
-	var temp: CharacterData = party[idx1]
-	party[idx1] = party[idx2]
-	party[idx2] = temp
-
-	return {"success": true, "error": ""}
+	return PartyManager.swap_within_active(idx1, idx2)
 
 
 func _swap_within_reserve(idx1: int, idx2: int) -> Dictionary:
 	if not PartyManager:
 		return {"success": false, "error": "No PartyManager"}
 
-	var offset: int = PartyManager.MAX_ACTIVE_SIZE
-	var party: Array = PartyManager.party_members
-
-	var real_idx1: int = offset + idx1
-	var real_idx2: int = offset + idx2
-
-	if real_idx1 >= party.size() or real_idx2 >= party.size():
-		return {"success": false, "error": "Invalid reserve index"}
-
-	var temp: CharacterData = party[real_idx1]
-	party[real_idx1] = party[real_idx2]
-	party[real_idx2] = temp
-
-	return {"success": true, "error": ""}
+	return PartyManager.swap_within_reserve(idx1, idx2)
 
 
 func _cancel() -> void:

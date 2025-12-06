@@ -106,12 +106,13 @@ func _ready() -> void:
 	_refresh_depot_display()
 	_refresh_inventory_display()
 
-	# Connect to StorageManager signals
-	StorageManager.depot_changed.connect(_on_depot_changed)
+	# Connect to StorageManager signals (guard for test environments)
+	if StorageManager:
+		StorageManager.depot_changed.connect(_on_depot_changed)
 
 
 func _exit_tree() -> void:
-	if StorageManager.depot_changed.is_connected(_on_depot_changed):
+	if StorageManager and StorageManager.depot_changed.is_connected(_on_depot_changed):
 		StorageManager.depot_changed.disconnect(_on_depot_changed)
 
 
@@ -391,6 +392,10 @@ func _populate_character_dropdown() -> void:
 # =============================================================================
 
 func _refresh_depot_display() -> void:
+	if not StorageManager:
+		_item_count_label.text = "Depot unavailable"
+		return
+
 	# Get filtered depot contents
 	var items: Array[String] = _get_filtered_items()
 
@@ -533,7 +538,7 @@ func _refresh_inventory_display() -> void:
 
 	while _inventory_slot_pool.size() < max_slots:
 		var slot: Control = ItemSlotScript.new()
-		slot.clicked.connect(_on_inventory_slot_clicked)
+		# NOTE: clicked signal is connected per-slot below with index capture
 		slot.hovered.connect(_on_slot_hovered)
 		slot.hover_exited.connect(_on_slot_hover_exited)
 		_inventory_slot_pool.append(slot)
@@ -545,6 +550,13 @@ func _refresh_inventory_display() -> void:
 	# Add slots for inventory items (show empty slots too)
 	for i in range(max_slots):
 		var slot: Control = _inventory_slot_pool[i]
+
+		# Disconnect old clicked connection and reconnect with current index
+		if slot.clicked.is_connected(_on_inventory_slot_clicked_at_index):
+			slot.clicked.disconnect(_on_inventory_slot_clicked_at_index)
+		var slot_index: int = i  # Capture index
+		slot.clicked.connect(_on_inventory_slot_clicked_at_index.bind(slot_index))
+
 		if i < inventory.size():
 			var item_id: String = inventory[i]
 			slot.set_item(item_id, false)
@@ -619,11 +631,12 @@ func _on_slot_clicked(item_id: String) -> void:
 	AudioManager.play_sfx("menu_hover", AudioManager.SFXCategory.UI)
 
 
-func _on_inventory_slot_clicked(item_id: String) -> void:
+## Handler for inventory slot clicks with index already known (fixes duplicate item bug)
+func _on_inventory_slot_clicked_at_index(item_id: String, slot_index: int) -> void:
 	if item_id.is_empty():
 		return  # Don't select empty slots
 
-	# Find the index of this item
+	# Validate the character selection
 	var target_index: int = _char_dropdown.get_selected_id()
 	if target_index < 0 or target_index >= _party_save_data.size():
 		return
@@ -631,19 +644,12 @@ func _on_inventory_slot_clicked(item_id: String) -> void:
 	var save_data: CharacterSaveData = _party_save_data[target_index]
 	var inventory: Array[String] = save_data.inventory
 
-	# Find which slot was clicked
-	var clicked_index: int = -1
-	for i in range(_inventory_grid.get_child_count()):
-		var slot: Control = _inventory_grid.get_child(i) as Control
-		if slot and slot.item_id == item_id:
-			clicked_index = i
-			break
-
-	if clicked_index < 0 or clicked_index >= inventory.size():
+	# Validate the slot index
+	if slot_index < 0 or slot_index >= inventory.size():
 		return
 
 	_selected_inventory_item_id = item_id
-	_selected_inventory_index = clicked_index
+	_selected_inventory_index = slot_index
 	# Deselect depot item when inventory item is selected
 	_selected_depot_item_id = ""
 
@@ -653,7 +659,7 @@ func _on_inventory_slot_clicked(item_id: String) -> void:
 	for i in range(_inventory_grid.get_child_count()):
 		var slot: Control = _inventory_grid.get_child(i) as Control
 		if slot:
-			slot.set_selected(i == clicked_index)
+			slot.set_selected(i == slot_index)
 
 	_update_take_button()
 	_update_store_button()
