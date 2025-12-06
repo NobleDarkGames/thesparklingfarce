@@ -83,8 +83,12 @@ var _trigger_evaluators: Dictionary = {}
 ## Handler signature: func(node: Resource, manager: Node) -> void
 var _custom_handlers: Dictionary = {}
 
+## Chapter transition UI (spawned automatically)
+var _chapter_ui: Node = null
+
 
 func _ready() -> void:
+	_spawn_chapter_ui()
 	_register_built_in_processors()
 	_register_built_in_evaluators()
 
@@ -97,6 +101,15 @@ func _ready() -> void:
 	# Connect to BattleManager for battle completion
 	if BattleManager:
 		BattleManager.battle_ended.connect(_on_battle_ended)
+
+
+## Spawn the chapter transition UI
+func _spawn_chapter_ui() -> void:
+	var ChapterTransitionUIScript: Script = load("res://scenes/ui/chapter_transition_ui.gd")
+	if ChapterTransitionUIScript:
+		_chapter_ui = ChapterTransitionUIScript.new()
+		_chapter_ui.name = "ChapterTransitionUI"
+		add_child(_chapter_ui)
 
 
 ## Register built-in node type processors

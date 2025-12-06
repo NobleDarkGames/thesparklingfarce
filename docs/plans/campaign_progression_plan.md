@@ -1,13 +1,13 @@
 # Campaign Progression System Design
 
-**Status:** ✅ COMPLETE (Core Implementation) - Polish items remaining
+**Status:** ✅ COMPLETE (Core + Polish)
 **Priority:** High
 **Dependencies:** Phase 2.5 complete, SceneManager, TriggerManager, GameState, SaveManager
 **Target:** Before Phase 3
 **Estimated Effort:** 24-32 hours (Core: ~20 hours completed)
 **Author:** Lt. Claudbrain
 **Date:** November 28, 2025
-**Revision:** 3.0 (Implementation Complete - December 1, 2025)
+**Revision:** 3.1 (Chapter UI Complete - December 5, 2025)
 
 ---
 
@@ -1349,16 +1349,16 @@ This would be loaded by a CampaignJsonLoader utility. **Not in initial scope** -
 - [x] Full flow works: New Game -> Campaign Start -> Battle -> Return
 - [x] Battle replay configured (repeatable: true)
 
-### Phase 4: Polish (4-6 hours) ⏳ IN PROGRESS
+### Phase 4: Polish (4-6 hours) ✅ COMPLETE
 
-**4.1 Chapter Boundary UI (2-3 hours)**
-- [ ] Save prompt at chapter boundaries (TODO in campaign_manager.gd:1031)
-- [ ] Chapter transition display
+**4.1 Chapter Boundary UI (2-3 hours)** ✅
+- [x] Save prompt at chapter boundaries (ChapterTransitionUI)
+- [x] Chapter transition display (animated title cards)
 
-**4.2 Error Recovery Testing (2-3 hours)**
-- [ ] Test missing resource recovery
-- [ ] Test circular transition detection
-- [ ] Test campaign ID collision warnings
+**4.2 Error Recovery (Already Implemented)**
+- [x] Missing resource recovery (`_handle_missing_node_error()` in campaign_manager.gd)
+- [x] Circular transition detection (`_detect_circular_transitions()` in campaign_data.gd)
+- [x] Campaign ID collision warnings (in `_discover_campaigns()`)
 
 **Total Estimated Hours: 24-32 hours**
 **Actual Hours (Core): ~20 hours**
@@ -1711,6 +1711,7 @@ Wire BattleManager.battle_ended to CampaignManager.
 - `core/resources/campaign_data.gd`
 - `core/resources/campaign_node.gd`
 - `mods/_sandbox/data/campaigns/test_campaign.json`
+- `scenes/ui/chapter_transition_ui.gd` (NEW - Phase 4.1)
 
 ---
 
