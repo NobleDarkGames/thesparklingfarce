@@ -125,6 +125,10 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Don't process game input while debug console is open
+	if DebugConsole and DebugConsole.is_open:
+		return
+
 	# Handle caravan interaction when player is in range
 	if not _player_in_range or not is_spawned():
 		return

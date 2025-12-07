@@ -540,6 +540,10 @@ func _on_enter_executing() -> void:
 
 ## Handle continuous key presses (for cursor movement when held)
 func _process(delta: float) -> void:
+	# Don't process game input while debug console is open
+	if DebugConsole and DebugConsole.is_open:
+		return
+
 	# Only handle continuous input in movement and inspection modes
 	if current_state != InputState.EXPLORING_MOVEMENT and current_state != InputState.INSPECTING and current_state != InputState.DIRECT_MOVEMENT:
 		return
@@ -582,6 +586,11 @@ func _process(delta: float) -> void:
 
 ## Process input based on current state
 func _input(event: InputEvent) -> void:
+	# Don't process game input while debug console is open
+	# DebugConsole is an autoload, check if it exists and is open
+	if DebugConsole and DebugConsole.is_open:
+		return
+
 	match current_state:
 		InputState.INSPECTING:
 			_handle_inspecting_input(event)

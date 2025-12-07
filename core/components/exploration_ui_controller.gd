@@ -124,6 +124,10 @@ func _disconnect_signals() -> void:
 # =============================================================================
 
 func _input(event: InputEvent) -> void:
+	# Don't process game input while debug console is open
+	if DebugConsole and DebugConsole.is_open:
+		return
+
 	# Handle inventory toggle (I key)
 	# Note: Menus handle their own close via sf_cancel/ui_cancel and emit close_requested
 	if event.is_action_pressed("sf_inventory"):

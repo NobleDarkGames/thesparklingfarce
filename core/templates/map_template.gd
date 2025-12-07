@@ -550,6 +550,10 @@ func _debug_print(msg: String) -> void:
 
 ## Debug input handling (remove or disable in production).
 func _input(event: InputEvent) -> void:
+	# Don't process game input while debug console is open
+	if DebugConsole and DebugConsole.is_open:
+		return
+
 	# ESC to return to main menu (when implemented)
 	if event.is_action_pressed("ui_cancel"):
 		_debug_print("MapTemplate: ESC pressed")

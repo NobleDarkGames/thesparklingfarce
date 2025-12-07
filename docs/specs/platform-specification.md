@@ -125,6 +125,11 @@ if dict.has("key"):
 |-----------|---------|
 | **ExplorationUIManager** | Auto-activating inventory/equipment UI (hero group detection) |
 
+### Developer Tools
+| Singleton | Purpose |
+|-----------|---------|
+| **DebugConsole** | Quake-style dropdown console for runtime manipulation |
+
 ### Static Utility (NOT an autoload)
 | Class | Purpose |
 |-------|---------|
@@ -428,6 +433,33 @@ Press **I** during exploration for Party Equipment menu. 4 equipment slots, 4 in
 | `sf_confirm` | Enter, Space, Z | Interact, confirm |
 | `sf_cancel` | Escape, X | Cancel, close menu |
 | `sf_inventory` | I | Open equipment menu |
+
+---
+
+## Debug Console
+
+Toggle: **F1**, **F12**, or **~** (tilde). Close: **ESC**.
+
+### Core Commands
+| Namespace | Commands |
+|-----------|----------|
+| `hero.*` | `give_gold`, `set_level`, `heal`, `give_item` |
+| `party.*` | `grant_xp`, `add`, `remove`, `list`, `heal_all` |
+| `campaign.*` | `set_flag`, `clear_flag`, `list_flags`, `trigger` |
+| `battle.*` | `win`, `lose`, `spawn`, `kill` |
+| `debug.*` | `clear`, `fps`, `reload_mods`, `scene` |
+
+### Mod Extension API
+```gdscript
+DebugConsole.register_command("weather", _cmd_weather, "Set weather: weather <type>", "my_mod")
+DebugConsole.unregister_mod_commands("my_mod")
+```
+
+Callback signature: `func(args: Array) -> String`
+
+Features: quote-aware tokenizer (`"Mr. Big"`), type coercion, command history (Up/Down).
+
+Full command reference: `docs/debug-console-commands.md`
 
 ---
 
