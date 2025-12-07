@@ -85,7 +85,9 @@ func test_load_from_json_string_minimal() -> void:
 	assert_int(metadata.map_type).is_equal(MapMetadataScript.MapType.TOWN)
 
 
-func test_load_missing_map_id_returns_null() -> void:
+func test_load_missing_map_id_succeeds_with_scene_as_truth() -> void:
+	# With scene-as-truth architecture, map_id is OPTIONAL in JSON
+	# It will be populated from the scene via populate_from_scene()
 	var json: String = """{
 		"display_name": "No ID",
 		"scene_path": "res://test.tscn",
@@ -93,7 +95,10 @@ func test_load_missing_map_id_returns_null() -> void:
 	}"""
 
 	var metadata: Resource = MapMetadataLoaderScript.load_from_json_string(json)
-	assert_object(metadata).is_null()
+	# Should succeed - map_id will be populated from scene later
+	assert_object(metadata).is_not_null()
+	assert_str(metadata.map_id).is_empty()  # Not set yet, will come from scene
+	assert_bool(metadata.get_meta("needs_scene_population")).is_true()
 
 
 func test_load_missing_scene_path_returns_null() -> void:
@@ -107,7 +112,9 @@ func test_load_missing_scene_path_returns_null() -> void:
 	assert_object(metadata).is_null()
 
 
-func test_load_missing_spawn_points_returns_null() -> void:
+func test_load_missing_spawn_points_succeeds_with_scene_as_truth() -> void:
+	# With scene-as-truth architecture, spawn_points are OPTIONAL in JSON
+	# They will be extracted from SpawnPoint nodes via populate_from_scene()
 	var json: String = """{
 		"map_id": "test:no_spawns",
 		"display_name": "No Spawns",
@@ -115,7 +122,9 @@ func test_load_missing_spawn_points_returns_null() -> void:
 	}"""
 
 	var metadata: Resource = MapMetadataLoaderScript.load_from_json_string(json)
-	assert_object(metadata).is_null()
+	# Should succeed - spawn_points will be populated from scene later
+	assert_object(metadata).is_not_null()
+	assert_bool(metadata.spawn_points.is_empty()).is_true()  # Not set yet
 
 
 func test_load_invalid_json_returns_null() -> void:

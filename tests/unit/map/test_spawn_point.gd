@@ -82,11 +82,11 @@ func test_spawn_point_defaults() -> void:
 # =============================================================================
 
 func test_grid_position_calculation() -> void:
-	# SpawnPoint uses TILE_SIZE = 16
-	var spawn: Node = _create_spawn_point("test", Vector2(48, 32))
+	# SpawnPoint uses tile_size = 32 (SF-authentic unified tiles)
+	var spawn: Node = _create_spawn_point("test", Vector2(96, 64))
 	auto_free(spawn)
 
-	# 48 / 16 = 3, 32 / 16 = 2
+	# 96 / 32 = 3, 64 / 32 = 2
 	var grid_pos: Vector2i = spawn.grid_position
 	assert_int(grid_pos.x).is_equal(3)
 	assert_int(grid_pos.y).is_equal(2)
@@ -100,8 +100,8 @@ func test_grid_position_at_origin() -> void:
 
 
 func test_grid_position_with_offset() -> void:
-	# Position at (24, 40) should floor to tile (1, 2)
-	var spawn: Node = _create_spawn_point("offset", Vector2(24, 40))
+	# Position at (48, 80) should floor to tile (1, 2) with 32px tiles
+	var spawn: Node = _create_spawn_point("offset", Vector2(48, 80))
 	auto_free(spawn)
 
 	var grid_pos: Vector2i = spawn.grid_position
@@ -114,15 +114,14 @@ func test_grid_position_with_offset() -> void:
 # =============================================================================
 
 func test_snapped_position_centers_on_tile() -> void:
-	# Position at (48, 32) should snap to tile center (48 + 8, 32 + 8) = (56, 40)
-	# Wait - TILE_SIZE / 2 for 16 = 8
-	# grid (3, 2) -> snapped = (3 * 16 + 8, 2 * 16 + 8) = (56, 40)
-	var spawn: Node = _create_spawn_point("test", Vector2(48, 32))
+	# Position at (96, 64) with 32px tiles
+	# grid (3, 2) -> snapped = (3 * 32 + 16, 2 * 32 + 16) = (112, 80)
+	var spawn: Node = _create_spawn_point("test", Vector2(96, 64))
 	auto_free(spawn)
 
 	var snapped: Vector2 = spawn.snapped_position
-	assert_float(snapped.x).is_equal_approx(56.0, 0.01)
-	assert_float(snapped.y).is_equal_approx(40.0, 0.01)
+	assert_float(snapped.x).is_equal_approx(112.0, 0.01)
+	assert_float(snapped.y).is_equal_approx(80.0, 0.01)
 
 
 # =============================================================================

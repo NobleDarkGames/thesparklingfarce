@@ -6,8 +6,8 @@
   "description": "A brief description of what your mod does. This appears in the mod selector.",
   "godot_version": "4.5",
 
-  "_comment_dependencies": "List mod IDs that must be loaded before this mod. Most mods depend on base_game.",
-  "dependencies": ["base_game"],
+  "_comment_dependencies": "List mod IDs that must be loaded before this mod. Most mods depend on _base_game.",
+  "dependencies": ["_base_game"],
 
   "_comment_load_priority": "Priority determines load order and override behavior. Higher numbers load later and can override lower numbers.",
   "_comment_priority_ranges": "0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions",

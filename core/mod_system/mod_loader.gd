@@ -63,7 +63,7 @@ signal active_mod_changed(mod_path: String)
 
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
-var active_mod_id: String = "base_game"  # Default active mod for editor
+var active_mod_id: String = "_base_game"  # Default active mod
 
 # Type registries for mod-extensible enums
 var equipment_registry: RefCounted = EquipmentRegistryClass.new()

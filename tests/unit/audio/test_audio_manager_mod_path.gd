@@ -13,6 +13,10 @@ class_name TestAudioManagerModPath
 extends GdUnitTestSuite
 
 
+# Class member for signal capture (avoids lambda capture issues in GDScript)
+var _signal_data: Dictionary = {}
+
+
 # =============================================================================
 # MOD PATH INITIALIZATION TESTS
 # =============================================================================
@@ -125,19 +129,25 @@ func test_active_mod_changed_signal_emits_correct_path_when_mods_loaded() -> voi
 		# Mods not loaded - can't test signal emission in this environment
 		return
 
-	var received_path: String = ""
+	# Use class member dictionary to avoid lambda capture issues
+	_signal_data.clear()
+	_signal_data["received"] = false
+	_signal_data["path"] = ""
 
-	# Connect a temporary handler - use a class member to avoid lambda capture issues
-	var handler: Callable = func(path: String) -> void:
-		received_path = path
-
-	ModLoader.active_mod_changed.connect(handler)
+	var callback: Callable = _on_active_mod_changed_for_test
+	ModLoader.active_mod_changed.connect(callback)
 
 	# Trigger the signal by setting active mod
 	ModLoader.set_active_mod("_base_game")
 
-	# Verify we received the correct path
-	assert_str(received_path).is_equal("res://mods/_base_game")
-
 	# Cleanup
-	ModLoader.active_mod_changed.disconnect(handler)
+	ModLoader.active_mod_changed.disconnect(callback)
+
+	# Verify we received the correct path
+	assert_bool(_signal_data["received"]).is_true()
+	assert_str(_signal_data["path"]).is_equal("res://mods/_base_game")
+
+
+func _on_active_mod_changed_for_test(path: String) -> void:
+	_signal_data["received"] = true
+	_signal_data["path"] = path

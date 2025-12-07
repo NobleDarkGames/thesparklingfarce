@@ -30,10 +30,12 @@ func _create_valid_metadata() -> Resource:
 
 func test_empty_metadata_is_invalid() -> void:
 	var metadata: Resource = MapMetadataScript.new()
-	var errors: Array[String] = metadata.validate()
+	# Use validate_after_scene_population() for full validation including map_id
+	var errors: Array[String] = metadata.validate_after_scene_population()
 
 	assert_bool(errors.is_empty()).is_false()
-	assert_array(errors).contains(["map_id is required"])
+	# Should contain both scene_path error (from validate()) and map_id error
+	assert_array(errors).contains(["scene_path is required"])
 
 
 func test_valid_metadata_passes_validation() -> void:
@@ -50,8 +52,9 @@ func test_missing_display_name_fails_validation() -> void:
 	metadata.scene_path = "res://test.tscn"
 	metadata.add_spawn_point("default", Vector2i.ZERO)
 
-	var errors: Array[String] = metadata.validate()
-	assert_array(errors).contains(["display_name is required"])
+	# Use validate_after_scene_population() to check for display_name
+	var errors: Array[String] = metadata.validate_after_scene_population()
+	assert_array(errors).contains(["display_name is required (should come from scene @export)"])
 
 
 func test_missing_scene_path_fails_validation() -> void:
@@ -70,8 +73,9 @@ func test_no_spawn_points_fails_validation() -> void:
 	metadata.display_name = "Test"
 	metadata.scene_path = "res://test.tscn"
 
-	var errors: Array[String] = metadata.validate()
-	assert_array(errors).contains(["At least one spawn point is required"])
+	# Use validate_after_scene_population() to check for spawn points
+	var errors: Array[String] = metadata.validate_after_scene_population()
+	assert_array(errors).contains(["At least one spawn point is required (should come from SpawnPoint nodes)"])
 
 
 # =============================================================================
