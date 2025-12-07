@@ -212,6 +212,10 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 
 	GameState.set_transition_context(context)
 
+	# Notify CampaignManager so it can track this battle for flag setting
+	if CampaignManager:
+		CampaignManager.notify_battle_started(battle_id)
+
 	# Transition to battle scene (will load the battle_loader scene)
 	# We need to pass the battle_data to the battle scene somehow
 	# For now, store it in GameState temporarily
@@ -244,6 +248,10 @@ func start_battle(battle_id: String) -> void:
 		var available: Array[String] = ModLoader.registry.get_resource_ids("battle")
 		push_error("  Available battles: %s" % available)
 		return
+
+	# Notify CampaignManager so it can track this battle for flag setting
+	if CampaignManager:
+		CampaignManager.notify_battle_started(battle_id)
 
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")

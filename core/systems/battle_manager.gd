@@ -1022,6 +1022,9 @@ func _handle_unit_death(unit: Node2D) -> void:
 func _on_battle_ended(victory: bool) -> void:
 	battle_active = false
 
+	# Clear the battle grid to avoid polluting GridManager state for non-battle maps
+	GridManager.clear_grid()
+
 	if victory:
 		GameState.increment_campaign_data("battles_won")
 

@@ -460,6 +460,22 @@ func complete_current_node(outcome: Dictionary) -> void:
 	_execute_transition(outcome)
 
 
+## Notify CampaignManager that a battle is starting (called by TriggerManager)
+## This allows campaign flags to be set when battles are triggered from map triggers
+func notify_battle_started(battle_resource_id: String) -> void:
+	if not current_campaign:
+		# No active campaign - nothing to track
+		return
+
+	# Find the campaign node that uses this battle resource
+	var battle_node: Resource = current_campaign.find_battle_node_by_resource_id(battle_resource_id)
+	if battle_node:
+		# Set current_node so flags are properly set when battle ends
+		current_node = battle_node
+		GameState.set_campaign_data("current_node_id", battle_node.node_id)
+		print("[Campaign] Battle '%s' matched campaign node '%s'" % [battle_resource_id, battle_node.node_id])
+
+
 ## Handle battle completion (called via BattleManager.battle_ended signal)
 func _on_battle_ended(victory: bool) -> void:
 	# Check if this was an encounter (position-preserving battle)

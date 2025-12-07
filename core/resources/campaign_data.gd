@@ -180,6 +180,17 @@ func has_node(node_id: String) -> bool:
 	return node_id in _node_cache
 
 
+## Find a battle node by its resource_id (the battle ID)
+## Returns the CampaignNode if found, null otherwise
+func find_battle_node_by_resource_id(battle_resource_id: String) -> Resource:
+	if not _cache_built:
+		_build_cache()
+	for node: Resource in nodes:
+		if node and node.get("node_type") == "battle" and node.get("resource_id") == battle_resource_id:
+			return node
+	return null
+
+
 ## Get chapter data for a node
 func get_chapter_for_node(node_id: String) -> Dictionary:
 	for chapter: Dictionary in chapters:
