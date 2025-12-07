@@ -1,0 +1,17 @@
+{
+	"can_skip": true,
+	"cinematic_id": "noobington_mayor_post_victory",
+	"cinematic_name": "Noobington Mayor Post-Victory",
+	"commands": [
+		{
+			"params": {
+				"character_id": "npc:mayor_chuck",
+				"emotion": "happy",
+				"text": "You enkillinated them???"
+			},
+			"type": "dialog_line"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}
