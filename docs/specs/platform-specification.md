@@ -338,8 +338,15 @@ Same scene can serve as both exploration map and battle arena.
 ### ExperienceConfig
 - `base_xp`, `level_difference_table`: XP curve settings
 - `promotion_level`, `xp_reset_on_promotion`: Promotion behavior
-- `enable_formation_xp`, `formation_radius`: Formation bonuses
+- `enable_formation_xp`, `formation_radius`, `formation_multiplier`: Formation bonuses
+- `formation_catch_up_rate`: Catch-up bonus for underleveled allies in formation
+- `support_catch_up_rate`: Catch-up bonus for underleveled supporters (healers)
 - `spam_threshold_*`, `spam_*_multiplier`: Anti-grinding protection
+
+**Catch-Up Mechanics**: Addresses Shining Force's healer XP imbalance by granting bonus XP to underleveled units:
+- Formation XP: Allies below party average level earn up to +150% formation XP
+- Support XP: Healers earn up to +100% bonus when healing higher-level allies
+- Both rates are configurable per-mod via `*_catch_up_rate` (default 0.15 = 15% per level gap)
 
 ### TerrainData
 - `terrain_name`, `terrain_type`

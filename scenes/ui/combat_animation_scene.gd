@@ -709,7 +709,7 @@ func _display_xp_entries() -> void:
 	var xp_label: RichTextLabel = xp_panel.get_node("MarginContainer/XPLabel")
 
 	var displayed_entries: Array[Dictionary] = []
-	var max_visible_lines: int = 3
+	var max_visible_lines: int = 4
 
 	for entry: Dictionary in _xp_entries:
 		displayed_entries.append(entry)
@@ -719,9 +719,17 @@ func _display_xp_entries() -> void:
 
 		var bbcode_lines: Array[String] = []
 		for e: Dictionary in displayed_entries:
-			var line: String = "%s gained %d XP" % [e.name, e.amount]
+			# Format source for display (damage/kill -> combat, others as-is)
+			var source_display: String = e.source
+			if e.source == "damage" or e.source == "kill":
+				source_display = "combat"
+			var line: String = "%s gained %d %s XP" % [e.name, e.amount, source_display]
 			if e.source == "kill":
 				line = "[color=#FFFF66]%s![/color]" % line
+			elif e.source == "formation":
+				line = "[color=#B3D9FF]%s[/color]" % line  # Light blue for formation
+			elif e.source in ["heal", "buff", "debuff"]:
+				line = "[color=#B3FFB3]%s[/color]" % line  # Light green for support
 			else:
 				line = "[color=#FFF2B3]%s[/color]" % line
 			bbcode_lines.append(line)
@@ -746,9 +754,9 @@ func _display_xp_entries() -> void:
 func _create_xp_panel() -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 
-	var visible_entries: int = mini(_xp_entries.size(), 3)
-	var line_height: int = 24
-	var padding: int = 24
+	var visible_entries: int = mini(_xp_entries.size(), 4)
+	var line_height: int = 16
+	var padding: int = 20
 	var panel_height: int = (visible_entries * line_height) + padding + 16
 
 	panel.anchor_left = 0.1
@@ -784,8 +792,18 @@ func _create_xp_panel() -> PanelContainer:
 	label.bbcode_enabled = true
 	label.fit_content = true
 	label.scroll_active = false
+	# Set ALL font variants to the same monogram font to prevent any bold rendering
 	label.add_theme_font_override("normal_font", monogram_font)
-	label.add_theme_font_size_override("normal_font_size", 24)
+	label.add_theme_font_override("bold_font", monogram_font)
+	label.add_theme_font_override("italics_font", monogram_font)
+	label.add_theme_font_override("bold_italics_font", monogram_font)
+	label.add_theme_font_override("mono_font", monogram_font)
+	label.add_theme_font_size_override("normal_font_size", 16)
+	label.add_theme_font_size_override("bold_font_size", 16)
+	label.add_theme_font_size_override("italics_font_size", 16)
+	label.add_theme_font_size_override("bold_italics_font_size", 16)
+	label.add_theme_font_size_override("mono_font_size", 16)
+	label.add_theme_constant_override("outline_size", 0)
 	label.add_theme_color_override("default_color", Color(1.0, 0.95, 0.7, 1.0))
 	margin.add_child(label)
 

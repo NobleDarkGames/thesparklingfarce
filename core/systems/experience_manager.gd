@@ -163,21 +163,38 @@ func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_
 		_give_xp_to_unit(attacker, attacker_xp, source)
 
 	# Award formation XP to nearby allies (rewards tactical positioning)
+	# Each ally receives a percentage of base XP individually (not divided from a pool)
+	# Allies who are behind the party average level receive bonus XP (catch-up mechanic)
 	if config.enable_formation_xp and damage_dealt > 0:
 		var nearby_allies: Array[Node2D] = _get_units_in_formation_radius(attacker)
-		var ally_count: int = nearby_allies.size()
 
-		if ally_count > 0:
-			# Calculate TOTAL formation XP pool, capped at % of attacker's actual XP
-			var base_total_formation: int = int(base_xp * config.formation_multiplier)
-			var capped_total_formation: int = int(attacker_xp * config.formation_cap_ratio)
-			var total_formation_xp: int = mini(base_total_formation, capped_total_formation)
+		if nearby_allies.size() > 0:
+			# Base formation XP per ally (before catch-up adjustment)
+			var per_ally_base: int = int(base_xp * config.formation_multiplier)
+			# Cap at percentage of attacker's actual XP to prevent bystanders outearning fighters
+			var max_formation_xp: int = int(attacker_xp * config.formation_cap_ratio)
+			per_ally_base = mini(per_ally_base, max_formation_xp)
 
-			# Divide pool among allies (minimum 1 XP each if any pool exists)
-			var per_ally_xp: int = maxi(1, total_formation_xp / ally_count)
+			# Get party average level for catch-up calculation
+			var avg_level: float = _get_party_average_level()
 
 			for ally in nearby_allies:
-				_give_xp_to_unit(ally, per_ally_xp, "formation")
+				var ally_xp: int = per_ally_base
+
+				# Apply catch-up multiplier: underleveled allies earn more, overleveled earn less
+				if config.formation_catch_up_rate > 0.0:
+					var level_gap: int = int(avg_level) - ally.stats.level
+					# Clamp multiplier: -50% (5 levels ahead) to +150% (10 levels behind)
+					var catch_up_mult: float = 1.0 + clampf(
+						level_gap * config.formation_catch_up_rate,
+						-0.5,
+						1.5
+					)
+					ally_xp = int(ally_xp * catch_up_mult)
+
+				# Ensure minimum 1 XP for being in formation
+				ally_xp = maxi(1, ally_xp)
+				_give_xp_to_unit(ally, ally_xp, "formation")
 
 
 ## Get all allied units within formation radius of a unit.
@@ -262,6 +279,23 @@ func award_support_xp(supporter: Node2D, action_type: String, target: Node2D, am
 
 		# Increment usage count
 		supporter.stats.support_actions_this_battle[action_type] = usage_count + 1
+
+	# Apply catch-up multiplier for underleveled supporters
+	# Healers who fall behind earn bonus XP when supporting higher-level allies
+	if config.support_catch_up_rate > 0.0:
+		var reference_level: int = supporter.stats.level
+		if target != null and target.stats != null:
+			# Use target's level as reference (healer supporting higher-level ally)
+			reference_level = target.stats.level
+		else:
+			# Use party average for buffs/debuffs without specific target
+			reference_level = int(_get_party_average_level())
+
+		var level_gap: int = reference_level - supporter.stats.level
+		if level_gap > 0:
+			# Supporter is behind: bonus XP (+15% per level, capped at +100%)
+			var catch_up_mult: float = 1.0 + clampf(level_gap * config.support_catch_up_rate, 0.0, 1.0)
+			base_xp = int(base_xp * catch_up_mult)
 
 	# Award XP
 	if base_xp > 0:
@@ -434,6 +468,42 @@ func _check_learned_abilities(unit: Node2D, new_level: int, class_data: ClassDat
 # ============================================================================
 # HELPER METHODS
 # ============================================================================
+
+## Cached party average level for the current battle (invalidated on battle start).
+var _cached_party_avg_level: float = -1.0
+
+
+## Get the average level of all player faction units.
+## Cached per battle for performance.
+##
+## @return: Average level of player units (minimum 1.0)
+func _get_party_average_level() -> float:
+	# Return cached value if available
+	if _cached_party_avg_level > 0:
+		return _cached_party_avg_level
+
+	var total_level: int = 0
+	var count: int = 0
+
+	var all_units: Array = TurnManager.all_units
+	for unit: Node2D in all_units:
+		if unit.faction == "player" and unit.stats != null and unit.stats.is_alive():
+			total_level += unit.stats.level
+			count += 1
+
+	if count == 0:
+		_cached_party_avg_level = 1.0
+	else:
+		_cached_party_avg_level = float(total_level) / float(count)
+
+	return _cached_party_avg_level
+
+
+## Invalidate the cached party average level.
+## Call this at battle start or when party composition changes.
+func invalidate_party_level_cache() -> void:
+	_cached_party_avg_level = -1.0
+
 
 ## Get the base XP value for a level difference.
 ## Wrapper for config method for convenience.

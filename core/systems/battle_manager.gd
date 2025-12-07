@@ -786,7 +786,7 @@ func _execute_combat_session(
 
 		# Connect XP handler to feed entries to battle screen
 		var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
-			print("[BattleManager] Session XP handler: ", unit.get_display_name(), " +", amount)
+			print("[BattleManager] Session XP handler: %s +%d %s" % [unit.get_display_name(), amount, source])
 			if combat_anim_instance and is_instance_valid(combat_anim_instance):
 				combat_anim_instance.queue_xp_entry(unit.get_display_name(), amount, source)
 		ExperienceManager.unit_gained_xp.connect(xp_handler)
@@ -1028,8 +1028,6 @@ func _on_battle_ended(victory: bool) -> void:
 	if victory:
 		GameState.increment_campaign_data("battles_won")
 
-	battle_ended.emit(victory)
-
 	# Wait for any pending level-up celebrations to finish before showing result screen
 	# This prevents the victory/defeat screen from overlapping with level-up popups
 	await _wait_for_level_ups()
@@ -1041,6 +1039,10 @@ func _on_battle_ended(victory: bool) -> void:
 			should_retry = await _show_victory_screen()
 		else:
 			should_retry = await _show_defeat_screen()
+
+	# Emit battle_ended AFTER victory/defeat screen is dismissed
+	# This ensures CampaignManager doesn't trigger map transition too early
+	battle_ended.emit(victory)
 
 	# Handle retry request
 	if should_retry:

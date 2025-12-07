@@ -8,8 +8,9 @@ script = ExtResource("1_script")
 # Combat XP Settings
 enable_formation_xp = true
 formation_radius = 3
-formation_multiplier = 0.25
+formation_multiplier = 0.15
 formation_cap_ratio = 0.5
+formation_catch_up_rate = 0.15
 min_damage_xp_ratio = 0.1
 kill_bonus_multiplier = 0.5
 max_xp_per_action = 49
@@ -36,6 +37,7 @@ heal_base_xp = 10
 heal_ratio_multiplier = 25
 buff_base_xp = 15
 debuff_base_xp = 15
+support_catch_up_rate = 0.15
 
 # Anti-Spam Settings
 anti_spam_enabled = true

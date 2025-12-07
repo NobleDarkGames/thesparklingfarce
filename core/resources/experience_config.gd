@@ -17,11 +17,16 @@ extends Resource
 ## Radius in grid cells for formation XP (allies within this distance get XP).
 @export_range(1, 10) var formation_radius: int = 3
 
-## Multiplier for formation XP (0.25 = 25% of base XP).
-@export_range(0.0, 1.0) var formation_multiplier: float = 0.25
+## Multiplier for formation XP per ally (0.15 = 15% of base XP per nearby ally).
+## Note: Each ally receives this percentage individually, not divided from a pool.
+@export_range(0.0, 1.0) var formation_multiplier: float = 0.15
 
 ## Cap formation XP at this percentage of attacker's actual XP (prevents bystanders earning more than fighters).
 @export_range(0.0, 1.0) var formation_cap_ratio: float = 0.50
+
+## Catch-up rate for formation XP (bonus/penalty per level difference from party average).
+## 0.15 = +15% XP per level behind, -15% per level ahead (clamped to -50% to +150%).
+@export_range(0.0, 0.5) var formation_catch_up_rate: float = 0.15
 
 ## Minimum XP for any successful attack (as ratio of base XP, e.g., 0.1 = 10%).
 @export_range(0.0, 0.5) var min_damage_xp_ratio: float = 0.10
@@ -72,6 +77,10 @@ extends Resource
 
 ## Base XP awarded for casting debuff spells.
 @export_range(0, 50) var debuff_base_xp: int = 15
+
+## Catch-up rate for support XP (bonus per level the supporter is behind the target).
+## 0.15 = +15% XP per level behind, max +100% (2x XP when 6+ levels behind).
+@export_range(0.0, 0.5) var support_catch_up_rate: float = 0.15
 
 # ============================================================================
 # ANTI-SPAM SETTINGS
