@@ -572,28 +572,26 @@ func church_uncurse(character_uid: String, slot_id: String) -> Dictionary:
 # ============================================================================
 
 func _get_gold() -> int:
+	# First priority: explicitly set SaveData (passed to open_shop)
 	if _save_data:
 		return _save_data.gold
 
-	# Fallback: try to get from SaveManager if available
-	if Engine.has_singleton("SaveManager"):
-		var save_manager: Node = Engine.get_singleton("SaveManager")
-		if save_manager and "current_save" in save_manager and save_manager.current_save:
-			return save_manager.current_save.gold
+	# Fallback: use SaveManager's current active save
+	if SaveManager and SaveManager.current_save:
+		return SaveManager.current_save.gold
 
 	return 0
 
 
 func _set_gold(amount: int) -> void:
+	# First priority: explicitly set SaveData (passed to open_shop)
 	if _save_data:
-		_save_data.gold = amount
+		_save_data.gold = maxi(0, amount)
 		return
 
-	# Fallback: try to set via SaveManager if available
-	if Engine.has_singleton("SaveManager"):
-		var save_manager: Node = Engine.get_singleton("SaveManager")
-		if save_manager and "current_save" in save_manager and save_manager.current_save:
-			save_manager.current_save.gold = amount
+	# Fallback: use SaveManager's current active save
+	if SaveManager and SaveManager.current_save:
+		SaveManager.current_save.gold = maxi(0, amount)
 
 
 # ============================================================================

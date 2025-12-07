@@ -353,8 +353,12 @@ func _execute_command(raw_input: String) -> void:
 
 func _execute_hero_command(command: String, args: Array) -> void:
 	match command:
+		"gold":
+			_cmd_hero_gold(args)
 		"give_gold":
 			_cmd_hero_give_gold(args)
+		"set_gold":
+			_cmd_hero_set_gold(args)
 		"set_level":
 			_cmd_hero_set_level(args)
 		"heal":
@@ -365,14 +369,48 @@ func _execute_hero_command(command: String, args: Array) -> void:
 			_print_error("Unknown hero command: %s" % command)
 
 
+func _cmd_hero_gold(args: Array) -> void:
+	if not SaveManager.has_current_save():
+		_print_error("No active save - load a game first or use debug.create_test_save")
+		return
+
+	var gold: int = SaveManager.get_current_gold()
+	_print_info("Current gold: %d" % gold)
+
+
+func _cmd_hero_set_gold(args: Array) -> void:
+	if args.is_empty() or not args[0] is int:
+		_print_error("Usage: hero.set_gold <amount>")
+		return
+
+	var amount: int = args[0]
+	if amount < 0:
+		_print_error("Gold amount cannot be negative")
+		return
+
+	if not SaveManager.has_current_save():
+		_print_error("No active save - load a game first or use debug.create_test_save")
+		return
+
+	var old_gold: int = SaveManager.get_current_gold()
+	SaveManager.set_current_gold(amount)
+	_print_success("Gold: %d → %d" % [old_gold, amount])
+
+
 func _cmd_hero_give_gold(args: Array) -> void:
 	if args.is_empty() or not args[0] is int:
 		_print_error("Usage: hero.give_gold <amount>")
 		return
 
 	var amount: int = args[0]
-	# PartyManager doesn't have gold tracking yet - stub implementation
-	_print_info("[STUB] Would add %d gold (PartyManager.gold not implemented)" % amount)
+
+	if not SaveManager.has_current_save():
+		_print_error("No active save - load a game first or use debug.create_test_save")
+		return
+
+	var old_gold: int = SaveManager.get_current_gold()
+	var new_gold: int = SaveManager.add_current_gold(amount)
+	_print_success("Gold: %d → %d (%+d)" % [old_gold, new_gold, amount])
 
 
 func _cmd_hero_set_level(args: Array) -> void:
@@ -738,6 +776,10 @@ func _execute_debug_command(command: String, args: Array) -> void:
 			_cmd_debug_reload_mods(args)
 		"scene":
 			_cmd_debug_scene(args)
+		"create_test_save":
+			_cmd_debug_create_test_save(args)
+		"save_info":
+			_cmd_debug_save_info(args)
 		_:
 			_print_error("Unknown debug command: %s" % command)
 
@@ -785,6 +827,35 @@ func _cmd_debug_scene(args: Array) -> void:
 	get_tree().change_scene_to_file(scene_path)
 
 
+func _cmd_debug_create_test_save(args: Array) -> void:
+	# Create an in-memory test save for debugging without needing a real save file
+	var test_save: SaveData = SaveData.new()
+	test_save.slot_number = 0  # 0 indicates test/debug save
+	test_save.current_location = "Debug Console"
+	test_save.gold = 1000  # Start with some gold for testing
+	test_save.game_version = "debug"
+	test_save.created_timestamp = Time.get_unix_time_from_system()
+	test_save.last_played_timestamp = test_save.created_timestamp
+
+	SaveManager.set_current_save(test_save)
+	_print_success("Created test save with 1000 gold")
+	_print_info("Note: This save is in-memory only and will not persist")
+
+
+func _cmd_debug_save_info(args: Array) -> void:
+	if not SaveManager.has_current_save():
+		_print_error("No active save")
+		return
+
+	var save: SaveData = SaveManager.current_save
+	_print_info("=== Current Save Info ===")
+	_print_line("  Slot: %d%s" % [save.slot_number, " (test)" if save.slot_number == 0 else ""])
+	_print_line("  Location: %s" % save.current_location)
+	_print_line("  Gold: %d" % save.gold)
+	_print_line("  Party size: %d / %d" % [save.party_members.size(), save.max_party_size])
+	_print_line("  Version: %s" % save.game_version)
+
+
 # =============================================================================
 # HELP SYSTEM
 # =============================================================================
@@ -794,7 +865,9 @@ func _print_help() -> void:
 	_print_line("")
 
 	_print_line("%s--- Hero Commands ---%s" % [COLOR_INFO, COLOR_END])
+	_print_line("  hero.gold                     - Show current gold")
 	_print_line("  hero.give_gold <amount>       - Add gold to party")
+	_print_line("  hero.set_gold <amount>        - Set gold to amount")
 	_print_line("  hero.set_level <level>        - Set hero level")
 	_print_line("  hero.heal                     - Full heal hero")
 	_print_line("  hero.give_item <id> [count]   - Add item to inventory")
@@ -827,6 +900,8 @@ func _print_help() -> void:
 	_print_line("  debug.fps <value>             - Set max FPS")
 	_print_line("  debug.reload_mods             - Reload mod registry")
 	_print_line("  debug.scene <path>            - Change to scene")
+	_print_line("  debug.create_test_save        - Create temp save for testing")
+	_print_line("  debug.save_info               - Show active save info")
 	_print_line("")
 
 	_print_line("%s--- General ---%s" % [COLOR_INFO, COLOR_END])

@@ -27,6 +27,15 @@ const METADATA_FILE: String = "slots.meta"
 const MAX_SLOTS: int = 3
 
 # ============================================================================
+# RUNTIME STATE
+# ============================================================================
+
+## The currently active save data for this play session.
+## Set when loading a game, used by ShopManager and other systems for gold/inventory access.
+## Cleared when returning to main menu or starting a new game.
+var current_save: SaveData = null
+
+# ============================================================================
 # SIGNALS
 # ============================================================================
 
@@ -429,3 +438,61 @@ func get_all_slots_debug_string() -> String:
 		else:
 			output += "  Slot %d: Empty\n" % meta.slot_number
 	return output
+
+
+# ============================================================================
+# ACTIVE SAVE MANAGEMENT
+# ============================================================================
+
+## Set the current active save (call when starting/loading a game session)
+## @param save_data: The SaveData to make active
+func set_current_save(save_data: SaveData) -> void:
+	current_save = save_data
+
+
+## Clear the current active save (call when returning to main menu)
+func clear_current_save() -> void:
+	current_save = null
+
+
+## Load from slot and set as current active save (convenience method)
+## @param slot_number: Slot number (1-3)
+## @return: SaveData if successful, null if failed
+func load_and_set_current(slot_number: int) -> SaveData:
+	var save_data: SaveData = load_from_slot(slot_number)
+	if save_data:
+		current_save = save_data
+	return save_data
+
+
+## Check if there's an active save session
+func has_current_save() -> bool:
+	return current_save != null
+
+
+## Get current gold from active save (convenience for debug/systems)
+## @return: Current gold amount, or 0 if no active save
+func get_current_gold() -> int:
+	if current_save:
+		return current_save.gold
+	return 0
+
+
+## Set current gold in active save (convenience for debug/systems)
+## @param amount: Gold amount to set
+## @return: true if set, false if no active save
+func set_current_gold(amount: int) -> bool:
+	if current_save:
+		current_save.gold = maxi(0, amount)
+		return true
+	return false
+
+
+## Add gold to current save (convenience for debug/systems)
+## @param amount: Gold to add (can be negative to subtract)
+## @return: New gold amount, or -1 if no active save
+func add_current_gold(amount: int) -> int:
+	if current_save:
+		current_save.gold = maxi(0, current_save.gold + amount)
+		return current_save.gold
+	return -1

@@ -199,6 +199,9 @@ func _new_game(slot_num: int) -> void:
 	# Save the new game
 	var success: bool = SaveManager.save_to_slot(slot_num, save_data)
 	if success:
+		# Set as active save for this session (used by ShopManager, debug console, etc.)
+		SaveManager.set_current_save(save_data)
+
 		# Initialize PartyManager with the party
 		PartyManager.import_from_save(save_data.party_members)
 
@@ -219,6 +222,9 @@ func _load_game(slot_num: int) -> void:
 
 	var save_data: SaveData = SaveManager.load_from_slot(slot_num)
 	if save_data:
+		# Set as active save for this session (used by ShopManager, debug console, etc.)
+		SaveManager.set_current_save(save_data)
+
 		# Populate PartyManager with loaded data
 		PartyManager.import_from_save(save_data.party_members)
 

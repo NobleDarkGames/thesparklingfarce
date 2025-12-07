@@ -23,6 +23,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0.8, 0.8, 0.9, 1)
 
 [node name="InnerPanel" type="ColorRect" parent="ShopPanel/Border"]
@@ -36,6 +37,7 @@ offset_right = -2.0
 offset_bottom = -2.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0.1, 0.1, 0.15, 0.95)
 
 [node name="MainMargin" type="MarginContainer" parent="ShopPanel"]
@@ -45,6 +47,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 1
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
@@ -52,10 +55,12 @@ theme_override_constants/margin_bottom = 8
 
 [node name="MainVBox" type="VBoxContainer" parent="ShopPanel/MainMargin"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 6
 
 [node name="HeaderSection" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 4
 
 [node name="ShopTitleLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/HeaderSection"]
@@ -82,11 +87,13 @@ horizontal_alignment = 2
 [node name="ThreeColumnContainer" type="HBoxContainer" parent="ShopPanel/MainMargin/MainVBox"]
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 1
 theme_override_constants/separation = 6
 
 [node name="LeftColumn" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer"]
 custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 2
 
 [node name="LeftColumnHeader" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/LeftColumn"]
@@ -98,26 +105,31 @@ text = "ITEMS"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 1
 
 [node name="ItemListContainer" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/LeftColumn/ItemListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 1
 theme_override_constants/separation = 2
 
 [node name="CenterColumn" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 1
 theme_override_constants/separation = 4
 
 [node name="DetailsPanel" type="PanelContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 1
 
 [node name="DetailsPanelBorder" type="ColorRect" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel"]
 layout_mode = 2
+mouse_filter = 2
 color = Color(0.3, 0.3, 0.4, 1)
 
 [node name="DetailsPanelInner" type="ColorRect" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsPanelBorder"]
@@ -131,10 +143,12 @@ offset_right = -1.0
 offset_bottom = -1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0.15, 0.15, 0.2, 1)
 
 [node name="DetailsMargin" type="MarginContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 4
@@ -142,6 +156,7 @@ theme_override_constants/margin_bottom = 4
 
 [node name="DetailsVBox" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 4
 
 [node name="ItemNameLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox"]
@@ -165,6 +180,7 @@ text = "BUY: 200G"
 [node name="StatComparisonContainer" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 4
 
 [node name="StatComparisonHeader" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox/StatComparisonContainer"]
@@ -176,9 +192,11 @@ text = "CAN EQUIP:"
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+mouse_filter = 1
 
 [node name="QuantityMargin" type="MarginContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
@@ -186,6 +204,7 @@ theme_override_constants/margin_bottom = 8
 
 [node name="QuantityHBox" type="HBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel/QuantityMargin"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 8
 
 [node name="QuantityLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel/QuantityMargin/QuantityHBox"]
@@ -197,27 +216,32 @@ text = "QUANTITY:"
 [node name="QuantitySpinBox" type="SpinBox" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel/QuantityMargin/QuantityHBox"]
 unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 2
 min_value = 1.0
 max_value = 99.0
 value = 1.0
 
 [node name="RightColumn" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer"]
-custom_minimum_size = Vector2(200, 0)
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 2
 
 [node name="RightColumnHeader" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "WHO EQUIPS IT?"
+text = "WHO GETS IT?"
 
 [node name="CharacterPanel" type="PanelContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 1
 
 [node name="CharacterMargin" type="MarginContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 4
@@ -225,52 +249,87 @@ theme_override_constants/margin_bottom = 4
 
 [node name="CharacterVBox" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel/CharacterMargin"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 4
 
 [node name="CharacterGrid" type="GridContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel/CharacterMargin/CharacterVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 1
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
 columns = 2
 
 [node name="CaravanButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel/CharacterMargin/CharacterVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 28)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
+focus_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "STORE IN CARAVAN"
 
+[node name="MessageLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
 [node name="ButtonSection" type="HBoxContainer" parent="ShopPanel/MainMargin/MainVBox"]
 layout_mode = 2
+mouse_filter = 1
 theme_override_constants/separation = 6
 alignment = 1
 
-[node name="BuyButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+[node name="BuyActionButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 28)
+custom_minimum_size = Vector2(100, 24)
 layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+disabled = true
+text = "BUY"
+
+[node name="SellActionButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(100, 24)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+disabled = true
+text = "SELL"
+
+[node name="Separator" type="VSeparator" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+
+[node name="BuyModeButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 24)
+layout_mode = 2
+focus_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "BUY"
 
-[node name="SellButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+[node name="SellModeButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 28)
+custom_minimum_size = Vector2(50, 24)
 layout_mode = 2
+focus_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "SELL"
 
-[node name="DealsButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+[node name="DealsModeButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 28)
+custom_minimum_size = Vector2(50, 24)
 layout_mode = 2
+focus_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "DEALS"
 
 [node name="ExitButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 28)
+custom_minimum_size = Vector2(50, 24)
 layout_mode = 2
+focus_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "EXIT"
