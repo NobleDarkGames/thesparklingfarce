@@ -51,6 +51,9 @@ var tile_map: TileMapLayer = null
 ## Allows cinematics to move and animate the hero during cutscenes
 var cinematic_actor: Node = null
 
+## Dedicated audio player for looping walk sound
+var _walk_audio_player: AudioStreamPlayer = null
+
 
 func _ready() -> void:
 	# Add to "hero" group for trigger detection
@@ -100,6 +103,12 @@ func _ready() -> void:
 		interaction_ray.enabled = true
 		interaction_ray.target_position = Vector2(tile_size, 0)  # Default to right
 
+	# Create dedicated walk audio player (loops seamlessly while moving)
+	_walk_audio_player = AudioStreamPlayer.new()
+	_walk_audio_player.bus = "SFX"
+	add_child(_walk_audio_player)
+	_load_walk_sound()
+
 
 func _physics_process(delta: float) -> void:
 	# Handle movement
@@ -130,6 +139,10 @@ func _process_movement(delta: float) -> void:
 
 		# Check for triggers at new position
 		_check_tile_triggers()
+
+		# Stop walk sound if no direction input held (seamless if continuing to move)
+		if not _is_direction_input_held():
+			_stop_walk_sound()
 	else:
 		# Move toward target
 		var direction_vec: Vector2 = (target_position - global_position).normalized()
@@ -202,6 +215,9 @@ func attempt_move(direction: Vector2i) -> bool:
 	# Start movement
 	target_position = grid_to_world(target_grid)
 	is_moving = true
+
+	# Start looping walk sound (if not already playing)
+	_start_walk_sound()
 
 	# Update sprite animation
 	_update_sprite_animation(direction)
@@ -388,3 +404,47 @@ func _create_cinematic_actor() -> void:
 
 	if DEBUG_MODE:
 		print("[HeroController] CinematicActor created with actor_id 'hero'")
+
+
+## Load walk sound from active mod's audio/sfx/ folder
+func _load_walk_sound() -> void:
+	if not _walk_audio_player:
+		return
+
+	# Try common audio formats (same logic as AudioManager)
+	var extensions: Array[String] = ["ogg", "wav", "mp3"]
+	var mod_path: String = AudioManager.current_mod_path
+
+	for ext in extensions:
+		var audio_path: String = "%s/audio/sfx/walk.%s" % [mod_path, ext]
+		if ResourceLoader.exists(audio_path):
+			var stream: AudioStream = load(audio_path)
+			if stream:
+				# Enable looping on the stream if it's an OggVorbis
+				if stream is AudioStreamOggVorbis:
+					(stream as AudioStreamOggVorbis).loop = true
+				elif stream is AudioStreamWAV:
+					(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+				_walk_audio_player.stream = stream
+				_walk_audio_player.volume_db = linear_to_db(AudioManager.sfx_volume)
+				return
+
+
+## Start the looping walk sound (if not already playing)
+func _start_walk_sound() -> void:
+	if _walk_audio_player and _walk_audio_player.stream and not _walk_audio_player.playing:
+		_walk_audio_player.play()
+
+
+## Stop the walk sound
+func _stop_walk_sound() -> void:
+	if _walk_audio_player and _walk_audio_player.playing:
+		_walk_audio_player.stop()
+
+
+## Check if any direction input is currently held
+func _is_direction_input_held() -> bool:
+	return (Input.is_action_pressed("ui_up") or
+			Input.is_action_pressed("ui_down") or
+			Input.is_action_pressed("ui_left") or
+			Input.is_action_pressed("ui_right"))

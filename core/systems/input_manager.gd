@@ -1402,8 +1402,8 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	step_tween.tween_property(active_unit, "position", target_world, 0.1)
 	step_tween.set_trans(Tween.TRANS_LINEAR)
 
-	# Play step sound
-	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.MOVEMENT)
+	# Play step sound (walk sound, no overlap to prevent stacking)
+	AudioManager.play_sfx_no_overlap("walk", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
 
@@ -1450,8 +1450,8 @@ func _undo_last_step() -> void:
 	step_tween.tween_property(active_unit, "position", target_world, 0.1)
 	step_tween.set_trans(Tween.TRANS_LINEAR)
 
-	# Play step sound (same as forward movement)
-	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.MOVEMENT)
+	# Play step sound (walk sound, same as forward movement)
+	AudioManager.play_sfx_no_overlap("walk", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
 

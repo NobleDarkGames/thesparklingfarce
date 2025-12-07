@@ -184,6 +184,30 @@ func _get_available_sfx_player() -> AudioStreamPlayer:
 	return null
 
 
+## Check if a specific sound effect is currently playing
+## @param sfx_name: Name of the sound file (without extension)
+## @return true if the sound is currently playing on any player
+func is_sfx_playing(sfx_name: String) -> bool:
+	var stream: AudioStream = _load_audio(sfx_name, "sfx")
+	if not stream:
+		return false
+
+	for player in _sfx_players:
+		if player.playing and player.stream == stream:
+			return true
+	return false
+
+
+## Play a sound effect only if it's not already playing (prevents overlap)
+## Useful for continuous sounds like footsteps that shouldn't stack
+## @param sfx_name: Name of the sound file (without extension)
+## @param category: Category for organization (optional, defaults to SYSTEM)
+func play_sfx_no_overlap(sfx_name: String, category: SFXCategory = SFXCategory.SYSTEM) -> void:
+	if is_sfx_playing(sfx_name):
+		return
+	play_sfx(sfx_name, category)
+
+
 ## Update volume for all audio buses
 func _update_volumes() -> void:
 	# Note: AudioServer.set_bus_volume_db would be used here
