@@ -174,12 +174,29 @@ static func _convert_params(params: Dictionary, cmd_type: String) -> Dictionary:
 
 
 ## Resolve a character_id to character data (name and portrait)
+## Supports both characters (by UID) and NPCs (prefixed with "npc:")
 ## Returns Dictionary with "name" and optionally "portrait"
 ## Falls back to showing the ID itself if character not found
 static func _resolve_character_data(character_id: String) -> Dictionary:
 	var result: Dictionary = {"name": "", "portrait": null}
 
 	if character_id.is_empty():
+		return result
+
+	# Check if this is an NPC reference (prefixed with "npc:")
+	if character_id.begins_with("npc:"):
+		var npc_id: String = character_id.substr(4)  # Remove "npc:" prefix
+		if ModLoader and ModLoader.registry:
+			var npc: NPCData = ModLoader.registry.get_npc_by_id(npc_id)
+			if npc:
+				result["name"] = npc.get_display_name()
+				var portrait: Texture2D = npc.get_portrait()
+				if portrait:
+					result["portrait"] = portrait
+				return result
+		# Fallback for NPC
+		push_warning("CinematicLoader: Could not resolve NPC '%s' - NPC not found" % npc_id)
+		result["name"] = "[%s]" % npc_id
 		return result
 
 	# Try to look up character in ModRegistry

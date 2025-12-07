@@ -90,6 +90,23 @@ func get_character_name_by_uid(uid: String) -> String:
 	return ""
 
 
+## Get an NPC by their npc_id
+## Returns null if no NPC with that ID exists
+func get_npc_by_id(npc_id: String) -> NPCData:
+	if npc_id.is_empty():
+		return null
+
+	if "npc" not in _resources_by_type:
+		return null
+
+	for npc: Resource in _resources_by_type["npc"].values():
+		var npc_data: NPCData = npc as NPCData
+		if npc_data and npc_data.npc_id == npc_id:
+			return npc_data
+
+	return null
+
+
 ## Get the hero character (primary protagonist)
 ## Returns null if no hero exists or if multiple heroes exist (with warning)
 func get_hero_character() -> CharacterData:

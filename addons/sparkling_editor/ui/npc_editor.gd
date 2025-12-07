@@ -245,8 +245,9 @@ func _validate_resource() -> Dictionary:
 	var has_fallback: bool = not fallback_id.is_empty()
 	var has_conditional: bool = _has_valid_conditional()
 
+	# No dialog is now allowed (decorative NPCs, dialog added later, etc.)
 	if not has_primary and not has_fallback and not has_conditional:
-		errors.append("At least one cinematic must be defined (primary, fallback, or conditional)")
+		warnings.append("NPC has no dialog - interacting will do nothing")
 
 	var cinematics_dir: String = _get_active_mod_cinematics_path()
 	if has_primary and not QuickDialogGenerator.cinematic_exists(cinematics_dir, primary_id):
@@ -269,6 +270,11 @@ func _validate_resource() -> Dictionary:
 	return {valid = errors.is_empty(), errors = errors, warnings = warnings}
 
 
+## Default placeholder paths in core (always available)
+const DEFAULT_NPC_SPRITE: String = "res://core/assets/defaults/default_npc_sprite.png"
+const DEFAULT_NPC_PORTRAIT: String = "res://core/assets/defaults/default_npc_portrait.png"
+
+
 ## Override: Create a new NPC with defaults
 func _create_new_resource() -> Resource:
 	var new_npc: NPCData = NPCData.new()
@@ -279,6 +285,13 @@ func _create_new_resource() -> Resource:
 	new_npc.interaction_cinematic_id = ""
 	new_npc.fallback_cinematic_id = ""
 	new_npc.conditional_cinematics = []
+
+	# Set default placeholder sprites (from core, always available)
+	if ResourceLoader.exists(DEFAULT_NPC_SPRITE):
+		new_npc.map_sprite = load(DEFAULT_NPC_SPRITE) as Texture2D
+	if ResourceLoader.exists(DEFAULT_NPC_PORTRAIT):
+		new_npc.portrait = load(DEFAULT_NPC_PORTRAIT) as Texture2D
+
 	return new_npc
 
 

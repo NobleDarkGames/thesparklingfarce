@@ -168,6 +168,7 @@ var target_field: LineEdit  # For commands with target (actor_id)
 
 # UI Components - Metadata
 var cinematic_id_edit: LineEdit
+var cinematic_id_lock_btn: Button
 var cinematic_name_edit: LineEdit
 var description_edit: TextEdit
 var can_skip_check: CheckBox
@@ -184,8 +185,12 @@ var current_cinematic_data: Dictionary = {}
 var selected_command_index: int = -1
 var _updating_ui: bool = false
 
-# Character cache for pickers
+# Track if ID should auto-generate from name (unlocked = auto-generate)
+var _id_is_locked: bool = false
+
+# Character and NPC caches for pickers
 var _characters: Array[Resource] = []
+var _npcs: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -215,15 +220,17 @@ func _on_mods_reloaded() -> void:
 
 ## Called when any resource is saved or created
 func _on_resource_changed(resource_type: String, _resource_id: String, _resource: Resource) -> void:
-	# Refresh characters if a character was modified
-	if resource_type == "character" or resource_type == "characters":
+	# Refresh characters/NPCs if either was modified
+	if resource_type in ["character", "characters", "npc", "npcs"]:
 		_refresh_characters()
 
 
 func _refresh_characters() -> void:
 	_characters.clear()
+	_npcs.clear()
 	if ModLoader and ModLoader.registry:
 		_characters = ModLoader.registry.get_all_resources("character")
+		_npcs = ModLoader.registry.get_all_resources("npc")
 
 
 func _setup_ui() -> void:
@@ -385,21 +392,7 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	section.add_theme_constant_override("separation", 4)
 	parent.add_child(section)
 
-	# ID row
-	var id_row: HBoxContainer = HBoxContainer.new()
-	section.add_child(id_row)
-
-	var id_label: Label = Label.new()
-	id_label.text = "ID:"
-	id_label.custom_minimum_size.x = 50
-	id_row.add_child(id_label)
-
-	cinematic_id_edit = LineEdit.new()
-	cinematic_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_id_edit.placeholder_text = "cinematic_id"
-	id_row.add_child(cinematic_id_edit)
-
-	# Name row
+	# Name row (moved above ID so name drives ID auto-generation)
 	var name_row: HBoxContainer = HBoxContainer.new()
 	section.add_child(name_row)
 
@@ -411,7 +404,30 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	cinematic_name_edit = LineEdit.new()
 	cinematic_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cinematic_name_edit.placeholder_text = "Display name"
+	cinematic_name_edit.text_changed.connect(_on_cinematic_name_changed)
 	name_row.add_child(cinematic_name_edit)
+
+	# ID row
+	var id_row: HBoxContainer = HBoxContainer.new()
+	section.add_child(id_row)
+
+	var id_label: Label = Label.new()
+	id_label.text = "ID:"
+	id_label.custom_minimum_size.x = 50
+	id_row.add_child(id_label)
+
+	cinematic_id_edit = LineEdit.new()
+	cinematic_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cinematic_id_edit.placeholder_text = "(auto-generated from name)"
+	cinematic_id_edit.text_changed.connect(_on_cinematic_id_manually_changed)
+	id_row.add_child(cinematic_id_edit)
+
+	cinematic_id_lock_btn = Button.new()
+	cinematic_id_lock_btn.text = "Unlock"
+	cinematic_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	cinematic_id_lock_btn.custom_minimum_size.x = 60
+	cinematic_id_lock_btn.pressed.connect(_on_id_lock_toggled)
+	id_row.add_child(cinematic_id_lock_btn)
 
 	# Options row
 	var opt_row: HBoxContainer = HBoxContainer.new()
@@ -611,10 +627,17 @@ func _load_cinematic(path: String) -> void:
 
 func _populate_metadata() -> void:
 	_updating_ui = true
-	cinematic_id_edit.text = current_cinematic_data.get("cinematic_id", "")
 	cinematic_name_edit.text = current_cinematic_data.get("cinematic_name", "")
+	cinematic_id_edit.text = current_cinematic_data.get("cinematic_id", "")
 	can_skip_check.button_pressed = current_cinematic_data.get("can_skip", true)
 	disable_input_check.button_pressed = current_cinematic_data.get("disable_player_input", true)
+
+	# Determine if ID was manually set (different from auto-generated)
+	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(current_cinematic_data.get("cinematic_name", ""))
+	var current_id: String = current_cinematic_data.get("cinematic_id", "")
+	_id_is_locked = (current_id != expected_auto_id) and not current_id.is_empty()
+	_update_lock_button()
+
 	_updating_ui = false
 
 
@@ -705,6 +728,47 @@ func _get_character_name(character_uid: String) -> String:
 		if char_data and char_data.character_uid == character_uid:
 			return char_data.character_name
 	return "[" + character_uid + "]"
+
+
+## Get character display name with source mod prefix: "[mod_id] Name"
+func _get_character_display_name_with_mod(char_data: CharacterData) -> String:
+	if not char_data:
+		return "(Unknown)"
+
+	var mod_id: String = ""
+	if ModLoader and ModLoader.registry:
+		var resource_id: String = char_data.resource_path.get_file().get_basename()
+		mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+	if mod_id.is_empty():
+		return char_data.character_name
+	return "[%s] %s" % [mod_id, char_data.character_name]
+
+
+## Get NPC display name with source mod prefix: "[mod_id] Name (NPC)"
+func _get_npc_display_name_with_mod(npc_data: NPCData) -> String:
+	if not npc_data:
+		return "(Unknown NPC)"
+
+	var mod_id: String = ""
+	if ModLoader and ModLoader.registry:
+		var resource_id: String = npc_data.resource_path.get_file().get_basename()
+		mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+	# Try to get display name, with fallbacks
+	var display_name: String = ""
+	if npc_data.has_method("get_display_name"):
+		display_name = npc_data.get_display_name()
+	if display_name.is_empty() and "npc_name" in npc_data:
+		display_name = npc_data.npc_name
+	if display_name.is_empty() and "npc_id" in npc_data:
+		display_name = npc_data.npc_id
+	if display_name.is_empty():
+		display_name = npc_data.resource_path.get_file().get_basename()
+
+	if mod_id.is_empty():
+		return "%s (NPC)" % display_name
+	return "[%s] %s (NPC)" % [mod_id, display_name]
 
 
 func _on_command_selected(index: int) -> void:
@@ -859,15 +923,57 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			var char_btn: OptionButton = OptionButton.new()
 			char_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			char_btn.add_item("(None)", 0)
+			char_btn.set_item_metadata(0, {"type": "none", "id": ""})
 			var selected_idx: int = 0
+			var item_idx: int = 1
+
+			# Add characters first
 			for i: int in range(_characters.size()):
 				var char_data: CharacterData = _characters[i] as CharacterData
 				if char_data:
-					char_btn.add_item(char_data.character_name, i + 1)
+					var display_name: String = _get_character_display_name_with_mod(char_data)
+					char_btn.add_item(display_name, item_idx)
+					char_btn.set_item_metadata(item_idx, {"type": "character", "id": char_data.character_uid})
 					if char_data.character_uid == str(current_value):
-						selected_idx = i + 1
+						selected_idx = item_idx
+					item_idx += 1
+
+			# Add NPCs (with visual separator via different format)
+			for i: int in range(_npcs.size()):
+				var npc_res: Resource = _npcs[i]
+				if npc_res:
+					# Get display name with fallbacks for different loading states
+					var display_name: String = ""
+					var npc_id: String = ""
+
+					# Try direct property access first (works when script is attached)
+					if "npc_name" in npc_res and not str(npc_res.get("npc_name")).is_empty():
+						display_name = str(npc_res.get("npc_name"))
+					if "npc_id" in npc_res:
+						npc_id = str(npc_res.get("npc_id"))
+
+					# Fallback to filename
+					if display_name.is_empty():
+						display_name = npc_res.resource_path.get_file().get_basename()
+					if npc_id.is_empty():
+						npc_id = npc_res.resource_path.get_file().get_basename()
+
+					# Get source mod
+					var mod_id: String = ""
+					if ModLoader and ModLoader.registry:
+						var resource_id: String = npc_res.resource_path.get_file().get_basename()
+						mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+					var full_display: String = "[%s] %s (NPC)" % [mod_id, display_name] if not mod_id.is_empty() else "%s (NPC)" % display_name
+					char_btn.add_item(full_display, item_idx)
+					char_btn.set_item_metadata(item_idx, {"type": "npc", "id": npc_id})
+					# Check if this NPC is selected (stored as "npc:npc_id")
+					if str(current_value) == "npc:" + npc_id:
+						selected_idx = item_idx
+					item_idx += 1
+
 			char_btn.select(selected_idx)
-			char_btn.item_selected.connect(_on_character_selected.bind(param_name))
+			char_btn.item_selected.connect(_on_character_or_npc_selected.bind(param_name, char_btn))
 			control = char_btn
 
 		"text":
@@ -988,15 +1094,23 @@ func _on_enum_changed(index: int, param_name: String, options: Array) -> void:
 		_on_param_changed(options[index], param_name)
 
 
-func _on_character_selected(index: int, param_name: String) -> void:
-	if index <= 0:
-		_on_param_changed("", param_name)
+func _on_character_or_npc_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var metadata: Variant = option_btn.get_item_metadata(index)
+	if metadata is Dictionary:
+		var meta_dict: Dictionary = metadata as Dictionary
+		var item_type: String = meta_dict.get("type", "none")
+		var item_id: String = meta_dict.get("id", "")
+
+		if item_type == "none" or item_id.is_empty():
+			_on_param_changed("", param_name)
+		elif item_type == "character":
+			# Character: store the character_uid directly
+			_on_param_changed(item_id, param_name)
+		elif item_type == "npc":
+			# NPC: store with "npc:" prefix so runtime can distinguish
+			_on_param_changed("npc:" + item_id, param_name)
 	else:
-		var char_idx: int = index - 1
-		if char_idx >= 0 and char_idx < _characters.size():
-			var char_data: CharacterData = _characters[char_idx] as CharacterData
-			if char_data:
-				_on_param_changed(char_data.character_uid, param_name)
+		_on_param_changed("", param_name)
 
 
 func _on_text_changed(param_name: String, text_edit: TextEdit) -> void:
@@ -1136,9 +1250,13 @@ func _on_create_new() -> void:
 		new_path = cinematics_dir + base_name + "_" + str(counter) + ".json"
 		counter += 1
 
+	# Use auto-generated ID from name so it starts unlocked
+	var initial_name: String = "New Cinematic"
+	var initial_id: String = SparklingEditorUtils.generate_id_from_name(initial_name)
+
 	current_cinematic_data = {
-		"cinematic_id": new_path.get_file().get_basename(),
-		"cinematic_name": "New Cinematic",
+		"cinematic_id": initial_id,
+		"cinematic_name": initial_name,
 		"description": "",
 		"can_skip": true,
 		"disable_player_input": true,
@@ -1185,7 +1303,8 @@ func _on_save() -> void:
 		return
 
 	# Collect metadata
-	current_cinematic_data["cinematic_id"] = cinematic_id_edit.text.strip_edges()
+	var new_id: String = cinematic_id_edit.text.strip_edges()
+	current_cinematic_data["cinematic_id"] = new_id
 	current_cinematic_data["cinematic_name"] = cinematic_name_edit.text.strip_edges()
 	current_cinematic_data["can_skip"] = can_skip_check.button_pressed
 	current_cinematic_data["disable_player_input"] = disable_input_check.button_pressed
@@ -1196,11 +1315,28 @@ func _on_save() -> void:
 		_show_errors(errors)
 		return
 
-	# Save
-	if save_json_file(current_cinematic_path, current_cinematic_data):
+	# Determine correct save path based on cinematic_id
+	var dir_path: String = current_cinematic_path.get_base_dir()
+	var expected_path: String = dir_path.path_join(new_id + ".json")
+	var old_path: String = current_cinematic_path
+
+	# If ID changed, we need to save to new path and delete old file
+	if expected_path != current_cinematic_path:
+		# Check if target file already exists (would be a conflict)
+		if FileAccess.file_exists(expected_path):
+			_show_errors(["Cannot rename: A cinematic with ID '%s' already exists" % new_id])
+			return
+
+	# Save to the correct path
+	if save_json_file(expected_path, current_cinematic_data):
+		# Delete old file if path changed
+		if expected_path != old_path and FileAccess.file_exists(old_path):
+			DirAccess.remove_absolute(old_path)
+
+		current_cinematic_path = expected_path
 		_hide_errors()
 		is_dirty = false
-		notify_resource_saved(current_cinematic_data.get("cinematic_id", ""))
+		notify_resource_saved(new_id)
 
 		# Refresh file list and filesystem
 		if Engine.is_editor_hint():
@@ -1241,6 +1377,43 @@ func _validate_cinematic() -> Array[String]:
 					errors.append("Command %d (set_variable): Variable name is required" % (i + 1))
 
 	return errors
+
+
+# =============================================================================
+# ID Auto-Generation Handlers
+# =============================================================================
+
+## Called when cinematic name changes - auto-generates ID if not locked
+func _on_cinematic_name_changed(new_name: String) -> void:
+	if _updating_ui:
+		return
+	if not _id_is_locked:
+		cinematic_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
+
+
+## Called when ID is manually edited
+func _on_cinematic_id_manually_changed(_text: String) -> void:
+	if _updating_ui:
+		return
+	# If user manually edits the ID field while it has focus, lock it
+	if not _id_is_locked and cinematic_id_edit.has_focus():
+		_id_is_locked = true
+		_update_lock_button()
+
+
+## Toggle the ID lock state
+func _on_id_lock_toggled() -> void:
+	_id_is_locked = not _id_is_locked
+	_update_lock_button()
+	# If unlocking, regenerate ID from current name
+	if not _id_is_locked:
+		cinematic_id_edit.text = SparklingEditorUtils.generate_id_from_name(cinematic_name_edit.text)
+
+
+## Update the lock button appearance
+func _update_lock_button() -> void:
+	cinematic_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
+	cinematic_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "ID auto-generates from name. Click to lock."
 
 
 func _get_active_mod() -> String:

@@ -479,13 +479,14 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 
 	# Character picker dropdown
 	var character_picker: OptionButton = OptionButton.new()
-	character_picker.custom_minimum_size.x = 180
+	character_picker.custom_minimum_size.x = 200
 	character_picker.add_item("(Custom Speaker)", 0)
-	# Populate with characters from registry
+	# Populate with characters from registry (with source mod prefix)
 	for i in range(_cached_characters.size()):
 		var char_data: CharacterData = _cached_characters[i] as CharacterData
 		if char_data:
-			character_picker.add_item(char_data.character_name, i + 1)
+			var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
+			character_picker.add_item(display_name, i + 1)
 	speaker_container.add_child(character_picker)
 
 	# Custom speaker name field (shown when "(Custom Speaker)" selected)

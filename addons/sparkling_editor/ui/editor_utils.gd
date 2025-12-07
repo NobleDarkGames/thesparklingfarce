@@ -241,3 +241,38 @@ static func get_unique_filename(directory: String, base_name: String, extension:
 		counter += 1
 
 	return "%s_%d%s" % [base_name, counter, extension]
+
+
+# =============================================================================
+# Resource Display Helpers
+# =============================================================================
+
+## Get a resource display name with source mod prefix: "[mod_id] Name"
+## Works with CharacterData, NPCData, or any Resource with a name property
+static func get_resource_display_name_with_mod(resource: Resource, name_property: String = "character_name") -> String:
+	if not resource:
+		return "(Unknown)"
+
+	# Get the name from the resource
+	var display_name: String = ""
+	if resource.has_method("get") and name_property in resource:
+		display_name = str(resource.get(name_property))
+	elif "resource_name" in resource:
+		display_name = str(resource.get("resource_name"))
+	else:
+		display_name = resource.resource_path.get_file().get_basename()
+
+	# Get source mod
+	var mod_id: String = ""
+	if ModLoader and ModLoader.registry:
+		var resource_id: String = resource.resource_path.get_file().get_basename()
+		mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+	if mod_id.is_empty():
+		return display_name
+	return "[%s] %s" % [mod_id, display_name]
+
+
+## Get character display name with source mod prefix (convenience wrapper)
+static func get_character_display_name(character: CharacterData) -> String:
+	return get_resource_display_name_with_mod(character, "character_name")

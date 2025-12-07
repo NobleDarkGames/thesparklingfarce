@@ -905,13 +905,14 @@ func _load_available_characters() -> void:
 	_refresh_available_characters()
 
 
-## Populate a character dropdown with available characters
+## Populate a character dropdown with available characters (with source mod prefix)
 func _populate_character_dropdown(option_button: OptionButton) -> void:
 	option_button.clear()
 	option_button.add_item("(Select Character)", -1)
 
 	for character: CharacterData in available_characters:
-		option_button.add_item(character.character_name)
+		var display_name: String = SparklingEditorUtils.get_character_display_name(character)
+		option_button.add_item(display_name)
 
 
 ## Add a new member UI element
