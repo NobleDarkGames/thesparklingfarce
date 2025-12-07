@@ -1,0 +1,422 @@
+class_name EditorTabRegistry
+extends RefCounted
+
+## Registry for editor tab definitions
+##
+## Provides a decoupled registration system for editor tabs. Instead of hardcoding
+## tab creation in MainPanel, editors register themselves with metadata that
+## allows MainPanel to dynamically create and manage them.
+##
+## Benefits:
+## - Adding new editors doesn't require modifying MainPanel
+## - Consistent refresh interface via standard refresh() method
+## - Tabs sorted by category and priority
+## - Mod-provided editor tabs use the same system as built-in tabs
+##
+## Usage:
+## 1. Built-in tabs are auto-discovered from addons/sparkling_editor/ui/*.tscn
+## 2. Mod tabs are registered via mod.json editor_extensions
+## 3. MainPanel queries the registry to create tabs in the correct order
+##
+## Tab info format:
+## {
+##   "id": "character",              # Unique identifier (lowercase)
+##   "display_name": "Characters",   # Tab title shown to user
+##   "scene_path": "res://...",      # Path to the editor scene
+##   "category": "content",          # Category for grouping (see CATEGORIES)
+##   "priority": 100,                # Sort order within category (lower = first)
+##   "source_mod": "",               # Which mod provided this (empty for built-in)
+##   "refresh_method": "refresh"     # Method to call on refresh (default: refresh)
+## }
+
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+## Tab categories for logical grouping
+## Tabs are sorted by category order, then by priority within category
+const CATEGORIES: Array[String] = [
+	"overview",    # Welcome/info tabs (always first)
+	"settings",    # Mod settings, configuration
+	"content",     # Characters, classes, items, abilities, terrain
+	"battle",      # Parties, battles, maps
+	"story",       # Cinematics, campaigns, NPCs
+	"mod"          # Mod-provided custom tabs (always last)
+]
+
+## Default built-in tabs with their metadata
+## These are registered automatically if the scene files exist
+const BUILTIN_TABS: Array[Dictionary] = [
+	# Overview
+	{"id": "overview", "display_name": "Overview", "category": "overview", "priority": 0, "is_static": true},
+
+	# Settings
+	{"id": "mod_settings", "display_name": "Mod Settings", "scene": "mod_json_editor.tscn", "category": "settings", "priority": 10},
+
+	# Content editors
+	{"id": "classes", "display_name": "Classes", "scene": "class_editor.tscn", "category": "content", "priority": 10},
+	{"id": "characters", "display_name": "Characters", "scene": "character_editor.tscn", "category": "content", "priority": 20},
+	{"id": "items", "display_name": "Items", "scene": "item_editor.tscn", "category": "content", "priority": 30},
+	{"id": "abilities", "display_name": "Abilities", "scene": "ability_editor.tscn", "category": "content", "priority": 40},
+	{"id": "terrain", "display_name": "Terrain", "scene": "terrain_editor.tscn", "category": "content", "priority": 50},
+
+	# Battle editors
+	{"id": "party_templates", "display_name": "Party Templates", "scene": "party_template_editor.tscn", "category": "battle", "priority": 10},
+	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "battle", "priority": 20},
+	{"id": "battles", "display_name": "Battles", "scene": "battle_editor.tscn", "category": "battle", "priority": 30},
+	{"id": "maps", "display_name": "Maps", "scene": "map_metadata_editor.tscn", "category": "battle", "priority": 40},
+
+	# Story editors
+	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 10},
+	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 20},
+	{"id": "npcs", "display_name": "NPCs", "scene": "npc_editor.tscn", "category": "story", "priority": 30}
+]
+
+## Base path for built-in editor scenes
+const BUILTIN_SCENE_PATH: String = "res://addons/sparkling_editor/ui/"
+
+# =============================================================================
+# SIGNALS
+# =============================================================================
+
+## Emitted when tab registrations change (for MainPanel refresh)
+signal registrations_changed()
+
+## Emitted when a specific tab is registered
+signal tab_registered(tab_id: String)
+
+## Emitted when a specific tab is unregistered
+signal tab_unregistered(tab_id: String)
+
+# =============================================================================
+# DATA STORAGE
+# =============================================================================
+
+## Registered tabs: {tab_id: {id, display_name, scene_path, category, priority, source_mod, instance}}
+var _tabs: Dictionary = {}
+
+## Tab instances (populated when MainPanel creates the tabs)
+var _instances: Dictionary = {}
+
+## Cached sorted tab list (rebuilt when dirty)
+var _sorted_tabs: Array[Dictionary] = []
+var _cache_dirty: bool = true
+
+# =============================================================================
+# INITIALIZATION
+# =============================================================================
+
+## Register all built-in tabs
+## Called by MainPanel during initialization
+func register_builtin_tabs() -> void:
+	for tab_def: Dictionary in BUILTIN_TABS:
+		var tab_id: String = tab_def.get("id", "")
+		if tab_id.is_empty():
+			continue
+
+		var scene_path: String = ""
+		if "scene" in tab_def:
+			scene_path = BUILTIN_SCENE_PATH + tab_def["scene"]
+
+		# For static tabs (like Overview), scene_path can be empty
+		var is_static: bool = tab_def.get("is_static", false)
+
+		# Verify scene exists (unless it's a static tab)
+		if not is_static and not scene_path.is_empty():
+			if not ResourceLoader.exists(scene_path):
+				push_warning("EditorTabRegistry: Built-in tab '%s' scene not found: %s" % [tab_id, scene_path])
+				continue
+
+		_tabs[tab_id] = {
+			"id": tab_id,
+			"display_name": tab_def.get("display_name", tab_id.capitalize()),
+			"scene_path": scene_path,
+			"category": tab_def.get("category", "content"),
+			"priority": tab_def.get("priority", 100),
+			"source_mod": "",
+			"refresh_method": "refresh",
+			"is_static": is_static
+		}
+
+	_cache_dirty = true
+	registrations_changed.emit()
+
+
+# =============================================================================
+# REGISTRATION API
+# =============================================================================
+
+## Register a tab from a mod's editor_extensions
+## @param mod_id: The mod providing this tab
+## @param ext_id: The extension ID within the mod
+## @param config: The extension configuration from mod.json
+## @param mod_directory: The mod's base directory
+func register_mod_tab(mod_id: String, ext_id: String, config: Dictionary, mod_directory: String) -> void:
+	var tab_id: String = "%s:%s" % [mod_id, ext_id]
+
+	var scene_path: String = config.get("editor_scene", "")
+	if scene_path.is_empty():
+		push_warning("EditorTabRegistry: Mod '%s' tab '%s' missing editor_scene" % [mod_id, ext_id])
+		return
+
+	# Resolve full path
+	var full_path: String = mod_directory.path_join(scene_path)
+
+	if not ResourceLoader.exists(full_path):
+		push_warning("EditorTabRegistry: Mod '%s' tab '%s' scene not found: %s" % [mod_id, ext_id, full_path])
+		return
+
+	_tabs[tab_id] = {
+		"id": tab_id,
+		"display_name": "[%s] %s" % [mod_id, config.get("tab_name", ext_id)],
+		"scene_path": full_path,
+		"category": "mod",
+		"priority": config.get("priority", 100),
+		"source_mod": mod_id,
+		"refresh_method": config.get("refresh_method", "refresh"),
+		"is_static": false
+	}
+
+	_cache_dirty = true
+	tab_registered.emit(tab_id)
+	registrations_changed.emit()
+
+
+## Register a custom tab programmatically
+## Used for special tabs that aren't defined in BUILTIN_TABS or mod.json
+func register_tab(tab_id: String, display_name: String, scene_path: String,
+		category: String = "content", priority: int = 100) -> void:
+	if tab_id.is_empty():
+		push_error("EditorTabRegistry: Cannot register tab with empty ID")
+		return
+
+	_tabs[tab_id] = {
+		"id": tab_id,
+		"display_name": display_name,
+		"scene_path": scene_path,
+		"category": category if category in CATEGORIES else "content",
+		"priority": priority,
+		"source_mod": "",
+		"refresh_method": "refresh",
+		"is_static": false
+	}
+
+	_cache_dirty = true
+	tab_registered.emit(tab_id)
+	registrations_changed.emit()
+
+
+## Unregister a tab
+func unregister_tab(tab_id: String) -> void:
+	if tab_id in _tabs:
+		_tabs.erase(tab_id)
+		if tab_id in _instances:
+			_instances.erase(tab_id)
+		_cache_dirty = true
+		tab_unregistered.emit(tab_id)
+		registrations_changed.emit()
+
+
+## Clear all mod-provided tabs (called on mod reload)
+func clear_mod_registrations() -> void:
+	var to_remove: Array[String] = []
+	for tab_id: String in _tabs.keys():
+		if not _tabs[tab_id].get("source_mod", "").is_empty():
+			to_remove.append(tab_id)
+
+	for tab_id: String in to_remove:
+		_tabs.erase(tab_id)
+		if tab_id in _instances:
+			_instances.erase(tab_id)
+
+	_cache_dirty = true
+	registrations_changed.emit()
+
+
+# =============================================================================
+# INSTANCE MANAGEMENT
+# =============================================================================
+
+## Store a reference to a tab's Control instance
+## Called by MainPanel after instantiating the tab
+func set_instance(tab_id: String, instance: Control) -> void:
+	_instances[tab_id] = instance
+
+
+## Get a tab's Control instance
+func get_instance(tab_id: String) -> Control:
+	return _instances.get(tab_id, null)
+
+
+## Check if a tab has been instantiated
+func has_instance(tab_id: String) -> bool:
+	return tab_id in _instances and _instances[tab_id] != null
+
+
+# =============================================================================
+# LOOKUP API
+# =============================================================================
+
+## Get all registered tab IDs
+func get_all_tab_ids() -> Array[String]:
+	var result: Array[String] = []
+	for tab_id: String in _tabs.keys():
+		result.append(tab_id)
+	return result
+
+
+## Get all tabs sorted by category and priority
+func get_all_tabs_sorted() -> Array[Dictionary]:
+	_rebuild_cache_if_dirty()
+	return _sorted_tabs.duplicate(true)
+
+
+## Get tabs in a specific category, sorted by priority
+func get_tabs_by_category(category: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for tab: Dictionary in get_all_tabs_sorted():
+		if tab.get("category", "") == category:
+			result.append(tab.duplicate())
+	return result
+
+
+## Get a specific tab's metadata
+func get_tab(tab_id: String) -> Dictionary:
+	if tab_id in _tabs:
+		return _tabs[tab_id].duplicate()
+	return {}
+
+
+## Check if a tab is registered
+func has_tab(tab_id: String) -> bool:
+	return tab_id in _tabs
+
+
+## Get which mod provided a tab (empty for built-in)
+func get_source_mod(tab_id: String) -> String:
+	if tab_id in _tabs:
+		return _tabs[tab_id].get("source_mod", "")
+	return ""
+
+
+## Get a tab's display name
+func get_display_name(tab_id: String) -> String:
+	if tab_id in _tabs:
+		return _tabs[tab_id].get("display_name", tab_id.capitalize())
+	return tab_id.capitalize()
+
+
+## Get a tab's scene path
+func get_scene_path(tab_id: String) -> String:
+	if tab_id in _tabs:
+		return _tabs[tab_id].get("scene_path", "")
+	return ""
+
+
+## Check if a tab is static (no scene, created programmatically)
+func is_static_tab(tab_id: String) -> bool:
+	if tab_id in _tabs:
+		return _tabs[tab_id].get("is_static", false)
+	return false
+
+
+# =============================================================================
+# REFRESH API
+# =============================================================================
+
+## Refresh all tabs that have instances
+## Calls the registered refresh method on each tab
+func refresh_all() -> void:
+	for tab_id: String in _instances.keys():
+		refresh_tab(tab_id)
+
+
+## Refresh a specific tab
+func refresh_tab(tab_id: String) -> void:
+	if tab_id not in _instances:
+		return
+
+	var instance: Control = _instances[tab_id]
+	if not instance:
+		return
+
+	var tab_info: Dictionary = _tabs.get(tab_id, {})
+	var refresh_method: String = tab_info.get("refresh_method", "refresh")
+
+	# Security: Only allow safe refresh method names
+	if not _is_safe_refresh_method(refresh_method):
+		push_warning("EditorTabRegistry: Tab '%s' has unsafe refresh_method '%s'" % [tab_id, refresh_method])
+		return
+
+	if instance.has_method(refresh_method):
+		instance.call(refresh_method)
+
+
+## Validate that a refresh method name is safe
+func _is_safe_refresh_method(method_name: String) -> bool:
+	return method_name.begins_with("refresh") or method_name.begins_with("_refresh")
+
+
+# =============================================================================
+# CACHE MANAGEMENT
+# =============================================================================
+
+## Rebuild the sorted tab cache
+func _rebuild_cache_if_dirty() -> void:
+	if not _cache_dirty:
+		return
+
+	_sorted_tabs.clear()
+
+	for tab_id: String in _tabs.keys():
+		_sorted_tabs.append(_tabs[tab_id].duplicate())
+
+	# Sort by category order, then by priority within category
+	_sorted_tabs.sort_custom(_compare_tabs)
+
+	_cache_dirty = false
+
+
+## Compare two tabs for sorting
+func _compare_tabs(a: Dictionary, b: Dictionary) -> bool:
+	var cat_a: String = a.get("category", "content")
+	var cat_b: String = b.get("category", "content")
+
+	var cat_order_a: int = CATEGORIES.find(cat_a)
+	var cat_order_b: int = CATEGORIES.find(cat_b)
+
+	# Unknown categories go to the end
+	if cat_order_a < 0:
+		cat_order_a = CATEGORIES.size()
+	if cat_order_b < 0:
+		cat_order_b = CATEGORIES.size()
+
+	# Different categories: sort by category order
+	if cat_order_a != cat_order_b:
+		return cat_order_a < cat_order_b
+
+	# Same category: sort by priority
+	return a.get("priority", 100) < b.get("priority", 100)
+
+
+# =============================================================================
+# UTILITY API
+# =============================================================================
+
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	var builtin_count: int = 0
+	var mod_count: int = 0
+
+	for tab_id: String in _tabs.keys():
+		if _tabs[tab_id].get("source_mod", "").is_empty():
+			builtin_count += 1
+		else:
+			mod_count += 1
+
+	return {
+		"total_tabs": _tabs.size(),
+		"builtin_tabs": builtin_count,
+		"mod_tabs": mod_count,
+		"instantiated": _instances.size()
+	}

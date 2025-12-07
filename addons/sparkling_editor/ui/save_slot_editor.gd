@@ -38,14 +38,26 @@ const METADATA_FILE: String = "slots.meta"
 
 func _ready() -> void:
 	_setup_ui()
+	_connect_event_bus()
+
+
+## Standard refresh method for EditorTabRegistry
+## Save slot editor operates on save files, not mod resources,
+## so it only needs to refresh available characters when mods change
+func refresh() -> void:
 	_load_available_characters()
 
+
+func _connect_event_bus() -> void:
 	# Listen for character changes from other editor tabs via EditorEventBus
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 	if event_bus:
-		event_bus.resource_saved.connect(_on_resource_event)
-		event_bus.resource_created.connect(_on_resource_event)
-		event_bus.resource_deleted.connect(_on_resource_deleted_event)
+		if not event_bus.resource_saved.is_connected(_on_resource_event):
+			event_bus.resource_saved.connect(_on_resource_event)
+		if not event_bus.resource_created.is_connected(_on_resource_event):
+			event_bus.resource_created.connect(_on_resource_event)
+		if not event_bus.resource_deleted.is_connected(_on_resource_deleted_event):
+			event_bus.resource_deleted.connect(_on_resource_deleted_event)
 
 
 ## Handle resource saved/created events from EditorEventBus

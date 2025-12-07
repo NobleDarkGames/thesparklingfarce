@@ -32,6 +32,19 @@ var is_dirty: bool = false
 
 
 # =============================================================================
+# PUBLIC REFRESH INTERFACE
+# =============================================================================
+
+## Standard refresh method for EditorTabRegistry
+## Override this in child classes to call the appropriate refresh method
+func refresh() -> void:
+	# Default implementation does nothing
+	# Child classes should override to call their specific refresh method
+	# e.g., _refresh_cinematic_list(), _refresh_campaign_list(), etc.
+	pass
+
+
+# =============================================================================
 # JSON File Operations
 # =============================================================================
 

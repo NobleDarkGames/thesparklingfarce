@@ -510,6 +510,7 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	level_spin.max_value = 99
 	level_spin.value = level
 	level_spin.custom_minimum_size.x = 70
+	level_spin.value_changed.connect(_on_ability_level_changed.bind(row))
 	row.add_child(level_spin)
 
 	# "learns" label
@@ -526,6 +527,16 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(picker)
 
+	# Duplicate warning icon/label (hidden by default)
+	var warning_label: Label = Label.new()
+	warning_label.name = "DuplicateWarning"
+	warning_label.text = "!"
+	warning_label.tooltip_text = "Another ability is already set for this level"
+	warning_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
+	warning_label.add_theme_font_size_override("font_size", 16)
+	warning_label.visible = false
+	row.add_child(warning_label)
+
 	# Remove button
 	var remove_btn: Button = Button.new()
 	remove_btn.text = "X"
@@ -539,6 +550,9 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	# Select the ability after adding to tree (picker needs to be in tree to refresh)
 	if ability:
 		picker.call_deferred("select_resource", ability)
+
+	# Check for duplicates after adding
+	call_deferred("_check_duplicate_levels")
 
 
 ## Called when "Add Ability" button is pressed
@@ -557,3 +571,41 @@ func _on_add_learnable_ability() -> void:
 ## Called when a remove button is pressed
 func _on_remove_ability_row(row: HBoxContainer) -> void:
 	row.queue_free()
+	# Re-check duplicates after removal
+	call_deferred("_check_duplicate_levels")
+
+
+## Called when a level spinner value changes
+func _on_ability_level_changed(_new_value: float, _row: HBoxContainer) -> void:
+	_check_duplicate_levels()
+
+
+## Check all ability rows for duplicate levels and show/hide warnings
+func _check_duplicate_levels() -> void:
+	# Collect all levels and their rows
+	var level_counts: Dictionary = {}  # level -> Array[HBoxContainer]
+
+	for child in learnable_abilities_container.get_children():
+		if not is_instance_valid(child) or not child is HBoxContainer:
+			continue
+		var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
+		if not level_spin:
+			continue
+
+		var level: int = int(level_spin.value)
+		if level not in level_counts:
+			level_counts[level] = []
+		level_counts[level].append(child)
+
+	# Update warnings for all rows
+	for child in learnable_abilities_container.get_children():
+		if not is_instance_valid(child) or not child is HBoxContainer:
+			continue
+		var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
+		var warning_label: Label = child.get_node_or_null("DuplicateWarning")
+		if not level_spin or not warning_label:
+			continue
+
+		var level: int = int(level_spin.value)
+		var is_duplicate: bool = level in level_counts and level_counts[level].size() > 1
+		warning_label.visible = is_duplicate

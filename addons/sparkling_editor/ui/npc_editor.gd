@@ -41,7 +41,11 @@ const NPC_TEMPLATES: Dictionary = {
 # Appearance Fallback section
 var appearance_section: VBoxContainer
 var portrait_path_edit: LineEdit
+var portrait_preview: TextureRect
+var portrait_file_dialog: EditorFileDialog
 var map_sprite_path_edit: LineEdit
+var map_sprite_preview: TextureRect
+var map_sprite_file_dialog: EditorFileDialog
 
 # Quick Dialog section
 var quick_dialog_section: VBoxContainer
@@ -122,7 +126,7 @@ func _create_detail_form() -> void:
 	# Left side: Form content
 	var form_container: VBoxContainer = VBoxContainer.new()
 	form_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	form_container.custom_minimum_size.x = 400
+	form_container.custom_minimum_size.x = 350  # Reduced from 400 for better laptop support
 
 	# Right side: Preview panel (using extracted component)
 	preview_panel = NPCPreviewPanel.new()
@@ -173,8 +177,13 @@ func _load_resource_data() -> void:
 
 	_update_appearance_section_visibility()
 
-	portrait_path_edit.text = npc.portrait.resource_path if npc.portrait else ""
-	map_sprite_path_edit.text = npc.map_sprite.resource_path if npc.map_sprite else ""
+	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
+	portrait_path_edit.text = portrait_path
+	_load_portrait_preview(portrait_path)
+
+	var sprite_path: String = npc.map_sprite.resource_path if npc.map_sprite else ""
+	map_sprite_path_edit.text = sprite_path
+	_load_sprite_preview(sprite_path)
 
 	interaction_cinematic_edit.text = npc.interaction_cinematic_id
 	fallback_cinematic_edit.text = npc.fallback_cinematic_id
@@ -348,19 +357,79 @@ func _add_appearance_fallback_section_to(parent: Control) -> void:
 	appearance_section = SparklingEditorUtils.create_section("Appearance (Fallback)", parent)
 	SparklingEditorUtils.create_help_label("Used when no Character Data is assigned", appearance_section)
 
+	# Portrait row with preview and browse button
 	var portrait_row: HBoxContainer = SparklingEditorUtils.create_field_row("Portrait:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
+
+	# Preview at 32x32
+	var portrait_preview_panel: PanelContainer = PanelContainer.new()
+	portrait_preview_panel.custom_minimum_size = Vector2(36, 36)
+	var portrait_style: StyleBoxFlat = StyleBoxFlat.new()
+	portrait_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
+	portrait_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
+	portrait_style.set_border_width_all(1)
+	portrait_style.set_content_margin_all(2)
+	portrait_preview_panel.add_theme_stylebox_override("panel", portrait_style)
+
+	portrait_preview = TextureRect.new()
+	portrait_preview.custom_minimum_size = Vector2(32, 32)
+	portrait_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait_preview_panel.add_child(portrait_preview)
+	portrait_row.add_child(portrait_preview_panel)
+
 	portrait_path_edit = LineEdit.new()
 	portrait_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	portrait_path_edit.placeholder_text = "res://mods/<mod>/art/portraits/npc.png"
-	portrait_path_edit.text_changed.connect(_on_field_changed)
+	portrait_path_edit.text_changed.connect(_on_portrait_path_changed)
 	portrait_row.add_child(portrait_path_edit)
 
+	var portrait_browse_btn: Button = Button.new()
+	portrait_browse_btn.text = "Browse..."
+	portrait_browse_btn.pressed.connect(_on_browse_portrait)
+	portrait_row.add_child(portrait_browse_btn)
+
+	var portrait_clear_btn: Button = Button.new()
+	portrait_clear_btn.text = "X"
+	portrait_clear_btn.tooltip_text = "Clear portrait"
+	portrait_clear_btn.pressed.connect(_on_clear_portrait)
+	portrait_row.add_child(portrait_clear_btn)
+
+	# Map Sprite row with preview and browse button
 	var sprite_row: HBoxContainer = SparklingEditorUtils.create_field_row("Map Sprite:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
+
+	# Preview at 32x32
+	var sprite_preview_panel: PanelContainer = PanelContainer.new()
+	sprite_preview_panel.custom_minimum_size = Vector2(36, 36)
+	var sprite_style: StyleBoxFlat = StyleBoxFlat.new()
+	sprite_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
+	sprite_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
+	sprite_style.set_border_width_all(1)
+	sprite_style.set_content_margin_all(2)
+	sprite_preview_panel.add_theme_stylebox_override("panel", sprite_style)
+
+	map_sprite_preview = TextureRect.new()
+	map_sprite_preview.custom_minimum_size = Vector2(32, 32)
+	map_sprite_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	map_sprite_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	sprite_preview_panel.add_child(map_sprite_preview)
+	sprite_row.add_child(sprite_preview_panel)
+
 	map_sprite_path_edit = LineEdit.new()
 	map_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_sprite_path_edit.placeholder_text = "res://mods/<mod>/art/sprites/npc.png"
-	map_sprite_path_edit.text_changed.connect(_on_field_changed)
+	map_sprite_path_edit.text_changed.connect(_on_sprite_path_changed)
 	sprite_row.add_child(map_sprite_path_edit)
+
+	var sprite_browse_btn: Button = Button.new()
+	sprite_browse_btn.text = "Browse..."
+	sprite_browse_btn.pressed.connect(_on_browse_sprite)
+	sprite_row.add_child(sprite_browse_btn)
+
+	var sprite_clear_btn: Button = Button.new()
+	sprite_clear_btn.text = "X"
+	sprite_clear_btn.tooltip_text = "Clear sprite"
+	sprite_clear_btn.pressed.connect(_on_clear_sprite)
+	sprite_row.add_child(sprite_clear_btn)
 
 
 func _add_quick_dialog_section() -> void:
@@ -942,3 +1011,125 @@ func _get_facing_from_dropdown() -> String:
 		3: return "left"
 		4: return "right"
 	return ""
+
+
+# =============================================================================
+# Portrait and Sprite Browse Functions
+# =============================================================================
+
+func _on_browse_portrait() -> void:
+	if not portrait_file_dialog:
+		portrait_file_dialog = EditorFileDialog.new()
+		portrait_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
+		portrait_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
+		portrait_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
+		portrait_file_dialog.file_selected.connect(_on_portrait_file_selected)
+		add_child(portrait_file_dialog)
+
+	# Default to active mod's portraits directory if available
+	var default_path: String = _get_default_asset_path("portraits")
+	portrait_file_dialog.current_dir = default_path
+	portrait_file_dialog.popup_centered_ratio(0.7)
+
+
+func _on_portrait_file_selected(path: String) -> void:
+	portrait_path_edit.text = path
+	_load_portrait_preview(path)
+	_update_preview()
+
+
+func _on_portrait_path_changed(new_text: String) -> void:
+	if _updating_ui:
+		return
+	_load_portrait_preview(new_text)
+	_update_preview()
+
+
+func _load_portrait_preview(path: String) -> void:
+	var clean_path: String = path.strip_edges()
+	if clean_path.is_empty():
+		portrait_preview.texture = null
+		portrait_preview.tooltip_text = "No portrait assigned"
+		return
+
+	if ResourceLoader.exists(clean_path):
+		var texture: Texture2D = load(clean_path) as Texture2D
+		portrait_preview.texture = texture
+		portrait_preview.tooltip_text = clean_path
+	else:
+		portrait_preview.texture = null
+		portrait_preview.tooltip_text = "File not found: " + clean_path
+
+
+func _on_clear_portrait() -> void:
+	portrait_path_edit.text = ""
+	portrait_preview.texture = null
+	portrait_preview.tooltip_text = "No portrait assigned"
+	_update_preview()
+
+
+func _on_browse_sprite() -> void:
+	if not map_sprite_file_dialog:
+		map_sprite_file_dialog = EditorFileDialog.new()
+		map_sprite_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
+		map_sprite_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
+		map_sprite_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
+		map_sprite_file_dialog.file_selected.connect(_on_sprite_file_selected)
+		add_child(map_sprite_file_dialog)
+
+	# Default to active mod's sprites directory if available
+	var default_path: String = _get_default_asset_path("sprites")
+	map_sprite_file_dialog.current_dir = default_path
+	map_sprite_file_dialog.popup_centered_ratio(0.7)
+
+
+func _on_sprite_file_selected(path: String) -> void:
+	map_sprite_path_edit.text = path
+	_load_sprite_preview(path)
+	_update_preview()
+
+
+func _on_sprite_path_changed(new_text: String) -> void:
+	if _updating_ui:
+		return
+	_load_sprite_preview(new_text)
+	_update_preview()
+
+
+func _load_sprite_preview(path: String) -> void:
+	var clean_path: String = path.strip_edges()
+	if clean_path.is_empty():
+		map_sprite_preview.texture = null
+		map_sprite_preview.tooltip_text = "No sprite assigned"
+		return
+
+	if ResourceLoader.exists(clean_path):
+		var texture: Texture2D = load(clean_path) as Texture2D
+		map_sprite_preview.texture = texture
+		map_sprite_preview.tooltip_text = clean_path
+	else:
+		map_sprite_preview.texture = null
+		map_sprite_preview.tooltip_text = "File not found: " + clean_path
+
+
+func _on_clear_sprite() -> void:
+	map_sprite_path_edit.text = ""
+	map_sprite_preview.texture = null
+	map_sprite_preview.tooltip_text = "No sprite assigned"
+	_update_preview()
+
+
+func _get_default_asset_path(asset_type: String) -> String:
+	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
+	if mod_path.is_empty():
+		return "res://mods/"
+
+	var assets_dir: String = mod_path.path_join("assets/" + asset_type + "/")
+	if DirAccess.dir_exists_absolute(assets_dir):
+		return assets_dir
+
+	var generic_assets_dir: String = mod_path.path_join("assets/")
+	if DirAccess.dir_exists_absolute(generic_assets_dir):
+		return generic_assets_dir
+
+	return mod_path

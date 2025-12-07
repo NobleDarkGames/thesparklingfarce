@@ -42,9 +42,20 @@ signal resource_copied(resource_type: String, source_path: String, target_mod_id
 signal resource_override_created(resource_type: String, resource_id: String, mod_id: String)
 
 
+# Debounce settings for expensive signals
+const DEBOUNCE_DELAY_MS: float = 100.0  # Wait 100ms of quiet before emitting
+
+# Debounce state tracking
+var _mods_reloaded_pending: bool = false
+var _debounce_timer: Timer = null
+
+
 func _ready() -> void:
-	# EditorEventBus ready - debug logging removed for production
-	pass
+	# Create debounce timer
+	_debounce_timer = Timer.new()
+	_debounce_timer.one_shot = true
+	_debounce_timer.timeout.connect(_on_debounce_timeout)
+	add_child(_debounce_timer)
 
 
 ## Convenience method to emit resource_saved with automatic ID extraction
@@ -63,3 +74,21 @@ func notify_resource_created(resource_type: String, resource_path: String, resou
 func notify_resource_deleted(resource_type: String, resource_path: String) -> void:
 	var resource_id: String = resource_path.get_file().get_basename()
 	resource_deleted.emit(resource_type, resource_id)
+
+
+## Emit mods_reloaded with debouncing to prevent rapid-fire refreshes
+## Multiple calls within DEBOUNCE_DELAY_MS will be coalesced into a single emit
+func notify_mods_reloaded_debounced() -> void:
+	_mods_reloaded_pending = true
+
+	# Restart the timer on each call (debouncing behavior)
+	if _debounce_timer:
+		_debounce_timer.stop()
+		_debounce_timer.start(DEBOUNCE_DELAY_MS / 1000.0)
+
+
+## Called when debounce timer expires - emit any pending signals
+func _on_debounce_timeout() -> void:
+	if _mods_reloaded_pending:
+		_mods_reloaded_pending = false
+		mods_reloaded.emit()

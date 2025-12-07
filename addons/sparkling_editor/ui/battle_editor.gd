@@ -359,8 +359,9 @@ func _add_battle_flow_section() -> void:
 	detail_panel.add_child(defeat_dialogue_picker)
 
 	var turn_note: Label = Label.new()
-	turn_note.text = "Turn-based dialogues: Phase 3"
-	turn_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	turn_note.text = "Turn-based dialogues: Coming soon"
+	turn_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	turn_note.add_theme_font_size_override("font_size", 12)
 	detail_panel.add_child(turn_note)
 
 	_add_separator()
@@ -422,8 +423,9 @@ func _add_audio_section() -> void:
 	detail_panel.add_child(section_label)
 
 	var audio_note: Label = Label.new()
-	audio_note.text = "Phase 3 - Audio integration (BGM, Victory, Defeat music)"
-	audio_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	audio_note.text = "Audio settings (BGM, Victory, Defeat music): Coming soon"
+	audio_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	audio_note.add_theme_font_size_override("font_size", 12)
 	detail_panel.add_child(audio_note)
 
 	_add_separator()
@@ -457,8 +459,9 @@ func _add_rewards_section() -> void:
 	detail_panel.add_child(gold_reward_spin)
 
 	var items_note: Label = Label.new()
-	items_note.text = "Item rewards: Phase 3 - Multiple item selection"
-	items_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	items_note.text = "Item rewards: Coming soon"
+	items_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	items_note.add_theme_font_size_override("font_size", 12)
 	detail_panel.add_child(items_note)
 
 	_add_separator()
@@ -1085,8 +1088,9 @@ func _on_victory_condition_changed(index: int) -> void:
 
 		BattleData.VictoryCondition.CUSTOM:
 			var label: Label = Label.new()
-			label.text = "Phase 3 - Custom victory script"
-			label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			label.text = "Custom victory scripts: Coming soon"
+			label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+			label.add_theme_font_size_override("font_size", 12)
 			victory_conditional_container.add_child(label)
 
 
@@ -1123,8 +1127,9 @@ func _on_defeat_condition_changed(index: int) -> void:
 
 		BattleData.DefeatCondition.CUSTOM:
 			var label: Label = Label.new()
-			label.text = "Phase 3 - Custom defeat script"
-			label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			label.text = "Custom defeat scripts: Coming soon"
+			label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+			label.add_theme_font_size_override("font_size", 12)
 			defeat_conditional_container.add_child(label)
 
 

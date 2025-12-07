@@ -204,7 +204,7 @@ func _setup_base_ui() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(400, 0)  # Ensure right panel has minimum width
+	scroll.custom_minimum_size = Vector2(350, 0)  # Reduced from 400 for better laptop support
 
 	detail_panel = VBoxContainer.new()
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -275,6 +275,16 @@ func _setup_base_ui() -> void:
 	error_panel.add_child(error_label)
 
 	# Error panel will be inserted before button_container in child's _create_detail_form
+
+
+# =============================================================================
+# PUBLIC REFRESH INTERFACE
+# =============================================================================
+
+## Standard refresh method for EditorTabRegistry
+## Override this if you need custom refresh behavior
+func refresh() -> void:
+	_refresh_list()
 
 
 func _refresh_list() -> void:

@@ -24,4 +24,4 @@ mono_crash.*.json
 *.o
 *.pyc
 *.pyo
-reports/
+/reports/
