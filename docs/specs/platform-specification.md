@@ -29,7 +29,8 @@ sparklingfarce/
       data/                      # Resources by type
         characters/, classes/, items/, abilities/
         battles/, parties/, dialogues/, cinematics/
-        maps/, campaigns/, experience_configs/, terrains/, npcs/
+        maps/, campaigns/, experience_configs/, terrain/
+        caravans/, npcs/
       audio/                     # Sound and music (separate from assets/)
         sfx/                     # Sound effects (.ogg, .wav, .mp3)
         music/                   # Background music
@@ -122,12 +123,7 @@ if dict.has("key"):
 ### Exploration UI
 | Singleton | Purpose |
 |-----------|---------|
-| **ExplorationUIManager** | Auto-activating inventory/equipment UI |
-
-ExplorationUIManager automatically provides inventory UI for any exploration map:
-- Activates when scene has a node in `"hero"` group
-- Deactivates during battles
-- No setup required by map creators
+| **ExplorationUIManager** | Auto-activating inventory/equipment UI (hero group detection) |
 
 ### Static Utility (NOT an autoload)
 | Class | Purpose |
@@ -184,7 +180,9 @@ ModLoader scans `mods/*/data/<directory>/` automatically:
 | maps/ | map | .json | Runtime config only; scene is source of truth |
 | campaigns/ | campaign | .json | |
 | experience_configs/ | experience_config | .tres | |
-| terrains/ | terrain | .tres | |
+| terrain/ | terrain | .tres | |
+| caravans/ | caravan | .tres | Mobile HQ configuration |
+| npcs/ | npc | .tres | Interactable NPCs with cinematics |
 
 ### Accessing Resources
 ```gdscript
@@ -207,39 +205,7 @@ ModLoader.unit_category_registry.get_all_categories()
 ```
 
 ### Equipment Type Registry
-Maps equipment subtypes (sword, bow, ring) to categories (weapon, accessory). Enables slot wildcards and mod-extensible equipment systems.
-
-**mod.json configuration:**
-```json
-{
-  "equipment_types": {
-    "categories": {
-      "weapon": {"display_name": "Weapon"},
-      "accessory": {"display_name": "Accessory"}
-    },
-    "subtypes": {
-      "sword": {"category": "weapon", "display_name": "Sword"},
-      "laser_rifle": {"category": "weapon", "display_name": "Laser Rifle"},
-      "ring": {"category": "accessory", "display_name": "Ring"}
-    }
-  }
-}
-```
-
-**Category wildcards:** Slots and classes can use `weapon:*` to match ANY weapon subtype:
-```json
-{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon:*"]}
-```
-
-**Total conversions:** Use `"replace_all": true` to clear all base equipment types before registering new ones.
-
-**API:**
-```gdscript
-ModLoader.equipment_type_registry.get_category("sword")  # Returns "weapon"
-ModLoader.equipment_type_registry.matches_accept_type("bow", "weapon:*")  # Returns true
-ModLoader.equipment_type_registry.get_subtypes_for_category("weapon")  # Returns ["sword", "bow", ...]
-ModLoader.equipment_type_registry.is_valid_subtype("sword")  # Returns true
-```
+Maps subtypes (sword, ring) to categories (weapon, accessory). Supports `weapon:*` wildcards in slot definitions. Configure via `equipment_types` in mod.json with `categories` and `subtypes` objects. Use `replace_all: true` for total conversions.
 
 ### TileSet Resolution
 ```gdscript
@@ -303,14 +269,13 @@ GameState.has_flag_scoped("boss_defeated")
 
 ### NPCData
 - `npc_id`, `npc_name`: Identity
-- `character_data`: Optional CharacterData reference for portrait/sprite
-- `portrait`, `map_sprite`: Fallback textures if no character_data
+- `character_data`: Optional CharacterData for portrait/sprite
+- `portrait`, `map_sprite`: Fallback textures
 - `interaction_cinematic_id`: Primary cinematic to trigger
 - `fallback_cinematic_id`: Default if no conditions match
 - `conditional_cinematics`: Array of `{flag, cinematic_id, negate}` for flag-based responses
-- `face_player_on_interact`: Turn toward player on interaction
 
-**Key Design**: NPCs trigger cinematics, not dialogs directly. Dialog IS a cinematic (with `dialog_line` commands). This unifies simple conversations and complex scripted interactions.
+NPCs trigger cinematics, not dialogs. Dialog IS a cinematic (using `dialog_line` commands).
 
 ### MapMetadata (Scene + JSON)
 
@@ -368,29 +333,7 @@ var char = load("res://mods/_base_game/data/characters/max.tres")
 ```
 
 ### Signal-Driven Architecture
-```gdscript
-# CORRECT
-BattleManager.battle_ended.connect(_on_battle_ended)
-
-# WRONG
-BattleManager._internal_method()
-```
-
-### Defensive Null Checks
-```gdscript
-if not resource:
-    push_error("Required resource is null")
-    return
-```
-
-### Resource Validation
-```gdscript
-func validate() -> bool:
-    if required_field.is_empty():
-        push_error("ResourceType: required_field is required")
-        return false
-    return true
-```
+Connect to manager signals; never call internal methods directly.
 
 ---
 
@@ -415,8 +358,10 @@ func validate() -> bool:
 | Items | `mods/<mod_id>/data/items/*.tres` |
 | Abilities | `mods/<mod_id>/data/abilities/*.tres` |
 | Battles | `mods/<mod_id>/data/battles/*.tres` |
-| Terrains | `mods/<mod_id>/data/terrains/*.tres` |
+| Terrain | `mods/<mod_id>/data/terrain/*.tres` |
 | XP Config | `mods/<mod_id>/data/experience_configs/*.tres` |
+| Caravans | `mods/<mod_id>/data/caravans/*.tres` |
+| NPCs | `mods/<mod_id>/data/npcs/*.tres` |
 | Map Metadata | `mods/<mod_id>/data/maps/*.json` |
 | Map Scenes | `mods/<mod_id>/maps/*.tscn` |
 | Campaigns | `mods/<mod_id>/data/campaigns/*.json` |
@@ -437,24 +382,7 @@ func validate() -> bool:
 
 ---
 
-## Map System Architecture
-
-### Scene as Source of Truth
-
-Map scenes (`.tscn`) define all visual and physical elements:
-- `map_id`, `map_type`, `display_name` as `@export` variables
-- SpawnPoint nodes for exploration entry points
-- MapTrigger (DOOR) nodes for connections
-- TileMapLayer for terrain and collision
-
-Map metadata JSON provides **runtime configuration only**:
-- `scene_path` (required link to scene)
-- `caravan_visible`, `caravan_accessible`
-- `music_id`, `ambient_id` (placeholders for vertical mixing system)
-- `random_encounters_enabled`, `save_anywhere`
-- `edge_connections` (overworld stitching)
-
-### Map Types
+## Map Types
 
 | Type | Scale | Caravan | Encounters | Party Followers |
 |------|-------|---------|------------|-----------------|
@@ -464,15 +392,7 @@ Map metadata JSON provides **runtime configuration only**:
 | Battle | Grid | No | N/A | N/A |
 | Interior | 1:1 | Hidden | No | Visible |
 
-SF2 open-world model: free backtracking, mobile Caravan, no permanent lockouts.
-
-### Battle Positions vs Exploration Spawns
-
-**These are separate systems:**
-- **SpawnPoints** in scenes = exploration entry points ("from_overworld", "from_castle")
-- **BattleData.player_spawn_point** = where party starts combat (independent of scene SpawnPoints)
-
-The same scene can serve as both exploration map AND battle arena. When used for battle, SpawnPoints are ignored; BattleData defines unit placement.
+SF2 open-world model: free backtracking, mobile Caravan, no permanent lockouts. SpawnPoints define exploration entry; BattleData defines combat positions (same scene can serve both).
 
 ---
 
@@ -498,33 +418,9 @@ Hero (`is_hero = true`) always at party position 0, cannot be removed.
 
 ---
 
-## Inventory & Equipment System
+## Inventory & Equipment
 
-### Exploration UI (Automatic)
-Press **I** during exploration to open Party Equipment menu:
-- Tab between party members
-- 4 equipment slots: Weapon, Ring 1, Ring 2, Accessory
-- 4 inventory slots per character
-- "Give to..." transfers items between characters
-- "Store in Depot" sends items to Caravan
-
-### Caravan Depot (SF2-Style)
-Unlimited shared storage accessible from the equipment menu:
-```gdscript
-StorageManager.add_to_depot("healing_seed")
-StorageManager.remove_from_depot("bronze_sword")
-var items: Array[String] = StorageManager.get_depot_contents()
-```
-
-### Item Transfers
-```gdscript
-# Between party members
-PartyManager.transfer_item_between_members(from_char, to_char, item_id)
-
-# To/from depot
-StorageManager.add_to_depot(item_id)
-StorageManager.remove_from_depot(item_id)
-```
+Press **I** during exploration for Party Equipment menu. 4 equipment slots, 4 inventory slots per character. SF2-style Caravan Depot provides unlimited shared storage via `StorageManager`.
 
 ### Input Actions
 | Action | Default Key | Context |
