@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=4 uid="uid://c5nn0fidqe7rl"]
+[gd_scene load_steps=16 format=4 uid="uid://c5nn0fidqe7rl"]
 
 [ext_resource type="Script" uid="uid://cmlikssjlryxa" path="res://mods/_sandbox/maps/noobington.gd" id="1_pm0su"]
 [ext_resource type="TileSet" uid="uid://dsgco58wfm80c" path="res://mods/_base_game/tilesets/terrain_placeholder.tres" id="1_tileset"]
@@ -6,11 +6,20 @@
 [ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="4_spawn"]
 [ext_resource type="PackedScene" path="res://mods/_base_game/triggers/door_trigger.tscn" id="5_door"]
 [ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_vxvmt"]
-[ext_resource type="Resource" uid="uid://5lpvp1ti6xj2" path="res://mods/_sandbox/data/npcs/sandbox_npc_1765046012.tres" id="7_t4fsd"]
 [ext_resource type="Texture2D" uid="uid://crt0vonvys1wt" path="res://mods/_sandbox/art/placeholder/sprites/npc.png" id="8_uy22e"]
 [ext_resource type="Texture2D" uid="uid://bj2n0klir1s7w" path="res://mods/_sandbox/art/placeholder/portraits/npc.png" id="9_o3pj2"]
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="10_2g16w"]
+[ext_resource type="Texture2D" uid="uid://dyhgsmamnxaiy" path="res://core/assets/defaults/default_npc_sprite.png" id="11_2g16w"]
 [ext_resource type="Resource" uid="uid://dr2daosonooig" path="res://mods/_sandbox/data/npcs/npc_1765070024.tres" id="11_o3pj2"]
+[ext_resource type="Texture2D" uid="uid://dkkc3n0j1c736" path="res://core/assets/defaults/default_npc_portrait.png" id="12_8nygf"]
+
+[sub_resource type="Resource" id="Resource_hn7y3"]
+script = ExtResource("10_2g16w")
+npc_id = "noobington_guard_1"
+npc_name = "Guard 1"
+portrait = ExtResource("9_o3pj2")
+map_sprite = ExtResource("8_uy22e")
+interaction_cinematic_id = "noobington_guard_1_dialog"
 
 [sub_resource type="Resource" id="Resource_8nygf"]
 script = ExtResource("10_2g16w")
@@ -19,6 +28,14 @@ npc_name = "Guard 2"
 portrait = ExtResource("9_o3pj2")
 map_sprite = ExtResource("8_uy22e")
 interaction_cinematic_id = "guard_2_dialog"
+
+[sub_resource type="Resource" id="Resource_wb0gl"]
+script = ExtResource("10_2g16w")
+npc_id = "noobington_shopkeep"
+npc_name = "Shopkeep"
+portrait = ExtResource("12_8nygf")
+map_sprite = ExtResource("11_2g16w")
+interaction_cinematic_id = "noobington_shopkeep_interact"
 
 [node name="Noobington" type="Node2D"]
 script = ExtResource("1_pm0su")
@@ -79,7 +96,7 @@ trigger_data = {
 [node name="Guard1" type="Area2D" parent="NPCs"]
 position = Vector2(208, -48)
 script = ExtResource("6_vxvmt")
-npc_data = ExtResource("7_t4fsd")
+npc_data = SubResource("Resource_hn7y3")
 metadata/_custom_type_script = "uid://bxud0b4unj7o8"
 
 [node name="Guard2" type="Area2D" parent="NPCs"]
@@ -91,3 +108,8 @@ npc_data = SubResource("Resource_8nygf")
 position = Vector2(16, -304)
 script = ExtResource("6_vxvmt")
 npc_data = ExtResource("11_o3pj2")
+
+[node name="NoobingtonShopkeep" type="Area2D" parent="NPCs"]
+position = Vector2(464, -48)
+script = ExtResource("6_vxvmt")
+npc_data = SubResource("Resource_wb0gl")

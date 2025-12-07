@@ -69,6 +69,7 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	# Story editors
 	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 10},
 	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 20},
+	{"id": "shops", "display_name": "Shops", "scene": "shop_editor.tscn", "category": "story", "priority": 25},
 	{"id": "npcs", "display_name": "NPCs", "scene": "npc_editor.tscn", "category": "story", "priority": 30}
 ]
 

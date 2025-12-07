@@ -30,7 +30,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"terrain": "terrain",  # TerrainData resources for battle terrain effects
 	"experience_configs": "experience_config",  # ExperienceConfig resources for XP/leveling settings
 	"caravans": "caravan",  # CaravanData resources for mobile HQ configuration
-	"npcs": "npc"  # NPCData resources for interactable NPCs
+	"npcs": "npc",  # NPCData resources for interactable NPCs
+	"shops": "shop"  # ShopData resources for weapon/item shops, churches, crafters
 }
 
 # Resource types that support JSON loading (in addition to .tres)

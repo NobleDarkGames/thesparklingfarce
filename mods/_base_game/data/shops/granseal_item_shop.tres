@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ShopData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/shop_data.gd" id="1_shop"]
+
+[resource]
+script = ExtResource("1_shop")
+shop_id = "granseal_item_shop"
+shop_name = "Granseal Item Shop"
+shop_type = 1
+greeting_text = "Need supplies? We have everything an adventurer needs!"
+farewell_text = "Safe travels!"
+npc_id = ""
+inventory = [{"item_id": "healing_herb", "stock": -1, "price_override": -1}, {"item_id": "medical_herb", "stock": -1, "price_override": -1}, {"item_id": "antidote", "stock": -1, "price_override": -1}, {"item_id": "power_ring", "stock": 3, "price_override": -1}]
+deals_inventory = ["healing_herb"]
+buy_multiplier = 1.0
+sell_multiplier = 1.0
+deals_discount = 0.75
+required_flags = []
+forbidden_flags = []
+can_sell = true
+can_store_to_caravan = true
+can_sell_from_caravan = true
+has_deals = true
+heal_cost = 0
+revive_base_cost = 200
+revive_level_multiplier = 10.0
+uncurse_base_cost = 500
+crafter_id = ""

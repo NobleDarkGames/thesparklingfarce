@@ -1,0 +1,276 @@
+[gd_scene load_steps=3 format=3 uid="uid://shop_interface_scene"]
+
+[ext_resource type="Script" path="res://scenes/ui/shops/shop_interface.gd" id="1_shop_interface"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="2_ui_theme"]
+
+[node name="ShopInterface" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_shop_interface")
+
+[node name="ShopPanel" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_ui_theme")
+
+[node name="Border" type="ColorRect" parent="ShopPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.8, 0.8, 0.9, 1)
+
+[node name="InnerPanel" type="ColorRect" parent="ShopPanel/Border"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 0.95)
+
+[node name="MainMargin" type="MarginContainer" parent="ShopPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="MainVBox" type="VBoxContainer" parent="ShopPanel/MainMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HeaderSection" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ShopTitleLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/HeaderSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "WEAPON SHOP"
+horizontal_alignment = 1
+
+[node name="GreetingLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/HeaderSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Welcome to the weapon shop!"
+horizontal_alignment = 1
+
+[node name="GoldLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/HeaderSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "GOLD: 1520G"
+horizontal_alignment = 2
+
+[node name="ThreeColumnContainer" type="HBoxContainer" parent="ShopPanel/MainMargin/MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="LeftColumn" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LeftColumnHeader" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/LeftColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "ITEMS"
+
+[node name="ItemListScroll" type="ScrollContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemListContainer" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/LeftColumn/ItemListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="CenterColumn" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="DetailsPanel" type="PanelContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DetailsPanelBorder" type="ColorRect" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel"]
+layout_mode = 2
+color = Color(0.3, 0.3, 0.4, 1)
+
+[node name="DetailsPanelInner" type="ColorRect" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsPanelBorder"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_top = 1.0
+offset_right = -1.0
+offset_bottom = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.15, 0.15, 0.2, 1)
+
+[node name="DetailsMargin" type="MarginContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="DetailsVBox" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ItemNameLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "BRONZE SWORD"
+
+[node name="ItemStatsLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "AT  5      RG  1"
+
+[node name="ItemPriceLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "BUY: 200G"
+
+[node name="StatComparisonContainer" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StatComparisonHeader" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/DetailsPanel/DetailsMargin/DetailsVBox/StatComparisonContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "CAN EQUIP:"
+
+[node name="QuantityPanel" type="PanelContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="QuantityMargin" type="MarginContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="QuantityHBox" type="HBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel/QuantityMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QuantityLabel" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel/QuantityMargin/QuantityHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "QUANTITY:"
+
+[node name="QuantitySpinBox" type="SpinBox" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/CenterColumn/QuantityPanel/QuantityMargin/QuantityHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 99.0
+value = 1.0
+
+[node name="RightColumn" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="RightColumnHeader" type="Label" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "WHO EQUIPS IT?"
+
+[node name="CharacterPanel" type="PanelContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CharacterMargin" type="MarginContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="CharacterVBox" type="VBoxContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel/CharacterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CharacterGrid" type="GridContainer" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel/CharacterMargin/CharacterVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="CaravanButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ThreeColumnContainer/RightColumn/CharacterPanel/CharacterMargin/CharacterVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "STORE IN CARAVAN"
+
+[node name="ButtonSection" type="HBoxContainer" parent="ShopPanel/MainMargin/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="BuyButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "BUY"
+
+[node name="SellButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "SELL"
+
+[node name="DealsButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "DEALS"
+
+[node name="ExitButton" type="Button" parent="ShopPanel/MainMargin/MainVBox/ButtonSection"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "EXIT"

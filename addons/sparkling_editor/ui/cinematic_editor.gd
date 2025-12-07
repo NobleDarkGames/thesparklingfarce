@@ -143,6 +143,13 @@ const COMMAND_DEFINITIONS: Dictionary = {
 			"variable": {"type": "string", "default": "", "hint": "Variable name"},
 			"value": {"type": "variant", "default": true, "hint": "Value to set (true for flags)"}
 		}
+	},
+	"open_shop": {
+		"description": "Open a shop interface (weapon/item shop, church, crafter)",
+		"icon": "ShoppingCart",
+		"params": {
+			"shop_id": {"type": "shop", "default": "", "hint": "ShopData resource ID"}
+		}
 	}
 }
 
@@ -188,9 +195,10 @@ var _updating_ui: bool = false
 # Track if ID should auto-generate from name (unlocked = auto-generate)
 var _id_is_locked: bool = false
 
-# Character and NPC caches for pickers
+# Character, NPC, and Shop caches for pickers
 var _characters: Array[Resource] = []
 var _npcs: Array[Resource] = []
+var _shops: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -228,9 +236,11 @@ func _on_resource_changed(resource_type: String, _resource_id: String, _resource
 func _refresh_characters() -> void:
 	_characters.clear()
 	_npcs.clear()
+	_shops.clear()
 	if ModLoader and ModLoader.registry:
 		_characters = ModLoader.registry.get_all_resources("character")
 		_npcs = ModLoader.registry.get_all_resources("npc")
+		_shops = ModLoader.registry.get_all_resources("shop")
 
 
 func _setup_ui() -> void:
@@ -494,7 +504,8 @@ func _setup_add_command_menu() -> void:
 		"Camera": ["camera_move", "camera_follow", "camera_shake"],
 		"Screen": ["fade_screen", "wait"],
 		"Audio": ["play_sound", "play_music"],
-		"Game State": ["set_variable"]
+		"Game State": ["set_variable"],
+		"Interaction": ["open_shop"]
 	}
 
 	var idx: int = 0
@@ -1054,6 +1065,48 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			var_edit.text_changed.connect(_on_variant_changed.bind(param_name))
 			control = var_edit
 
+		"shop":
+			# Shop picker dropdown
+			var shop_btn: OptionButton = OptionButton.new()
+			shop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			shop_btn.add_item("(None)", 0)
+			shop_btn.set_item_metadata(0, "")
+			var selected_idx: int = 0
+			var item_idx: int = 1
+
+			for shop_res: Resource in _shops:
+				if shop_res:
+					var shop_id: String = ""
+					var shop_name: String = ""
+
+					if "shop_id" in shop_res:
+						shop_id = str(shop_res.get("shop_id"))
+					if "shop_name" in shop_res:
+						shop_name = str(shop_res.get("shop_name"))
+
+					if shop_id.is_empty():
+						shop_id = shop_res.resource_path.get_file().get_basename()
+					if shop_name.is_empty():
+						shop_name = shop_id
+
+					# Get source mod
+					var mod_id: String = ""
+					if ModLoader and ModLoader.registry:
+						var resource_id: String = shop_res.resource_path.get_file().get_basename()
+						mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+					var display_name: String = "[%s] %s" % [mod_id, shop_name] if not mod_id.is_empty() else shop_name
+					shop_btn.add_item(display_name, item_idx)
+					shop_btn.set_item_metadata(item_idx, shop_id)
+
+					if shop_id == str(current_value):
+						selected_idx = item_idx
+					item_idx += 1
+
+			shop_btn.select(selected_idx)
+			shop_btn.item_selected.connect(_on_shop_selected.bind(param_name, shop_btn))
+			control = shop_btn
+
 		_:  # string and unknown types
 			var line_edit: LineEdit = LineEdit.new()
 			line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1111,6 +1164,11 @@ func _on_character_or_npc_selected(index: int, param_name: String, option_btn: O
 			_on_param_changed("npc:" + item_id, param_name)
 	else:
 		_on_param_changed("", param_name)
+
+
+func _on_shop_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var shop_id: Variant = option_btn.get_item_metadata(index)
+	_on_param_changed(shop_id if shop_id else "", param_name)
 
 
 func _on_text_changed(param_name: String, text_edit: TextEdit) -> void:

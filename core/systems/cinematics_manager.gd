@@ -165,6 +165,7 @@ func _register_built_in_commands() -> void:
 	const PlayMusicExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_music_executor.gd")
 	const SpawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
 	const DespawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/despawn_entity_executor.gd")
+	const OpenShopExecutor: GDScript = preload("res://core/systems/cinematic_commands/open_shop_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -181,6 +182,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("play_music", PlayMusicExecutor.new())
 	register_command_executor("spawn_entity", SpawnEntityExecutor.new())
 	register_command_executor("despawn_entity", DespawnEntityExecutor.new())
+	register_command_executor("open_shop", OpenShopExecutor.new())
 
 
 ## Register a camera for cinematic control

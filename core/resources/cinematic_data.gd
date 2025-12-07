@@ -24,7 +24,8 @@ enum CommandType {
 	CHANGE_SCENE,     ## Scene transition
 	SET_VARIABLE,     ## Set game state variable
 	CONDITIONAL,      ## Branch based on condition
-	PARALLEL          ## Execute commands simultaneously
+	PARALLEL,         ## Execute commands simultaneously
+	OPEN_SHOP         ## Open a shop interface (weapon shop, item shop, church, etc.)
 }
 
 @export var cinematic_id: String = ""
@@ -226,6 +227,18 @@ func add_despawn_entity(actor_id: String) -> void:
 		"type": "despawn_entity",
 		"target": actor_id,
 		"params": {}
+	}
+	commands.append(command)
+
+
+## Add an open shop command
+## Opens a shop interface, pausing the cinematic until the player exits the shop
+func add_open_shop(shop_id: String) -> void:
+	var command: Dictionary = {
+		"type": "open_shop",
+		"params": {
+			"shop_id": shop_id
+		}
 	}
 	commands.append(command)
 

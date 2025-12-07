@@ -228,6 +228,9 @@ func _on_input_submitted(text: String) -> void:
 	# Execute
 	_execute_command(trimmed)
 
+	# Re-grab focus after command execution (in case something stole it)
+	input_line.grab_focus()
+
 
 func _navigate_history(direction: int) -> void:
 	if command_history.is_empty():
