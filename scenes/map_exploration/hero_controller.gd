@@ -54,6 +54,9 @@ var cinematic_actor: Node = null
 ## Dedicated audio player for looping walk sound
 var _walk_audio_player: AudioStreamPlayer = null
 
+## Diagnostic: log once if falling back to modal checks (helps debug intermittent movement bugs)
+var _logged_fallback_warning: bool = false
+
 
 func _ready() -> void:
 	# Add to "hero" group for trigger detection
@@ -158,6 +161,10 @@ func _process_input() -> void:
 			return
 	else:
 		# Fallback checks ONLY if ui_controller isn't set (defensive programming)
+		# Log once if we're in fallback mode - helps diagnose intermittent movement bugs
+		if not _logged_fallback_warning:
+			_logged_fallback_warning = true
+			push_warning("[HeroController] ui_controller is null - using fallback modal checks")
 		if _is_modal_ui_active():
 			return
 

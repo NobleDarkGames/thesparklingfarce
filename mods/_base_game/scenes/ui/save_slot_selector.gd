@@ -172,6 +172,15 @@ func _on_slot_selected(slot_num: int) -> void:
 func _new_game(slot_num: int) -> void:
 	print("[FLOW] New game in slot %d" % slot_num)
 
+	# CRITICAL: Reset modal UI state from any previous session
+	# Autoloads persist across scene changes, so stale state can block hero input
+	if ShopManager and ShopManager.is_shop_open():
+		ShopManager.close_shop()
+	if DialogManager and DialogManager.is_dialog_active():
+		DialogManager.end_dialog()
+	if CinematicsManager and CinematicsManager.is_cinematic_active():
+		CinematicsManager.skip_cinematic()
+
 	# Create a new save with default party
 	var save_data: SaveData = SaveData.new()
 	save_data.slot_number = slot_num
@@ -206,10 +215,11 @@ func _new_game(slot_num: int) -> void:
 		PartyManager.import_from_save(save_data.party_members)
 
 		# Start campaign via CampaignManager
+		# NOTE: Must await to ensure scene transition completes before this function returns
 		var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
 		if campaigns.size() > 0:
 			var campaign: Resource = campaigns[0]
-			CampaignManager.start_campaign(campaign.campaign_id)
+			await CampaignManager.start_campaign(campaign.campaign_id)
 		else:
 			push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle")
 			TriggerManager.start_battle("battle_1763763677")
@@ -219,6 +229,15 @@ func _new_game(slot_num: int) -> void:
 
 func _load_game(slot_num: int) -> void:
 	print("[FLOW] Load game from slot %d" % slot_num)
+
+	# CRITICAL: Reset modal UI state from any previous session
+	# Autoloads persist across scene changes, so stale state can block hero input
+	if ShopManager and ShopManager.is_shop_open():
+		ShopManager.close_shop()
+	if DialogManager and DialogManager.is_dialog_active():
+		DialogManager.end_dialog()
+	if CinematicsManager and CinematicsManager.is_cinematic_active():
+		CinematicsManager.skip_cinematic()
 
 	var save_data: SaveData = SaveManager.load_from_slot(slot_num)
 	if save_data:
@@ -232,14 +251,15 @@ func _load_game(slot_num: int) -> void:
 		GameState.story_flags = save_data.story_flags.duplicate()
 
 		# Resume campaign if we have campaign data
+		# NOTE: Must await to ensure scene transition completes before this function returns
 		if not save_data.current_campaign_id.is_empty() and not save_data.current_node_id.is_empty():
-			CampaignManager.resume_campaign(save_data.current_campaign_id, save_data.current_node_id)
+			await CampaignManager.resume_campaign(save_data.current_campaign_id, save_data.current_node_id)
 		else:
 			# Legacy save without campaign data - start first available campaign
 			var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
 			if campaigns.size() > 0:
 				var campaign: Resource = campaigns[0]
-				CampaignManager.start_campaign(campaign.campaign_id)
+				await CampaignManager.start_campaign(campaign.campaign_id)
 			else:
 				push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle")
 				TriggerManager.start_battle("battle_1763763677")

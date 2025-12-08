@@ -127,10 +127,10 @@ func _input(event: InputEvent) -> void:
 					get_viewport().set_input_as_handled()
 					return
 
-		# Block mouse input from reaching game world
-		if event is InputEventMouseButton or event is InputEventMouseMotion:
-			get_viewport().set_input_as_handled()
-			return
+		# NOTE: Do NOT block mouse input here! Mouse events must flow through to
+		# _gui_input so ScrollContainer can receive scroll wheel events.
+		# Any mouse events not consumed by the console UI will be blocked
+		# in _unhandled_input() below.
 
 		# CRITICAL: Do NOT block keyboard events here!
 		# Keyboard events must flow through to _gui_input so LineEdit can receive them.

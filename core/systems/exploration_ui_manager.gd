@@ -115,12 +115,17 @@ func _initialize() -> void:
 
 
 func _initial_activation() -> void:
-	# Wait extra frames for hero creation in dynamically-built scenes
-	await get_tree().process_frame
-	await get_tree().process_frame
-	_try_activate()
-	if _current_hero:
-		print("[ExplorationUIManager] Initial activation successful - hero connected")
+	# Wait for hero creation with retry - hero may not exist immediately in dynamically-built scenes
+	# This is critical for preventing the "can't move on new game" bug
+	var max_attempts: int = 10
+	for attempt: int in range(max_attempts):
+		await get_tree().process_frame
+		_try_activate()
+		if _current_hero:
+			print("[ExplorationUIManager] Initial activation successful - hero connected (attempt %d)" % [attempt + 1])
+			return
+
+	push_warning("[ExplorationUIManager] Failed to find hero after %d attempts - movement may not work!" % max_attempts)
 
 
 func _setup_controller() -> void:
@@ -138,9 +143,15 @@ func _setup_controller() -> void:
 # =============================================================================
 
 func _on_scene_changed(_scene_path: String) -> void:
-	# Wait a frame for scene to settle
-	await get_tree().process_frame
-	_try_activate()
+	# Wait for scene to settle and hero to be created, with retry
+	# Hero may be created after scene's _ready() via deferred calls
+	var max_attempts: int = 5
+	for attempt: int in range(max_attempts):
+		await get_tree().process_frame
+		_try_activate()
+		if _current_hero:
+			return
+	# If still no hero after retries, that's ok - might be a non-exploration scene
 
 
 func _on_battle_started(_battle_data: Resource) -> void:
