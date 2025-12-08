@@ -65,6 +65,14 @@ static func get_disabled_color() -> Color:
 	return get_editor_color("font_disabled_color")
 
 
+## Get help text color (subdued, for hints and secondary info)
+static func get_help_color() -> Color:
+	var base_control: Control = EditorInterface.get_base_control() if Engine.is_editor_hint() else null
+	if base_control:
+		return base_control.get_theme_color("font_disabled_color", "Editor")
+	return Color(0.7, 0.7, 0.7)
+
+
 ## Get accent color (used for highlights, selections)
 static func get_accent_color() -> Color:
 	return get_editor_color("accent_color")

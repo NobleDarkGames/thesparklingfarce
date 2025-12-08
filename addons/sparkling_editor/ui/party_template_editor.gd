@@ -184,7 +184,7 @@ func _add_party_members_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add characters to this party. Formation offsets determine spawn positions."
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 14)
 	detail_panel.add_child(help_label)
 

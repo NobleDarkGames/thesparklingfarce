@@ -252,6 +252,8 @@ func _add_movement_section() -> void:
 	movement_type_option.add_item("Walking", ClassData.MovementType.WALKING)
 	movement_type_option.add_item("Flying", ClassData.MovementType.FLYING)
 	movement_type_option.add_item("Floating", ClassData.MovementType.FLOATING)
+	movement_type_option.add_item("Swimming", ClassData.MovementType.SWIMMING)
+	movement_type_option.add_item("Custom", ClassData.MovementType.CUSTOM)
 	type_container.add_child(movement_type_option)
 	section.add_child(type_container)
 

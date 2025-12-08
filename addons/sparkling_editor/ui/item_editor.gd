@@ -352,6 +352,14 @@ func _add_basic_info_section() -> void:
 	slot_container.add_child(equipment_slot_option)
 	section.add_child(slot_container)
 
+	# Help text explaining equipment type vs slot
+	var equip_help: Label = Label.new()
+	equip_help.text = "Type = weapon/armor category (sword, light, heavy). Slot = where equipped (main_hand, body, accessory)."
+	equip_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	equip_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	equip_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(equip_help)
+
 	# Description
 	var desc_label: Label = Label.new()
 	desc_label.text = "Description:"
@@ -493,7 +501,7 @@ func _add_consumable_section() -> void:
 
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Assign AbilityData effect in the Inspector"
-	note_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	note_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	consumable_section.add_child(note_label)
 
 	detail_panel.add_child(consumable_section)
@@ -606,7 +614,7 @@ func _add_curse_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Leave empty if only church service can remove curse"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 14)
 	curse_section.add_child(help_label)
 

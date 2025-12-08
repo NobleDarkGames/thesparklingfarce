@@ -9,7 +9,11 @@ enum AbilityType {
 	HEAL,        ## Restores HP
 	SUPPORT,     ## Buffs allies
 	DEBUFF,      ## Weakens enemies
-	SPECIAL      ## Unique effects
+	SUMMON,      ## Summons units or effects (SF2's Peter, summoning spells)
+	STATUS,      ## Applies status effects (Sleep, Freeze, Muddle - distinct from stat debuffs)
+	COUNTER,     ## Reactive abilities triggered by enemy actions
+	SPECIAL,     ## Unique effects that don't fit other categories
+	CUSTOM       ## Mod-defined type (use custom_ability_type field)
 }
 
 enum TargetType {
@@ -23,6 +27,9 @@ enum TargetType {
 
 @export var ability_name: String = ""
 @export var ability_type: AbilityType = AbilityType.ATTACK
+## Custom ability type ID (only used when ability_type == CUSTOM)
+## Allows mods to define their own ability types beyond the core set
+@export var custom_ability_type: String = ""
 @export var target_type: TargetType = TargetType.SINGLE_ENEMY
 
 @export_group("Range and Area")

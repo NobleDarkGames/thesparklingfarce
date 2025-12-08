@@ -107,7 +107,7 @@ func _setup_ui() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a map to edit its configuration"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(help_label)
 
@@ -239,7 +239,7 @@ func _create_caravan_settings_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Controls mobile HQ visibility and interaction (SF2 feature)"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_text)
 
@@ -355,7 +355,7 @@ func _create_edge_connections_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Seamless transitions when walking off map edges (for overworld)"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_text)
 
@@ -456,7 +456,7 @@ func _create_new_map_dialog() -> void:
 	# Title
 	var title_label: Label = Label.new()
 	title_label.text = "Create a new map with scene, script, and metadata"
-	title_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	title_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	vbox.add_child(title_label)
 
 	# Map Name

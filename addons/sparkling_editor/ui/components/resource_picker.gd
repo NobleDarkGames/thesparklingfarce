@@ -267,7 +267,7 @@ func _scan_for_overrides() -> Dictionary:
 				var file_name: String = res_dir.get_next()
 
 				while file_name != "":
-					if not res_dir.current_is_dir() and file_name.ends_with(".tres"):
+					if not res_dir.current_is_dir() and (file_name.ends_with(".tres") or file_name.ends_with(".json")):
 						var res_id: String = file_name.get_basename()
 						if res_id not in overrides:
 							overrides[res_id] = []

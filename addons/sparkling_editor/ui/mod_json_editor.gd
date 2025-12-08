@@ -124,7 +124,7 @@ func _setup_ui() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a mod to edit its settings"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
@@ -200,15 +200,19 @@ func _create_basic_info_section() -> void:
 
 	# Name
 	name_edit = _create_line_edit_field("Name:", section, "Display name for the mod")
+	name_edit.text_changed.connect(_mark_dirty_on_text_change)
 
 	# Version
 	version_edit = _create_line_edit_field("Version:", section, "Semantic version (e.g., 1.0.0)")
+	version_edit.text_changed.connect(_mark_dirty_on_text_change)
 
 	# Author
 	author_edit = _create_line_edit_field("Author:", section, "Mod author name")
+	author_edit.text_changed.connect(_mark_dirty_on_text_change)
 
 	# Godot Version
 	godot_version_edit = _create_line_edit_field("Godot Version:", section, "Compatible Godot version (e.g., 4.5)")
+	godot_version_edit.text_changed.connect(_mark_dirty_on_text_change)
 
 	# Description
 	var desc_label: Label = Label.new()
@@ -219,6 +223,7 @@ func _create_basic_info_section() -> void:
 	description_edit.custom_minimum_size.y = 60
 	description_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	description_edit.placeholder_text = "Describe what this mod provides..."
+	description_edit.text_changed.connect(_mark_dirty)
 	section.add_child(description_edit)
 
 	detail_panel.add_child(section)
@@ -235,7 +240,7 @@ func _create_load_priority_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Higher priority mods override lower priority content with matching IDs"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -291,7 +296,7 @@ func _create_total_conversion_section() -> void:
 	var help_text: Label = Label.new()
 	help_text.text = "Total conversions create entirely new games using the platform.\n" + \
 		"They override or replace all base game content."
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 12)
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	total_conversion_section.add_child(help_text)
@@ -311,7 +316,7 @@ func _create_hidden_campaigns_section() -> void:
 	var help_text: Label = Label.new()
 	help_text.text = "Hide campaigns from lower-priority mods (supports wildcards: * matches any).\n" + \
 		"Example: '_base_game:*' hides all base game campaigns"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 12)
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hidden_campaigns_section.add_child(help_text)
@@ -373,7 +378,7 @@ func _create_dependencies_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Other mods that must be loaded before this one"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -418,7 +423,7 @@ func _create_custom_types_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Register new enum-like values (one per line)"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -444,7 +449,7 @@ func _create_equipment_slots_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Define custom equipment slots (for total conversions)"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -583,7 +588,7 @@ func _create_scene_overrides_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Replace engine scenes with custom versions (for total conversions)"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -652,7 +657,7 @@ func _create_content_paths_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Relative paths within the mod folder"
-	help_text.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -1319,6 +1324,20 @@ func _on_campaign_suggestion_selected(index: int) -> void:
 	campaign_suggestions_dropdown.select(0)
 
 
+# =============================================================================
+# Dirty Tracking
+# =============================================================================
+
+## Mark as dirty when LineEdit text changes (takes String parameter)
+func _mark_dirty_on_text_change(_new_text: String) -> void:
+	is_dirty = true
+
+
+## Mark as dirty when TextEdit text changes (no parameter)
+func _mark_dirty() -> void:
+	is_dirty = true
+
+
 ## Refresh the campaign suggestions dropdown with known campaigns
 func _refresh_campaign_suggestions() -> void:
 	campaign_suggestions_dropdown.clear()
@@ -1338,6 +1357,8 @@ func _refresh_campaign_suggestions() -> void:
 	var campaigns_by_mod: Dictionary = {}
 	for campaign: Resource in campaigns:
 		var campaign_path: String = campaign.resource_path
+		if campaign_path.is_empty():
+			continue
 		# Extract mod ID from path (res://mods/<mod_id>/data/campaigns/<filename>.json)
 		var parts: PackedStringArray = campaign_path.split("/")
 		if parts.size() >= 4:

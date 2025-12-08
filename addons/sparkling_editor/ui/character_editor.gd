@@ -191,12 +191,79 @@ func _validate_resource() -> Dictionary:
 
 ## Override: Check for references before deletion
 func _check_resource_references(resource_to_check: Resource) -> Array[String]:
-	var references: Array[String] = []
+	var character: CharacterData = resource_to_check as CharacterData
+	if not character:
+		return []
 
-	# TODO: In Phase 2+, check battles and dialogues for references to this character
-	# For now, allow deletion
+	var references: Array[String] = []
+	var char_path: String = character.resource_path
+
+	# Check battles across all mods
+	var battle_files: Array[Dictionary] = _scan_all_mods_for_files("battles", ".tres")
+	for file_info: Dictionary in battle_files:
+		var battle: BattleData = load(file_info.path) as BattleData
+		if battle:
+			var found_in_battle: bool = false
+			for enemy: Dictionary in battle.enemies:
+				var enemy_char: CharacterData = enemy.get("character") as CharacterData
+				if enemy_char and enemy_char.resource_path == char_path:
+					found_in_battle = true
+					break
+			if not found_in_battle:
+				for neutral: Dictionary in battle.neutrals:
+					var neutral_char: CharacterData = neutral.get("character") as CharacterData
+					if neutral_char and neutral_char.resource_path == char_path:
+						found_in_battle = true
+						break
+			if found_in_battle:
+				references.append(file_info.path)
+
+	# Check cinematics for spawn_entity commands referencing this character
+	var char_id: String = char_path.get_file().get_basename()
+	var cinematic_files: Array[Dictionary] = _scan_all_mods_for_files("cinematics", ".json")
+	for file_info: Dictionary in cinematic_files:
+		var json_text: String = FileAccess.get_file_as_string(file_info.path)
+		# Quick check before full parse - look for character ID in JSON
+		if char_id in json_text:
+			references.append(file_info.path)
 
 	return references
+
+
+## Helper: Scan all mods for files of a specific type (supports any extension)
+func _scan_all_mods_for_files(type_dir: String, extension: String) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+
+	var mods_dir: DirAccess = DirAccess.open("res://mods/")
+	if not mods_dir:
+		return results
+
+	mods_dir.list_dir_begin()
+	var mod_name: String = mods_dir.get_next()
+
+	while mod_name != "":
+		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
+			var type_path: String = "res://mods/%s/data/%s/" % [mod_name, type_dir]
+			var type_dir_access: DirAccess = DirAccess.open(type_path)
+
+			if type_dir_access:
+				type_dir_access.list_dir_begin()
+				var file_name: String = type_dir_access.get_next()
+
+				while file_name != "":
+					if not type_dir_access.current_is_dir() and file_name.ends_with(extension):
+						results.append({
+							"mod_id": mod_name,
+							"path": type_path + file_name
+						})
+					file_name = type_dir_access.get_next()
+
+				type_dir_access.list_dir_end()
+
+		mod_name = mods_dir.get_next()
+
+	mods_dir.list_dir_end()
+	return results
 
 
 ## Override: Create a new character with defaults
@@ -341,7 +408,7 @@ func _add_battle_configuration_section() -> void:
 
 	var ai_help: Label = Label.new()
 	ai_help.text = "AI used when this character is an enemy (can override in Battle Editor)"
-	ai_help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	ai_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	ai_help.add_theme_font_size_override("font_size", 16)
 	section.add_child(ai_help)
 
@@ -504,7 +571,7 @@ func _add_equipment_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Equipment the character starts with when recruited"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 14)
 	equipment_section.add_content_child(help_label)
 

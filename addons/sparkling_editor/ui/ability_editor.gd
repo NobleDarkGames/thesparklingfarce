@@ -281,7 +281,11 @@ func _add_type_targeting_section() -> void:
 	ability_type_option.add_item("Heal", AbilityData.AbilityType.HEAL)
 	ability_type_option.add_item("Support", AbilityData.AbilityType.SUPPORT)
 	ability_type_option.add_item("Debuff", AbilityData.AbilityType.DEBUFF)
+	ability_type_option.add_item("Summon", AbilityData.AbilityType.SUMMON)
+	ability_type_option.add_item("Status", AbilityData.AbilityType.STATUS)
+	ability_type_option.add_item("Counter", AbilityData.AbilityType.COUNTER)
 	ability_type_option.add_item("Special", AbilityData.AbilityType.SPECIAL)
+	ability_type_option.add_item("Custom", AbilityData.AbilityType.CUSTOM)
 	type_container.add_child(ability_type_option)
 	section.add_child(type_container)
 
@@ -511,7 +515,7 @@ func _add_animation_audio_section() -> void:
 
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Sound/particle effects can be assigned in the Inspector"
-	note_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	note_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	note_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(note_label)
 

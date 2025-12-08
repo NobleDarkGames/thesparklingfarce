@@ -7,11 +7,16 @@ extends Resource
 enum MovementType {
 	WALKING,    ## Ground movement only, affected by terrain
 	FLYING,     ## Can fly over obstacles, ignores terrain penalties
-	FLOATING    ## Hovers over terrain, some terrain penalties
+	FLOATING,   ## Hovers over terrain, some terrain penalties
+	SWIMMING,   ## Aquatic movement (merfolk, water units) - water terrain preferred
+	CUSTOM      ## Mod-defined type (use custom_movement_type field)
 }
 
 @export var display_name: String = ""
 @export var movement_type: MovementType = MovementType.WALKING
+## Custom movement type ID (only used when movement_type == CUSTOM)
+## Allows mods to define their own movement types beyond the core set
+@export var custom_movement_type: String = ""
 @export var movement_range: int = 4
 
 @export_group("Combat Rates")

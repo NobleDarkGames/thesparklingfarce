@@ -877,7 +877,8 @@ func _on_scene_path_changed(new_text: String) -> void:
 func _on_victory_target_changed(index: int) -> void:
 	if _updating_ui:
 		return
-	var target: String = "" if index == 0 else on_victory_option.get_item_metadata(index)
+	var metadata: Variant = on_victory_option.get_item_metadata(index)
+	var target: String = "" if (index == 0 or metadata == null) else str(metadata)
 	_update_node_data(selected_node_id, "on_victory", target)
 	_rebuild_graph()
 
@@ -885,7 +886,8 @@ func _on_victory_target_changed(index: int) -> void:
 func _on_defeat_target_changed(index: int) -> void:
 	if _updating_ui:
 		return
-	var target: String = "" if index == 0 else on_defeat_option.get_item_metadata(index)
+	var metadata: Variant = on_defeat_option.get_item_metadata(index)
+	var target: String = "" if (index == 0 or metadata == null) else str(metadata)
 	_update_node_data(selected_node_id, "on_defeat", target)
 	_rebuild_graph()
 
@@ -893,7 +895,8 @@ func _on_defeat_target_changed(index: int) -> void:
 func _on_complete_target_changed(index: int) -> void:
 	if _updating_ui:
 		return
-	var target: String = "" if index == 0 else on_complete_option.get_item_metadata(index)
+	var metadata: Variant = on_complete_option.get_item_metadata(index)
+	var target: String = "" if (index == 0 or metadata == null) else str(metadata)
 	_update_node_data(selected_node_id, "on_complete", target)
 	_rebuild_graph()
 
@@ -934,7 +937,8 @@ func _on_post_cinematic_changed(new_text: String) -> void:
 func _on_starting_node_changed(index: int) -> void:
 	if _updating_ui:
 		return
-	var node_id: String = "" if index == 0 else starting_node_option.get_item_metadata(index)
+	var metadata: Variant = starting_node_option.get_item_metadata(index)
+	var node_id: String = "" if (index == 0 or metadata == null) else str(metadata)
 	current_campaign_data["starting_node_id"] = node_id
 	_rebuild_graph()
 
@@ -942,7 +946,8 @@ func _on_starting_node_changed(index: int) -> void:
 func _on_default_hub_changed(index: int) -> void:
 	if _updating_ui:
 		return
-	var node_id: String = "" if index == 0 else default_hub_option.get_item_metadata(index)
+	var metadata: Variant = default_hub_option.get_item_metadata(index)
+	var node_id: String = "" if (index == 0 or metadata == null) else str(metadata)
 	current_campaign_data["default_hub_id"] = node_id
 
 

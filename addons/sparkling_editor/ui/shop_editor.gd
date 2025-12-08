@@ -366,7 +366,7 @@ func _add_inventory_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Items available for purchase in this shop"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 12)
 	inventory_container.add_child(help_label)
 
@@ -439,7 +439,7 @@ func _add_deals_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Items shown in the 'Deals' menu with discount applied"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 12)
 	deals_container.add_child(help_label)
 
@@ -670,7 +670,7 @@ func _add_church_section() -> void:
 	# Preview
 	var preview_label: Label = Label.new()
 	preview_label.text = "Example: Level 10 revival = %d + (10 x 10) = %d G" % [200, 300]
-	preview_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	preview_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	preview_label.add_theme_font_size_override("font_size", 12)
 	church_section.add_child(preview_label)
 

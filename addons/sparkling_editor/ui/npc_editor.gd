@@ -548,7 +548,7 @@ func _add_advanced_options_section() -> void:
 	advanced_toggle_btn.text = "Advanced Options"
 	advanced_toggle_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	advanced_toggle_btn.flat = true
-	advanced_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	advanced_toggle_btn.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
 	advanced_section.add_child(advanced_toggle_btn)
 

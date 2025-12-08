@@ -6,17 +6,17 @@ extends RefCounted
 ## Provides shared constants and helper functions used across multiple editors
 
 # =============================================================================
-# Constants - UI Sizing
+# Constants - UI Sizing (referencing EditorThemeUtils for consistency)
 # =============================================================================
 
 ## Standard label width for form fields (ensures alignment across editors)
-const DEFAULT_LABEL_WIDTH: int = 140
+const DEFAULT_LABEL_WIDTH: int = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 
 ## Font size for section headers
-const SECTION_FONT_SIZE: int = 16
+const SECTION_FONT_SIZE: int = EditorThemeUtils.SECTION_FONT_SIZE
 
 ## Font size for help/hint text
-const HELP_FONT_SIZE: int = 12
+const HELP_FONT_SIZE: int = EditorThemeUtils.HELP_FONT_SIZE
 
 ## Font size for standard body text
 const BODY_FONT_SIZE: int = 14
@@ -67,7 +67,7 @@ static func create_field_row(label_text: String, label_width: int = DEFAULT_LABE
 static func create_help_label(text: String, parent: Control = null) -> Label:
 	var label: Label = Label.new()
 	label.text = text
-	label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	label.add_theme_font_size_override("font_size", HELP_FONT_SIZE)
 
 	if parent:

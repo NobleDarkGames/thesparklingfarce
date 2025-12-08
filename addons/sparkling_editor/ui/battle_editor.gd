@@ -159,7 +159,7 @@ func _add_map_section() -> void:
 
 	var map_note: Label = Label.new()
 	map_note.text = "Maps are loaded from mods/*/maps/ directories"
-	map_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	map_note.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	map_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(map_note)
 
@@ -193,7 +193,7 @@ func _add_map_section() -> void:
 
 	var spawn_note: Label = Label.new()
 	spawn_note.text = "Party members spawn in formation around this point"
-	spawn_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	spawn_note.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	spawn_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(spawn_note)
 
@@ -221,7 +221,7 @@ func _add_player_forces_section() -> void:
 
 	var party_note: Label = Label.new()
 	party_note.text = "If not set, uses PartyManager's current party"
-	party_note.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	party_note.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	party_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(party_note)
 
@@ -237,7 +237,7 @@ func _add_enemy_forces_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Configure enemy units, positions, and AI behaviors"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	enemies_section.add_content_child(help_label)
 
 	enemies_container = VBoxContainer.new()
@@ -260,7 +260,7 @@ func _add_neutral_forces_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Configure neutral units (for PROTECT_UNIT objectives)"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	neutrals_section.add_content_child(help_label)
 
 	neutrals_container = VBoxContainer.new()

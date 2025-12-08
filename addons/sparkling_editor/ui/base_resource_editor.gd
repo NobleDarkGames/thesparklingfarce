@@ -17,8 +17,8 @@ var resource_type_id: String = ""
 # Undo/Redo manager for editor operations
 var undo_redo: EditorUndoRedoManager
 
-# Enable undo/redo for save operations (set in subclass)
-var enable_undo_redo: bool = false
+# Enable undo/redo for save operations
+var enable_undo_redo: bool = true
 
 # UI Components (created by base class)
 var resource_list: ItemList
@@ -88,6 +88,19 @@ func _ready() -> void:
 
 	# Auto-subscribe to EditorEventBus for declared dependencies
 	_setup_dependency_tracking()
+
+
+func _exit_tree() -> void:
+	# Clean up EditorEventBus signal connections to prevent memory leaks
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if event_bus.resource_saved.is_connected(_on_dependency_resource_changed):
+			event_bus.resource_saved.disconnect(_on_dependency_resource_changed)
+		if event_bus.resource_created.is_connected(_on_dependency_resource_changed):
+			event_bus.resource_created.disconnect(_on_dependency_resource_changed)
+		if event_bus.resource_deleted.is_connected(_on_dependency_resource_deleted):
+			event_bus.resource_deleted.disconnect(_on_dependency_resource_deleted)
+	_dependencies_connected = false
 
 
 func _input(event: InputEvent) -> void:
@@ -193,7 +206,7 @@ func _setup_base_ui() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a " + resource_type_name.to_lower() + " to edit"
-	help_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
@@ -204,22 +217,30 @@ func _setup_base_ui() -> void:
 	search_filter.text_changed.connect(_on_search_filter_changed)
 	left_panel.add_child(search_filter)
 
-	resource_list = ItemList.new()
-	resource_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Don't use SIZE_EXPAND_FILL vertically - just set a fixed height
-	resource_list.custom_minimum_size = Vector2(0, 150)  # Fixed height to keep buttons visible
-	resource_list.item_selected.connect(_on_resource_selected)
-	left_panel.add_child(resource_list)
+	# Button row at top (so list can expand to fill remaining space)
+	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 4)
 
 	var create_button: Button = Button.new()
-	create_button.text = "Create New " + resource_type_name
+	create_button.text = "New"
+	create_button.tooltip_text = "Create New " + resource_type_name
 	create_button.pressed.connect(_on_create_new)
-	left_panel.add_child(create_button)
+	btn_row.add_child(create_button)
 
 	var refresh_button: Button = Button.new()
-	refresh_button.text = "Refresh List"
+	refresh_button.text = "Refresh"
+	refresh_button.tooltip_text = "Refresh List"
 	refresh_button.pressed.connect(_refresh_list)
-	left_panel.add_child(refresh_button)
+	btn_row.add_child(refresh_button)
+
+	left_panel.add_child(btn_row)
+
+	# Resource list now expands to fill available vertical space
+	resource_list = ItemList.new()
+	resource_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resource_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	resource_list.item_selected.connect(_on_resource_selected)
+	left_panel.add_child(resource_list)
 
 	hsplit.add_child(left_panel)
 
@@ -429,12 +450,32 @@ func _apply_filter() -> void:
 
 	for i in range(all_resources.size()):
 		var resource: Resource = all_resources[i]
+		var path: String = all_resource_paths[i]
 		var display_name: String = _get_resource_display_name(resource)
 
 		# Show all if no filter, otherwise check for match
-		if filter_text.is_empty() or display_name.to_lower().contains(filter_text):
+		if filter_text.is_empty() or _matches_search(display_name, path, filter_text):
 			resource_list.add_item(display_name)
-			resource_list.set_item_metadata(resource_list.item_count - 1, all_resource_paths[i])
+			resource_list.set_item_metadata(resource_list.item_count - 1, path)
+
+
+## Check if a resource matches the search filter
+## Searches in: display name, resource ID (filename), and source mod ID
+func _matches_search(display_name: String, path: String, filter: String) -> bool:
+	var display_lower: String = display_name.to_lower()
+	var filename: String = path.get_file().get_basename().to_lower()
+
+	# Extract mod ID from path: mods/MOD_ID/data/...
+	var mod_id: String = ""
+	if "/mods/" in path:
+		var after_mods: String = path.split("/mods/")[1]
+		var parts: PackedStringArray = after_mods.split("/")
+		if parts.size() > 0:
+			mod_id = parts[0].to_lower()
+
+	return display_lower.contains(filter) or \
+		   filename.contains(filter) or \
+		   mod_id.contains(filter)
 
 
 ## Called when search filter text changes
