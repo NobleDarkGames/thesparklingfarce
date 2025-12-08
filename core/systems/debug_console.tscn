@@ -49,7 +49,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.65, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
-text = "[F1/F12/~]"
+text = "[F12/~]"
 
 [node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -58,12 +58,14 @@ theme_override_constants/separation = 4
 [node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+focus_mode = 0
 horizontal_scroll_mode = 0
 
 [node name="OutputLabel" type="RichTextLabel" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+focus_mode = 0
 theme_override_colors/default_color = Color(0.9, 0.9, 0.95, 1)
 theme_override_fonts/normal_font = ExtResource("2_font")
 theme_override_font_sizes/normal_font_size = 16

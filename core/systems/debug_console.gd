@@ -55,6 +55,9 @@ var mod_commands: Dictionary = {}
 ## Active tween for slide animation
 var _slide_tween: Tween = null
 
+## Re-entry guard to prevent toggle spam during animation
+var _is_animating: bool = false
+
 
 # =============================================================================
 # LIFECYCLE
@@ -66,12 +69,20 @@ func _ready() -> void:
 
 	# Connect input signals
 	input_line.text_submitted.connect(_on_input_submitted)
+	input_line.focus_exited.connect(_on_input_focus_lost)
 
 	# Start hidden (panel starts offscreen)
 	panel.visible = false
 
 	# Print welcome message when console first opens
 	_print_info("Debug Console ready. Type 'help' for available commands.")
+
+
+## Called when input line loses focus - re-grab if console should be active
+func _on_input_focus_lost() -> void:
+	if is_open and not _is_animating:
+		# Focus was unexpectedly lost while console is open - re-grab it
+		input_line.call_deferred("grab_focus")
 
 
 func _setup_panel_style() -> void:
@@ -89,7 +100,7 @@ func _input(event: InputEvent) -> void:
 	# regardless of modal UI state (shop, dialog, etc.)
 	if event is InputEventKey and event.pressed:
 		var key: int = event.keycode if event.keycode != 0 else event.physical_keycode
-		if key in [KEY_F12, KEY_QUOTELEFT, KEY_F1]:
+		if key in [KEY_F12, KEY_QUOTELEFT]:
 			_toggle_console()
 			get_viewport().set_input_as_handled()
 			return
@@ -137,21 +148,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Check if another modal UI (shop, dialog) is currently active
-## Used to prevent console from interfering with other modal systems
-func _is_other_modal_active() -> bool:
-	if ShopManager and ShopManager.is_shop_open():
-		return true
-	if DialogManager and DialogManager.is_dialog_active():
-		return true
-	return false
-
-
 # =============================================================================
 # CONSOLE VISIBILITY
 # =============================================================================
 
 func _toggle_console() -> void:
+	# Prevent toggle spam during animation
+	if _is_animating:
+		return
+
 	if is_open:
 		_close_console()
 	else:
@@ -163,6 +168,7 @@ func _open_console() -> void:
 		return
 
 	is_open = true
+	_is_animating = true
 
 	# Calculate target height (40% of viewport)
 	var viewport_height: float = get_viewport().get_visible_rect().size.y
@@ -186,6 +192,7 @@ func _open_console() -> void:
 
 	# Focus input after animation
 	await _slide_tween.finished
+	_is_animating = false
 	input_line.grab_focus()
 
 
@@ -194,6 +201,7 @@ func _close_console() -> void:
 		return
 
 	is_open = false
+	_is_animating = true
 
 	# Get current height for slide-up animation
 	var current_height: float = panel.offset_bottom
@@ -211,6 +219,7 @@ func _close_console() -> void:
 
 	# Hide panel after animation
 	await _slide_tween.finished
+	_is_animating = false
 	panel.visible = false
 
 	# Release focus
@@ -237,11 +246,24 @@ func _on_input_submitted(text: String) -> void:
 	# Clear input
 	input_line.clear()
 
-	# Execute
+	# Defer command execution so LineEdit's signal processing completes cleanly
+	# This prevents internal state corruption in the LineEdit
+	call_deferred("_execute_command_deferred", trimmed)
+
+
+## Deferred command execution to avoid LineEdit state corruption
+## NOTE: Commands must be executed via call_deferred from text_submitted signal handler.
+## Executing commands synchronously inside the signal handler causes the LineEdit to enter
+## a corrupted internal state where it claims to have focus but doesn't receive keyboard input.
+## This is a known Godot issue with modifying Controls from within their own signal handlers.
+func _execute_command_deferred(trimmed: String) -> void:
 	_execute_command(trimmed)
 
-	# Re-grab focus after command execution (in case something stole it)
-	input_line.grab_focus()
+	# Reset focus after command execution - full release/grab cycle fixes any remaining state issues
+	# Only if console is still open (commands like debug.shop close the console first)
+	if is_open:
+		input_line.release_focus()
+		input_line.grab_focus()
 
 
 func _navigate_history(direction: int) -> void:
