@@ -51,9 +51,11 @@ func _on_initialized() -> void:
 	# Initialize colors
 	_update_all_colors()
 
-	# Grab focus on first button
+	# Grab focus on first button (with validity check after await)
 	await get_tree().process_frame
-	if menu_items.size() > 0:
+	if not is_instance_valid(self):
+		return
+	if menu_items.size() > 0 and is_instance_valid(menu_items[0]):
 		menu_items[0].grab_focus()
 		selected_index = 0
 
@@ -139,3 +141,27 @@ func _on_back_requested() -> void:
 func _do_exit() -> void:
 	# Just close - farewells are handled by the cinematic system
 	close_shop()
+
+
+## Clean up signal connections when exiting screen
+func _on_screen_exit() -> void:
+	# Disconnect button signals to prevent stale references
+	if is_instance_valid(buy_button) and buy_button.pressed.is_connected(_on_buy_pressed):
+		buy_button.pressed.disconnect(_on_buy_pressed)
+	if is_instance_valid(sell_button) and sell_button.pressed.is_connected(_on_sell_pressed):
+		sell_button.pressed.disconnect(_on_sell_pressed)
+	if is_instance_valid(deals_button) and deals_button.pressed.is_connected(_on_deals_pressed):
+		deals_button.pressed.disconnect(_on_deals_pressed)
+	if is_instance_valid(exit_button) and exit_button.pressed.is_connected(_on_exit_pressed):
+		exit_button.pressed.disconnect(_on_exit_pressed)
+
+	# Disconnect focus/mouse signals
+	for btn: Button in menu_items:
+		if not is_instance_valid(btn):
+			continue
+		if btn.focus_entered.is_connected(_on_button_focus_entered):
+			btn.focus_entered.disconnect(_on_button_focus_entered)
+		if btn.focus_exited.is_connected(_on_button_focus_exited):
+			btn.focus_exited.disconnect(_on_button_focus_exited)
+		if btn.mouse_entered.is_connected(_on_button_mouse_entered):
+			btn.mouse_entered.disconnect(_on_button_mouse_entered)

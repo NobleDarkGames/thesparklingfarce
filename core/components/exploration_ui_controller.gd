@@ -146,10 +146,16 @@ func _input(event: InputEvent) -> void:
 # =============================================================================
 
 ## Check if UI is blocking hero input (movement, interaction)
-## @return: true if any menu/dialog is open or debug console is active
+## @return: true if any menu/dialog is open, shop is active, or debug console is active
 func is_blocking_input() -> bool:
 	# Block input if debug console is open
 	if DebugConsole and DebugConsole.is_open:
+		return true
+	# Block input if shop is open (ShopManager handles its own UI)
+	if ShopManager and ShopManager.is_shop_open():
+		return true
+	# Block input if dialog is active
+	if DialogManager and DialogManager.is_dialog_active():
 		return true
 	return current_state != UIState.EXPLORING
 

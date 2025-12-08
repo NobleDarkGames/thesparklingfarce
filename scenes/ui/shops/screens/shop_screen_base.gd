@@ -100,6 +100,14 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Capture ALL unhandled input to prevent leaking to game controls
+## This ensures movement keys, action buttons, etc. don't control the player
+func _unhandled_input(_event: InputEvent) -> void:
+	if visible:
+		# Block all input from passing through to game controls
+		get_viewport().set_input_as_handled()
+
+
 ## Override to handle back button behavior
 ## Default behavior is go_back()
 func _on_back_requested() -> void:

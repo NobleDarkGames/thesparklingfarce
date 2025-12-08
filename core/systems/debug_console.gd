@@ -85,9 +85,13 @@ func _setup_panel_style() -> void:
 
 func _input(event: InputEvent) -> void:
 	# Toggle console with multiple key options (must check in _input to catch before game)
+	# Only allow toggle if no other modal UI is active (shop, dialog)
 	if event is InputEventKey and event.pressed:
 		var key: int = event.keycode if event.keycode != 0 else event.physical_keycode
 		if key in [KEY_F12, KEY_QUOTELEFT, KEY_F1]:
+			# Don't open console if shop or dialog is active
+			if not is_open and _is_other_modal_active():
+				return
 			_toggle_console()
 			get_viewport().set_input_as_handled()
 			return
@@ -133,6 +137,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		# This prevents game actions (sf_inventory, sf_confirm, etc.) from triggering
 		# while still allowing LineEdit to receive text input via _gui_input
 		get_viewport().set_input_as_handled()
+
+
+## Check if another modal UI (shop, dialog) is currently active
+## Used to prevent console from interfering with other modal systems
+func _is_other_modal_active() -> bool:
+	if ShopManager and ShopManager.is_shop_open():
+		return true
+	if DialogManager and DialogManager.is_dialog_active():
+		return true
+	return false
 
 
 # =============================================================================

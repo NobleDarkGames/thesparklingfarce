@@ -7,6 +7,9 @@ extends RefCounted
 ##
 ## Note: class_name removed to avoid load order issues when used as autoload dependency
 
+## Cached script reference to avoid repeated load() calls
+const _SelfScript: GDScript = preload("res://scenes/ui/shops/resources/queued_item.gd")
+
 ## The item being purchased
 var item_id: String = ""
 
@@ -27,8 +30,7 @@ func get_total_cost() -> int:
 
 ## Create a new queued item
 static func create(p_item_id: String, p_quantity: int, p_unit_price: int, p_is_deal: bool = false) -> RefCounted:
-	var script: GDScript = load("res://scenes/ui/shops/resources/queued_item.gd") as GDScript
-	var item: RefCounted = script.new()
+	var item: RefCounted = _SelfScript.new()
 	item.item_id = p_item_id
 	item.quantity = p_quantity
 	item.unit_price = p_unit_price
@@ -38,5 +40,4 @@ static func create(p_item_id: String, p_quantity: int, p_unit_price: int, p_is_d
 
 ## Create a copy of this queued item
 func duplicate_item() -> RefCounted:
-	var script: GDScript = load("res://scenes/ui/shops/resources/queued_item.gd") as GDScript
-	return script.call("create", item_id, quantity, unit_price, is_deal)
+	return _SelfScript.call("create", item_id, quantity, unit_price, is_deal)

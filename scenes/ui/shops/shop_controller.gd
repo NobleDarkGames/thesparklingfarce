@@ -61,6 +61,17 @@ func _ready() -> void:
 		ShopManager.gold_changed.connect(_on_gold_changed)
 
 
+func _exit_tree() -> void:
+	# Clean up ShopManager signal connections to prevent stale references
+	if ShopManager:
+		if ShopManager.shop_opened.is_connected(_on_shop_manager_opened):
+			ShopManager.shop_opened.disconnect(_on_shop_manager_opened)
+		if ShopManager.shop_closed.is_connected(_on_shop_manager_closed):
+			ShopManager.shop_closed.disconnect(_on_shop_manager_closed)
+		if ShopManager.gold_changed.is_connected(_on_gold_changed):
+			ShopManager.gold_changed.disconnect(_on_gold_changed)
+
+
 ## Called when ShopManager opens a shop
 func _on_shop_manager_opened(shop_data: ShopData) -> void:
 	var save_data: SaveData = null

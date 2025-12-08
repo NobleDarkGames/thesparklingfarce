@@ -156,9 +156,9 @@ func _process_input() -> void:
 	if ui_controller and ui_controller.is_blocking_input():
 		return
 
-	# TODO: Don't process input if dialog is open or other systems are active
-	# if DialogManager and DialogManager.is_dialog_active():
-	# 	return
+	# Fallback checks if ui_controller isn't set (defensive programming)
+	if _is_modal_ui_active():
+		return
 
 	var input_dir: Vector2i = Vector2i.ZERO
 
@@ -186,9 +186,9 @@ func _input(event: InputEvent) -> void:
 	if ui_controller and ui_controller.is_blocking_input():
 		return
 
-	# TODO: Check if dialog is active
-	# if DialogManager and DialogManager.is_dialog_active():
-	# 	return
+	# Fallback checks if ui_controller isn't set (defensive programming)
+	if _is_modal_ui_active():
+		return
 
 	# Interaction key (confirm)
 	if event.is_action_pressed("sf_confirm"):
@@ -448,3 +448,18 @@ func _is_direction_input_held() -> bool:
 			Input.is_action_pressed("ui_down") or
 			Input.is_action_pressed("ui_left") or
 			Input.is_action_pressed("ui_right"))
+
+
+## Check if any modal UI is active (fallback when ui_controller isn't available)
+## This provides defense-in-depth for input blocking
+func _is_modal_ui_active() -> bool:
+	# Check debug console
+	if DebugConsole and DebugConsole.is_open:
+		return true
+	# Check shop
+	if ShopManager and ShopManager.is_shop_open():
+		return true
+	# Check dialog
+	if DialogManager and DialogManager.is_dialog_active():
+		return true
+	return false
