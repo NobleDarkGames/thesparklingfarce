@@ -114,6 +114,11 @@ func close_shop() -> void:
 	hide()
 	shop_closed.emit()
 
+	# CRITICAL: Tell ShopManager we're closed so is_shop_open() returns false
+	# This must happen AFTER our cleanup to avoid re-entrancy from _on_shop_manager_closed
+	if ShopManager and ShopManager.is_shop_open():
+		ShopManager.close_shop()
+
 
 ## Navigate to a new screen (adds current to history)
 func push_screen(screen_name: String) -> void:

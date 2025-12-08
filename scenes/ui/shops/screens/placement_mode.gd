@@ -60,8 +60,9 @@ func _setup_character_buttons() -> void:
 
 func _create_character_button(character: CharacterData) -> Button:
 	var btn: Button = Button.new()
-	btn.custom_minimum_size = Vector2(140, 60)
+	btn.custom_minimum_size = Vector2(110, 50)  # Compact size for low-res screens
 	btn.focus_mode = Control.FOCUS_ALL
+	btn.add_theme_font_size_override("font_size", 16)  # Monogram requires 16 or 24
 
 	# Get inventory status
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
@@ -72,7 +73,8 @@ func _create_character_button(character: CharacterData) -> Button:
 		btn.disabled = true
 		btn.text = "%s\nFULL" % character.character_name
 	else:
-		btn.text = "%s\n(%d/%d)\nPlace 1" % [character.character_name, slots_used, slots_max]
+		# Compact: just name and slots (instructions explain what clicking does)
+		btn.text = "%s\n(%d/%d)" % [character.character_name, slots_used, slots_max]
 
 	return btn
 
@@ -90,12 +92,12 @@ func _update_caravan_button() -> void:
 
 	if remaining == 0:
 		caravan_button.disabled = true
-		caravan_button.text = "CARAVAN\n(empty)"
+		caravan_button.text = "CARAVAN (empty)"
 	elif remaining == 1:
 		var first_item: RefCounted = context.queue.get_first_item()
-		caravan_button.text = "STORE IN CARAVAN\n1 item → -%dG" % first_item.unit_price
+		caravan_button.text = "CARAVAN: 1 → -%dG" % first_item.unit_price
 	else:
-		caravan_button.text = "STORE ALL IN CARAVAN\n%d items → -%dG" % [remaining, total_cost]
+		caravan_button.text = "CARAVAN: %d → -%dG" % [remaining, total_cost]
 
 
 func _update_display() -> void:
@@ -111,9 +113,9 @@ func _update_display() -> void:
 	var remaining: int = context.queue.get_total_item_count()
 
 	current_item_label.text = "PLACING: %s" % item_name
-	remaining_label.text = "%d remaining" % remaining
+	remaining_label.text = "(%d left)" % remaining
 	gold_label.text = "GOLD: %dG" % get_current_gold()
-	cost_per_label.text = "-%dG per placement" % first_item.unit_price
+	cost_per_label.text = "-%dG each" % first_item.unit_price
 
 	_update_caravan_button()
 	_refresh_character_buttons()
@@ -139,7 +141,7 @@ func _refresh_character_buttons() -> void:
 			btn.text = "%s\nFULL" % character.character_name
 		else:
 			btn.disabled = false
-			btn.text = "%s\n(%d/%d)\nPlace 1" % [character.character_name, slots_used, slots_max]
+			btn.text = "%s\n(%d/%d)" % [character.character_name, slots_used, slots_max]
 
 		idx += 1
 

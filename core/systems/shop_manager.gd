@@ -423,6 +423,42 @@ func get_characters_who_can_equip(item_id: String) -> Array[Dictionary]:
 	return result
 
 
+## Get all party members who have inventory space
+## Used for consumable items where anyone can carry the item
+## @return: Array of {character_uid: String, character_name: String, character_data: CharacterData}
+func get_characters_with_inventory_room() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+
+	for character: CharacterData in PartyManager.party_members:
+		var uid: String = character.character_uid
+		if character_has_inventory_room(uid):
+			result.append({
+				"character_uid": uid,
+				"character_name": character.character_name,
+				"character_data": character
+			})
+
+	return result
+
+
+## Get eligible characters for receiving an item (considering item type)
+## For equipment: returns characters who can equip it
+## For consumables: returns characters with inventory space
+## @param item_id: Item to check
+## @return: Array of {character_uid: String, character_name: String, character_data: CharacterData}
+func get_eligible_characters_for_item(item_id: String) -> Array[Dictionary]:
+	var item_data: ItemData = _get_item_data(item_id)
+	if not item_data:
+		return []
+
+	# Equipment needs class/slot checking
+	if item_data.is_equippable():
+		return get_characters_who_can_equip(item_id)
+
+	# Consumables just need inventory space
+	return get_characters_with_inventory_room()
+
+
 ## Get stat comparison for an item vs current equipment
 ## @param character_uid: Character to compare for
 ## @param item_id: Item to compare

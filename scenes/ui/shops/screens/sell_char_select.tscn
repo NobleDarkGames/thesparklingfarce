@@ -23,7 +23,7 @@ theme_override_constants/separation = 16
 [node name="HeaderLabel" type="Label" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "WHO'S SELLING?"
 horizontal_alignment = 1
 

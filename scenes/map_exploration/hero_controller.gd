@@ -462,4 +462,7 @@ func _is_modal_ui_active() -> bool:
 	# Check dialog
 	if DialogManager and DialogManager.is_dialog_active():
 		return true
+	# Check cinematics
+	if CinematicsManager and CinematicsManager.is_cinematic_active():
+		return true
 	return false

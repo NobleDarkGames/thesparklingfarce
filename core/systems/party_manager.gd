@@ -471,9 +471,13 @@ func _ensure_save_data(character: CharacterData) -> void:
 	if not character:
 		return
 
+	# Auto-generate UID if character doesn't have one (legacy/template characters)
+	if character.character_uid.is_empty():
+		character.ensure_uid()
+
 	var uid: String = character.character_uid
 	if uid.is_empty():
-		push_warning("PartyManager: Character '%s' has no character_uid" % character.character_name)
+		push_error("PartyManager: Character '%s' failed to generate UID" % character.character_name)
 		return
 
 	if uid not in _member_save_data:

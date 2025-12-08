@@ -85,13 +85,11 @@ func _setup_panel_style() -> void:
 
 func _input(event: InputEvent) -> void:
 	# Toggle console with multiple key options (must check in _input to catch before game)
-	# Only allow toggle if no other modal UI is active (shop, dialog)
+	# Debug console is a developer tool - it should ALWAYS be accessible,
+	# regardless of modal UI state (shop, dialog, etc.)
 	if event is InputEventKey and event.pressed:
 		var key: int = event.keycode if event.keycode != 0 else event.physical_keycode
 		if key in [KEY_F12, KEY_QUOTELEFT, KEY_F1]:
-			# Don't open console if shop or dialog is active
-			if not is_open and _is_other_modal_active():
-				return
 			_toggle_console()
 			get_viewport().set_input_as_handled()
 			return

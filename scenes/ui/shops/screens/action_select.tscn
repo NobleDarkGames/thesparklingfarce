@@ -28,7 +28,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "BUY"
 
 [node name="SellButton" type="Button" parent="CenterContainer/VBoxContainer"]
@@ -36,7 +36,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "SELL"
 
 [node name="DealsButton" type="Button" parent="CenterContainer/VBoxContainer"]
@@ -44,7 +44,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "DEALS"
 
 [node name="ExitButton" type="Button" parent="CenterContainer/VBoxContainer"]
@@ -52,5 +52,5 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "EXIT"

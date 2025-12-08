@@ -29,7 +29,7 @@ theme_override_constants/separation = 8
 [node name="HeaderLabel" type="Label" parent="HBoxContainer/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 text = "MAX'S ITEMS"
 
 [node name="ItemScroll" type="ScrollContainer" parent="HBoxContainer/LeftColumn"]
@@ -68,7 +68,7 @@ theme_override_constants/separation = 8
 [node name="ItemNameLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "HEALING HERB"
 
 [node name="Spacer" type="Control" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer/VBox"]
@@ -78,7 +78,7 @@ size_flags_vertical = 3
 [node name="ItemPriceLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.5, 0.8, 0.2, 1)
 text = "+10G"
 horizontal_alignment = 2

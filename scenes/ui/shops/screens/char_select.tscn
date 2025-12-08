@@ -23,7 +23,7 @@ theme_override_constants/separation = 16
 [node name="HeaderLabel" type="Label" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "WHO EQUIPS THIS?"
 horizontal_alignment = 1
 
@@ -35,13 +35,13 @@ theme_override_constants/separation = 24
 [node name="ItemLabel" type="Label" parent="VBoxContainer/ItemInfo"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 text = "BRONZE SWORD"
 
 [node name="PriceLabel" type="Label" parent="VBoxContainer/ItemInfo"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.8, 0.8, 0.2, 1)
 text = "120G"
 

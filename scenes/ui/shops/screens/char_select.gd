@@ -32,8 +32,14 @@ func _on_initialized() -> void:
 	var item_data: ItemData = get_item_data(context.selected_item_id)
 	if item_data:
 		item_label.text = item_data.item_name.to_upper()
+		# Set header text based on item type
+		if item_data.is_equippable():
+			header_label.text = "WHO EQUIPS THIS?"
+		else:
+			header_label.text = "WHO CARRIES THIS?"
 	else:
 		item_label.text = context.selected_item_id
+		header_label.text = "WHO CARRIES THIS?"
 
 	var price: int = context.get_buy_price(context.selected_item_id)
 	price_label.text = "%dG" % price
@@ -69,8 +75,8 @@ func _populate_character_grid() -> void:
 	if not PartyManager:
 		return
 
-	# Get characters who can equip this item
-	var eligible: Array[Dictionary] = ShopManager.get_characters_who_can_equip(context.selected_item_id)
+	# Get eligible characters based on item type (equipment vs consumable)
+	var eligible: Array[Dictionary] = ShopManager.get_eligible_characters_for_item(context.selected_item_id)
 
 	for entry: Dictionary in eligible:
 		var button: Button = _create_character_button(entry)
@@ -80,10 +86,14 @@ func _populate_character_grid() -> void:
 		var uid: String = entry.character_uid
 		button.pressed.connect(_on_character_selected.bind(uid, button))
 
-	# If no characters can equip, show a message
+	# If no characters eligible, show a message
 	if eligible.is_empty():
 		var label: Label = Label.new()
-		label.text = "No one can equip this item!"
+		var item_data: ItemData = get_item_data(context.selected_item_id)
+		if item_data and item_data.is_equippable():
+			label.text = "No one can equip this item!"
+		else:
+			label.text = "Everyone's inventory is full!"
 		label.add_theme_color_override("font_color", COLOR_DISABLED)
 		character_grid.add_child(label)
 

@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_item")
 item_name = "Medical Herb"
-item_type = 2
+item_type = 3
 equipment_type = ""
 equipment_slot = ""
 is_cursed = false

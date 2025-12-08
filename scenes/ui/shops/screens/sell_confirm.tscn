@@ -36,7 +36,7 @@ theme_override_constants/separation = 12
 
 [node name="HeaderLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "CONFIRM SALE"
 horizontal_alignment = 1
 
@@ -54,7 +54,7 @@ layout_mode = 2
 [node name="TotalLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.5, 0.8, 0.2, 1)
 text = "TOTAL: +45G"
 horizontal_alignment = 1

@@ -109,6 +109,19 @@ func _initialize() -> void:
 
 	_initialized = true
 
+	# CRITICAL: Attempt activation for scene already loaded (handles editor play
+	# and edge cases where scene loads before signal connection)
+	call_deferred("_initial_activation")
+
+
+func _initial_activation() -> void:
+	# Wait extra frames for hero creation in dynamically-built scenes
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_try_activate()
+	if _current_hero:
+		print("[ExplorationUIManager] Initial activation successful - hero connected")
+
 
 func _setup_controller() -> void:
 	if _controller and _controller.has_method("setup"):
