@@ -21,33 +21,16 @@ var available_characters: Array[CharacterData] = []
 func _ready() -> void:
 	resource_type_name = "Party"
 	resource_type_id = "party"
-	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
+	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
+	resource_dependencies = ["character"]
 	super._ready()
 	_load_available_characters()
 
-	# Listen for character changes from other editor tabs via EditorEventBus
-	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus:
-		if not event_bus.resource_saved.is_connected(_on_resource_event):
-			event_bus.resource_saved.connect(_on_resource_event)
-		if not event_bus.resource_created.is_connected(_on_resource_event):
-			event_bus.resource_created.connect(_on_resource_event)
-		if not event_bus.resource_deleted.is_connected(_on_resource_deleted_event):
-			event_bus.resource_deleted.connect(_on_resource_deleted_event)
 
-
-## Handle resource saved/created events from EditorEventBus
-func _on_resource_event(res_type: String, _res_id: String, _resource: Resource) -> void:
-	# Reload character dropdown when any character is saved or created
-	if res_type == "character":
-		_load_available_characters()
-
-
-## Handle resource deleted events from EditorEventBus
-func _on_resource_deleted_event(res_type: String, _res_id: String) -> void:
-	# Reload character dropdown when any character is deleted
-	if res_type == "character":
-		_load_available_characters()
+## Override: Called when dependent resource types change (via base class)
+func _on_dependencies_changed(_changed_type: String) -> void:
+	# Reload character dropdown when any character is created/saved/deleted
+	_load_available_characters()
 
 
 # ============================================================================

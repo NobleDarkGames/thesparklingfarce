@@ -89,6 +89,23 @@ func get_cells_in_range(center: Vector2i, radius: int) -> Array[Vector2i]:
 	return cells
 
 
+## Get all grid positions within a range band (min to max distance)
+## Used for weapons with dead zones (e.g., bows that cannot hit adjacent enemies)
+## Returns array of Vector2i where min_range <= manhattan_distance <= max_range
+## Example: min_range=2, max_range=3 returns cells at distance 2 and 3, but not 1
+func get_cells_in_range_band(center: Vector2i, min_range: int, max_range: int) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+
+	for x in range(-max_range, max_range + 1):
+		for y in range(-max_range, max_range + 1):
+			var cell: Vector2i = center + Vector2i(x, y)
+			var distance: int = get_manhattan_distance(center, cell)
+			if distance >= min_range and distance <= max_range and is_within_bounds(cell):
+				cells.append(cell)
+
+	return cells
+
+
 ## Get neighboring cells (4-directional: up, down, left, right)
 func get_neighbors(grid_position: Vector2i) -> Array[Vector2i]:
 	var neighbors: Array[Vector2i] = []

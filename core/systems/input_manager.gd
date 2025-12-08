@@ -786,18 +786,24 @@ func _get_available_actions() -> Array[String]:
 	return actions
 
 
-## Check if enemies are in attack range
+## Check if enemies are in attack range (respects min/max range for dead zones)
 func _check_enemies_in_range() -> bool:
-	# For now, assume melee range (1 cell)
-	# TODO: Check weapon range when equipment system exists
-	var attack_range: int = 1
+	# Get weapon min/max range from unit's equipped weapon
+	var min_range: int = 1
+	var max_range: int = 1
 
-	var adjacent_cells: Array[Vector2i] = GridManager.get_cells_in_range(
+	if active_unit.stats:
+		min_range = active_unit.stats.get_weapon_min_range()
+		max_range = active_unit.stats.get_weapon_max_range()
+
+	# Get cells within the attack range band (excludes dead zone)
+	var attack_cells: Array[Vector2i] = GridManager.get_cells_in_range_band(
 		active_unit.grid_position,
-		attack_range
+		min_range,
+		max_range
 	)
 
-	for cell in adjacent_cells:
+	for cell in attack_cells:
 		var occupant: Node2D = GridManager.get_unit_at_cell(cell)
 		if occupant and occupant.is_enemy_unit():
 			return true
@@ -1120,14 +1126,24 @@ func _cancel_direct_movement() -> void:
 
 
 ## Get valid target cells based on action and range
+## weapon_range parameter kept for backwards compatibility, but now uses min/max from unit
 func _get_valid_target_cells(weapon_range: int) -> Array[Vector2i]:
 	var valid_cells: Array[Vector2i] = []
 
 	if current_action == "Attack":
-		# Get all cells in weapon range
-		var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range(
+		# Get weapon min/max range from unit's equipped weapon
+		var min_range: int = 1
+		var max_range: int = weapon_range  # Use passed value as fallback
+
+		if active_unit.stats:
+			min_range = active_unit.stats.get_weapon_min_range()
+			max_range = active_unit.stats.get_weapon_max_range()
+
+		# Get cells within the attack range band (excludes dead zone)
+		var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range_band(
 			active_unit.grid_position,
-			weapon_range
+			min_range,
+			max_range
 		)
 
 		# Filter to only cells with enemy units
@@ -1143,20 +1159,24 @@ func _get_valid_target_cells(weapon_range: int) -> Array[Vector2i]:
 	return valid_cells
 
 
-## Show targeting range and valid targets
+## Show targeting range and valid targets (respects min/max range for dead zones)
 func _show_targeting_range() -> void:
 	if not active_unit:
 		return
 
-	# Get weapon range (default to 1 for melee)
-	# TODO: Get from equipped weapon when equipment system exists
-	var weapon_range: int = 1
+	# Get weapon min/max range from unit's equipped weapon
+	var min_range: int = 1
+	var max_range: int = 1
 
-	# Show red attack range tiles
-	GridManager.show_attack_range(active_unit.grid_position, weapon_range)
+	if active_unit.stats:
+		min_range = active_unit.stats.get_weapon_min_range()
+		max_range = active_unit.stats.get_weapon_max_range()
+
+	# Show red attack range tiles (using range band to exclude dead zone)
+	GridManager.show_attack_range_band(active_unit.grid_position, min_range, max_range)
 
 	# Find and highlight valid targets in yellow
-	var valid_targets: Array[Vector2i] = _get_valid_target_cells(weapon_range)
+	var valid_targets: Array[Vector2i] = _get_valid_target_cells(max_range)
 	if not valid_targets.is_empty():
 		GridManager.highlight_targets(valid_targets)
 

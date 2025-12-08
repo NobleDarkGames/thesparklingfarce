@@ -1,0 +1,22 @@
+It's time for a thorough audit of our Sparkling Editor.  I want Modro, Ed, Clauderina and Chief Obrien to all do a comprehensive review of the Sparkling Editor, focusing on that agent's specialities.  All agents, however, should consider concepts like the following:
+
+Is it easy to achieve the purpose of this editor tab in a few simple steps?
+Are we using all the best patterns from the other tabs where appropriate?
+Widgets, filters and searches.  What happens when a list of resources gets very long or filled with content from different mods?
+Are there useful patterns from other tabs that could be applied here?
+Does changing data on this tab get reflected on other, related tabs?
+DO changes on other, related tabs get reflected on this one?
+Is the data in this tab respecting the Mod Selection box?
+Does this tab contain any useless, duplicate, or uncessary widgets or code?
+Is this tab aligned with all platform specifications?
+Does any of the functionality here overlap with functionality elsewhere in the editor, in a way that could be refactored for cleaner code?
+As a user, how would I rate this workflow?
+Are the fields being appropriately validated?
+How does altering these fields change what's saved on disk, and when does that occur?
+Has this been overengineered?  Could we simplify this while supporting SF features and good moddability?
+Peroper separation of concerns - Is this the ideal place for this data to be read/written?  And that works well with our first-class modding system?
+Is the data that this tab creates fully matching with what the game code expects?
+
+We don't necesarily need each of these questions answered specifically and verbatim, it can be summarized for the agents.  The intent is to ensure that each agent looks at this editor thoroughly and from multiple angles.
+
+This is a heavy process and we may burn our context window before it completes, so tell each agent that it's important to save their progress to a document in docs/reports/editor_analysis as they go so that we can easily resume if interrupted

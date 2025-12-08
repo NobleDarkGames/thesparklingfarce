@@ -472,21 +472,30 @@ func show_movement_range(from: Vector2i, movement_range: int, movement_type: int
 
 ## Show attack range (red tiles)
 ## Highlights all cells within attack range in red.
+## DEPRECATED: Use show_attack_range_band() for new code that supports min/max range
 func show_attack_range(from: Vector2i, weapon_range: int) -> void:
+	# Delegate to range band method with min_range=1 for backwards compatibility
+	show_attack_range_band(from, 1, weapon_range)
+
+
+## Show attack range band (red tiles) with min/max range support
+## Highlights cells within the range band, excluding dead zone (distance < min_range)
+## Example: min_range=2, max_range=3 shows cells at distance 2 and 3, not distance 1
+func show_attack_range_band(from: Vector2i, min_range: int, max_range: int) -> void:
 	if _highlight_layer == null:
 		push_warning("GridManager: Cannot show attack range - no highlight layer set")
 		return
 
-	# Calculate cells in range using Manhattan distance
-	var attack_cells: Array[Vector2i] = []
-	for x in range(-weapon_range, weapon_range + 1):
-		for y in range(-weapon_range, weapon_range + 1):
-			var target_cell: Vector2i = Vector2i(from.x + x, from.y + y)
-			var distance: int = abs(x) + abs(y)
-			if distance > 0 and distance <= weapon_range and grid.is_within_bounds(target_cell):
-				attack_cells.append(target_cell)
+	# Use Grid's range band method for consistent calculation
+	var attack_cells: Array[Vector2i] = grid.get_cells_in_range_band(from, min_range, max_range)
 
-	highlight_cells(attack_cells, HIGHLIGHT_RED)
+	# Filter out the center cell (can't attack yourself)
+	var filtered_cells: Array[Vector2i] = []
+	for cell in attack_cells:
+		if cell != from:
+			filtered_cells.append(cell)
+
+	highlight_cells(filtered_cells, HIGHLIGHT_RED)
 
 
 ## Highlight specific target cells (yellow tiles)
@@ -573,6 +582,15 @@ func get_cells_in_range(center: Vector2i, p_range: int) -> Array[Vector2i]:
 		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
 		return []
 	return grid.get_cells_in_range(center, p_range)
+
+
+## Get all cells within a range band (min to max distance)
+## Used for weapons with dead zones (e.g., bows that cannot hit adjacent enemies)
+func get_cells_in_range_band(center: Vector2i, min_range: int, max_range: int) -> Array[Vector2i]:
+	if grid == null:
+		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
+		return []
+	return grid.get_cells_in_range_band(center, min_range, max_range)
 
 
 ## Check if cell is within grid bounds

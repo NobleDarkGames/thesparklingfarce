@@ -69,6 +69,8 @@ var _current_deals: Array[String] = []
 func _ready() -> void:
 	resource_type_id = "shop"
 	resource_type_name = "Shop"
+	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
+	resource_dependencies = ["item", "npc"]
 	super._ready()
 
 
@@ -853,6 +855,15 @@ func _refresh_caches() -> void:
 	if ModLoader and ModLoader.registry:
 		_items_cache = ModLoader.registry.get_all_resources("item")
 		_npcs_cache = ModLoader.registry.get_all_resources("npc")
+
+
+## Override: Called when dependent resource types change (via base class)
+## Refreshes caches when items or NPCs are created/saved/deleted in other tabs
+func _on_dependencies_changed(changed_type: String) -> void:
+	_refresh_caches()
+	# Re-populate NPC picker when NPCs change
+	if changed_type == "npc":
+		_populate_npc_picker()
 
 
 func _refresh_inventory_list() -> void:

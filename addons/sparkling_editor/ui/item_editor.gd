@@ -31,7 +31,8 @@ var luk_mod_spin: SpinBox
 # Weapon properties
 var weapon_section: VBoxContainer
 var attack_power_spin: SpinBox
-var attack_range_spin: SpinBox
+var min_attack_range_spin: SpinBox
+var max_attack_range_spin: SpinBox
 var hit_rate_spin: SpinBox
 var crit_rate_spin: SpinBox
 
@@ -113,7 +114,8 @@ func _load_resource_data() -> void:
 
 	# Weapon properties
 	attack_power_spin.value = item.attack_power
-	attack_range_spin.value = item.attack_range
+	min_attack_range_spin.value = item.min_attack_range
+	max_attack_range_spin.value = item.max_attack_range
 	hit_rate_spin.value = item.hit_rate
 	crit_rate_spin.value = item.critical_rate
 
@@ -164,7 +166,8 @@ func _save_resource_data() -> void:
 
 	# Update weapon properties
 	item.attack_power = int(attack_power_spin.value)
-	item.attack_range = int(attack_range_spin.value)
+	item.min_attack_range = int(min_attack_range_spin.value)
+	item.max_attack_range = int(max_attack_range_spin.value)
 	item.hit_rate = int(hit_rate_spin.value)
 	item.critical_rate = int(crit_rate_spin.value)
 
@@ -402,19 +405,44 @@ func _add_weapon_section() -> void:
 	power_container.add_child(attack_power_spin)
 	weapon_section.add_child(power_container)
 
-	# Attack Range
-	var range_container: HBoxContainer = HBoxContainer.new()
-	var range_label: Label = Label.new()
-	range_label.text = "Attack Range:"
-	range_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
-	range_container.add_child(range_label)
+	# Min Attack Range
+	var min_range_container: HBoxContainer = HBoxContainer.new()
+	var min_range_label: Label = Label.new()
+	min_range_label.text = "Min Attack Range:"
+	min_range_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	min_range_label.tooltip_text = "Minimum attack distance. Set to 2+ for ranged weapons with dead zones (cannot hit adjacent)."
+	min_range_container.add_child(min_range_label)
 
-	attack_range_spin = SpinBox.new()
-	attack_range_spin.min_value = 1
-	attack_range_spin.max_value = 20
-	attack_range_spin.value = 1
-	range_container.add_child(attack_range_spin)
-	weapon_section.add_child(range_container)
+	min_attack_range_spin = SpinBox.new()
+	min_attack_range_spin.min_value = 1
+	min_attack_range_spin.max_value = 20
+	min_attack_range_spin.value = 1
+	min_attack_range_spin.value_changed.connect(_on_min_range_changed)
+	min_range_container.add_child(min_attack_range_spin)
+	weapon_section.add_child(min_range_container)
+
+	# Max Attack Range
+	var max_range_container: HBoxContainer = HBoxContainer.new()
+	var max_range_label: Label = Label.new()
+	max_range_label.text = "Max Attack Range:"
+	max_range_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	max_range_label.tooltip_text = "Maximum attack distance. Set to 1 for melee, higher for ranged weapons."
+	max_range_container.add_child(max_range_label)
+
+	max_attack_range_spin = SpinBox.new()
+	max_attack_range_spin.min_value = 1
+	max_attack_range_spin.max_value = 20
+	max_attack_range_spin.value = 1
+	max_attack_range_spin.value_changed.connect(_on_max_range_changed)
+	max_range_container.add_child(max_attack_range_spin)
+	weapon_section.add_child(max_range_container)
+
+	# Range presets help label
+	var range_help: Label = Label.new()
+	range_help.text = "Sword: 1-1 | Spear: 1-2 | Bow: 2-3 | Crossbow: 2-4"
+	range_help.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	range_help.add_theme_font_size_override("font_size", 12)
+	weapon_section.add_child(range_help)
 
 	# Hit Rate
 	var hit_container: HBoxContainer = HBoxContainer.new()
@@ -711,3 +739,21 @@ func _on_clear_icon() -> void:
 	icon_path_edit.text = ""
 	icon_preview.texture = null
 	icon_preview.tooltip_text = "No icon assigned"
+
+
+# =============================================================================
+# RANGE VALIDATION
+# =============================================================================
+
+## Ensure min_attack_range never exceeds max_attack_range
+func _on_min_range_changed(value: float) -> void:
+	if max_attack_range_spin and value > max_attack_range_spin.value:
+		# Increase max to match min
+		max_attack_range_spin.value = value
+
+
+## Ensure max_attack_range is never less than min_attack_range
+func _on_max_range_changed(value: float) -> void:
+	if min_attack_range_spin and value < min_attack_range_spin.value:
+		# Decrease min to match max
+		min_attack_range_spin.value = value

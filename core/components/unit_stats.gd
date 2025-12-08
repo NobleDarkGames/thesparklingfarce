@@ -190,10 +190,36 @@ func get_weapon_attack_power() -> int:
 
 
 ## Get weapon attack range (1 = melee if no weapon)
+## DEPRECATED: Use get_weapon_max_range() for new code
+## Kept for backwards compatibility - returns max_attack_range
 func get_weapon_range() -> int:
 	if cached_weapon:
-		return cached_weapon.attack_range
+		return cached_weapon.max_attack_range
 	return 1
+
+
+## Get weapon minimum attack range (1 = melee, 2+ = ranged with dead zone)
+func get_weapon_min_range() -> int:
+	if cached_weapon:
+		return cached_weapon.min_attack_range
+	return 1
+
+
+## Get weapon maximum attack range
+func get_weapon_max_range() -> int:
+	if cached_weapon:
+		return cached_weapon.max_attack_range
+	return 1
+
+
+## Check if unit can attack at the given distance
+## Takes into account both minimum and maximum attack range
+## Example: Bow (min=2, max=3) returns false for distance=1 (dead zone)
+func can_attack_at_distance(distance: int) -> bool:
+	if cached_weapon:
+		return cached_weapon.is_distance_in_range(distance)
+	# No weapon = unarmed melee, can only attack at distance 1
+	return distance == 1
 
 
 ## Get weapon hit rate bonus (90 default if no weapon)

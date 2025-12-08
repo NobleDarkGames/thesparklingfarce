@@ -729,13 +729,14 @@ func _calculate_counter_phase(
 
 
 ## Check if defender can counterattack
+## Now properly handles dead zones: a bow (min=2, max=3) CANNOT counter at distance 1
 func _can_counterattack(original_attacker: Node2D, original_defender: Node2D) -> bool:
 	# Check if defender would still be alive (this is called after simulating damage)
 	# The actual HP check happens in _build_combat_sequence
 
-	# Get weapon ranges
-	var attacker_range: int = _get_unit_weapon_range(original_attacker)
-	var defender_range: int = _get_unit_weapon_range(original_defender)
+	# Get weapon ranges (now with min/max for dead zone support)
+	var defender_min_range: int = _get_unit_weapon_min_range(original_defender)
+	var defender_max_range: int = _get_unit_weapon_max_range(original_defender)
 
 	# Calculate attack distance
 	var attack_distance: int = GridManager.get_distance(
@@ -743,14 +744,16 @@ func _can_counterattack(original_attacker: Node2D, original_defender: Node2D) ->
 		original_defender.grid_position
 	)
 
-	# Check if defender's weapon can reach (must be in range for counter)
-	if attack_distance > defender_range:
+	# Check if defender's weapon can reach (must be within range band)
+	# This properly handles dead zones - a bow cannot counter adjacent attackers
+	if attack_distance < defender_min_range or attack_distance > defender_max_range:
 		return false
 
-	# Roll for counter using class rate
-	var counter_result: Dictionary = CombatCalculator.check_counterattack(
+	# Roll for counter using class rate (with range band support)
+	var counter_result: Dictionary = CombatCalculator.check_counterattack_with_range_band(
 		original_defender.stats,
-		defender_range,
+		defender_min_range,
+		defender_max_range,
 		attack_distance,
 		true  # Assume alive (we check this in _build_combat_sequence)
 	)
@@ -984,7 +987,24 @@ func _check_double_attack(attacker: Node2D) -> bool:
 
 
 ## Get weapon range for a unit (default 1 for melee)
+## DEPRECATED: Use _get_unit_weapon_min_range() and _get_unit_weapon_max_range()
 func _get_unit_weapon_range(unit: Node2D) -> int:
+	return _get_unit_weapon_max_range(unit)
+
+
+## Get weapon minimum attack range for a unit (1 for melee, 2+ for ranged with dead zone)
+func _get_unit_weapon_min_range(unit: Node2D) -> int:
+	if unit.stats and unit.stats.cached_weapon:
+		return unit.stats.get_weapon_min_range()
+	if "weapon_min_range" in unit:
+		return unit.weapon_min_range
+	return 1
+
+
+## Get weapon maximum attack range for a unit (default 1 for melee)
+func _get_unit_weapon_max_range(unit: Node2D) -> int:
+	if unit.stats and unit.stats.cached_weapon:
+		return unit.stats.get_weapon_max_range()
 	if "weapon_range" in unit:
 		return unit.weapon_range
 	if unit.has_method("get_weapon_range"):

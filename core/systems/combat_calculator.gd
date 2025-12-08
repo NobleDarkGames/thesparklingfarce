@@ -187,6 +187,7 @@ static func calculate_counter_damage(
 
 ## Check if unit can counterattack based on weapon range
 ## In Shining Force, you can only counter if your weapon range matches
+## DEPRECATED: Use can_counterattack_with_range_band() for weapons with dead zones
 ## Returns: true if counter is possible
 static func can_counterattack(
 	defender_weapon_range: int,
@@ -196,12 +197,34 @@ static func can_counterattack(
 	return defender_weapon_range >= attack_distance
 
 
+## Check if unit can counterattack based on weapon min/max range
+## Supports dead zones: a bow (min=2, max=3) CANNOT counter at distance 1
+## Returns: true if counter is possible within the weapon's range band
+static func can_counterattack_with_range_band(
+	defender_min_range: int,
+	defender_max_range: int,
+	attack_distance: int
+) -> bool:
+	# Can only counter if attacker is within defender's weapon range band
+	# This properly handles dead zones - a bow cannot counter adjacent attackers
+	return attack_distance >= defender_min_range and attack_distance <= defender_max_range
+
+
 ## Check if attacker can reach target with their weapon
 ## Uses the cached weapon range from UnitStats
+## DEPRECATED: Use can_attack_at_range_band() for weapons with dead zones
 static func can_attack_at_range(attacker_stats: UnitStats, distance: int) -> bool:
 	if not attacker_stats:
 		return false
 	return attacker_stats.get_weapon_range() >= distance
+
+
+## Check if attacker can reach target within their weapon's range band
+## Supports dead zones: a bow (min=2, max=3) returns false for distance=1
+static func can_attack_at_range_band(attacker_stats: UnitStats, distance: int) -> bool:
+	if not attacker_stats:
+		return false
+	return attacker_stats.can_attack_at_distance(distance)
 
 
 ## Calculate counter chance based on defender's class
@@ -229,10 +252,31 @@ static func roll_counter(counter_chance: int) -> bool:
 
 
 ## Full counterattack check - combines range check and roll
+## DEPRECATED: Use check_counterattack_with_range_band() for weapons with dead zones
 ## Returns: Dictionary with {can_counter: bool, will_counter: bool, chance: int}
 static func check_counterattack(
 	defender_stats: UnitStats,
 	defender_weapon_range: int,
+	attack_distance: int,
+	defender_is_alive: bool
+) -> Dictionary:
+	# Delegate to range band version with min_range=1 for backwards compatibility
+	return check_counterattack_with_range_band(
+		defender_stats,
+		1,  # min_range defaults to 1 (melee)
+		defender_weapon_range,
+		attack_distance,
+		defender_is_alive
+	)
+
+
+## Full counterattack check with range band support - combines range check and roll
+## Properly handles dead zones: a bow (min=2, max=3) CANNOT counter at distance 1
+## Returns: Dictionary with {can_counter: bool, will_counter: bool, chance: int}
+static func check_counterattack_with_range_band(
+	defender_stats: UnitStats,
+	defender_min_range: int,
+	defender_max_range: int,
 	attack_distance: int,
 	defender_is_alive: bool
 ) -> Dictionary:
@@ -246,8 +290,8 @@ static func check_counterattack(
 	if not defender_is_alive:
 		return result
 
-	# Check range requirement
-	if not can_counterattack(defender_weapon_range, attack_distance):
+	# Check range requirement using range band (supports dead zones)
+	if not can_counterattack_with_range_band(defender_min_range, defender_max_range, attack_distance):
 		return result
 
 	# Calculate and store chance

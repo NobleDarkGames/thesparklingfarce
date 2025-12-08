@@ -57,6 +57,26 @@ var copy_to_mod_button: Button
 var create_override_button: Button
 var mod_workflow_container: HBoxContainer
 
+# =============================================================================
+# DEPENDENCY TRACKING
+# =============================================================================
+
+## Resource types this editor depends on for caches/dropdowns.
+## When resources of these types are created, saved, or deleted in other tabs,
+## the _on_dependencies_changed() method is called automatically.
+##
+## Example usage in child class:
+##   func _ready() -> void:
+##       resource_dependencies = ["item", "npc"]  # Set BEFORE super._ready()
+##       super._ready()
+##
+##   func _on_dependencies_changed(changed_type: String) -> void:
+##       _refresh_my_caches()
+var resource_dependencies: Array[String] = []
+
+# Track if we've connected to EditorEventBus (prevent double-connection)
+var _dependencies_connected: bool = false
+
 
 func _ready() -> void:
 	# Get the EditorUndoRedoManager from EditorInterface
@@ -65,6 +85,9 @@ func _ready() -> void:
 	_setup_base_ui()
 	_create_detail_form()
 	_refresh_list()
+
+	# Auto-subscribe to EditorEventBus for declared dependencies
+	_setup_dependency_tracking()
 
 
 func _input(event: InputEvent) -> void:
@@ -285,6 +308,66 @@ func _setup_base_ui() -> void:
 ## Override this if you need custom refresh behavior
 func refresh() -> void:
 	_refresh_list()
+
+
+# =============================================================================
+# DEPENDENCY TRACKING SYSTEM
+# =============================================================================
+
+## Set up automatic EditorEventBus subscriptions for declared dependencies.
+## Called automatically at end of _ready(). Only subscribes if resource_dependencies
+## has entries and we haven't already connected.
+func _setup_dependency_tracking() -> void:
+	if resource_dependencies.is_empty():
+		return
+
+	if _dependencies_connected:
+		return
+
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if not event_bus:
+		return
+
+	# Connect to all three resource change signals
+	if not event_bus.resource_saved.is_connected(_on_dependency_resource_changed):
+		event_bus.resource_saved.connect(_on_dependency_resource_changed)
+	if not event_bus.resource_created.is_connected(_on_dependency_resource_changed):
+		event_bus.resource_created.connect(_on_dependency_resource_changed)
+	if not event_bus.resource_deleted.is_connected(_on_dependency_resource_deleted):
+		event_bus.resource_deleted.connect(_on_dependency_resource_deleted)
+
+	_dependencies_connected = true
+
+
+## Internal handler for resource saved/created events.
+## Checks if the changed resource type is in our dependencies list.
+func _on_dependency_resource_changed(res_type: String, _res_id: String, _resource: Resource) -> void:
+	if res_type in resource_dependencies:
+		_on_dependencies_changed(res_type)
+
+
+## Internal handler for resource deleted events.
+## Checks if the deleted resource type is in our dependencies list.
+func _on_dependency_resource_deleted(res_type: String, _res_id: String) -> void:
+	if res_type in resource_dependencies:
+		_on_dependencies_changed(res_type)
+
+
+## Called when a dependent resource type changes (created, saved, or deleted).
+## Override this in child classes to refresh caches, repopulate dropdowns, etc.
+##
+## @param changed_type: The resource type that changed (e.g., "item", "npc", "character")
+##
+## Example implementation:
+##   func _on_dependencies_changed(changed_type: String) -> void:
+##       if changed_type == "item":
+##           _items_cache = ModLoader.registry.get_all_resources("item")
+##       elif changed_type == "npc":
+##           _npcs_cache = ModLoader.registry.get_all_resources("npc")
+##           _populate_npc_picker()
+func _on_dependencies_changed(_changed_type: String) -> void:
+	# Default implementation does nothing - child classes override this
+	pass
 
 
 func _refresh_list() -> void:
