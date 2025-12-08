@@ -43,7 +43,7 @@ GameJuice="*res://core/systems/game_juice.gd"
 CaravanController="*res://core/systems/caravan_controller.gd"
 EditorEventBus="*res://addons/sparkling_editor/editor_event_bus.gd"
 DebugConsole="*res://core/systems/debug_console.tscn"
-ShopInterface="*res://scenes/ui/shops/shop_interface.tscn"
+ShopController="*res://scenes/ui/shops/shop_controller.tscn"
 
 [debug]
 

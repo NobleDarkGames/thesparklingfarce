@@ -1,0 +1,109 @@
+[gd_scene load_steps=4 format=3 uid="uid://c5rv0ufxhbq7y"]
+
+[ext_resource type="Script" path="res://scenes/ui/shops/shop_controller.gd" id="1_shop_ctrl"]
+[ext_resource type="Script" path="res://scenes/ui/shops/components/queue_panel.gd" id="2_queue_panel"]
+[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="3_theme"]
+
+[node name="ShopController" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_shop_ctrl")
+
+[node name="ShopPanel" type="PanelContainer" parent="."]
+theme = ExtResource("3_theme")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="ShopPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ShopPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ShopNameLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SHOP NAME"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ShopPanel/MarginContainer/VBoxContainer/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GoldLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "GOLD: 0G"
+horizontal_alignment = 2
+
+[node name="HSeparator" type="HSeparator" parent="ShopPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ContentArea" type="HBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="ScreenContainer" type="Control" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
+
+[node name="QueuePanel" type="PanelContainer" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+script = ExtResource("2_queue_panel")
+
+[node name="QueueContent" type="VBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea/QueuePanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="QueueHeader" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea/QueuePanel/QueueContent"]
+layout_mode = 2
+text = "ORDER QUEUE"
+horizontal_alignment = 1
+
+[node name="QueueItems" type="VBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea/QueuePanel/QueueContent"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="QueueSeparator" type="HSeparator" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea/QueuePanel/QueueContent"]
+layout_mode = 2
+
+[node name="QueueTotalLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea/QueuePanel/QueueContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "TOTAL: 0G"
+
+[node name="QueueAfterLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/ContentArea/QueuePanel/QueueContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "AFTER: 0G"
+
+[node name="InputBlocker" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.3)

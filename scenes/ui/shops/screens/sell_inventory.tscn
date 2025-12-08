@@ -1,0 +1,112 @@
+[gd_scene load_steps=2 format=3 uid="uid://cvxrp8k2m0qjy"]
+
+[ext_resource type="Script" path="res://scenes/ui/shops/screens/sell_inventory.gd" id="1_sell_inv"]
+
+[node name="SellInventory" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sell_inv")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="LeftColumn" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+theme_override_constants/separation = 8
+
+[node name="HeaderLabel" type="Label" parent="HBoxContainer/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "MAX'S ITEMS"
+
+[node name="ItemScroll" type="ScrollContainer" parent="HBoxContainer/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemList" type="VBoxContainer" parent="HBoxContainer/LeftColumn/ItemScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="RightColumn" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.5
+theme_override_constants/separation = 8
+
+[node name="DetailsPanel" type="PanelContainer" parent="HBoxContainer/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="HBoxContainer/RightColumn/DetailsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ItemNameLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "HEALING HERB"
+
+[node name="Spacer" type="Control" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemPriceLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.5, 0.8, 0.2, 1)
+text = "+10G"
+horizontal_alignment = 2
+
+[node name="ButtonsPanel" type="VBoxContainer" parent="HBoxContainer/RightColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "ADD TO SELL"
+
+[node name="ConfirmButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "CONFIRM SALE"
+
+[node name="BackButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+text = "BACK"

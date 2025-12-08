@@ -160,8 +160,18 @@ func register_mod_tab(mod_id: String, ext_id: String, config: Dictionary, mod_di
 		push_warning("EditorTabRegistry: Mod '%s' tab '%s' missing editor_scene" % [mod_id, ext_id])
 		return
 
+	# Security: Validate path doesn't attempt directory traversal
+	if ".." in scene_path or scene_path.begins_with("/"):
+		push_warning("EditorTabRegistry: Mod '%s' tab '%s' has invalid path (traversal attempt blocked)" % [mod_id, ext_id])
+		return
+
 	# Resolve full path
 	var full_path: String = mod_directory.path_join(scene_path)
+
+	# Security: Verify resolved path is still under mod_directory
+	if not full_path.begins_with(mod_directory):
+		push_warning("EditorTabRegistry: Mod '%s' tab '%s' path escapes mod directory (blocked)" % [mod_id, ext_id])
+		return
 
 	if not ResourceLoader.exists(full_path):
 		push_warning("EditorTabRegistry: Mod '%s' tab '%s' scene not found: %s" % [mod_id, ext_id, full_path])
@@ -245,13 +255,17 @@ func set_instance(tab_id: String, instance: Control) -> void:
 
 
 ## Get a tab's Control instance
+## Returns null if the tab doesn't exist or has been freed
 func get_instance(tab_id: String) -> Control:
-	return _instances.get(tab_id, null)
+	if tab_id in _instances and is_instance_valid(_instances[tab_id]):
+		return _instances[tab_id]
+	return null
 
 
-## Check if a tab has been instantiated
+## Check if a tab has been instantiated and is still valid
+## Uses is_instance_valid() to properly detect freed nodes
 func has_instance(tab_id: String) -> bool:
-	return tab_id in _instances and _instances[tab_id] != null
+	return tab_id in _instances and is_instance_valid(_instances[tab_id])
 
 
 # =============================================================================
@@ -334,11 +348,19 @@ func refresh_all() -> void:
 
 ## Refresh a specific tab
 func refresh_tab(tab_id: String) -> void:
+	if tab_id not in _tabs:
+		# Tab unregistered, clean up stale instance if present
+		if tab_id in _instances:
+			_instances.erase(tab_id)
+		return
+
 	if tab_id not in _instances:
 		return
 
 	var instance: Control = _instances[tab_id]
-	if not instance:
+	if not is_instance_valid(instance):
+		# Instance was freed, clean up the stale reference
+		_instances.erase(tab_id)
 		return
 
 	var tab_info: Dictionary = _tabs.get(tab_id, {})

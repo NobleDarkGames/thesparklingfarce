@@ -780,6 +780,10 @@ func _execute_debug_command(command: String, args: Array) -> void:
 			_cmd_debug_create_test_save(args)
 		"save_info":
 			_cmd_debug_save_info(args)
+		"shop":
+			_cmd_debug_shop(args)
+		"list_shops":
+			_cmd_debug_list_shops(args)
 		_:
 			_print_error("Unknown debug command: %s" % command)
 
@@ -856,6 +860,48 @@ func _cmd_debug_save_info(args: Array) -> void:
 	_print_line("  Version: %s" % save.game_version)
 
 
+func _cmd_debug_shop(args: Array) -> void:
+	if args.is_empty():
+		_print_error("Usage: debug.shop <shop_id>")
+		_print_info("Use debug.list_shops to see available shops")
+		return
+
+	var shop_id: String = str(args[0])
+
+	# Look up shop in registry
+	var shop_data: ShopData = ModLoader.registry.get_resource("shop", shop_id) as ShopData
+	if not shop_data:
+		_print_error("Shop not found: %s" % shop_id)
+		_print_info("Use debug.list_shops to see available shops")
+		return
+
+	# Ensure we have a save
+	if not SaveManager.has_current_save():
+		_print_info("No active save - creating test save first...")
+		_cmd_debug_create_test_save([])
+
+	# Close console before opening shop
+	_close_console()
+
+	# Open the shop via ShopManager
+	ShopManager.open_shop(shop_data, SaveManager.current_save)
+	_print_success("Opened shop: %s" % shop_data.shop_name)
+
+
+func _cmd_debug_list_shops(args: Array) -> void:
+	var shops: Array[Resource] = ModLoader.registry.get_all_resources("shop")
+	if shops.is_empty():
+		_print_info("No shops registered")
+		return
+
+	_print_info("=== Available Shops (%d) ===" % shops.size())
+	for res: Resource in shops:
+		var shop: ShopData = res as ShopData
+		if shop:
+			var type_str: String = ShopData.ShopType.keys()[shop.shop_type]
+			_print_line("  %s - %s [%s]" % [shop.shop_id, shop.shop_name, type_str])
+
+
 # =============================================================================
 # HELP SYSTEM
 # =============================================================================
@@ -902,6 +948,8 @@ func _print_help() -> void:
 	_print_line("  debug.scene <path>            - Change to scene")
 	_print_line("  debug.create_test_save        - Create temp save for testing")
 	_print_line("  debug.save_info               - Show active save info")
+	_print_line("  debug.shop <shop_id>          - Open a shop for testing")
+	_print_line("  debug.list_shops              - List available shops")
 	_print_line("")
 
 	_print_line("%s--- General ---%s" % [COLOR_INFO, COLOR_END])

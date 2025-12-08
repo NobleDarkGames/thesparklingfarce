@@ -253,12 +253,19 @@ static func get_resource_display_name_with_mod(resource: Resource, name_property
 	if not resource:
 		return "(Unknown)"
 
-	# Get the name from the resource
+	# Get the name from the resource with proper null handling
+	# Note: str(null) returns "Null" which would display incorrectly to users
 	var display_name: String = ""
-	if resource.has_method("get") and name_property in resource:
-		display_name = str(resource.get(name_property))
+	var raw_value: Variant = resource.get(name_property) if name_property in resource else null
+
+	if raw_value != null and str(raw_value).strip_edges() != "":
+		display_name = str(raw_value)
 	elif "resource_name" in resource:
-		display_name = str(resource.get("resource_name"))
+		var resource_name_value: Variant = resource.get("resource_name")
+		if resource_name_value != null and str(resource_name_value).strip_edges() != "":
+			display_name = str(resource_name_value)
+		else:
+			display_name = resource.resource_path.get_file().get_basename()
 	else:
 		display_name = resource.resource_path.get_file().get_basename()
 

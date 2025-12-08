@@ -1,0 +1,159 @@
+[gd_scene load_steps=2 format=3 uid="uid://c3lk7p5uvy0xq"]
+
+[ext_resource type="Script" path="res://scenes/ui/shops/screens/item_browser.gd" id="1_item_browser"]
+
+[node name="ItemBrowser" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_item_browser")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="LeftColumn" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+theme_override_constants/separation = 8
+
+[node name="ItemListLabel" type="Label" parent="HBoxContainer/LeftColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "ITEMS"
+
+[node name="ItemScroll" type="ScrollContainer" parent="HBoxContainer/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemList" type="VBoxContainer" parent="HBoxContainer/LeftColumn/ItemScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="RightColumn" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.5
+theme_override_constants/separation = 8
+
+[node name="DetailsPanel" type="PanelContainer" parent="HBoxContainer/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DetailsContent" type="VBoxContainer" parent="HBoxContainer/RightColumn/DetailsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MarginContainer" type="MarginContainer" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ItemNameLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "ITEM NAME"
+
+[node name="ItemDescLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Item description goes here"
+autowrap_mode = 2
+
+[node name="ItemStatsLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "AT: 10"
+
+[node name="Spacer" type="Control" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent/MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemPriceLabel" type="Label" parent="HBoxContainer/RightColumn/DetailsPanel/DetailsContent/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "100G"
+horizontal_alignment = 2
+
+[node name="QuantityPanel" type="HBoxContainer" parent="HBoxContainer/RightColumn"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QuantityLabel" type="Label" parent="HBoxContainer/RightColumn/QuantityPanel"]
+layout_mode = 2
+text = "Qty:"
+
+[node name="QuantitySpinbox" type="SpinBox" parent="HBoxContainer/RightColumn/QuantityPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 99.0
+value = 1.0
+
+[node name="QuantityCostLabel" type="Label" parent="HBoxContainer/RightColumn/QuantityPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "= 100G"
+horizontal_alignment = 2
+
+[node name="ButtonsPanel" type="VBoxContainer" parent="HBoxContainer/RightColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BuyButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "BUY - 100G"
+
+[node name="AddToQueueButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "ADD TO QUEUE"
+
+[node name="ProceedButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "PROCEED TO PLACEMENT"
+
+[node name="BackButton" type="Button" parent="HBoxContainer/RightColumn/ButtonsPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 2
+text = "BACK"

@@ -40,6 +40,37 @@ signal depot_cleared()
 ## Can be overridden by mods via caravan_config in mod.json
 var capacity_limit: int = -1
 
+
+# ============================================================================
+# CARAVAN AVAILABILITY
+# ============================================================================
+
+## Check if player has access to Caravan storage
+## This is based on campaign unlock status, NOT current map location.
+## The Caravan is accessible from shops whenever it's unlocked, regardless
+## of whether it's visible on the current map.
+func is_caravan_available() -> bool:
+	# Check if caravan is unlocked in the campaign
+	if GameState:
+		return GameState.has_flag("caravan_unlocked")
+	# Fallback: assume available if no GameState
+	return true
+
+
+## Caravan has no capacity limit (when available)
+## Per Captain's Rule #3: "Caravan storage is infinite"
+func can_store_in_caravan(_item_id: String = "", _quantity: int = 1) -> bool:
+	if not is_caravan_available():
+		return false
+	return true  # Infinite storage
+
+
+## Get remaining caravan space (always effectively infinite)
+func get_caravan_space_remaining() -> int:
+	if not is_caravan_available():
+		return 0
+	return 999999  # Effectively infinite
+
 # ============================================================================
 # RUNTIME STATE
 # ============================================================================

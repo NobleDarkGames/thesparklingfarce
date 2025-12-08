@@ -143,9 +143,12 @@ func _update_content_visibility() -> void:
 func add_content_child(node: Node) -> void:
 	if _content_container:
 		_content_container.add_child(node)
-	else:
-		# Fallback if called before _ready
+	elif is_inside_tree():
+		# Fallback if called before _ready but we're still in tree
 		call_deferred("add_content_child", node)
+	else:
+		# Node removed from tree before initialization - can't add child safely
+		push_warning("CollapseSection: Cannot add child '%s' - section not in tree and not initialized" % node.name)
 
 
 ## Remove a child from the content container

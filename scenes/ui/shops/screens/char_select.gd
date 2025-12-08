@@ -1,0 +1,168 @@
+extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
+
+## CharSelect - "Who equips this?" screen for equipment purchases
+
+## Colors matching project standards
+const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
+##
+## Shows party members who can equip the selected item, plus a Caravan option.
+## Selecting a character proceeds to confirm_transaction screen.
+
+var selected_destination: String = ""
+var _selected_button: Button = null
+var character_buttons: Array[Button] = []
+
+var _selected_style: StyleBoxFlat
+
+@onready var header_label: Label = %HeaderLabel
+@onready var item_label: Label = %ItemLabel
+@onready var price_label: Label = %PriceLabel
+@onready var character_grid: GridContainer = %CharacterGrid
+@onready var caravan_button: Button = %CaravanButton
+@onready var confirm_button: Button = %ConfirmButton
+@onready var back_button: Button = %BackButton
+@onready var stat_comparison_panel: PanelContainer = %StatComparisonPanel
+@onready var stat_comparison_label: Label = %StatComparisonLabel
+
+
+func _on_initialized() -> void:
+	_create_styles()
+
+	# Set up header info
+	var item_data: ItemData = get_item_data(context.selected_item_id)
+	if item_data:
+		item_label.text = item_data.item_name.to_upper()
+	else:
+		item_label.text = context.selected_item_id
+
+	var price: int = context.get_buy_price(context.selected_item_id)
+	price_label.text = "%dG" % price
+
+	_populate_character_grid()
+	_setup_caravan_button()
+
+	confirm_button.pressed.connect(_on_confirm_pressed)
+	back_button.pressed.connect(_on_back_pressed)
+
+	confirm_button.disabled = true
+
+	# Grab focus on first character button or caravan
+	await get_tree().process_frame
+	if character_buttons.size() > 0:
+		character_buttons[0].grab_focus()
+	elif caravan_button.visible:
+		caravan_button.grab_focus()
+
+
+func _create_styles() -> void:
+	_selected_style = StyleBoxFlat.new()
+	_selected_style.bg_color = Color(0.3, 0.5, 0.8, 1.0)
+	_selected_style.set_corner_radius_all(2)
+
+
+func _populate_character_grid() -> void:
+	# Clear existing
+	for child in character_grid.get_children():
+		child.queue_free()
+	character_buttons.clear()
+
+	if not PartyManager:
+		return
+
+	# Get characters who can equip this item
+	var eligible: Array[Dictionary] = ShopManager.get_characters_who_can_equip(context.selected_item_id)
+
+	for entry: Dictionary in eligible:
+		var button: Button = _create_character_button(entry)
+		character_grid.add_child(button)
+		character_buttons.append(button)
+
+		var uid: String = entry.character_uid
+		button.pressed.connect(_on_character_selected.bind(uid, button))
+
+	# If no characters can equip, show a message
+	if eligible.is_empty():
+		var label: Label = Label.new()
+		label.text = "No one can equip this item!"
+		label.add_theme_color_override("font_color", COLOR_DISABLED)
+		character_grid.add_child(label)
+
+
+func _create_character_button(entry: Dictionary) -> Button:
+	var button: Button = Button.new()
+	button.custom_minimum_size = Vector2(120, 40)
+	button.focus_mode = Control.FOCUS_ALL
+
+	var character: CharacterData = entry.character_data as CharacterData
+	if character:
+		button.text = character.character_name
+	else:
+		button.text = entry.character_name
+
+	return button
+
+
+func _setup_caravan_button() -> void:
+	# Caravan is always available for equipment storage if shop allows it
+	caravan_button.visible = context.can_store_to_caravan() and StorageManager.is_caravan_available()
+	if caravan_button.visible:
+		caravan_button.pressed.connect(_on_caravan_selected)
+
+
+func _on_character_selected(character_uid: String, button: Button) -> void:
+	_select_destination(character_uid, button)
+	_update_stat_comparison(character_uid)
+
+
+func _on_caravan_selected() -> void:
+	_select_destination("caravan", caravan_button)
+	stat_comparison_panel.hide()
+
+
+func _select_destination(destination: String, button: Button) -> void:
+	# Clear previous selection
+	if _selected_button:
+		_selected_button.remove_theme_stylebox_override("normal")
+
+	selected_destination = destination
+	_selected_button = button
+
+	button.add_theme_stylebox_override("normal", _selected_style)
+
+	# Enable confirm button
+	confirm_button.disabled = false
+
+	# Update context
+	context.selected_destination = destination
+
+
+func _update_stat_comparison(character_uid: String) -> void:
+	var comparison: Dictionary = ShopManager.get_stat_comparison(character_uid, context.selected_item_id)
+
+	if comparison.is_empty():
+		stat_comparison_panel.hide()
+		return
+
+	stat_comparison_panel.show()
+
+	var lines: Array[String] = []
+	for stat: String in comparison:
+		var diff: int = comparison[stat]
+		var prefix: String = "+" if diff > 0 else ""
+		var color: String = "green" if diff > 0 else ("red" if diff < 0 else "white")
+		lines.append("[color=%s]%s: %s%d[/color]" % [color, stat.to_upper(), prefix, diff])
+
+	stat_comparison_label.text = "\n".join(lines)
+
+
+func _on_confirm_pressed() -> void:
+	if selected_destination.is_empty():
+		return
+
+	# Store destination in context and proceed to confirmation
+	context.selected_destination = selected_destination
+	push_screen("confirm_transaction")
+
+
+func _on_back_pressed() -> void:
+	go_back()
