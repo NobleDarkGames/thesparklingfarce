@@ -663,12 +663,59 @@ var char: CharacterData = ModLoader.registry.get_resource("character", "max")
 var char = load("res://mods/_base_game/data/characters/max.tres")
 ```
 
+### Modal UI Input Blocking (CRITICAL)
+
+When creating modal UI (shops, dialogs, menus), you MUST prevent input from reaching game controls. Godot's `_unhandled_input()` does NOT block `Input.is_action_pressed()` polling.
+
+**The Pattern:**
+
+1. **Expose modal state on manager:**
+```gdscript
+# In your manager autoload
+func is_X_active() -> bool:
+    return _is_modal_open
+```
+
+2. **Add check to ExplorationUIController:**
+```gdscript
+# core/components/exploration_ui_controller.gd - is_blocking_input()
+if MyManager and MyManager.is_X_active():
+    return true
+```
+
+3. **Add fallback to HeroController (defense-in-depth):**
+```gdscript
+# scenes/map_exploration/hero_controller.gd - _is_modal_ui_active()
+if MyManager and MyManager.is_X_active():
+    return true
+```
+
+4. **Add check to DebugConsole:**
+```gdscript
+# core/systems/debug_console.gd - _is_other_modal_active()
+if MyManager and MyManager.is_X_active():
+    return true
+```
+
+**Existing modal checks (already implemented):**
+- `DebugConsole.is_open`
+- `ShopManager.is_shop_open()`
+- `DialogManager.is_dialog_active()`
+- `ExplorationUIController.current_state != EXPLORING`
+
+**Why this is necessary:**
+- HeroController uses `Input.is_action_pressed()` polling in `_physics_process()`
+- Polling bypasses Godot's event system entirely
+- `set_input_as_handled()` only affects event propagation, not polling
+- Modal UIs must register with the central blocking check
+
 ### Common Mistakes
 - Putting content in `core/` instead of `mods/`
 - Hardcoding resource paths instead of using registry
 - Using `dict.has()` instead of `"key" in dict`
 - Using walrus operator (`:=`)
 - Missing explicit types
+- **Creating modal UI without adding to input blocking checks**
 
 ---
 
