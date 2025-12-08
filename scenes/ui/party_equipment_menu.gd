@@ -167,6 +167,9 @@ func _build_ui() -> void:
 	# Connect inventory panel signals
 	_inventory_panel.slot_clicked.connect(_on_inventory_slot_clicked)
 	_inventory_panel.equipment_changed.connect(_on_equipment_changed)
+	_inventory_panel.item_use_requested.connect(_on_item_use_requested)
+	_inventory_panel.item_give_requested.connect(_on_item_give_requested)
+	_inventory_panel.item_dropped.connect(_on_item_dropped)
 
 	# Actions panel
 	_actions_panel = VBoxContainer.new()
@@ -429,6 +432,92 @@ func _on_depot_pressed() -> void:
 func _on_close_pressed() -> void:
 	close_requested.emit()
 	AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
+
+
+func _on_item_use_requested(item_id: String, _inventory_index: int) -> void:
+	# Handle USE action - apply consumable effect to target
+	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	if not item_data:
+		_footer_label.text = "Unknown item!"
+		return
+
+	if not item_data.is_usable_on_field():
+		_footer_label.text = "Cannot use this item here!"
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	# For now, apply to current character (Phase 2 will add target selection)
+	# TODO: Implement proper party target selection
+	var save_data: CharacterSaveData = _party_save_data[_current_index]
+	var result: Dictionary = _apply_item_effect(item_data, save_data)
+
+	if result.success:
+		# Remove item from inventory
+		save_data.remove_item_from_inventory(item_id)
+		_footer_label.text = result.message
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+		_inventory_panel.refresh()
+	else:
+		_footer_label.text = result.message
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+
+
+func _apply_item_effect(item: ItemData, target: CharacterSaveData) -> Dictionary:
+	## Apply consumable item effect to a character
+	## Returns {success: bool, message: String}
+	if not item.effect:
+		return {"success": false, "message": "Item has no effect!"}
+
+	var ability: AbilityData = item.effect as AbilityData
+	if not ability:
+		return {"success": false, "message": "Invalid item effect!"}
+
+	match ability.ability_type:
+		AbilityData.AbilityType.HEAL:
+			# Healing item
+			if target.current_hp >= target.max_hp:
+				return {"success": false, "message": "%s is already at full HP!" % _get_character_name(target)}
+
+			var heal_amount: int = ability.power
+			var old_hp: int = target.current_hp
+			target.current_hp = mini(target.current_hp + heal_amount, target.max_hp)
+			var actual_heal: int = target.current_hp - old_hp
+			return {"success": true, "message": "%s recovered %d HP!" % [_get_character_name(target), actual_heal]}
+
+		AbilityData.AbilityType.SUPPORT:
+			# Buff/support effect - just apply for now
+			return {"success": true, "message": "Used on %s!" % _get_character_name(target)}
+
+		_:
+			return {"success": false, "message": "Cannot use this item on allies!"}
+
+
+func _get_character_name(save_data: CharacterSaveData) -> String:
+	## Get display name for a character
+	for i in range(_party_save_data.size()):
+		if _party_save_data[i] == save_data:
+			return _party_character_data[i].character_name
+	return save_data.fallback_character_name
+
+
+func _on_item_give_requested(item_id: String, _inventory_index: int) -> void:
+	# Handle GIVE action - same as pressing Give button
+	if _party_save_data.size() < 2:
+		_footer_label.text = "No other party members!"
+		return
+
+	_transfer_item_id = item_id
+	_enter_transfer_mode(item_id)
+
+
+func _on_item_dropped(item_id: String) -> void:
+	# Handle item dropped notification
+	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_name: String = item_data.item_name if item_data else item_id
+	_footer_label.text = "Dropped %s" % item_name
+	# Disable action buttons since no item is selected
+	_give_button.disabled = true
+	_depot_store_button.disabled = true
 
 
 # =============================================================================

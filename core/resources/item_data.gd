@@ -49,8 +49,21 @@ enum ItemType {
 @export_group("Weapon Properties")
 ## For weapons: attack power
 @export var attack_power: int = 0
-## For weapons: attack range (1 for melee, higher for ranged)
-@export var attack_range: int = 1
+## For weapons: minimum attack range (1 for melee, 2+ for bows with dead zone)
+## A bow with min_attack_range=2 CANNOT hit adjacent enemies (dead zone)
+@export var min_attack_range: int = 1
+## For weapons: maximum attack range (1 for melee, higher for ranged)
+@export var max_attack_range: int = 1
+## DEPRECATED: Legacy single attack range property, kept for backwards compatibility
+## New code should use min_attack_range and max_attack_range instead
+## Returns max_attack_range for compatibility with old code
+@export var attack_range: int = 1:
+	get:
+		return max_attack_range
+	set(value):
+		# When old code sets attack_range, update max_attack_range
+		# and keep min_attack_range at 1 (melee default) unless already set
+		max_attack_range = value
 ## Weapon hit rate bonus (percentage)
 @export_range(0, 100) var hit_rate: int = 90
 ## Critical hit rate (percentage)
@@ -68,6 +81,15 @@ enum ItemType {
 
 @export_group("Description")
 @export_multiline var description: String = ""
+
+@export_group("Item Management")
+## Whether this item can be dropped/discarded by the player
+## Set to false for plot-critical or special items
+@export var can_be_dropped: bool = true
+
+## Whether to show confirmation dialog when dropping
+## Defaults to true for safety; set false for common consumables if desired
+@export var confirm_on_drop: bool = true
 
 
 ## Get stat modifier by name
@@ -91,9 +113,19 @@ func is_equippable() -> bool:
 	return item_type == ItemType.WEAPON or item_type == ItemType.ARMOR or item_type == ItemType.ACCESSORY
 
 
-## Check if item is usable
+## Check if item is usable (in any context)
 func is_usable() -> bool:
 	return item_type == ItemType.CONSUMABLE and (usable_in_battle or usable_on_field)
+
+
+## Check if item is usable on the field (exploration mode)
+func is_usable_on_field() -> bool:
+	return item_type == ItemType.CONSUMABLE and usable_on_field
+
+
+## Check if item is usable in battle
+func is_usable_in_battle() -> bool:
+	return item_type == ItemType.CONSUMABLE and usable_in_battle
 
 
 ## Validate that required fields are set
@@ -119,6 +151,27 @@ func can_uncurse_with(uncurse_item_id: String) -> bool:
 ## Check if this item's curse can only be removed by church service
 func requires_church_uncurse() -> bool:
 	return is_cursed and uncurse_items.is_empty()
+
+
+## Check if a given distance is within this weapon's attack range
+## Uses min_attack_range and max_attack_range to support dead zones
+## Example: Bow with min=2, max=3 returns false for distance=1
+func is_distance_in_range(distance: int) -> bool:
+	return distance >= min_attack_range and distance <= max_attack_range
+
+
+## Get formatted range string for UI display
+## Returns "1" for melee, "2-4" for ranged with min/max
+func get_range_display() -> String:
+	if min_attack_range == max_attack_range:
+		return str(max_attack_range)
+	return "%d-%d" % [min_attack_range, max_attack_range]
+
+
+## Check if this weapon has a dead zone (cannot hit adjacent enemies)
+## Returns true if min_attack_range > 1
+func has_dead_zone() -> bool:
+	return min_attack_range > 1
 
 
 ## Get valid slots this item can be equipped to

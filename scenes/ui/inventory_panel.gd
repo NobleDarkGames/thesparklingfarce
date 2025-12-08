@@ -27,6 +27,18 @@ signal operation_failed(message: String)
 ## Emitted when a cursed item interaction is attempted
 signal cursed_item_blocked(slot_id: String, item_id: String)
 
+## Emitted when user wants to use an item (parent handles target selection)
+signal item_use_requested(item_id: String, inventory_index: int)
+
+## Emitted when user wants to give an item to another character
+signal item_give_requested(item_id: String, inventory_index: int)
+
+## Emitted when an item is dropped/discarded
+signal item_dropped(item_id: String)
+
+## Emitted when item action menu state changes (for input blocking)
+signal action_menu_state_changed(is_open: bool)
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -74,11 +86,15 @@ var _equipment_slots: Dictionary = {}
 var _inventory_slots: Array[ItemSlot] = []
 
 ## Interaction state
-enum InteractionMode { NONE, SELECTING_EQUIP_TARGET }
+enum InteractionMode { NONE, SELECTING_EQUIP_TARGET, SHOWING_ACTION_MENU, CONFIRMING_DROP }
 var _interaction_mode: InteractionMode = InteractionMode.NONE
 var _pending_inventory_index: int = -1
 var _pending_item_id: String = ""
 var _valid_target_slots: Array[String] = []
+
+## Sub-component references
+var _item_action_menu: ItemActionMenu = null
+var _confirmation_dialog: SFConfirmationDialog = null
 
 ## UI References (built dynamically)
 var _name_label: Label = null
@@ -96,6 +112,7 @@ var _instruction_label: Label = null
 
 func _ready() -> void:
 	_build_ui()
+	_create_sub_components()
 
 
 func _build_ui() -> void:
@@ -222,6 +239,20 @@ func _build_ui() -> void:
 	_description_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_description_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_description_panel.add_child(_description_label)
+
+
+func _create_sub_components() -> void:
+	# Create ItemActionMenu
+	_item_action_menu = ItemActionMenu.new()
+	_item_action_menu.name = "ItemActionMenu"
+	_item_action_menu.action_selected.connect(_on_action_menu_action_selected)
+	_item_action_menu.menu_cancelled.connect(_on_action_menu_cancelled)
+	add_child(_item_action_menu)
+
+	# Create SFConfirmationDialog
+	_confirmation_dialog = SFConfirmationDialog.new()
+	_confirmation_dialog.name = "SFConfirmationDialog"
+	add_child(_confirmation_dialog)
 
 
 # =============================================================================
@@ -453,6 +484,14 @@ func _on_inventory_slot_clicked(item_id: String, index: int) -> void:
 	if not _save_data:
 		return
 
+	# If action menu is showing, ignore other clicks (it handles its own input)
+	if _interaction_mode == InteractionMode.SHOWING_ACTION_MENU:
+		return
+
+	# If confirming drop, ignore clicks
+	if _interaction_mode == InteractionMode.CONFIRMING_DROP:
+		return
+
 	# If we're selecting an equip target, cancel (clicked inventory instead)
 	if _interaction_mode == InteractionMode.SELECTING_EQUIP_TARGET:
 		if index == _pending_inventory_index:
@@ -472,17 +511,8 @@ func _on_inventory_slot_clicked(item_id: String, index: int) -> void:
 		_update_instruction("")
 		return
 
-	# Check if item is equippable
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
-	if not item_data:
-		return
-
-	if not item_data.is_equippable():
-		_update_instruction("Cannot equip this item")
-		return
-
-	# Start equip target selection
-	_start_equip_selection(index, item_id, item_data)
+	# Show the item action menu instead of directly equipping
+	_show_item_action_menu(item_id, index)
 
 
 func _start_equip_selection(inv_index: int, item_id: String, item_data: ItemData) -> void:
@@ -582,6 +612,10 @@ func _try_unequip_from_slot(slot_id: String) -> void:
 
 
 func _cancel_interaction() -> void:
+	# Hide action menu if showing
+	if _item_action_menu and _item_action_menu.is_menu_active():
+		_item_action_menu.hide_menu()
+
 	_interaction_mode = InteractionMode.NONE
 	_pending_inventory_index = -1
 	_pending_item_id = ""
@@ -589,6 +623,145 @@ func _cancel_interaction() -> void:
 	_update_instruction("")
 	_update_equipment_slots()
 	_update_inventory_slots()
+	action_menu_state_changed.emit(false)
+
+
+# =============================================================================
+# ITEM ACTION MENU
+# =============================================================================
+
+func _show_item_action_menu(item_id: String, index: int) -> void:
+	_pending_item_id = item_id
+	_pending_inventory_index = index
+	_interaction_mode = InteractionMode.SHOWING_ACTION_MENU
+
+	# Position the menu near the clicked slot
+	var slot: ItemSlot = _inventory_slots[index]
+	var slot_rect: Rect2 = slot.get_global_rect()
+	var menu_pos: Vector2 = Vector2(slot_rect.position.x + slot_rect.size.x + 4, slot_rect.position.y)
+
+	_item_action_menu.show_menu(item_id, ItemActionMenu.Context.EXPLORATION, menu_pos)
+	action_menu_state_changed.emit(true)
+
+
+func _on_action_menu_action_selected(action: String, item_id: String) -> void:
+	_interaction_mode = InteractionMode.NONE
+	action_menu_state_changed.emit(false)
+
+	match action:
+		"use":
+			_handle_use_action(item_id)
+		"equip":
+			_handle_equip_action(item_id)
+		"give":
+			_handle_give_action(item_id)
+		"drop":
+			_handle_drop_action(item_id)
+		"info":
+			_handle_info_action(item_id)
+		_:
+			push_warning("InventoryPanel: Unknown action '%s'" % action)
+
+
+func _on_action_menu_cancelled() -> void:
+	_interaction_mode = InteractionMode.NONE
+	_pending_inventory_index = -1
+	_pending_item_id = ""
+	_update_instruction("")
+	action_menu_state_changed.emit(false)
+
+
+func _handle_use_action(item_id: String) -> void:
+	# Emit signal for parent to handle target selection
+	item_use_requested.emit(item_id, _pending_inventory_index)
+	_pending_inventory_index = -1
+	_pending_item_id = ""
+
+
+func _handle_equip_action(item_id: String) -> void:
+	# Load item data and start equip selection
+	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	if item_data and item_data.is_equippable():
+		_start_equip_selection(_pending_inventory_index, item_id, item_data)
+	else:
+		_update_instruction("Cannot equip this item")
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+
+
+func _handle_give_action(item_id: String) -> void:
+	# Emit signal for parent to handle recipient selection
+	item_give_requested.emit(item_id, _pending_inventory_index)
+	_pending_inventory_index = -1
+	_pending_item_id = ""
+
+
+func _handle_drop_action(item_id: String) -> void:
+	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	if not item_data:
+		_update_instruction("Cannot drop unknown item")
+		return
+
+	if not item_data.can_be_dropped:
+		_update_instruction("This item cannot be dropped!")
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	# Check if we need confirmation
+	if item_data.confirm_on_drop:
+		_start_drop_confirmation(item_id, item_data)
+	else:
+		_execute_drop(item_id)
+
+
+func _start_drop_confirmation(item_id: String, item_data: ItemData) -> void:
+	_interaction_mode = InteractionMode.CONFIRMING_DROP
+	_pending_item_id = item_id
+
+	# Show confirmation dialog
+	var confirmed: bool = await _confirmation_dialog.show_confirmation(
+		"Drop Item?",
+		"Discard %s?" % item_data.item_name
+	)
+
+	if confirmed:
+		_execute_drop(item_id)
+	else:
+		_update_instruction("Cancelled")
+
+	_interaction_mode = InteractionMode.NONE
+	_pending_item_id = ""
+
+
+func _execute_drop(item_id: String) -> void:
+	if not _save_data:
+		return
+
+	# Remove item from inventory
+	if _save_data.remove_item_from_inventory(item_id):
+		var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item_name: String = item_data.item_name if item_data else item_id
+		_update_instruction("Dropped %s" % item_name)
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+		item_dropped.emit(item_id)
+		refresh()
+	else:
+		_update_instruction("Failed to drop item")
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+
+
+func _handle_info_action(item_id: String) -> void:
+	# Show detailed item info in description panel
+	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	if item_data:
+		_update_description(_format_item_info(item_data, "inventory", ""))
+		_update_instruction("Press any key to continue")
+	else:
+		_update_description("[color=#FF6666]Unknown item: %s[/color]" % item_id)
+
+
+## Check if item action menu is currently showing
+func is_action_menu_active() -> bool:
+	return _interaction_mode == InteractionMode.SHOWING_ACTION_MENU or _interaction_mode == InteractionMode.CONFIRMING_DROP
 
 
 # =============================================================================

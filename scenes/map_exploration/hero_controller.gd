@@ -153,12 +153,13 @@ func _process_movement(delta: float) -> void:
 ## Handle directional input for movement.
 func _process_input() -> void:
 	# Block input if UI menus are open
-	if ui_controller and ui_controller.is_blocking_input():
-		return
-
-	# Fallback checks if ui_controller isn't set (defensive programming)
-	if _is_modal_ui_active():
-		return
+	if ui_controller:
+		if ui_controller.is_blocking_input():
+			return
+	else:
+		# Fallback checks ONLY if ui_controller isn't set (defensive programming)
+		if _is_modal_ui_active():
+			return
 
 	var input_dir: Vector2i = Vector2i.ZERO
 
@@ -183,12 +184,13 @@ func _input(event: InputEvent) -> void:
 		return
 
 	# Block input if UI menus are open
-	if ui_controller and ui_controller.is_blocking_input():
-		return
-
-	# Fallback checks if ui_controller isn't set (defensive programming)
-	if _is_modal_ui_active():
-		return
+	if ui_controller:
+		if ui_controller.is_blocking_input():
+			return
+	else:
+		# Fallback checks ONLY if ui_controller isn't set (defensive programming)
+		if _is_modal_ui_active():
+			return
 
 	# Interaction key (confirm)
 	if event.is_action_pressed("sf_confirm"):
