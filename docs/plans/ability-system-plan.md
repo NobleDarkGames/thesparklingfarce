@@ -2,8 +2,8 @@
 
 **Author**: Lt. Claudbrain, USS Torvalds
 **Date**: 2025-12-06
-**Updated**: 2025-12-08 (Phase S1 + S2 COMPLETE - Spell system working!)
-**Status**: Phase S1-S2 Complete, Phase S3 In Progress (UI polish needed)
+**Updated**: 2025-12-08 (Phase S1 + S2 + S3 Core COMPLETE - Spell system fully functional!)
+**Status**: Phase S1-S3 Core Complete. Spells work with combat screen. Minor polish remaining (range viz, custom animations, MP display).
 
 ---
 
@@ -102,11 +102,11 @@ This matches SF2's design where a character's spells come from their class, and 
 
 **Note**: The _base_game Maggie character uses an inline SubResource for her Mage class, which required adding `class_abilities` directly to the character file.
 
-#### Phase S3: UI & Polish (IN PROGRESS)
+#### Phase S3: UI & Polish (MOSTLY COMPLETE)
 1. ✅ Add "Magic" to action menu (hidden if no spells)
-2. ⚠️ Spell menu position needs adjustment (UI bug)
+2. ✅ Combat screen shows for spell attacks (CombatPhase.SPELL_ATTACK)
 3. ⏳ Spell targeting range visualization
-4. ⏳ Combat animation integration
+4. ⏳ Spell-specific combat animations (currently uses attack animation)
 5. ⏳ MP display in unit stats panel
 
 **Deliverable**: Full player-facing spell system

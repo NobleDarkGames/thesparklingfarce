@@ -168,6 +168,34 @@ if dict.has("key"):
 
 Usage: `CombatCalculator.calculate_physical_damage(attacker, defender)`
 
+### Spell System (Class-Based)
+
+**Architecture**: Spells are CLASS-BASED following SF2 design:
+```
+Character's Spells = ClassData.class_abilities + CharacterData.unique_abilities
+```
+
+**Key Files**:
+| File | Purpose |
+|------|---------|
+| `ClassData.class_abilities` | Primary spell source (Array[AbilityData]) |
+| `ClassData.ability_unlock_levels` | Level gating {"ability_id": level} |
+| `CharacterData.unique_abilities` | Rare exceptions only (Domingo's Freeze) |
+| `scenes/ui/spell_menu.gd` | Spell selection UI with MP costs |
+| `CombatPhase.SPELL_ATTACK` | Spell combat phase type |
+
+**Battle Flow**:
+1. Action menu shows "Magic" if `character_data.has_abilities(level)` returns true
+2. InputManager enters `SELECTING_SPELL` state → SpellMenu opens
+3. Player selects spell → `SELECTING_SPELL_TARGET` state
+4. Target confirmed → `BattleManager._on_spell_cast_requested()`
+5. MP deducted → `_execute_combat_session()` with `CombatPhase.SPELL_ATTACK`
+6. Combat screen shows spell animation → damage applied → XP awarded
+
+**Damage Formula**: `CombatCalculator.calculate_magic_damage(caster, target, ability)`
+- Base: `(ability.power + caster.INT) - (target.INT / 2)`
+- Variance: ±10%
+
 ---
 
 ## Type Registries
@@ -240,7 +268,7 @@ ModLoader scans `mods/*/data/<directory>/` automatically:
 | SaveData | `core/resources/save_data.gd` | Implemented | Save file structure |
 | SlotMetadata | `core/resources/slot_metadata.gd` | Implemented | Save slot preview |
 | AIBrain | `core/resources/ai_brain.gd` | Implemented | AI behavior base class |
-| CombatPhase | `core/resources/combat_phase.gd` | Implemented | Combat animation phase |
+| CombatPhase | `core/resources/combat_phase.gd` | Implemented | Combat animation phase (INITIAL, DOUBLE, COUNTER, SPELL_ATTACK) |
 | CombatAnimationData | `core/resources/combat_animation_data.gd` | Implemented | Battle sprite config |
 | TransitionContext | `core/resources/transition_context.gd` | Implemented | Scene transition data |
 | Grid | `core/resources/grid.gd` | Implemented | Grid utilities |
@@ -446,6 +474,7 @@ GameState.has_flag_scoped("boss_defeated")
 - `is_default_party_member`: Include in starting party
 - `unit_category`: "player", "enemy", "neutral", "npc"
 - `base_hp/mp/str/def/agi/int/luck`: Base stats
+- `unique_abilities`: Array[AbilityData] - Rare character-specific spells (exceptions only)
 
 ### ClassData
 - `display_name`, `movement_type`, `movement_range`
@@ -454,6 +483,8 @@ GameState.has_flag_scoped("boss_defeated")
 - `equippable_weapon_types`: Array[String]
 - `promotion_class`, `promotion_level`: Standard path
 - `special_promotion_class`, `special_promotion_item`: SF2-style alternate
+- `class_abilities`: Array[AbilityData] - Primary spell source
+- `ability_unlock_levels`: Dictionary {"ability_id": level} - Level gating
 
 ### ItemData
 - `item_name`, `item_type`: WEAPON, ARMOR, CONSUMABLE, KEY_ITEM
