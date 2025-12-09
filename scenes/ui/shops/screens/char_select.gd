@@ -122,11 +122,15 @@ func _setup_caravan_button() -> void:
 func _on_character_selected(character_uid: String, button: Button) -> void:
 	_select_destination(character_uid, button)
 	_update_stat_comparison(character_uid)
+	# SF2 authentic: selection IS confirmation, proceed directly
+	_proceed_to_confirmation()
 
 
 func _on_caravan_selected() -> void:
 	_select_destination("caravan", caravan_button)
 	stat_comparison_panel.hide()
+	# SF2 authentic: selection IS confirmation, proceed directly
+	_proceed_to_confirmation()
 
 
 func _select_destination(destination: String, button: Button) -> void:
@@ -165,13 +169,16 @@ func _update_stat_comparison(character_uid: String) -> void:
 	stat_comparison_label.text = "\n".join(lines)
 
 
-func _on_confirm_pressed() -> void:
+func _proceed_to_confirmation() -> void:
 	if selected_destination.is_empty():
 		return
-
-	# Store destination in context and proceed to confirmation
 	context.selected_destination = selected_destination
 	push_screen("confirm_transaction")
+
+
+func _on_confirm_pressed() -> void:
+	# Fallback for CONFIRM button (kept for accessibility but not primary flow)
+	_proceed_to_confirmation()
 
 
 func _on_back_pressed() -> void:

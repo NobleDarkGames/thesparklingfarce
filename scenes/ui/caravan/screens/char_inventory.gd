@@ -72,6 +72,7 @@ func _populate_inventory_grid() -> void:
 		var button: Button = Button.new()
 		button.custom_minimum_size = Vector2(120, 40)
 		button.focus_mode = Control.FOCUS_ALL
+		button.add_theme_font_size_override("font_size", 16)
 
 		if i < inventory.size():
 			var item_id: String = inventory[i]
@@ -144,10 +145,11 @@ func _on_item_pressed(index: int) -> void:
 		else:
 			btn.add_theme_color_override("font_color", COLOR_NORMAL)
 
-	# Enable store button
+	# Enable store button and auto-focus for consistent confirm flow
 	store_button.disabled = false
+	store_button.grab_focus()
 
-	play_sfx("cursor_move")
+	play_sfx("menu_select")
 
 
 func _update_details_panel(index: int) -> void:

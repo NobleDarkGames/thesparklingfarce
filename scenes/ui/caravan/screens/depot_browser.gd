@@ -172,6 +172,7 @@ func _create_item_button(item_id: String, item_data: ItemData) -> Button:
 	var button: Button = Button.new()
 	button.custom_minimum_size = Vector2(100, 32)
 	button.focus_mode = Control.FOCUS_ALL
+	button.add_theme_font_size_override("font_size", 16)
 
 	# Show item name
 	button.text = item_data.item_name

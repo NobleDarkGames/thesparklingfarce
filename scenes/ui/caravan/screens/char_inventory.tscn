@@ -23,7 +23,7 @@ theme_override_constants/separation = 12
 [node name="HeaderLabel" type="Label" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "CHARACTER'S INVENTORY"
 horizontal_alignment = 1
 
@@ -51,8 +51,8 @@ theme_override_constants/separation = 8
 [node name="ItemNameLabel" type="Label" parent="VBoxContainer/ContentRow/DetailsPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(1, 1, 0.3, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.8, 0.8, 0.2, 1)
 text = "ITEM NAME"
 
 [node name="ItemDescLabel" type="Label" parent="VBoxContainer/ContentRow/DetailsPanel"]
@@ -69,7 +69,7 @@ layout_mode = 2
 [node name="ResultLabel" type="Label" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 text = ""
 horizontal_alignment = 1
 
@@ -83,7 +83,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "STORE"
 
 [node name="StoreAllButton" type="Button" parent="VBoxContainer/ButtonRow"]
@@ -91,7 +91,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 text = "STORE ALL CONSUMABLES"
 
 [node name="BackButton" type="Button" parent="VBoxContainer/ButtonRow"]
@@ -99,5 +99,5 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "BACK"

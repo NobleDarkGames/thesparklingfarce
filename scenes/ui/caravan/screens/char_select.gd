@@ -12,12 +12,16 @@ const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
 const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 const COLOR_SUCCESS: Color = Color(0.4, 1.0, 0.4, 1.0)
 const COLOR_ERROR: Color = Color(1.0, 0.4, 0.4, 1.0)
+const COLOR_WARNING: Color = Color(1.0, 0.8, 0.3, 1.0)
 
 ## Character button references
 var char_buttons: Array[Button] = []
 
 ## Currently selected character UID
 var selected_uid: String = ""
+
+## UID of character with pending "can't equip" warning (click again to confirm)
+var _pending_warning_uid: String = ""
 
 @onready var header_label: Label = %HeaderLabel
 @onready var item_label: Label = %ItemLabel
@@ -139,10 +143,39 @@ func _on_char_pressed(uid: String, button: Button) -> void:
 	if context:
 		context.selected_character_uid = uid
 
-	# Enable confirm button
-	confirm_button.disabled = false
+	# SF2 authentic: selection IS confirmation, execute immediately
+	if context and context.is_take_mode():
+		# Check if this is confirming a previous warning
+		if _pending_warning_uid == uid:
+			# User confirmed despite warning - proceed
+			_pending_warning_uid = ""
+			result_label.text = ""
+			_execute_take()
+			return
 
-	play_sfx("cursor_move")
+		# Clear any previous warning for different character
+		if not _pending_warning_uid.is_empty() and _pending_warning_uid != uid:
+			_pending_warning_uid = ""
+			result_label.text = ""
+
+		# Check equipment compatibility for equippable items
+		var item_id: String = context.selected_depot_item_id
+		var item_data: ItemData = get_item_data(item_id)
+		if item_data and item_data.is_equippable():
+			if ShopManager and not ShopManager.can_character_equip(uid, item_id):
+				# Show warning - character can't equip this
+				var char_data: CharacterData = _get_character_data(uid)
+				var char_name: String = char_data.character_name if char_data else uid
+				_show_warning("%s can't equip this! Select again to give anyway." % char_name)
+				_pending_warning_uid = uid
+				return
+
+		# No warning needed - execute immediately
+		_pending_warning_uid = ""
+		_execute_take()
+	elif context and context.is_store_mode():
+		_pending_warning_uid = ""
+		_go_to_inventory()
 
 
 func _on_confirm_pressed() -> void:
@@ -212,6 +245,12 @@ func _show_result(message: String, success: bool) -> void:
 	else:
 		result_label.add_theme_color_override("font_color", COLOR_ERROR)
 		play_sfx("menu_error")
+
+
+func _show_warning(message: String) -> void:
+	result_label.text = message
+	result_label.add_theme_color_override("font_color", COLOR_WARNING)
+	play_sfx("menu_error")
 
 
 func _get_character_data(uid: String) -> CharacterData:

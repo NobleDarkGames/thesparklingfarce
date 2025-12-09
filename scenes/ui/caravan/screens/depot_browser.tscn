@@ -77,8 +77,8 @@ theme_override_constants/separation = 8
 [node name="ItemNameLabel" type="Label" parent="VBoxContainer/ContentRow/DetailsPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(1, 1, 0.3, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.8, 0.8, 0.2, 1)
 text = "ITEM NAME"
 
 [node name="ItemDescLabel" type="Label" parent="VBoxContainer/ContentRow/DetailsPanel"]
@@ -101,7 +101,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 32)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "TAKE"
 
 [node name="Spacer" type="Control" parent="VBoxContainer/ButtonRow"]
@@ -113,5 +113,5 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 32)
 layout_mode = 2
 focus_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "BACK"
