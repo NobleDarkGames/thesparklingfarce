@@ -65,8 +65,9 @@ var _previous_state: UIState = UIState.EXPLORING
 ## Party equipment menu (must be set via setup())
 var party_equipment_menu: PartyEquipmentMenu = null
 
-## Caravan depot panel (must be set via setup())
-var caravan_depot_panel: CaravanDepotPanel = null
+## Caravan depot interface (must be set via setup())
+## Type is Node because CaravanInterfaceController is a CanvasLayer in scenes/
+var caravan_interface: Node = null
 
 ## Exploration field menu (must be set via setup() or setup_field_menu())
 ## Type is Control because ExplorationFieldMenu is in scenes/, not core/
@@ -87,11 +88,11 @@ func _exit_tree() -> void:
 
 ## Initialize the controller with UI panel references
 ## @param equipment_menu: PartyEquipmentMenu instance
-## @param depot_panel: CaravanDepotPanel instance
+## @param depot_interface: CaravanInterfaceController instance (CanvasLayer)
 ## @param field_menu: ExplorationFieldMenu instance (optional, can be set later)
-func setup(equipment_menu: PartyEquipmentMenu, depot_panel: CaravanDepotPanel, field_menu: Control = null) -> void:
+func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu: Control = null) -> void:
 	party_equipment_menu = equipment_menu
-	caravan_depot_panel = depot_panel
+	caravan_interface = depot_interface
 	exploration_field_menu = field_menu
 
 	_connect_signals()
@@ -99,8 +100,7 @@ func setup(equipment_menu: PartyEquipmentMenu, depot_panel: CaravanDepotPanel, f
 	# Ensure menus start hidden
 	if party_equipment_menu:
 		party_equipment_menu.visible = false
-	if caravan_depot_panel:
-		caravan_depot_panel.visible = false
+	# CaravanInterfaceController manages its own visibility via show()/hide()
 	if exploration_field_menu:
 		exploration_field_menu.visible = false
 
@@ -121,9 +121,11 @@ func _connect_signals() -> void:
 		if not party_equipment_menu.depot_requested.is_connected(_on_depot_requested):
 			party_equipment_menu.depot_requested.connect(_on_depot_requested)
 
-	if caravan_depot_panel:
-		if not caravan_depot_panel.close_requested.is_connected(_on_depot_close_requested):
-			caravan_depot_panel.close_requested.connect(_on_depot_close_requested)
+	if caravan_interface:
+		# CaravanInterfaceController emits depot_closed signal
+		if caravan_interface.has_signal("depot_closed"):
+			if not caravan_interface.depot_closed.is_connected(_on_depot_close_requested):
+				caravan_interface.depot_closed.connect(_on_depot_close_requested)
 
 	_connect_field_menu_signals()
 
@@ -149,9 +151,10 @@ func _disconnect_signals() -> void:
 		if party_equipment_menu.depot_requested.is_connected(_on_depot_requested):
 			party_equipment_menu.depot_requested.disconnect(_on_depot_requested)
 
-	if caravan_depot_panel:
-		if caravan_depot_panel.close_requested.is_connected(_on_depot_close_requested):
-			caravan_depot_panel.close_requested.disconnect(_on_depot_close_requested)
+	if caravan_interface:
+		if caravan_interface.has_signal("depot_closed"):
+			if caravan_interface.depot_closed.is_connected(_on_depot_close_requested):
+				caravan_interface.depot_closed.disconnect(_on_depot_close_requested)
 
 	if exploration_field_menu:
 		if exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
@@ -221,12 +224,12 @@ func open_inventory() -> void:
 	AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
 
 
-## Open the Caravan depot panel
+## Open the Caravan depot interface
 ## Can be called from inventory menu or direct Caravan interaction
 ## @param from_caravan_interaction: true if opened by interacting with Caravan sprite
 func open_depot(from_caravan_interaction: bool = false) -> void:
-	if not caravan_depot_panel:
-		push_warning("ExplorationUIController: No CaravanDepotPanel assigned")
+	if not caravan_interface:
+		push_warning("ExplorationUIController: No CaravanInterfaceController assigned")
 		return
 
 	# Track where we came from for proper back navigation
@@ -237,21 +240,21 @@ func open_depot(from_caravan_interaction: bool = false) -> void:
 		party_equipment_menu.visible = false
 
 	_set_state(UIState.DEPOT)
-	caravan_depot_panel.refresh()
-	caravan_depot_panel.visible = true
 
-	# Different sound for direct caravan interaction vs menu button
-	if from_caravan_interaction:
-		AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
-	# If from menu, the menu already played its confirm sound
+	# CaravanInterfaceController manages its own visibility and initialization
+	if caravan_interface.has_method("open_depot"):
+		caravan_interface.open_depot(from_caravan_interaction)
+
+	# Sound is handled by the CaravanInterfaceController screens
 
 
 ## Close all menus and return to exploration
 func close_all_menus() -> void:
 	if party_equipment_menu:
 		party_equipment_menu.visible = false
-	if caravan_depot_panel:
-		caravan_depot_panel.visible = false
+	if caravan_interface and caravan_interface.has_method("is_open"):
+		if caravan_interface.is_open():
+			caravan_interface.close_interface()
 	if exploration_field_menu:
 		exploration_field_menu.hide_menu()
 
@@ -297,13 +300,13 @@ func _on_depot_requested() -> void:
 func _on_depot_close_requested() -> void:
 	# If we came from inventory, go back to inventory
 	if _previous_state == UIState.INVENTORY and party_equipment_menu:
-		caravan_depot_panel.visible = false
+		# CaravanInterfaceController already closed itself when it emitted depot_closed
 		_set_state(UIState.INVENTORY)
 		party_equipment_menu.visible = true
 		AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 	else:
-		# Otherwise close everything
-		close_all_menus()
+		# Otherwise close everything and return to exploration
+		_set_state(UIState.EXPLORING)
 
 
 ## Field menu closed - return to exploration
