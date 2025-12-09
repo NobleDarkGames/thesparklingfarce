@@ -497,6 +497,13 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 			interactable.interact(hero)
 			return
 
+	# Check if caravan is handling this interaction
+	# CaravanController handles its own interaction via the same signal,
+	# so we just need to avoid opening field menu if caravan is the target
+	if _is_caravan_interaction(interaction_pos):
+		_debug_print("MapTemplate: Caravan handling interaction")
+		return
+
 	# No interaction target found - open field menu
 	# This is SF2-authentic behavior: confirm in empty space = field menu
 	_open_field_menu()
@@ -548,6 +555,31 @@ func _find_interactable_at_position(grid_pos: Vector2i) -> Node:
 					return interactable
 
 	return null
+
+
+## Check if the interaction is targeting the caravan.
+## Returns true if caravan is spawned and either:
+## - interaction_pos matches caravan position, OR
+## - hero is standing on the caravan (overlap from following behavior)
+func _is_caravan_interaction(interaction_pos: Vector2i) -> bool:
+	if not CaravanController:
+		return false
+
+	if not CaravanController.is_spawned():
+		return false
+
+	var caravan_pos: Vector2i = CaravanController.get_grid_position()
+
+	# Check if facing the caravan
+	if interaction_pos == caravan_pos:
+		return true
+
+	# Check if hero is standing on the caravan (overlap case)
+	if hero and "grid_position" in hero:
+		if hero.grid_position == caravan_pos:
+			return true
+
+	return false
 
 
 ## Open the exploration field menu

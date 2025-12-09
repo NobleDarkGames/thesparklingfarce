@@ -124,21 +124,8 @@ func _ready() -> void:
 	call_deferred("_initialize")
 
 
-func _input(event: InputEvent) -> void:
-	# Don't process game input while debug console is open
-	if DebugConsole and DebugConsole.is_open:
-		return
-
-	# Handle caravan interaction when player is in range
-	if not _player_in_range or not is_spawned():
-		return
-
-	if _menu_open:
-		return  # Menu handles its own input
-
-	if event.is_action_pressed("sf_confirm"):
-		open_menu()
-		get_viewport().set_input_as_handled()
+# NOTE: Caravan interaction is now handled via hero's interaction_requested signal,
+# unified with NPC interaction mechanics. See _on_hero_interaction_requested().
 
 
 func _initialize() -> void:
@@ -492,8 +479,11 @@ func _spawn_caravan() -> void:
 			_caravan_instance.set_grid_position(_saved_grid_position)
 		_has_saved_position = false
 
-	# Setup interaction area
+	# Setup interaction area (for visual feedback/prompt display)
 	_setup_interaction_area()
+
+	# Connect to hero's interaction signal (unified with NPC interaction)
+	_connect_hero_interaction()
 
 	caravan_spawned.emit(_caravan_instance.global_position)
 
@@ -504,6 +494,9 @@ func _despawn_caravan() -> void:
 
 	# Save position before despawn
 	_save_caravan_position()
+
+	# Disconnect from hero's interaction signal
+	_disconnect_hero_interaction()
 
 	_caravan_instance.queue_free()
 	_caravan_instance = null
@@ -593,6 +586,57 @@ func _on_body_exited_range(body: Node2D) -> void:
 	if body.is_in_group("hero"):
 		_player_in_range = false
 		player_out_of_range.emit()
+
+
+## Connect to hero's interaction_requested signal for unified NPC-style interaction
+func _connect_hero_interaction() -> void:
+	if not _hero:
+		return
+
+	if _hero.has_signal("interaction_requested"):
+		if not _hero.interaction_requested.is_connected(_on_hero_interaction_requested):
+			_hero.interaction_requested.connect(_on_hero_interaction_requested)
+
+
+## Disconnect from hero's interaction signal (called on despawn)
+func _disconnect_hero_interaction() -> void:
+	if not _hero:
+		return
+
+	if _hero.has_signal("interaction_requested"):
+		if _hero.interaction_requested.is_connected(_on_hero_interaction_requested):
+			_hero.interaction_requested.disconnect(_on_hero_interaction_requested)
+
+
+## Handle hero interaction - check if player is trying to interact with caravan
+## This is the unified interaction mechanic used by NPCs and other interactables
+func _on_hero_interaction_requested(interaction_position: Vector2i) -> void:
+	if not is_spawned():
+		return
+
+	if _menu_open:
+		return  # Already interacting
+
+	# Check if the interaction position matches the caravan's grid position
+	var caravan_grid_pos: Vector2i = get_grid_position()
+
+	# Also get hero's current position - they may be standing ON the caravan
+	# (this happens because caravan follows hero, so walking toward it causes overlap)
+	var hero_grid_pos: Vector2i = Vector2i.ZERO
+	if _hero and "grid_position" in _hero:
+		hero_grid_pos = _hero.grid_position
+
+	# Allow interaction if:
+	# 1. Player is facing the caravan (interaction_position == caravan), OR
+	# 2. Player is standing on the caravan's tile (overlap from following)
+	var facing_caravan: bool = (interaction_position == caravan_grid_pos)
+	var standing_on_caravan: bool = (hero_grid_pos == caravan_grid_pos)
+
+	if not facing_caravan and not standing_on_caravan:
+		return  # Not interacting with caravan
+
+	# Player is interacting with caravan - open menu
+	open_menu()
 
 
 # =============================================================================

@@ -497,6 +497,13 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 			interactable.interact(hero)
 			return
 
+	# Check if caravan is handling this interaction
+	# CaravanController handles its own interaction via the same signal,
+	# so we just need to avoid opening field menu if caravan is the target
+	if _is_caravan_interaction(interaction_pos):
+		_debug_print("MapTemplate: Caravan handling interaction")
+		return
+
 	# No interaction target found - open field menu
 	# This is SF2-authentic behavior: confirm in empty space = field menu
 	_open_field_menu()
@@ -550,6 +557,31 @@ func _find_interactable_at_position(grid_pos: Vector2i) -> Node:
 	return null
 
 
+## Check if the interaction is targeting the caravan.
+## Returns true if caravan is spawned and either:
+## - interaction_pos matches caravan position, OR
+## - hero is standing on the caravan (overlap from following behavior)
+func _is_caravan_interaction(interaction_pos: Vector2i) -> bool:
+	if not CaravanController:
+		return false
+
+	if not CaravanController.is_spawned():
+		return false
+
+	var caravan_pos: Vector2i = CaravanController.get_grid_position()
+
+	# Check if facing the caravan
+	if interaction_pos == caravan_pos:
+		return true
+
+	# Check if hero is standing on the caravan (overlap case)
+	if hero and "grid_position" in hero:
+		if hero.grid_position == caravan_pos:
+			return true
+
+	return false
+
+
 ## Open the exploration field menu
 ## Called when hero interacts with empty space (SF2-authentic behavior)
 func _open_field_menu() -> void:
@@ -557,12 +589,12 @@ func _open_field_menu() -> void:
 		push_warning("MapTemplate: Cannot open field menu - no hero")
 		return
 
-	# Get exploration UI controller from hero
-	if not "ui_controller" in hero or not hero.ui_controller:
+	# Get exploration UI controller reference
+	var exploration_ui: Node = _get_exploration_ui_controller()
+	if not exploration_ui:
 		_debug_print("MapTemplate: No ExplorationUIController found - field menu unavailable")
 		return
 
-	var exploration_ui: Node = hero.ui_controller
 	if not exploration_ui.has_method("open_field_menu"):
 		push_warning("MapTemplate: ExplorationUIController does not have open_field_menu method")
 		return
@@ -573,6 +605,21 @@ func _open_field_menu() -> void:
 	# Open field menu
 	exploration_ui.open_field_menu(hero.grid_position, hero_screen_pos)
 	_debug_print("MapTemplate: Opened field menu at hero position %s" % hero.grid_position)
+
+
+## Get the ExplorationUIController for this scene
+## Override in subclasses if you have a custom setup
+func _get_exploration_ui_controller() -> Node:
+	# Try to get from hero's ui_controller reference
+	if hero and "ui_controller" in hero and hero.ui_controller:
+		return hero.ui_controller
+
+	# Fallback: search for ExplorationUIController in scene tree
+	for child: Node in get_children():
+		if child is ExplorationUIController:
+			return child
+
+	return null
 
 
 # =============================================================================
@@ -607,6 +654,10 @@ func _debug_print(msg: String) -> void:
 
 ## Debug input handling (remove or disable in production).
 func _input(event: InputEvent) -> void:
+	# Don't process game input while debug console is open
+	if DebugConsole and DebugConsole.is_open:
+		return
+
 	# ESC to return to main menu (when implemented)
 	if event.is_action_pressed("ui_cancel"):
 		_debug_print("MapTemplate: ESC pressed")
