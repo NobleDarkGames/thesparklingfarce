@@ -3,8 +3,8 @@
 **Created:** 2025-12-05
 **Status:** ✅ COMPLETE (All Phases)
 **Priority:** CRITICAL (Mission Priority One)
-**Last Updated:** 2025-12-05
-**Completed:** 2025-12-05
+**Last Updated:** 2025-12-08
+**Completed:** 2025-12-05 (UI Refactor: 2025-12-08)
 
 ---
 
@@ -64,6 +64,31 @@ The Caravan system is the heart of SF2's open-world design and the critical feat
 - [x] **Duplicate item selection bug** - Fixed via slot index binding
 - [x] **User feedback for inaccessible caravan** - Sound + floating notification
 - [x] **Standardized null-checking** - Consistent autoload guards
+
+### UI REFACTOR (Committed: 2681900, December 8, 2025)
+
+Complete refactor to use shared ModalScreenBase architecture (matching Shop UI):
+
+- [x] **ModalScreenBase** - Shared base class for screen-stack modal UIs (`scenes/ui/components/modal_screen_base.gd`)
+- [x] **CaravanScreenBase** - Caravan-specific extension with depot/inventory helpers
+- [x] **CaravanInterfaceController** - CanvasLayer-based screen stack manager
+- [x] **CaravanContext** - Session state container (filter, sort, selections)
+- [x] **SF2-authentic UX** - "Selection = action" pattern (minimal confirmations)
+- [x] **Equipment warnings** - Warns when giving equipment to incompatible characters
+- [x] **Font standardization** - All fonts use 16/24px Monogram pixel font sizes
+- [x] **Auto-focus management** - Proper gamepad/keyboard navigation
+
+**New Screens:**
+- `action_select` - Choose TAKE or STORE mode
+- `depot_browser` - Browse depot items with L/R filter cycling
+- `char_select` - Select character (immediate action in TAKE mode)
+- `char_inventory` - Browse character inventory, store items
+
+**Key Files:**
+- `scenes/ui/caravan/caravan_interface.tscn` - Main interface scene
+- `scenes/ui/caravan/caravan_interface_controller.gd` - Screen stack manager
+- `scenes/ui/caravan/caravan_context.gd` - Session state
+- `scenes/ui/caravan/screens/*.gd` - Individual screen implementations
 
 ---
 
@@ -452,6 +477,15 @@ Phase 4 Complete When:
 - 76+ unit tests passing
 - Reviewed by Modro (mod architect) and O'Brien (chief engineer)
 - Technical debt addressed proactively
+
+### 2025-12-08 - UI Refactor Session
+- Unified Shop and Caravan UI with shared ModalScreenBase pattern
+- Created screen-stack navigation system (CaravanInterfaceController)
+- Implemented SF2-authentic "selection = action" flow
+- Added equipment compatibility warnings for TAKE operations
+- Standardized all fonts to 16/24px Monogram pixel font
+- Removed unnecessary confirmation steps
+- Reviewed by Clauderina (UI/UX)
 
 ---
 

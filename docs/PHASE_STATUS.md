@@ -1,6 +1,6 @@
 # The Sparkling Farce - Development Phase Status
 
-**Last Updated:** December 5, 2025
+**Last Updated:** December 8, 2025
 **Current Phase:** Phase 4 - Core Mechanics (Equipment, Magic, Items) 🚧
 
 ---
@@ -314,7 +314,7 @@ Root causes identified and fixed:
 ### ✅ Phase 4.4 - Caravan System (COMPLETE)
 
 **Status:** Production Ready
-**Completion Date:** December 5, 2025
+**Completion Date:** December 5, 2025 (UI Refactor: December 8, 2025)
 
 **SF2-Authentic Mobile HQ Implementation:**
 
@@ -324,7 +324,7 @@ The Caravan system provides the signature Shining Force 2 mobile headquarters ex
 - **CaravanController Autoload** - Central lifecycle management, service delegation
 - **CaravanMainMenu** - Data-driven service menu (dynamically queries available services)
 - **Party Management Panel** - Active/reserve party swap with hero protection
-- **Caravan Depot Panel** - Unlimited shared storage with inventory integration
+- **CaravanInterfaceController** - Screen-stack depot UI (ModalScreenBase pattern)
 - **Overworld Caravan Scene** - Visible wagon sprite that follows hero
 
 **Key Features:**
@@ -334,12 +334,20 @@ The Caravan system provides the signature Shining Force 2 mobile headquarters ex
 - Custom service registration for mod extensibility
 - Accessibility feedback when caravan unavailable
 
+**UI Refactor (December 8, 2025):**
+- Unified Shop/Caravan UI with shared ModalScreenBase architecture
+- Screen-stack navigation (action_select → depot_browser → char_select → char_inventory)
+- SF2-authentic "selection = action" flow (minimal confirmations)
+- Equipment compatibility warnings when giving items to incompatible characters
+- 16/24px Monogram pixel font standardization
+- Full gamepad/keyboard navigation support
+
 **Key Files:**
 - `core/systems/caravan_controller.gd` - Autoload singleton
-- `scenes/ui/caravan_main_menu.gd` - Service menu
-- `scenes/ui/party_management_panel.gd` - Party UI
-- `scenes/ui/caravan_depot_panel.gd` - Storage UI
-- `scenes/map_exploration/overworld_caravan.gd` - Visual sprite
+- `scenes/ui/caravan/caravan_interface_controller.gd` - Screen stack manager
+- `scenes/ui/caravan/caravan_context.gd` - Session state
+- `scenes/ui/caravan/screens/*.gd` - Depot UI screens
+- `scenes/ui/components/modal_screen_base.gd` - Shared UI base class
 
 **Detailed Plan:** See `/docs/plans/caravan-system-implementation-plan.md`
 
@@ -529,7 +537,20 @@ The Campaign system manages story progression through a node-graph structure, tr
 
 ---
 
-**Phase Status Last Updated:** December 5, 2025 by Lt. Clauderina & Crew
+**Phase Status Last Updated:** December 8, 2025 by Lt. Clauderina & Crew
+
+**Session Notes (December 8, 2025):**
+- Unified Shop and Caravan UI with shared ModalScreenBase architecture
+- Created CaravanInterfaceController screen-stack navigation system
+- Implemented SF2-authentic "selection = action" flow (minimal confirmations)
+- Added equipment compatibility warnings when giving items to incompatible characters
+- Standardized all fonts to 16/24px Monogram pixel font sizes
+- Fixed item button text clipping in depot browser
+- Updated platform specification with Modal Screen Architecture documentation
+
+**Recent Commits:**
+- `2681900` - fix: Polish Shop/Caravan UX with SF2-authentic confirmation flow
+- `a3a6efd` - refactor: Unify Shop and Caravan UI with shared ModalScreenBase
 
 **Session Notes (December 5, 2025):**
 - Completed Caravan System (Phase 4.4) - SF2-authentic mobile HQ with party management and depot
@@ -537,13 +558,6 @@ The Campaign system manages story progression through a node-graph structure, tr
 - Fixed Caravan technical debt: data-driven menus, PartyManager encapsulation, depot selection bug
 - Added ChapterTransitionUI for animated chapter title cards and save prompts
 - Added CaravanController autoload singleton
-- Documentation updated: platform-specification.md, PHASE_STATUS.md, caravan-system-implementation-plan.md
-
-**Recent Commits:**
-- `c58c95d` - feat: Implement Caravan Phase 3 - Modding support infrastructure
-- `f39feec` - feat: Complete Caravan Phase 2 - Rest service and bug fixes
-- `80c0731` - feat: Implement Caravan Phase 2 - Party Management and menu fixes
-- `812d82f` - feat: Implement Caravan system Phase 1 - SF2-authentic mobile HQ
 
 **Previous Session Notes (December 4, 2025):**
 - Replaced all UI zoom/scale effects with pixel-perfect alternatives (brightness flashes, slides)

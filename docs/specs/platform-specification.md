@@ -153,6 +153,7 @@ if dict.has("key"):
 | GameJuice | `core/systems/game_juice.gd` | Implemented | Screen shake, effects |
 | DebugConsole | `core/systems/debug_console.tscn` | Implemented | Quake-style runtime console |
 | ShopInterface | `scenes/ui/shops/shop_interface.tscn` | Implemented | SF2-authentic shop UI |
+| CaravanInterface | `scenes/ui/caravan/caravan_interface.tscn` | Implemented | SF2-authentic caravan depot UI |
 | ExplorationFieldMenu | `scenes/ui/exploration_field_menu.tscn` | Implemented | SF2-style field menu (Item/Magic/Search/Member) |
 
 ### Editor (Tool Mode)
@@ -269,9 +270,15 @@ Reusable node scripts in `core/components/`:
 | NPCNode | `npc_node.gd` | Interactable NPC entity |
 | CinematicActor | `cinematic_actor.gd` | Cinematic-controllable entity |
 | CaravanFollower | `caravan_follower.gd` | Caravan overworld behavior |
-| ExplorationUIController | `exploration_ui_controller.gd` | Hero-based UI state machine (EXPLORING, FIELD_MENU, INVENTORY, etc.) |
+| ExplorationUIController | `exploration_ui_controller.gd` | Hero-based UI state machine (EXPLORING, FIELD_MENU, INVENTORY, DEPOT, etc.) |
 | AnimationPhaseOffset | `animation_phase_offset.gd` | Classic 16-bit animation desync |
 | TileMapAnimationHelper | `tilemap_animation_helper.gd` | Tilemap animation utilities |
+
+Reusable UI components in `scenes/ui/components/`:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| ModalScreenBase | `modal_screen_base.gd` | Base class for modal screen-stack UIs (Shop, Caravan) |
 
 ---
 
@@ -714,7 +721,7 @@ if MyManager and MyManager.is_X_active():
 - `DebugConsole.is_open`
 - `ShopManager.is_shop_open()`
 - `DialogManager.is_dialog_active()`
-- `ExplorationUIController.current_state != EXPLORING` (includes FIELD_MENU state)
+- `ExplorationUIController.current_state != EXPLORING` (includes FIELD_MENU, DEPOT states)
 
 **Why this is necessary:**
 - HeroController uses `Input.is_action_pressed()` polling in `_physics_process()`
@@ -750,6 +757,105 @@ Position: `"start"`, `"end"` (default), `"after_item"`, `"after_magic"`, `"after
 - Instant cursor movement (no animation)
 - Magic restricted to Egress/Detox only (Phase 2)
 - "Member" label (not "Status" - that's Caravan menu)
+
+### Modal Screen Architecture (Shop/Caravan Pattern)
+
+Multi-screen modal UIs (Shop, Caravan Depot) share a common architecture with screen-stack navigation.
+
+**Core Components:**
+| Component | Purpose |
+|-----------|---------|
+| `ModalScreenBase` | Base class for all modal screens (navigation, input blocking) |
+| `*ScreenBase` | Domain-specific helpers (ShopScreenBase, CaravanScreenBase) |
+| `*InterfaceController` | Screen stack manager, context lifecycle (CanvasLayer) |
+| `*Context` | Session state container (RefCounted) |
+
+**File Locations:**
+```
+scenes/ui/components/
+  modal_screen_base.gd           # Shared base class
+
+scenes/ui/shops/
+  shop_interface.tscn            # Controller scene
+  shop_interface_controller.gd   # Screen stack manager
+  shop_context.gd                # Session state
+  screens/
+    shop_screen_base.gd          # Shop-specific helpers
+    *.gd, *.tscn                 # Individual screens
+
+scenes/ui/caravan/
+  caravan_interface.tscn         # Controller scene
+  caravan_interface_controller.gd # Screen stack manager
+  caravan_context.gd             # Session state
+  screens/
+    caravan_screen_base.gd       # Caravan-specific helpers
+    *.gd, *.tscn                 # Individual screens
+```
+
+**Screen Lifecycle:**
+1. Controller instantiates screen scene
+2. Screen added to tree (so @onready vars resolve)
+3. `initialize(controller, context)` called
+4. Screen overrides `_on_initialized()` for setup
+5. Screen uses `push_screen()`, `go_back()`, `replace_with()` for navigation
+6. `_on_screen_exit()` called before removal
+
+**Creating New Modal UIs:**
+1. Extend `ModalScreenBase` for domain base class
+2. Create `*InterfaceController` (CanvasLayer) with screen stack
+3. Create `*Context` (RefCounted) for session state
+4. Register screens in controller's `SCREEN_PATHS` dictionary
+5. Integrate with `ExplorationUIController` state machine
+
+### Caravan Depot Interface (SF2-Authentic)
+
+The Caravan depot allows transferring items between party member inventories and shared storage.
+
+**Components:**
+| File | Purpose |
+|------|---------|
+| `caravan_interface_controller.gd` | Screen stack manager, StorageManager integration |
+| `caravan_context.gd` | Session state: mode, filter/sort, selections, history |
+| `caravan_screen_base.gd` | Depot-specific helpers |
+
+**Screens:**
+| Screen | Purpose |
+|--------|---------|
+| `action_select` | Choose TAKE (depot to character) or STORE (character to depot) |
+| `depot_browser` | Browse depot items with L/R filter cycling, select item to take |
+| `char_select` | Select character (recipient for TAKE, inventory source for STORE) |
+| `char_inventory` | Browse character inventory, store items to depot |
+
+**Flow Diagrams:**
+```
+TAKE Flow: action_select -> depot_browser -> char_select -> [execute transfer] -> depot_browser
+STORE Flow: action_select -> char_select -> char_inventory -> [execute transfer] -> char_inventory
+```
+
+**UX Patterns (SF2-Authentic):**
+- Selection = Action (clicking character in TAKE mode executes transfer immediately)
+- Equipment compatibility warnings (warns if item unequippable, click again to confirm)
+- L/R bumpers cycle filter: All/Weapons/Armor/Accessories/Consumables
+- Store All Consumables convenience button
+- Filter/sort preferences persist across navigation
+- Auto-focus management for gamepad/keyboard
+
+**Context State:**
+```gdscript
+enum Mode { BROWSE, TAKE, STORE }
+var mode: Mode                    # Current operation mode
+var depot_filter: String          # "" = all, "weapon", "armor", etc.
+var depot_sort: String            # "none", "name", "type", "value"
+var selected_depot_item_id: String
+var selected_character_uid: String
+var screen_history: Array[String] # For back navigation
+```
+
+**Integration:**
+- Triggered via `ExplorationUIManager.open_depot(from_caravan_interaction)`
+- ExplorationUIController transitions to `DEPOT` state
+- Input blocking handled by state machine (not separate manager check)
+- StorageManager handles actual depot storage operations
 
 ### Common Mistakes
 - Putting content in `core/` instead of `mods/`
