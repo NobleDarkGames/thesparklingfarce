@@ -78,6 +78,10 @@ var _current_metadata: Dictionary = {}
 ## Track override information for each resource (resource_id -> Array of mod_ids)
 var _override_info: Dictionary = {}
 
+## Track if we've successfully connected to EditorEventBus
+## This handles the timing issue where autoloads may not exist during _ready()
+var _event_bus_connected: bool = false
+
 
 func _init() -> void:
 	# Set up layout
@@ -87,23 +91,54 @@ func _init() -> void:
 func _ready() -> void:
 	_setup_ui()
 
-	# Connect to EditorEventBus for mod reload notifications
-	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus:
-		if not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
-			event_bus.mods_reloaded.connect(_on_mods_reloaded)
+	# Try to connect to EditorEventBus (may not exist yet due to autoload timing)
+	_try_connect_event_bus()
 
 	# Initial refresh if resource_type is set
 	if not resource_type.is_empty():
 		refresh()
 
 
-func _exit_tree() -> void:
-	# Clean up signal connections
+## Attempt to connect to EditorEventBus signals
+## Called from _ready() and refresh() to handle timing issues with autoload registration
+## Returns true if connection was successful or already connected
+func _try_connect_event_bus() -> bool:
+	if _event_bus_connected:
+		return true
+
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus:
-		if event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
-			event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
+	if not event_bus:
+		# EditorEventBus not available yet - will retry on next refresh()
+		return false
+
+	# Connect to all relevant signals
+	if not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+		event_bus.mods_reloaded.connect(_on_mods_reloaded)
+	if not event_bus.resource_saved.is_connected(_on_resource_changed):
+		event_bus.resource_saved.connect(_on_resource_changed)
+	if not event_bus.resource_created.is_connected(_on_resource_changed):
+		event_bus.resource_created.connect(_on_resource_changed)
+	if not event_bus.resource_deleted.is_connected(_on_resource_deleted):
+		event_bus.resource_deleted.connect(_on_resource_deleted)
+
+	_event_bus_connected = true
+	return true
+
+
+func _exit_tree() -> void:
+	# Clean up signal connections (only if we connected)
+	if _event_bus_connected:
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			if event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+				event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
+			if event_bus.resource_saved.is_connected(_on_resource_changed):
+				event_bus.resource_saved.disconnect(_on_resource_changed)
+			if event_bus.resource_created.is_connected(_on_resource_changed):
+				event_bus.resource_created.disconnect(_on_resource_changed)
+			if event_bus.resource_deleted.is_connected(_on_resource_deleted):
+				event_bus.resource_deleted.disconnect(_on_resource_deleted)
+		_event_bus_connected = false
 
 
 func _setup_ui() -> void:
@@ -135,6 +170,10 @@ func _setup_ui() -> void:
 func refresh() -> void:
 	if not _option_button:
 		return
+
+	# Ensure we're connected to EditorEventBus (handles autoload timing issues)
+	# If we couldn't connect in _ready(), try again now
+	_try_connect_event_bus()
 
 	_option_button.clear()
 	_override_info.clear()
@@ -348,6 +387,18 @@ func _on_item_selected(index: int) -> void:
 ## Called when mods are reloaded
 func _on_mods_reloaded() -> void:
 	refresh()
+
+
+## Called when a resource is saved or created
+func _on_resource_changed(res_type: String, _res_id: String, _resource: Resource) -> void:
+	if res_type == resource_type:
+		refresh()
+
+
+## Called when a resource is deleted
+func _on_resource_deleted(res_type: String, _res_id: String) -> void:
+	if res_type == resource_type:
+		refresh()
 
 
 ## Select a resource by its metadata (mod_id + resource_id)

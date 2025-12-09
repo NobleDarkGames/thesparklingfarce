@@ -42,10 +42,14 @@ func _ready() -> void:
 	# Enable undo/redo for save operations (Ctrl+Z support)
 	enable_undo_redo = true
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
+
+	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
+	# Note: class_picker uses ResourcePicker which auto-refreshes via EditorEventBus
+	# This declaration is for completeness and documents the editor's dependencies
+	resource_dependencies = ["class"]
+
 	super._ready()
 	_setup_filter_buttons()
-
-	# Note: class_picker uses ResourcePicker which auto-refreshes on mod reload via EditorEventBus
 
 
 ## Override: Refresh the editor when mod changes or new resources are created

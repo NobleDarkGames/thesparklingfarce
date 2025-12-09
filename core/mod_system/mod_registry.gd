@@ -207,6 +207,27 @@ func clear_mod_resources(mod_id: String) -> void:
 	_mod_resources.erase(mod_id)
 
 
+## Unregister a single resource by type and ID
+## Used by the editor when deleting resources
+func unregister_resource(resource_type: String, resource_id: String) -> void:
+	# Remove from type dictionary
+	if resource_type in _resources_by_type:
+		_resources_by_type[resource_type].erase(resource_id)
+
+	# Get the mod that owned this resource before removing from sources
+	var mod_id: String = _resource_sources.get(resource_id, "")
+
+	# Remove from source tracking
+	_resource_sources.erase(resource_id)
+
+	# Remove from mod resources tracking
+	if mod_id != "" and mod_id in _mod_resources:
+		var mod_res: Array = _mod_resources[mod_id]
+		var idx: int = mod_res.find(resource_id)
+		if idx >= 0:
+			mod_res.remove_at(idx)
+
+
 # =============================================================================
 # Scene Registration (for moddable scenes like opening cinematic, main menu)
 # =============================================================================

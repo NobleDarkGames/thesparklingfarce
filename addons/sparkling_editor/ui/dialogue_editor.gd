@@ -36,8 +36,17 @@ func _ready() -> void:
 	resource_type_id = "dialogue"
 	resource_type_name = "Dialogue"
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
+
+	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
+	resource_dependencies = ["character"]
+
 	_refresh_character_cache()
 	super._ready()
+
+
+## Called when a dependent resource type changes (character created/saved/deleted)
+func _on_dependencies_changed(_changed_type: String) -> void:
+	_refresh_character_cache()
 
 
 ## Refresh the cached list of characters from ModLoader

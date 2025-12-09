@@ -74,6 +74,12 @@ func _ready() -> void:
 	resource_type_id = "battle"
 	resource_type_name = "Battle"
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
+
+	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
+	# Note: ResourcePickers for character, party, dialogue auto-refresh via EditorEventBus
+	# This declaration is for completeness and documents the editor's dependencies
+	resource_dependencies = ["character", "party", "dialogue"]
+
 	super._ready()
 
 

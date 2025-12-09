@@ -31,7 +31,19 @@ func _ready() -> void:
 	resource_type_name = "Class"
 	resource_type_id = "class"
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
+
+	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
+	# - "class" for promotion class dropdown (when another class is created/modified)
+	# - "ability" is handled by ResourcePicker auto-refresh
+	resource_dependencies = ["class"]
+
 	super._ready()
+
+
+## Called when a dependent resource type changes (class created/saved/deleted)
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "class":
+		_update_promotion_options()
 
 
 ## Override: Create the class-specific detail form

@@ -340,6 +340,9 @@ func _setup_base_ui() -> void:
 ## Standard refresh method for EditorTabRegistry
 ## Override this if you need custom refresh behavior
 func refresh() -> void:
+	# Ensure dependency tracking is connected (handles autoload timing issues)
+	# If we couldn't connect in _ready(), try again now
+	_setup_dependency_tracking()
 	_refresh_list()
 
 
@@ -358,8 +361,9 @@ func _add_button_container_to_detail_panel() -> void:
 # =============================================================================
 
 ## Set up automatic EditorEventBus subscriptions for declared dependencies.
-## Called automatically at end of _ready(). Only subscribes if resource_dependencies
-## has entries and we haven't already connected.
+## Called automatically at end of _ready() and again from refresh() to handle
+## the timing issue where autoloads may not exist during initial _ready().
+## Only subscribes if resource_dependencies has entries and we haven't already connected.
 func _setup_dependency_tracking() -> void:
 	if resource_dependencies.is_empty():
 		return
@@ -369,6 +373,7 @@ func _setup_dependency_tracking() -> void:
 
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 	if not event_bus:
+		# EditorEventBus not available yet - will retry on next refresh()
 		return
 
 	# Connect to all three resource change signals
@@ -605,6 +610,15 @@ func _perform_save() -> void:
 		# Clear dirty flag on successful save
 		is_dirty = false
 
+		# Update ModLoader.registry so the resource is immediately available in other editors' pickers
+		# This must happen BEFORE emitting the signal so listeners see the updated data
+		var resource_id: String = path.get_file().get_basename()
+		var source_mod_id: String = current_resource_source_mod
+		if source_mod_id.is_empty():
+			source_mod_id = _get_active_mod_id()
+		if ModLoader and ModLoader.registry:
+			ModLoader.registry.register_resource(current_resource, resource_type_id, resource_id, source_mod_id)
+
 		# Notify other editors that a resource was saved
 		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 		if event_bus:
@@ -651,16 +665,21 @@ func _on_create_new() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
-		# Notify other editors that a resource was created
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
-
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
 		await get_tree().process_frame
 		_refresh_list()
+
+		# Register with ModLoader.registry so it's immediately available in pickers
+		var resource_id: String = full_path.get_file().get_basename()
+		if ModLoader and ModLoader.registry:
+			ModLoader.registry.register_resource(new_resource, resource_type_id, resource_id, active_mod_id)
+
+		# Notify other editors AFTER filesystem scan so resource is available
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
 
 		# Auto-select the newly created resource
 		for i in range(resource_list.item_count):
@@ -716,15 +735,20 @@ func _on_duplicate_resource() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
-		# Notify other editors
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
-
 		# Refresh and select the new resource
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
 		_refresh_list()
+
+		# Register with ModLoader.registry so it's immediately available in pickers
+		var resource_id: String = full_path.get_file().get_basename()
+		if ModLoader and ModLoader.registry:
+			ModLoader.registry.register_resource(new_resource, resource_type_id, resource_id, active_mod_id)
+
+		# Notify other editors AFTER filesystem scan so resource is available
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
 
 		# Select the newly created resource
 		for i in range(resource_list.item_count):
@@ -775,12 +799,17 @@ func _perform_delete() -> void:
 		return
 
 	var path: String = resource_list.get_item_metadata(selected_items[0])
+	var resource_id: String = path.get_file().get_basename()
 
 	# Delete the file
 	var dir: DirAccess = DirAccess.open(path.get_base_dir())
 	if dir:
 		var err: Error = dir.remove(path)
 		if err == OK:
+			# Unregister from ModLoader.registry so it's immediately removed from pickers
+			if ModLoader and ModLoader.registry:
+				ModLoader.registry.unregister_resource(resource_type_id, resource_id)
+
 			# Notify other editors that a resource was deleted
 			var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 			if event_bus:
@@ -955,16 +984,21 @@ func _on_copy_to_mod() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
-		# Notify other editors
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
-			event_bus.resource_copied.emit(resource_type_id, current_resource.resource_path, active_mod.mod_id, full_path)
-
 		# Refresh and select the new resource
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
 		_refresh_list()
+
+		# Register with ModLoader.registry so it's immediately available in pickers
+		var resource_id: String = full_path.get_file().get_basename()
+		if ModLoader and ModLoader.registry:
+			ModLoader.registry.register_resource(new_resource, resource_type_id, resource_id, active_mod.mod_id)
+
+		# Notify other editors AFTER filesystem scan so resource is available
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
+			event_bus.resource_copied.emit(resource_type_id, current_resource.resource_path, active_mod.mod_id, full_path)
 
 		# Select the newly created resource
 		for i in range(resource_list.item_count):
@@ -1036,18 +1070,26 @@ func _perform_create_override(override_path: String) -> void:
 	# Save the override
 	var err: Error = ResourceSaver.save(override_resource, override_path)
 	if err == OK:
-		# Notify other editors
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			var active_mod: ModManifest = ModLoader.get_active_mod()
-			event_bus.notify_resource_created(resource_type_id, override_path, override_resource)
-			if event_bus.has_signal("resource_override_created"):
-				event_bus.resource_override_created.emit(resource_type_id, override_path.get_file().get_basename(), active_mod.mod_id if active_mod else "")
-
 		# Refresh and select the override
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
 		_refresh_list()
+
+		# Get active mod for registration
+		var active_mod: ModManifest = ModLoader.get_active_mod() if ModLoader else null
+		var active_mod_id: String = active_mod.mod_id if active_mod else ""
+
+		# Register with ModLoader.registry so it's immediately available in pickers
+		var resource_id: String = override_path.get_file().get_basename()
+		if ModLoader and ModLoader.registry:
+			ModLoader.registry.register_resource(override_resource, resource_type_id, resource_id, active_mod_id)
+
+		# Notify other editors AFTER filesystem scan so resource is available
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_created(resource_type_id, override_path, override_resource)
+			if event_bus.has_signal("resource_override_created"):
+				event_bus.resource_override_created.emit(resource_type_id, resource_id, active_mod_id)
 
 		# Select the override
 		for i in range(resource_list.item_count):
@@ -1405,6 +1447,15 @@ func _do_save_resource(path: String) -> void:
 		if err != OK:
 			push_error("Failed to save resource: %s" % error_string(err))
 		else:
+			# Update ModLoader.registry so the resource is immediately available in other editors' pickers
+			# This must happen BEFORE emitting the signal so listeners see the updated data
+			var resource_id: String = path.get_file().get_basename()
+			var source_mod_id: String = current_resource_source_mod
+			if source_mod_id.is_empty():
+				source_mod_id = _get_active_mod_id()
+			if ModLoader and ModLoader.registry:
+				ModLoader.registry.register_resource(current_resource, resource_type_id, resource_id, source_mod_id)
+
 			# Notify other editors
 			var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 			if event_bus:
