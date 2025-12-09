@@ -16,7 +16,8 @@ extends RefCounted
 enum PhaseType {
 	INITIAL_ATTACK,   ## First strike from the initiating unit
 	DOUBLE_ATTACK,    ## Second strike if AGI/class allows
-	COUNTER_ATTACK    ## Defender's retaliation (75% damage)
+	COUNTER_ATTACK,   ## Defender's retaliation (75% damage)
+	SPELL_ATTACK      ## Magic attack (no counter possible)
 }
 
 ## The type of this combat phase
@@ -107,6 +108,25 @@ static func create_counter_attack(
 	return phase
 
 
+## Factory method to create a spell attack phase
+## Spells cannot be countered or trigger double attacks
+static func create_spell_attack(
+	p_caster: Node2D,
+	p_target: Node2D,
+	p_damage: int
+) -> CombatPhase:
+	var phase: CombatPhase = CombatPhase.new()
+	phase.phase_type = PhaseType.SPELL_ATTACK
+	phase.attacker = p_caster
+	phase.defender = p_target
+	phase.damage = p_damage
+	phase.was_critical = false  # Spells don't crit in SF2
+	phase.was_miss = false      # Spells don't miss in SF2
+	phase.is_counter = false
+	phase.is_double_attack = false
+	return phase
+
+
 ## Get a human-readable description for debugging
 func get_description() -> String:
 	var type_str: String = ""
@@ -117,6 +137,8 @@ func get_description() -> String:
 			type_str = "Double"
 		PhaseType.COUNTER_ATTACK:
 			type_str = "Counter"
+		PhaseType.SPELL_ATTACK:
+			type_str = "Spell"
 
 	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
 	var defender_name: String = defender.get_display_name() if defender and defender.has_method("get_display_name") else "Unknown"

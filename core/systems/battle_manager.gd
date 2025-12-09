@@ -647,7 +647,7 @@ func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> 
 	return true
 
 
-## Apply damage spell effect
+## Apply damage spell effect via combat screen
 func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for damage spell")
@@ -656,23 +656,21 @@ func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -
 	# Calculate magic damage using CombatCalculator
 	var damage: int = CombatCalculator.calculate_magic_damage(caster.stats, target.stats, ability)
 
-	# Apply damage
-	if target.has_method("take_damage"):
-		target.take_damage(damage)
-	else:
-		target.stats.current_hp -= damage
-		target.stats.current_hp = maxi(0, target.stats.current_hp)
+	# Build spell combat phase (spells cannot be countered or trigger double attacks)
+	var phases: Array[CombatPhase] = []
+	var spell_phase: CombatPhase = CombatPhase.create_spell_attack(caster, target, damage)
+	phases.append(spell_phase)
 
-	# Play spell hit sound
-	AudioManager.play_sfx("spell_hit", AudioManager.SFXCategory.COMBAT)
+	# Debug output for spell combat
+	print("[BattleManager] Spell combat: %s casts %s on %s for %d damage" % [
+		caster.get_display_name(),
+		ability.ability_name,
+		target.get_display_name(),
+		damage
+	])
 
-	# Visual feedback (flash red/blue for magic)
-	if not TurnManager.is_headless and target.has_method("flash_color"):
-		target.flash_color(Color.BLUE, 0.3)
-
-	# Brief pause for player feedback
-	if not TurnManager.is_headless:
-		await get_tree().create_timer(0.5).timeout
+	# Execute combat session (shows combat screen, applies damage, handles death)
+	await _execute_combat_session(caster, target, phases)
 
 	return true
 
