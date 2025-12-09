@@ -2,7 +2,8 @@
 
 **Author**: Lt. Claudbrain, USS Torvalds
 **Date**: 2025-12-06
-**Status**: Planning Phase
+**Updated**: 2025-12-08 (Class-based spell architecture, implementation readiness assessment)
+**Status**: Ready for Implementation (Active Spells 80-85% infrastructure complete)
 
 ---
 
@@ -16,6 +17,105 @@ The design prioritizes:
 3. FE-style mechanics available for mods that want them
 4. Clear visual feedback for tactical decision-making
 5. Data-driven design with scripting escape hatches
+
+---
+
+## PRIORITY: Active Spell Implementation
+
+**Updated 2025-12-08**: Commander Claudius's assessment confirms we're 80-85% ready for active spell implementation. This section covers the immediate path to working spells.
+
+### Spell Source Architecture (SF-Authentic)
+
+**Core Principle**: Spells are CLASS-BASED, not character-based.
+
+```
+Character's Available Spells = ClassData.class_abilities + CharacterData.unique_abilities
+```
+
+**ClassData** defines spell lists (primary source):
+- MAGE class → Blaze 1-4
+- PRIEST class → Heal 1-4
+- WIZARD class (promoted MAGE) → Blaze 1-4, Freeze 1-4
+- Boss classes → Custom spell lists per boss type
+
+**CharacterData.unique_abilities** (rare exceptions only):
+- Domingo's innate Freeze (before learning other spells)
+- Special hero abilities
+- Unique character powers that transcend class
+
+This matches SF2's design where a character's spells come from their class, and promotion to a new class grants new/upgraded spells.
+
+### Infrastructure Already In Place ✅
+
+1. **AbilityData Resource** (`core/resources/ability_data.gd`)
+   - Complete with targeting, range, MP costs, power, status effects
+   - Production-ready, no changes needed
+
+2. **CombatCalculator.calculate_magic_damage()**
+   - SF2-authentic INT-based formula already implemented
+   - `(Ability Power + Attacker INT - Defender INT/2) * variance`
+
+3. **Item System Pattern**
+   - `item_menu.gd` provides complete blueprint for spell menu
+   - `InputManager` states for selection → targeting → execution
+   - `BattleManager._apply_item_effect()` pattern to clone
+
+4. **Mod Discovery**
+   - Abilities auto-register from `mods/*/data/abilities/`
+
+### Key Gaps to Fill ⚠️
+
+1. **ClassData needs `class_abilities` field** (CRITICAL)
+   ```gdscript
+   @export var class_abilities: Array[AbilityData] = []
+   @export var ability_unlock_levels: Dictionary = {}  # {"heal_2": 12}
+   ```
+
+2. **CharacterData needs `unique_abilities` field** (for exceptions)
+   ```gdscript
+   @export var unique_abilities: Array[AbilityData] = []
+   ```
+
+3. **SpellMenu UI** - Clone ItemMenu, show MP costs, disable if insufficient MP
+
+4. **InputManager spell states** - Add SELECTING_SPELL, SELECTING_SPELL_TARGET
+
+5. **BattleManager spell execution** - Clone item execution with MP deduction
+
+### Spell Implementation Phases
+
+#### Phase S1: Foundation (~2-3 hours)
+1. Add `class_abilities` and `ability_unlock_levels` to ClassData
+2. Add `unique_abilities` to CharacterData
+3. Create test spells: `heal_1.tres`, `blaze_1.tres` in `mods/_base_game/data/abilities/`
+4. Assign spells to test class (MAGE gets Blaze, PRIEST gets Heal)
+
+**Deliverable**: Characters have spell lists derived from class
+
+#### Phase S2: Core Execution (~4-5 hours)
+1. Add InputManager spell states (clone item states)
+2. Create SpellMenu (clone ItemMenu, show MP cost, check MP)
+3. Add BattleManager spell execution (MP deduction, damage/healing)
+4. Wire "Magic" action to spell menu
+
+**Deliverable**: Spells execute correctly in battle
+
+#### Phase S3: UI & Polish (~2-3 hours)
+1. Add "Magic" to action menu (hide if no spells, per SF2)
+2. Spell targeting range visualization
+3. Combat animation integration
+4. MP display in unit stats panel
+
+**Deliverable**: Full player-facing spell system
+
+#### Phase S4: Spell Progression (Optional, ~3-4 hours)
+1. Level-based spell unlocks from `ability_unlock_levels`
+2. Spell tier progression (Heal 1 → 2 → 3 → 4)
+3. Area-of-effect spells using `area_of_effect` field
+
+**Deliverable**: SF2-authentic spell progression
+
+### Estimated Total: 8-12 hours for complete spell system
 
 ---
 
@@ -310,16 +410,44 @@ extends Resource
 ## Leave null for characters without personal skills
 @export var personal_skill: PassiveSkillData
 
-## Additional innate abilities (beyond class abilities)
-## For special characters like heroes with multiple innate powers
-@export var innate_abilities: Array[AbilityData] = []
+## Character-specific unique abilities (EXCEPTIONS ONLY)
+## Most spells come from ClassData.class_abilities, NOT here
+## Use for: Domingo's innate Freeze, hero special powers, unique character skills
+@export var unique_abilities: Array[AbilityData] = []
+```
+
+**Spell Resolution at Runtime**:
+```gdscript
+func get_available_spells(character: CharacterData, level: int) -> Array[AbilityData]:
+    var spells: Array[AbilityData] = []
+
+    # 1. Class abilities (primary source)
+    if character.character_class:
+        for ability in character.character_class.class_abilities:
+            var unlock_level: int = character.character_class.ability_unlock_levels.get(ability.ability_id, 1)
+            if level >= unlock_level:
+                spells.append(ability)
+
+    # 2. Character unique abilities (rare exceptions)
+    spells.append_array(character.unique_abilities)
+
+    return spells
 ```
 
 ### 3.4 ClassData Extensions
 
 ```gdscript
 # Additional exports for ClassData
-@export_group("Class Skills")
+@export_group("Active Abilities (Spells)")
+## Active spells/abilities granted by this class (PRIMARY spell source)
+## Characters get their spells from their class, not individually
+@export var class_abilities: Array[AbilityData] = []
+
+## Level requirements for each ability {"ability_id": level_required}
+## Abilities not in this dict are available at level 1
+@export var ability_unlock_levels: Dictionary = {}  # {"heal_2": 12, "heal_3": 20}
+
+@export_group("Passive Skills")
 ## Passive skills granted by this class
 @export var class_skills: Array[PassiveSkillData] = []
 
@@ -330,6 +458,11 @@ extends Resource
 ## XP required to master this class (0 = cannot master)
 @export var mastery_xp_required: int = 0
 ```
+
+**Example Class Spell Lists**:
+- MAGE: `[blaze_1, blaze_2, blaze_3, blaze_4]` with unlock levels `{blaze_2: 8, blaze_3: 16, blaze_4: 24}`
+- PRIEST: `[heal_1, heal_2, heal_3, heal_4]` with unlock levels `{heal_2: 8, heal_3: 16, heal_4: 24}`
+- WIZARD (promoted MAGE): Inherits MAGE spells + adds `[freeze_1, freeze_2]`
 
 ### 3.5 Ability Registry
 
