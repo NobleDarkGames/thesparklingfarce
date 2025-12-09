@@ -88,8 +88,8 @@ func _create_detail_form() -> void:
 	_add_church_section()
 	_add_crafter_section()
 
-	# Add button container at end
-	detail_panel.add_child(button_container)
+	# Add button container at end (with separator for visual clarity)
+	_add_button_container_to_detail_panel()
 
 
 ## Override: Load shop data from resource into UI

@@ -203,6 +203,11 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("sf_confirm"):
 		_try_interact()
 
+	# Cancel key opens field menu directly (SF2 authentic)
+	# Only when in exploration mode with no UI active
+	elif event.is_action_pressed("sf_cancel"):
+		_try_open_field_menu()
+
 
 ## Attempt to move in the given direction.
 ## Returns true if movement was initiated, false if blocked.
@@ -273,6 +278,27 @@ func _try_interact() -> void:
 	var interaction_pos: Vector2i = grid_position + facing_direction
 	print("HeroController: Trying to interact at %s (hero at %s, facing %s)" % [interaction_pos, grid_position, facing_direction])
 	interaction_requested.emit(interaction_pos)
+
+
+## Try to open the field menu (SF2-authentic: cancel button opens field menu)
+func _try_open_field_menu() -> void:
+	if not ui_controller:
+		if DEBUG_MODE:
+			print("[HeroController] Cannot open field menu - no ui_controller")
+		return
+
+	if not ui_controller.has_method("open_field_menu"):
+		if DEBUG_MODE:
+			print("[HeroController] ui_controller does not have open_field_menu method")
+		return
+
+	# Get screen position for menu positioning
+	var screen_pos: Vector2 = get_global_transform_with_canvas().origin
+
+	# Open field menu at hero's current position
+	ui_controller.open_field_menu(grid_position, screen_pos)
+	if DEBUG_MODE:
+		print("[HeroController] Opened field menu via sf_cancel at %s" % grid_position)
 
 
 ## Update the interaction raycast to face the current direction.

@@ -42,6 +42,7 @@ enum UIState {
 	EXPLORING,      ## Normal gameplay, hero can move and interact
 	INVENTORY,      ## PartyEquipmentMenu open
 	DEPOT,          ## CaravanDepotPanel open (from menu or Caravan interaction)
+	FIELD_MENU,     ## ExplorationFieldMenu open (Item/Magic/Search/Member)
 	DIALOG,         ## Dialog box active (future)
 	SHOP,           ## Shop interface (future)
 	PAUSED          ## Pause menu (future)
@@ -67,6 +68,10 @@ var party_equipment_menu: PartyEquipmentMenu = null
 ## Caravan depot panel (must be set via setup())
 var caravan_depot_panel: CaravanDepotPanel = null
 
+## Exploration field menu (must be set via setup() or setup_field_menu())
+## Type is Control because ExplorationFieldMenu is in scenes/, not core/
+var exploration_field_menu: Control = null
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
@@ -83,9 +88,11 @@ func _exit_tree() -> void:
 ## Initialize the controller with UI panel references
 ## @param equipment_menu: PartyEquipmentMenu instance
 ## @param depot_panel: CaravanDepotPanel instance
-func setup(equipment_menu: PartyEquipmentMenu, depot_panel: CaravanDepotPanel) -> void:
+## @param field_menu: ExplorationFieldMenu instance (optional, can be set later)
+func setup(equipment_menu: PartyEquipmentMenu, depot_panel: CaravanDepotPanel, field_menu: Control = null) -> void:
 	party_equipment_menu = equipment_menu
 	caravan_depot_panel = depot_panel
+	exploration_field_menu = field_menu
 
 	_connect_signals()
 
@@ -94,6 +101,17 @@ func setup(equipment_menu: PartyEquipmentMenu, depot_panel: CaravanDepotPanel) -
 		party_equipment_menu.visible = false
 	if caravan_depot_panel:
 		caravan_depot_panel.visible = false
+	if exploration_field_menu:
+		exploration_field_menu.visible = false
+
+
+## Set up the exploration field menu (can be called after initial setup)
+## @param field_menu: ExplorationFieldMenu instance
+func setup_field_menu(field_menu: Control) -> void:
+	exploration_field_menu = field_menu
+	_connect_field_menu_signals()
+	if exploration_field_menu:
+		exploration_field_menu.visible = false
 
 
 func _connect_signals() -> void:
@@ -107,6 +125,22 @@ func _connect_signals() -> void:
 		if not caravan_depot_panel.close_requested.is_connected(_on_depot_close_requested):
 			caravan_depot_panel.close_requested.connect(_on_depot_close_requested)
 
+	_connect_field_menu_signals()
+
+
+func _connect_field_menu_signals() -> void:
+	if exploration_field_menu:
+		if not exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
+			exploration_field_menu.close_requested.connect(_on_field_menu_close_requested)
+		if not exploration_field_menu.item_requested.is_connected(_on_field_menu_item_requested):
+			exploration_field_menu.item_requested.connect(_on_field_menu_item_requested)
+		if not exploration_field_menu.member_requested.is_connected(_on_field_menu_member_requested):
+			exploration_field_menu.member_requested.connect(_on_field_menu_member_requested)
+		if not exploration_field_menu.search_requested.is_connected(_on_field_menu_search_requested):
+			exploration_field_menu.search_requested.connect(_on_field_menu_search_requested)
+		if not exploration_field_menu.magic_requested.is_connected(_on_field_menu_magic_requested):
+			exploration_field_menu.magic_requested.connect(_on_field_menu_magic_requested)
+
 
 func _disconnect_signals() -> void:
 	if party_equipment_menu:
@@ -118,6 +152,18 @@ func _disconnect_signals() -> void:
 	if caravan_depot_panel:
 		if caravan_depot_panel.close_requested.is_connected(_on_depot_close_requested):
 			caravan_depot_panel.close_requested.disconnect(_on_depot_close_requested)
+
+	if exploration_field_menu:
+		if exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
+			exploration_field_menu.close_requested.disconnect(_on_field_menu_close_requested)
+		if exploration_field_menu.item_requested.is_connected(_on_field_menu_item_requested):
+			exploration_field_menu.item_requested.disconnect(_on_field_menu_item_requested)
+		if exploration_field_menu.member_requested.is_connected(_on_field_menu_member_requested):
+			exploration_field_menu.member_requested.disconnect(_on_field_menu_member_requested)
+		if exploration_field_menu.search_requested.is_connected(_on_field_menu_search_requested):
+			exploration_field_menu.search_requested.disconnect(_on_field_menu_search_requested)
+		if exploration_field_menu.magic_requested.is_connected(_on_field_menu_magic_requested):
+			exploration_field_menu.magic_requested.disconnect(_on_field_menu_magic_requested)
 
 # =============================================================================
 # INPUT HANDLING
@@ -206,8 +252,25 @@ func close_all_menus() -> void:
 		party_equipment_menu.visible = false
 	if caravan_depot_panel:
 		caravan_depot_panel.visible = false
+	if exploration_field_menu:
+		exploration_field_menu.hide_menu()
 
 	_set_state(UIState.EXPLORING)
+
+
+## Open the exploration field menu
+## @param hero_grid_pos: Grid position where menu was opened (for Search action)
+## @param hero_screen_pos: Screen position of hero (for menu positioning)
+func open_field_menu(hero_grid_pos: Vector2i, hero_screen_pos: Vector2 = Vector2.ZERO) -> void:
+	if current_state != UIState.EXPLORING:
+		return
+
+	if not exploration_field_menu:
+		push_warning("ExplorationUIController: No ExplorationFieldMenu assigned")
+		return
+
+	_set_state(UIState.FIELD_MENU)
+	exploration_field_menu.show_menu(hero_grid_pos, hero_screen_pos)
 
 
 ## Get current UI state
@@ -241,6 +304,71 @@ func _on_depot_close_requested() -> void:
 	else:
 		# Otherwise close everything
 		close_all_menus()
+
+
+## Field menu closed - return to exploration
+func _on_field_menu_close_requested() -> void:
+	_set_state(UIState.EXPLORING)
+
+
+## Field menu Item option - open inventory
+func _on_field_menu_item_requested() -> void:
+	# Close field menu first
+	if exploration_field_menu:
+		exploration_field_menu.hide_menu()
+
+	# Open inventory (transitions from FIELD_MENU to INVENTORY)
+	_set_state(UIState.INVENTORY)
+	if party_equipment_menu:
+		party_equipment_menu.refresh()
+		party_equipment_menu.visible = true
+
+
+## Field menu Member option - open party view (uses inventory for Phase 1)
+func _on_field_menu_member_requested() -> void:
+	# Close field menu first
+	if exploration_field_menu:
+		exploration_field_menu.hide_menu()
+
+	# Phase 1: Use PartyEquipmentMenu for member viewing
+	# Phase 5 will create a dedicated MemberInfoPanel
+	_set_state(UIState.INVENTORY)
+	if party_equipment_menu:
+		party_equipment_menu.refresh()
+		party_equipment_menu.visible = true
+
+
+## Field menu Search option - examine current tile
+func _on_field_menu_search_requested() -> void:
+	# Close field menu first
+	if exploration_field_menu:
+		exploration_field_menu.hide_menu()
+
+	_set_state(UIState.EXPLORING)
+
+	# Phase 1: Show placeholder message via DialogManager
+	# Phase 3 will implement hidden item detection and tile descriptions
+	if DialogManager:
+		DialogManager.show_message("Nothing unusual here.")
+	else:
+		push_warning("ExplorationUIController: DialogManager not available for Search message")
+
+
+## Field menu Magic option - open magic selection (Phase 2)
+func _on_field_menu_magic_requested() -> void:
+	# Close field menu first
+	if exploration_field_menu:
+		exploration_field_menu.hide_menu()
+
+	_set_state(UIState.EXPLORING)
+
+	# Phase 1: Show placeholder message
+	# Phase 2 will implement FieldMagicMenu for Egress/Detox
+	if DialogManager:
+		DialogManager.show_message("No field magic available.")
+	else:
+		push_warning("ExplorationUIController: DialogManager not available for Magic message")
+
 
 # =============================================================================
 # STATE MANAGEMENT

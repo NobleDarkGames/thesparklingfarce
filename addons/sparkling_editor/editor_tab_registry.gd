@@ -52,6 +52,7 @@ const BUILTIN_TABS: Array[Dictionary] = [
 
 	# Settings
 	{"id": "mod_settings", "display_name": "Mod Settings", "scene": "mod_json_editor.tscn", "category": "settings", "priority": 10},
+	{"id": "new_game_configs", "display_name": "New Game Configs", "scene": "new_game_config_editor.tscn", "category": "settings", "priority": 20},
 
 	# Content editors
 	{"id": "classes", "display_name": "Classes", "scene": "class_editor.tscn", "category": "content", "priority": 10},

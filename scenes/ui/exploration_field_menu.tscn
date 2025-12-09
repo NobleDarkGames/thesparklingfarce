@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://cqpxjrby3h6ae"]
+
+[ext_resource type="Script" path="res://scenes/ui/exploration_field_menu.gd" id="1_field_menu"]
+
+[node name="ExplorationFieldMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_field_menu")

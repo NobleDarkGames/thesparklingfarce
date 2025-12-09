@@ -33,6 +33,7 @@ signal menu_closed()
 const ExplorationUIControllerScript: GDScript = preload("res://core/components/exploration_ui_controller.gd")
 const PartyEquipmentMenuScene: PackedScene = preload("res://scenes/ui/party_equipment_menu.tscn")
 const CaravanDepotPanelScene: PackedScene = preload("res://scenes/ui/caravan_depot_panel.tscn")
+const ExplorationFieldMenuScene: PackedScene = preload("res://scenes/ui/exploration_field_menu.tscn")
 
 # =============================================================================
 # STATE
@@ -47,6 +48,7 @@ var _controller: Node = null  # ExplorationUIController
 ## UI panel instances
 var _party_menu: Control = null  # PartyEquipmentMenu
 var _depot_panel: Control = null  # CaravanDepotPanel
+var _field_menu: Control = null  # ExplorationFieldMenu
 
 ## Currently connected hero (if any)
 var _current_hero: Node = null
@@ -83,9 +85,14 @@ func _initialize() -> void:
 	_depot_panel.name = "CaravanDepotPanel"
 	_depot_panel.visible = false
 
+	_field_menu = ExplorationFieldMenuScene.instantiate()
+	_field_menu.name = "ExplorationFieldMenu"
+	_field_menu.visible = false
+
 	# Defer adding children until layer is in tree
 	_ui_layer.call_deferred("add_child", _party_menu)
 	_ui_layer.call_deferred("add_child", _depot_panel)
+	_ui_layer.call_deferred("add_child", _field_menu)
 
 	# Create the controller
 	_controller = Node.new()
@@ -130,7 +137,7 @@ func _initial_activation() -> void:
 
 func _setup_controller() -> void:
 	if _controller and _controller.has_method("setup"):
-		_controller.setup(_party_menu, _depot_panel)
+		_controller.setup(_party_menu, _depot_panel, _field_menu)
 
 		# Forward controller signals
 		if _controller.has_signal("menu_opened"):

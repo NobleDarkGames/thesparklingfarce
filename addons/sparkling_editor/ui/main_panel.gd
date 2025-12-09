@@ -618,6 +618,7 @@ func _create_mod_structure(mod_id: String, mod_name: String, author: String, des
 		"data/maps",
 		"data/npcs",
 		"data/terrain",
+		"data/new_game_configs",
 		"assets/icons",
 		"assets/portraits",
 		"assets/sprites",

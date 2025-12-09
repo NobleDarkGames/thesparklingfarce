@@ -90,6 +90,34 @@ var scene_path_edit: LineEdit
 var data_path_edit: LineEdit
 var assets_path_edit: LineEdit
 
+# Field Menu Options section
+var field_menu_options_list: ItemList
+var field_menu_option_id_edit: LineEdit
+var field_menu_option_label_edit: LineEdit
+var field_menu_option_scene_path_edit: LineEdit
+var field_menu_option_position_dropdown: OptionButton
+var field_menu_replace_all_check: CheckBox
+var add_field_menu_option_button: Button
+var remove_field_menu_option_button: Button
+
+# Position options for field menu
+const FIELD_MENU_POSITIONS: Array[String] = [
+	"end",
+	"start",
+	"after_item",
+	"after_magic",
+	"after_search",
+	"after_member"
+]
+
+# Reserved option IDs that mods cannot override
+const RESERVED_FIELD_MENU_IDS: Array[String] = [
+	"item",
+	"magic",
+	"search",
+	"member"
+]
+
 
 func _init() -> void:
 	call_deferred("_setup_ui")
@@ -146,9 +174,14 @@ func _setup_ui() -> void:
 	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	detail_scroll.custom_minimum_size = Vector2(500, 0)
+	# Ensure vertical scrolling works properly
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	detail_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	detail_scroll.follow_focus = true
 
 	detail_panel = VBoxContainer.new()
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_panel.add_theme_constant_override("separation", 8)
 
 	var detail_label: Label = Label.new()
 	detail_label.text = "Mod Settings"
@@ -166,12 +199,16 @@ func _setup_ui() -> void:
 	_create_inventory_config_section()
 	_create_party_config_section()
 	_create_scene_overrides_section()
+	_create_field_menu_options_section()
 	_create_content_paths_section()
 
 	# Error panel (hidden by default)
 	_create_error_panel()
 
-	# Save button
+	# Save button (with separator for visual clarity)
+	var button_separator: HSeparator = HSeparator.new()
+	detail_panel.add_child(button_separator)
+
 	var button_container: HBoxContainer = HBoxContainer.new()
 	save_button = Button.new()
 	save_button.text = "Save mod.json"
@@ -647,6 +684,122 @@ func _create_scene_overrides_section() -> void:
 	_add_separator()
 
 
+func _create_field_menu_options_section() -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Field Menu Options"
+	section_label.add_theme_font_size_override("font_size", 16)
+	section.add_child(section_label)
+
+	var help_text: Label = Label.new()
+	help_text.text = "Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)"
+	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(help_text)
+
+	# Replace all checkbox (for total conversions)
+	field_menu_replace_all_check = CheckBox.new()
+	field_menu_replace_all_check.text = "Replace all base options (total conversion)"
+	field_menu_replace_all_check.tooltip_text = "When enabled, removes base Item/Magic/Search/Member options.\nUse this only for total conversions that provide their own field menu."
+	field_menu_replace_all_check.toggled.connect(_on_field_menu_replace_all_toggled)
+	section.add_child(field_menu_replace_all_check)
+
+	# Options list
+	field_menu_options_list = ItemList.new()
+	field_menu_options_list.custom_minimum_size = Vector2(0, 80)
+	field_menu_options_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field_menu_options_list.item_selected.connect(_on_field_menu_option_selected)
+	section.add_child(field_menu_options_list)
+
+	# Input fields container
+	var input_container: VBoxContainer = VBoxContainer.new()
+
+	# Option ID
+	var id_row: HBoxContainer = HBoxContainer.new()
+	var id_label: Label = Label.new()
+	id_label.text = "Option ID:"
+	id_label.custom_minimum_size.x = 100
+	id_row.add_child(id_label)
+	field_menu_option_id_edit = LineEdit.new()
+	field_menu_option_id_edit.placeholder_text = "e.g., bestiary, quest_log"
+	field_menu_option_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field_menu_option_id_edit.tooltip_text = "Unique identifier for this option (lowercase, underscores)"
+	id_row.add_child(field_menu_option_id_edit)
+	input_container.add_child(id_row)
+
+	# Label
+	var label_row: HBoxContainer = HBoxContainer.new()
+	var label_label: Label = Label.new()
+	label_label.text = "Label:"
+	label_label.custom_minimum_size.x = 100
+	label_row.add_child(label_label)
+	field_menu_option_label_edit = LineEdit.new()
+	field_menu_option_label_edit.placeholder_text = "e.g., Bestiary, Quests"
+	field_menu_option_label_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field_menu_option_label_edit.tooltip_text = "Display text shown in the menu"
+	label_row.add_child(field_menu_option_label_edit)
+	input_container.add_child(label_row)
+
+	# Scene Path with browse button
+	var path_row: HBoxContainer = HBoxContainer.new()
+	var path_label: Label = Label.new()
+	path_label.text = "Scene Path:"
+	path_label.custom_minimum_size.x = 100
+	path_row.add_child(path_label)
+	field_menu_option_scene_path_edit = LineEdit.new()
+	field_menu_option_scene_path_edit.placeholder_text = "scenes/ui/my_panel.tscn"
+	field_menu_option_scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field_menu_option_scene_path_edit.tooltip_text = "Relative path to the scene file (from mod folder)"
+	path_row.add_child(field_menu_option_scene_path_edit)
+	input_container.add_child(path_row)
+
+	# Position dropdown
+	var position_row: HBoxContainer = HBoxContainer.new()
+	var position_label: Label = Label.new()
+	position_label.text = "Position:"
+	position_label.custom_minimum_size.x = 100
+	position_row.add_child(position_label)
+	field_menu_option_position_dropdown = OptionButton.new()
+	field_menu_option_position_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field_menu_option_position_dropdown.tooltip_text = "Where to insert this option in the menu"
+	# Populate position options with display-friendly labels
+	field_menu_option_position_dropdown.add_item("End (after Member)", 0)
+	field_menu_option_position_dropdown.add_item("Start (before Item)", 1)
+	field_menu_option_position_dropdown.add_item("After Item", 2)
+	field_menu_option_position_dropdown.add_item("After Magic", 3)
+	field_menu_option_position_dropdown.add_item("After Search", 4)
+	field_menu_option_position_dropdown.add_item("After Member", 5)
+	position_row.add_child(field_menu_option_position_dropdown)
+	input_container.add_child(position_row)
+
+	section.add_child(input_container)
+
+	# Buttons
+	var button_row: HBoxContainer = HBoxContainer.new()
+
+	add_field_menu_option_button = Button.new()
+	add_field_menu_option_button.text = "Add Option"
+	add_field_menu_option_button.pressed.connect(_on_add_field_menu_option)
+	button_row.add_child(add_field_menu_option_button)
+
+	remove_field_menu_option_button = Button.new()
+	remove_field_menu_option_button.text = "Remove Selected"
+	remove_field_menu_option_button.pressed.connect(_on_remove_field_menu_option)
+	button_row.add_child(remove_field_menu_option_button)
+
+	var update_button: Button = Button.new()
+	update_button.text = "Update Selected"
+	update_button.pressed.connect(_on_update_field_menu_option)
+	button_row.add_child(update_button)
+
+	section.add_child(button_row)
+
+	detail_panel.add_child(section)
+	_add_separator()
+
+
 func _create_content_paths_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
@@ -884,6 +1037,25 @@ func _populate_ui_from_data() -> void:
 	data_path_edit.text = content.get("data_path", "data/")
 	assets_path_edit.text = content.get("assets_path", "assets/")
 
+	# Field menu options
+	field_menu_options_list.clear()
+	var field_menu_opts: Dictionary = current_mod_data.get("field_menu_options", {})
+	field_menu_replace_all_check.set_pressed_no_signal(field_menu_opts.get("_replace_all", false))
+	for option_id: String in field_menu_opts.keys():
+		if option_id.begins_with("_"):
+			continue  # Skip meta keys like _replace_all
+		var opt_data: Variant = field_menu_opts[option_id]
+		if opt_data is Dictionary:
+			var label_text: String = opt_data.get("label", option_id)
+			var position_text: String = opt_data.get("position", "end")
+			field_menu_options_list.add_item("%s (%s) [%s]" % [label_text, option_id, position_text])
+			field_menu_options_list.set_item_metadata(field_menu_options_list.item_count - 1, {
+				"id": option_id,
+				"label": label_text,
+				"scene_path": opt_data.get("scene_path", ""),
+				"position": position_text
+			})
+
 
 ## Collect all UI data into current_mod_data
 func _collect_data_from_ui() -> void:
@@ -985,6 +1157,25 @@ func _collect_data_from_ui() -> void:
 		"data_path": data_path_edit.text,
 		"assets_path": assets_path_edit.text
 	}
+
+	# Field menu options
+	var field_menu_opts: Dictionary = {}
+	if field_menu_replace_all_check.button_pressed:
+		field_menu_opts["_replace_all"] = true
+	for i in range(field_menu_options_list.item_count):
+		var opt_data: Dictionary = field_menu_options_list.get_item_metadata(i)
+		if opt_data is Dictionary:
+			var option_id: String = opt_data.get("id", "")
+			if not option_id.is_empty():
+				field_menu_opts[option_id] = {
+					"label": opt_data.get("label", option_id),
+					"scene_path": opt_data.get("scene_path", ""),
+					"position": opt_data.get("position", "end")
+				}
+	if field_menu_opts.size() > 0:
+		current_mod_data["field_menu_options"] = field_menu_opts
+	elif "field_menu_options" in current_mod_data:
+		current_mod_data.erase("field_menu_options")
 
 
 ## Save current mod data to JSON file
@@ -1209,6 +1400,153 @@ func _on_scene_override_selected(index: int) -> void:
 	if override_data is Dictionary:
 		scene_id_edit.text = override_data.get("id", "")
 		scene_path_edit.text = override_data.get("path", "")
+
+
+# =============================================================================
+# Field Menu Options Handlers
+# =============================================================================
+
+## Add a field menu option
+func _on_add_field_menu_option() -> void:
+	var option_id: String = field_menu_option_id_edit.text.strip_edges().to_lower()
+	var option_label: String = field_menu_option_label_edit.text.strip_edges()
+	var scene_path: String = field_menu_option_scene_path_edit.text.strip_edges()
+	var position_index: int = field_menu_option_position_dropdown.selected
+	var position: String = FIELD_MENU_POSITIONS[position_index] if position_index >= 0 else "end"
+
+	# Validation
+	if option_id.is_empty():
+		_show_errors(["Option ID cannot be empty"])
+		return
+
+	if option_label.is_empty():
+		_show_errors(["Label cannot be empty"])
+		return
+
+	if scene_path.is_empty():
+		_show_errors(["Scene path cannot be empty"])
+		return
+
+	# Check for reserved IDs
+	if option_id in RESERVED_FIELD_MENU_IDS:
+		_show_errors(["'%s' is a reserved option ID. Base options cannot be overridden.\nReserved IDs: %s" % [option_id, ", ".join(RESERVED_FIELD_MENU_IDS)]])
+		return
+
+	# Check for duplicate IDs
+	for i in range(field_menu_options_list.item_count):
+		var existing: Dictionary = field_menu_options_list.get_item_metadata(i)
+		if existing.get("id", "") == option_id:
+			_show_errors(["Option ID '%s' already exists" % option_id])
+			return
+
+	# Validate scene path exists (warning, not blocking)
+	var mod_dir: String = current_mod_path.get_base_dir()
+	var full_scene_path: String = mod_dir.path_join(scene_path)
+	if not FileAccess.file_exists(full_scene_path) and not ResourceLoader.exists(full_scene_path):
+		# Show warning but allow adding
+		push_warning("Field menu option scene not found: %s" % full_scene_path)
+
+	var opt_data: Dictionary = {
+		"id": option_id,
+		"label": option_label,
+		"scene_path": scene_path,
+		"position": position
+	}
+
+	field_menu_options_list.add_item("%s (%s) [%s]" % [option_label, option_id, position])
+	field_menu_options_list.set_item_metadata(field_menu_options_list.item_count - 1, opt_data)
+
+	# Clear inputs
+	field_menu_option_id_edit.text = ""
+	field_menu_option_label_edit.text = ""
+	field_menu_option_scene_path_edit.text = ""
+	field_menu_option_position_dropdown.select(0)  # Reset to "end"
+	is_dirty = true
+	_hide_errors()
+
+
+## Remove selected field menu option
+func _on_remove_field_menu_option() -> void:
+	var selected: PackedInt32Array = field_menu_options_list.get_selected_items()
+	if selected.size() > 0:
+		field_menu_options_list.remove_item(selected[0])
+		is_dirty = true
+
+
+## Update selected field menu option with current field values
+func _on_update_field_menu_option() -> void:
+	var selected: PackedInt32Array = field_menu_options_list.get_selected_items()
+	if selected.size() == 0:
+		_show_errors(["No option selected"])
+		return
+
+	var option_id: String = field_menu_option_id_edit.text.strip_edges().to_lower()
+	var option_label: String = field_menu_option_label_edit.text.strip_edges()
+	var scene_path: String = field_menu_option_scene_path_edit.text.strip_edges()
+	var position_index: int = field_menu_option_position_dropdown.selected
+	var position: String = FIELD_MENU_POSITIONS[position_index] if position_index >= 0 else "end"
+
+	# Validation
+	if option_id.is_empty():
+		_show_errors(["Option ID cannot be empty"])
+		return
+
+	if option_label.is_empty():
+		_show_errors(["Label cannot be empty"])
+		return
+
+	if scene_path.is_empty():
+		_show_errors(["Scene path cannot be empty"])
+		return
+
+	# Check for reserved IDs
+	if option_id in RESERVED_FIELD_MENU_IDS:
+		_show_errors(["'%s' is a reserved option ID. Base options cannot be overridden.\nReserved IDs: %s" % [option_id, ", ".join(RESERVED_FIELD_MENU_IDS)]])
+		return
+
+	# Check for duplicate IDs (excluding the currently selected item)
+	var selected_index: int = selected[0]
+	for i in range(field_menu_options_list.item_count):
+		if i == selected_index:
+			continue
+		var existing: Dictionary = field_menu_options_list.get_item_metadata(i)
+		if existing.get("id", "") == option_id:
+			_show_errors(["Option ID '%s' already exists" % option_id])
+			return
+
+	var opt_data: Dictionary = {
+		"id": option_id,
+		"label": option_label,
+		"scene_path": scene_path,
+		"position": position
+	}
+
+	field_menu_options_list.set_item_text(selected_index, "%s (%s) [%s]" % [option_label, option_id, position])
+	field_menu_options_list.set_item_metadata(selected_index, opt_data)
+	is_dirty = true
+	_hide_errors()
+
+
+## Load selected field menu option into edit fields
+func _on_field_menu_option_selected(index: int) -> void:
+	var opt_data: Dictionary = field_menu_options_list.get_item_metadata(index)
+	if opt_data is Dictionary:
+		field_menu_option_id_edit.text = opt_data.get("id", "")
+		field_menu_option_label_edit.text = opt_data.get("label", "")
+		field_menu_option_scene_path_edit.text = opt_data.get("scene_path", "")
+
+		# Set position dropdown
+		var position: String = opt_data.get("position", "end")
+		var position_index: int = FIELD_MENU_POSITIONS.find(position)
+		if position_index >= 0:
+			field_menu_option_position_dropdown.select(position_index)
+		else:
+			field_menu_option_position_dropdown.select(0)  # Default to "end"
+
+
+## Called when replace all checkbox is toggled
+func _on_field_menu_replace_all_toggled(_pressed: bool) -> void:
+	is_dirty = true
 
 
 ## Parse comma-separated list into array

@@ -45,8 +45,8 @@ func _create_detail_form() -> void:
 	# Section 2: Party Members
 	_add_party_members_section()
 
-	# Add the button container at the end
-	detail_panel.add_child(button_container)
+	# Add the button container at the end (with separator for visual clarity)
+	_add_button_container_to_detail_panel()
 
 
 ## Override: Load party data from resource into UI

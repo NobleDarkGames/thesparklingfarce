@@ -31,7 +31,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"experience_configs": "experience_config",  # ExperienceConfig resources for XP/leveling settings
 	"caravans": "caravan",  # CaravanData resources for mobile HQ configuration
 	"npcs": "npc",  # NPCData resources for interactable NPCs
-	"shops": "shop"  # ShopData resources for weapon/item shops, churches, crafters
+	"shops": "shop",  # ShopData resources for weapon/item shops, churches, crafters
+	"new_game_configs": "new_game_config"  # NewGameConfigData resources for starting game state
 }
 
 # Resource types that support JSON loading (in addition to .tres)
@@ -41,6 +42,9 @@ const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "campaign", "map"]
 const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
 const CampaignLoader: GDScript = preload("res://core/systems/campaign_loader.gd")
 const MapMetadataLoader: GDScript = preload("res://core/systems/map_metadata_loader.gd")
+
+# Preload resource classes needed before class_name is available
+const NewGameConfigDataClass: GDScript = preload("res://core/resources/new_game_config_data.gd")
 
 # Preload type registry classes
 const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
@@ -977,3 +981,100 @@ func get_hidden_campaign_patterns() -> Array[String]:
 				patterns.append(pattern)
 
 	return patterns
+
+
+# =============================================================================
+# New Game Configuration
+# =============================================================================
+
+## Get the active NewGameConfigData for starting new games
+## Returns the default config (is_default=true) from the highest-priority mod
+## If no configs exist, returns null (caller should use hardcoded defaults)
+##
+## Override semantics: Higher-priority mods completely replace lower-priority configs.
+## No merging - if you want specific starting conditions, define them all in your config.
+func get_new_game_config() -> Resource:  # Returns NewGameConfigData
+	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
+	if all_configs.is_empty():
+		return null
+
+	# Build list of default configs with their source mod priorities
+	var default_configs: Array[Dictionary] = []
+	for resource: Resource in all_configs:
+		if resource.get_script() == NewGameConfigDataClass and resource.is_default:
+			var resource_id: String = resource.resource_path.get_file().get_basename()
+			var source_mod_id: String = registry.get_resource_source(resource_id)
+			var source_mod: ModManifest = get_mod(source_mod_id)
+			var priority: int = source_mod.load_priority if source_mod else 0
+			default_configs.append({
+				"config": resource,
+				"mod_id": source_mod_id,
+				"priority": priority
+			})
+
+	if default_configs.is_empty():
+		# No default configs found, try returning any config from highest-priority mod
+		for i: int in range(loaded_mods.size() - 1, -1, -1):
+			var manifest: ModManifest = loaded_mods[i]
+			for resource: Resource in all_configs:
+				if resource.get_script() == NewGameConfigDataClass:
+					var resource_id: String = resource.resource_path.get_file().get_basename()
+					var source_mod_id: String = registry.get_resource_source(resource_id)
+					if source_mod_id == manifest.mod_id:
+						return resource
+		return null
+
+	# Find the default config from the highest-priority mod
+	var best_config: Resource = null
+	var best_priority: int = -1
+	for entry: Dictionary in default_configs:
+		if entry.priority > best_priority:
+			best_priority = entry.priority
+			best_config = entry.config
+
+	return best_config
+
+
+## Get a specific NewGameConfigData by config_id
+## Searches all loaded mods, returning the config from the highest-priority mod
+## that has a matching config_id
+func get_new_game_config_by_id(config_id: String) -> Resource:  # Returns NewGameConfigData
+	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
+
+	var matching_configs: Array[Dictionary] = []
+	for resource: Resource in all_configs:
+		if resource.get_script() == NewGameConfigDataClass and resource.config_id == config_id:
+			var resource_id: String = resource.resource_path.get_file().get_basename()
+			var source_mod_id: String = registry.get_resource_source(resource_id)
+			var source_mod: ModManifest = get_mod(source_mod_id)
+			var priority: int = source_mod.load_priority if source_mod else 0
+			matching_configs.append({
+				"config": resource,
+				"priority": priority
+			})
+
+	if matching_configs.is_empty():
+		return null
+
+	# Return the config from the highest-priority mod
+	var best_config: Resource = null
+	var best_priority: int = -1
+	for entry: Dictionary in matching_configs:
+		if entry.priority > best_priority:
+			best_priority = entry.priority
+			best_config = entry.config
+
+	return best_config
+
+
+## Get all available NewGameConfigData resources
+## Returns configs from all mods, useful for a "game mode" selection UI
+func get_all_new_game_configs() -> Array[Resource]:  # Returns Array of NewGameConfigData
+	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
+	var result: Array[Resource] = []
+
+	for resource: Resource in all_configs:
+		if resource.get_script() == NewGameConfigDataClass:
+			result.append(resource)
+
+	return result

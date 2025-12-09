@@ -477,6 +477,7 @@ func _on_hero_moved(tile_pos: Vector2i) -> void:
 
 ## Called when hero presses the interaction button.
 ## Handles NPC interactions automatically; override to add custom behavior.
+## SF2-authentic: Opens field menu if no interaction target found.
 func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 	_debug_print("MapTemplate: Interaction at tile %s" % interaction_pos)
 
@@ -488,10 +489,17 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 			npc.interact(hero)
 			return
 
-	# Override in subclass to add custom logic:
-	# - Check for readable signs
-	# - Check for chests
-	# - Other interactable objects
+	# Check for other interactables (signs, chests, etc.)
+	var interactable: Node = _find_interactable_at_position(interaction_pos)
+	if interactable:
+		_debug_print("MapTemplate: Found interactable at position: %s" % interactable.name)
+		if interactable.has_method("interact"):
+			interactable.interact(hero)
+			return
+
+	# No interaction target found - open field menu
+	# This is SF2-authentic behavior: confirm in empty space = field menu
+	_open_field_menu()
 
 
 ## Find an NPC at the given grid position.
@@ -516,6 +524,55 @@ func _find_npc_at_position(grid_pos: Vector2i) -> Node:
 					return npc
 
 	return null
+
+
+## Find an interactable (sign, chest, etc.) at the given grid position.
+## Returns the first interactable found at that position, or null if none.
+func _find_interactable_at_position(grid_pos: Vector2i) -> Node:
+	# Get all nodes in the "interactables" group
+	var interactables: Array[Node] = get_tree().get_nodes_in_group("interactables")
+
+	for interactable: Node in interactables:
+		# Check if interactable has grid_position property or method
+		if interactable.has_method("is_at_grid_position"):
+			if interactable.is_at_grid_position(grid_pos):
+				return interactable
+		elif "grid_position" in interactable:
+			if interactable.grid_position == grid_pos:
+				return interactable
+		else:
+			# Fallback: convert world position to grid
+			if "global_position" in interactable:
+				var interactable_grid: Vector2i = GridManager.world_to_cell(interactable.global_position)
+				if interactable_grid == grid_pos:
+					return interactable
+
+	return null
+
+
+## Open the exploration field menu
+## Called when hero interacts with empty space (SF2-authentic behavior)
+func _open_field_menu() -> void:
+	if not hero:
+		push_warning("MapTemplate: Cannot open field menu - no hero")
+		return
+
+	# Get exploration UI controller from hero
+	if not "ui_controller" in hero or not hero.ui_controller:
+		_debug_print("MapTemplate: No ExplorationUIController found - field menu unavailable")
+		return
+
+	var exploration_ui: Node = hero.ui_controller
+	if not exploration_ui.has_method("open_field_menu"):
+		push_warning("MapTemplate: ExplorationUIController does not have open_field_menu method")
+		return
+
+	# Get hero's screen position for menu positioning
+	var hero_screen_pos: Vector2 = hero.get_global_transform_with_canvas().origin
+
+	# Open field menu
+	exploration_ui.open_field_menu(hero.grid_position, hero_screen_pos)
+	_debug_print("MapTemplate: Opened field menu at hero position %s" % hero.grid_position)
 
 
 # =============================================================================

@@ -113,7 +113,7 @@ func _create_detail_form() -> void:
 	_add_rewards_section()
 
 	# Add the button container at the end
-	detail_panel.add_child(button_container)
+	_add_button_container_to_detail_panel()
 
 
 ## Section 1: Basic Information

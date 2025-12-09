@@ -181,12 +181,27 @@ func _new_game(slot_num: int) -> void:
 	if CinematicsManager and CinematicsManager.is_cinematic_active():
 		CinematicsManager.skip_cinematic()
 
-	# Create a new save with default party
+	# Get new game configuration from mods (highest-priority mod's default config)
+	var config: NewGameConfigData = ModLoader.get_new_game_config()
+
+	# Create a new save with configuration values (or defaults)
 	var save_data: SaveData = SaveData.new()
 	save_data.slot_number = slot_num
-	save_data.current_location = "Prologue"
 	save_data.created_timestamp = Time.get_unix_time_from_system()
 	save_data.last_played_timestamp = save_data.created_timestamp
+
+	# Apply config values or use backward-compatible defaults
+	if config:
+		save_data.current_location = config.starting_location_label
+		save_data.gold = config.starting_gold
+		save_data.depot_items = config.starting_depot_items.duplicate()
+		save_data.story_flags = config.starting_story_flags.duplicate()
+		print("[FLOW] Using NewGameConfig '%s' from mod system" % config.config_id)
+	else:
+		# Fallback defaults (backward compatibility if no config exists)
+		save_data.current_location = "Prologue"
+		# gold, depot_items, story_flags use SaveData defaults (0, [], {})
+		print("[FLOW] No NewGameConfig found, using defaults")
 
 	# Populate active mods
 	for manifest: ModManifest in ModLoader.loaded_mods:
@@ -195,12 +210,27 @@ func _new_game(slot_num: int) -> void:
 			"version": manifest.version
 		})
 
-	# Initialize party from mod system (hero from highest-priority mod + default party members)
-	var default_characters: Array[CharacterData] = ModLoader.get_default_party()
-	if default_characters.is_empty():
-		push_error("SaveSlotSelector: No hero character found in any loaded mod!")
+	# Initialize party - use config's party override if specified, otherwise default resolution
+	var party_characters: Array[CharacterData] = []
+	if config and not config.starting_party_id.is_empty():
+		# Use explicit party from config (completely replaces default party resolution)
+		var party_data: PartyData = ModLoader.registry.get_resource("party", config.starting_party_id)
+		if party_data:
+			for member_dict: Dictionary in party_data.members:
+				if "character" in member_dict and member_dict.character:
+					party_characters.append(member_dict.character)
+			print("[FLOW] Party loaded from PartyData '%s'" % config.starting_party_id)
+		else:
+			push_warning("SaveSlotSelector: Party '%s' not found, falling back to default" % config.starting_party_id)
+			party_characters = ModLoader.get_default_party()
 	else:
-		for character: CharacterData in default_characters:
+		# Standard mod-priority party resolution (is_hero + is_default_party_member)
+		party_characters = ModLoader.get_default_party()
+
+	if party_characters.is_empty():
+		push_error("SaveSlotSelector: No party characters found!")
+	else:
+		for character: CharacterData in party_characters:
 			var char_save: CharacterSaveData = CharacterSaveData.new()
 			char_save.populate_from_character_data(character)
 			save_data.party_members.append(char_save)
@@ -214,12 +244,40 @@ func _new_game(slot_num: int) -> void:
 		# Initialize PartyManager with the party
 		PartyManager.import_from_save(save_data.party_members)
 
+		# Apply config story flags to GameState
+		if config:
+			for flag_name: String in config.starting_story_flags.keys():
+				GameState.set_flag(flag_name, config.starting_story_flags[flag_name])
+
+		# Initialize depot with starting items
+		if config and not config.starting_depot_items.is_empty():
+			StorageManager.clear_depot()
+			for item_id: String in config.starting_depot_items:
+				StorageManager.add_to_depot(item_id)
+
 		# Start campaign via CampaignManager
-		# NOTE: Must await to ensure scene transition completes before this function returns
+		# Use config's campaign if specified, otherwise first available
+		var target_campaign_id: String = ""
+		if config and not config.starting_campaign_id.is_empty():
+			target_campaign_id = config.starting_campaign_id
+
 		var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
-		if campaigns.size() > 0:
-			var campaign: Resource = campaigns[0]
-			await CampaignManager.start_campaign(campaign.campaign_id)
+		var target_campaign: Resource = null
+
+		if not target_campaign_id.is_empty():
+			# Find the specified campaign
+			for campaign: Resource in campaigns:
+				if campaign.campaign_id == target_campaign_id:
+					target_campaign = campaign
+					break
+			if not target_campaign:
+				push_warning("SaveSlotSelector: Campaign '%s' not found, using first available" % target_campaign_id)
+
+		if not target_campaign and campaigns.size() > 0:
+			target_campaign = campaigns[0]
+
+		if target_campaign:
+			await CampaignManager.start_campaign(target_campaign.campaign_id)
 		else:
 			push_warning("SaveSlotSelector: No campaigns found, falling back to legacy battle")
 			TriggerManager.start_battle("battle_1763763677")

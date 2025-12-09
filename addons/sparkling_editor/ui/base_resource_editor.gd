@@ -192,6 +192,7 @@ func _setup_base_ui() -> void:
 	hsplit.anchor_right = 1.0
 	hsplit.anchor_bottom = 1.0
 	hsplit.split_offset = 150  # Default split position - left panel gets ~150px
+	hsplit.clip_contents = true  # Ensure children are properly clipped
 	add_child(hsplit)
 
 	# Left side: Resource list
@@ -249,9 +250,18 @@ func _setup_base_ui() -> void:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(350, 0)  # Reduced from 400 for better laptop support
+	# Ensure vertical scrolling works properly - disable horizontal to prevent width issues
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	# Auto-scroll to focused elements (when tabbing through form fields)
+	scroll.follow_focus = true
+	scroll.clip_contents = true
 
 	detail_panel = VBoxContainer.new()
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# IMPORTANT: Do not set SIZE_EXPAND_FILL for vertical - let VBox size to content
+	# Add some spacing between sections for visual clarity
+	detail_panel.add_theme_constant_override("separation", 8)
 
 	var detail_label: Label = Label.new()
 	detail_label.text = resource_type_name + " Details"
@@ -259,7 +269,9 @@ func _setup_base_ui() -> void:
 	detail_panel.add_child(detail_label)
 
 	# Buttons will be added after child creates form
+	# Note: A separator will be added before button_container when it's added to detail_panel
 	button_container = HBoxContainer.new()
+	button_container.add_theme_constant_override("separation", 8)
 
 	save_button = Button.new()
 	save_button.text = "Save Changes"
@@ -329,6 +341,16 @@ func _setup_base_ui() -> void:
 ## Override this if you need custom refresh behavior
 func refresh() -> void:
 	_refresh_list()
+
+
+## Helper method for child classes to add the button container with proper spacing
+## Call this instead of `detail_panel.add_child(button_container)` in _create_detail_form()
+func _add_button_container_to_detail_panel() -> void:
+	# Add separator for visual clarity between content and action buttons
+	var separator: HSeparator = HSeparator.new()
+	detail_panel.add_child(separator)
+	# Add the button container
+	detail_panel.add_child(button_container)
 
 
 # =============================================================================
@@ -781,11 +803,11 @@ func _show_errors(errors: Array) -> void:
 		error_text += "• " + str(error) + "\n"
 	error_label.text = error_text
 
-	# Insert error panel before button_container if not already there
+	# Insert error panel just before button_container (where user's attention is)
 	if error_panel.get_parent() != detail_panel:
-		var button_index: int = button_container.get_index()
 		detail_panel.add_child(error_panel)
-		detail_panel.move_child(error_panel, button_index)
+	var button_index: int = button_container.get_index()
+	detail_panel.move_child(error_panel, button_index)
 
 	error_panel.show()
 
@@ -814,11 +836,11 @@ func _show_success_message(message: String) -> void:
 	var success_style: StyleBoxFlat = EditorThemeUtils.create_success_panel_style()
 	error_panel.add_theme_stylebox_override("panel", success_style)
 
-	# Insert error panel if not already there
+	# Insert error panel just before button_container (where user's attention is)
 	if error_panel.get_parent() != detail_panel:
-		var button_index: int = button_container.get_index()
 		detail_panel.add_child(error_panel)
-		detail_panel.move_child(error_panel, button_index)
+	var button_index: int = button_container.get_index()
+	detail_panel.move_child(error_panel, button_index)
 
 	error_panel.show()
 
@@ -1367,6 +1389,13 @@ func _perform_save_with_undo() -> void:
 	undo_redo.add_undo_method(self, &"_refresh_current_resource_ui")
 
 	_commit_undo_action()
+
+	# Clear dirty flag and show success feedback (mirrors _perform_save behavior)
+	is_dirty = false
+	_hide_errors()
+	var display_name: String = _get_resource_display_name(current_resource)
+	_show_success_message("Saved '%s' successfully!" % display_name)
+	_refresh_list()
 
 
 ## Internal: Save resource to disk (called by undo/redo system)

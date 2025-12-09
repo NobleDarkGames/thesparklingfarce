@@ -46,6 +46,9 @@ var _header_button: Button
 var _title_label: Label
 var _content_container: VBoxContainer
 
+## Pending children to add when _ready runs (for add_content_child called before _ready)
+var _pending_children: Array[Node] = []
+
 
 func _init() -> void:
 	# Nothing here - setup in _ready
@@ -55,6 +58,11 @@ func _init() -> void:
 func _ready() -> void:
 	_setup_ui()
 	_initialized = true
+
+	# Add any children that were queued before _ready ran
+	for child in _pending_children:
+		_content_container.add_child(child)
+	_pending_children.clear()
 
 	# Apply initial collapsed state
 	if start_collapsed:
@@ -143,12 +151,9 @@ func _update_content_visibility() -> void:
 func add_content_child(node: Node) -> void:
 	if _content_container:
 		_content_container.add_child(node)
-	elif is_inside_tree():
-		# Fallback if called before _ready but we're still in tree
-		call_deferred("add_content_child", node)
 	else:
-		# Node removed from tree before initialization - can't add child safely
-		push_warning("CollapseSection: Cannot add child '%s' - section not in tree and not initialized" % node.name)
+		# Queue for later - will be added when _ready() runs
+		_pending_children.append(node)
 
 
 ## Remove a child from the content container

@@ -139,9 +139,14 @@ func _setup_ui() -> void:
 	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	detail_scroll.custom_minimum_size = Vector2(550, 0)
+	# Ensure vertical scrolling works properly
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	detail_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	detail_scroll.follow_focus = true
 
 	detail_panel = VBoxContainer.new()
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_panel.add_theme_constant_override("separation", 8)
 
 	var detail_label: Label = Label.new()
 	detail_label.text = "Map Configuration"

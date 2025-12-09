@@ -92,6 +92,13 @@ const MAX_PRIORITY: int = 9999
 ## Note: Tilesets are also auto-discovered from tilesets/ directory for backwards compatibility
 @export var tilesets: Dictionary = {}
 
+## Field menu options - allows mods to add custom options to the exploration field menu
+## Format: {option_id: {label: String, scene_path: String, position: String}}
+## position options: "start", "end" (default), "after_item", "after_magic", "after_search", "after_member"
+## Example: {"bestiary": {"label": "Bestiary", "scene_path": "scenes/ui/bestiary.tscn", "position": "end"}}
+## Special key "_replace_all": true removes all base options (for total conversions)
+@export var field_menu_options: Dictionary = {}
+
 # Runtime properties (not serialized)
 var mod_directory: String = ""
 var is_loaded: bool = false
@@ -244,6 +251,16 @@ static func load_from_file(json_path: String) -> ModManifest:
 			var tileset_data: Variant = data.tilesets[tileset_id]
 			if tileset_data is Dictionary:
 				manifest.tilesets[tileset_id] = tileset_data
+
+	# Parse field menu options
+	if "field_menu_options" in data and data.field_menu_options is Dictionary:
+		for option_id: String in data.field_menu_options.keys():
+			var option_data: Variant = data.field_menu_options[option_id]
+			# Handle special _replace_all key (boolean)
+			if option_id == "_replace_all":
+				manifest.field_menu_options[option_id] = bool(option_data)
+			elif option_data is Dictionary:
+				manifest.field_menu_options[option_id] = option_data
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()

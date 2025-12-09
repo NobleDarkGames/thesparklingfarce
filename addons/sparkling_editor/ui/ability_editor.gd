@@ -61,8 +61,8 @@ func _create_detail_form() -> void:
 	# Animation and audio section
 	_add_animation_audio_section()
 
-	# Add the button container at the end
-	detail_panel.add_child(button_container)
+	# Add the button container at the end (with separator for visual clarity)
+	_add_button_container_to_detail_panel()
 
 
 ## Override: Load ability data from resource into UI

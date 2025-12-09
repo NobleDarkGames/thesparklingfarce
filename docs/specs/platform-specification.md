@@ -211,6 +211,7 @@ ModLoader scans `mods/*/data/<directory>/` automatically:
 | `caravans/` | caravan | .tres | CaravanData |
 | `npcs/` | npc | .tres | NPCData |
 | `shops/` | shop | .tres | ShopData |
+| `new_game_configs/` | new_game_config | .tres | NewGameConfigData |
 
 ### All Resource Classes
 
@@ -233,6 +234,7 @@ ModLoader scans `mods/*/data/<directory>/` automatically:
 | CaravanData | `core/resources/caravan_data.gd` | Implemented | Caravan HQ config |
 | NPCData | `core/resources/npc_data.gd` | Implemented | NPC behavior |
 | ShopData | `core/resources/shop_data.gd` | Implemented | Shop inventory, pricing |
+| NewGameConfigData | `core/resources/new_game_config_data.gd` | Implemented | Starting game state config |
 | SaveData | `core/resources/save_data.gd` | Implemented | Save file structure |
 | SlotMetadata | `core/resources/slot_metadata.gd` | Implemented | Save slot preview |
 | AIBrain | `core/resources/ai_brain.gd` | Implemented | AI behavior base class |
@@ -628,6 +630,7 @@ tests/
 | Caravans | `mods/<mod_id>/data/caravans/*.tres` |
 | NPCs | `mods/<mod_id>/data/npcs/*.tres` |
 | Shops | `mods/<mod_id>/data/shops/*.tres` |
+| New Game Configs | `mods/<mod_id>/data/new_game_configs/*.tres` |
 | Map Metadata | `mods/<mod_id>/data/maps/*.json` |
 | Map Scenes | `mods/<mod_id>/maps/*.tscn` |
 | Campaigns | `mods/<mod_id>/data/campaigns/*.json` |

@@ -55,7 +55,7 @@ func _create_detail_form() -> void:
 	_add_learnable_abilities_section()
 
 	# Add the button container at the end
-	detail_panel.add_child(button_container)
+	_add_button_container_to_detail_panel()
 
 
 ## Override: Load class data from resource into UI

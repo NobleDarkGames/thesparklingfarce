@@ -73,8 +73,8 @@ func _create_detail_form() -> void:
 	# Equipment section (starting equipment for this character)
 	_add_equipment_section()
 
-	# Add the button container at the end
-	detail_panel.add_child(button_container)
+	# Add the button container at the end (with separator for visual clarity)
+	_add_button_container_to_detail_panel()
 
 
 ## Override: Load character data from resource into UI
