@@ -80,6 +80,15 @@ extends Resource
 @export var starting_party_id: String = ""
 
 # ============================================================================
+# CARAVAN STATE
+# ============================================================================
+
+## Whether the Caravan is unlocked at game start
+## In SF2, the Caravan is acquired early in the game, not from the very beginning
+## Set to false for authentic SF2 experience, true for testing or alternate starts
+@export var caravan_unlocked: bool = false
+
+# ============================================================================
 # VALIDATION
 # ============================================================================
 
@@ -125,4 +134,5 @@ func get_debug_summary() -> String:
 	summary += "  Story Flags: %d\n" % starting_story_flags.size()
 	summary += "  Campaign: %s\n" % (starting_campaign_id if not starting_campaign_id.is_empty() else "(first available)")
 	summary += "  Party: %s\n" % (starting_party_id if not starting_party_id.is_empty() else "(default resolution)")
+	summary += "  Caravan: %s\n" % ("unlocked" if caravan_unlocked else "locked")
 	return summary

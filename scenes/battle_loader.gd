@@ -161,7 +161,9 @@ func _ready() -> void:
 			var character: CharacterData = spawn_entry.character
 			var spawn_position: Vector2i = spawn_entry.position
 
-			var player_unit: Node2D = _spawn_unit(character, spawn_position, "player", null)
+			# Get save data from PartyManager to preserve equipped items
+			var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
+			var player_unit: Node2D = _spawn_unit(character, spawn_position, "player", null, save_data)
 			_player_units.append(player_unit)
 
 	# Spawn enemy units from BattleData
@@ -274,12 +276,15 @@ func _ready() -> void:
 
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource, p_save_data: CharacterSaveData = null) -> Node2D:
 	# Use BattleManager's preloaded unit scene constant
 	var unit: Node2D = BattleManager.UNIT_SCENE.instantiate()
 
-	# Initialize with character data and AI brain
-	unit.initialize(character, p_faction, p_ai_brain)
+	# Initialize with character data (and save data if available for player units)
+	if p_save_data:
+		unit.initialize_from_save_data(character, p_save_data, p_faction, p_ai_brain)
+	else:
+		unit.initialize(character, p_faction, p_ai_brain)
 
 	# Set grid position
 	unit.grid_position = cell

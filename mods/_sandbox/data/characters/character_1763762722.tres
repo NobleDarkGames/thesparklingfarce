@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_m00m4"]
 [ext_resource type="Texture2D" uid="uid://dx47ma5bkfwsu" path="res://mods/_sandbox/art/placeholder/portraits/mr_big_hero_face.png" id="3_portrait"]
 [ext_resource type="Texture2D" uid="uid://dd8ce683wq27u" path="res://mods/_sandbox/art/placeholder/sprites/mr_big_hero_face.png" id="4_battle"]
-[ext_resource type="Resource" uid="uid://bcy7yvbp71fvt" path="res://mods/_sandbox/data/items/item_1764949671.tres" id="6_hprnd"]
+[ext_resource type="Resource" uid="uid://4k8ssjr08d23" path="res://mods/_sandbox/data/items/item_1765240445.tres" id="6_hprnd"]
 [ext_resource type="Resource" uid="uid://y4ccvbam4ube" path="res://mods/_sandbox/data/items/sandbox_item_1764967007.tres" id="6_o6yye"]
 
 [resource]

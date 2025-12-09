@@ -882,8 +882,10 @@ func get_default_party() -> Array[CharacterData]:
 
 	# 1. Find the hero (highest priority mod wins)
 	var hero: CharacterData = _find_hero_character()
-	if hero:
-		party.append(hero)
+	if not hero:
+		push_error("CRITICAL: No hero character found! A character with is_hero=true is required for the game to function. Check that at least one mod defines a hero character.")
+		return party
+	party.append(hero)
 
 	# 2. Find default party members
 	var members: Array[CharacterData] = _find_default_party_members()

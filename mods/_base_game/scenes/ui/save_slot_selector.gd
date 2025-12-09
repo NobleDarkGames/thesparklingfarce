@@ -248,6 +248,8 @@ func _new_game(slot_num: int) -> void:
 		if config:
 			for flag_name: String in config.starting_story_flags.keys():
 				GameState.set_flag(flag_name, config.starting_story_flags[flag_name])
+			# Apply caravan unlock state
+			GameState.set_flag("caravan_unlocked", config.caravan_unlocked)
 
 		# Initialize depot with starting items
 		if config and not config.starting_depot_items.is_empty():

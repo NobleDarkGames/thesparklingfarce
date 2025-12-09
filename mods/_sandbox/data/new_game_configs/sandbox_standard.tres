@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="NewGameConfigData" load_steps=2 format=3 uid="uid://bs1wknkqhd7f5"]
+
+[ext_resource type="Script" uid="uid://beybtbcw12oks" path="res://core/resources/new_game_config_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+config_id = "sandbox_standard"
+config_name = "Sandbox Standard"
+config_description = "Default starting configuration for the Development Sandbox mod."
+starting_gold = 2000
+starting_depot_items = Array[String](["item_1765165788"])

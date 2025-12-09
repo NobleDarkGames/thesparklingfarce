@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3 uid="uid://4k8ssjr08d23"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_nsyk5"]
+
+[resource]
+script = ExtResource("1_nsyk5")
+item_name = "Very Long Sword"
+equipment_type = "sword"
+attack_power = 1
+max_attack_range = 2
+buy_price = 100
+sell_price = 50
+description = "You want a big sword?  Here's a big sword.  "

@@ -93,10 +93,13 @@ func calculate_from_character(character: CharacterData) -> void:
 	intelligence = character.base_intelligence
 	luck = character.base_luck
 
-	# Apply equipment bonuses
+	# Apply equipment bonuses and cache weapon
 	for item in character.starting_equipment:
 		if item != null:
 			apply_equipment_bonus(item)
+			# Cache weapon for combat calculations (attack power, range, hit rate, crit rate)
+			if item.item_type == ItemData.ItemType.WEAPON:
+				cached_weapon = item
 
 	# Set current HP/MP to max
 	current_hp = max_hp

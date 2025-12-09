@@ -5,6 +5,7 @@ extends CanvasLayer
 ##   hero.*      - Player/hero commands (gold, level, items)
 ##   party.*     - Party management (XP, add/remove members)
 ##   campaign.*  - Story flags and progression
+##   caravan.*   - Caravan unlock state and storage
 ##   battle.*    - Battle testing utilities
 ##   debug.*     - System commands (clear, FPS, reload mods)
 ##   help        - Show available commands
@@ -360,6 +361,9 @@ func _execute_command(raw_input: String) -> void:
 		"battle":
 			_execute_battle_command(command, args)
 			return
+		"caravan":
+			_execute_caravan_command(command, args)
+			return
 		"debug":
 			_execute_debug_command(command, args)
 			return
@@ -708,6 +712,63 @@ func _cmd_campaign_trigger(args: Array) -> void:
 
 
 # =============================================================================
+# CARAVAN COMMANDS
+# =============================================================================
+
+func _execute_caravan_command(command: String, args: Array) -> void:
+	match command:
+		"unlock":
+			_cmd_caravan_unlock(args)
+		"lock":
+			_cmd_caravan_lock(args)
+		"toggle":
+			_cmd_caravan_toggle(args)
+		"status":
+			_cmd_caravan_status(args)
+		_:
+			_print_error("Unknown caravan command: %s" % command)
+
+
+func _cmd_caravan_unlock(_args: Array) -> void:
+	GameState.set_flag("caravan_unlocked", true)
+	_print_success("Caravan unlocked! Party storage is now available.")
+
+
+func _cmd_caravan_lock(_args: Array) -> void:
+	GameState.set_flag("caravan_unlocked", false)
+	_print_success("Caravan locked. Party storage is no longer available.")
+
+
+func _cmd_caravan_toggle(_args: Array) -> void:
+	var current: bool = GameState.has_flag("caravan_unlocked")
+	var new_state: bool = not current
+	GameState.set_flag("caravan_unlocked", new_state)
+	if new_state:
+		_print_success("Caravan toggled ON - Party storage is now available.")
+	else:
+		_print_success("Caravan toggled OFF - Party storage is no longer available.")
+
+
+func _cmd_caravan_status(_args: Array) -> void:
+	var is_unlocked: bool = GameState.has_flag("caravan_unlocked")
+	var is_available: bool = StorageManager.is_caravan_available() if StorageManager else is_unlocked
+	_print_info("=== Caravan Status ===")
+	_print_line("  Flag (caravan_unlocked): %s%s%s" % [
+		COLOR_SUCCESS if is_unlocked else COLOR_ERROR,
+		"true" if is_unlocked else "false",
+		COLOR_END
+	])
+	_print_line("  Storage Available: %s%s%s" % [
+		COLOR_SUCCESS if is_available else COLOR_ERROR,
+		"yes" if is_available else "no",
+		COLOR_END
+	])
+	if StorageManager:
+		var depot_count: int = StorageManager.get_depot_item_count()
+		_print_line("  Depot Items: %d" % depot_count)
+
+
+# =============================================================================
 # BATTLE COMMANDS
 # =============================================================================
 
@@ -966,6 +1027,13 @@ func _print_help() -> void:
 	_print_line("  campaign.clear_flag <name>       - Remove story flag")
 	_print_line("  campaign.list_flags              - Show all flags")
 	_print_line("  campaign.trigger <trigger_id>    - Fire a trigger")
+	_print_line("")
+
+	_print_line("%s--- Caravan Commands ---%s" % [COLOR_INFO, COLOR_END])
+	_print_line("  caravan.unlock   - Unlock caravan (enable party storage)")
+	_print_line("  caravan.lock     - Lock caravan (disable party storage)")
+	_print_line("  caravan.toggle   - Toggle caravan unlock state")
+	_print_line("  caravan.status   - Show caravan status and depot info")
 	_print_line("")
 
 	_print_line("%s--- Battle Commands ---%s" % [COLOR_INFO, COLOR_END])

@@ -220,6 +220,12 @@ func _end_dialog() -> void:
 	current_state = State.IDLE
 
 
+## Public method to end the current dialog
+## Use this when external code needs to programmatically close a dialog
+func end_dialog() -> void:
+	_end_dialog()
+
+
 ## End dialog and chain to next
 func _end_dialog_and_chain_to_next() -> void:
 	if not current_dialogue:
