@@ -26,6 +26,9 @@ enum TargetType {
 }
 
 @export var ability_name: String = ""
+## Unique identifier for this ability (used in ability_unlock_levels dictionary)
+## Should be lowercase with underscores (e.g., "heal_1", "blaze_2")
+@export var ability_id: String = ""
 @export var ability_type: AbilityType = AbilityType.ATTACK
 ## Custom ability type ID (only used when ability_type == CUSTOM)
 ## Allows mods to define their own ability types beyond the core set

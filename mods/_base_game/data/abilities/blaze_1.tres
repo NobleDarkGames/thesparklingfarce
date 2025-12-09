@@ -4,18 +4,18 @@
 
 [resource]
 script = ExtResource("1_ability")
-ability_name = "Minor Heal"
-ability_id = "minor_heal"
-ability_type = 1
-target_type = 1
-min_range = 0
-max_range = 1
+ability_name = "Blaze 1"
+ability_id = "blaze_1"
+ability_type = 0
+target_type = 0
+min_range = 1
+max_range = 2
 area_of_effect = 0
-mp_cost = 0
+mp_cost = 8
 hp_cost = 0
-power = 20
-accuracy = 100
+power = 12
+accuracy = 95
 status_effects = Array[String]([])
 effect_duration = 0
 effect_chance = 100
-description = "Restores a small amount of HP to one ally."
+description = "Hurls a small fireball at a single enemy. The basic fire spell taught to novice mages."

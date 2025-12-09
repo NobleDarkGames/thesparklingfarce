@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_ability")
 ability_name = "Cure Poison"
+ability_id = "cure_poison"
 ability_type = 2
 target_type = 1
 min_range = 0

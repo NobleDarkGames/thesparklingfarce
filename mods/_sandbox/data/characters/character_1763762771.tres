@@ -1,8 +1,7 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://dy32d4o3uor15"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=5 format=3 uid="uid://dy32d4o3uor15"]
 
-[ext_resource type="Resource" uid="uid://bed1m24rxfrey" path="res://mods/_sandbox/data/classes/class_1763762778.tres" id="1_igv21"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_yikiu"]
-[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_igv21"]
+[ext_resource type="Resource" uid="uid://bed1m24rxfrey" path="res://mods/_sandbox/data/classes/class_1763762778.tres" id="2_mage_class"]
 [ext_resource type="Texture2D" uid="uid://bn8eyywf64s40" path="res://mods/_sandbox/art/placeholder/portraits/maggie.png" id="3_portrait"]
 [ext_resource type="Texture2D" uid="uid://dljgut82iyl3a" path="res://mods/_sandbox/art/placeholder/sprites/maggie.png" id="4_battle"]
 
@@ -10,7 +9,7 @@
 script = ExtResource("1_yikiu")
 character_uid = "mg4nv7pq"
 character_name = "Maggie"
-character_class = ExtResource("1_igv21")
+character_class = ExtResource("2_mage_class")
 base_hp = 12
 base_mp = 20
 base_strength = 3

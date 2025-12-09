@@ -16,6 +16,8 @@ enum InputState {
 	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Stay)
 	SELECTING_ITEM,      # Item menu open (selecting which item to use)
 	SELECTING_ITEM_TARGET,  # Selecting target for item use (e.g., healing ally)
+	SELECTING_SPELL,     # Spell menu open (selecting which spell to cast)
+	SELECTING_SPELL_TARGET,  # Selecting target for spell (e.g., healing ally or enemy)
 	TARGETING,           # Selecting target for attack/spell
 	EXECUTING,           # Action executing (animations, etc.)
 }
@@ -25,6 +27,7 @@ signal movement_confirmed(unit: Node2D, destination: Vector2i)
 signal action_selected(unit: Node2D, action: String)
 signal target_selected(unit: Node2D, target: Node2D)
 signal item_use_requested(unit: Node2D, item_id: String, target: Node2D)  # Player used an item on a target
+signal spell_cast_requested(unit: Node2D, ability_id: String, target: Node2D)  # Player cast a spell on a target
 signal turn_cancelled()  # Player wants to redo movement
 
 ## Current state
@@ -48,10 +51,16 @@ var selected_item_id: String = ""  # Item ID selected for use (for target select
 var selected_item_data: ItemData = null  # Cached ItemData for the selected item
 var _item_valid_targets: Array[Vector2i] = []  # Valid target cells for snap-to-target navigation
 
+## Spell usage state
+var selected_spell_id: String = ""  # Ability ID selected for casting
+var selected_spell_data: AbilityData = null  # Cached AbilityData for the selected spell
+var _spell_valid_targets: Array[Vector2i] = []  # Valid target cells for spell targeting
+
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
 var action_menu: Control = null  # Will be set by battle scene
 var item_menu: Control = null  # Will be set by battle scene
+var spell_menu: Control = null  # Will be set by battle scene
 var battle_scene: Node = null  # Reference to battle scene for UI access
 var grid_cursor: Node2D = null  # Visual cursor for grid movement
 var path_preview_parent: Node2D = null  # Parent node for path visuals
@@ -128,6 +137,126 @@ func _reconnect_item_menu_signals() -> void:
 			item_menu.item_selected.connect(_on_item_menu_selected)
 		if not item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
 			item_menu.menu_cancelled.connect(_on_item_menu_cancelled)
+
+
+## Set spell menu reference and connect signals
+func set_spell_menu(menu: Control) -> void:
+	spell_menu = menu
+
+	# Connect signals (we'll manage connection lifecycle per turn)
+	if not spell_menu.spell_selected.is_connected(_on_spell_menu_selected):
+		spell_menu.spell_selected.connect(_on_spell_menu_selected)
+	if not spell_menu.menu_cancelled.is_connected(_on_spell_menu_cancelled):
+		spell_menu.menu_cancelled.connect(_on_spell_menu_cancelled)
+
+
+## Disconnect spell menu signals (called when turn ends)
+func _disconnect_spell_menu_signals() -> void:
+	if spell_menu:
+		while spell_menu.spell_selected.is_connected(_on_spell_menu_selected):
+			spell_menu.spell_selected.disconnect(_on_spell_menu_selected)
+		while spell_menu.menu_cancelled.is_connected(_on_spell_menu_cancelled):
+			spell_menu.menu_cancelled.disconnect(_on_spell_menu_cancelled)
+
+
+## Reconnect spell menu signals (called when player turn starts)
+func _reconnect_spell_menu_signals() -> void:
+	if spell_menu:
+		if not spell_menu.spell_selected.is_connected(_on_spell_menu_selected):
+			spell_menu.spell_selected.connect(_on_spell_menu_selected)
+		if not spell_menu.menu_cancelled.is_connected(_on_spell_menu_cancelled):
+			spell_menu.menu_cancelled.connect(_on_spell_menu_cancelled)
+
+
+## Handle spell menu selection signal
+func _on_spell_menu_selected(ability_id: String, signal_session_id: int) -> void:
+	# Guard: Reject stale signals from previous turns
+	if signal_session_id != _turn_session_id:
+		push_warning("InputManager: Ignoring STALE spell selection from session %d (current: %d)" % [
+			signal_session_id,
+			_turn_session_id
+		])
+		return
+
+	# Guard: Only process in correct state
+	if current_state != InputState.SELECTING_SPELL or active_unit == null:
+		push_warning("InputManager: Ignoring spell selection in state %s" % InputState.keys()[current_state])
+		return
+
+	# Play selection sound
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+
+	# Store selected spell for target selection
+	selected_spell_id = ability_id
+	selected_spell_data = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
+
+	if not selected_spell_data:
+		push_warning("InputManager: Ability '%s' not found in registry" % ability_id)
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Check MP cost - prevent casting if insufficient MP
+	if active_unit.stats and active_unit.stats.current_mp < selected_spell_data.mp_cost:
+		push_warning("InputManager: Insufficient MP for spell '%s'" % ability_id)
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		set_state(InputState.SELECTING_SPELL)  # Return to spell menu
+		return
+
+	# Check if spell needs target selection
+	if _spell_needs_target_selection(selected_spell_data):
+		set_state(InputState.SELECTING_SPELL_TARGET)
+	else:
+		# Self-target spells - cast immediately on self
+		_cast_spell_on_target(active_unit)
+
+
+## Check if a spell needs target selection (vs self-cast)
+func _spell_needs_target_selection(ability: AbilityData) -> bool:
+	if not ability:
+		return false
+
+	# Check the ability's target type
+	match ability.target_type:
+		AbilityData.TargetType.SELF:
+			return false  # Always targets self
+		AbilityData.TargetType.SINGLE_ALLY:
+			return true  # Needs to pick an ally (including self)
+		AbilityData.TargetType.SINGLE_ENEMY:
+			return true  # Needs to pick an enemy
+		AbilityData.TargetType.ALL_ALLIES, AbilityData.TargetType.ALL_ENEMIES:
+			return false  # Affects all, no selection needed
+		AbilityData.TargetType.AREA:
+			return true  # Needs position selection
+		_:
+			return false
+
+
+## Cast the selected spell on the given target
+func _cast_spell_on_target(target: Node2D) -> void:
+	# Emit spell cast signal for BattleManager to handle
+	spell_cast_requested.emit(active_unit, selected_spell_id, target)
+
+	# Clear spell selection state
+	selected_spell_id = ""
+	selected_spell_data = null
+	_spell_valid_targets.clear()
+
+	# Transition to EXECUTING (BattleManager will handle the spell cast and end turn)
+	set_state(InputState.EXECUTING)
+
+
+## Handle spell menu cancellation signal
+func _on_spell_menu_cancelled(signal_session_id: int) -> void:
+	# Guard: Reject stale cancel signals from previous turns
+	if signal_session_id != _turn_session_id:
+		push_warning("InputManager: Ignoring STALE spell cancel from session %d (current: %d)" % [
+			signal_session_id,
+			_turn_session_id
+		])
+		return
+
+	# Return to action menu
+	set_state(InputState.SELECTING_ACTION)
 
 
 ## Handle item menu selection signal
@@ -231,6 +360,7 @@ func _reconnect_action_menu_signals() -> void:
 ## Handle action menu selection signal
 ## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
 func _on_action_menu_selected(action: String, signal_session_id: int) -> void:
+	print("[SPELL DEBUG] _on_action_menu_selected: action='%s', session=%d" % [action, signal_session_id])
 	# Play menu selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -306,6 +436,7 @@ func start_player_turn(unit: Node2D) -> void:
 	# NOW reconnect signals after state is correct (eliminates timing window)
 	_reconnect_action_menu_signals()
 	_reconnect_item_menu_signals()
+	_reconnect_spell_menu_signals()
 
 
 ## Change input state
@@ -332,6 +463,10 @@ func set_state(new_state: InputState) -> void:
 			_on_enter_selecting_item()
 		InputState.SELECTING_ITEM_TARGET:
 			_on_enter_selecting_item_target()
+		InputState.SELECTING_SPELL:
+			_on_enter_selecting_spell()
+		InputState.SELECTING_SPELL_TARGET:
+			_on_enter_selecting_spell_target()
 		InputState.TARGETING:
 			_on_enter_targeting()
 		InputState.EXECUTING:
@@ -496,6 +631,64 @@ func _on_enter_selecting_item_target() -> void:
 	_update_item_target_info()
 
 
+func _on_enter_selecting_spell() -> void:
+	print("[SPELL DEBUG] _on_enter_selecting_spell() called")
+	# Disable per-frame processing (menu handles its own input)
+	set_process(false)
+
+	# Hide action menu if visible
+	if action_menu and action_menu.visible:
+		action_menu.hide_menu()
+
+	# Show spell menu
+	print("[SPELL DEBUG] Calling _show_spell_menu()")
+	_show_spell_menu()
+
+
+func _on_enter_selecting_spell_target() -> void:
+	# Disable per-frame processing (targeting uses _input for individual key presses)
+	set_process(false)
+
+	# Hide spell menu if visible
+	if spell_menu and spell_menu.visible:
+		spell_menu.hide_menu()
+
+	# Clear movement highlights
+	GridManager.clear_highlights()
+
+	# Get valid targets for the spell and store for snap-to-target navigation
+	_spell_valid_targets = _get_valid_spell_target_cells()
+
+	if _spell_valid_targets.is_empty():
+		# No valid targets - return to action menu (SF-authentic: don't end turn)
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		selected_spell_id = ""
+		selected_spell_data = null
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Show spell target range (color based on target type)
+	_show_spell_targeting_range(_spell_valid_targets)
+
+	# Position cursor on first valid target (prefer self for heals)
+	if selected_spell_data and selected_spell_data.ability_type == AbilityData.AbilityType.HEAL:
+		# For heals, prefer injured allies or self
+		if active_unit.grid_position in _spell_valid_targets:
+			current_cursor_position = active_unit.grid_position
+		else:
+			current_cursor_position = _spell_valid_targets[0]
+	else:
+		current_cursor_position = _spell_valid_targets[0]
+
+	# Show cursor at target position
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.show_cursor()
+
+	# Update stats panel to show target info
+	_update_spell_target_info()
+
+
 func _on_enter_targeting() -> void:
 	# Disable per-frame processing (targeting uses _input for individual key presses)
 	set_process(false)
@@ -602,6 +795,8 @@ func _input(event: InputEvent) -> void:
 			_handle_action_menu_input(event)
 		InputState.SELECTING_ITEM_TARGET:
 			_handle_item_target_input(event)
+		InputState.SELECTING_SPELL_TARGET:
+			_handle_spell_target_input(event)
 		InputState.TARGETING:
 			_handle_targeting_input(event)
 
@@ -764,6 +959,7 @@ func _cancel_movement() -> void:
 ## Calculate which actions are available
 func _get_available_actions() -> Array[String]:
 	var actions: Array[String] = []
+	print("[SPELL DEBUG] _get_available_actions() for %s" % (active_unit.get_display_name() if active_unit else "null"))
 
 	# AUTHENTIC SHINING FORCE: No "Move" option - movement happens BEFORE menu
 	# Menu only appears after positioning (or at starting position if not moved)
@@ -774,8 +970,12 @@ func _get_available_actions() -> Array[String]:
 		actions.append("Attack")
 
 	# Magic - only if unit has spells
+	print("[SPELL DEBUG] Checking Magic: character_data=%s" % (active_unit.character_data != null if active_unit else false))
 	if active_unit.character_data and _has_spells():
+		print("[SPELL DEBUG] Magic ENABLED")
 		actions.append("Magic")
+	else:
+		print("[SPELL DEBUG] Magic DISABLED")
 
 	# Item - always available
 	actions.append("Item")
@@ -783,6 +983,7 @@ func _get_available_actions() -> Array[String]:
 	# Stay - always available (ends turn at current position)
 	actions.append("Stay")
 
+	print("[SPELL DEBUG] Available actions: %s" % str(actions))
 	return actions
 
 
@@ -813,8 +1014,37 @@ func _check_enemies_in_range() -> bool:
 
 ## Check if unit has spells
 func _has_spells() -> bool:
-	# TODO: Implement when spell system exists
-	return false
+	print("[SPELL DEBUG] _has_spells() called for %s" % (active_unit.get_display_name() if active_unit else "null"))
+	if not active_unit or not active_unit.character_data:
+		print("[SPELL DEBUG] _has_spells: No active_unit or character_data")
+		return false
+
+	# Get unit's current level
+	var level: int = 1
+	if active_unit.stats:
+		level = active_unit.stats.level
+	print("[SPELL DEBUG] _has_spells: level=%d" % level)
+
+	# Debug character class and abilities
+	var char_data: CharacterData = active_unit.character_data
+	print("[SPELL DEBUG] _has_spells: character_data=%s" % char_data)
+	print("[SPELL DEBUG] _has_spells: character_data.resource_path=%s" % char_data.resource_path)
+	print("[SPELL DEBUG] _has_spells: character_class=%s" % char_data.character_class)
+	if char_data.character_class:
+		print("[SPELL DEBUG] _has_spells: character_class.resource_path=%s" % char_data.character_class.resource_path)
+		print("[SPELL DEBUG] _has_spells: class_abilities=%s" % str(char_data.character_class.class_abilities))
+		print("[SPELL DEBUG] _has_spells: class_abilities.size()=%d" % char_data.character_class.class_abilities.size())
+		# Debug: Try loading class fresh to compare
+		if not char_data.character_class.resource_path.is_empty():
+			var fresh_class: ClassData = load(char_data.character_class.resource_path) as ClassData
+			if fresh_class:
+				print("[SPELL DEBUG] _has_spells: FRESH LOAD class_abilities.size()=%d" % fresh_class.class_abilities.size())
+	print("[SPELL DEBUG] _has_spells: unique_abilities=%s" % str(char_data.unique_abilities))
+
+	# Check if character has any abilities at their current level
+	var has_abilities: bool = active_unit.character_data.has_abilities(level)
+	print("[SPELL DEBUG] _has_spells: has_abilities(%d) = %s" % [level, has_abilities])
+	return has_abilities
 
 
 ## Show movement range highlights
@@ -1031,6 +1261,9 @@ func _show_item_menu() -> void:
 
 ## Select action from menu
 func _select_action(action: String, signal_session_id: int) -> void:
+	print("[SPELL DEBUG] _select_action: action='%s', signal_session=%d, current_session=%d, state=%s" % [
+		action, signal_session_id, _turn_session_id, InputState.keys()[current_state]
+	])
 	# Guard: Check if this signal is from a previous turn (stale)
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE action selection '%s' from session %d (current session: %d)" % [
@@ -1038,6 +1271,7 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			signal_session_id,
 			_turn_session_id
 		])
+		print("[SPELL DEBUG] BLOCKED: Stale session")
 		return
 
 	# Guard: Only process actions when in correct state AND we have an active unit
@@ -1047,13 +1281,16 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			InputState.keys()[current_state],
 			"null" if active_unit == null else active_unit.get_display_name()
 		])
+		print("[SPELL DEBUG] BLOCKED: Wrong state or no active unit")
 		return
 
 	# Additional safety: Only process if active unit is a player unit
 	if not active_unit.is_player_unit():
 		push_warning("InputManager: Ignoring action selection '%s' for non-player unit %s" % [action, active_unit.get_display_name()])
+		print("[SPELL DEBUG] BLOCKED: Non-player unit")
 		return
 
+	print("[SPELL DEBUG] Guards passed, processing action '%s'" % action)
 	current_action = action
 
 	# Convert to lowercase for BattleManager (internal representation)
@@ -1081,7 +1318,9 @@ func _select_action(action: String, signal_session_id: int) -> void:
 		"Attack":
 			set_state(InputState.TARGETING)
 		"Magic":
-			set_state(InputState.TARGETING)
+			# Open spell menu - transition to SELECTING_SPELL state
+			print("[SPELL DEBUG] _select_action: Magic selected, transitioning to SELECTING_SPELL")
+			set_state(InputState.SELECTING_SPELL)
 		"Item":
 			# Open item menu - transition to SELECTING_ITEM state
 			set_state(InputState.SELECTING_ITEM)
@@ -1281,10 +1520,13 @@ func reset_to_waiting() -> void:
 		action_menu.reset_menu()
 	if item_menu:
 		item_menu.reset_menu()
+	if spell_menu:
+		spell_menu.reset_menu()
 
 	# Disconnect menus to prevent stale signals
 	_disconnect_action_menu_signals()
 	_disconnect_item_menu_signals()
+	_disconnect_spell_menu_signals()
 
 	# Hide stats panel
 	if stats_panel:
@@ -1294,6 +1536,9 @@ func reset_to_waiting() -> void:
 	walkable_cells.clear()
 	available_actions.clear()
 	current_action = ""
+	selected_spell_id = ""
+	selected_spell_data = null
+	_spell_valid_targets.clear()
 	set_state(InputState.WAITING)
 
 
@@ -1784,3 +2029,271 @@ func _confirm_item_target(target: Node2D) -> void:
 
 	# Use the item on the target
 	_use_item_on_target(target)
+
+
+# =============================================================================
+# SPELL TARGETING SYSTEM
+# =============================================================================
+
+## Show spell menu with available spells
+func _show_spell_menu() -> void:
+	print("[SPELL DEBUG] _show_spell_menu() called")
+	print("[SPELL DEBUG] spell_menu: %s" % spell_menu)
+	print("[SPELL DEBUG] active_unit: %s" % active_unit)
+	print("[SPELL DEBUG] active_unit.character_data: %s" % (active_unit.character_data if active_unit else null))
+
+	if not spell_menu or not active_unit or not active_unit.character_data:
+		push_warning("InputManager: Cannot show spell menu - missing spell_menu, active_unit, or character_data")
+		print("[SPELL DEBUG] FAIL: Missing spell_menu=%s, active_unit=%s, character_data=%s" % [
+			spell_menu != null, active_unit != null,
+			active_unit.character_data != null if active_unit else false
+		])
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Get unit's current level
+	var level: int = 1
+	if active_unit.stats:
+		level = active_unit.stats.level
+	print("[SPELL DEBUG] Unit level: %d" % level)
+
+	# Check character_class
+	print("[SPELL DEBUG] character_class: %s" % active_unit.character_data.character_class)
+	if active_unit.character_data.character_class:
+		print("[SPELL DEBUG] class_abilities: %s" % str(active_unit.character_data.character_class.class_abilities))
+
+	# Get available abilities for this character at this level
+	var abilities: Array[AbilityData] = active_unit.character_data.get_available_abilities(level)
+	print("[SPELL DEBUG] abilities count: %d" % abilities.size())
+	for i in range(abilities.size()):
+		var ab: AbilityData = abilities[i]
+		if ab:
+			print("[SPELL DEBUG]   [%d] %s (id=%s, mp=%d)" % [i, ab.ability_name, ab.ability_id, ab.mp_cost])
+		else:
+			print("[SPELL DEBUG]   [%d] NULL ability" % i)
+
+	if abilities.is_empty():
+		# No spells available - return to action menu
+		push_warning("InputManager: No spells available for %s" % active_unit.get_display_name())
+		print("[SPELL DEBUG] FAIL: No abilities available")
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Get current MP for disabling uncastable spells
+	var current_mp: int = 0
+	if active_unit.stats:
+		current_mp = active_unit.stats.current_mp
+	print("[SPELL DEBUG] Current MP: %d" % current_mp)
+
+	# Show spell menu with abilities and session ID
+	print("[SPELL DEBUG] Calling spell_menu.show_spells() with %d abilities" % abilities.size())
+	spell_menu.show_spells(abilities, current_mp, _turn_session_id)
+	print("[SPELL DEBUG] spell_menu.visible: %s" % spell_menu.visible)
+
+
+## Handle spell target selection input
+func _handle_spell_target_input(event: InputEvent) -> void:
+	var handled: bool = false
+
+	# Mouse click to select target
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
+			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
+
+			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
+			if target and _is_valid_spell_target(target):
+				_confirm_spell_target(target)
+			handled = true
+
+	# Keyboard: Arrow keys to move targeting cursor
+	if event.is_action_pressed("ui_up"):
+		_move_spell_target_cursor(Vector2i(0, -1))
+		handled = true
+	elif event.is_action_pressed("ui_down"):
+		_move_spell_target_cursor(Vector2i(0, 1))
+		handled = true
+	elif event.is_action_pressed("ui_left"):
+		_move_spell_target_cursor(Vector2i(-1, 0))
+		handled = true
+	elif event.is_action_pressed("ui_right"):
+		_move_spell_target_cursor(Vector2i(1, 0))
+		handled = true
+
+	# Accept key to confirm target selection
+	if event.is_action_pressed("ui_accept"):
+		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		if target and _is_valid_spell_target(target):
+			_confirm_spell_target(target)
+		else:
+			# Invalid target - play error sound but stay in targeting
+			AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		handled = true
+
+	# Cancel returns to action menu (SF-authentic: don't end turn)
+	if event.is_action_pressed("sf_cancel"):
+		AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
+		selected_spell_id = ""
+		selected_spell_data = null
+		_spell_valid_targets.clear()
+		set_state(InputState.SELECTING_ACTION)
+		handled = true
+
+	# Consume input to prevent duplicate processing by other handlers
+	if handled:
+		get_viewport().set_input_as_handled()
+
+
+## Get valid target cells for the selected spell
+func _get_valid_spell_target_cells() -> Array[Vector2i]:
+	var valid_cells: Array[Vector2i] = []
+
+	if not selected_spell_data:
+		# No spell - only self is valid
+		valid_cells.append(active_unit.grid_position)
+		return valid_cells
+
+	# Get cells in range based on ability
+	var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range(
+		active_unit.grid_position,
+		selected_spell_data.max_range
+	)
+
+	# Also include self if min_range is 0
+	if selected_spell_data.min_range == 0:
+		if active_unit.grid_position not in cells_in_range:
+			cells_in_range.append(active_unit.grid_position)
+
+	# Filter based on target type
+	match selected_spell_data.target_type:
+		AbilityData.TargetType.SELF:
+			valid_cells.append(active_unit.grid_position)
+
+		AbilityData.TargetType.SINGLE_ALLY:
+			# Include self and all allies (same faction) in range
+			for cell in cells_in_range:
+				var unit: Node2D = GridManager.get_unit_at_cell(cell)
+				if unit and unit.faction == active_unit.faction and unit.is_alive():
+					valid_cells.append(cell)
+			# Always include self for healing spells
+			if active_unit.grid_position not in valid_cells:
+				valid_cells.append(active_unit.grid_position)
+
+		AbilityData.TargetType.SINGLE_ENEMY:
+			# Only enemies in range
+			for cell in cells_in_range:
+				var unit: Node2D = GridManager.get_unit_at_cell(cell)
+				if unit and unit.faction != active_unit.faction and unit.is_alive():
+					valid_cells.append(cell)
+
+		AbilityData.TargetType.ALL_ALLIES, AbilityData.TargetType.ALL_ENEMIES:
+			# No target selection needed - affects all of type
+			valid_cells.append(active_unit.grid_position)
+
+		AbilityData.TargetType.AREA:
+			# All cells in range (will affect area around selected point)
+			valid_cells = cells_in_range
+
+	return valid_cells
+
+
+## Check if a unit is a valid target for the selected spell
+func _is_valid_spell_target(unit: Node2D) -> bool:
+	if not unit or not unit.is_alive():
+		return false
+
+	if not selected_spell_data:
+		# No spell - only self is valid
+		return unit == active_unit
+
+	# Check range
+	var distance: int = GridManager.get_distance(active_unit.grid_position, unit.grid_position)
+	if distance < selected_spell_data.min_range or distance > selected_spell_data.max_range:
+		return false
+
+	# Check target type
+	match selected_spell_data.target_type:
+		AbilityData.TargetType.SELF:
+			return unit == active_unit
+		AbilityData.TargetType.SINGLE_ALLY:
+			return unit.faction == active_unit.faction
+		AbilityData.TargetType.SINGLE_ENEMY:
+			return unit.faction != active_unit.faction
+		_:
+			return true
+
+
+## Show spell targeting range highlights
+func _show_spell_targeting_range(valid_targets: Array[Vector2i]) -> void:
+	# Color based on spell type
+	var color_type: int = GridManager.HIGHLIGHT_GREEN  # Default green for allies
+
+	if selected_spell_data:
+		match selected_spell_data.ability_type:
+			AbilityData.AbilityType.ATTACK, AbilityData.AbilityType.DEBUFF:
+				color_type = GridManager.HIGHLIGHT_RED
+			AbilityData.AbilityType.HEAL, AbilityData.AbilityType.SUPPORT:
+				color_type = GridManager.HIGHLIGHT_GREEN
+			_:
+				color_type = GridManager.HIGHLIGHT_YELLOW
+
+	GridManager.highlight_cells(valid_targets, color_type)
+
+
+## Move spell target cursor (snap-to-target navigation for better UX)
+func _move_spell_target_cursor(offset: Vector2i) -> void:
+	# SF-authentic: Snap between valid targets instead of cell-by-cell movement
+	if _spell_valid_targets.is_empty():
+		return
+
+	# Find current target index
+	var current_idx: int = _spell_valid_targets.find(current_cursor_position)
+
+	if current_idx == -1:
+		# Not on a valid target - snap to first one
+		current_cursor_position = _spell_valid_targets[0]
+	else:
+		# Snap to next/previous valid target based on direction
+		# Up or Left = previous, Down or Right = next
+		if offset.y < 0 or offset.x < 0:
+			current_idx = wrapi(current_idx - 1, 0, _spell_valid_targets.size())
+		else:
+			current_idx = wrapi(current_idx + 1, 0, _spell_valid_targets.size())
+
+		current_cursor_position = _spell_valid_targets[current_idx]
+
+	# Play cursor movement sound
+	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
+
+	# Update cursor visual
+	if grid_cursor:
+		grid_cursor.set_grid_position(current_cursor_position)
+
+	# Update target info panel
+	_update_spell_target_info()
+
+
+## Update stats panel to show target info during spell targeting
+func _update_spell_target_info() -> void:
+	if not stats_panel:
+		return
+
+	# Check what's under the cursor
+	var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+
+	if unit_at_cursor and unit_at_cursor.is_alive():
+		# Show stats for potential target
+		stats_panel.show_unit_stats(unit_at_cursor)
+	else:
+		# No valid target, show active unit stats
+		if active_unit:
+			stats_panel.show_unit_stats(active_unit)
+
+
+## Confirm spell target and cast spell
+func _confirm_spell_target(target: Node2D) -> void:
+	# Play confirm sound
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+
+	# Cast the spell on the target
+	_cast_spell_on_target(target)

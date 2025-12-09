@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3 uid="uid://cfg3krjt6qa7x"]
+[gd_resource type="Resource" script_class="ClassData" load_steps=3 format=3 uid="uid://cfg3krjt6qa7x"]
 
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_22k2v"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_1.tres" id="2_blaze1"]
 
 [resource]
 script = ExtResource("1_22k2v")
@@ -10,3 +11,4 @@ strength_growth = 30
 defense_growth = 40
 intelligence_growth = 60
 equippable_weapon_types = Array[String](["staff", "tome"])
+class_abilities = Array[AbilityData]([ExtResource("2_blaze1")])

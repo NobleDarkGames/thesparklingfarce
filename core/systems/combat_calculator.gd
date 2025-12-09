@@ -58,12 +58,12 @@ static func calculate_magic_damage(
 		push_error("CombatCalculator: Cannot calculate magic damage with null parameters")
 		return 0
 
-	# Get ability power (AbilityData should have base_power property)
+	# Get ability power (AbilityData uses 'power' field)
 	var ability_power: int = 0
-	if "base_power" in ability:
-		ability_power = ability.base_power
+	if "power" in ability:
+		ability_power = ability.power
 	else:
-		push_warning("CombatCalculator: Ability missing base_power property")
+		push_warning("CombatCalculator: Ability missing power property")
 
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
 
@@ -131,12 +131,12 @@ static func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int
 		push_error("CombatCalculator: Cannot calculate healing with null parameters")
 		return 0
 
-	# Get ability power
+	# Get ability power (AbilityData uses 'power' field)
 	var ability_power: int = 0
-	if "base_power" in ability:
-		ability_power = ability.base_power
+	if "power" in ability:
+		ability_power = ability.power
 	else:
-		push_warning("CombatCalculator: Healing ability missing base_power property")
+		push_warning("CombatCalculator: Healing ability missing power property")
 
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)
 

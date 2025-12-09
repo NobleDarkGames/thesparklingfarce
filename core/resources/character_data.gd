@@ -36,6 +36,13 @@ extends Resource
 ## These are items the character carries but doesn't have equipped
 @export var starting_inventory: Array[String] = []
 
+@export_group("Unique Abilities")
+## Character-specific unique abilities (EXCEPTIONS ONLY)
+## Most spells come from ClassData.class_abilities, NOT here
+## Use for: Domingo's innate Freeze, hero special powers, unique character skills
+## that transcend their class definition
+@export var unique_abilities: Array[AbilityData] = []
+
 @export_group("Lore")
 @export_multiline var biography: String = ""
 
@@ -116,3 +123,24 @@ static func generate_uid() -> String:
 ## Check if this character has a valid UID
 func has_valid_uid() -> bool:
 	return not character_uid.is_empty() and character_uid.length() >= 6
+
+
+## Get all available spells/abilities for this character at a given level
+## Combines: ClassData.class_abilities (filtered by level) + unique_abilities
+## This is the PRIMARY method to get a character's spell list
+func get_available_abilities(level: int) -> Array[AbilityData]:
+	var abilities: Array[AbilityData] = []
+
+	# 1. Class abilities (primary source) - filtered by unlock level
+	if character_class != null:
+		abilities.append_array(character_class.get_unlocked_class_abilities(level))
+
+	# 2. Character unique abilities (rare exceptions like Domingo's Freeze)
+	abilities.append_array(unique_abilities)
+
+	return abilities
+
+
+## Check if this character has any spells/abilities available at a given level
+func has_abilities(level: int) -> bool:
+	return get_available_abilities(level).size() > 0

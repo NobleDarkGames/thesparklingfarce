@@ -2,8 +2,8 @@
 
 **Author**: Lt. Claudbrain, USS Torvalds
 **Date**: 2025-12-06
-**Updated**: 2025-12-08 (Class-based spell architecture, implementation readiness assessment)
-**Status**: Ready for Implementation (Active Spells 80-85% infrastructure complete)
+**Updated**: 2025-12-08 (Phase S1 + S2 COMPLETE - Spell system working!)
+**Status**: Phase S1-S2 Complete, Phase S3 In Progress (UI polish needed)
 
 ---
 
@@ -84,27 +84,30 @@ This matches SF2's design where a character's spells come from their class, and 
 
 ### Spell Implementation Phases
 
-#### Phase S1: Foundation (~2-3 hours)
-1. Add `class_abilities` and `ability_unlock_levels` to ClassData
-2. Add `unique_abilities` to CharacterData
-3. Create test spells: `heal_1.tres`, `blaze_1.tres` in `mods/_base_game/data/abilities/`
-4. Assign spells to test class (MAGE gets Blaze, PRIEST gets Heal)
+#### Phase S1: Foundation ✅ COMPLETE
+1. ✅ Add `class_abilities` and `ability_unlock_levels` to ClassData
+2. ✅ Add `unique_abilities` to CharacterData
+3. ✅ Create test spells: `heal_1.tres`, `blaze_1.tres` in `mods/_base_game/data/abilities/`
+4. ✅ Assign spells to test class (MAGE gets Blaze and Heal)
 
-**Deliverable**: Characters have spell lists derived from class
+**Deliverable**: Characters have spell lists derived from class ✅
 
-#### Phase S2: Core Execution (~4-5 hours)
-1. Add InputManager spell states (clone item states)
-2. Create SpellMenu (clone ItemMenu, show MP cost, check MP)
-3. Add BattleManager spell execution (MP deduction, damage/healing)
-4. Wire "Magic" action to spell menu
+#### Phase S2: Core Execution ✅ COMPLETE
+1. ✅ Add InputManager spell states (SELECTING_SPELL, SELECTING_SPELL_TARGET)
+2. ✅ Create SpellMenu (shows MP cost, disables if insufficient MP)
+3. ✅ Add BattleManager spell execution (MP deduction, damage/healing)
+4. ✅ Wire "Magic" action to spell menu (shows when character has spells)
 
-**Deliverable**: Spells execute correctly in battle
+**Deliverable**: Spells execute correctly in battle ✅
 
-#### Phase S3: UI & Polish (~2-3 hours)
-1. Add "Magic" to action menu (hide if no spells, per SF2)
-2. Spell targeting range visualization
-3. Combat animation integration
-4. MP display in unit stats panel
+**Note**: The _base_game Maggie character uses an inline SubResource for her Mage class, which required adding `class_abilities` directly to the character file.
+
+#### Phase S3: UI & Polish (IN PROGRESS)
+1. ✅ Add "Magic" to action menu (hidden if no spells)
+2. ⚠️ Spell menu position needs adjustment (UI bug)
+3. ⏳ Spell targeting range visualization
+4. ⏳ Combat animation integration
+5. ⏳ MP display in unit stats panel
 
 **Deliverable**: Full player-facing spell system
 

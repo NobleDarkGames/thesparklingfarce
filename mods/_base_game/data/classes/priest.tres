@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_class"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/heal_1.tres" id="2_heal1"]
+
+[resource]
+script = ExtResource("1_class")
+display_name = "BASE Priest"
+movement_range = 4
+mp_growth = 55
+strength_growth = 35
+defense_growth = 45
+intelligence_growth = 55
+luck_growth = 55
+equippable_weapon_types = Array[String](["staff"])
+equippable_armor_types = Array[String](["robe", "light"])
+class_abilities = Array[AbilityData]([ExtResource("2_heal1")])

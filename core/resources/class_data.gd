@@ -47,7 +47,19 @@ enum MovementType {
 
 @export_group("Abilities")
 ## Abilities learned at specific levels: {level: AbilityData}
+## DEPRECATED: Use class_abilities + ability_unlock_levels instead
+## Kept for backward compatibility with existing data
 @export var learnable_abilities: Dictionary = {}
+
+## Active spells/abilities granted by this class (PRIMARY spell source)
+## Characters get their spells from their class, not individually
+## Example: MAGE class has [blaze_1, blaze_2, blaze_3, blaze_4]
+@export var class_abilities: Array[AbilityData] = []
+
+## Level requirements for each ability {"ability_id": level_required}
+## Abilities not in this dict are available at level 1
+## Example: {"blaze_2": 8, "blaze_3": 16, "blaze_4": 24}
+@export var ability_unlock_levels: Dictionary = {}
 
 @export_group("Promotion")
 ## The class this promotes to (standard path, optional)
@@ -109,6 +121,7 @@ func get_ability_at_level(level: int) -> Resource:
 
 
 ## Get all abilities learned up to a specific level
+## DEPRECATED: Use get_unlocked_class_abilities() for the new system
 func get_abilities_up_to_level(level: int) -> Array[Resource]:
 	var abilities: Array[Resource] = []
 	for learn_level: int in learnable_abilities.keys():
@@ -117,6 +130,48 @@ func get_abilities_up_to_level(level: int) -> Array[Resource]:
 			if ability != null:
 				abilities.append(ability)
 	return abilities
+
+
+## Get all class abilities unlocked at a given level
+## Uses class_abilities array filtered by ability_unlock_levels dictionary
+## Abilities without an entry in ability_unlock_levels are available at level 1
+func get_unlocked_class_abilities(level: int) -> Array[AbilityData]:
+	var unlocked: Array[AbilityData] = []
+	for ability: AbilityData in class_abilities:
+		if ability == null:
+			continue
+		var unlock_level: int = 1
+		if ability.ability_id in ability_unlock_levels:
+			unlock_level = ability_unlock_levels[ability.ability_id]
+		if level >= unlock_level:
+			unlocked.append(ability)
+	return unlocked
+
+
+## Check if a specific ability is unlocked at a given level
+func is_ability_unlocked(ability_id: String, level: int) -> bool:
+	var unlock_level: int = 1
+	if ability_id in ability_unlock_levels:
+		unlock_level = ability_unlock_levels[ability_id]
+	return level >= unlock_level
+
+
+## Get the level required to unlock a specific ability
+## Returns 1 if ability is not in unlock dictionary (available immediately)
+## Returns -1 if ability is not in class_abilities at all
+func get_ability_unlock_level(ability_id: String) -> int:
+	# Verify the ability exists in class_abilities
+	var found: bool = false
+	for ability: AbilityData in class_abilities:
+		if ability != null and ability.ability_id == ability_id:
+			found = true
+			break
+	if not found:
+		return -1
+
+	if ability_id in ability_unlock_levels:
+		return ability_unlock_levels[ability_id]
+	return 1
 
 
 ## Get growth rate by stat name (for dynamic access)

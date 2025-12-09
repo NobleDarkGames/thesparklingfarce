@@ -1,9 +1,12 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://cybmlhvfpyiup"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=9 format=3 uid="uid://cybmlhvfpyiup"]
 
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_mage"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_mage"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="2_y2vm2"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_mage"]
 [ext_resource type="Texture2D" uid="uid://dljgut82iyl3a" path="res://mods/_sandbox/art/placeholder/sprites/maggie.png" id="4_sprite"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_1.tres" id="5_blaze"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/heal_1.tres" id="6_heal"]
 
 [sub_resource type="Resource" id="Resource_mage"]
 script = ExtResource("1_mage")
@@ -14,6 +17,7 @@ strength_growth = 30
 defense_growth = 35
 equippable_weapon_types = Array[String](["staff", "wand"])
 equippable_armor_types = Array[String](["light", "robe"])
+class_abilities = Array[ExtResource("2_y2vm2")]([ExtResource("5_blaze"), ExtResource("6_heal")])
 
 [resource]
 script = ExtResource("2_mage")

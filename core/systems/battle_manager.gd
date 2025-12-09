@@ -347,6 +347,9 @@ func _connect_signals() -> void:
 	if not InputManager.item_use_requested.is_connected(_on_item_use_requested):
 		InputManager.item_use_requested.connect(_on_item_use_requested)
 
+	if not InputManager.spell_cast_requested.is_connected(_on_spell_cast_requested):
+		InputManager.spell_cast_requested.connect(_on_spell_cast_requested)
+
 	# ExperienceManager signals
 	if not ExperienceManager.unit_gained_xp.is_connected(_on_unit_gained_xp):
 		ExperienceManager.unit_gained_xp.connect(_on_unit_gained_xp)
@@ -366,8 +369,9 @@ func _on_action_selected(unit: Node2D, action: String) -> void:
 			# InputManager will handle targeting
 			pass
 		"magic":
-			# TODO: Phase 4
-			push_warning("BattleManager: Magic not yet implemented")
+			# InputManager handles spell menu - nothing to do here
+			# Spell cast is handled via _on_spell_cast_requested signal
+			pass
 		"item":
 			# InputManager handles item menu - nothing to do here
 			# Item use is handled via _on_item_use_requested signal
@@ -544,6 +548,164 @@ func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
 
 	# Award through ExperienceManager (using support XP for item usage)
 	ExperienceManager.award_support_xp(user, "item_use", target, xp_amount)
+
+
+# =============================================================================
+# SPELL CASTING SYSTEM
+# =============================================================================
+
+## Handle spell cast request from InputManager
+func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D) -> void:
+	# Get the ability data from registry
+	var ability: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
+
+	if not ability:
+		push_warning("BattleManager: Ability '%s' not found in registry" % ability_id)
+		InputManager.reset_to_waiting()
+		TurnManager.end_unit_turn(caster)
+		return
+
+	# Check and deduct MP cost
+	if not caster.stats:
+		push_error("BattleManager: Caster has no stats")
+		InputManager.reset_to_waiting()
+		TurnManager.end_unit_turn(caster)
+		return
+
+	if caster.stats.current_mp < ability.mp_cost:
+		push_warning("BattleManager: Insufficient MP for spell '%s'" % ability_id)
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		InputManager.reset_to_waiting()
+		TurnManager.end_unit_turn(caster)
+		return
+
+	# Deduct MP cost
+	caster.stats.current_mp -= ability.mp_cost
+
+	# Apply the spell effect based on type
+	var effect_applied: bool = false
+	match ability.ability_type:
+		AbilityData.AbilityType.HEAL:
+			effect_applied = await _apply_spell_heal(caster, target, ability)
+		AbilityData.AbilityType.ATTACK:
+			effect_applied = await _apply_spell_damage(caster, target, ability)
+		AbilityData.AbilityType.SUPPORT:
+			# TODO: Implement buff effects
+			push_warning("BattleManager: Support spell effects not yet implemented")
+			effect_applied = false
+		AbilityData.AbilityType.DEBUFF:
+			# TODO: Implement debuff effects
+			push_warning("BattleManager: Debuff spell effects not yet implemented")
+			effect_applied = false
+		AbilityData.AbilityType.STATUS:
+			# TODO: Implement status effects
+			push_warning("BattleManager: Status spell effects not yet implemented")
+			effect_applied = false
+		_:
+			push_warning("BattleManager: Unknown spell type")
+			effect_applied = false
+
+	if effect_applied:
+		# Award XP for spell casting (SF2-authentic: casters get XP for casting)
+		_award_spell_xp(caster, target, ability)
+
+	# Reset InputManager to waiting state
+	InputManager.reset_to_waiting()
+
+	# End caster's turn
+	TurnManager.end_unit_turn(caster)
+
+
+## Apply healing spell effect
+func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+	if not target or not target.stats:
+		push_warning("BattleManager: Invalid target for healing spell")
+		return false
+
+	var stats: UnitStats = target.stats
+	var max_hp: int = stats.max_hp
+
+	# Calculate healing amount using CombatCalculator
+	var heal_amount: int = CombatCalculator.calculate_healing(caster.stats, ability)
+
+	# Apply healing (cap at max HP)
+	var old_hp: int = stats.current_hp
+	stats.current_hp = mini(stats.current_hp + heal_amount, max_hp)
+	var actual_heal: int = stats.current_hp - old_hp
+
+	# Play healing sound
+	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
+
+	# Visual feedback (flash green)
+	if not TurnManager.is_headless and target.has_method("flash_color"):
+		target.flash_color(Color.GREEN, 0.3)
+
+	# Brief pause for player feedback
+	if not TurnManager.is_headless:
+		await get_tree().create_timer(0.5).timeout
+
+	return true
+
+
+## Apply damage spell effect
+func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+	if not target or not target.stats:
+		push_warning("BattleManager: Invalid target for damage spell")
+		return false
+
+	# Calculate magic damage using CombatCalculator
+	var damage: int = CombatCalculator.calculate_magic_damage(caster.stats, target.stats, ability)
+
+	# Apply damage
+	if target.has_method("take_damage"):
+		target.take_damage(damage)
+	else:
+		target.stats.current_hp -= damage
+		target.stats.current_hp = maxi(0, target.stats.current_hp)
+
+	# Play spell hit sound
+	AudioManager.play_sfx("spell_hit", AudioManager.SFXCategory.COMBAT)
+
+	# Visual feedback (flash red/blue for magic)
+	if not TurnManager.is_headless and target.has_method("flash_color"):
+		target.flash_color(Color.BLUE, 0.3)
+
+	# Brief pause for player feedback
+	if not TurnManager.is_headless:
+		await get_tree().create_timer(0.5).timeout
+
+	return true
+
+
+## Award XP for spell casting (SF2-authentic)
+## Healing spells award XP based on amount healed
+## Damage spells award XP based on damage dealt
+func _award_spell_xp(caster: Node2D, target: Node2D, ability: AbilityData) -> void:
+	if not caster or not caster.character_data:
+		return
+
+	# Calculate XP based on spell type
+	var xp_amount: int = 0
+	var xp_source: String = "spell_cast"
+
+	match ability.ability_type:
+		AbilityData.AbilityType.HEAL:
+			# Healers get XP for healing (SF2-authentic)
+			xp_amount = 10
+			xp_source = "heal_spell"
+		AbilityData.AbilityType.ATTACK:
+			# Damage spells award XP based on enemy level differential
+			if target and target.stats:
+				var caster_level: int = caster.stats.level if caster.stats else 1
+				var target_level: int = target.stats.level if target.stats else 1
+				xp_amount = CombatCalculator.calculate_experience_gain(caster_level, target_level, 8)
+				xp_source = "attack_spell"
+		_:
+			xp_amount = 5
+			xp_source = "spell_cast"
+
+	if xp_amount > 0:
+		ExperienceManager.award_support_xp(caster, xp_source, target, xp_amount)
 
 
 ## Execute attack from AI (called by AIBrain)
