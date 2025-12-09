@@ -149,10 +149,11 @@ if dict.has("key"):
 ### UI and Effects
 | Singleton | File | Status | Purpose |
 |-----------|------|--------|---------|
-| ExplorationUIManager | `core/systems/exploration_ui_manager.gd` | Implemented | Auto-activating inventory/equipment UI |
+| ExplorationUIManager | `core/systems/exploration_ui_manager.gd` | Implemented | Auto-activating inventory/equipment/field menu UI |
 | GameJuice | `core/systems/game_juice.gd` | Implemented | Screen shake, effects |
 | DebugConsole | `core/systems/debug_console.tscn` | Implemented | Quake-style runtime console |
 | ShopInterface | `scenes/ui/shops/shop_interface.tscn` | Implemented | SF2-authentic shop UI |
+| ExplorationFieldMenu | `scenes/ui/exploration_field_menu.tscn` | Implemented | SF2-style field menu (Item/Magic/Search/Member) |
 
 ### Editor (Tool Mode)
 | Singleton | File | Status | Purpose |
@@ -268,7 +269,7 @@ Reusable node scripts in `core/components/`:
 | NPCNode | `npc_node.gd` | Interactable NPC entity |
 | CinematicActor | `cinematic_actor.gd` | Cinematic-controllable entity |
 | CaravanFollower | `caravan_follower.gd` | Caravan overworld behavior |
-| ExplorationUIController | `exploration_ui_controller.gd` | Hero-based UI activation |
+| ExplorationUIController | `exploration_ui_controller.gd` | Hero-based UI state machine (EXPLORING, FIELD_MENU, INVENTORY, etc.) |
 | AnimationPhaseOffset | `animation_phase_offset.gd` | Classic 16-bit animation desync |
 | TileMapAnimationHelper | `tilemap_animation_helper.gd` | Tilemap animation utilities |
 
@@ -364,6 +365,15 @@ Commands available in CinematicData:
 
   "party_config": {
     "replaces_lower_priority": false
+  },
+
+  "field_menu_options": {
+    "bestiary": {
+      "label": "Bestiary",
+      "scene_path": "scenes/ui/bestiary.tscn",
+      "position": "end"
+    },
+    "_replace_all": false
   }
 }
 ```
@@ -704,13 +714,42 @@ if MyManager and MyManager.is_X_active():
 - `DebugConsole.is_open`
 - `ShopManager.is_shop_open()`
 - `DialogManager.is_dialog_active()`
-- `ExplorationUIController.current_state != EXPLORING`
+- `ExplorationUIController.current_state != EXPLORING` (includes FIELD_MENU state)
 
 **Why this is necessary:**
 - HeroController uses `Input.is_action_pressed()` polling in `_physics_process()`
 - Polling bypasses Godot's event system entirely
 - `set_input_as_handled()` only affects event propagation, not polling
 - Modal UIs must register with the central blocking check
+
+### Exploration Field Menu (SF2-Authentic)
+
+The field menu appears when pressing `sf_confirm` on empty space or `sf_cancel` during exploration.
+
+**Triggers:**
+- `sf_confirm` facing empty tile (no NPC/interactable) via `MapTemplate._on_hero_interaction()`
+- `sf_cancel` during exploration via `HeroController._input()`
+
+**Menu Options:** Item, Magic, Search, Member (SF2 terminology - NOT "Status")
+
+**Implementation:**
+- `ExplorationFieldMenu` (`scenes/ui/exploration_field_menu.gd`)
+- Managed by `ExplorationUIController` via `FIELD_MENU` state
+- Instantiated by `ExplorationUIManager` autoload
+- Auto-participates in modal blocking via state machine
+
+**Mod Extension:** Add options via `field_menu_options` in mod.json:
+```json
+"field_menu_options": {
+  "bestiary": {"label": "Bestiary", "scene_path": "scenes/ui/bestiary.tscn", "position": "end"}
+}
+```
+Position: `"start"`, `"end"` (default), `"after_item"`, `"after_magic"`, `"after_search"`, `"after_member"`
+
+**SF2 Authenticity:**
+- Instant cursor movement (no animation)
+- Magic restricted to Egress/Detox only (Phase 2)
+- "Member" label (not "Status" - that's Caravan menu)
 
 ### Common Mistakes
 - Putting content in `core/` instead of `mods/`
