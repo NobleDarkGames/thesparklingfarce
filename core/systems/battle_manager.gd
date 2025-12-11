@@ -822,7 +822,7 @@ func _get_unit_weapon_name(unit: Node2D) -> String:
 		return ""
 
 	# Try to get equipped weapon from save data
-	var save_data: CharacterSaveData = GameState.get_character_save_data(unit.character_data.character_uid)
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(unit.character_data.character_uid)
 	if save_data:
 		var weapon: ItemData = EquipmentManager.get_equipped_weapon(save_data)
 		if weapon:

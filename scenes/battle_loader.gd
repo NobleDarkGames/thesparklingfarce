@@ -303,6 +303,12 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 	# Add to scene
 	$Units.add_child(unit)
 
+	# Connect death signal for fade-out effect
+	if unit.has_signal("died"):
+		var callback: Callable = BattleManager._on_unit_died.bind(unit)
+		if not unit.died.is_connected(callback):
+			unit.died.connect(callback)
+
 	return unit
 
 
