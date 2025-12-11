@@ -166,82 +166,102 @@ func serialize_to_dict() -> Dictionary:
 
 
 ## Deserialize save data from Dictionary (loaded from JSON)
+## Uses type coercion helpers for safety against corrupted/malformed data
 ## @param data: Dictionary loaded from JSON file
 func deserialize_from_dict(data: Dictionary) -> void:
+	# Metadata - with type safety
 	if "save_version" in data:
-		save_version = data.save_version
+		save_version = _safe_int(data.save_version, 1)
 	if "created_timestamp" in data:
-		created_timestamp = data.created_timestamp
+		created_timestamp = _safe_int(data.created_timestamp, 0)
 	if "last_played_timestamp" in data:
-		last_played_timestamp = data.last_played_timestamp
+		last_played_timestamp = _safe_int(data.last_played_timestamp, 0)
 	if "playtime_seconds" in data:
-		playtime_seconds = data.playtime_seconds
+		playtime_seconds = maxi(0, _safe_int(data.playtime_seconds, 0))
 	if "slot_number" in data:
-		slot_number = data.slot_number
+		slot_number = clampi(_safe_int(data.slot_number, 1), 1, 3)
 	if "active_mods" in data:
 		active_mods.clear()
-		var mods_array: Array = data.active_mods
-		for i: int in range(mods_array.size()):
-			var mod_dict: Dictionary = mods_array[i]
-			active_mods.append(mod_dict)
+		var mods_data: Variant = data.active_mods
+		if mods_data is Array:
+			for mod_entry: Variant in mods_data:
+				if mod_entry is Dictionary:
+					active_mods.append(mod_entry)
 	if "game_version" in data:
-		game_version = data.game_version
-	# Campaign progress
+		game_version = _safe_string(data.game_version, "0.1.0")
+
+	# Campaign progress - with type safety
 	if "current_campaign_id" in data:
-		current_campaign_id = data.current_campaign_id
+		current_campaign_id = _safe_string(data.current_campaign_id, "")
 	if "current_node_id" in data:
-		current_node_id = data.current_node_id
+		current_node_id = _safe_string(data.current_node_id, "")
 	if "campaign_node_history" in data:
 		campaign_node_history.clear()
-		var history_array: Array = data.campaign_node_history
-		for i: int in range(history_array.size()):
-			var node_id: String = history_array[i]
-			campaign_node_history.append(node_id)
+		var history_data: Variant = data.campaign_node_history
+		if history_data is Array:
+			for node_entry: Variant in history_data:
+				if node_entry is String:
+					campaign_node_history.append(node_entry)
 	if "last_hub_id" in data:
-		last_hub_id = data.last_hub_id
+		last_hub_id = _safe_string(data.last_hub_id, "")
 	if "current_location" in data:
-		current_location = data.current_location
+		current_location = _safe_string(data.current_location, "headquarters")
 	if "story_flags" in data:
-		story_flags = data.story_flags.duplicate()
+		var flags_data: Variant = data.story_flags
+		if flags_data is Dictionary:
+			story_flags = flags_data.duplicate()
+		else:
+			push_warning("SaveData: story_flags is not a Dictionary, using empty")
+			story_flags = {}
 	if "completed_battles" in data:
 		completed_battles.clear()
-		var completed_array: Array = data.completed_battles
-		for i: int in range(completed_array.size()):
-			var battle_id: String = completed_array[i]
-			completed_battles.append(battle_id)
+		var completed_data: Variant = data.completed_battles
+		if completed_data is Array:
+			for battle_entry: Variant in completed_data:
+				if battle_entry is String:
+					completed_battles.append(battle_entry)
 	if "available_battles" in data:
 		available_battles.clear()
-		var available_array: Array = data.available_battles
-		for i: int in range(available_array.size()):
-			var battle_id: String = available_array[i]
-			available_battles.append(battle_id)
+		var available_data: Variant = data.available_battles
+		if available_data is Array:
+			for battle_entry: Variant in available_data:
+				if battle_entry is String:
+					available_battles.append(battle_entry)
+
+	# Party/Inventory - with type safety and bounds checking
 	if "max_party_size" in data:
-		max_party_size = data.max_party_size
+		max_party_size = clampi(_safe_int(data.max_party_size, 8), 1, 30)
 	if "gold" in data:
-		gold = data.gold
+		gold = maxi(0, _safe_int(data.gold, 0))
+		if gold < 0:
+			push_warning("SaveData: Negative gold value corrected to 0")
+			gold = 0
 	if "inventory" in data:
 		inventory.clear()
-		var inventory_array: Array = data.inventory
-		for i: int in range(inventory_array.size()):
-			var item_dict: Dictionary = inventory_array[i]
-			inventory.append(item_dict)
+		var inventory_data: Variant = data.inventory
+		if inventory_data is Array:
+			for item_entry: Variant in inventory_data:
+				if item_entry is Dictionary:
+					inventory.append(item_entry)
 	if "depot_items" in data:
 		depot_items.clear()
-		var depot_array: Array = data.depot_items
-		for i: int in range(depot_array.size()):
-			var item_id: Variant = depot_array[i]
-			if item_id is String:
-				depot_items.append(item_id)
+		var depot_data: Variant = data.depot_items
+		if depot_data is Array:
+			for item_entry: Variant in depot_data:
+				if item_entry is String:
+					depot_items.append(item_entry)
+
+	# Statistics - with type safety and non-negative enforcement
 	if "total_battles" in data:
-		total_battles = data.total_battles
+		total_battles = maxi(0, _safe_int(data.total_battles, 0))
 	if "battles_won" in data:
-		battles_won = data.battles_won
+		battles_won = maxi(0, _safe_int(data.battles_won, 0))
 	if "total_enemies_defeated" in data:
-		total_enemies_defeated = data.total_enemies_defeated
+		total_enemies_defeated = maxi(0, _safe_int(data.total_enemies_defeated, 0))
 	if "total_damage_dealt" in data:
-		total_damage_dealt = data.total_damage_dealt
+		total_damage_dealt = maxi(0, _safe_int(data.total_damage_dealt, 0))
 	if "total_healing_done" in data:
-		total_healing_done = data.total_healing_done
+		total_healing_done = maxi(0, _safe_int(data.total_healing_done, 0))
 
 	# Deserialize party members
 	party_members.clear()
@@ -334,3 +354,142 @@ func _format_playtime() -> String:
 	var seconds: int = playtime_seconds % 60
 
 	return "%02d:%02d:%02d" % [hours, minutes, seconds]
+
+
+# ============================================================================
+# TYPE COERCION HELPERS (2B.3)
+# ============================================================================
+
+## Safe integer extraction from JSON (handles float conversion)
+static func _safe_int(value: Variant, default_val: int = 0) -> int:
+	if value is int:
+		return value
+	if value is float:
+		return int(value)
+	if value is String and value.is_valid_int():
+		return value.to_int()
+	return default_val
+
+
+## Safe string extraction from JSON
+static func _safe_string(value: Variant, default_val: String = "") -> String:
+	if value is String:
+		return value
+	if value != null:
+		return str(value)
+	return default_val
+
+
+## Safe bool extraction from JSON
+static func _safe_bool(value: Variant, default_val: bool = false) -> bool:
+	if value is bool:
+		return value
+	if value is int:
+		return value != 0
+	if value is String:
+		return value.to_lower() in ["true", "1", "yes"]
+	return default_val
+
+
+# ============================================================================
+# MOD DEPENDENCY VALIDATION (2B.2)
+# ============================================================================
+
+## Validate that all referenced mods are still loaded
+## Returns Dictionary with:
+##   valid: bool - true if all mods present
+##   missing_mods: Array[String] - list of missing mod IDs
+##   orphaned_items: Array[String] - items from missing mods
+##   orphaned_characters: Array[String] - characters from missing mods
+func validate_mod_dependencies() -> Dictionary:
+	var result: Dictionary = {
+		"valid": true,
+		"missing_mods": [],
+		"orphaned_items": [],
+		"orphaned_characters": []
+	}
+
+	# Get currently loaded mod IDs
+	var loaded_mods: Array[String] = []
+	if ModLoader:
+		for mod: ModManifest in ModLoader.loaded_mods:
+			loaded_mods.append(mod.mod_id)
+
+	# Check active_mods against loaded mods
+	for mod_info: Dictionary in active_mods:
+		var mod_id: String = _safe_string(mod_info.get("mod_id", ""))
+		if not mod_id.is_empty() and mod_id not in loaded_mods:
+			result["missing_mods"].append(mod_id)
+			result["valid"] = false
+
+	# Check inventory items
+	for item_dict: Dictionary in inventory:
+		var item_mod_id: String = _safe_string(item_dict.get("mod_id", "_base_game"))
+		if item_mod_id not in loaded_mods and item_mod_id != "_base_game":
+			var item_id: String = _safe_string(item_dict.get("item_id", "unknown"))
+			result["orphaned_items"].append(item_id)
+			if item_mod_id not in result["missing_mods"]:
+				result["missing_mods"].append(item_mod_id)
+			result["valid"] = false
+
+	# Check depot items (resolve mod source from registry)
+	if ModLoader:
+		for item_id: String in depot_items:
+			if not ModLoader.registry.has_resource("item", item_id):
+				result["orphaned_items"].append(item_id)
+				result["valid"] = false
+
+	# Check party members
+	for char_save: CharacterSaveData in party_members:
+		if not char_save.character_mod_id.is_empty():
+			if char_save.character_mod_id not in loaded_mods:
+				result["orphaned_characters"].append(char_save.fallback_character_name)
+				if char_save.character_mod_id not in result["missing_mods"]:
+					result["missing_mods"].append(char_save.character_mod_id)
+				result["valid"] = false
+
+	# Check reserve members
+	for char_save: CharacterSaveData in reserve_members:
+		if not char_save.character_mod_id.is_empty():
+			if char_save.character_mod_id not in loaded_mods:
+				result["orphaned_characters"].append(char_save.fallback_character_name)
+				if char_save.character_mod_id not in result["missing_mods"]:
+					result["missing_mods"].append(char_save.character_mod_id)
+				result["valid"] = false
+
+	return result
+
+
+## Remove content from mods that are no longer loaded
+func remove_orphaned_content(mod_check: Dictionary) -> void:
+	var orphaned_items_list: Array = mod_check.get("orphaned_items", [])
+	var orphaned_characters_list: Array = mod_check.get("orphaned_characters", [])
+
+	# Remove orphaned inventory items
+	var valid_inventory: Array[Dictionary] = []
+	for item_dict: Dictionary in inventory:
+		var item_id: String = _safe_string(item_dict.get("item_id", ""))
+		if item_id not in orphaned_items_list:
+			valid_inventory.append(item_dict)
+	inventory = valid_inventory
+
+	# Remove orphaned depot items
+	var valid_depot: Array[String] = []
+	for item_id: String in depot_items:
+		if item_id not in orphaned_items_list:
+			valid_depot.append(item_id)
+	depot_items = valid_depot
+
+	# Remove orphaned party members
+	var valid_party: Array[CharacterSaveData] = []
+	for char_save: CharacterSaveData in party_members:
+		if char_save.fallback_character_name not in orphaned_characters_list:
+			valid_party.append(char_save)
+	party_members = valid_party
+
+	# Remove orphaned reserve members
+	var valid_reserve: Array[CharacterSaveData] = []
+	for char_save: CharacterSaveData in reserve_members:
+		if char_save.fallback_character_name not in orphaned_characters_list:
+			valid_reserve.append(char_save)
+	reserve_members = valid_reserve

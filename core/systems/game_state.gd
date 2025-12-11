@@ -28,6 +28,16 @@ var completed_triggers: Dictionary = {}
 ## Set by mod scripts to auto-prefix flags with their mod ID
 var _current_mod_namespace: String = ""
 
+## Track which mod set each flag (for conflict detection)
+var _flag_sources: Dictionary = {}  # flag_name -> mod_id
+
+## Flag namespacing enforcement mode
+enum NamespaceMode {
+	PERMISSIVE,  ## No enforcement, just warnings (default for backwards compatibility)
+	STRICT       ## Reject non-namespaced flags from mods
+}
+var namespace_mode: NamespaceMode = NamespaceMode.PERMISSIVE
+
 ## Deprecation warning tracking (warn once per session)
 var _deprecated_return_data_warned: bool = false
 
@@ -86,10 +96,13 @@ func _ready() -> void:
 
 ## Global quit handler - Q key quits the game (development convenience)
 ## Uses _unhandled_input for efficiency (only fires on actual input, not every frame)
+## IMPORTANT: Only active in debug builds to prevent accidental quit in production
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_Q:
-			get_tree().quit()
+	# Debug convenience: Q key quits game (development only)
+	if OS.has_feature("debug"):
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode == KEY_Q:
+				get_tree().quit()
 
 
 ## Check if a story flag is set to true
@@ -98,7 +111,41 @@ func has_flag(flag_name: String) -> bool:
 
 
 ## Set a story flag (default: true)
-func set_flag(flag_name: String, value: bool = true) -> void:
+## @param flag_name: Name of the flag (recommend namespaced format "mod_id:flag_name")
+## @param value: Boolean value (default: true)
+## @param source_mod_id: Optional mod ID for conflict tracking
+func set_flag(flag_name: String, value: bool = true, source_mod_id: String = "") -> void:
+	# Namespace validation for mod safety
+	if not flag_name.is_empty():
+		var is_namespaced: bool = ":" in flag_name
+
+		# Detect potential conflicts
+		if flag_name in _flag_sources and _flag_sources[flag_name] != source_mod_id:
+			var original_source: String = _flag_sources[flag_name]
+			if not source_mod_id.is_empty() or not original_source.is_empty():
+				push_warning("GameState: Flag '%s' being set by '%s' was originally set by '%s'" % [
+					flag_name,
+					source_mod_id if not source_mod_id.is_empty() else "unknown",
+					original_source if not original_source.is_empty() else "unknown"
+				])
+
+		# Warn about non-namespaced flags from mods
+		if not is_namespaced and not source_mod_id.is_empty() and source_mod_id != "_base_game":
+			if namespace_mode == NamespaceMode.STRICT:
+				push_error("GameState: STRICT mode - rejected non-namespaced flag '%s' from mod '%s'" % [
+					flag_name, source_mod_id
+				])
+				return
+			else:
+				push_warning("GameState: Flag '%s' from mod '%s' should be namespaced as '%s:%s'" % [
+					flag_name, source_mod_id, source_mod_id, flag_name
+				])
+
+	# Track source
+	if not source_mod_id.is_empty():
+		_flag_sources[flag_name] = source_mod_id
+
+	# Check for no change
 	if story_flags.get(flag_name) == value:
 		return  # No change, don't emit signal
 
@@ -206,6 +253,42 @@ func warn_unnamespaced_flags(enabled: bool = true) -> void:
 			push_warning("GameState: Non-namespaced flag '%s' detected. Consider using 'mod_id:%s' format." % [flag_name, flag_name])
 
 
+## Enable strict namespace enforcement (call from mod's _ready or test setup)
+func enable_strict_namespacing() -> void:
+	namespace_mode = NamespaceMode.STRICT
+	push_warning("GameState: Strict namespace mode enabled - non-namespaced mod flags will be rejected")
+
+
+## Disable strict namespace enforcement (return to permissive mode)
+func disable_strict_namespacing() -> void:
+	namespace_mode = NamespaceMode.PERMISSIVE
+
+
+## Get all flags that appear to have conflicts (for debugging/editor)
+func get_potential_flag_conflicts() -> Array[String]:
+	var conflicts: Array[String] = []
+	var seen_short_names: Dictionary = {}  # short_name -> [full_names]
+
+	for flag_name: String in story_flags:
+		var short_name: String = flag_name
+		if ":" in flag_name:
+			short_name = flag_name.split(":")[1]
+
+		if short_name not in seen_short_names:
+			seen_short_names[short_name] = []
+		seen_short_names[short_name].append(flag_name)
+
+	# Find short names used by multiple full names
+	for short_name: String in seen_short_names:
+		var full_names: Array = seen_short_names[short_name]
+		if full_names.size() > 1:
+			for full_name: String in full_names:
+				if full_name not in conflicts:
+					conflicts.append(full_name)
+
+	return conflicts
+
+
 ## Check if a trigger has been completed
 func is_trigger_completed(trigger_id: String) -> bool:
 	return completed_triggers.get(trigger_id, false)
@@ -256,11 +339,60 @@ func export_state() -> Dictionary:
 	}
 
 
-## Import state from save system
-func import_state(state: Dictionary) -> void:
-	story_flags = state.get("story_flags", {}).duplicate()
-	completed_triggers = state.get("completed_triggers", {}).duplicate()
-	campaign_data = state.get("campaign_data", {}).duplicate()
+## Import state from save system with validation
+## Returns true if import was successful, false if validation failed
+func import_state(state: Dictionary) -> bool:
+	# Validate story_flags structure
+	var raw_flags: Variant = state.get("story_flags", {})
+	if raw_flags is Dictionary:
+		# Validate flag values are booleans
+		var valid_flags: Dictionary = {}
+		for flag_name: Variant in raw_flags:
+			if flag_name is String:
+				var flag_value: Variant = raw_flags[flag_name]
+				if flag_value is bool:
+					valid_flags[flag_name] = flag_value
+				else:
+					push_warning("GameState: Skipping invalid flag value for '%s' (expected bool, got %s)" % [
+						flag_name, typeof(flag_value)
+					])
+			else:
+				push_warning("GameState: Skipping invalid flag key (expected String)")
+		story_flags = valid_flags
+	else:
+		push_warning("GameState: story_flags is not a Dictionary, using empty")
+		story_flags = {}
+
+	# Validate completed_triggers structure
+	var raw_triggers: Variant = state.get("completed_triggers", {})
+	if raw_triggers is Dictionary:
+		var valid_triggers: Dictionary = {}
+		for trigger_id: Variant in raw_triggers:
+			if trigger_id is String:
+				valid_triggers[trigger_id] = true  # Always true for completed
+			else:
+				push_warning("GameState: Skipping invalid trigger key (expected String)")
+		completed_triggers = valid_triggers
+	else:
+		push_warning("GameState: completed_triggers is not a Dictionary, using empty")
+		completed_triggers = {}
+
+	# Validate campaign_data structure
+	var raw_campaign: Variant = state.get("campaign_data", {})
+	if raw_campaign is Dictionary:
+		campaign_data = raw_campaign.duplicate()
+	else:
+		push_warning("GameState: campaign_data is not a Dictionary, using defaults")
+		campaign_data = {
+			"current_chapter": 0,
+			"battles_won": 0,
+			"treasures_found": 0,
+		}
+
+	# Clear flag source tracking for fresh import
+	_flag_sources.clear()
+
+	return true
 
 
 ## Clear all state (for new game)

@@ -39,7 +39,13 @@ var party_members: Array[CharacterData] = []
 var _member_save_data: Dictionary = {}
 
 ## Maximum ACTIVE party size (goes into battle) - SF2 allows 12
-const MAX_ACTIVE_SIZE: int = 12
+## Can be modified by mods at runtime, but bounds checked
+const DEFAULT_MAX_ACTIVE_SIZE: int = 12
+const MIN_ACTIVE_SIZE: int = 1
+const ABSOLUTE_MAX_ACTIVE_SIZE: int = 30  # Hard limit for engine stability
+
+## Current maximum active size (modifiable at runtime with bounds)
+var MAX_ACTIVE_SIZE: int = DEFAULT_MAX_ACTIVE_SIZE
 
 ## Maximum party size is unlimited (roster can grow indefinitely)
 ## This constant is kept for backwards compatibility but no longer enforced
@@ -66,6 +72,50 @@ const DEFAULT_FORMATION: Array[Vector2i] = [
 
 func _ready() -> void:
 	pass
+
+
+# ============================================================================
+# MOD API: PARTY SIZE CONFIGURATION
+# ============================================================================
+
+## Set the maximum active party size (mod API)
+## @param new_size: Desired maximum size (will be clamped to valid range)
+## @param source_mod_id: Optional mod ID for tracking who changed it
+## @return: The actual value set after bounds checking
+func set_max_active_size(new_size: int, source_mod_id: String = "") -> int:
+	var clamped: int = clampi(new_size, MIN_ACTIVE_SIZE, ABSOLUTE_MAX_ACTIVE_SIZE)
+
+	if clamped != new_size:
+		push_warning("PartyManager: Requested max_active_size %d clamped to %d (valid range: %d-%d)%s" % [
+			new_size, clamped, MIN_ACTIVE_SIZE, ABSOLUTE_MAX_ACTIVE_SIZE,
+			" by mod '%s'" % source_mod_id if not source_mod_id.is_empty() else ""
+		])
+
+	var old_size: int = MAX_ACTIVE_SIZE
+	MAX_ACTIVE_SIZE = clamped
+
+	# If party size decreased, members beyond the limit move to reserves automatically
+	if clamped < old_size and get_active_count() > clamped:
+		push_warning("PartyManager: Party size reduced from %d to %d - %d members moved to reserves" % [
+			old_size, clamped, get_active_count() - clamped
+		])
+
+	return clamped
+
+
+## Reset max active size to default (call when unloading a mod)
+func reset_max_active_size() -> void:
+	MAX_ACTIVE_SIZE = DEFAULT_MAX_ACTIVE_SIZE
+
+
+## Get current max active size (for UI display)
+func get_max_active_size() -> int:
+	return MAX_ACTIVE_SIZE
+
+
+## Get remaining slots in active party
+func get_available_active_slots() -> int:
+	return maxi(0, MAX_ACTIVE_SIZE - get_active_count())
 
 
 # ============================================================================

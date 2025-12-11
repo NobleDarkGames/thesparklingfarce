@@ -145,3 +145,60 @@ func get_available_abilities(level: int) -> Array[AbilityData]:
 ## Check if this character has any spells/abilities available at a given level
 func has_abilities(level: int) -> bool:
 	return get_available_abilities(level).size() > 0
+
+
+# ============================================================================
+# SAFE ASSET GETTERS (with fallbacks)
+# ============================================================================
+
+## Placeholder texture for missing portraits (cached at class level)
+static var _placeholder_portrait: Texture2D = null
+
+## Get portrait texture with fallback for missing assets
+## Returns a placeholder if portrait is null or fails to load
+## Safe to call without null checks - always returns a valid Texture2D
+func get_portrait_safe() -> Texture2D:
+	if portrait != null:
+		return portrait
+
+	# Use cached placeholder
+	if CharacterData._placeholder_portrait == null:
+		CharacterData._placeholder_portrait = _create_placeholder_portrait()
+
+	return CharacterData._placeholder_portrait
+
+
+## Get battle sprite with fallback for missing assets
+func get_battle_sprite_safe() -> Texture2D:
+	if battle_sprite != null:
+		return battle_sprite
+
+	# Try to use portrait as fallback
+	if portrait != null:
+		return portrait
+
+	# Use placeholder
+	if CharacterData._placeholder_portrait == null:
+		CharacterData._placeholder_portrait = _create_placeholder_portrait()
+
+	return CharacterData._placeholder_portrait
+
+
+## Create a simple placeholder portrait (magenta square for visibility)
+static func _create_placeholder_portrait() -> Texture2D:
+	var img: Image = Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	# Fill with magenta (missing texture indicator)
+	img.fill(Color(1.0, 0.0, 1.0, 1.0))
+
+	# Draw a simple "?" pattern in white
+	for x in range(24, 40):
+		for y in range(12, 20):  # Top of question mark
+			img.set_pixel(x, y, Color.WHITE)
+	for x in range(32, 40):
+		for y in range(20, 36):  # Stem of question mark
+			img.set_pixel(x, y, Color.WHITE)
+	for x in range(32, 40):
+		for y in range(44, 52):  # Dot of question mark
+			img.set_pixel(x, y, Color.WHITE)
+
+	return ImageTexture.create_from_image(img)

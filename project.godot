@@ -44,6 +44,10 @@ CaravanController="*res://core/systems/caravan_controller.gd"
 EditorEventBus="*res://addons/sparkling_editor/editor_event_bus.gd"
 DebugConsole="*res://core/systems/debug_console.tscn"
 ShopController="*res://scenes/ui/shops/shop_controller.tscn"
+RandomManager="*res://core/systems/random_manager.gd"
+SettingsManager="*res://core/systems/settings_manager.gd"
+GameEventBus="*res://core/systems/game_event_bus.gd"
+LocalizationManager="*res://core/systems/localization_manager.gd"
 
 [debug]
 

@@ -285,6 +285,9 @@ func enter_node(node_id: String) -> bool:
 	for flag_name: String in node.on_enter_flags:
 		GameState.set_flag(flag_name, node.on_enter_flags[flag_name])
 
+	# Reset recovery counter on successful entry
+	_recovery_attempts = 0
+
 	# Check for chapter change
 	_check_chapter_transition(node)
 

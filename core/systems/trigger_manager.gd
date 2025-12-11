@@ -204,7 +204,12 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 
 	# Store return data in GameState using TransitionContext
 	var context: RefCounted = TransitionContext.new()
-	context.return_scene_path = get_tree().current_scene.scene_file_path
+	var current_scene: Node = get_tree().current_scene
+	if current_scene:
+		context.return_scene_path = current_scene.scene_file_path
+	else:
+		push_error("TriggerManager: No current scene when creating battle transition context")
+		context.return_scene_path = ""
 	context.hero_world_position = player.global_position
 	context.hero_grid_position = player.get("grid_position") if player.get("grid_position") != null else Vector2i.ZERO
 	if player.get("facing"):

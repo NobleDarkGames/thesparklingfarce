@@ -117,6 +117,8 @@ func play_music(music_name: String, fade_in_duration: float = 0.5) -> void:
 	_music_player.stream = stream
 	_music_player.volume_db = linear_to_db(0.0)  # Start silent for fade-in
 	_music_player.play()
+	_music_has_played = true
+	_is_paused = false
 
 	# Fade in
 	if fade_in_duration > 0.0:
@@ -225,3 +227,68 @@ func set_music_volume(volume: float) -> void:
 	music_volume = clampf(volume, 0.0, 1.0)
 	if _music_player and _music_player.playing:
 		_music_player.volume_db = linear_to_db(music_volume)
+
+
+# ============================================================================
+# PAUSE/RESUME SYSTEM (with race condition guards)
+# ============================================================================
+
+## Track if music has been played at least once (prevents resume before play)
+var _music_has_played: bool = false
+
+## Track if we're currently paused (prevents double-pause issues)
+var _is_paused: bool = false
+
+## Stored position for resume (used during pause)
+var _paused_position: float = 0.0
+
+
+## Pause currently playing music (safe - ignores if not playing or never played)
+func pause_music() -> void:
+	# Guard: Don't pause if we've never played or already paused
+	if not _music_has_played:
+		return
+
+	if _is_paused:
+		push_warning("AudioManager: Music already paused, ignoring duplicate pause")
+		return
+
+	if not _music_player.playing:
+		return
+
+	_paused_position = _music_player.get_playback_position()
+	_music_player.stop()
+	_is_paused = true
+
+
+## Resume previously paused music (safe - ignores if not paused)
+func resume_music() -> void:
+	# Guard: Don't resume if we've never played
+	if not _music_has_played:
+		push_warning("AudioManager: Cannot resume music that was never played")
+		return
+
+	# Guard: Don't resume if not paused
+	if not _is_paused:
+		push_warning("AudioManager: Music is not paused, ignoring resume")
+		return
+
+	# Guard: Ensure we have a stream to resume
+	if not _music_player.stream:
+		push_warning("AudioManager: No music stream to resume")
+		_is_paused = false
+		return
+
+	_music_player.play(_paused_position)
+	_music_player.volume_db = linear_to_db(music_volume)
+	_is_paused = false
+
+
+## Check if music is currently paused
+func is_music_paused() -> bool:
+	return _is_paused
+
+
+## Check if music is currently playing (not paused, not stopped)
+func is_music_playing() -> bool:
+	return _music_player.playing and not _is_paused
