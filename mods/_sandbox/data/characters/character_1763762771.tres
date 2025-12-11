@@ -1,15 +1,34 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=5 format=3 uid="uid://dy32d4o3uor15"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=11 format=3 uid="uid://dy32d4o3uor15"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_yikiu"]
-[ext_resource type="Resource" uid="uid://bed1m24rxfrey" path="res://mods/_sandbox/data/classes/class_1763762778.tres" id="2_mage_class"]
 [ext_resource type="Texture2D" uid="uid://bn8eyywf64s40" path="res://mods/_sandbox/art/placeholder/portraits/maggie.png" id="3_portrait"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_1.tres" id="3_xdg1d"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/heal_1.tres" id="4_0lgsa"]
 [ext_resource type="Texture2D" uid="uid://dljgut82iyl3a" path="res://mods/_sandbox/art/placeholder/sprites/maggie.png" id="4_battle"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_2.tres" id="5_ak10t"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="5_f0vi8"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="6_ekv7y"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="6_k2tdo"]
+
+[sub_resource type="Resource" id="Resource_8d8e2"]
+script = ExtResource("6_k2tdo")
+display_name = "Mage"
+counter_rate = 3
+double_attack_rate = 3
+equippable_weapon_types = Array[String](["staff", "tome"])
+equippable_armor_types = Array[String](["robe"])
+class_abilities = Array[ExtResource("6_ekv7y")]([ExtResource("3_xdg1d"), ExtResource("4_0lgsa"), ExtResource("5_ak10t")])
+ability_unlock_levels = {
+"blaze_1": 1,
+"blaze_2": 1,
+"heal_1": 1
+}
 
 [resource]
 script = ExtResource("1_yikiu")
 character_uid = "mg4nv7pq"
 character_name = "Maggie"
-character_class = ExtResource("2_mage_class")
+character_class = SubResource("Resource_8d8e2")
 base_hp = 12
 base_mp = 20
 base_strength = 3

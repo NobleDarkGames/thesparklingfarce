@@ -1,11 +1,12 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://beerhenv1dvlf"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://beerhenv1dvlf"]
 
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_warrior"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="2_q3rn2"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_warrior"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_warrior"]
 [ext_resource type="Texture2D" uid="uid://bntk5wf5tw65u" path="res://mods/_sandbox/art/placeholder/sprites/warrioso.png" id="4_sprite"]
 
-[sub_resource type="Resource" id="Resource_warrior"]
+[sub_resource type="Resource" id="Resource_q3rn2"]
 script = ExtResource("1_warrior")
 display_name = "Warrior"
 movement_range = 5
@@ -20,8 +21,8 @@ equippable_armor_types = Array[String](["heavy", "medium"])
 [resource]
 script = ExtResource("2_warrior")
 character_uid = "wy5ct8fg"
-character_name = "Warrioso"
-character_class = SubResource("Resource_warrior")
+character_name = "Base Warrior"
+character_class = SubResource("Resource_q3rn2")
 base_hp = 30
 base_strength = 10
 base_defense = 9

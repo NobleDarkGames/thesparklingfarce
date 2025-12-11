@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="BattleData" load_steps=11 format=3 uid="uid://oxlk7n4aon0l"]
+[gd_resource type="Resource" script_class="BattleData" load_steps=12 format=3 uid="uid://oxlk7n4aon0l"]
 
 [ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="1_msqh6"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_ylya7"]
@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://cmnx3quacssig" path="res://mods/_sandbox/art/placeholder/portraits/huge_rat.png" id="4_cjxs2"]
 [ext_resource type="PackedScene" uid="uid://dqdc4ebp84hip" path="res://mods/_sandbox/maps/intro_battle.tscn" id="4_oxiof"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="5_cjrlm"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="7_hdom8"]
 
 [sub_resource type="Resource" id="Resource_oxiof"]
 script = ExtResource("2_w1h23")

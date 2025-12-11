@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3 uid="uid://2bfts8o6i5pv"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_3s7cs"]
+
+[resource]
+script = ExtResource("1_3s7cs")
+item_name = "Vorpal Sword"
+equipment_type = "sword"
+attack_power = 2
+buy_price = 100
+sell_price = 50

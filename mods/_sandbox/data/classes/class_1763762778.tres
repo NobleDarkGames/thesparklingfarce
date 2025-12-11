@@ -1,9 +1,10 @@
-[gd_resource type="Resource" script_class="ClassData" load_steps=5 format=3 uid="uid://bed1m24rxfrey"]
+[gd_resource type="Resource" script_class="ClassData" load_steps=6 format=3 uid="uid://bed1m24rxfrey"]
 
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_lnlue"]
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_vcw47"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_1.tres" id="2_y3g8q"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/abilities/heal_1.tres" id="3_fqjbu"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_2.tres" id="4_blaze2"]
 
 [resource]
 script = ExtResource("1_vcw47")
@@ -12,8 +13,9 @@ counter_rate = 3
 double_attack_rate = 3
 equippable_weapon_types = Array[String](["staff", "tome"])
 equippable_armor_types = Array[String](["robe"])
-class_abilities = Array[AbilityData]([ExtResource("2_y3g8q"), ExtResource("3_fqjbu")])
-learnable_abilities = {
-1: ExtResource("2_y3g8q"),
-2: ExtResource("3_fqjbu")
+class_abilities = Array[ExtResource("1_lnlue")]([ExtResource("2_y3g8q"), ExtResource("3_fqjbu"), ExtResource("4_blaze2")])
+ability_unlock_levels = {
+"blaze_1": 1,
+"blaze_2": 1,
+"heal_1": 1
 }

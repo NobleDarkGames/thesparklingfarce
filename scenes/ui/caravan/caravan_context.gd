@@ -11,7 +11,11 @@ extends RefCounted
 ## Modeled after ShopContext but without gold/queue (depot transfers are free).
 
 ## Operation modes
-enum Mode { BROWSE, TAKE, STORE }
+## BROWSE: Viewing depot items
+## TAKE: Moving item from depot to character
+## STORE: Moving item from character to depot
+## GIVE: Moving item from one character to another (used by Members screen)
+enum Mode { BROWSE, TAKE, STORE, GIVE }
 
 ## Current operation mode
 var mode: Mode = Mode.BROWSE
@@ -42,6 +46,15 @@ var selected_character_uid: String = ""
 ## Selected inventory slot index (for store operations)
 var selected_inventory_index: int = -1
 
+## Source character UID for GIVE mode (who is giving the item)
+var source_character_uid: String = ""
+
+## Selected item ID for GIVE mode (what item is being given)
+var selected_give_item_id: String = ""
+
+## Current member index for L/R cycling in Members screen
+var current_member_index: int = 0
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
@@ -65,6 +78,9 @@ func _clear_selection() -> void:
 	selected_depot_item_id = ""
 	selected_character_uid = ""
 	selected_inventory_index = -1
+	source_character_uid = ""
+	selected_give_item_id = ""
+	# Note: current_member_index is NOT cleared - it persists for convenience
 
 # =============================================================================
 # MODE HELPERS
@@ -95,6 +111,55 @@ func is_take_mode() -> bool:
 ## Check if we're in store mode
 func is_store_mode() -> bool:
 	return mode == Mode.STORE
+
+
+## Set mode to give (transferring item between characters)
+func set_give_mode(from_uid: String, item_id: String) -> void:
+	mode = Mode.GIVE
+	source_character_uid = from_uid
+	selected_give_item_id = item_id
+
+
+## Check if we're in give mode
+func is_give_mode() -> bool:
+	return mode == Mode.GIVE
+
+
+# =============================================================================
+# MEMBER CYCLING (for Members screen L/R navigation)
+# =============================================================================
+
+## Cycle to next/previous party member
+## @param delta: -1 for previous, +1 for next
+func cycle_member(delta: int) -> void:
+	if not PartyManager:
+		return
+	var party_size: int = PartyManager.party_members.size()
+	if party_size == 0:
+		return
+	current_member_index = (current_member_index + delta + party_size) % party_size
+
+
+## Get the currently selected member's UID
+func get_current_member_uid() -> String:
+	if not PartyManager:
+		return ""
+	var party: Array = PartyManager.party_members
+	if current_member_index < 0 or current_member_index >= party.size():
+		current_member_index = 0
+	if party.is_empty():
+		return ""
+	return party[current_member_index].character_uid
+
+
+## Set current member by UID (finds index)
+func set_current_member_by_uid(uid: String) -> void:
+	if not PartyManager:
+		return
+	for i: int in range(PartyManager.party_members.size()):
+		if PartyManager.party_members[i].character_uid == uid:
+			current_member_index = i
+			return
 
 # =============================================================================
 # NAVIGATION HISTORY

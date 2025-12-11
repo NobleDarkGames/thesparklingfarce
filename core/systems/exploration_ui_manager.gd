@@ -34,6 +34,7 @@ const ExplorationUIControllerScript: GDScript = preload("res://core/components/e
 const PartyEquipmentMenuScene: PackedScene = preload("res://scenes/ui/party_equipment_menu.tscn")
 const CaravanInterfaceScene: PackedScene = preload("res://scenes/ui/caravan/caravan_interface.tscn")
 const ExplorationFieldMenuScene: PackedScene = preload("res://scenes/ui/exploration_field_menu.tscn")
+const MembersInterfaceScene: PackedScene = preload("res://scenes/ui/members/members_interface.tscn")
 
 # =============================================================================
 # STATE
@@ -49,6 +50,7 @@ var _controller: Node = null  # ExplorationUIController
 var _party_menu: Control = null  # PartyEquipmentMenu
 var _caravan_interface: CanvasLayer = null  # CaravanInterfaceController (is a CanvasLayer)
 var _field_menu: Control = null  # ExplorationFieldMenu
+var _members_interface: CanvasLayer = null  # MembersInterfaceController (is a CanvasLayer)
 
 ## Currently connected hero (if any)
 var _current_hero: Node = null
@@ -90,11 +92,17 @@ func _initialize() -> void:
 	_field_menu.name = "ExplorationFieldMenu"
 	_field_menu.visible = false
 
+	# MembersInterfaceController is a CanvasLayer that manages its own visibility
+	_members_interface = MembersInterfaceScene.instantiate()
+	_members_interface.name = "MembersInterface"
+	# It starts hidden by default via its _ready()
+
 	# Defer adding children until layer is in tree
 	_ui_layer.call_deferred("add_child", _party_menu)
 	_ui_layer.call_deferred("add_child", _field_menu)
-	# CaravanInterfaceController is its own CanvasLayer, add to root
+	# CaravanInterfaceController and MembersInterfaceController are their own CanvasLayers, add to root
 	get_tree().root.call_deferred("add_child", _caravan_interface)
+	get_tree().root.call_deferred("add_child", _members_interface)
 
 	# Create the controller
 	_controller = Node.new()
@@ -139,7 +147,7 @@ func _initial_activation() -> void:
 
 func _setup_controller() -> void:
 	if _controller and _controller.has_method("setup"):
-		_controller.setup(_party_menu, _caravan_interface, _field_menu)
+		_controller.setup(_party_menu, _caravan_interface, _field_menu, _members_interface)
 
 		# Forward controller signals
 		if _controller.has_signal("menu_opened"):

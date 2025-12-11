@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=5 format=3 uid="uid://c0iwkdhisxprv"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://c0iwkdhisxprv"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_char"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_tph16"]
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="2_class"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_8jydm"]
 

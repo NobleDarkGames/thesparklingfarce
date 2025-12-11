@@ -48,11 +48,8 @@ var focused_item_id: String = ""
 ## Selected style for visual feedback
 var _selected_style: StyleBoxFlat
 
-## ItemActionMenu instance (for inventory actions)
+## ItemActionMenu instance (shared for both inventory and equipment actions)
 var _item_action_menu: Control = null
-
-## Equipment action popup (simpler than ItemActionMenu - just Unequip)
-var _equipment_popup: PopupMenu = null
 
 # =============================================================================
 # UI REFERENCES
@@ -90,21 +87,13 @@ func _create_styles() -> void:
 
 
 func _create_popups() -> void:
-	# Create ItemActionMenu for inventory items
+	# Create ItemActionMenu (shared for both inventory and equipment actions)
 	var ItemActionMenuClass: GDScript = load("res://scenes/ui/item_action_menu.gd") as GDScript
 	_item_action_menu = ItemActionMenuClass.new()
 	_item_action_menu.name = "ItemActionMenu"
 	_item_action_menu.action_selected.connect(_on_item_action_selected)
 	_item_action_menu.menu_cancelled.connect(_on_item_action_cancelled)
 	add_child(_item_action_menu)
-
-	# Create equipment popup (just Unequip option)
-	_equipment_popup = PopupMenu.new()
-	_equipment_popup.name = "EquipmentPopup"
-	_equipment_popup.add_item("Unequip", 0)
-	_equipment_popup.id_pressed.connect(_on_equipment_popup_selected)
-	_equipment_popup.popup_hide.connect(_on_equipment_popup_cancelled)
-	add_child(_equipment_popup)
 
 
 # =============================================================================
@@ -128,10 +117,10 @@ func _refresh_for_current_member() -> void:
 	# Update stats (HP/MP/Level/Class)
 	if save_data:
 		var class_data: ClassData = save_data.get_current_class(char_data)
-		var class_name: String = class_data.display_name if class_data else save_data.fallback_class_name
+		var class_display: String = class_data.display_name if class_data else save_data.fallback_class_name
 		stats_label.text = "Lv%d %s  HP: %d/%d  MP: %d/%d" % [
 			save_data.level,
-			class_name,
+			class_display,
 			save_data.current_hp, save_data.max_hp,
 			save_data.current_mp, save_data.max_mp
 		]
@@ -186,7 +175,7 @@ func _rebuild_equipment_list() -> void:
 		button.custom_minimum_size = Vector2(0, 36)
 		button.focus_mode = Control.FOCUS_ALL
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", 18)
+		button.add_theme_font_size_override("font_size", 16)
 
 		# Format text: "Weapon: Bronze Sword" or "Weapon: (empty)"
 		if item_id.is_empty():
@@ -254,7 +243,7 @@ func _rebuild_inventory_list() -> void:
 		var label: Label = Label.new()
 		label.text = "(%d empty slot%s)" % [empty_slots, "s" if empty_slots > 1 else ""]
 		label.add_theme_color_override("font_color", COLOR_EMPTY)
-		label.add_theme_font_size_override("font_size", 14)
+		label.add_theme_font_size_override("font_size", 16)
 		inventory_list.add_child(label)
 
 	# Handle completely empty inventory
@@ -262,6 +251,7 @@ func _rebuild_inventory_list() -> void:
 		var label: Label = Label.new()
 		label.text = "No items"
 		label.add_theme_color_override("font_color", COLOR_DISABLED)
+		label.add_theme_font_size_override("font_size", 16)
 		inventory_list.add_child(label)
 
 
@@ -318,29 +308,15 @@ func _on_equipment_button_pressed(slot_id: String, item_id: String) -> void:
 		_show_result("This item is cursed!", false)
 		return
 
-	# Show equipment popup near the button
+	# Show ItemActionMenu with EQUIPMENT_SLOT context near the button
 	focused_slot_id = slot_id
 	focused_item_id = item_id
 	var button: Button = equipment_buttons.get(slot_id)
 	if button:
 		var button_rect: Rect2 = button.get_global_rect()
-		_equipment_popup.position = Vector2i(int(button_rect.end.x + 4), int(button_rect.position.y))
-		_equipment_popup.popup()
-		play_sfx("menu_open")
-
-
-func _on_equipment_popup_selected(id: int) -> void:
-	if id == 0:  # Unequip
-		_try_unequip(focused_slot_id)
-	_equipment_popup.hide()
-
-
-func _on_equipment_popup_cancelled() -> void:
-	# Return focus to the equipment button
-	if focused_slot_id in equipment_buttons:
-		var button: Button = equipment_buttons[focused_slot_id]
-		if is_instance_valid(button):
-			button.grab_focus()
+		var menu_pos: Vector2 = Vector2(button_rect.end.x + 4, button_rect.position.y)
+		# Use EQUIPMENT_SLOT context (value 2 in ItemActionMenu.Context enum)
+		_item_action_menu.show_menu(item_id, 2, menu_pos)
 
 
 func _try_unequip(slot_id: String) -> void:
@@ -386,6 +362,7 @@ func _on_inventory_focus_entered(index: int, item_id: String) -> void:
 
 
 func _on_inventory_button_pressed(index: int, item_id: String) -> void:
+	focused_slot_id = ""  # Clear equipment context
 	focused_inventory_index = index
 	focused_item_id = item_id
 
@@ -406,6 +383,8 @@ func _on_item_action_selected(action: String, item_id: String) -> void:
 			_handle_use_action(item_id)
 		"equip":
 			_handle_equip_action(item_id)
+		"unequip":
+			_try_unequip(focused_slot_id)
 		"give":
 			_handle_give_action(item_id)
 		"drop":
@@ -413,15 +392,23 @@ func _on_item_action_selected(action: String, item_id: String) -> void:
 		"info":
 			_handle_info_action(item_id)
 
-	# Return focus to inventory button
-	_return_focus_to_inventory()
+	# Return focus to source button (inventory or equipment)
+	_return_focus_to_source()
 
 
 func _on_item_action_cancelled() -> void:
-	_return_focus_to_inventory()
+	_return_focus_to_source()
 
 
-func _return_focus_to_inventory() -> void:
+func _return_focus_to_source() -> void:
+	# If we came from equipment slot, return there
+	if not focused_slot_id.is_empty() and focused_slot_id in equipment_buttons:
+		var button: Button = equipment_buttons[focused_slot_id]
+		if is_instance_valid(button):
+			button.grab_focus()
+			return
+
+	# Otherwise return to inventory button
 	if focused_inventory_index >= 0 and focused_inventory_index < inventory_buttons.size():
 		var button: Button = inventory_buttons[focused_inventory_index]
 		if is_instance_valid(button):
@@ -663,8 +650,6 @@ func _input(event: InputEvent) -> void:
 	# Don't process L/R if a popup is open
 	if _item_action_menu and _item_action_menu.is_menu_active():
 		return
-	if _equipment_popup and _equipment_popup.visible:
-		return
 
 	# L/R bumpers - CRITICAL SF2 pattern for character cycling
 	if event.is_action_pressed("sf_left_shoulder") or event.is_action_pressed("ui_page_up"):
@@ -711,12 +696,6 @@ func _on_screen_exit() -> void:
 	# Clean up button connections
 	if is_instance_valid(back_button) and back_button.pressed.is_connected(_on_back_pressed):
 		back_button.pressed.disconnect(_on_back_pressed)
-
-	# Clean up popup connections
-	if _equipment_popup and _equipment_popup.id_pressed.is_connected(_on_equipment_popup_selected):
-		_equipment_popup.id_pressed.disconnect(_on_equipment_popup_selected)
-	if _equipment_popup and _equipment_popup.popup_hide.is_connected(_on_equipment_popup_cancelled):
-		_equipment_popup.popup_hide.disconnect(_on_equipment_popup_cancelled)
 
 	# Clean up item action menu
 	if _item_action_menu:

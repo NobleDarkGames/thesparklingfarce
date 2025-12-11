@@ -9,7 +9,7 @@ extends Control
 ## Designed for SF2-authentic 32x32 slot size (scaled for 640x360 viewport).
 ## Used in InventoryPanel for both equipment and inventory slots.
 
-## Emitted when this slot is clicked
+## Emitted when this slot is clicked or keyboard-confirmed
 signal clicked(item_id: String)
 
 ## Emitted when mouse hovers over this slot
@@ -17,6 +17,12 @@ signal hovered(item_id: String)
 
 ## Emitted when mouse exits this slot
 signal hover_exited()
+
+## Emitted when this slot receives keyboard focus
+signal focus_entered_slot(item_id: String)
+
+## Emitted when this slot loses keyboard focus
+signal focus_exited_slot()
 
 # =============================================================================
 # CONSTANTS

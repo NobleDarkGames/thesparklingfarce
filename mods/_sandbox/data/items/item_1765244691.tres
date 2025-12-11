@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3 uid="uid://dsn5ti48mrugf"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_l6mkd"]
+
+[resource]
+script = ExtResource("1_l6mkd")
+item_name = "The Vorpalest Sword"
+equipment_type = "sword"
+attack_power = 3
+buy_price = 100
+sell_price = 50

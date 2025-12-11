@@ -33,13 +33,15 @@ signal menu_cancelled()
 # =============================================================================
 
 enum Context {
-	EXPLORATION,  ## Field/exploration mode
-	BATTLE        ## During battle
+	EXPLORATION,      ## Field/exploration mode - item in inventory
+	BATTLE,           ## During battle
+	EQUIPMENT_SLOT    ## Item currently equipped (for unequip action)
 }
 
 enum ActionType {
 	USE,
 	EQUIP,
+	UNEQUIP,
 	GIVE,
 	DROP,
 	INFO
@@ -63,6 +65,7 @@ const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 const ACTION_NAMES: Dictionary = {
 	ActionType.USE: "Use",
 	ActionType.EQUIP: "Equip",
+	ActionType.UNEQUIP: "Unequip",
 	ActionType.GIVE: "Give",
 	ActionType.DROP: "Drop",
 	ActionType.INFO: "Info"
@@ -259,6 +262,15 @@ func _determine_available_actions() -> void:
 
 	var is_exploration: bool = _context == Context.EXPLORATION
 	var is_battle: bool = _context == Context.BATTLE
+	var is_equipment_slot: bool = _context == Context.EQUIPMENT_SLOT
+
+	# EQUIPMENT_SLOT context: Item is currently equipped
+	if is_equipment_slot:
+		# Unequip is the primary action for equipped items
+		_available_actions.append(ActionType.UNEQUIP)
+		# Info is always available
+		_available_actions.append(ActionType.INFO)
+		return
 
 	# USE: Consumables with appropriate usability
 	if _current_item_data.item_type == ItemData.ItemType.CONSUMABLE:

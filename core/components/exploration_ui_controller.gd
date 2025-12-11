@@ -41,6 +41,7 @@ signal menu_closed()
 enum UIState {
 	EXPLORING,      ## Normal gameplay, hero can move and interact
 	INVENTORY,      ## PartyEquipmentMenu open
+	MEMBERS,        ## MembersInterface open (new screen-based system)
 	DEPOT,          ## CaravanDepotPanel open (from menu or Caravan interaction)
 	FIELD_MENU,     ## ExplorationFieldMenu open (Item/Magic/Search/Member)
 	DIALOG,         ## Dialog box active (future)
@@ -73,6 +74,10 @@ var caravan_interface: Node = null
 ## Type is Control because ExplorationFieldMenu is in scenes/, not core/
 var exploration_field_menu: Control = null
 
+## Members interface (new screen-based party management)
+## Type is Node because MembersInterfaceController is a CanvasLayer in scenes/
+var members_interface: Node = null
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
@@ -90,10 +95,12 @@ func _exit_tree() -> void:
 ## @param equipment_menu: PartyEquipmentMenu instance
 ## @param depot_interface: CaravanInterfaceController instance (CanvasLayer)
 ## @param field_menu: ExplorationFieldMenu instance (optional, can be set later)
-func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu: Control = null) -> void:
+## @param members_interface_node: MembersInterfaceController instance (optional)
+func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu: Control = null, members_interface_node: Node = null) -> void:
 	party_equipment_menu = equipment_menu
 	caravan_interface = depot_interface
 	exploration_field_menu = field_menu
+	members_interface = members_interface_node
 
 	_connect_signals()
 
@@ -103,6 +110,7 @@ func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu
 	# CaravanInterfaceController manages its own visibility via show()/hide()
 	if exploration_field_menu:
 		exploration_field_menu.visible = false
+	# MembersInterfaceController manages its own visibility
 
 
 ## Set up the exploration field menu (can be called after initial setup)
@@ -126,6 +134,12 @@ func _connect_signals() -> void:
 		if caravan_interface.has_signal("depot_closed"):
 			if not caravan_interface.depot_closed.is_connected(_on_depot_close_requested):
 				caravan_interface.depot_closed.connect(_on_depot_close_requested)
+
+	if members_interface:
+		# MembersInterfaceController emits members_closed signal
+		if members_interface.has_signal("members_closed"):
+			if not members_interface.members_closed.is_connected(_on_members_close_requested):
+				members_interface.members_closed.connect(_on_members_close_requested)
 
 	_connect_field_menu_signals()
 
@@ -155,6 +169,11 @@ func _disconnect_signals() -> void:
 		if caravan_interface.has_signal("depot_closed"):
 			if caravan_interface.depot_closed.is_connected(_on_depot_close_requested):
 				caravan_interface.depot_closed.disconnect(_on_depot_close_requested)
+
+	if members_interface:
+		if members_interface.has_signal("members_closed"):
+			if members_interface.members_closed.is_connected(_on_members_close_requested):
+				members_interface.members_closed.disconnect(_on_members_close_requested)
 
 	if exploration_field_menu:
 		if exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
@@ -255,6 +274,9 @@ func close_all_menus() -> void:
 	if caravan_interface and caravan_interface.has_method("is_open"):
 		if caravan_interface.is_open():
 			caravan_interface.close_interface()
+	if members_interface and members_interface.has_method("is_open"):
+		if members_interface.is_open():
+			members_interface.close_interface()
 	if exploration_field_menu:
 		exploration_field_menu.hide_menu()
 
@@ -327,18 +349,27 @@ func _on_field_menu_item_requested() -> void:
 		party_equipment_menu.visible = true
 
 
-## Field menu Member option - open party view (uses inventory for Phase 1)
+## Field menu Member option - open the new Members interface
 func _on_field_menu_member_requested() -> void:
 	# Close field menu first
 	if exploration_field_menu:
 		exploration_field_menu.hide_menu()
 
-	# Phase 1: Use PartyEquipmentMenu for member viewing
-	# Phase 5 will create a dedicated MemberInfoPanel
-	_set_state(UIState.INVENTORY)
-	if party_equipment_menu:
-		party_equipment_menu.refresh()
-		party_equipment_menu.visible = true
+	# Open the new MembersInterface (screen-based, keyboard/gamepad friendly)
+	if members_interface and members_interface.has_method("open_members"):
+		_set_state(UIState.MEMBERS)
+		members_interface.open_members()
+	else:
+		# Fallback to old PartyEquipmentMenu if MembersInterface not available
+		_set_state(UIState.INVENTORY)
+		if party_equipment_menu:
+			party_equipment_menu.refresh()
+			party_equipment_menu.visible = true
+
+
+## Members interface closed - return to exploration
+func _on_members_close_requested() -> void:
+	_set_state(UIState.EXPLORING)
 
 
 ## Field menu Search option - examine current tile
