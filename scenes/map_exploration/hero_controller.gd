@@ -63,7 +63,10 @@ func _ready() -> void:
 	add_to_group("hero")
 
 	# Get optional node references
+	# AnimatedSprite2D may be direct child or inside Visual container
 	sprite = get_node_or_null("AnimatedSprite2D")
+	if not sprite:
+		sprite = get_node_or_null("Visual/AnimatedSprite2D")
 	collision_shape = get_node_or_null("CollisionShape2D")
 	interaction_ray = get_node_or_null("InteractionRay")
 
@@ -112,6 +115,9 @@ func _ready() -> void:
 	add_child(_walk_audio_player)
 	_load_walk_sound()
 
+	# Start with idle animation facing current direction
+	_play_idle_animation()
+
 
 func _physics_process(delta: float) -> void:
 	# Handle movement
@@ -143,9 +149,10 @@ func _process_movement(delta: float) -> void:
 		# Check for triggers at new position
 		_check_tile_triggers()
 
-		# Stop walk sound if no direction input held (seamless if continuing to move)
+		# Stop walk sound and play idle if no direction input held (seamless if continuing to move)
 		if not _is_direction_input_held():
 			_stop_walk_sound()
+			_play_idle_animation()
 	else:
 		# Move toward target
 		var direction_vec: Vector2 = (target_position - global_position).normalized()
@@ -215,16 +222,17 @@ func attempt_move(direction: Vector2i) -> bool:
 	if is_moving:
 		return false
 
+	# Always update facing direction, even if blocked (SF-authentic)
+	facing_direction = direction
+	_update_interaction_ray()
+	_update_sprite_animation(direction)
+
 	# Calculate target grid position
 	var target_grid: Vector2i = grid_position + direction
 
 	# Check if target is walkable
 	if not _is_tile_walkable(target_grid):
 		return false
-
-	# Update facing direction
-	facing_direction = direction
-	_update_interaction_ray()
 
 	# Start movement
 	target_position = grid_to_world(target_grid)
@@ -233,15 +241,13 @@ func attempt_move(direction: Vector2i) -> bool:
 	# Start looping walk sound (if not already playing)
 	_start_walk_sound()
 
-	# Update sprite animation
-	_update_sprite_animation(direction)
-
 	return true
 
 
-## Check if a tile is walkable using TileMap collision data.
+## Check if a tile is walkable using TileMap collision data and NPC occupancy.
 ## Tiles with physics collision are considered impassable (walls, water, etc.)
 ## Tiles without physics collision are walkable (grass, roads, etc.)
+## Tiles occupied by NPCs are also impassable (SF-authentic behavior).
 func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 	# If no TileMap reference, allow movement (fallback behavior)
 	if not tile_map:
@@ -259,7 +265,24 @@ func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 	# If no collision, it's walkable (grass, road, etc.)
 	var has_collision: bool = tile_data.get_collision_polygons_count(0) > 0
 
-	return not has_collision
+	if has_collision:
+		return false
+
+	# Check if an NPC occupies this tile (SF-authentic: can't walk through NPCs)
+	if _is_npc_at_tile(tile_pos):
+		return false
+
+	return true
+
+
+## Check if any NPC occupies the given tile position.
+func _is_npc_at_tile(tile_pos: Vector2i) -> bool:
+	var npcs: Array[Node] = get_tree().get_nodes_in_group("npcs")
+	for npc: Node in npcs:
+		if npc.has_method("is_at_grid_position"):
+			if npc.is_at_grid_position(tile_pos):
+				return true
+	return false
 
 
 ## Check if the current tile has any triggers (battles, events, etc.)
@@ -314,10 +337,42 @@ func _update_sprite_animation(direction: Vector2i) -> void:
 	if not sprite:
 		return
 
-	# TODO: Play appropriate walk animation based on direction
-	# For now, just a placeholder
-	# sprite.play("walk_down")  # Will implement when we have sprites
-	pass
+	# Map direction to animation name
+	var dir_name: String = _direction_to_string(direction)
+	var anim_name: String = "walk_" + dir_name
+
+	# Only change animation if it exists and is different
+	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
+		if sprite.animation != anim_name:
+			sprite.play(anim_name)
+
+
+## Play idle animation for current facing direction.
+func _play_idle_animation() -> void:
+	if not sprite:
+		return
+
+	var dir_name: String = _direction_to_string(facing_direction)
+	var anim_name: String = "idle_" + dir_name
+
+	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
+		if sprite.animation != anim_name:
+			sprite.play(anim_name)
+
+
+## Convert direction vector to string name.
+func _direction_to_string(direction: Vector2i) -> String:
+	match direction:
+		Vector2i.UP:
+			return "up"
+		Vector2i.DOWN:
+			return "down"
+		Vector2i.LEFT:
+			return "left"
+		Vector2i.RIGHT:
+			return "right"
+		_:
+			return "down"  # Default
 
 
 ## Add current position to history for followers.

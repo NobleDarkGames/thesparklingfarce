@@ -9,6 +9,11 @@ var class_picker: ResourcePicker  # Use ResourcePicker for cross-mod class selec
 var level_spin: SpinBox
 var bio_edit: TextEdit
 
+# Appearance pickers
+var _portrait_picker: PortraitPicker
+var _battle_sprite_picker: BattleSpritePicker
+var _map_spritesheet_picker: MapSpritesheetPicker
+
 # Battle configuration fields
 var category_option: OptionButton
 var is_unique_check: CheckBox
@@ -67,6 +72,9 @@ func _refresh_list() -> void:
 func _create_detail_form() -> void:
 	# Basic info section
 	_add_basic_info_section()
+
+	# Appearance section (portraits, sprites)
+	_add_appearance_section()
 
 	# Battle configuration section
 	_add_battle_configuration_section()
@@ -133,6 +141,9 @@ func _load_resource_data() -> void:
 	# Load starting equipment into pickers
 	_load_equipment_from_character(character)
 
+	# Load appearance assets
+	_load_appearance_from_character(character)
+
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
@@ -174,6 +185,9 @@ func _save_resource_data() -> void:
 
 	# Update starting equipment from pickers
 	_save_equipment_to_character(character)
+
+	# Update appearance assets from pickers
+	_save_appearance_to_character(character)
 
 
 ## Override: Validate resource before saving
@@ -344,6 +358,39 @@ func _add_basic_info_section() -> void:
 	bio_edit = TextEdit.new()
 	bio_edit.custom_minimum_size.y = 120
 	section.add_child(bio_edit)
+
+	detail_panel.add_child(section)
+
+
+func _add_appearance_section() -> void:
+	var section: CollapseSection = CollapseSection.new()
+	section.title = "Appearance"
+	section.start_collapsed = false
+
+	var help_label: Label = Label.new()
+	help_label.text = "Visual assets for this character"
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	section.add_content_child(help_label)
+
+	# Portrait Picker
+	_portrait_picker = PortraitPicker.new()
+	_portrait_picker.texture_selected.connect(_on_portrait_selected)
+	_portrait_picker.texture_cleared.connect(_on_portrait_cleared)
+	section.add_content_child(_portrait_picker)
+
+	# Battle Sprite Picker
+	_battle_sprite_picker = BattleSpritePicker.new()
+	_battle_sprite_picker.texture_selected.connect(_on_battle_sprite_selected)
+	_battle_sprite_picker.texture_cleared.connect(_on_battle_sprite_cleared)
+	section.add_content_child(_battle_sprite_picker)
+
+	# Map Spritesheet Picker
+	_map_spritesheet_picker = MapSpritesheetPicker.new()
+	_map_spritesheet_picker.texture_selected.connect(_on_spritesheet_selected)
+	_map_spritesheet_picker.texture_cleared.connect(_on_spritesheet_cleared)
+	_map_spritesheet_picker.sprite_frames_generated.connect(_on_sprite_frames_generated)
+	section.add_content_child(_map_spritesheet_picker)
 
 	detail_panel.add_child(section)
 
@@ -770,3 +817,144 @@ func _clear_equipment_warning(slot_id: String) -> void:
 		var label: Label = equipment_warning_labels[slot_id]
 		label.text = ""
 		label.visible = false
+
+
+# =============================================================================
+# APPEARANCE SECTION METHODS
+# =============================================================================
+
+## Load appearance assets from CharacterData into the pickers
+func _load_appearance_from_character(character: CharacterData) -> void:
+	# Portrait
+	if character.portrait:
+		_portrait_picker.set_texture_path(character.portrait.resource_path)
+	else:
+		_portrait_picker.clear()
+
+	# Battle Sprite
+	if character.battle_sprite:
+		_battle_sprite_picker.set_texture_path(character.battle_sprite.resource_path)
+	else:
+		_battle_sprite_picker.clear()
+
+	# Map Sprite Frames
+	if character.map_sprite_frames:
+		# Try to load from the SpriteFrames resource
+		# The MapSpritesheetPicker needs the source spritesheet path
+		# We can try to reconstruct it from the SpriteFrames if it was saved with metadata
+		_load_map_sprite_from_sprite_frames(character.map_sprite_frames)
+	else:
+		_map_spritesheet_picker.clear()
+
+
+## Try to load map sprite information from an existing SpriteFrames resource
+func _load_map_sprite_from_sprite_frames(sprite_frames: SpriteFrames) -> void:
+	# Clear picker first
+	_map_spritesheet_picker.clear()
+
+	if not sprite_frames:
+		return
+
+	# Get the SpriteFrames path (may be empty if saved as SubResource)
+	var frames_path: String = sprite_frames.resource_path
+
+	# Try to extract the source spritesheet path from one of the animations
+	# The atlas texture's atlas property should point to the original spritesheet
+	var spritesheet_path: String = ""
+
+	for anim_name: String in sprite_frames.get_animation_names():
+		if sprite_frames.get_frame_count(anim_name) > 0:
+			var frame_texture: Texture2D = sprite_frames.get_frame_texture(anim_name, 0)
+			if frame_texture is AtlasTexture:
+				var atlas: AtlasTexture = frame_texture as AtlasTexture
+				if atlas.atlas:
+					spritesheet_path = atlas.atlas.resource_path
+					break
+
+	# If we found the source spritesheet, load it into the picker
+	if not spritesheet_path.is_empty():
+		_map_spritesheet_picker.set_sprite_frames_path(spritesheet_path, frames_path)
+		# Also store the existing SpriteFrames so it's preserved on save
+		_map_spritesheet_picker.set_existing_sprite_frames(sprite_frames)
+
+
+## Save appearance assets from pickers to CharacterData
+func _save_appearance_to_character(character: CharacterData) -> void:
+	# Portrait
+	character.portrait = _portrait_picker.get_texture()
+
+	# Battle Sprite
+	character.battle_sprite = _battle_sprite_picker.get_texture()
+
+	# Map Sprite Frames
+	# If the picker has generated SpriteFrames, use them
+	if _map_spritesheet_picker.has_generated_sprite_frames():
+		character.map_sprite_frames = _map_spritesheet_picker.get_generated_sprite_frames()
+	elif _map_spritesheet_picker.is_valid() and _map_spritesheet_picker.get_texture() != null:
+		# Valid spritesheet selected but no SpriteFrames generated yet
+		# Auto-generate SpriteFrames when saving
+		var output_path: String = _generate_sprite_frames_path(character)
+		if _map_spritesheet_picker.generate_sprite_frames(output_path):
+			character.map_sprite_frames = _map_spritesheet_picker.get_generated_sprite_frames()
+	else:
+		# No valid spritesheet - clear the map_sprite_frames if picker is empty
+		if _map_spritesheet_picker.get_texture_path().is_empty():
+			character.map_sprite_frames = null
+
+
+## Generate an appropriate output path for SpriteFrames based on character resource path
+func _generate_sprite_frames_path(character: CharacterData) -> String:
+	# Get the character's resource path to determine the mod
+	var char_path: String = character.resource_path
+	if char_path.is_empty():
+		# New unsaved character - use active mod
+		var active_mod: ModManifest = ModLoader.get_active_mod() if ModLoader else null
+		if active_mod:
+			return "res://mods/%s/data/sprite_frames/character_sprite_frames.tres" % active_mod.mod_id
+		return "res://mods/_sandbox/data/sprite_frames/character_sprite_frames.tres"
+
+	# Extract mod name from character path (e.g., res://mods/_sandbox/data/characters/hero.tres)
+	var path_parts: PackedStringArray = char_path.split("/")
+	var mod_name: String = "_sandbox"
+	for i in range(path_parts.size()):
+		if path_parts[i] == "mods" and i + 1 < path_parts.size():
+			mod_name = path_parts[i + 1]
+			break
+
+	# Generate a unique name based on the character filename
+	var char_filename: String = char_path.get_file().get_basename()
+	return "res://mods/%s/data/sprite_frames/%s_map_sprites.tres" % [mod_name, char_filename]
+
+
+# =============================================================================
+# APPEARANCE SIGNAL HANDLERS
+# =============================================================================
+
+func _on_portrait_selected(_path: String, _texture: Texture2D) -> void:
+	_mark_dirty()
+
+
+func _on_portrait_cleared() -> void:
+	_mark_dirty()
+
+
+func _on_battle_sprite_selected(_path: String, _texture: Texture2D) -> void:
+	_mark_dirty()
+
+
+func _on_battle_sprite_cleared() -> void:
+	_mark_dirty()
+
+
+func _on_spritesheet_selected(_path: String, _texture: Texture2D) -> void:
+	_mark_dirty()
+
+
+func _on_spritesheet_cleared() -> void:
+	_mark_dirty()
+
+
+func _on_sprite_frames_generated(sprite_frames: SpriteFrames) -> void:
+	_mark_dirty()
+	if sprite_frames:
+		_show_success_message("SpriteFrames generated successfully")

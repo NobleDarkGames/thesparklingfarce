@@ -277,26 +277,34 @@ func _create_hero() -> void:
 	hero.add_to_group("hero")  # Required for MapTrigger detection
 	hero.collision_mask = 2  # Match expected collision settings
 
-	# Add visual representation using character's battle_sprite
+	# Add visual representation - prefer animated map_sprite_frames, fallback to battle_sprite
 	var visual_container: Node2D = Node2D.new()
 	visual_container.name = "Visual"
 	hero.add_child(visual_container)
 
-	if hero_data.battle_sprite:
+	# Priority 1: Animated map sprite (SpriteFrames with walk/idle animations)
+	if hero_data.map_sprite_frames:
+		var animated_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+		animated_sprite.sprite_frames = hero_data.map_sprite_frames
+		animated_sprite.name = "AnimatedSprite2D"  # HeroController looks for this name
+		visual_container.add_child(animated_sprite)
+		_debug_print("  Using map_sprite_frames for %s" % hero_data.character_name)
+	# Priority 2: Static battle sprite
+	elif hero_data.battle_sprite:
 		var sprite: Sprite2D = Sprite2D.new()
 		sprite.texture = hero_data.battle_sprite
 		sprite.name = "Sprite"
 		visual_container.add_child(sprite)
 		_debug_print("  Using battle_sprite: %s" % hero_data.battle_sprite.resource_path)
 	else:
-		# Fallback: colored square if no battle_sprite
+		# Fallback: colored square if no sprites
 		var sprite_rect: ColorRect = ColorRect.new()
 		sprite_rect.custom_minimum_size = Vector2(24, 24)
 		sprite_rect.position = Vector2(-12, -12)
 		sprite_rect.color = Color(0.2, 0.8, 0.2)  # Green for hero
 		sprite_rect.name = "SpriteRect"
 		visual_container.add_child(sprite_rect)
-		_debug_print("  Using fallback green square (no battle_sprite)")
+		_debug_print("  Using fallback green square (no sprites)")
 
 	# Collision shape
 	var collision: CollisionShape2D = CollisionShape2D.new()
@@ -416,18 +424,29 @@ func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 	follower.z_index = 90 - index  # Followers below hero, in reverse order
 	follower.visible = false  # Hide until positioned by initialize()
 
-	# Add visual representation using character's battle_sprite
+	# Add visual representation - prefer animated map_sprite_frames
 	var visual_container: Node2D = Node2D.new()
 	visual_container.name = "Visual"
 	follower.add_child(visual_container)
 
-	if char_data.battle_sprite:
+	# Priority 1: Animated map sprite
+	if char_data.map_sprite_frames:
+		var animated_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+		animated_sprite.sprite_frames = char_data.map_sprite_frames
+		animated_sprite.name = "AnimatedSprite2D"
+		# Start with idle_down animation
+		if char_data.map_sprite_frames.has_animation("idle_down"):
+			animated_sprite.animation = "idle_down"
+			animated_sprite.play()
+		visual_container.add_child(animated_sprite)
+	# Priority 2: Static battle sprite
+	elif char_data.battle_sprite:
 		var sprite: Sprite2D = Sprite2D.new()
 		sprite.texture = char_data.battle_sprite
 		sprite.name = "Sprite"
 		visual_container.add_child(sprite)
 	else:
-		# Fallback: colored square if no battle_sprite
+		# Fallback: colored square if no sprites
 		var hue: float = float(index) / float(maxi(party_characters.size(), 1))
 		var follower_color: Color = Color.from_hsv(hue, 0.6, 0.9)
 
