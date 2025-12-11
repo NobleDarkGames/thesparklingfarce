@@ -210,6 +210,10 @@ func _setup_file_dialog() -> void:
 	if not Engine.is_editor_hint():
 		return
 
+	# Guard against duplicate setup on plugin reload
+	if _file_dialog:
+		return
+
 	_file_dialog = EditorFileDialog.new()
 	_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 	_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
@@ -219,7 +223,9 @@ func _setup_file_dialog() -> void:
 	for filter: String in file_filters:
 		_file_dialog.add_filter(filter)
 
-	_file_dialog.file_selected.connect(_on_file_selected)
+	# Check for existing connection before connecting (safety on plugin reload)
+	if not _file_dialog.file_selected.is_connected(_on_file_selected):
+		_file_dialog.file_selected.connect(_on_file_selected)
 
 	# Add to editor base control so it appears properly
 	var base_control: Control = EditorInterface.get_base_control()

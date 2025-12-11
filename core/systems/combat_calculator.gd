@@ -5,6 +5,12 @@
 ##
 ## IMPORTANT: This is ENGINE CODE (mechanics).
 ## Character stats come from CharacterData/UnitStats (content in mods/).
+##
+## MOD SUPPORT: Total conversion mods can override combat formulas by:
+## 1. Creating a CombatFormulaConfig resource
+## 2. Pointing it to a script extending CombatFormulaBase
+## 3. Assigning the config to BattleData.combat_formula_config
+## The custom formulas will be used for the duration of that battle.
 class_name CombatCalculator
 extends RefCounted
 
@@ -18,11 +24,41 @@ const XP_LEVEL_BONUS_PERCENT: float = 0.2
 const XP_LEVEL_PENALTY_PERCENT: float = 0.1
 const XP_MINIMUM_MULTIPLIER: float = 0.5
 
+# Active custom formula (set by BattleManager when battle starts)
+# If null, default formulas are used
+# Note: Uses RefCounted to avoid circular dependency with CombatFormulaBase
+static var _active_formula: RefCounted = null
+
+
+## Set the active combat formula (called by BattleManager on battle start)
+## Pass null to use default formulas
+## The formula should extend CombatFormulaBase
+static func set_active_formula(formula: RefCounted) -> void:
+	_active_formula = formula
+
+
+## Clear the active formula (called by BattleManager on battle end)
+static func clear_active_formula() -> void:
+	_active_formula = null
+
+
+## Check if a custom formula is currently active
+static func has_active_formula() -> bool:
+	return _active_formula != null
+
 
 ## Calculate physical attack damage with weapon
 ## Formula: (Attacker STR + Weapon ATK - Defender DEF) * variance(0.9 to 1.1)
 ## Returns: Minimum of 1 damage
+## Note: Delegates to custom formula if one is active
 static func calculate_physical_damage(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
+	if _active_formula:
+		return _active_formula.calculate_physical_damage(attacker_stats, defender_stats)
+	return _calculate_physical_damage_default(attacker_stats, defender_stats)
+
+
+## Default physical damage formula (called by custom formulas that want base behavior)
+static func _calculate_physical_damage_default(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		push_error("CombatCalculator: Cannot calculate damage with null stats")
 		return 0
@@ -49,7 +85,19 @@ static func calculate_physical_damage(attacker_stats: UnitStats, defender_stats:
 ## Calculate magic attack damage
 ## Formula: (Ability Power + Attacker INT - Defender INT/2) * variance
 ## Returns: Minimum of 1 damage
+## Note: Delegates to custom formula if one is active
 static func calculate_magic_damage(
+	attacker_stats: UnitStats,
+	defender_stats: UnitStats,
+	ability: Resource
+) -> int:
+	if _active_formula:
+		return _active_formula.calculate_magic_damage(attacker_stats, defender_stats, ability)
+	return _calculate_magic_damage_default(attacker_stats, defender_stats, ability)
+
+
+## Default magic damage formula
+static func _calculate_magic_damage_default(
 	attacker_stats: UnitStats,
 	defender_stats: UnitStats,
 	ability: Resource
@@ -78,7 +126,15 @@ static func calculate_magic_damage(
 ## Calculate hit chance (percentage) with weapon hit rate
 ## Formula: Weapon Hit Rate + (Attacker AGI - Defender AGI) * 2
 ## Returns: Clamped between 10% and 99%
+## Note: Delegates to custom formula if one is active
 static func calculate_hit_chance(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
+	if _active_formula:
+		return _active_formula.calculate_hit_chance(attacker_stats, defender_stats)
+	return _calculate_hit_chance_default(attacker_stats, defender_stats)
+
+
+## Default hit chance formula
+static func _calculate_hit_chance_default(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		push_error("CombatCalculator: Cannot calculate hit chance with null stats")
 		return 50  # Default to 50% if error
@@ -95,7 +151,15 @@ static func calculate_hit_chance(attacker_stats: UnitStats, defender_stats: Unit
 ## Calculate critical hit chance (percentage) with weapon crit rate
 ## Formula: Weapon Crit Rate + (Attacker LUK - Defender LUK)
 ## Returns: Clamped between 0% and 50%
+## Note: Delegates to custom formula if one is active
 static func calculate_crit_chance(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
+	if _active_formula:
+		return _active_formula.calculate_crit_chance(attacker_stats, defender_stats)
+	return _calculate_crit_chance_default(attacker_stats, defender_stats)
+
+
+## Default crit chance formula
+static func _calculate_crit_chance_default(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		push_error("CombatCalculator: Cannot calculate crit chance with null stats")
 		return 0
@@ -126,7 +190,15 @@ static func roll_crit(crit_chance: int) -> bool:
 ## Calculate healing amount
 ## Formula: (Ability Power + Caster INT/2) * variance
 ## Returns: Minimum of 1 healing
+## Note: Delegates to custom formula if one is active
 static func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int:
+	if _active_formula:
+		return _active_formula.calculate_healing(caster_stats, ability)
+	return _calculate_healing_default(caster_stats, ability)
+
+
+## Default healing formula
+static func _calculate_healing_default(caster_stats: UnitStats, ability: Resource) -> int:
 	if not caster_stats or not ability:
 		push_error("CombatCalculator: Cannot calculate healing with null parameters")
 		return 0
@@ -151,7 +223,19 @@ static func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int
 ## Calculate experience gain for defeating an enemy
 ## Formula: Base XP * Level difference multiplier
 ## Returns: XP amount to award
+## Note: Delegates to custom formula if one is active
 static func calculate_experience_gain(
+	player_level: int,
+	enemy_level: int,
+	base_xp: int = 10
+) -> int:
+	if _active_formula:
+		return _active_formula.calculate_experience_gain(player_level, enemy_level, base_xp)
+	return _calculate_experience_gain_default(player_level, enemy_level, base_xp)
+
+
+## Default experience gain formula
+static func _calculate_experience_gain_default(
 	player_level: int,
 	enemy_level: int,
 	base_xp: int = 10
@@ -172,7 +256,19 @@ static func calculate_experience_gain(
 ## Calculate counterattack damage (if unit can counter)
 ## In Shining Force, counterattacks happen at reduced damage
 ## Returns: Damage amount, or 0 if cannot counter
+## Note: Delegates to custom formula if one is active
 static func calculate_counter_damage(
+	defender_stats: UnitStats,
+	attacker_stats: UnitStats,
+	can_counter: bool = true
+) -> int:
+	if _active_formula:
+		return _active_formula.calculate_counter_damage(defender_stats, attacker_stats, can_counter)
+	return _calculate_counter_damage_default(defender_stats, attacker_stats, can_counter)
+
+
+## Default counter damage formula
+static func _calculate_counter_damage_default(
 	defender_stats: UnitStats,
 	attacker_stats: UnitStats,
 	can_counter: bool = true
@@ -181,7 +277,7 @@ static func calculate_counter_damage(
 		return 0
 
 	# Counterattacks deal 75% of normal damage
-	var base_damage: int = calculate_physical_damage(defender_stats, attacker_stats)
+	var base_damage: int = _calculate_physical_damage_default(defender_stats, attacker_stats)
 	return int(base_damage * COUNTER_DAMAGE_MULTIPLIER)
 
 
@@ -230,7 +326,15 @@ static func can_attack_at_range_band(attacker_stats: UnitStats, distance: int) -
 ## Calculate counter chance based on defender's class
 ## SF2 uses class-based rates (1/4, 1/8, 1/16, 1/32) not agility
 ## Returns: Counter chance percentage (0-50)
+## Note: Delegates to custom formula if one is active
 static func calculate_counter_chance(defender_stats: UnitStats) -> int:
+	if _active_formula:
+		return _active_formula.calculate_counter_chance(defender_stats)
+	return _calculate_counter_chance_default(defender_stats)
+
+
+## Default counter chance formula
+static func _calculate_counter_chance_default(defender_stats: UnitStats) -> int:
 	if not defender_stats:
 		return 0
 
@@ -308,12 +412,24 @@ static func check_counterattack_with_range_band(
 ## Calculate hit chance with terrain evasion bonus
 ## Formula: Base hit chance - terrain_evasion_bonus
 ## Returns: Clamped between 10% and 99%
+## Note: Delegates to custom formula if one is active
 static func calculate_hit_chance_with_terrain(
 	attacker_stats: UnitStats,
 	defender_stats: UnitStats,
 	terrain_evasion_bonus: int
 ) -> int:
-	var base_hit: int = calculate_hit_chance(attacker_stats, defender_stats)
+	if _active_formula:
+		return _active_formula.calculate_hit_chance_with_terrain(attacker_stats, defender_stats, terrain_evasion_bonus)
+	return _calculate_hit_chance_with_terrain_default(attacker_stats, defender_stats, terrain_evasion_bonus)
+
+
+## Default hit chance with terrain formula
+static func _calculate_hit_chance_with_terrain_default(
+	attacker_stats: UnitStats,
+	defender_stats: UnitStats,
+	terrain_evasion_bonus: int
+) -> int:
+	var base_hit: int = _calculate_hit_chance_default(attacker_stats, defender_stats)
 	return clampi(base_hit - terrain_evasion_bonus, 10, 99)
 
 
@@ -329,7 +445,19 @@ static func get_effective_defense_with_terrain(
 ## Calculate physical damage with terrain defense bonus
 ## Formula: (Attacker STR + Weapon ATK - (Defender DEF + terrain_def)) * variance
 ## Returns: Minimum of 1 damage
+## Note: Delegates to custom formula if one is active
 static func calculate_physical_damage_with_terrain(
+	attacker_stats: UnitStats,
+	defender_stats: UnitStats,
+	terrain_defense_bonus: int
+) -> int:
+	if _active_formula:
+		return _active_formula.calculate_physical_damage_with_terrain(attacker_stats, defender_stats, terrain_defense_bonus)
+	return _calculate_physical_damage_with_terrain_default(attacker_stats, defender_stats, terrain_defense_bonus)
+
+
+## Default physical damage with terrain formula
+static func _calculate_physical_damage_with_terrain_default(
 	attacker_stats: UnitStats,
 	defender_stats: UnitStats,
 	terrain_defense_bonus: int

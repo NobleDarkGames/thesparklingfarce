@@ -712,7 +712,9 @@ func _on_browse_icon() -> void:
 		icon_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 		icon_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
 		icon_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
-		icon_file_dialog.file_selected.connect(_on_icon_file_selected)
+		# Safety check before connecting (prevents duplicates on plugin reload)
+		if not icon_file_dialog.file_selected.is_connected(_on_icon_file_selected):
+			icon_file_dialog.file_selected.connect(_on_icon_file_selected)
 		add_child(icon_file_dialog)
 
 	# Default to active mod's icon directory if available

@@ -13,6 +13,18 @@ class_name ModManifest
 const MIN_PRIORITY: int = 0
 const MAX_PRIORITY: int = 9999
 
+## Reserved mod IDs that cannot be used (security + system reserved)
+const RESERVED_MOD_IDS: Array[String] = [
+	"core", "engine", "godot", "system", "base", "default", "null", "none",
+	"res", "user", "uid", "tmp", "temp", "root", "admin"
+]
+
+## Maximum allowed length for mod IDs
+const MAX_MOD_ID_LENGTH: int = 64
+
+## Cached regex for mod ID validation
+static var _mod_id_regex: RegEx = null
+
 @export var mod_id: String = ""
 @export var mod_name: String = ""
 @export var version: String = "1.0.0"
@@ -132,13 +144,23 @@ static func load_from_file(json_path: String) -> ModManifest:
 
 	# Create manifest and populate fields
 	var manifest: ModManifest = ModManifest.new()
-	manifest.mod_id = data.get("id", "")
+
+	# Sanitize and validate mod ID (security critical)
+	var raw_id: String = str(data.get("id", ""))
+	var sanitized_id: String = _sanitize_mod_id(raw_id, json_path)
+	if sanitized_id.is_empty():
+		# Error already logged by _sanitize_mod_id
+		return null
+	manifest.mod_id = sanitized_id
+
 	manifest.mod_name = data.get("name", "Unnamed Mod")
 	manifest.version = data.get("version", "1.0.0")
 	manifest.author = data.get("author", "Unknown")
 	manifest.description = data.get("description", "")
 	manifest.godot_version = data.get("godot_version", "4.5")
-	manifest.load_priority = data.get("load_priority", 0)
+
+	# Sanitize load_priority with clamping
+	manifest.load_priority = _sanitize_load_priority(data.get("load_priority", 0), json_path)
 
 	# Parse arrays
 	if "dependencies" in data and data.dependencies is Array:
@@ -279,18 +301,75 @@ static func _validate_manifest_data(data: Dictionary) -> bool:
 		push_error("mod.json missing required field: 'name'")
 		return false
 
-	# Validate load_priority if present
-	if "load_priority" in data:
-		if not data.load_priority is float and not data.load_priority is int:
-			push_error("mod.json 'load_priority' must be a number")
-			return false
-
-		var priority: int = int(data.load_priority)
-		if priority < MIN_PRIORITY or priority > MAX_PRIORITY:
-			push_error("mod.json 'load_priority' must be between %d and %d (got %d)" % [MIN_PRIORITY, MAX_PRIORITY, priority])
-			return false
-
+	# Note: load_priority validation moved to _sanitize_load_priority for clamping behavior
 	return true
+
+
+## Validate and sanitize a mod ID
+## Returns sanitized ID or empty string if invalid (rejection required)
+## Security: Prevents path traversal, reserved word abuse, and injection attacks
+static func _sanitize_mod_id(raw_id: String, json_path: String) -> String:
+	if raw_id.is_empty():
+		push_error("mod.json: 'id' cannot be empty at: %s" % json_path)
+		return ""
+
+	var sanitized: String = raw_id.strip_edges()
+
+	# Security: Check for path traversal attempts
+	if ".." in sanitized or "/" in sanitized or "\\" in sanitized:
+		push_error("mod.json: 'id' contains invalid path characters (potential path traversal): '%s' at: %s" % [raw_id, json_path])
+		return ""
+
+	# Security: Check for null bytes or control characters
+	for i: int in range(sanitized.length()):
+		var code: int = sanitized.unicode_at(i)
+		if code < 32 or code == 127:  # Control characters
+			push_error("mod.json: 'id' contains invalid control characters: '%s' at: %s" % [raw_id, json_path])
+			return ""
+
+	# Check against reserved words (case-insensitive)
+	if sanitized.to_lower() in RESERVED_MOD_IDS:
+		push_error("mod.json: 'id' uses reserved word '%s' at: %s" % [sanitized, json_path])
+		return ""
+
+	# Validate format: must start with letter, only alphanumeric/underscore/hyphen allowed
+	# Pattern: ^[a-zA-Z_][a-zA-Z0-9_-]*$
+	if _mod_id_regex == null:
+		_mod_id_regex = RegEx.new()
+		_mod_id_regex.compile("^[a-zA-Z_][a-zA-Z0-9_-]*$")
+
+	if not _mod_id_regex.search(sanitized):
+		push_error("mod.json: 'id' must start with a letter or underscore and contain only letters, numbers, underscores, hyphens. Got: '%s' at: %s" % [raw_id, json_path])
+		return ""
+
+	# Length check
+	if sanitized.length() > MAX_MOD_ID_LENGTH:
+		push_error("mod.json: 'id' exceeds maximum length of %d characters (got %d) at: %s" % [MAX_MOD_ID_LENGTH, sanitized.length(), json_path])
+		return ""
+
+	return sanitized
+
+
+## Sanitize and clamp load_priority to valid range
+## Returns clamped value and emits warning if clamping was needed
+static func _sanitize_load_priority(raw_priority: Variant, json_path: String) -> int:
+	var priority: int = 0
+
+	if raw_priority is int or raw_priority is float:
+		priority = int(raw_priority)
+	else:
+		push_warning("mod.json: 'load_priority' must be a number, using default 0 at: %s" % json_path)
+		return 0
+
+	# Clamp to valid range with warning
+	if priority < MIN_PRIORITY:
+		push_warning("mod.json: 'load_priority' %d clamped to %d (minimum) at: %s" % [priority, MIN_PRIORITY, json_path])
+		return MIN_PRIORITY
+	elif priority > MAX_PRIORITY:
+		push_warning("mod.json: 'load_priority' %d clamped to %d (maximum) at: %s" % [priority, MAX_PRIORITY, json_path])
+		return MAX_PRIORITY
+
+	return priority
 
 
 ## Get the full path to the mod's data directory

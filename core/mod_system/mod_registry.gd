@@ -26,8 +26,13 @@ var _scenes: Dictionary = {}
 # Tracks which mod provided each scene
 var _scene_sources: Dictionary = {}
 
+# Override chains - tracks the history of resource overrides for debugging
+# Dictionary structure: { "resource_type:resource_id": Array[{mod_id, priority}] }
+var _override_chains: Dictionary = {}
+
 
 ## Register a resource from a mod
+## Detects and warns about same-priority conflicts
 func register_resource(resource: Resource, resource_type: String, resource_id: String, mod_id: String) -> void:
 	if not resource:
 		push_error("Attempted to register null resource: " + resource_id)
@@ -36,6 +41,28 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 	# Ensure type dictionary exists
 	if resource_type not in _resources_by_type:
 		_resources_by_type[resource_type] = {}
+
+	# Check for conflicts and track override chain
+	var composite_id: String = "%s:%s" % [resource_type, resource_id]
+	if resource_id in _resources_by_type[resource_type]:
+		var existing_mod_id: String = _resource_sources.get(resource_id, "")
+		if not existing_mod_id.is_empty() and existing_mod_id != mod_id:
+			var existing_priority: int = _get_mod_priority(existing_mod_id)
+			var new_priority: int = _get_mod_priority(mod_id)
+
+			# Track the override chain
+			if composite_id not in _override_chains:
+				_override_chains[composite_id] = []
+			_override_chains[composite_id].append({
+				"mod_id": existing_mod_id,
+				"priority": existing_priority
+			})
+
+			# Warn about same-priority conflicts
+			if existing_priority == new_priority:
+				push_warning("ModRegistry: Same-priority conflict for %s '%s' - mod '%s' overrides '%s' (both priority %d, alphabetical wins)" % [
+					resource_type, resource_id, mod_id, existing_mod_id, new_priority
+				])
 
 	# Register the resource (overrides any existing resource with same ID)
 	_resources_by_type[resource_type][resource_id] = resource
@@ -46,6 +73,20 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 		_mod_resources[mod_id] = []
 	if resource_id not in _mod_resources[mod_id]:
 		_mod_resources[mod_id].append(resource_id)
+
+
+## Get a mod's priority (helper for conflict detection)
+## Returns 0 if mod not found
+func _get_mod_priority(mod_id: String) -> int:
+	if Engine.has_singleton("ModLoader"):
+		return 0  # Can't access priority from singleton
+	# Try to get ModLoader from autoloads
+	var mod_loader: Node = Engine.get_main_loop().root.get_node_or_null("/root/ModLoader") if Engine.get_main_loop() else null
+	if mod_loader and mod_loader.has_method("get_mod"):
+		var manifest: Resource = mod_loader.get_mod(mod_id)
+		if manifest and "load_priority" in manifest:
+			return manifest.load_priority
+	return 0
 
 
 ## Get a specific resource by type and ID
@@ -187,6 +228,14 @@ func clear() -> void:
 	_mod_resources.clear()
 	_scenes.clear()
 	_scene_sources.clear()
+	_override_chains.clear()
+
+
+## Get the override chain for a resource (for debugging/editor display)
+## Returns array of {mod_id, priority} entries showing previous providers
+func get_override_chain(resource_type: String, resource_id: String) -> Array:
+	var composite_id: String = "%s:%s" % [resource_type, resource_id]
+	return _override_chains.get(composite_id, []).duplicate()
 
 
 ## Clear all resources from a specific mod

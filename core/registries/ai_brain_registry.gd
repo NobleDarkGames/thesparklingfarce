@@ -36,6 +36,14 @@ extends RefCounted
 signal registrations_changed()
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+## Maximum number of cached brain instances to prevent unbounded memory growth
+## When this limit is exceeded, least recently used instances are evicted
+const MAX_CACHED_INSTANCES: int = 50
+
+# =============================================================================
 # DATA STORAGE
 # =============================================================================
 
@@ -44,6 +52,10 @@ var _brains: Dictionary = {}
 
 ## Cached brain instances (lazy-loaded)
 var _brain_instances: Dictionary = {}
+
+## LRU tracking: Array of brain_ids in order of access (most recent at end)
+## Used to evict least recently used entries when cache exceeds MAX_CACHED_INSTANCES
+var _lru_order: Array[String] = []
 
 # =============================================================================
 # REGISTRATION API
@@ -97,9 +109,12 @@ func _register_brain(mod_id: String, brain_id: String, data: Dictionary, mod_dir
 		"source_mod": mod_id
 	}
 
-	# Clear cached instance if overriding
+	# Clear cached instance if overriding (also remove from LRU tracking)
 	if id_lower in _brain_instances:
 		_brain_instances.erase(id_lower)
+		var lru_idx: int = _lru_order.find(id_lower)
+		if lru_idx >= 0:
+			_lru_order.remove_at(lru_idx)
 
 
 ## Auto-discover AI brains from a mod's ai_brains/ directory
@@ -224,8 +239,9 @@ func get_source_mod(brain_id: String) -> String:
 func get_brain_instance(brain_id: String) -> Resource:
 	var lower: String = brain_id.to_lower()
 
-	# Return cached instance if available
+	# Return cached instance if available (and update LRU order)
 	if lower in _brain_instances:
+		_update_lru_access(lower)
 		return _brain_instances[lower]
 
 	# Try to load and instantiate
@@ -246,8 +262,30 @@ func get_brain_instance(brain_id: String) -> Resource:
 		push_warning("AIBrainRegistry: Failed to instantiate brain: %s" % path)
 		return null
 
+	# Evict LRU entries if cache is full before adding new instance
+	_evict_lru_if_needed()
+
 	_brain_instances[lower] = instance
+	_lru_order.append(lower)
 	return instance
+
+
+## Update LRU tracking when an instance is accessed
+## Moves the brain_id to the end of the list (most recently used)
+func _update_lru_access(brain_id: String) -> void:
+	var idx: int = _lru_order.find(brain_id)
+	if idx >= 0:
+		_lru_order.remove_at(idx)
+	_lru_order.append(brain_id)
+
+
+## Evict least recently used cache entries if at capacity
+func _evict_lru_if_needed() -> void:
+	while _brain_instances.size() >= MAX_CACHED_INSTANCES and _lru_order.size() > 0:
+		var lru_id: String = _lru_order[0]
+		_lru_order.remove_at(0)
+		if lru_id in _brain_instances:
+			_brain_instances.erase(lru_id)
 
 
 ## Get all brain instances (for editors that need the actual Resource objects)
@@ -269,6 +307,7 @@ func get_all_brain_instances() -> Array[Resource]:
 func clear_mod_registrations() -> void:
 	_brains.clear()
 	_brain_instances.clear()
+	_lru_order.clear()
 	registrations_changed.emit()
 
 

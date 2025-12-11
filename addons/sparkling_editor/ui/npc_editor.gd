@@ -1036,7 +1036,9 @@ func _on_browse_portrait() -> void:
 		portrait_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 		portrait_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
 		portrait_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
-		portrait_file_dialog.file_selected.connect(_on_portrait_file_selected)
+		# Safety check before connecting (prevents duplicates on plugin reload)
+		if not portrait_file_dialog.file_selected.is_connected(_on_portrait_file_selected):
+			portrait_file_dialog.file_selected.connect(_on_portrait_file_selected)
 		add_child(portrait_file_dialog)
 
 	# Default to active mod's portraits directory if available
@@ -1087,7 +1089,9 @@ func _on_browse_sprite() -> void:
 		map_sprite_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 		map_sprite_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
 		map_sprite_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
-		map_sprite_file_dialog.file_selected.connect(_on_sprite_file_selected)
+		# Safety check before connecting (prevents duplicates on plugin reload)
+		if not map_sprite_file_dialog.file_selected.is_connected(_on_sprite_file_selected):
+			map_sprite_file_dialog.file_selected.connect(_on_sprite_file_selected)
 		add_child(map_sprite_file_dialog)
 
 	# Default to active mod's sprites directory if available

@@ -30,10 +30,15 @@ var _cache_dirty: bool = true
 
 
 ## Register weapon types from a mod
+## Only accepts string values - non-strings are logged as warnings and skipped
 func register_weapon_types(mod_id: String, types: Array) -> void:
 	var typed_array: Array[String] = []
 	for t: Variant in types:
-		var type_str: String = str(t).to_lower().strip_edges()
+		# Validate that the type is a string - arrays/dicts produce garbage IDs
+		if t is not String:
+			push_warning("EquipmentRegistry: Mod '%s' provided non-string weapon type (got %s), skipping" % [mod_id, type_string(typeof(t))])
+			continue
+		var type_str: String = t.to_lower().strip_edges()
 		if not type_str.is_empty():
 			typed_array.append(type_str)
 
@@ -43,10 +48,15 @@ func register_weapon_types(mod_id: String, types: Array) -> void:
 
 
 ## Register armor types from a mod
+## Only accepts string values - non-strings are logged as warnings and skipped
 func register_armor_types(mod_id: String, types: Array) -> void:
 	var typed_array: Array[String] = []
 	for t: Variant in types:
-		var type_str: String = str(t).to_lower().strip_edges()
+		# Validate that the type is a string - arrays/dicts produce garbage IDs
+		if t is not String:
+			push_warning("EquipmentRegistry: Mod '%s' provided non-string armor type (got %s), skipping" % [mod_id, type_string(typeof(t))])
+			continue
+		var type_str: String = t.to_lower().strip_edges()
 		if not type_str.is_empty():
 			typed_array.append(type_str)
 

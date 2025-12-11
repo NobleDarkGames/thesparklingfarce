@@ -121,11 +121,17 @@ func _discover_and_load_mods() -> void:
 		push_warning("ModLoader: No mods found in " + MODS_DIRECTORY)
 		return
 
+	# Check for circular dependencies before proceeding
+	var resolved_mods: Array[ModManifest] = _topological_sort_with_cycle_detection(discovered_mods)
+	if resolved_mods.is_empty() and not discovered_mods.is_empty():
+		push_error("ModLoader: Cannot proceed due to circular dependencies - no mods loaded")
+		return
+
 	# Sort by load priority (lower priority loads first, can be overridden by higher)
-	discovered_mods.sort_custom(_sort_by_priority)
+	resolved_mods.sort_custom(_sort_by_priority)
 
 	# Load each mod
-	for manifest in discovered_mods:
+	for manifest in resolved_mods:
 		_load_mod(manifest)
 
 
@@ -138,11 +144,18 @@ func _discover_and_load_mods_async() -> void:
 		_is_loading = false
 		return
 
+	# Check for circular dependencies before proceeding
+	var resolved_mods: Array[ModManifest] = _topological_sort_with_cycle_detection(discovered_mods)
+	if resolved_mods.is_empty() and not discovered_mods.is_empty():
+		push_error("ModLoader: Cannot proceed due to circular dependencies - no mods loaded")
+		_is_loading = false
+		return
+
 	# Sort by load priority (lower priority loads first, can be overridden by higher)
-	discovered_mods.sort_custom(_sort_by_priority)
+	resolved_mods.sort_custom(_sort_by_priority)
 
 	# Load each mod asynchronously
-	for manifest in discovered_mods:
+	for manifest in resolved_mods:
 		await _load_mod_async(manifest)
 
 	_is_loading = false
@@ -602,6 +615,193 @@ func _is_mod_loaded(mod_id: String) -> bool:
 		if manifest.mod_id == mod_id:
 			return true
 	return false
+
+
+# =============================================================================
+# Scene Override System (Phase 2.1)
+# =============================================================================
+
+## Get a scene by registry ID, with fallback to default path
+## Used by systems like BattleManager to allow mods to override core scenes
+##
+## @param scene_id: The registered scene ID (e.g., "unit_scene", "combat_anim_scene")
+## @param fallback_path: Default path if no mod provides this scene
+## @return: Loaded PackedScene, or null if neither found
+func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedScene:
+	# First check if a mod has registered this scene
+	var mod_path: String = registry.get_scene_path(scene_id)
+	if not mod_path.is_empty():
+		if FileAccess.file_exists(mod_path):
+			var scene: PackedScene = load(mod_path) as PackedScene
+			if scene:
+				return scene
+			else:
+				push_warning("ModLoader: Failed to load mod scene '%s' at: %s, using fallback" % [scene_id, mod_path])
+		else:
+			push_warning("ModLoader: Mod scene '%s' not found at: %s, using fallback" % [scene_id, mod_path])
+
+	# Fallback to default path
+	if not fallback_path.is_empty():
+		if FileAccess.file_exists(fallback_path):
+			var scene: PackedScene = load(fallback_path) as PackedScene
+			if scene:
+				return scene
+			else:
+				push_error("ModLoader: Failed to load fallback scene '%s' at: %s" % [scene_id, fallback_path])
+		else:
+			push_error("ModLoader: Fallback scene '%s' not found at: %s" % [scene_id, fallback_path])
+
+	return null
+
+
+# =============================================================================
+# Asset Override System (Phase 2.2)
+# =============================================================================
+
+## Resolve an asset path through the mod override system
+## Checks mods in descending priority order for a matching asset path
+## Enables "drop-in replacement" workflow for casual artists
+##
+## @param relative_path: Path relative to mod's assets directory (e.g., "icons/items/sword.png")
+## @param fallback_base_path: Base path to check if no mod provides the asset (e.g., "res://mods/_base_game/assets/")
+## @return: The full resolved path, or empty string if not found
+func resolve_asset_path(relative_path: String, fallback_base_path: String = "") -> String:
+	# Security: Prevent path traversal attacks
+	if ".." in relative_path:
+		push_error("ModLoader: Invalid asset path (contains ..): %s" % relative_path)
+		return ""
+
+	if relative_path.begins_with("/") or relative_path.begins_with("\\"):
+		push_error("ModLoader: Invalid asset path (absolute path not allowed): %s" % relative_path)
+		return ""
+
+	# Check mods in descending priority order (highest priority first)
+	var mods: Array[ModManifest] = get_mods_by_priority_descending()
+	for mod: ModManifest in mods:
+		var full_path: String = mod.get_assets_directory().path_join(relative_path)
+		if FileAccess.file_exists(full_path):
+			return full_path
+
+	# Fallback to base path
+	if not fallback_base_path.is_empty():
+		var fallback_full: String = fallback_base_path.path_join(relative_path)
+		if FileAccess.file_exists(fallback_full):
+			return fallback_full
+
+	return ""
+
+
+## Load a texture through the mod override system
+## Convenience wrapper around resolve_asset_path for common use case
+##
+## @param relative_path: Path relative to mod's assets directory (e.g., "icons/items/sword.png")
+## @return: The loaded Texture2D, or null if not found
+func load_texture_override(relative_path: String) -> Texture2D:
+	var path: String = resolve_asset_path(relative_path, "res://mods/_base_game/assets/")
+	if path.is_empty():
+		return null
+	return load(path) as Texture2D
+
+
+## Load a resource through the mod override system
+## Generic version for any resource type
+##
+## @param relative_path: Path relative to mod's assets directory
+## @return: The loaded Resource, or null if not found
+func load_resource_override(relative_path: String) -> Resource:
+	var path: String = resolve_asset_path(relative_path, "res://mods/_base_game/assets/")
+	if path.is_empty():
+		return null
+	return load(path)
+
+
+# =============================================================================
+# Circular Dependency Detection
+# =============================================================================
+
+## Perform topological sort with cycle detection on mod dependencies
+## Returns sorted mods in valid load order, or empty array if cycle detected
+## Uses depth-first search with "visiting" markers to detect back edges (cycles)
+func _topological_sort_with_cycle_detection(mods: Array[ModManifest]) -> Array[ModManifest]:
+	var sorted: Array[ModManifest] = []
+	var permanent_marks: Dictionary = {}  # mod_id -> true (fully processed)
+	var temporary_marks: Dictionary = {}  # mod_id -> true (currently visiting - cycle detection)
+	var mod_map: Dictionary = {}  # mod_id -> ModManifest for quick lookup
+
+	# Build lookup map
+	for mod: ModManifest in mods:
+		mod_map[mod.mod_id] = mod
+
+	# Visit each node using DFS
+	for mod: ModManifest in mods:
+		if mod.mod_id not in permanent_marks:
+			var cycle_path: Array[String] = []
+			if not _visit_mod_for_sort(mod, mod_map, permanent_marks, temporary_marks, sorted, cycle_path):
+				# Cycle detected - error already logged
+				return []
+
+	return sorted
+
+
+## DFS visit function for topological sort
+## Returns false if cycle detected, true otherwise
+func _visit_mod_for_sort(
+	mod: ModManifest,
+	mod_map: Dictionary,
+	permanent: Dictionary,
+	temporary: Dictionary,
+	sorted: Array[ModManifest],
+	path: Array[String]
+) -> bool:
+	var mod_id: String = mod.mod_id
+
+	# Already fully processed
+	if mod_id in permanent:
+		return true
+
+	# Currently visiting this node - we've found a cycle!
+	if mod_id in temporary:
+		_emit_cycle_error(mod_id, path)
+		return false
+
+	# Mark as currently visiting and track in path
+	temporary[mod_id] = true
+	path.append(mod_id)
+
+	# Visit all dependencies first
+	for dep_id: String in mod.dependencies:
+		if dep_id in mod_map:
+			if not _visit_mod_for_sort(mod_map[dep_id], mod_map, permanent, temporary, sorted, path):
+				return false
+		# Note: Missing dependencies are handled later in _load_mod()
+
+	# Done visiting - move from temporary to permanent
+	temporary.erase(mod_id)
+	path.pop_back()
+	permanent[mod_id] = true
+	sorted.append(mod)
+	return true
+
+
+## Emit a detailed error message when a circular dependency is detected
+func _emit_cycle_error(cycle_start: String, path: Array[String]) -> void:
+	# Build the cycle path string for clear error reporting
+	var cycle_start_idx: int = path.find(cycle_start)
+	var cycle_mods: Array[String] = []
+
+	if cycle_start_idx >= 0:
+		# Extract just the cycle portion
+		for i: int in range(cycle_start_idx, path.size()):
+			cycle_mods.append(path[i])
+		cycle_mods.append(cycle_start)  # Complete the cycle
+	else:
+		# Fallback if index not found
+		cycle_mods = path.duplicate()
+		cycle_mods.append(cycle_start)
+
+	var cycle_str: String = " -> ".join(cycle_mods)
+	push_error("ModLoader: Circular dependency detected: %s" % cycle_str)
+	push_error("ModLoader: To fix, remove one of the dependencies in this cycle")
 
 
 ## Sort function for mod priority (lower numbers load first)

@@ -47,6 +47,10 @@ var available_resources: Array[Resource] = []
 # Track unsaved changes
 var is_dirty: bool = false
 
+# Guard against concurrent async operations (e.g., rapid "New" button clicks)
+# Prevents race conditions during filesystem scan awaits
+var _operation_in_progress: bool = false
+
 # Dialogs and feedback panels
 var confirmation_dialog: ConfirmationDialog
 var unsaved_changes_dialog: AcceptDialog
@@ -654,9 +658,15 @@ func _perform_save() -> void:
 
 
 func _on_create_new() -> void:
+	# Prevent concurrent operations during async filesystem scan
+	if _operation_in_progress:
+		return
+	_operation_in_progress = true
+
 	var new_resource: Resource = _create_new_resource()
 	if not new_resource:
 		push_error("Failed to create new " + resource_type_name.to_lower())
+		_operation_in_progress = false
 		return
 
 	# Determine save directory
@@ -675,6 +685,7 @@ func _on_create_new() -> void:
 
 	if save_dir == "":
 		push_error("No save directory available for " + resource_type_name.to_lower())
+		_operation_in_progress = false
 		return
 
 	# Generate unique filename with mod prefix to avoid conflicts
@@ -711,16 +722,25 @@ func _on_create_new() -> void:
 	else:
 		push_error("Failed to create " + resource_type_name.to_lower() + ": " + str(err))
 
+	_operation_in_progress = false
+
 
 func _on_duplicate_resource() -> void:
+	# Prevent concurrent operations during async filesystem scan
+	if _operation_in_progress:
+		return
+	_operation_in_progress = true
+
 	if not current_resource:
 		_show_errors(["No " + resource_type_name.to_lower() + " selected to duplicate"])
+		_operation_in_progress = false
 		return
 
 	# Get the file path of the current resource
 	var selected_items: PackedInt32Array = resource_list.get_selected_items()
 	if selected_items.size() == 0:
 		_show_errors(["No " + resource_type_name.to_lower() + " selected in list"])
+		_operation_in_progress = false
 		return
 
 	# Determine save directory (use active mod)
@@ -738,6 +758,7 @@ func _on_duplicate_resource() -> void:
 
 	if save_dir.is_empty():
 		_show_errors(["No save directory available for duplicating " + resource_type_name.to_lower()])
+		_operation_in_progress = false
 		return
 
 	# Create a duplicate resource
@@ -781,6 +802,8 @@ func _on_duplicate_resource() -> void:
 		_show_success_message("Duplicated '%s' successfully!" % original_name)
 	else:
 		_show_errors(["Failed to duplicate " + resource_type_name.to_lower() + ": " + str(err)])
+
+	_operation_in_progress = false
 
 
 func _on_delete() -> void:
@@ -963,17 +986,25 @@ func _update_mod_workflow_buttons() -> void:
 
 ## Copy the current resource to the active mod with a new unique ID
 func _on_copy_to_mod() -> void:
+	# Prevent concurrent operations during async filesystem scan
+	if _operation_in_progress:
+		return
+	_operation_in_progress = true
+
 	if not current_resource:
 		_show_errors(["No resource selected"])
+		_operation_in_progress = false
 		return
 
 	if not ModLoader:
 		_show_errors(["ModLoader not available"])
+		_operation_in_progress = false
 		return
 
 	var active_mod: ModManifest = ModLoader.get_active_mod()
 	if not active_mod:
 		_show_errors(["No active mod selected"])
+		_operation_in_progress = false
 		return
 
 	# Get the save directory
@@ -987,6 +1018,7 @@ func _on_copy_to_mod() -> void:
 
 	if save_dir.is_empty():
 		_show_errors(["No save directory available"])
+		_operation_in_progress = false
 		return
 
 	# Generate unique filename with timestamp
@@ -1031,6 +1063,8 @@ func _on_copy_to_mod() -> void:
 		_hide_errors()
 	else:
 		_show_errors(["Failed to copy resource: " + str(err)])
+
+	_operation_in_progress = false
 
 
 ## Create an override of the current resource in the active mod (same ID)
@@ -1085,6 +1119,11 @@ func _on_create_override() -> void:
 
 ## Actually create the override after confirmation
 func _perform_create_override(override_path: String) -> void:
+	# Prevent concurrent operations during async filesystem scan
+	if _operation_in_progress:
+		return
+	_operation_in_progress = true
+
 	# Create a duplicate resource (keep all data including any internal IDs)
 	var override_resource: Resource = current_resource.duplicate(true)
 
@@ -1122,6 +1161,8 @@ func _perform_create_override(override_path: String) -> void:
 		_hide_errors()
 	else:
 		_show_errors(["Failed to create override: " + str(err)])
+
+	_operation_in_progress = false
 
 
 ## Update a resource's internal ID/name for copy operation
