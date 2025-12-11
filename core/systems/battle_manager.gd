@@ -71,6 +71,9 @@ var _showing_level_up: bool = false
 ## XP entries queue for combat results panel
 var _pending_xp_entries: Array[Dictionary] = []
 
+## Combat actions queue for combat results panel (e.g., "Max hit with CHAOS BREAKER for 12 damage!")
+var _pending_combat_actions: Array[Dictionary] = []
+
 
 ## Initialize battle manager with scene references
 func setup(battle_scene: Node, units_container: Node2D) -> void:
@@ -661,7 +664,7 @@ func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -
 
 	# Build spell combat phase (spells cannot be countered or trigger double attacks)
 	var phases: Array[CombatPhase] = []
-	var spell_phase: CombatPhase = CombatPhase.create_spell_attack(caster, target, damage)
+	var spell_phase: CombatPhase = CombatPhase.create_spell_attack(caster, target, damage, ability.ability_name)
 	phases.append(spell_phase)
 
 	# Debug output for spell combat
@@ -813,6 +816,21 @@ func _build_combat_sequence(attacker: Node2D, defender: Node2D) -> Array[CombatP
 	return phases
 
 
+## Get the weapon name for a unit (for display in combat results)
+func _get_unit_weapon_name(unit: Node2D) -> String:
+	if not unit or not unit.character_data:
+		return ""
+
+	# Try to get equipped weapon from save data
+	var save_data: CharacterSaveData = GameState.get_character_save_data(unit.character_data.character_uid)
+	if save_data:
+		var weapon: ItemData = EquipmentManager.get_equipped_weapon(save_data)
+		if weapon:
+			return weapon.item_name
+
+	return ""
+
+
 ## Calculate a single attack phase (initial or double attack)
 func _calculate_attack_phase(
 	attacker: Node2D,
@@ -847,11 +865,14 @@ func _calculate_attack_phase(
 		if was_critical:
 			damage *= 2
 
+	# Get weapon name for display
+	var weapon_name: String = _get_unit_weapon_name(attacker)
+
 	# Create appropriate phase type
 	if is_double:
-		return CombatPhase.create_double_attack(attacker, defender, damage, was_critical, was_miss)
+		return CombatPhase.create_double_attack(attacker, defender, damage, was_critical, was_miss, weapon_name)
 	else:
-		return CombatPhase.create_initial_attack(attacker, defender, damage, was_critical, was_miss)
+		return CombatPhase.create_initial_attack(attacker, defender, damage, was_critical, was_miss, weapon_name)
 
 
 ## Calculate a counter attack phase (75% damage)
@@ -888,7 +909,10 @@ func _calculate_counter_phase(
 		if was_critical:
 			damage *= 2
 
-	return CombatPhase.create_counter_attack(counter_attacker, counter_target, damage, was_critical, was_miss)
+	# Get weapon name for display
+	var weapon_name: String = _get_unit_weapon_name(counter_attacker)
+
+	return CombatPhase.create_counter_attack(counter_attacker, counter_target, damage, was_critical, was_miss, weapon_name)
 
 
 ## Check if defender can counterattack
@@ -985,9 +1009,15 @@ func _execute_combat_session(
 		# Start the session (fade in ONCE)
 		await combat_anim_instance.start_session(initial_attacker, initial_defender)
 
-		# Queue all phases
+		# Queue all phases and their combat action text
 		for phase: CombatPhase in phases:
 			combat_anim_instance.queue_phase(phase)
+			# Queue combat action for results display
+			combat_anim_instance.queue_combat_action(
+				phase.get_result_text(),
+				phase.was_critical,
+				phase.was_miss
+			)
 
 		# Execute all phases (no fading between them!)
 		await combat_anim_instance.execute_all_phases()
@@ -1035,6 +1065,13 @@ func _execute_combat_session(
 				continue
 			if phase.defender == initial_defender and defender_died:
 				continue
+
+			# Queue combat action for results panel
+			_pending_combat_actions.append({
+				"text": phase.get_result_text(),
+				"is_critical": phase.was_critical,
+				"is_miss": phase.was_miss
+			})
 
 			# Play sound effect
 			if not phase.was_miss:
@@ -1350,26 +1387,34 @@ func _on_unit_learned_ability(unit: Node2D, ability: Resource) -> void:
 	pass  # Future: Show ability learned notification
 
 
-## Show combat results panel with queued XP entries
+## Show combat results panel with queued combat actions and XP entries
 func _show_combat_results() -> void:
 	# Skip in headless mode
 	if TurnManager.is_headless:
+		_pending_combat_actions.clear()
 		_pending_xp_entries.clear()
 		return
 
 	# Skip if no entries
-	if _pending_xp_entries.is_empty():
+	if _pending_combat_actions.is_empty() and _pending_xp_entries.is_empty():
 		return
 
 	# Create and populate the results panel
 	var results_panel: CanvasLayer = COMBAT_RESULTS_SCENE.instantiate()
 	battle_scene_root.add_child(results_panel)
 
-	# Add all queued entries
+	# Add all queued combat actions first
+	for action: Dictionary in _pending_combat_actions:
+		results_panel.add_combat_action(action.text, action.is_critical, action.is_miss)
+
+	# Clear the combat actions queue
+	_pending_combat_actions.clear()
+
+	# Add all queued XP entries
 	for entry: Dictionary in _pending_xp_entries:
 		results_panel.add_xp_entry(entry.unit_name, entry.amount, entry.source)
 
-	# Clear the queue
+	# Clear the XP queue
 	_pending_xp_entries.clear()
 
 	# Show and wait for dismissal

@@ -58,6 +58,9 @@ var _initial_defender_died: bool = false
 ## XP entries to display before fade-out (SF-authentic: XP shown in battle screen)
 var _xp_entries: Array[Dictionary] = []
 
+## Combat action entries to display before XP (e.g., "Max hit with CHAOS BREAKER for 12 damage!")
+var _combat_actions: Array[Dictionary] = []
+
 ## Font reference for dynamically created labels
 @onready var monogram_font: Font = preload("res://assets/fonts/monogram.ttf")
 
@@ -689,6 +692,16 @@ func _play_death_animation() -> void:
 # XP DISPLAY
 # =============================================================================
 
+## Queue a combat action to be displayed before XP entries
+## Called by BattleManager for each combat phase
+func queue_combat_action(text: String, is_critical: bool = false, is_miss: bool = false) -> void:
+	_combat_actions.append({
+		"text": text,
+		"is_critical": is_critical,
+		"is_miss": is_miss
+	})
+
+
 ## Queue an XP entry to be displayed before fade-out
 func queue_xp_entry(unit_name: String, amount: int, source: String) -> void:
 	_xp_entries.append({
@@ -698,9 +711,9 @@ func queue_xp_entry(unit_name: String, amount: int, source: String) -> void:
 	})
 
 
-## Display all queued XP entries (SF-authentic blue panel)
+## Display all queued combat actions and XP entries (SF-authentic blue panel)
 func _display_xp_entries() -> void:
-	if _xp_entries.is_empty():
+	if _combat_actions.is_empty() and _xp_entries.is_empty():
 		return
 
 	var xp_panel: PanelContainer = _create_xp_panel()
@@ -708,33 +721,55 @@ func _display_xp_entries() -> void:
 
 	var xp_label: RichTextLabel = xp_panel.get_node("MarginContainer/XPLabel")
 
-	var displayed_entries: Array[Dictionary] = []
-	var max_visible_lines: int = 4
+	var displayed_lines: Array[String] = []
+	var max_visible_lines: int = 5  # Increased to accommodate combat actions
 
+	# First: Display combat actions (attack/spell info)
+	for action: Dictionary in _combat_actions:
+		var line: String = action.text
+		if action.is_miss:
+			line = "[color=#999999]%s[/color]" % line  # Gray for misses
+		elif action.is_critical:
+			line = "[color=#FF9933]%s[/color]" % line  # Orange for crits
+		else:
+			line = "[color=#FFFFFF]%s[/color]" % line  # White for normal hits
+
+		displayed_lines.append(line)
+
+		if displayed_lines.size() > max_visible_lines:
+			displayed_lines.pop_front()
+
+		xp_label.text = "\n".join(displayed_lines)
+
+		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
+
+		await get_tree().create_timer(_get_pause(BASE_XP_ENTRY_STAGGER * 2.0)).timeout
+
+	# Clear combat actions queue
+	_combat_actions.clear()
+
+	# Second: Display XP entries
 	for entry: Dictionary in _xp_entries:
-		displayed_entries.append(entry)
+		# Format source for display (damage/kill -> combat, others as-is)
+		var source_display: String = entry.source
+		if entry.source == "damage" or entry.source == "kill":
+			source_display = "combat"
+		var line: String = "%s gained %d %s XP" % [entry.name, entry.amount, source_display]
+		if entry.source == "kill":
+			line = "[color=#FFFF66]%s![/color]" % line
+		elif entry.source == "formation":
+			line = "[color=#B3D9FF]%s[/color]" % line  # Light blue for formation
+		elif entry.source in ["heal", "buff", "debuff"]:
+			line = "[color=#B3FFB3]%s[/color]" % line  # Light green for support
+		else:
+			line = "[color=#FFF2B3]%s[/color]" % line
 
-		if displayed_entries.size() > max_visible_lines:
-			displayed_entries.pop_front()
+		displayed_lines.append(line)
 
-		var bbcode_lines: Array[String] = []
-		for e: Dictionary in displayed_entries:
-			# Format source for display (damage/kill -> combat, others as-is)
-			var source_display: String = e.source
-			if e.source == "damage" or e.source == "kill":
-				source_display = "combat"
-			var line: String = "%s gained %d %s XP" % [e.name, e.amount, source_display]
-			if e.source == "kill":
-				line = "[color=#FFFF66]%s![/color]" % line
-			elif e.source == "formation":
-				line = "[color=#B3D9FF]%s[/color]" % line  # Light blue for formation
-			elif e.source in ["heal", "buff", "debuff"]:
-				line = "[color=#B3FFB3]%s[/color]" % line  # Light green for support
-			else:
-				line = "[color=#FFF2B3]%s[/color]" % line
-			bbcode_lines.append(line)
+		if displayed_lines.size() > max_visible_lines:
+			displayed_lines.pop_front()
 
-		xp_label.text = "\n".join(bbcode_lines)
+		xp_label.text = "\n".join(displayed_lines)
 
 		AudioManager.play_sfx("xp_gain", AudioManager.SFXCategory.UI)
 

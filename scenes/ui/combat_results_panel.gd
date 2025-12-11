@@ -22,6 +22,9 @@ const ENTRY_STAGGER: float = 0.08  ## Delay between each XP entry appearing
 const COLOR_DAMAGE_XP: Color = Color(0.85, 0.85, 0.4)  ## Soft gold for combat XP
 const COLOR_KILL_XP: Color = Color(1.0, 0.85, 0.3)  ## Brighter gold for kills
 const COLOR_FORMATION_XP: Color = Color(0.5, 0.7, 0.9)  ## Soft blue for formation
+const COLOR_COMBAT_ACTION: Color = Color(1.0, 1.0, 1.0)  ## White for combat actions
+const COLOR_CRITICAL_HIT: Color = Color(1.0, 0.6, 0.2)  ## Orange for critical hits
+const COLOR_MISS: Color = Color(0.6, 0.6, 0.6)  ## Gray for misses
 
 ## UI References
 @onready var panel: PanelContainer = $Panel
@@ -31,6 +34,7 @@ const COLOR_FORMATION_XP: Color = Color(0.5, 0.7, 0.9)  ## Soft blue for formati
 ## State
 var _can_dismiss: bool = false
 var _auto_dismiss_timer: float = 0.0
+var _combat_actions: Array[String] = []  ## Queued combat action text to display
 var _xp_entries: Array[Dictionary] = []  ## Queued XP entries to display
 
 
@@ -62,6 +66,18 @@ func _input(event: InputEvent) -> void:
 		_dismiss()
 
 
+## Queue a combat action to be shown (e.g., "Max hit with CHAOS BREAKER for 12 damage!")
+## Call this for each combat phase, then call show_results()
+func add_combat_action(action_text: String, is_critical: bool = false, is_miss: bool = false) -> void:
+	# Store with metadata for coloring
+	var entry: String = action_text
+	if is_miss:
+		entry = "MISS:" + action_text
+	elif is_critical:
+		entry = "CRIT:" + action_text
+	_combat_actions.append(entry)
+
+
 ## Queue an XP entry to be shown
 ## Call this multiple times to add entries, then call show_results()
 func add_xp_entry(unit_name: String, amount: int, source: String) -> void:
@@ -74,7 +90,7 @@ func add_xp_entry(unit_name: String, amount: int, source: String) -> void:
 
 ## Show the combat results panel with all queued entries
 func show_results() -> void:
-	if _xp_entries.is_empty():
+	if _combat_actions.is_empty() and _xp_entries.is_empty():
 		# Nothing to show, dismiss immediately
 		results_dismissed.emit()
 		return
@@ -86,7 +102,35 @@ func show_results() -> void:
 	for child: Node in entries_container.get_children():
 		child.queue_free()
 
-	# Separate combat entries from formation entries for batching
+	# Fade in panel
+	var tween: Tween = create_tween()
+	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
+	await tween.finished
+
+	# First: Display combat actions (attack/spell info)
+	for action_entry: String in _combat_actions:
+		var is_miss: bool = action_entry.begins_with("MISS:")
+		var is_critical: bool = action_entry.begins_with("CRIT:")
+		var display_text: String = action_entry
+		if is_miss:
+			display_text = action_entry.substr(5)  # Remove "MISS:" prefix
+		elif is_critical:
+			display_text = action_entry.substr(5)  # Remove "CRIT:" prefix
+
+		var row: Label = _create_combat_action_row(display_text, is_critical, is_miss)
+		row.modulate.a = 0.0
+		entries_container.add_child(row)
+
+		var row_tween: Tween = create_tween()
+		row_tween.tween_property(row, "modulate:a", 1.0, 0.1)
+		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
+
+		await get_tree().create_timer(ENTRY_STAGGER).timeout
+
+	# Clear combat actions queue
+	_combat_actions.clear()
+
+	# Second: Separate XP entries from formation entries for batching
 	var combat_entries: Array[Dictionary] = []
 	var formation_total: int = 0
 	var formation_count: int = 0
@@ -98,12 +142,7 @@ func show_results() -> void:
 		else:
 			combat_entries.append(entry)
 
-	# Fade in panel
-	var tween: Tween = create_tween()
-	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
-	await tween.finished
-
-	# Add combat entries with stagger (attacker's damage/kill XP)
+	# Add XP entries with stagger (attacker's damage/kill XP)
 	for entry: Dictionary in combat_entries:
 		var row: HBoxContainer = _create_xp_row(entry.name, entry.amount, entry.source)
 		row.modulate.a = 0.0
@@ -130,12 +169,30 @@ func show_results() -> void:
 
 		await get_tree().create_timer(ENTRY_STAGGER).timeout
 
-	# Clear the queue
+	# Clear the XP queue
 	_xp_entries.clear()
 
 	# Show continue prompt and allow dismiss
 	continue_label.visible = true
 	_can_dismiss = true
+
+
+## Create a combat action row (e.g., "Max hit with CHAOS BREAKER for 12 damage!")
+func _create_combat_action_row(text: String, is_critical: bool, is_miss: bool) -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_font_override("font", MONOGRAM_FONT)
+	label.add_theme_font_size_override("font_size", 16)
+
+	# Color based on hit type
+	if is_miss:
+		label.add_theme_color_override("font_color", COLOR_MISS)
+	elif is_critical:
+		label.add_theme_color_override("font_color", COLOR_CRITICAL_HIT)
+	else:
+		label.add_theme_color_override("font_color", COLOR_COMBAT_ACTION)
+
+	return label
 
 
 ## Create a batched formation XP row

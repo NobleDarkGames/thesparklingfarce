@@ -46,6 +46,9 @@ var is_counter: bool = false
 ## Whether this is a double attack (shows "DOUBLE ATTACK!" banner)
 var is_double_attack: bool = false
 
+## Name of the action (weapon name, spell name) for display in results
+var action_name: String = ""
+
 
 ## Factory method to create an initial attack phase
 static func create_initial_attack(
@@ -53,7 +56,8 @@ static func create_initial_attack(
 	p_defender: Node2D,
 	p_damage: int,
 	p_was_critical: bool,
-	p_was_miss: bool
+	p_was_miss: bool,
+	p_weapon_name: String = ""
 ) -> CombatPhase:
 	var phase: CombatPhase = CombatPhase.new()
 	phase.phase_type = PhaseType.INITIAL_ATTACK
@@ -64,6 +68,7 @@ static func create_initial_attack(
 	phase.was_miss = p_was_miss
 	phase.is_counter = false
 	phase.is_double_attack = false
+	phase.action_name = p_weapon_name
 	return phase
 
 
@@ -73,7 +78,8 @@ static func create_double_attack(
 	p_defender: Node2D,
 	p_damage: int,
 	p_was_critical: bool,
-	p_was_miss: bool
+	p_was_miss: bool,
+	p_weapon_name: String = ""
 ) -> CombatPhase:
 	var phase: CombatPhase = CombatPhase.new()
 	phase.phase_type = PhaseType.DOUBLE_ATTACK
@@ -84,6 +90,7 @@ static func create_double_attack(
 	phase.was_miss = p_was_miss
 	phase.is_counter = false
 	phase.is_double_attack = true
+	phase.action_name = p_weapon_name
 	return phase
 
 
@@ -94,7 +101,8 @@ static func create_counter_attack(
 	p_counter_target: Node2D,
 	p_damage: int,
 	p_was_critical: bool,
-	p_was_miss: bool
+	p_was_miss: bool,
+	p_weapon_name: String = ""
 ) -> CombatPhase:
 	var phase: CombatPhase = CombatPhase.new()
 	phase.phase_type = PhaseType.COUNTER_ATTACK
@@ -105,6 +113,7 @@ static func create_counter_attack(
 	phase.was_miss = p_was_miss
 	phase.is_counter = true
 	phase.is_double_attack = false
+	phase.action_name = p_weapon_name
 	return phase
 
 
@@ -113,7 +122,8 @@ static func create_counter_attack(
 static func create_spell_attack(
 	p_caster: Node2D,
 	p_target: Node2D,
-	p_damage: int
+	p_damage: int,
+	p_spell_name: String = ""
 ) -> CombatPhase:
 	var phase: CombatPhase = CombatPhase.new()
 	phase.phase_type = PhaseType.SPELL_ATTACK
@@ -124,6 +134,7 @@ static func create_spell_attack(
 	phase.was_miss = false      # Spells don't miss in SF2
 	phase.is_counter = false
 	phase.is_double_attack = false
+	phase.action_name = p_spell_name
 	return phase
 
 
@@ -142,10 +153,63 @@ func get_description() -> String:
 
 	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
 	var defender_name: String = defender.get_display_name() if defender and defender.has_method("get_display_name") else "Unknown"
+	var action_str: String = " with %s" % action_name if not action_name.is_empty() else ""
 
 	if was_miss:
-		return "%s: %s attacks %s - MISS" % [type_str, attacker_name, defender_name]
+		return "%s: %s attacks %s%s - MISS" % [type_str, attacker_name, defender_name, action_str]
 	elif was_critical:
-		return "%s: %s attacks %s - CRITICAL %d damage" % [type_str, attacker_name, defender_name, damage]
+		return "%s: %s attacks %s%s - CRITICAL %d damage" % [type_str, attacker_name, defender_name, action_str, damage]
 	else:
-		return "%s: %s attacks %s - %d damage" % [type_str, attacker_name, defender_name, damage]
+		return "%s: %s attacks %s%s - %d damage" % [type_str, attacker_name, defender_name, action_str, damage]
+
+
+## Get display text for combat results panel
+## Format varies by phase type:
+##   Initial: "Name hit with WEAPON for X damage!"
+##   Double:  "Name struck again for X damage!"
+##   Counter: "Name countered for X damage!"
+##   Spell:   "Name cast SPELL for X damage!"
+##   Miss:    "Name missed!" or "Name's counter missed!"
+func get_result_text() -> String:
+	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
+
+	# Handle misses based on phase type
+	if was_miss:
+		match phase_type:
+			PhaseType.COUNTER_ATTACK:
+				return "%s's counter missed!" % attacker_name
+			PhaseType.DOUBLE_ATTACK:
+				return "%s's second attack missed!" % attacker_name
+			_:
+				return "%s missed!" % attacker_name
+
+	# Build damage string
+	var damage_str: String = "%d damage" % damage
+	if was_critical:
+		damage_str = "%d CRITICAL damage" % damage
+
+	# Format based on phase type
+	match phase_type:
+		PhaseType.SPELL_ATTACK:
+			if not action_name.is_empty():
+				return "%s cast %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
+			else:
+				return "%s cast a spell for %s!" % [attacker_name, damage_str]
+
+		PhaseType.DOUBLE_ATTACK:
+			if not action_name.is_empty():
+				return "%s struck again with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
+			else:
+				return "%s struck again for %s!" % [attacker_name, damage_str]
+
+		PhaseType.COUNTER_ATTACK:
+			if not action_name.is_empty():
+				return "%s countered with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
+			else:
+				return "%s countered for %s!" % [attacker_name, damage_str]
+
+		_:  # INITIAL_ATTACK or unknown
+			if not action_name.is_empty():
+				return "%s hit with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
+			else:
+				return "%s hit for %s!" % [attacker_name, damage_str]
