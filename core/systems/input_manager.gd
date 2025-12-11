@@ -1542,6 +1542,13 @@ func reset_to_waiting() -> void:
 	set_state(InputState.WAITING)
 
 
+## Refresh the stats panel for the active unit (call after MP/HP changes)
+## Public API for BattleManager to update UI after spell casting, item use, etc.
+func refresh_stats_panel() -> void:
+	if stats_panel and stats_panel.has_method("refresh_stats"):
+		stats_panel.refresh_stats()
+
+
 ## Update stats panel based on cursor position during inspection
 func _update_unit_inspector() -> void:
 	if not stats_panel:

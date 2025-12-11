@@ -582,6 +582,9 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 	# Deduct MP cost
 	caster.stats.current_mp -= ability.mp_cost
 
+	# Refresh stats panel to show updated MP
+	InputManager.refresh_stats_panel()
+
 	# Apply the spell effect based on type
 	var effect_applied: bool = false
 	match ability.ability_type:

@@ -102,12 +102,12 @@ This matches SF2's design where a character's spells come from their class, and 
 
 **Note**: The _base_game Maggie character uses an inline SubResource for her Mage class, which required adding `class_abilities` directly to the character file.
 
-#### Phase S3: UI & Polish (MOSTLY COMPLETE)
+#### Phase S3: UI & Polish (COMPLETE)
 1. ✅ Add "Magic" to action menu (hidden if no spells)
 2. ✅ Combat screen shows for spell attacks (CombatPhase.SPELL_ATTACK)
 3. ✅ Spell targeting range visualization (shows full range + highlights valid targets)
 4. ⏳ Spell-specific combat animations (currently uses attack animation)
-5. ⏳ MP display in unit stats panel
+5. ✅ MP display in unit stats panel (refreshes after spell casting)
 
 **Deliverable**: Full player-facing spell system
 
