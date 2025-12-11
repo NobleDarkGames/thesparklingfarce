@@ -40,6 +40,7 @@ var crit_rate_spin: SpinBox
 var consumable_section: VBoxContainer
 var usable_battle_check: CheckBox
 var usable_field_check: CheckBox
+var effect_picker: ResourcePicker  # AbilityData picker for consumable effect
 
 # Economy
 var buy_price_spin: SpinBox
@@ -123,6 +124,12 @@ func _load_resource_data() -> void:
 	usable_battle_check.button_pressed = item.usable_in_battle
 	usable_field_check.button_pressed = item.usable_on_field
 
+	# Effect picker
+	if item.effect and item.effect is AbilityData:
+		effect_picker.select_resource(item.effect)
+	else:
+		effect_picker.select_none()
+
 	# Economy
 	buy_price_spin.value = item.buy_price
 	sell_price_spin.value = item.sell_price
@@ -174,6 +181,9 @@ func _save_resource_data() -> void:
 	# Update consumable properties
 	item.usable_in_battle = usable_battle_check.button_pressed
 	item.usable_on_field = usable_field_check.button_pressed
+
+	# Update effect
+	item.effect = effect_picker.get_selected_resource()
 
 	# Update economy
 	item.buy_price = int(buy_price_spin.value)
@@ -499,10 +509,20 @@ func _add_consumable_section() -> void:
 	usable_field_check.text = "Usable on Field"
 	consumable_section.add_child(usable_field_check)
 
-	var note_label: Label = Label.new()
-	note_label.text = "Note: Assign AbilityData effect in the Inspector"
-	note_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	consumable_section.add_child(note_label)
+	# Effect picker - allows selecting an AbilityData resource for the consumable effect
+	effect_picker = ResourcePicker.new()
+	effect_picker.resource_type = "ability"
+	effect_picker.label_text = "Effect:"
+	effect_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	effect_picker.allow_none = true
+	effect_picker.none_text = "(No Effect)"
+	consumable_section.add_child(effect_picker)
+
+	var help_label: Label = Label.new()
+	help_label.text = "The ability that activates when this item is used"
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	consumable_section.add_child(help_label)
 
 	detail_panel.add_child(consumable_section)
 

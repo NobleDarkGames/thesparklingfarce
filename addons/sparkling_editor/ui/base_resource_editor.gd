@@ -32,6 +32,9 @@ var delete_button: Button
 var all_resources: Array[Resource] = []
 var all_resource_paths: Array[String] = []
 
+# Source mod for each resource path (maps path -> mod folder name)
+var all_resource_source_mods: Array[String] = []
+
 # Current resource being edited
 var current_resource: Resource
 
@@ -423,30 +426,55 @@ func _refresh_list() -> void:
 	available_resources.clear()
 	all_resources.clear()
 	all_resource_paths.clear()
+	all_resource_source_mods.clear()
 
 	# Use ModRegistry if available and resource_type_id is set
 	if resource_type_id != "" and ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if not active_mod:
-			push_warning("No active mod set in ModLoader")
-			return
-
-		# Get directory for this resource type in active mod
-		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-		if resource_type_id in resource_dirs:
-			var dir_path: String = resource_dirs[resource_type_id]
-			_scan_directory_for_resources(dir_path)
-		else:
-			push_error("Resource type '%s' not found in mod directories" % resource_type_id)
+		# Scan ALL mods for resources of this type (not just active mod)
+		# This allows modders to see and reference resources from all loaded mods
+		_scan_all_mods_for_resources()
 	# Fallback to legacy directory scanning
 	elif resource_directory != "":
-		_scan_directory_for_resources(resource_directory)
+		_scan_directory_for_resources(resource_directory, "")
 	else:
 		push_error("No resource_type_id or resource_directory set")
 
 
+## Scan ALL mods for resources of the current type
+## Populates resources from every mod, sorted by mod priority then alphabetically
+func _scan_all_mods_for_resources() -> void:
+	if not ModLoader:
+		push_warning("ModLoader not available")
+		return
+
+	# Get the directory name for this resource type
+	# RESOURCE_TYPE_DIRS maps: dir_name (plural) -> resource_type_id (singular)
+	# e.g., "characters" -> "character", "items" -> "item"
+	# We need to reverse-lookup: find the dir_name for our resource_type_id
+	var dir_name: String = resource_type_id + "s"  # Default: add 's' to type ID
+	var type_dir_map: Dictionary = ModLoader.RESOURCE_TYPE_DIRS if "RESOURCE_TYPE_DIRS" in ModLoader else {}
+	for type_dir: String in type_dir_map.keys():
+		if type_dir_map[type_dir] == resource_type_id:
+			dir_name = type_dir
+			break
+
+	# Get all loaded mods sorted by priority
+	var mods: Array[ModManifest] = ModLoader.get_all_mods()
+
+	# Scan each mod's data directory for this resource type
+	for mod: ModManifest in mods:
+		var mod_folder: String = mod.mod_directory.get_file()
+		var resource_path: String = "res://mods/%s/data/%s/" % [mod_folder, dir_name]
+		_scan_directory_for_resources(resource_path, mod_folder)
+
+	# Apply current filter (or show all if no filter)
+	_apply_filter()
+
+
 ## Scan a directory for .tres resource files and populate the list
-func _scan_directory_for_resources(dir_path: String) -> void:
+## @param dir_path: Directory to scan
+## @param mod_id: The mod folder name this directory belongs to (empty for legacy mode)
+func _scan_directory_for_resources(dir_path: String, mod_id: String) -> void:
 	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir:
 		dir.list_dir_begin()
@@ -459,14 +487,11 @@ func _scan_directory_for_resources(dir_path: String) -> void:
 					# Store in master lists for filtering
 					all_resources.append(resource)
 					all_resource_paths.append(full_path)
+					all_resource_source_mods.append(mod_id)
 					available_resources.append(resource)
 			file_name = dir.get_next()
 		dir.list_dir_end()
-
-		# Apply current filter (or show all if no filter)
-		_apply_filter()
-	else:
-		push_error("Failed to open directory: " + dir_path)
+	# Note: Don't show error if directory doesn't exist - some mods may not have all resource types
 
 
 ## Apply the current search filter to the resource list
@@ -478,31 +503,27 @@ func _apply_filter() -> void:
 	for i in range(all_resources.size()):
 		var resource: Resource = all_resources[i]
 		var path: String = all_resource_paths[i]
+		var source_mod: String = all_resource_source_mods[i] if i < all_resource_source_mods.size() else ""
 		var display_name: String = _get_resource_display_name(resource)
 
 		# Show all if no filter, otherwise check for match
-		if filter_text.is_empty() or _matches_search(display_name, path, filter_text):
-			resource_list.add_item(display_name)
+		if filter_text.is_empty() or _matches_search(display_name, path, source_mod, filter_text):
+			# Format: [mod_id] Resource Name
+			var list_text: String = "[%s] %s" % [source_mod, display_name] if not source_mod.is_empty() else display_name
+			resource_list.add_item(list_text)
 			resource_list.set_item_metadata(resource_list.item_count - 1, path)
 
 
 ## Check if a resource matches the search filter
 ## Searches in: display name, resource ID (filename), and source mod ID
-func _matches_search(display_name: String, path: String, filter: String) -> bool:
+func _matches_search(display_name: String, path: String, mod_id: String, filter: String) -> bool:
 	var display_lower: String = display_name.to_lower()
 	var filename: String = path.get_file().get_basename().to_lower()
-
-	# Extract mod ID from path: mods/MOD_ID/data/...
-	var mod_id: String = ""
-	if "/mods/" in path:
-		var after_mods: String = path.split("/mods/")[1]
-		var parts: PackedStringArray = after_mods.split("/")
-		if parts.size() > 0:
-			mod_id = parts[0].to_lower()
+	var mod_id_lower: String = mod_id.to_lower()
 
 	return display_lower.contains(filter) or \
 		   filename.contains(filter) or \
-		   mod_id.contains(filter)
+		   mod_id_lower.contains(filter)
 
 
 ## Called when search filter text changes

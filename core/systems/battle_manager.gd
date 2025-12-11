@@ -401,6 +401,7 @@ func _execute_stay(unit: Node2D) -> void:
 
 
 ## Handle item use request from InputManager
+## SF2-AUTHENTIC: Uses the full battle overlay screen, same as attacks
 func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> void:
 	# Get the item data
 	var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
@@ -411,18 +412,59 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 		TurnManager.end_unit_turn(unit)
 		return
 
-	# Apply the item effect
-	var effect_applied: bool = false
-	if item.effect and item.effect is AbilityData:
-		var ability: AbilityData = item.effect as AbilityData
-		effect_applied = await _apply_item_effect(unit, target, item, ability)
+	if not item.effect or not item.effect is AbilityData:
+		push_warning("BattleManager: Item '%s' has no effect ability" % item_id)
+		InputManager.reset_to_waiting()
+		TurnManager.end_unit_turn(unit)
+		return
 
-	if effect_applied:
-		# Consume item from inventory
-		_consume_item_from_inventory(unit, item_id)
+	var ability: AbilityData = item.effect as AbilityData
 
-		# Award XP for item usage (SF-authentic: healers get more XP)
-		_award_item_use_xp(unit, target, item)
+	# Build combat phases based on ability type
+	var phases: Array[CombatPhase] = []
+
+	match ability.ability_type:
+		AbilityData.AbilityType.HEAL:
+			var heal_phase: CombatPhase = CombatPhase.create_item_heal(
+				unit,
+				target,
+				ability.power,
+				item.item_name
+			)
+			phases.append(heal_phase)
+		AbilityData.AbilityType.ATTACK:
+			# Damage items - TODO: Could use SPELL_ATTACK or create ITEM_ATTACK type
+			var damage_phase: CombatPhase = CombatPhase.create_spell_attack(
+				unit,
+				target,
+				ability.power,
+				item.item_name
+			)
+			phases.append(damage_phase)
+		_:
+			push_warning("BattleManager: Item ability type '%s' not yet supported" % ability.ability_type)
+			InputManager.reset_to_waiting()
+			TurnManager.end_unit_turn(unit)
+			return
+
+	if phases.is_empty():
+		push_warning("BattleManager: Could not create combat phase for item '%s'" % item_id)
+		InputManager.reset_to_waiting()
+		TurnManager.end_unit_turn(unit)
+		return
+
+	# Consume item from inventory BEFORE the animation
+	_consume_item_from_inventory(unit, item_id)
+
+	print("[BattleManager] Item use sequence built with %d phases:" % phases.size())
+	for phase: CombatPhase in phases:
+		print("  - %s" % phase.get_description())
+
+	# Execute the combat session (shows full battle overlay, applies effect)
+	await _execute_combat_session(unit, target, phases)
+
+	# Award XP for item usage AFTER the combat session (SF-authentic: healers get XP)
+	_award_item_use_xp(unit, target, item)
 
 	# Reset InputManager to waiting state
 	InputManager.reset_to_waiting()
@@ -431,9 +473,31 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 	TurnManager.end_unit_turn(unit)
 
 
+## Build display message for item use
+func _build_item_use_message(user: Node2D, target: Node2D, item: ItemData, result: Dictionary) -> String:
+	var user_name: String = user.get_display_name() if user else "???"
+	var target_name: String = target.get_display_name() if target else "???"
+	var item_name: String = item.item_name if item else "item"
+
+	var amount: int = result.get("amount", 0)
+	var effect_type: String = result.get("effect_type", "unknown")
+
+	# Build message based on effect type
+	match effect_type:
+		"heal":
+			if user == target:
+				return "%s used %s - Recovered %d HP!" % [user_name, item_name, amount]
+			else:
+				return "%s used %s on %s - Recovered %d HP!" % [user_name, item_name, target_name, amount]
+		"damage":
+			return "%s used %s on %s - %d damage!" % [user_name, item_name, target_name, amount]
+		_:
+			return "%s used %s!" % [user_name, item_name]
+
+
 ## Apply item effect to target
-## Returns true if effect was successfully applied
-func _apply_item_effect(user: Node2D, target: Node2D, item: ItemData, ability: AbilityData) -> bool:
+## Returns Dictionary with: { success: bool, effect_type: String, amount: int }
+func _apply_item_effect(user: Node2D, target: Node2D, item: ItemData, ability: AbilityData) -> Dictionary:
 	match ability.ability_type:
 		AbilityData.AbilityType.HEAL:
 			return await _apply_healing_effect(user, target, ability)
@@ -442,25 +506,26 @@ func _apply_item_effect(user: Node2D, target: Node2D, item: ItemData, ability: A
 		AbilityData.AbilityType.SUPPORT:
 			# TODO: Implement buff effects
 			push_warning("BattleManager: Support effects not yet implemented")
-			return false
+			return {"success": false, "effect_type": "support", "amount": 0}
 		AbilityData.AbilityType.DEBUFF:
 			# TODO: Implement debuff effects
 			push_warning("BattleManager: Debuff effects not yet implemented")
-			return false
+			return {"success": false, "effect_type": "debuff", "amount": 0}
 		AbilityData.AbilityType.SPECIAL:
 			# TODO: Implement special effects
 			push_warning("BattleManager: Special effects not yet implemented")
-			return false
+			return {"success": false, "effect_type": "special", "amount": 0}
 		_:
 			push_warning("BattleManager: Unknown ability type")
-			return false
+			return {"success": false, "effect_type": "unknown", "amount": 0}
 
 
 ## Apply healing effect to target
-func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -> bool:
+## Returns Dictionary with: { success: bool, effect_type: "heal", amount: int }
+func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -> Dictionary:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for healing")
-		return false
+		return {"success": false, "effect_type": "heal", "amount": 0}
 
 	var stats: UnitStats = target.stats
 	var max_hp: int = stats.max_hp
@@ -468,14 +533,15 @@ func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -
 	# Calculate healing amount
 	var heal_amount: int = ability.power
 
-	# Apply healing (cap at max HP)
+	# Track actual healing (may be less if near max HP)
+	var old_hp: int = stats.current_hp
 	stats.current_hp = mini(stats.current_hp + heal_amount, max_hp)
+	var actual_heal: int = stats.current_hp - old_hp
 
 	# Play healing sound
 	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
 
-	# TODO: Show healing animation/visual effect
-	# For now, just flash the target green briefly
+	# Visual feedback - flash the target green briefly
 	if not TurnManager.is_headless and target.has_method("flash_color"):
 		target.flash_color(Color.GREEN, 0.3)
 
@@ -483,14 +549,15 @@ func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -
 	if not TurnManager.is_headless:
 		await get_tree().create_timer(0.5).timeout
 
-	return true
+	return {"success": true, "effect_type": "heal", "amount": actual_heal}
 
 
 ## Apply damage effect to target (for offensive items)
-func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) -> bool:
+## Returns Dictionary with: { success: bool, effect_type: "damage", amount: int }
+func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) -> Dictionary:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for damage")
-		return false
+		return {"success": false, "effect_type": "damage", "amount": 0}
 
 	# Calculate damage (simplified - no defense calculation for items)
 	var damage: int = ability.power
@@ -509,7 +576,7 @@ func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) ->
 	if not TurnManager.is_headless:
 		await get_tree().create_timer(0.5).timeout
 
-	return true
+	return {"success": true, "effect_type": "damage", "amount": damage}
 
 
 ## Consume item from unit's inventory
@@ -1073,7 +1140,20 @@ func _execute_combat_session(
 				"is_miss": phase.was_miss
 			})
 
-			# Play sound effect
+			# Handle healing phases (ITEM_HEAL, SPELL_HEAL)
+			if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
+				# Play healing sound
+				AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
+
+				# Apply healing directly
+				if phase.heal_amount > 0 and phase.defender and phase.defender.stats:
+					var stats: UnitStats = phase.defender.stats
+					stats.current_hp = mini(stats.current_hp + phase.heal_amount, stats.max_hp)
+
+				# Healing doesn't have damage XP pooling - XP is handled separately
+				continue
+
+			# Play sound effect (for attack phases)
 			if not phase.was_miss:
 				if phase.was_critical:
 					AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)

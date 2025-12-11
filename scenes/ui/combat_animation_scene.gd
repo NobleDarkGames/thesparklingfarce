@@ -179,8 +179,9 @@ func execute_all_phases() -> void:
 
 ## Finish the combat session - displays XP and fades out ONCE
 func finish_session() -> void:
-	# Display XP gained before fade-out (SF-authentic)
-	if not _xp_entries.is_empty():
+	# Display combat actions and XP gained before fade-out (SF-authentic)
+	# Show the panel if EITHER combat actions OR XP entries exist
+	if not _combat_actions.is_empty() or not _xp_entries.is_empty():
 		await _display_xp_entries()
 
 	# Pause to let player see final result
@@ -269,6 +270,12 @@ func _swap_combatant_roles() -> void:
 
 ## Execute a single combat phase
 func _execute_phase(phase: CombatPhase) -> void:
+	# Handle healing phases differently
+	if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
+		await _play_heal_animation(phase.heal_amount, phase.defender)
+		# Healing phases don't cause death, so skip death check
+		return
+
 	# Play appropriate animation based on hit/miss/critical
 	if phase.was_miss:
 		await _play_miss_animation()
@@ -553,6 +560,52 @@ func _play_miss_animation() -> void:
 	await return_tween.finished
 
 
+## Play healing animation (for item heal and spell heal phases)
+func _play_heal_animation(heal_amount: int, target: Node2D) -> void:
+	combat_log.text = "Heal!"
+	combat_log.add_theme_font_override("font", monogram_font)
+	combat_log.add_theme_color_override("font_color", Color.GREEN)
+
+	# Flash the target green
+	_flash_sprite(defender_sprite, Color.GREEN, _get_duration(BASE_FLASH_DURATION))
+
+	# Play healing sound
+	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
+
+	# Apply healing at this moment (like damage is applied at impact)
+	var actual_heal: int = _apply_healing_at_impact(heal_amount, target)
+
+	# Show healing number (green, floating up)
+	_show_heal_number(actual_heal)
+
+	# Update defender HP bar (HP goes UP - target.stats.current_hp now has new value)
+	var hp_tween: Tween = create_tween()
+	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
+
+	# Brief pause
+	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
+
+
+## Show healing number with float animation (green color)
+func _show_heal_number(heal_amount: int) -> void:
+	damage_label.text = "+%d" % heal_amount
+	damage_label.add_theme_font_override("font", monogram_font)
+	damage_label.add_theme_font_size_override("font_size", 32)
+	damage_label.add_theme_color_override("font_color", Color.GREEN)
+	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	damage_label.add_theme_constant_override("outline_size", 3)
+
+	var start_y: float = damage_label.position.y
+	damage_label.visible = true
+	damage_label.modulate.a = 1.0
+
+	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
+	var tween: Tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, float_duration)
+	tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
+
+
 ## Show damage number with float animation
 func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.text = str(damage)
@@ -660,6 +713,28 @@ func _apply_damage_at_impact(damage: int, target: Node2D) -> void:
 	var target_died: bool = target.is_dead() if target.has_method("is_dead") else target.stats.current_hp <= 0
 
 	damage_applied.emit(target, damage, target_died)
+
+
+## Apply healing to target at the animation moment
+## Returns the actual heal amount (may be less if near max HP)
+func _apply_healing_at_impact(heal_amount: int, target: Node2D) -> int:
+	if target == null or not is_instance_valid(target):
+		push_warning("CombatAnimationScene: Cannot apply healing - target is null or invalid")
+		return 0
+
+	if heal_amount <= 0:
+		return 0
+
+	if not target.stats:
+		push_warning("CombatAnimationScene: Cannot apply healing - target has no stats")
+		return 0
+
+	var stats: UnitStats = target.stats
+	var old_hp: int = stats.current_hp
+	stats.current_hp = mini(stats.current_hp + heal_amount, stats.max_hp)
+	var actual_heal: int = stats.current_hp - old_hp
+
+	return actual_heal
 
 
 # =============================================================================

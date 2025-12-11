@@ -17,7 +17,9 @@ enum PhaseType {
 	INITIAL_ATTACK,   ## First strike from the initiating unit
 	DOUBLE_ATTACK,    ## Second strike if AGI/class allows
 	COUNTER_ATTACK,   ## Defender's retaliation (75% damage)
-	SPELL_ATTACK      ## Magic attack (no counter possible)
+	SPELL_ATTACK,     ## Magic attack (no counter possible)
+	ITEM_HEAL,        ## Item used to heal (shows HP going UP)
+	SPELL_HEAL        ## Healing spell (shows HP going UP)
 }
 
 ## The type of this combat phase
@@ -33,6 +35,9 @@ var defender: Node2D = null
 
 ## Pre-calculated damage for this phase (0 if miss)
 var damage: int = 0
+
+## Healing amount for heal phases (ITEM_HEAL, SPELL_HEAL)
+var heal_amount: int = 0
 
 ## Whether this attack was a critical hit
 var was_critical: bool = false
@@ -138,6 +143,50 @@ static func create_spell_attack(
 	return phase
 
 
+## Factory method to create an item heal phase
+## Shows HP going UP on the target
+static func create_item_heal(
+	p_user: Node2D,
+	p_target: Node2D,
+	p_heal_amount: int,
+	p_item_name: String = ""
+) -> CombatPhase:
+	var phase: CombatPhase = CombatPhase.new()
+	phase.phase_type = PhaseType.ITEM_HEAL
+	phase.attacker = p_user      # The one using the item
+	phase.defender = p_target    # The one being healed
+	phase.damage = 0             # No damage
+	phase.heal_amount = p_heal_amount
+	phase.was_critical = false
+	phase.was_miss = false
+	phase.is_counter = false
+	phase.is_double_attack = false
+	phase.action_name = p_item_name
+	return phase
+
+
+## Factory method to create a spell heal phase
+## Shows HP going UP on the target
+static func create_spell_heal(
+	p_caster: Node2D,
+	p_target: Node2D,
+	p_heal_amount: int,
+	p_spell_name: String = ""
+) -> CombatPhase:
+	var phase: CombatPhase = CombatPhase.new()
+	phase.phase_type = PhaseType.SPELL_HEAL
+	phase.attacker = p_caster    # The one casting
+	phase.defender = p_target    # The one being healed
+	phase.damage = 0             # No damage
+	phase.heal_amount = p_heal_amount
+	phase.was_critical = false
+	phase.was_miss = false
+	phase.is_counter = false
+	phase.is_double_attack = false
+	phase.action_name = p_spell_name
+	return phase
+
+
 ## Get a human-readable description for debugging
 func get_description() -> String:
 	var type_str: String = ""
@@ -150,10 +199,18 @@ func get_description() -> String:
 			type_str = "Counter"
 		PhaseType.SPELL_ATTACK:
 			type_str = "Spell"
+		PhaseType.ITEM_HEAL:
+			type_str = "Item Heal"
+		PhaseType.SPELL_HEAL:
+			type_str = "Spell Heal"
 
 	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
 	var defender_name: String = defender.get_display_name() if defender and defender.has_method("get_display_name") else "Unknown"
 	var action_str: String = " with %s" % action_name if not action_name.is_empty() else ""
+
+	# Handle healing phases
+	if phase_type == PhaseType.ITEM_HEAL or phase_type == PhaseType.SPELL_HEAL:
+		return "%s: %s heals %s%s - %d HP" % [type_str, attacker_name, defender_name, action_str, heal_amount]
 
 	if was_miss:
 		return "%s: %s attacks %s%s - MISS" % [type_str, attacker_name, defender_name, action_str]
@@ -169,9 +226,41 @@ func get_description() -> String:
 ##   Double:  "Name struck again for X damage!"
 ##   Counter: "Name countered for X damage!"
 ##   Spell:   "Name cast SPELL for X damage!"
+##   Item Heal: "Name used ITEM - Recovered X HP!"
+##   Spell Heal: "Name cast SPELL - Recovered X HP!"
 ##   Miss:    "Name missed!" or "Name's counter missed!"
 func get_result_text() -> String:
 	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
+	var defender_name: String = defender.get_display_name() if defender and defender.has_method("get_display_name") else "Unknown"
+
+	# Handle healing phases first (before miss check - heals don't miss)
+	if phase_type == PhaseType.ITEM_HEAL:
+		if attacker == defender:
+			# Self-heal
+			if not action_name.is_empty():
+				return "%s used %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), heal_amount]
+			else:
+				return "%s used an item - Recovered %d HP!" % [attacker_name, heal_amount]
+		else:
+			# Heal other
+			if not action_name.is_empty():
+				return "%s used %s on %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), defender_name, heal_amount]
+			else:
+				return "%s healed %s - Recovered %d HP!" % [attacker_name, defender_name, heal_amount]
+
+	if phase_type == PhaseType.SPELL_HEAL:
+		if attacker == defender:
+			# Self-heal spell
+			if not action_name.is_empty():
+				return "%s cast %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), heal_amount]
+			else:
+				return "%s cast a healing spell - Recovered %d HP!" % [attacker_name, heal_amount]
+		else:
+			# Heal other spell
+			if not action_name.is_empty():
+				return "%s cast %s on %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), defender_name, heal_amount]
+			else:
+				return "%s healed %s - Recovered %d HP!" % [attacker_name, defender_name, heal_amount]
 
 	# Handle misses based on phase type
 	if was_miss:
