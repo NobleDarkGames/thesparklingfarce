@@ -2,8 +2,8 @@
 
 **Author**: Lt. Claudbrain, USS Torvalds
 **Date**: 2025-12-06
-**Updated**: 2025-12-08 (Phase S1 + S2 + S3 Core COMPLETE - Spell system fully functional!)
-**Status**: Phase S1-S3 Core Complete. Spells work with combat screen. Minor polish remaining (range viz, custom animations, MP display).
+**Updated**: 2025-12-10 (Phase S1 + S2 + S3 mostly COMPLETE - Spell system fully functional!)
+**Status**: Phase S1-S3 Core Complete. Spells work with combat screen. Minor polish remaining (custom animations, MP display).
 
 ---
 
@@ -105,7 +105,7 @@ This matches SF2's design where a character's spells come from their class, and 
 #### Phase S3: UI & Polish (MOSTLY COMPLETE)
 1. ✅ Add "Magic" to action menu (hidden if no spells)
 2. ✅ Combat screen shows for spell attacks (CombatPhase.SPELL_ATTACK)
-3. ⏳ Spell targeting range visualization
+3. ✅ Spell targeting range visualization (shows full range + highlights valid targets)
 4. ⏳ Spell-specific combat animations (currently uses attack animation)
 5. ⏳ MP display in unit stats panel
 

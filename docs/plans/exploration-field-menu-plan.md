@@ -1,8 +1,8 @@
 # Exploration Field Menu Implementation Plan
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Date:** 2025-12-08
-**Status:** Planning (Crew Review Complete)
+**Status:** ✅ Phase 1 COMPLETE (Phase 2-5 pending)
 
 ---
 
@@ -499,28 +499,28 @@ Per Modro's review: 99% of use cases are "add option that opens scene." A full r
 
 ## Implementation Phases
 
-### Phase 1: Core Field Menu (MVP)
+### Phase 1: Core Field Menu (MVP) ✅ COMPLETE
 
 **Scope:**
-1. Create `ExplorationFieldMenu` with basic UI (vertical list, instant cursor movement)
-2. Integrate with `ExplorationUIController` (new FIELD_MENU state)
-3. Hook into `MapTemplate._on_hero_interaction()` for sf_confirm trigger
-4. Hook into `HeroController._input()` for sf_cancel trigger (B-button)
-5. Implement Item action (opens existing PartyEquipmentMenu)
-6. Implement Member action (opens PartyEquipmentMenu for now)
-7. Implement Search action (basic "Nothing unusual here" message)
-8. Magic option: HIDE if no party member has Egress/Detox, show placeholder otherwise
-9. Apply Modal UI Input Blocking pattern
-10. Smart edge positioning (menu never clips off-screen)
-11. Mouse hover + click support
+1. ✅ Create `ExplorationFieldMenu` with basic UI (vertical list, instant cursor movement)
+2. ✅ Integrate with `ExplorationUIController` (new FIELD_MENU state)
+3. ✅ Hook into `MapTemplate._on_hero_interaction()` for sf_confirm trigger
+4. ✅ Hook into `HeroController._input()` for sf_cancel trigger (B-button)
+5. ✅ Implement Item action (opens existing PartyEquipmentMenu)
+6. ✅ Implement Member action (opens PartyEquipmentMenu for now)
+7. ✅ Implement Search action (basic "Nothing unusual here" message)
+8. ✅ Magic option: HIDE if no party member has Egress/Detox, show placeholder otherwise
+9. ✅ Apply Modal UI Input Blocking pattern
+10. ✅ Smart edge positioning (menu never clips off-screen)
+11. ✅ Mouse hover + click support
 
 **Deliverables:**
-- `/home/user/dev/sparklingfarce/scenes/ui/exploration_field_menu.gd`
-- `/home/user/dev/sparklingfarce/scenes/ui/exploration_field_menu.tscn`
-- Modified `/home/user/dev/sparklingfarce/core/components/exploration_ui_controller.gd`
-- Modified `/home/user/dev/sparklingfarce/core/templates/map_template.gd`
-- Modified `/home/user/dev/sparklingfarce/scenes/map_exploration/hero_controller.gd`
-- Modified `/home/user/dev/sparklingfarce/core/systems/debug_console.gd`
+- ✅ `/home/user/dev/sparklingfarce/scenes/ui/exploration_field_menu.gd` (514 lines)
+- ✅ `/home/user/dev/sparklingfarce/scenes/ui/exploration_field_menu.tscn`
+- ✅ Modified `/home/user/dev/sparklingfarce/core/components/exploration_ui_controller.gd`
+- ✅ Modified `/home/user/dev/sparklingfarce/core/templates/map_template.gd`
+- ✅ Modified `/home/user/dev/sparklingfarce/scenes/map_exploration/hero_controller.gd`
+- ✅ Modified `/home/user/dev/sparklingfarce/core/systems/debug_console.gd`
 
 ### Phase 2: Field Magic System (Egress/Detox Only)
 

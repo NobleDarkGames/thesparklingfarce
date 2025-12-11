@@ -2224,20 +2224,37 @@ func _is_valid_spell_target(unit: Node2D) -> bool:
 
 
 ## Show spell targeting range highlights
+## Shows full spell range first (all cells in min/max range), then overlays valid targets
 func _show_spell_targeting_range(valid_targets: Array[Vector2i]) -> void:
-	# Color based on spell type
-	var color_type: int = GridManager.HIGHLIGHT_GREEN  # Default green for allies
+	if not active_unit or not selected_spell_data:
+		# Fallback: just show valid targets in green
+		GridManager.highlight_cells(valid_targets, GridManager.HIGHLIGHT_GREEN)
+		return
 
-	if selected_spell_data:
-		match selected_spell_data.ability_type:
-			AbilityData.AbilityType.ATTACK, AbilityData.AbilityType.DEBUFF:
-				color_type = GridManager.HIGHLIGHT_RED
-			AbilityData.AbilityType.HEAL, AbilityData.AbilityType.SUPPORT:
-				color_type = GridManager.HIGHLIGHT_GREEN
-			_:
-				color_type = GridManager.HIGHLIGHT_YELLOW
+	# Determine base color based on spell type
+	var range_color: int = GridManager.HIGHLIGHT_GREEN  # Default for heals/support
 
-	GridManager.highlight_cells(valid_targets, color_type)
+	match selected_spell_data.ability_type:
+		AbilityData.AbilityType.ATTACK, AbilityData.AbilityType.DEBUFF:
+			range_color = GridManager.HIGHLIGHT_RED
+		AbilityData.AbilityType.HEAL, AbilityData.AbilityType.SUPPORT:
+			range_color = GridManager.HIGHLIGHT_GREEN
+		_:
+			range_color = GridManager.HIGHLIGHT_BLUE
+
+	# Step 1: Show full spell range (all cells from min_range to max_range)
+	var all_cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range_band(
+		active_unit.grid_position,
+		selected_spell_data.min_range,
+		selected_spell_data.max_range
+	)
+
+	# Highlight the full range first
+	GridManager.highlight_cells(all_cells_in_range, range_color, false)  # No pulse for range
+
+	# Step 2: Overlay valid targets in YELLOW for emphasis
+	if not valid_targets.is_empty():
+		GridManager.highlight_cells(valid_targets, GridManager.HIGHLIGHT_YELLOW, true)  # Pulse for targets
 
 
 ## Move spell target cursor (snap-to-target navigation for better UX)
