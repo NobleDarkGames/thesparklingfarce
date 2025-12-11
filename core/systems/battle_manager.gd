@@ -689,33 +689,31 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 	TurnManager.end_unit_turn(caster)
 
 
-## Apply healing spell effect
+## Apply healing spell effect via combat screen
+## SF2-AUTHENTIC: Uses the same battle overlay as attacks and item heals
 func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for healing spell")
 		return false
 
-	var stats: UnitStats = target.stats
-	var max_hp: int = stats.max_hp
-
 	# Calculate healing amount using CombatCalculator
 	var heal_amount: int = CombatCalculator.calculate_healing(caster.stats, ability)
 
-	# Apply healing (cap at max HP)
-	var old_hp: int = stats.current_hp
-	stats.current_hp = mini(stats.current_hp + heal_amount, max_hp)
-	var actual_heal: int = stats.current_hp - old_hp
+	# Build spell heal combat phase
+	var phases: Array[CombatPhase] = []
+	var heal_phase: CombatPhase = CombatPhase.create_spell_heal(caster, target, heal_amount, ability.ability_name)
+	phases.append(heal_phase)
 
-	# Play healing sound
-	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
+	# Debug output for spell healing
+	print("[BattleManager] Spell heal: %s casts %s on %s for %d healing" % [
+		caster.get_display_name(),
+		ability.ability_name,
+		target.get_display_name(),
+		heal_amount
+	])
 
-	# Visual feedback (flash green)
-	if not TurnManager.is_headless and target.has_method("flash_color"):
-		target.flash_color(Color.GREEN, 0.3)
-
-	# Brief pause for player feedback
-	if not TurnManager.is_headless:
-		await get_tree().create_timer(0.5).timeout
+	# Execute combat session (shows combat screen, applies healing)
+	await _execute_combat_session(caster, target, phases)
 
 	return true
 
