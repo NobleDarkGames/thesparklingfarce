@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NewGameConfigData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/new_game_config_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+config_id = "default"
+config_name = "Default"
+config_description = "Default starting configuration for this mod. Customize starting conditions here."
+is_default = false
+starting_campaign_id = ""
+starting_location_label = ""
+starting_gold = 0
+starting_depot_items = Array[String]([])
+starting_story_flags = {}
+starting_party_id = ""
+caravan_unlocked = false

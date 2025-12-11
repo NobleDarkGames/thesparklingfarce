@@ -23,6 +23,13 @@ var _highlight_layer: TileMapLayer = null
 ## Highlight pulse animation tween
 var _highlight_tween: Tween = null
 
+## AoE border highlight container (for SF2-style white borders)
+var _aoe_border_container: Node2D = null
+
+## AoE border visual settings
+const AOE_BORDER_COLOR: Color = Color(1.0, 1.0, 1.0, 0.9)  # White, slightly transparent
+const AOE_BORDER_WIDTH: float = 2.0
+
 ## Pulse animation settings
 const HIGHLIGHT_PULSE_MIN_ALPHA: float = 0.5
 const HIGHLIGHT_PULSE_MAX_ALPHA: float = 1.0
@@ -504,10 +511,56 @@ func highlight_targets(target_cells: Array[Vector2i]) -> void:
 	highlight_cells(target_cells, HIGHLIGHT_YELLOW)
 
 
+## Show AoE borders around cells (SF2-style white outlines)
+## Uses white rectangular borders instead of filled tiles for better visibility
+func show_aoe_borders(cells: Array[Vector2i]) -> void:
+	# Clear existing borders first
+	clear_aoe_borders()
+
+	if cells.is_empty():
+		return
+
+	# Create container if needed
+	if _aoe_border_container == null:
+		_aoe_border_container = Node2D.new()
+		_aoe_border_container.name = "AoEBorderContainer"
+		_aoe_border_container.z_index = 10  # Above tiles, below units
+
+	# Add to scene if not already - use highlight layer's parent as the container
+	if not _aoe_border_container.get_parent() and _highlight_layer:
+		var parent: Node = _highlight_layer.get_parent()
+		if parent:
+			parent.add_child(_aoe_border_container)
+
+	# Get tile size
+	var tile_size: int = grid.cell_size if grid else DEFAULT_TILE_SIZE
+
+	# Create border rectangles for each cell
+	for cell in cells:
+		if not grid or grid.is_within_bounds(cell):
+			var border: ReferenceRect = ReferenceRect.new()
+			border.position = Vector2(cell.x * tile_size, cell.y * tile_size)
+			border.size = Vector2(tile_size, tile_size)
+			border.border_color = AOE_BORDER_COLOR
+			border.border_width = AOE_BORDER_WIDTH
+			border.editor_only = false
+			_aoe_border_container.add_child(border)
+
+
+## Clear AoE border highlights
+func clear_aoe_borders() -> void:
+	if _aoe_border_container:
+		for child in _aoe_border_container.get_children():
+			child.queue_free()
+
+
 ## Clear all cell highlights
 func clear_highlights() -> void:
 	# Stop pulse animation
 	_stop_highlight_pulse()
+
+	# Clear AoE borders
+	clear_aoe_borders()
 
 	if _highlight_layer == null:
 		return

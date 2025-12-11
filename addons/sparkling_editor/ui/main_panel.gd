@@ -660,4 +660,36 @@ func _create_mod_structure(mod_id: String, mod_name: String, author: String, des
 	file.store_string(JSON.stringify(mod_json, "\t"))
 	file.close()
 
+	# Create default NewGameConfigData so modders have a starting point
+	_create_default_new_game_config(mod_path, mod_name)
+
 	return true
+
+
+## Create a default NewGameConfigData for a new mod
+## This ensures modders don't have to manually create one to have their party used
+func _create_default_new_game_config(mod_path: String, mod_name: String) -> void:
+	var config_path: String = mod_path + "data/new_game_configs/default_config.tres"
+
+	# Use preload to get the script reference
+	var config_script: GDScript = preload("res://core/resources/new_game_config_data.gd")
+	var config: Resource = config_script.new()
+
+	# Set default values
+	config.config_id = "default"
+	config.config_name = mod_name + " Default"
+	config.config_description = "Default starting configuration for " + mod_name + ". Customize starting conditions here."
+	config.is_default = true
+	config.starting_campaign_id = ""
+	config.starting_location_label = ""
+	config.starting_gold = 0
+	config.starting_depot_items = []
+	config.starting_story_flags = {}
+	config.starting_party_id = ""  # Empty = uses auto-detect from character flags
+	config.caravan_unlocked = false
+
+	var save_err: Error = ResourceSaver.save(config, config_path)
+	if save_err != OK:
+		push_warning("Failed to create default NewGameConfigData: " + error_string(save_err))
+	else:
+		print("[SparklingEditor] Created default NewGameConfigData for mod")

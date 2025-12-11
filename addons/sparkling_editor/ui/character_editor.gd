@@ -587,8 +587,9 @@ func _apply_filter() -> void:
 	# Clear and rebuild list with only matching items
 	resource_list.clear()
 
-	for i in range(available_resources.size()):
-		var character: CharacterData = available_resources[i] as CharacterData
+	# Use all_resources to maintain index alignment with all_resource_source_mods
+	for i in range(all_resources.size()):
+		var character: CharacterData = all_resources[i] as CharacterData
 		if not character:
 			continue
 
@@ -596,9 +597,16 @@ func _apply_filter() -> void:
 		var matches_filter: bool = (current_filter == "all") or (character.unit_category == current_filter)
 
 		if matches_filter:
-			resource_list.add_item(_get_resource_display_name(character))
-			# Store the original resource index so we can find the right resource
-			var original_path: String = character.resource_path
+			# Get source mod for this resource (same as base class)
+			var source_mod: String = all_resource_source_mods[i] if i < all_resource_source_mods.size() else ""
+			var display_name: String = _get_resource_display_name(character)
+
+			# Format: [mod_id] Resource Name (matches base class format)
+			var list_text: String = "[%s] %s" % [source_mod, display_name] if not source_mod.is_empty() else display_name
+			resource_list.add_item(list_text)
+
+			# Store the original resource path so we can find the right resource
+			var original_path: String = all_resource_paths[i] if i < all_resource_paths.size() else character.resource_path
 			resource_list.set_item_metadata(resource_list.item_count - 1, original_path)
 
 			# Restore selection if this was the previously selected item

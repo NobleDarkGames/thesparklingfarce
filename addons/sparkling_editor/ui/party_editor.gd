@@ -60,22 +60,38 @@ var party_info_label: RichTextLabel
 # Available characters for selection (used by both tabs)
 var available_characters: Array[CharacterData] = []
 
+# ============================================================================
+# PHASE 7: DEFAULT PARTY WORKFLOW
+# ============================================================================
+
+# "Set as Default Starting Party" button
+var set_default_party_button: Button
+
+# Badge tracking - which parties are referenced by default configs
+var default_party_ids: Array[String] = []
+var active_default_party_id: String = ""
+
 
 func _ready() -> void:
 	resource_type_name = "Party"
 	resource_type_id = "party"
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
-	resource_dependencies = ["character"]
+	resource_dependencies = ["character", "new_game_config"]
 	super._ready()
 	_load_available_characters()
+	_load_default_party_info()
 
 
 ## Override: Called when dependent resource types change (via base class)
-func _on_dependencies_changed(_changed_type: String) -> void:
+func _on_dependencies_changed(changed_type: String) -> void:
 	# Reload character data when any character is created/saved/deleted
 	_load_available_characters()
 	_refresh_player_party()
 	_refresh_available_characters()
+	# Refresh default party info when configs change
+	if changed_type == "new_game_config":
+		_load_default_party_info()
+		_apply_filter()  # Refresh list to update badges
 
 
 # ============================================================================
@@ -797,11 +813,21 @@ func _create_new_resource() -> Resource:
 
 
 ## Override: Get display name from resource
+## Phase 7.3: Shows [ACTIVE DEFAULT] badge for the party that will be used at game start
 func _get_resource_display_name(resource: Resource) -> String:
 	var party: PartyData = resource as PartyData
 	if party:
 		var member_count: int = party.get_member_count()
-		return "%s (%d/%d)" % [party.party_name, member_count, party.max_size]
+		var base_name: String = "%s (%d/%d)" % [party.party_name, member_count, party.max_size]
+
+		# Phase 7.3: Add badge if this is the active default starting party
+		var party_id: String = resource.resource_path.get_file().get_basename()
+		if party_id == active_default_party_id:
+			return base_name + " [ACTIVE DEFAULT]"
+		elif party_id in default_party_ids:
+			return base_name + " [DEFAULT]"
+
+		return base_name
 	return "Unnamed Party"
 
 
@@ -863,6 +889,9 @@ func _add_party_members_section() -> void:
 	template_parties_panel.add_child(add_member_button)
 
 	_add_separator_to_panel(template_parties_panel)
+
+	# Phase 7.2: "Set as Default Starting Party" button
+	_add_default_party_section()
 
 
 ## Load all available characters from ALL loaded mods
@@ -1157,3 +1186,223 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 	if file:
 		file.store_string(json_string)
 		file.close()
+
+
+# ============================================================================
+# PHASE 7: DEFAULT PARTY WORKFLOW
+# ============================================================================
+
+## Add the "Set as Default Starting Party" section to Template Parties tab
+func _add_default_party_section() -> void:
+	var section_label: Label = Label.new()
+	section_label.text = "New Game Configuration"
+	section_label.add_theme_font_size_override("font_size", 16)
+	template_parties_panel.add_child(section_label)
+
+	var help_label: Label = Label.new()
+	help_label.text = "Configure this party as the default starting party for new games in your mod."
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	template_parties_panel.add_child(help_label)
+
+	set_default_party_button = Button.new()
+	set_default_party_button.text = "Set as Default Starting Party"
+	set_default_party_button.tooltip_text = "Set this party as the starting party for new games in your mod's NewGameConfigData"
+	set_default_party_button.pressed.connect(_on_set_default_party)
+	template_parties_panel.add_child(set_default_party_button)
+
+	_add_separator_to_panel(template_parties_panel)
+
+
+## Load information about which parties are set as defaults in configs
+func _load_default_party_info() -> void:
+	default_party_ids.clear()
+	active_default_party_id = ""
+
+	if not ModLoader or not ModLoader.registry:
+		return
+
+	# Get all NewGameConfigData resources
+	var all_configs: Array[Resource] = ModLoader.registry.get_all_resources("new_game_config")
+
+	# Track the highest priority default config
+	var highest_priority: int = -1
+	var highest_priority_party_id: String = ""
+
+	for config: Resource in all_configs:
+		if not config is NewGameConfigData:
+			continue
+
+		var ngc: NewGameConfigData = config as NewGameConfigData
+		if ngc.starting_party_id.is_empty():
+			continue
+
+		# Track all configs that reference parties
+		if ngc.starting_party_id not in default_party_ids:
+			default_party_ids.append(ngc.starting_party_id)
+
+		# Find the active default (highest priority mod with is_default = true)
+		if ngc.is_default:
+			var source_mod: String = ModLoader.registry.get_resource_source(ngc.config_id)
+			var mod_manifest: ModManifest = ModLoader.get_mod(source_mod) if source_mod else null
+			var priority: int = mod_manifest.load_priority if mod_manifest else 0
+
+			if priority > highest_priority:
+				highest_priority = priority
+				highest_priority_party_id = ngc.starting_party_id
+
+	active_default_party_id = highest_priority_party_id
+
+
+## Handle "Set as Default Starting Party" button press
+func _on_set_default_party() -> void:
+	if not current_resource:
+		_show_error("No party selected")
+		return
+
+	var party: PartyData = current_resource as PartyData
+	if not party:
+		_show_error("Invalid party resource")
+		return
+
+	if not ModLoader:
+		_show_error("ModLoader not available")
+		return
+
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		_show_error("No active mod selected")
+		return
+
+	# Get the party's ID (filename)
+	var party_id: String = current_resource.resource_path.get_file().get_basename()
+
+	# Find or create the mod's default NewGameConfigData
+	var config: NewGameConfigData = _get_or_create_default_config(active_mod)
+	if not config:
+		_show_error("Failed to get or create default config")
+		return
+
+	# Update the config
+	config.starting_party_id = party_id
+	config.is_default = true
+
+	# Save the config
+	var config_path: String = config.resource_path
+	if config_path.is_empty():
+		# New config - need to save to a file
+		var config_dir: String = "res://mods/%s/data/new_game_configs/" % active_mod.mod_id
+		# Ensure directory exists
+		DirAccess.make_dir_recursive_absolute(config_dir)
+		config_path = config_dir.path_join("default_config.tres")
+
+	var err: Error = ResourceSaver.save(config, config_path)
+	if err == OK:
+		# Update registry
+		var config_id: String = config_path.get_file().get_basename()
+		if ModLoader.registry:
+			ModLoader.registry.register_resource(config, "new_game_config", config_id, active_mod.mod_id)
+
+		# Notify other editors
+		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+		if event_bus:
+			event_bus.notify_resource_saved("new_game_config", config_path, config)
+
+		# Refresh our default party info
+		_load_default_party_info()
+		_apply_filter()  # Refresh list to update badges
+
+		_show_success_message("Party '%s' set as default starting party!" % party.party_name)
+	else:
+		_show_error("Failed to save config: " + error_string(err))
+
+
+## Get or create the default NewGameConfigData for the active mod
+func _get_or_create_default_config(active_mod: ModManifest) -> NewGameConfigData:
+	var config_dir: String = "res://mods/%s/data/new_game_configs/" % active_mod.mod_id
+
+	# First, look for an existing default config in this mod
+	var dir: DirAccess = DirAccess.open(config_dir)
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".tres"):
+				var full_path: String = config_dir.path_join(file_name)
+				var resource: Resource = load(full_path)
+				if resource is NewGameConfigData:
+					var config: NewGameConfigData = resource as NewGameConfigData
+					if config.is_default:
+						# Found existing default - use it
+						return config
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	# No existing default found - look for any config to use
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".tres"):
+				var full_path: String = config_dir.path_join(file_name)
+				var resource: Resource = load(full_path)
+				if resource is NewGameConfigData:
+					# Use this config and make it default
+					return resource as NewGameConfigData
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	# No configs exist - create a new one
+	var config: NewGameConfigData = NewGameConfigData.new()
+	config.config_id = "default"
+	config.config_name = active_mod.mod_name + " Default"
+	config.config_description = "Default starting configuration for " + active_mod.mod_name
+	config.is_default = true
+	config.starting_location_label = "Prologue"
+	config.starting_gold = 0
+	config.starting_depot_items = []
+	config.starting_story_flags = {}
+	config.caravan_unlocked = false
+
+	return config
+
+
+## Show success message (wrapper for base class)
+func _show_success_message(message: String) -> void:
+	# Use the push_warning for now - could be enhanced with a proper UI popup
+	print("[PartyEditor] " + message)
+	# If we have the error panel, use it with success styling
+	if error_panel and error_label:
+		var success_color: Color = EditorThemeUtils.get_success_color()
+		error_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
+
+		# Apply success panel style
+		var success_style: StyleBoxFlat = EditorThemeUtils.create_success_panel_style()
+		error_panel.add_theme_stylebox_override("panel", success_style)
+
+		# Insert error panel just before button_container
+		if error_panel.get_parent() != detail_panel:
+			detail_panel.add_child(error_panel)
+		var button_index: int = button_container.get_index()
+		detail_panel.move_child(error_panel, button_index)
+
+		error_panel.show()
+
+		# Auto-dismiss after 3 seconds
+		var tween: Tween = create_tween()
+		tween.tween_interval(3.0)
+		tween.tween_callback(_hide_success_panel)
+
+
+## Hide success panel and restore error styling
+func _hide_success_panel() -> void:
+	if error_panel:
+		error_panel.hide()
+	if error_label:
+		error_label.text = ""
+
+	# Restore error styling for next use
+	if error_panel:
+		var error_style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
+		error_panel.add_theme_stylebox_override("panel", error_style)

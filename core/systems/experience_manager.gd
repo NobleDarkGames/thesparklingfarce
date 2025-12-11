@@ -398,8 +398,8 @@ func apply_level_up(unit: Node2D) -> Dictionary:
 				"luck":
 					unit.stats.luck += increase
 
-	# Check for ability learning
-	var learned_abilities: Array[Resource] = _check_learned_abilities(unit, new_level, class_data)
+	# Check for ability learning (pass old_level to detect newly unlocked abilities)
+	var learned_abilities: Array[Resource] = _check_learned_abilities(unit, old_level, new_level, class_data)
 	if not learned_abilities.is_empty():
 		stat_increases["abilities"] = learned_abilities
 
@@ -428,39 +428,68 @@ func _calculate_stat_increase(growth_rate: int) -> int:
 ## Check if unit learns abilities at this level.
 ##
 ## @param unit: Unit that leveled up
+## @param old_level: Previous level before level-up
 ## @param new_level: New level reached
 ## @param class_data: ClassData with learnable abilities
 ## @return: Array of learned AbilityData
-func _check_learned_abilities(unit: Node2D, new_level: int, class_data: ClassData) -> Array[Resource]:
+func _check_learned_abilities(unit: Node2D, old_level: int, new_level: int, class_data: ClassData) -> Array[Resource]:
 	var learned: Array[Resource] = []
 
-	# Check if class has learnable_abilities dictionary
-	if "learnable_abilities" not in class_data:
-		return learned
+	# ==========================================================================
+	# NEW SYSTEM: Check ability_unlock_levels (preferred)
+	# Compare abilities unlocked at old_level vs new_level
+	# ==========================================================================
+	if class_data.class_abilities.size() > 0:
+		var old_abilities: Array[AbilityData] = class_data.get_unlocked_class_abilities(old_level)
+		var new_abilities: Array[AbilityData] = class_data.get_unlocked_class_abilities(new_level)
 
-	var learnable_abilities_raw: Variant = class_data.learnable_abilities
-	if learnable_abilities_raw == null or not learnable_abilities_raw is Dictionary:
-		return learned
+		# Find abilities that are in new but not in old
+		for ability: AbilityData in new_abilities:
+			if ability == null:
+				continue
 
-	var learnable_abilities: Dictionary = learnable_abilities_raw as Dictionary
+			var was_unlocked: bool = false
+			for old_ability: AbilityData in old_abilities:
+				if old_ability and old_ability.ability_id == ability.ability_id:
+					was_unlocked = true
+					break
 
-	# Check if this level has abilities
-	if new_level in learnable_abilities:
-		var abilities: Variant = learnable_abilities[new_level]
-
-		# Handle both single ability and array of abilities
-		if abilities is Array:
-			for ability: Resource in abilities:
-				if unit.has_method("add_ability"):
-					unit.add_ability(ability)
+			if not was_unlocked:
+				# This is a newly unlocked ability!
 				learned.append(ability)
 				unit_learned_ability.emit(unit, ability)
-		else:
-			# Single ability
-			if unit.has_method("add_ability"):
-				unit.add_ability(abilities)
-			learned.append(abilities)
-			unit_learned_ability.emit(unit, abilities)
+				print("[ExperienceManager] %s learned %s at level %d!" % [
+					unit.get_display_name() if unit.has_method("get_display_name") else "Unit",
+					ability.ability_name,
+					new_level
+				])
+
+	# ==========================================================================
+	# LEGACY SYSTEM: Check learnable_abilities dictionary (deprecated)
+	# Kept for backward compatibility with older data
+	# ==========================================================================
+	if "learnable_abilities" in class_data:
+		var learnable_abilities_raw: Variant = class_data.learnable_abilities
+		if learnable_abilities_raw != null and learnable_abilities_raw is Dictionary:
+			var learnable_abilities: Dictionary = learnable_abilities_raw as Dictionary
+
+			# Check if this level has abilities
+			if new_level in learnable_abilities:
+				var abilities: Variant = learnable_abilities[new_level]
+
+				# Handle both single ability and array of abilities
+				if abilities is Array:
+					for ability: Resource in abilities:
+						if unit.has_method("add_ability"):
+							unit.add_ability(ability)
+						learned.append(ability)
+						unit_learned_ability.emit(unit, ability)
+				else:
+					# Single ability
+					if unit.has_method("add_ability"):
+						unit.add_ability(abilities)
+					learned.append(abilities)
+					unit_learned_ability.emit(unit, abilities)
 
 	return learned
 

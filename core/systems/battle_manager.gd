@@ -655,38 +655,109 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 	# Refresh stats panel to show updated MP
 	InputManager.refresh_stats_panel()
 
-	# Apply the spell effect based on type
-	var effect_applied: bool = false
-	match ability.ability_type:
-		AbilityData.AbilityType.HEAL:
-			effect_applied = await _apply_spell_heal(caster, target, ability)
-		AbilityData.AbilityType.ATTACK:
-			effect_applied = await _apply_spell_damage(caster, target, ability)
-		AbilityData.AbilityType.SUPPORT:
-			# TODO: Implement buff effects
-			push_warning("BattleManager: Support spell effects not yet implemented")
-			effect_applied = false
-		AbilityData.AbilityType.DEBUFF:
-			# TODO: Implement debuff effects
-			push_warning("BattleManager: Debuff spell effects not yet implemented")
-			effect_applied = false
-		AbilityData.AbilityType.STATUS:
-			# TODO: Implement status effects
-			push_warning("BattleManager: Status spell effects not yet implemented")
-			effect_applied = false
-		_:
-			push_warning("BattleManager: Unknown spell type")
-			effect_applied = false
+	# Get all targets (single target or AoE)
+	var targets: Array[Node2D] = _get_spell_targets(caster, target, ability)
 
-	if effect_applied:
-		# Award XP for spell casting (SF2-authentic: casters get XP for casting)
-		_award_spell_xp(caster, target, ability)
+	if targets.is_empty():
+		push_warning("BattleManager: No valid targets for spell '%s'" % ability_id)
+		InputManager.reset_to_waiting()
+		TurnManager.end_unit_turn(caster)
+		return
+
+	# Apply the spell effect to all targets
+	var any_effect_applied: bool = false
+	for spell_target: Node2D in targets:
+		var effect_applied: bool = false
+
+		match ability.ability_type:
+			AbilityData.AbilityType.HEAL:
+				effect_applied = await _apply_spell_heal(caster, spell_target, ability)
+			AbilityData.AbilityType.ATTACK:
+				effect_applied = await _apply_spell_damage(caster, spell_target, ability)
+			AbilityData.AbilityType.SUPPORT:
+				# TODO: Implement buff effects
+				push_warning("BattleManager: Support spell effects not yet implemented")
+				effect_applied = false
+			AbilityData.AbilityType.DEBUFF:
+				# TODO: Implement debuff effects
+				push_warning("BattleManager: Debuff spell effects not yet implemented")
+				effect_applied = false
+			AbilityData.AbilityType.STATUS:
+				# TODO: Implement status effects
+				push_warning("BattleManager: Status spell effects not yet implemented")
+				effect_applied = false
+			_:
+				push_warning("BattleManager: Unknown spell type")
+				effect_applied = false
+
+		if effect_applied:
+			# Award XP for each target hit (SF2-authentic: casters get XP per target)
+			_award_spell_xp(caster, spell_target, ability)
+			any_effect_applied = true
 
 	# Reset InputManager to waiting state
 	InputManager.reset_to_waiting()
 
 	# End caster's turn
 	TurnManager.end_unit_turn(caster)
+
+
+## Get all targets for a spell (handles single-target and AoE)
+## Returns array of valid targets based on spell's area_of_effect and target_type
+func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityData) -> Array[Node2D]:
+	var targets: Array[Node2D] = []
+
+	# Single target (no AoE)
+	if ability.area_of_effect <= 0:
+		if center_target and center_target.is_alive():
+			targets.append(center_target)
+		return targets
+
+	# AoE - find all units in radius around the center target
+	var center_cell: Vector2i = center_target.grid_position
+
+	# Get all cells in AoE radius (Manhattan distance for SF-style grid)
+	for dx in range(-ability.area_of_effect, ability.area_of_effect + 1):
+		for dy in range(-ability.area_of_effect, ability.area_of_effect + 1):
+			var manhattan_dist: int = absi(dx) + absi(dy)
+			if manhattan_dist <= ability.area_of_effect:
+				var cell: Vector2i = center_cell + Vector2i(dx, dy)
+				if GridManager.is_within_bounds(cell):
+					var unit: Node2D = GridManager.get_unit_at_cell(cell)
+					if unit and unit.is_alive() and _is_valid_spell_target(caster, unit, ability):
+						targets.append(unit)
+
+	# Log AoE targeting for debugging
+	if targets.size() > 1:
+		print("[BattleManager] AoE spell '%s' hits %d targets:" % [ability.ability_name, targets.size()])
+		for t: Node2D in targets:
+			print("  - %s at %s" % [t.get_display_name(), t.grid_position])
+
+	return targets
+
+
+## Check if a unit is a valid target for a spell (based on target_type)
+func _is_valid_spell_target(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+	if not target or not target.is_alive():
+		return false
+
+	match ability.target_type:
+		AbilityData.TargetType.SELF:
+			return target == caster
+		AbilityData.TargetType.SINGLE_ALLY, AbilityData.TargetType.ALL_ALLIES:
+			return target.faction == caster.faction
+		AbilityData.TargetType.SINGLE_ENEMY, AbilityData.TargetType.ALL_ENEMIES:
+			return target.faction != caster.faction
+		AbilityData.TargetType.AREA:
+			# Area spells can hit anyone (damage enemies, heal allies based on spell type)
+			if ability.ability_type == AbilityData.AbilityType.HEAL:
+				return target.faction == caster.faction
+			elif ability.ability_type == AbilityData.AbilityType.ATTACK:
+				return target.faction != caster.faction
+			else:
+				return true  # Other types: allow all
+		_:
+			return true
 
 
 ## Apply healing spell effect via combat screen

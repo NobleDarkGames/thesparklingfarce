@@ -184,6 +184,12 @@ func _new_game(slot_num: int) -> void:
 	# Get new game configuration from mods (highest-priority mod's default config)
 	var config: NewGameConfigData = ModLoader.get_new_game_config()
 
+	# DEBUG: Trace config resolution
+	print("[DEBUG] NewGameConfig resolved: %s" % (config.config_id if config else "NULL"))
+	if config:
+		print("[DEBUG]   config.starting_party_id = '%s'" % config.starting_party_id)
+		print("[DEBUG]   Available party resources: %s" % ModLoader.registry.get_resource_ids("party"))
+
 	# Create a new save with configuration values (or defaults)
 	var save_data: SaveData = SaveData.new()
 	save_data.slot_number = slot_num
@@ -214,7 +220,9 @@ func _new_game(slot_num: int) -> void:
 	var party_characters: Array[CharacterData] = []
 	if config and not config.starting_party_id.is_empty():
 		# Use explicit party from config (completely replaces default party resolution)
+		print("[DEBUG] Looking up party: '%s'" % config.starting_party_id)
 		var party_data: PartyData = ModLoader.registry.get_resource("party", config.starting_party_id)
+		print("[DEBUG] Party lookup result: %s" % (party_data.party_name if party_data else "NULL"))
 		if party_data:
 			for member_dict: Dictionary in party_data.members:
 				if "character" in member_dict and member_dict.character:

@@ -1,13 +1,14 @@
 # Sparkling Editor Expansion Plan
 
-**Status:** Complete (All Phases Done)
+**Status:** Phases 1-6 Complete, Phase 7.1-7.4 Complete, Phase 7.5-7.6 Planned
 **Priority:** High - Critical for modder accessibility
 **Dependencies:** Phase 2.5.1 complete (mod extensibility)
 **Target:** Before Phase 5 (advanced systems)
-**Estimated Effort:** 11.5-17 days total
+**Estimated Effort:** 11.5-17 days (Phases 1-6) + 3.75 days (Phase 7)
 **Created:** December 3, 2025
-**Last Verified:** December 3, 2025
+**Last Verified:** December 11, 2025
 **Approved:** December 3, 2025 (Captain Obvious, with O'Brien architectural review)
+**Phase 7 Added:** December 11, 2025 (Party/Config workflow improvements)
 
 ---
 
@@ -23,6 +24,12 @@
 | 4 | CampaignData editor | ✅ Complete | `cf9375c` | GraphEdit visual node graph with color-coding |
 | 5 | Dynamic tab registration | ✅ Complete | `1e5eb99` | Mods can add custom editor tabs via mod.json |
 | 6 | UX polish | ✅ Complete | (staged) | Search/filter, keyboard shortcuts (Ctrl+S/N) |
+| 7.1 | Auto-create default config | ✅ Complete | (staged) | Mod wizard creates NewGameConfigData |
+| 7.2 | "Set as Default" button | ✅ Complete | (staged) | One-click party assignment in party_editor |
+| 7.3 | Resource list badges | ✅ Complete | (staged) | [ACTIVE DEFAULT] visual indicators |
+| 7.4 | Preview config panel | ✅ Complete | (staged) | Shows effective party at game start |
+| 7.5 | Character party status | 📋 Planned | - | Info when is_default_party_member checked |
+| 7.6 | Template config file | 📋 Planned | - | Example in _template mod |
 
 ---
 
@@ -756,3 +763,565 @@ If GraphEdit proves unstable for Campaign Editor, have fallback options ready:
 - Tree-based view (Godot's Tree node is more stable)
 - Table-based view with connection columns
 - Export to/Import from external graph tools
+
+---
+
+## Appendix D: Unified Texture/Sprite Picker Architecture (Ed's Design)
+
+**Created:** December 10, 2025
+**Purpose:** Reusable component architecture for picking portraits, battle sprites, and map spritesheets
+
+### The Problem
+
+The Sparkling Farce platform requires three distinct texture/sprite asset types:
+
+| Asset Type | Format | Animation | Validation | Use Case |
+|------------|--------|-----------|------------|----------|
+| **Portrait** | Single PNG/WebP | None | Dimensions vary, 2:1 to 1:1 aspect recommended | Dialog boxes, character info |
+| **Battle Sprite** | Single PNG/WebP | None | Should be 32x32 or 64x64 for grid consistency | Tactical battle grid units |
+| **Map Spritesheet** | PNG spritesheet | Yes (SpriteFrames) | Must be 64x128 (2 cols x 4 rows of 32x32) | Overworld/town exploration |
+
+All three need:
+- Mod-aware file browsing (scan all mods, show `[mod_id]` prefix)
+- Preview panel showing the selected asset
+- Path validation (file exists, correct format)
+- Integration with EditorFileDialog
+
+But they differ in:
+- Validation rules (dimensions, grid layout)
+- Preview rendering (static vs animated)
+- Output (Texture2D vs SpriteFrames resource path)
+
+### Design Philosophy
+
+Like the universal translator handles dozens of languages through a common protocol with language-specific modules, we design a **base picker** with **specialized configurations**.
+
+### Component Hierarchy
+
+```
+TexturePickerBase (abstract/shared)
+├── PortraitPicker (static, flexible dimensions)
+├── BattleSpritePicker (static, grid-constrained)
+└── MapSpritesheetPicker (animated, strict grid layout)
+```
+
+### Shared Infrastructure
+
+#### TexturePickerBase
+
+A reusable HBoxContainer component providing:
+
+```gdscript
+@tool
+class_name TexturePickerBase
+extends HBoxContainer
+
+## Signals
+signal texture_selected(path: String, texture: Texture2D)
+signal texture_cleared()
+signal validation_changed(is_valid: bool, message: String)
+
+## Configuration (set by subclasses or exports)
+@export var label_text: String = "Texture:"
+@export var label_min_width: float = 120.0
+@export var placeholder_text: String = "res://mods/<mod>/assets/..."
+@export var preview_size: Vector2 = Vector2(48, 48)
+@export var file_filters: PackedStringArray = ["*.png ; PNG", "*.webp ; WebP"]
+@export var default_browse_subpath: String = "assets/"
+
+## Internal state
+var _current_path: String = ""
+var _is_valid: bool = false
+
+## UI Components (created in _setup_ui)
+var _label: Label
+var _preview_panel: PanelContainer
+var _preview_rect: TextureRect  # or AnimatedSprite2D for spritesheets
+var _path_edit: LineEdit
+var _browse_button: Button
+var _clear_button: Button
+var _validation_icon: TextureRect  # green check / red X
+var _file_dialog: EditorFileDialog
+```
+
+**Key Methods:**
+
+```gdscript
+## Override in subclasses for custom validation
+func _validate_texture(path: String, texture: Texture2D) -> Dictionary:
+    # Returns { "valid": bool, "message": String }
+    # Base implementation: just checks file exists
+    return { "valid": texture != null, "message": "" if texture else "File not found" }
+
+## Override for custom preview rendering
+func _update_preview(texture: Texture2D) -> void:
+    _preview_rect.texture = texture
+
+## Public API
+func set_texture_path(path: String) -> void
+func get_texture_path() -> String
+func get_texture() -> Texture2D
+func is_valid() -> bool
+func clear() -> void
+```
+
+#### Shared Preview Panel
+
+All pickers use a common preview panel style:
+
+```gdscript
+func _create_preview_panel() -> PanelContainer:
+    var panel: PanelContainer = PanelContainer.new()
+    panel.custom_minimum_size = preview_size + Vector2(8, 8)  # padding
+
+    var style: StyleBoxFlat = StyleBoxFlat.new()
+    style.bg_color = Color(0.12, 0.12, 0.15)
+    style.border_color = Color(0.3, 0.3, 0.35)
+    style.set_border_width_all(1)
+    style.set_corner_radius_all(4)
+    style.set_content_margin_all(4)
+    panel.add_theme_stylebox_override("panel", style)
+
+    return panel
+```
+
+#### Mod-Aware Browse Dialog
+
+The browse button opens to the active mod's appropriate asset directory:
+
+```gdscript
+func _get_default_browse_path() -> String:
+    if not ModLoader:
+        return "res://mods/"
+
+    var active_mod: ModManifest = ModLoader.get_active_mod()
+    if not active_mod:
+        return "res://mods/"
+
+    # Subclass-specific subpath (e.g., "assets/portraits/", "art/sprites/")
+    var path: String = "res://mods/%s/%s" % [active_mod.mod_id, default_browse_subpath]
+
+    # Create directory if it doesn't exist
+    if not DirAccess.dir_exists_absolute(path):
+        DirAccess.make_dir_recursive_absolute(path)
+
+    return path
+```
+
+### Specialized Subclasses
+
+#### PortraitPicker
+
+```gdscript
+@tool
+class_name PortraitPicker
+extends TexturePickerBase
+
+## Portrait-specific configuration
+func _init() -> void:
+    label_text = "Portrait:"
+    placeholder_text = "res://mods/<mod>/assets/portraits/..."
+    preview_size = Vector2(64, 64)  # Larger preview for portraits
+    default_browse_subpath = "assets/portraits/"
+
+## Portrait validation: flexible, just warn on unusual aspect ratios
+func _validate_texture(path: String, texture: Texture2D) -> Dictionary:
+    if texture == null:
+        return { "valid": false, "message": "File not found" }
+
+    var size: Vector2 = texture.get_size()
+    var aspect: float = size.x / size.y
+
+    # Warn but don't fail on unusual aspects
+    if aspect < 0.5 or aspect > 2.0:
+        return { "valid": true, "message": "Unusual aspect ratio (%.1f:1)" % aspect }
+
+    return { "valid": true, "message": "" }
+```
+
+#### BattleSpritePicker
+
+```gdscript
+@tool
+class_name BattleSpritePicker
+extends TexturePickerBase
+
+## Expected dimensions for battle sprites
+const VALID_SIZES: Array[Vector2i] = [Vector2i(32, 32), Vector2i(64, 64)]
+
+func _init() -> void:
+    label_text = "Battle Sprite:"
+    placeholder_text = "res://mods/<mod>/assets/battle_sprites/..."
+    preview_size = Vector2(48, 48)
+    default_browse_subpath = "assets/battle_sprites/"
+
+## Battle sprite validation: strict size requirements
+func _validate_texture(path: String, texture: Texture2D) -> Dictionary:
+    if texture == null:
+        return { "valid": false, "message": "File not found" }
+
+    var size: Vector2i = Vector2i(texture.get_size())
+
+    if size in VALID_SIZES:
+        return { "valid": true, "message": "" }
+
+    # Warn on non-standard sizes
+    return {
+        "valid": true,  # Allow but warn
+        "message": "Non-standard size %dx%d (expected 32x32 or 64x64)" % [size.x, size.y]
+    }
+```
+
+#### MapSpritesheetPicker
+
+This is the most complex picker - it needs to validate spritesheet layout AND optionally generate SpriteFrames.
+
+```gdscript
+@tool
+class_name MapSpritesheetPicker
+extends TexturePickerBase
+
+## Spritesheet requirements (matches generate_map_sprite_frames.gd)
+const FRAME_SIZE: Vector2i = Vector2i(32, 32)
+const EXPECTED_COLS: int = 2  # 2 frames per animation
+const EXPECTED_ROWS: int = 4  # down, left, right, up
+const EXPECTED_SIZE: Vector2i = Vector2i(64, 128)  # 2*32 x 4*32
+
+## Signals
+signal sprite_frames_generated(sprite_frames_path: String)
+
+## Additional state
+var _sprite_frames_path: String = ""
+var _generate_button: Button
+var _animated_preview: AnimatedSprite2D  # replaces static TextureRect
+
+func _init() -> void:
+    label_text = "Map Spritesheet:"
+    placeholder_text = "res://mods/<mod>/art/sprites/hero_spritesheet.png"
+    preview_size = Vector2(64, 64)  # Show animated preview
+    default_browse_subpath = "art/sprites/"
+    file_filters = PackedStringArray(["*.png ; PNG Spritesheet"])
+
+## Override to use AnimatedSprite2D for preview
+func _create_preview_control() -> Control:
+    _animated_preview = AnimatedSprite2D.new()
+    _animated_preview.centered = true
+    # Will be configured when spritesheet is loaded
+    return _animated_preview
+
+## Strict validation for spritesheet layout
+func _validate_texture(path: String, texture: Texture2D) -> Dictionary:
+    if texture == null:
+        return { "valid": false, "message": "File not found" }
+
+    var size: Vector2i = Vector2i(texture.get_size())
+
+    if size != EXPECTED_SIZE:
+        return {
+            "valid": false,
+            "message": "Invalid spritesheet size: %dx%d (expected %dx%d for 2-frame walk cycle)" % [
+                size.x, size.y, EXPECTED_SIZE.x, EXPECTED_SIZE.y
+            ]
+        }
+
+    return { "valid": true, "message": "Valid spritesheet layout" }
+
+## Generate SpriteFrames resource from spritesheet
+func generate_sprite_frames(output_path: String) -> bool:
+    # Reuse logic from core/tools/generate_map_sprite_frames.gd
+    # Returns true on success, false on failure
+    pass
+
+## Update animated preview
+func _update_preview(texture: Texture2D) -> void:
+    if not _animated_preview or texture == null:
+        return
+
+    # Create temporary SpriteFrames for preview
+    var preview_frames: SpriteFrames = _create_preview_sprite_frames(texture)
+    _animated_preview.sprite_frames = preview_frames
+    _animated_preview.animation = "walk_down"
+    _animated_preview.play()
+```
+
+### UI Layout
+
+All three pickers share a common layout:
+
+```
+[Label: 120px] [Preview: 48-64px] [Path LineEdit: expand] [Browse] [Clear] [Validation Icon]
+```
+
+For MapSpritesheetPicker, add a "Generate SpriteFrames" button below:
+
+```
+[Label: 120px] [Preview: 64px] [Path LineEdit: expand] [Browse] [Clear] [Validation Icon]
+               [   Generate SpriteFrames   ]  [SpriteFrames path or "Not generated"]
+```
+
+### Integration with Character Editor
+
+The Character Editor's Appearance section would use all three:
+
+```gdscript
+## In character_editor.gd
+
+var portrait_picker: PortraitPicker
+var battle_sprite_picker: BattleSpritePicker
+var map_spritesheet_picker: MapSpritesheetPicker
+
+func _create_appearance_section() -> void:
+    var section: VBoxContainer = _create_section("Appearance")
+
+    # Portrait
+    portrait_picker = PortraitPicker.new()
+    portrait_picker.texture_selected.connect(_on_portrait_selected)
+    section.add_child(portrait_picker)
+
+    # Battle Sprite
+    battle_sprite_picker = BattleSpritePicker.new()
+    battle_sprite_picker.texture_selected.connect(_on_battle_sprite_selected)
+    section.add_child(battle_sprite_picker)
+
+    # Map Spritesheet (with SpriteFrames generation)
+    map_spritesheet_picker = MapSpritesheetPicker.new()
+    map_spritesheet_picker.texture_selected.connect(_on_spritesheet_selected)
+    map_spritesheet_picker.sprite_frames_generated.connect(_on_sprite_frames_generated)
+    section.add_child(map_spritesheet_picker)
+
+func _load_character_to_ui(character: CharacterData) -> void:
+    # ...
+    portrait_picker.set_texture_path(character.portrait.resource_path if character.portrait else "")
+    battle_sprite_picker.set_texture_path(character.battle_sprite.resource_path if character.battle_sprite else "")
+    map_spritesheet_picker.set_sprite_frames_path(character.map_sprite_frames.resource_path if character.map_sprite_frames else "")
+
+func _save_character_from_ui() -> void:
+    # ...
+    character.portrait = portrait_picker.get_texture()
+    character.battle_sprite = battle_sprite_picker.get_texture()
+    character.map_sprite_frames = load(map_spritesheet_picker.get_sprite_frames_path()) if map_spritesheet_picker.has_sprite_frames() else null
+```
+
+### Files to Create
+
+```
+addons/sparkling_editor/ui/components/
+    texture_picker_base.gd       # Shared infrastructure
+    portrait_picker.gd           # Static portrait selection
+    battle_sprite_picker.gd      # Static battle sprite selection
+    map_spritesheet_picker.gd    # Animated spritesheet + SpriteFrames generation
+```
+
+### Implementation Priority
+
+1. **TexturePickerBase** (0.5 days) - Foundation shared by all three
+2. **PortraitPicker** (0.25 days) - Simplest, just flexible dimensions
+3. **BattleSpritePicker** (0.25 days) - Adds size validation
+4. **MapSpritesheetPicker** (1 day) - Most complex: grid validation, animated preview, SpriteFrames generation
+5. **Character Editor Integration** (0.5 days) - Replace current manual texture fields
+
+**Total Estimated Effort:** 2.5 days
+
+### Future Extensibility
+
+This architecture can easily extend to support:
+- **Combat Animation Spritesheets**: Different grid layout (attack frames, cast frames, etc.)
+- **Item Icons**: 32x32 strict validation, batch import from icon sheets
+- **Tileset Textures**: Preview individual tiles from a tileset image
+- **Particle Textures**: Animated effect spritesheets
+
+### Clauderina Review Needed
+
+Before implementation, recommend UX review with Clauderina on:
+1. Validation feedback placement (inline vs tooltip vs popup)
+2. Animated preview behavior (auto-play vs hover-to-play vs click-to-play)
+3. SpriteFrames generation workflow (auto-generate on valid spritesheet vs manual button)
+4. Error state visual treatment (red border, shake animation, etc.)
+
+---
+
+## Appendix E: Phase 7 - Party/Config Workflow Improvements
+
+**Created:** December 11, 2025
+**Status:** 7.1-7.4 Complete, 7.5-7.6 Planned
+**Completed:** December 11, 2025 (Phases 7.1-7.4 by Ed)
+**Priority:** High - Critical pain point for new modders
+**Away Team:** Modro (architecture), Ed (implementation), Clauderina (UX)
+
+### Problem Statement
+
+New modders creating a starting party for their mod encounter significant friction:
+
+1. Must manually create `NewGameConfigData` with `is_default = true`
+2. Must know to name party file identically to base_game's (`default_party.tres`) to override
+3. Connection between `starting_party_id` and PartyData filename is non-obvious
+4. No visual feedback on which config/party will actually be used at game start
+5. Template mod missing `NewGameConfigData` example
+
+**Current Moddability Score:** 6/10 (Modro assessment)
+**Target Moddability Score:** 9/10
+
+### Root Cause Analysis
+
+The resource override system uses **filename as resource ID**:
+- `mods/_base_game/data/parties/default_party.tres` → ID: "default_party"
+- `mods/_sandbox/data/parties/my_party.tres` → ID: "my_party"
+
+For sandbox to override base_game's party, the file must be named `default_party.tres`.
+
+The `NewGameConfigData.starting_party_id` field references by filename, not by display name.
+
+### Approved Solutions
+
+#### Phase 7.1: Auto-Create Default NewGameConfigData (High Priority) - COMPLETE
+
+**File:** `addons/sparkling_editor/ui/main_panel.gd`
+
+When mod creation wizard runs, auto-create:
+```
+mods/<new_mod>/data/new_game_configs/default_config.tres
+```
+
+With contents:
+```gdscript
+config_id = "default"
+config_name = "Default"
+is_default = true
+starting_party_id = ""  # Uses auto-detect (character flags)
+```
+
+**Effort:** 0.5 days
+**Implementation:** `_create_default_new_game_config()` in main_panel.gd
+
+#### Phase 7.2: "Set as Default Starting Party" Button (High Priority) - COMPLETE
+
+**File:** `addons/sparkling_editor/ui/party_editor.gd`
+
+Add button to Party Templates editor that:
+1. Gets or creates the active mod's default `NewGameConfigData`
+2. Sets `starting_party_id` to selected party's filename
+3. Ensures `is_default = true`
+4. Shows success message
+
+**Effort:** 1 day
+**Implementation:**
+- `_add_default_party_section()` - Creates UI section with button
+- `_on_set_default_party()` - Handles button press
+- `_get_or_create_default_config()` - Finds/creates config
+- `_show_success_message()` - Visual feedback on success
+
+#### Phase 7.3: [ACTIVE DEFAULT] Badge in Resource Lists (Medium Priority) - COMPLETE
+
+**Files:**
+- `addons/sparkling_editor/ui/new_game_config_editor.gd`
+- `addons/sparkling_editor/ui/party_editor.gd`
+
+Display badges in resource list:
+- `[ACTIVE DEFAULT]` - This config/party will be used at game start
+- `[DEFAULT]` - Marked as default but overridden by higher-priority mod
+
+**Effort:** 0.5 days
+**Implementation:**
+- `_load_default_party_info()` / `_load_active_default_info()` - Track active defaults
+- `_get_resource_display_name()` override - Adds badges to list items
+- `resource_dependencies = ["new_game_config"]` - Auto-refresh when configs change
+
+#### Phase 7.4: Preview Configuration Panel (Medium Priority) - COMPLETE
+
+**File:** `addons/sparkling_editor/ui/new_game_config_editor.gd`
+
+Add collapsible "Preview Configuration" panel that shows:
+- Which config is actually active (considering mod priority)
+- List of party members that will be loaded
+- Warning if this config is overridden by a higher-priority mod
+- Starting gold and depot items count
+- Caravan unlock status
+
+**Effort:** 1 day
+**Implementation:**
+- `_add_preview_configuration_panel()` - Creates collapsible preview UI
+- `_update_preview_panel()` - Populates preview with active config data
+- `_get_active_default_config()` - Retrieves the effective config
+- `_get_auto_detected_party_members()` / `_get_party_template_members()` - Party preview
+
+#### Phase 7.5: Character Editor Party Status (Low Priority)
+
+**File:** `addons/sparkling_editor/ui/character_editor.gd`
+
+When `is_default_party_member` checkbox is checked, show info panel:
+- "This character will be included in the default starting party"
+- Whether active config uses auto-detect or explicit PartyData
+- Link to NewGameConfig editor
+
+**Effort:** 0.5 days
+
+#### Phase 7.6: Template Mod NewGameConfigData (Low Priority)
+
+**File:** `mods/_template/data/new_game_configs/default_config.tres`
+
+Create template file with comments explaining each field.
+
+**Effort:** 0.25 days
+
+### Implementation Priority
+
+| Priority | Task | Effort | Impact |
+|----------|------|--------|--------|
+| 1 | 7.1 Auto-create default config | 0.5 days | Eliminates most common mistake |
+| 2 | 7.2 "Set as Default" button | 1 day | One-click workflow |
+| 3 | 7.3 Resource list badges | 0.5 days | Visual clarity |
+| 4 | 7.4 Preview panel | 1 day | Debug capability |
+| 5 | 7.5 Character status panel | 0.5 days | Polish |
+| 6 | 7.6 Template file | 0.25 days | Documentation |
+
+**Total Estimated Effort:** 3.75 days
+
+### Ideal Workflow After Implementation
+
+**Simple Path (2 clicks):**
+1. Create party in Party Templates tab
+2. Click "Set as Default Starting Party"
+3. Done - party is configured and will be used
+
+**Current Path (5+ steps):**
+1. Create party
+2. Note the filename
+3. Go to New Game Configs tab
+4. Create NewGameConfigData
+5. Check `is_default`
+6. Select party from dropdown
+7. Save
+
+### Success Criteria
+
+- [ ] New mod creation includes default `NewGameConfigData`
+- [ ] Party Templates has "Set as Default Starting Party" button
+- [ ] Resource lists show which config/party is actually active
+- [ ] Preview panel shows effective party composition
+- [ ] Template mod includes example NewGameConfigData
+- [ ] Moddability score reaches 9/10
+
+### Files to Modify
+
+```
+addons/sparkling_editor/ui/
+    main_panel.gd              # Auto-create config in mod wizard
+    party_template_editor.gd   # "Set as Default" button, badges
+    new_game_config_editor.gd  # Preview panel, badges
+    character_editor.gd        # Party status panel
+
+mods/_template/data/
+    new_game_configs/
+        default_config.tres    # Template file (NEW)
+```
+
+### Verification Checklist
+
+After implementation, verify with fresh mod:
+1. [ ] Create new mod via wizard → default_config.tres exists
+2. [ ] Create character with `is_default_party_member = true`
+3. [ ] Create party with that character
+4. [ ] Click "Set as Default Starting Party"
+5. [ ] Start new game → correct party loads
+6. [ ] Badge shows [ACTIVE DEFAULT] in config list
+7. [ ] Preview shows correct party members

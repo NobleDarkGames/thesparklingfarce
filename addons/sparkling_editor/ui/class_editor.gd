@@ -114,8 +114,8 @@ func _load_resource_data() -> void:
 			var type_name: String = child.get_meta("equipment_type")
 			child.button_pressed = type_name in class_data.equippable_armor_types
 
-	# Load learnable abilities
-	_load_learnable_abilities(class_data.learnable_abilities)
+	# Load learnable abilities from class_abilities + ability_unlock_levels (new system)
+	_load_learnable_abilities_new(class_data)
 
 
 ## Override: Save UI data to resource
@@ -162,8 +162,8 @@ func _save_resource_data() -> void:
 			new_armor_types.append(type_name)
 	class_data.equippable_armor_types = new_armor_types
 
-	# Update learnable abilities
-	class_data.learnable_abilities = _collect_learnable_abilities()
+	# Update class_abilities and ability_unlock_levels (new system)
+	_save_learnable_abilities_new(class_data)
 
 
 ## Override: Validate resource before saving
@@ -472,7 +472,76 @@ func _add_learnable_abilities_section() -> void:
 	detail_panel.add_child(section)
 
 
-## Load learnable abilities from dictionary into UI
+## Load learnable abilities from NEW system (class_abilities + ability_unlock_levels)
+## The new system stores abilities in class_abilities array, with unlock levels in ability_unlock_levels dict
+func _load_learnable_abilities_new(class_data: ClassData) -> void:
+	# Clear existing rows
+	for child in learnable_abilities_container.get_children():
+		child.queue_free()
+
+	# Build level -> ability mapping from the new system
+	var abilities_by_level: Dictionary = {}  # level -> AbilityData
+
+	for ability: AbilityData in class_data.class_abilities:
+		if ability == null:
+			continue
+
+		# Get unlock level from ability_unlock_levels dict (keyed by ability_id)
+		var unlock_level: int = 1  # Default to level 1
+		if ability.ability_id in class_data.ability_unlock_levels:
+			unlock_level = class_data.ability_unlock_levels[ability.ability_id]
+
+		# Store by level (if multiple abilities at same level, we'll handle that)
+		if unlock_level not in abilities_by_level:
+			abilities_by_level[unlock_level] = ability
+		else:
+			# Multiple abilities at same level - add row anyway
+			# (the UI will show duplicate warning)
+			_add_ability_row(unlock_level, ability)
+			continue
+
+	# Sort levels for consistent display order
+	var levels: Array = abilities_by_level.keys()
+	levels.sort()
+
+	for level: int in levels:
+		var ability: AbilityData = abilities_by_level[level]
+		_add_ability_row(level, ability)
+
+
+## Save learnable abilities to NEW system (class_abilities + ability_unlock_levels)
+func _save_learnable_abilities_new(class_data: ClassData) -> void:
+	var new_class_abilities: Array[AbilityData] = []
+	var new_unlock_levels: Dictionary = {}  # ability_id -> level
+
+	for child in learnable_abilities_container.get_children():
+		if child is HBoxContainer:
+			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
+			var picker: ResourcePicker = child.get_node_or_null("AbilityPicker")
+
+			if level_spin and picker:
+				var level: int = int(level_spin.value)
+				var ability: AbilityData = picker.get_selected_resource() as AbilityData
+
+				if ability:
+					# Add to class_abilities if not already present
+					var already_added: bool = false
+					for existing: AbilityData in new_class_abilities:
+						if existing and existing.ability_id == ability.ability_id:
+							already_added = true
+							break
+
+					if not already_added:
+						new_class_abilities.append(ability)
+
+					# Set unlock level (use ability_id as key)
+					new_unlock_levels[ability.ability_id] = level
+
+	class_data.class_abilities = new_class_abilities
+	class_data.ability_unlock_levels = new_unlock_levels
+
+
+## DEPRECATED: Load from old learnable_abilities dictionary (kept for backwards compat)
 func _load_learnable_abilities(abilities_dict: Dictionary) -> void:
 	# Clear existing rows
 	for child in learnable_abilities_container.get_children():
@@ -487,7 +556,7 @@ func _load_learnable_abilities(abilities_dict: Dictionary) -> void:
 		_add_ability_row(level, ability)
 
 
-## Collect learnable abilities from UI into dictionary
+## DEPRECATED: Collect to old learnable_abilities dictionary (kept for backwards compat)
 func _collect_learnable_abilities() -> Dictionary:
 	var result: Dictionary = {}
 

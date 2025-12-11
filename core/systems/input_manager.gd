@@ -667,9 +667,6 @@ func _on_enter_selecting_spell_target() -> void:
 		set_state(InputState.SELECTING_ACTION)
 		return
 
-	# Show spell target range (color based on target type)
-	_show_spell_targeting_range(_spell_valid_targets)
-
 	# Position cursor on first valid target (prefer self for heals)
 	if selected_spell_data and selected_spell_data.ability_type == AbilityData.AbilityType.HEAL:
 		# For heals, prefer injured allies or self
@@ -679,6 +676,12 @@ func _on_enter_selecting_spell_target() -> void:
 			current_cursor_position = _spell_valid_targets[0]
 	else:
 		current_cursor_position = _spell_valid_targets[0]
+
+	# Show spell target range (with AoE preview if applicable)
+	if selected_spell_data and selected_spell_data.area_of_effect > 0:
+		_refresh_spell_targeting_with_aoe()
+	else:
+		_show_spell_targeting_range(_spell_valid_targets)
 
 	# Show cursor at target position
 	if grid_cursor:
@@ -2296,6 +2299,10 @@ func _move_spell_target_cursor(offset: Vector2i) -> void:
 	# Update target info panel
 	_update_spell_target_info()
 
+	# Update AoE preview if spell has area_of_effect
+	if selected_spell_data and selected_spell_data.area_of_effect > 0:
+		_refresh_spell_targeting_with_aoe()
+
 
 ## Update stats panel to show target info during spell targeting
 func _update_spell_target_info() -> void:
@@ -2321,3 +2328,63 @@ func _confirm_spell_target(target: Node2D) -> void:
 
 	# Cast the spell on the target
 	_cast_spell_on_target(target)
+
+
+## Refresh spell targeting display with AoE preview
+## Called when cursor moves on an AoE spell to update the affected area preview
+func _refresh_spell_targeting_with_aoe() -> void:
+	if not active_unit or not selected_spell_data:
+		return
+
+	# Clear existing highlights
+	GridManager.clear_highlights()
+
+	# Step 1: Show full spell range (base layer)
+	var range_color: int = GridManager.HIGHLIGHT_GREEN
+	match selected_spell_data.ability_type:
+		AbilityData.AbilityType.ATTACK, AbilityData.AbilityType.DEBUFF:
+			range_color = GridManager.HIGHLIGHT_RED
+		AbilityData.AbilityType.HEAL, AbilityData.AbilityType.SUPPORT:
+			range_color = GridManager.HIGHLIGHT_GREEN
+		_:
+			range_color = GridManager.HIGHLIGHT_BLUE
+
+	var all_cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range_band(
+		active_unit.grid_position,
+		selected_spell_data.min_range,
+		selected_spell_data.max_range
+	)
+	GridManager.highlight_cells(all_cells_in_range, range_color, false)
+
+	# Step 2: Show valid targets in YELLOW
+	if not _spell_valid_targets.is_empty():
+		GridManager.highlight_cells(_spell_valid_targets, GridManager.HIGHLIGHT_YELLOW, false)
+
+	# Step 3: Show AoE preview around cursor position with SF2-style white borders
+	var aoe_cells: Array[Vector2i] = _get_aoe_affected_cells(current_cursor_position, selected_spell_data.area_of_effect)
+
+	# Use white border outlines (SF2-style) for AoE preview
+	# Much more visible than translucent fills on colored backgrounds
+	GridManager.show_aoe_borders(aoe_cells)
+
+
+## Get cells affected by AoE centered on target_cell
+## Returns cells within the area_of_effect radius (Manhattan distance)
+func _get_aoe_affected_cells(target_cell: Vector2i, radius: int) -> Array[Vector2i]:
+	var affected: Array[Vector2i] = []
+
+	if radius <= 0:
+		# Single target
+		affected.append(target_cell)
+		return affected
+
+	# Include center and all cells within radius (Manhattan distance for SF-style grid)
+	for dx in range(-radius, radius + 1):
+		for dy in range(-radius, radius + 1):
+			var manhattan_dist: int = absi(dx) + absi(dy)
+			if manhattan_dist <= radius:
+				var cell: Vector2i = target_cell + Vector2i(dx, dy)
+				if GridManager.is_within_bounds(cell):
+					affected.append(cell)
+
+	return affected

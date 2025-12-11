@@ -63,6 +63,23 @@ var available_campaigns: Array[Resource] = []
 var available_parties: Array[Resource] = []
 var available_items: Array[Resource] = []
 
+# =============================================================================
+# PHASE 7: ACTIVE DEFAULT TRACKING
+# =============================================================================
+
+# Track which config is the active default (highest priority mod)
+var active_default_config_id: String = ""
+var active_default_source_mod: String = ""
+
+# =============================================================================
+# PHASE 7.4: PREVIEW CONFIGURATION PANEL
+# =============================================================================
+
+var preview_panel: PanelContainer
+var preview_container: VBoxContainer
+var preview_toggle_button: Button
+var preview_expanded: bool = false
+
 
 func _ready() -> void:
 	resource_type_name = "New Game Config"
@@ -71,6 +88,7 @@ func _ready() -> void:
 	resource_dependencies = ["campaign", "party", "item"]
 	super._ready()
 	_load_available_resources()
+	_load_active_default_info()
 
 
 ## Override: Called when dependent resource types change (via base class)
@@ -80,8 +98,12 @@ func _on_dependencies_changed(changed_type: String) -> void:
 			_load_available_campaigns()
 		"party":
 			_load_available_parties()
+			_update_preview_panel()
 		"item":
 			_load_available_items()
+	# Refresh active default info when any dependency changes
+	_load_active_default_info()
+	_apply_filter()  # Refresh list to update badges
 
 
 # =============================================================================
@@ -90,6 +112,9 @@ func _on_dependencies_changed(changed_type: String) -> void:
 
 ## Override: Create the new game config editor form
 func _create_detail_form() -> void:
+	# Phase 7.4: Preview Configuration Panel at the top
+	_add_preview_configuration_panel()
+
 	# Section 1: Identity
 	_add_identity_section()
 
@@ -248,17 +273,25 @@ func _create_new_resource() -> Resource:
 
 ## Override: Get display name from resource
 ## Includes validation warning indicator if references are broken
+## Phase 7.3: Shows [ACTIVE DEFAULT] for the config that will actually be used
 func _get_resource_display_name(resource: Resource) -> String:
 	var config: NewGameConfigData = resource as NewGameConfigData
 	if config:
-		var suffix: String = " [DEFAULT]" if config.is_default else ""
 		var warning_indicator: String = ""
 
 		# Check for broken references without triggering full validation
 		if _has_broken_references_quick(config):
 			warning_indicator = " (!)"
 
-		return config.config_name + suffix + warning_indicator
+		# Phase 7.3: Determine badge based on active default status
+		var badge: String = ""
+		if config.is_default:
+			if config.config_id == active_default_config_id:
+				badge = " [ACTIVE DEFAULT]"
+			else:
+				badge = " [DEFAULT]"
+
+		return config.config_name + badge + warning_indicator
 	return "Unnamed Config"
 
 
@@ -1068,3 +1101,227 @@ func _check_broken_references() -> Array[String]:
 				warnings.append("Warning: Item '%s' not found" % item_id)
 
 	return warnings
+
+
+# =============================================================================
+# PHASE 7: ACTIVE DEFAULT TRACKING & PREVIEW PANEL
+# =============================================================================
+
+## Load information about which config is the active default
+func _load_active_default_info() -> void:
+	active_default_config_id = ""
+	active_default_source_mod = ""
+
+	if not ModLoader or not ModLoader.registry:
+		return
+
+	# Get all NewGameConfigData resources
+	var all_configs: Array[Resource] = ModLoader.registry.get_all_resources("new_game_config")
+
+	# Track the highest priority default config
+	var highest_priority: int = -1
+
+	for config: Resource in all_configs:
+		if not config is NewGameConfigData:
+			continue
+
+		var ngc: NewGameConfigData = config as NewGameConfigData
+		if not ngc.is_default:
+			continue
+
+		# Get the source mod and its priority
+		var source_mod: String = ModLoader.registry.get_resource_source(ngc.config_id)
+		var mod_manifest: ModManifest = ModLoader.get_mod(source_mod) if source_mod else null
+		var priority: int = mod_manifest.load_priority if mod_manifest else 0
+
+		if priority > highest_priority:
+			highest_priority = priority
+			active_default_config_id = ngc.config_id
+			active_default_source_mod = source_mod
+
+
+## Phase 7.4: Add Preview Configuration Panel
+func _add_preview_configuration_panel() -> void:
+	# Collapsible panel header
+	var header_container: HBoxContainer = HBoxContainer.new()
+	detail_panel.add_child(header_container)
+
+	preview_toggle_button = Button.new()
+	preview_toggle_button.text = "Show Effective Configuration Preview"
+	preview_toggle_button.toggle_mode = true
+	preview_toggle_button.button_pressed = false
+	preview_toggle_button.tooltip_text = "Shows which config will actually be used at game start (considering mod priorities)"
+	preview_toggle_button.pressed.connect(_on_preview_toggle)
+	header_container.add_child(preview_toggle_button)
+
+	# The collapsible preview panel
+	preview_panel = PanelContainer.new()
+	preview_panel.visible = false
+
+	# Apply info panel style
+	var info_style: StyleBoxFlat = EditorThemeUtils.create_info_panel_style()
+	preview_panel.add_theme_stylebox_override("panel", info_style)
+
+	preview_container = VBoxContainer.new()
+	preview_panel.add_child(preview_container)
+	detail_panel.add_child(preview_panel)
+
+	_add_separator()
+
+
+## Handle preview panel toggle
+func _on_preview_toggle() -> void:
+	preview_expanded = preview_toggle_button.button_pressed
+	preview_panel.visible = preview_expanded
+
+	if preview_expanded:
+		preview_toggle_button.text = "Hide Effective Configuration Preview"
+		_update_preview_panel()
+	else:
+		preview_toggle_button.text = "Show Effective Configuration Preview"
+
+
+## Update the preview panel content
+func _update_preview_panel() -> void:
+	if not preview_container or not preview_expanded:
+		return
+
+	# Clear existing content
+	for child: Node in preview_container.get_children():
+		child.queue_free()
+
+	# Title
+	var title_label: Label = Label.new()
+	title_label.text = "Effective New Game Configuration"
+	title_label.add_theme_font_size_override("font_size", 14)
+	preview_container.add_child(title_label)
+
+	# Find the active default config
+	var active_config: NewGameConfigData = _get_active_default_config()
+
+	if not active_config:
+		var no_config_label: Label = Label.new()
+		no_config_label.text = "No default configuration found. The game will use auto-detection for party."
+		no_config_label.add_theme_color_override("font_color", EditorThemeUtils.get_warning_color())
+		no_config_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		preview_container.add_child(no_config_label)
+		return
+
+	# Config source info
+	var source_label: Label = Label.new()
+	source_label.text = "Active Config: %s (from mod: %s)" % [active_config.config_name, active_default_source_mod]
+	source_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	preview_container.add_child(source_label)
+
+	# Check if current config is being overridden
+	if current_resource is NewGameConfigData:
+		var current_config: NewGameConfigData = current_resource as NewGameConfigData
+		if current_config.is_default and current_config.config_id != active_default_config_id:
+			var override_warning: Label = Label.new()
+			override_warning.text = "Note: This config is marked as default but is overridden by a higher-priority mod."
+			override_warning.add_theme_color_override("font_color", EditorThemeUtils.get_warning_color())
+			override_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			preview_container.add_child(override_warning)
+
+	# Starting Party Preview
+	_add_preview_separator()
+	var party_header: Label = Label.new()
+	party_header.text = "Starting Party:"
+	party_header.add_theme_font_size_override("font_size", 12)
+	preview_container.add_child(party_header)
+
+	var party_preview: Label = Label.new()
+	if active_config.starting_party_id.is_empty():
+		party_preview.text = "(Auto-detect from character flags)"
+		# Show auto-detected party members
+		var members: Array = _get_auto_detected_party_members()
+		if not members.is_empty():
+			party_preview.text += "\n  Members: " + ", ".join(members)
+	else:
+		party_preview.text = "Template: " + active_config.starting_party_id
+		# Show party template members
+		var members: Array = _get_party_template_members(active_config.starting_party_id)
+		if not members.is_empty():
+			party_preview.text += "\n  Members: " + ", ".join(members)
+		elif ModLoader and ModLoader.registry:
+			if not ModLoader.registry.has_resource("party", active_config.starting_party_id):
+				party_preview.text += " (NOT FOUND!)"
+				party_preview.add_theme_color_override("font_color", EditorThemeUtils.get_error_color())
+	party_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_container.add_child(party_preview)
+
+	# Economy Preview
+	_add_preview_separator()
+	var economy_label: Label = Label.new()
+	economy_label.text = "Starting Gold: %d" % active_config.starting_gold
+	preview_container.add_child(economy_label)
+
+	var depot_label: Label = Label.new()
+	depot_label.text = "Depot Items: %d items" % active_config.starting_depot_items.size()
+	preview_container.add_child(depot_label)
+
+	# Caravan Status
+	var caravan_label: Label = Label.new()
+	caravan_label.text = "Caravan: %s" % ("Unlocked" if active_config.caravan_unlocked else "Locked")
+	preview_container.add_child(caravan_label)
+
+
+## Add a small separator to the preview panel
+func _add_preview_separator() -> void:
+	var sep: HSeparator = HSeparator.new()
+	sep.custom_minimum_size = Vector2(0, 5)
+	preview_container.add_child(sep)
+
+
+## Get the active default NewGameConfigData
+func _get_active_default_config() -> NewGameConfigData:
+	if active_default_config_id.is_empty():
+		return null
+
+	if not ModLoader or not ModLoader.registry:
+		return null
+
+	var config: Resource = ModLoader.registry.get_resource("new_game_config", active_default_config_id)
+	return config as NewGameConfigData
+
+
+## Get auto-detected party member names
+func _get_auto_detected_party_members() -> Array:
+	var members: Array = []
+
+	if not ModLoader:
+		return members
+
+	var default_party: Array = ModLoader.get_default_party()
+	for character: Resource in default_party:
+		if character and "character_name" in character:
+			var name: String = character.character_name
+			if "is_hero" in character and character.is_hero:
+				name = "[Hero] " + name
+			members.append(name)
+
+	return members
+
+
+## Get party template member names
+func _get_party_template_members(party_id: String) -> Array:
+	var members: Array = []
+
+	if not ModLoader or not ModLoader.registry:
+		return members
+
+	var party: Resource = ModLoader.registry.get_resource("party", party_id)
+	if not party or not party is PartyData:
+		return members
+
+	var party_data: PartyData = party as PartyData
+	for member_dict: Dictionary in party_data.members:
+		if "character" in member_dict and member_dict.character:
+			var char_data: CharacterData = member_dict.character as CharacterData
+			if char_data:
+				var name: String = char_data.character_name
+				if char_data.is_hero:
+					name = "[Hero] " + name
+				members.append(name)
+
+	return members

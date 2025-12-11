@@ -998,7 +998,10 @@ func get_hidden_campaign_patterns() -> Array[String]:
 func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
 	if all_configs.is_empty():
+		print("[DEBUG] get_new_game_config: No configs found in registry")
 		return null
+
+	print("[DEBUG] get_new_game_config: Found %d configs" % all_configs.size())
 
 	# Build list of default configs with their source mod priorities
 	var default_configs: Array[Dictionary] = []
@@ -1008,6 +1011,9 @@ func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 			var source_mod_id: String = registry.get_resource_source(resource_id)
 			var source_mod: ModManifest = get_mod(source_mod_id)
 			var priority: int = source_mod.load_priority if source_mod else 0
+			print("[DEBUG]   Config '%s': resource_id='%s', source_mod='%s', priority=%d" % [
+				resource.config_id, resource_id, source_mod_id, priority
+			])
 			default_configs.append({
 				"config": resource,
 				"mod_id": source_mod_id,
@@ -1034,6 +1040,10 @@ func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 			best_priority = entry.priority
 			best_config = entry.config
 
+	print("[DEBUG] get_new_game_config: Selected config with priority %d: %s" % [
+		best_priority,
+		best_config.config_id if best_config else "NULL"
+	])
 	return best_config
 
 
