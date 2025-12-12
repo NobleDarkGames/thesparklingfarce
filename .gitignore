@@ -4,6 +4,7 @@
 
 # Godot-specific
 *.translation
+*.uid
 export_presets.cfg
 export/
 
