@@ -741,47 +741,6 @@ func _get_character_name(character_uid: String) -> String:
 	return "[" + character_uid + "]"
 
 
-## Get character display name with source mod prefix: "[mod_id] Name"
-func _get_character_display_name_with_mod(char_data: CharacterData) -> String:
-	if not char_data:
-		return "(Unknown)"
-
-	var mod_id: String = ""
-	if ModLoader and ModLoader.registry:
-		var resource_id: String = char_data.resource_path.get_file().get_basename()
-		mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-	if mod_id.is_empty():
-		return char_data.character_name
-	return "[%s] %s" % [mod_id, char_data.character_name]
-
-
-## Get NPC display name with source mod prefix: "[mod_id] Name (NPC)"
-func _get_npc_display_name_with_mod(npc_data: NPCData) -> String:
-	if not npc_data:
-		return "(Unknown NPC)"
-
-	var mod_id: String = ""
-	if ModLoader and ModLoader.registry:
-		var resource_id: String = npc_data.resource_path.get_file().get_basename()
-		mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-	# Try to get display name, with fallbacks
-	var display_name: String = ""
-	if npc_data.has_method("get_display_name"):
-		display_name = npc_data.get_display_name()
-	if display_name.is_empty() and "npc_name" in npc_data:
-		display_name = npc_data.npc_name
-	if display_name.is_empty() and "npc_id" in npc_data:
-		display_name = npc_data.npc_id
-	if display_name.is_empty():
-		display_name = npc_data.resource_path.get_file().get_basename()
-
-	if mod_id.is_empty():
-		return "%s (NPC)" % display_name
-	return "[%s] %s (NPC)" % [mod_id, display_name]
-
-
 func _on_command_selected(index: int) -> void:
 	selected_command_index = index
 	_update_command_buttons()
@@ -942,7 +901,7 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			for i: int in range(_characters.size()):
 				var char_data: CharacterData = _characters[i] as CharacterData
 				if char_data:
-					var display_name: String = _get_character_display_name_with_mod(char_data)
+					var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
 					char_btn.add_item(display_name, item_idx)
 					char_btn.set_item_metadata(item_idx, {"type": "character", "id": char_data.character_uid})
 					if char_data.character_uid == str(current_value):
@@ -1475,12 +1434,10 @@ func _update_lock_button() -> void:
 
 
 func _get_active_mod() -> String:
-	if ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			return active_mod.mod_id
-	push_error("CinematicEditor: No active mod selected. Please select a mod from the dropdown.")
-	return ""
+	var mod_id: String = SparklingEditorUtils.get_active_mod_id()
+	if mod_id.is_empty():
+		push_error("CinematicEditor: No active mod selected. Please select a mod from the dropdown.")
+	return mod_id
 
 
 ## Refresh when tab becomes visible

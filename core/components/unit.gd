@@ -43,8 +43,8 @@ var grid_position: Vector2i = Vector2i.ZERO
 ## Faction: "player", "enemy", "neutral"
 var faction: String = "neutral"
 
-## AI brain resource (for enemies/neutrals) - NEW SYSTEM
-var ai_brain: Resource = null  # AIBrain instance
+## AI behavior resource (for enemies/neutrals) - data-driven AI configuration
+var ai_behavior: AIBehaviorData = null
 
 ## Turn state
 var has_moved: bool = false
@@ -74,7 +74,7 @@ func _ready() -> void:
 func initialize(
 	p_character_data: CharacterData,
 	p_faction: String = "neutral",
-	p_ai_brain: Resource = null
+	p_ai_behavior: AIBehaviorData = null
 ) -> void:
 	if p_character_data == null:
 		push_error("Unit: Cannot initialize with null CharacterData")
@@ -82,7 +82,7 @@ func initialize(
 
 	character_data = p_character_data
 	faction = p_faction
-	ai_brain = p_ai_brain
+	ai_behavior = p_ai_behavior
 
 	# Create stats
 	var UnitStatsClass: GDScript = load("res://core/components/unit_stats.gd")
@@ -563,7 +563,7 @@ func initialize_from_save_data(
 	p_character_data: CharacterData,
 	p_save_data: CharacterSaveData,
 	p_faction: String = "neutral",
-	p_ai_brain: Resource = null
+	p_ai_behavior: AIBehaviorData = null
 ) -> void:
 	if p_character_data == null or p_save_data == null:
 		push_error("Unit: Cannot initialize with null CharacterData or SaveData")
@@ -571,7 +571,7 @@ func initialize_from_save_data(
 
 	character_data = p_character_data
 	faction = p_faction
-	ai_brain = p_ai_brain
+	ai_behavior = p_ai_behavior
 
 	# Create stats
 	var UnitStatsClass: GDScript = load("res://core/components/unit_stats.gd")

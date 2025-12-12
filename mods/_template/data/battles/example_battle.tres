@@ -126,10 +126,3 @@ defeat_protect_index = -1
 experience_reward = 50
 gold_reward = 100
 ; item_rewards = []
-
-; --- ENVIRONMENT ---
-; weather: "none", "rain", "snow", "fog"
-weather = "none"
-
-; time_of_day: "day", "night", "dawn", "dusk"
-time_of_day = "day"

@@ -8,21 +8,19 @@ Hey r/ShiningForce (and crossposting to r/JRPG, r/Godot, r/TacticalRPG),
 
 We've been quietly building something for the past while, and we're finally ready to share it with the community that inspired it.
 
-Hear us out! 
-
 **The Sparkling Farce** is a Godot 4.5-based low/no-code modding platform designed to let fans create their own Shining Force-style campaigns. It's not a remake. It's not trying to "fix" the classics. It's a toolkit for the community to build the SF content we've all been dreaming about for years.
 
 Oh, and it's fully free and open source.
 
-Let's chat, shall we?
+Let's chat.
 
 ---
 
 ## Why We're Building This
 
-Like many of you, we grew up with Shining Force. The promotion fanfare is burned into our souls. We've argued about whether Domingo is overpowered (let's not get into it now!) and whether Gort is worth training (but this one's a yes). We've restarted SF1 because we missed that one chest in Chapter 2, and squealed in delight when Slade made the second-attack that saved the battle.
+Like many of you, we grew up with Shining Force. The promotion fanfare is burned into our souls. We've argued about whether Domingo is overpowered (duh) and whether Gort is worth training (Team Gort!). We've restarted SF1 because we missed that one chest in Chapter 2, and squealed in delight when Slade made the second-attack that saved the battle.
 
-We've also watched the Fire Emblem community thrive with tools like FEBuilder while the SF community has been stuck with hex editors and dreams. We wanted to change that.
+We've also watched the Fire Emblem community thrive with tools like FEBuilder while the SF community has hex editors and dreams. We wanted to change that.
 
 **Our philosophy is simple:** The platform provides infrastructure. We'll be releasing with *something* of a game, but the game is just a mod. Read that again. **The game is just a mod.**
 
@@ -32,6 +30,9 @@ Everything - characters, items, battles, campaigns - lives in the `mods/` folder
 
 ## What's Actually Working Right Now
 
+If we've already got your interest, here's a **live, working demo** of the sample campaign with developer art
+(http://placeholder.url)
+
 We believe in showing, not promising. Here's what's **implemented and functional**:
 
 ### Core Platform
@@ -39,7 +40,7 @@ We believe in showing, not promising. Here's what's **implemented and functional
 - [x] **16 moddable resource types** (characters, classes, items, abilities, battles, campaigns, maps, terrain, and more)
 - [x] **Type registries** - mods can add new weapon types, equipment slots, terrain types, and AI behaviors without touching code
 - [x] **Dependency system** - mods can require other mods (for expansion packs, compatibility patches, etc.)
-- [x] **Total conversion support** - high-priority mods can completely replace the base game
+- [x] **Total conversion support** - high-priority mods can *completely* replace the base game
 
 ### Full Tile-Based Map Editing 
 - [x] **Utilizes Godot** - No need to reinvent when we've got a powerful open source engine
@@ -48,9 +49,9 @@ We believe in showing, not promising. Here's what's **implemented and functional
 - [x] **Border Sensitivity** - Trigger new scenes on reaching the edge of a map, definable by edge
 
 ### JRPG Style Dialog & Cinematic System
-- [x] **Visual Goodies** - Character portraits, dialog animations, multiple choice questions. Emotions are partly supported, but it takes a lot of art
+- [x] **Visual Goodies** - Character portraits, dialog animations, typewriter effect. Emotions are partly supported, not currently implemented
 - [x] **Dialogs are Cinematics** - Every interaction with every chicken can be a rock opera - with a few clicks in the Cinematic editor
-- [
+- [x] **Choices and Multiple Choices** - Sometimes it takes more than a yes/no
 
 ### Combat System
 - [x] **SF2-authentic battle mechanics** - Authentic SF-style turn order calculation, damage formulas, terrain bonuses, the works (moddable of course)
@@ -68,7 +69,7 @@ We believe in showing, not promising. Here's what's **implemented and functional
 - [x] **MP costs and management** - proper resource management for casters
 
 ### Experience & Progression
-- [x] **Level-difference XP tables** - that classic SF feeling where grinding weak enemies is pointless
+- [x] **Level-difference XP tables** - Less XP for weak enemies, more xp for more
 - [x] **Formation XP bonuses** - reward tactical positioning by giving allies nearby a cut
 - [x] **Catch-up mechanics** - underleveled characters get bonus XP to stay relevant
 - [x] **Support XP** - healers and buffers earn XP too (with anti-spam protection)
@@ -98,7 +99,8 @@ We believe in showing, not promising. Here's what's **implemented and functional
 ### A High Quality No-Code Mod Editor
 - [x] **Visual Campaign Creator** - Node-style connections between campaign locations and events with flags and conditionals
 - [x] **Graphical Cinematic Maker** - Chain together actions to make a cinematic.  Dialog line > move character > camera shake > fade out > done! Supports flags, conditionals, and multiple choices
-- [X] **Built-in Save Slot Editor** - Give that hex editor a little break
+- [x] **Built-in Save Slot Editor** - Give that hex editor a little break
+- [x] **Create Items & Characters in Moments** - Click Items tab, click New, set a few properties, and save. New item ready to play.
 
 ---
 
@@ -120,13 +122,6 @@ The Caravan was SF2's defining feature - your mobile HQ that follows you across 
 - **Session-based battles** - one fade-in, full exchange (attack, double, counter, **or spell**), one fade-out. No jarring transitions.
 - **XP pooling for double attacks** - one XP award for the total damage, not two separate popups
 - **Class-based magic** - your class determines your spells, just like SF2. Promote to Wizard, get Wizard spells. Simple and elegant.
-
-### The Healer Problem: SOLVED (but still moddable!)
-Every SF veteran knows the pain: your fighters hit level 20 while Sarah is stuck at level 12 because healing gives garbage XP. We fixed this:
-- **Support catch-up XP** - underleveled healers get bonus XP when supporting higher-level allies
-- **Formation XP** - strong positioning earns XP
-- **Meaningful healing XP** - big heals on wounded tanks earn good experience
-- **Anti-spam protection** - no more casting Aura on full-health parties for free levels
 
 ---
 
@@ -169,7 +164,7 @@ All in all, the platform design is meant to support the best of all the games - 
 
 This is where we're most proud. No hex editing. No ROM corruption. Visual tools built right into the Godot editor.
 
-### 15+ Specialized Editors:
+### 16+ Specialized Editors:
 - **Character Editor** - stats, portraits, starting equipment
 - **Class Editor** - growth rates, promotions, abilities, equipment restrictions
 - **Item Editor** - equipment stats, consumables, key items
@@ -177,7 +172,7 @@ This is where we're most proud. No hex editing. No ROM corruption. Visual tools 
 - **Battle Editor** - enemy placement, victory/defeat conditions, terrain
 - **Campaign Editor** - visual node graph for campaign flow
 - **Dialogue Editor** - branching conversations with conditions
-- **Cinematic Editor** - cutscenes with 15 command types (camera, movement, fade, sound)
+- **Cinematic Editor** - cutscenes with 19 command types (camera, movement, fade, sound, shop, parallel execution, and more)
 - **Map Metadata Editor** - spawn points, Caravan visibility, connections
 - **Shop Editor** - inventory, pricing, shop type configuration
 - **Terrain Editor** - defense bonuses, movement costs by type
@@ -185,6 +180,7 @@ This is where we're most proud. No hex editing. No ROM corruption. Visual tools 
 - **Party Editor** - starting party configurations
 - **Save Editor** - debug tool for save files
 - **Mod JSON Editor** - edit mod manifests
+- **New Game Config Editor** - define starting conditions, campaigns, and difficulty presets
 
 All editors use live preview and integrate with Godot's inspector system.
 
@@ -200,7 +196,7 @@ The SF community has built incredible things with the tools available:
 - **Stat Editors** like the Caravan tools are fantastic for tweaking and analyzing what exists. We're trying to extend that same spirit to full content creation.
 - **Fan Remakes** have shown how much love exists for these games, even when scope becomes challenging. Our platform-first approach separates engine from content, so the community can share assets and build incrementally.
 
-We're not trying to replace any of this. We're just adding another option to the toolkit.
+We're not trying to replace any of this. We're just adding another option.
 
 **What we're NOT doing:**
 - We're not promising to remake SF1 or SF2 (though if we do our job, mods could)
@@ -211,7 +207,7 @@ We're not trying to replace any of this. We're just adding another option to the
 
 ## What Modders Can Do
 
-Things you **literally cannot do** with ROM hacking that The Sparkling Farce is **designed for**:
+Things you can't easily do with ROM hacking that The Sparkling Farce is **designed for**:
 
 - Create entirely new campaigns with original characters, battles, and story
 - Add new weapon types, equipment slots, and class categories via Sparkling Editor or JSON
@@ -220,8 +216,8 @@ Things you **literally cannot do** with ROM hacking that The Sparkling Farce is 
 - Build custom XP curves and progression systems
 - Create total conversion mods that completely replace the base game
 - Share mod packs that depend on other mods (expansion pack ecosystem)
-- Register custom debug console commands for testing (oh right, we have a debug command console built in)
-- Use 15 cinematic commands to create cutscenes **without code**
+- Register custom debug console commands for testing (oh right, we also have a debug command console built in)
+- Use 19 cinematic commands to create cutscenes **without code**
 - Configure AI behaviors without programming
 
 All in a cross-platform engine that exports to Windows, Linux, Mac, and potentially more.
@@ -244,21 +240,20 @@ All in a cross-platform engine that exports to Windows, Linux, Mac, and potentia
 - Save/load system
 - Debug infrastructure
 - Terrain effects (also fully moddable!)
+- Area-of-effect spells
 
 ### Partially Implemented:
 - Crafting system (resource classes exist, UI/logic pending)
 - Adjutant system (config exists, processing pending)
 - Demo campaign to show off working features
 - Adaptive ("vertically mixed") audio system!! Trust us, even the most rabid Shining Force purist is going to **looove** this!!
+- AI behavior variety (currently: aggressive and stationary only)
 
 ### Not Yet Started:
-- AI behavior variety (currently: aggressive and stationary only)
-- Area-of-effect spell targeting (single-target spells work, multi-target patterns planned)
 - Full base game content (we have placeholders - platform work is priority over content)
 - Full SF-scale campaign with storyline and balanced progression
 
 ### Near-Term Focus:
-1. Area-of-effect spell targeting patterns
 2. Adding AI behavior variety
 3. Polishing the editor experience
 4. Demo campaign expansion and polish
@@ -283,7 +278,7 @@ Higher priority mods override lower priority resources with matching IDs. Want t
 ## Quick FAQ
 
 **"Is this a finished game I can play right now?"**
-Not yet - it's a platform first. We have working systems and placeholder content, but a full polished campaign is still in progress. If you want to create content or help test, come on in. If you want a complete game experience, check back later.
+Not yet - it's a platform first. We have working systems and placeholder content, but a full polished campaign is still in progress. If you want to create content or help test, come on in. If you want a complete game experience, please check back later.
 
 **"Are you trying to 'fix' Shining Force?"**
 Nope. We love SF as it is. The goal is to capture that feel faithfully, then let modders decide how they want to build on that.
@@ -293,23 +288,24 @@ The mechanics are specifically SF-flavored (no permadeath, different stat formul
 
 ---
 ## Who the hell are you and where did this come from??
-Hi, I'm Josh. Not much of a redditor to be honest, but Imgurians may know me as Magnebro. Eden DaoC players may know me as TungstenMan. Obscure podcast fans may know me as the guy who made Space Busker 2061. I'm a software engineer, someone who tends to bite off more than he can chew, and fan of the Oxford comma. Most importantly, I'm a lifelong Shining Force fan who never stopped dreaming of the perfect modding platform. To continue that streak of honesty - I didn't start this project expecting to release it, but here we are. When my day job said that I'd have to learn agentic development, I wasn't especially thrilled, but we've all gotta pay the bills. So I figured "if it can't help me build my dream project, it can't help me build my work project, so let's find out."
+Hi, I'm Josh - software enginner, lifelong Shining Force enthusiast, and fan of the Oxford comma. While not a name on Reddit, Imgurians may know me as Magnebro, Eden DaoC players as TungstenMan, or obscure podcast fans as 'the guy who made Space Busker 2061'.
 
-The Sparkling Farce is the result of me grinding Claude's nose in the dirt until he followed instructions. As a primarily Python dev, I can do a lot in Godot, but not enough to build the SF style editor that'd been growing in my mind for 30 years. If you're concerned about the Claude use, I get it, but check out the code. I grind noses hard.
+**Sparkling Farce Origin Story**
+I've been developing code since QBASIC on a Packard Bell 386, and playing Shining Force since about the same time. Like many others, I'd always dreamed of making my OWN, but even for a seasoned developer, that's a monumental task. I'm a Python developer first, Godot hobbyist second.  Recently my day job made agentic AI assistants mandatory, and I thought "If it can't help me with my dream project, it can't help me with my work project, so let's find out."
 
-This probably means I'm also not well suited to be the solo long term maintainer of the project, as I'm simply not qualified when it comes to a Godot project of this scale. If anyone wants to share the keys, you know where to find me. 
+If you're anything like me, this likely triggered some "AI slop" alarm bells. If that's the case, check the code for yourself. I designed every system, I directed every workflow, I reviewed every commit. We've got extensive platform tests to verify new changes don't break existing functionaly.  We've got proper resource-based, data-driven architecture with exhaustive strict typing. This code works. There's plenty of room for polish, but it works.
+
+Claude was the dogsled, I was the driver. If the design is weak, I'm the one to talk to.
+
+In addition, there are two other people currently working on the art and content creation. 
 
 ---
 
-## Get Involved
+## Moving Foward with the Community
 
-We're (Josh is) building this for the community, and we'd (Josh'd) love your input:
+It's probably clear from the above that while the foundation is strong, making this platform Peter-tier, and keeping it that way, will take more than three people and a robot. We're actively seeking co-maintainers for the project to improve quality and ensure that it can never be abandoned. If you've got Godot chops, come pick up your keys.  
 
-- **What features matter most to you?**
-- **What would your dream SF mod add?**
-- **What editor tools would help you create content?**
-
-The platform is in active development. We're showing working code because we've seen too many fan projects announce grand visions but struggle with delivery, so we aimed to cover all the hard parts first, then ask your help with making it shine. We'd rather show a functional foundation without relying on hope and trust, so kept this quiet until it would (hopefully) meet with community approval - as a starting point.
+The platform is in active development. We're showing working code because we've seen too many fan projects announce grand visions but struggle with delivery, **so we aimed to cover all the hard parts first**, then ask your help with making it shine. We'd rather show a functional foundation without relying on hope and trust, so kept this quiet until it would (hopefully) meet with community approval. At least as a starting point.
 
 ---
 
@@ -317,7 +313,7 @@ The platform is in active development. We're showing working code because we've 
 
 - **Engine:** Godot 4.5
 - **Language:** GDScript (strict typing throughout)
-- **Test Coverage:** 36 test files, gdUnit4 framework
+- **Test Coverage:** 40+ test files, gdUnit4 framework
 - **Platforms:** Development on Linux, but Godot exports to **Windows, Mac, Linux, and more**. Cross-platform from day one - this isn't a Linux-only project.
 
 **Want to see it in action?** 

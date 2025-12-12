@@ -1306,33 +1306,21 @@ func _show_info_message(title: String, message: String) -> void:
 # =============================================================================
 
 ## Get the active mod's ID (or empty string if none)
+## Note: Delegates to SparklingEditorUtils.get_active_mod_id()
 func _get_active_mod_id() -> String:
-	if not ModLoader:
-		return ""
-	var active_mod: ModManifest = ModLoader.get_active_mod()
-	if active_mod:
-		return active_mod.mod_id
-	return ""
+	return SparklingEditorUtils.get_active_mod_id()
 
 
 ## Get the active mod's folder name (e.g., "_sandbox" from "res://mods/_sandbox/")
+## Note: Delegates to SparklingEditorUtils.get_active_mod_folder()
 func _get_active_mod_folder() -> String:
-	if not ModLoader:
-		return ""
-	var active_mod: ModManifest = ModLoader.get_active_mod()
-	if active_mod:
-		return active_mod.mod_directory.get_file()
-	return ""
+	return SparklingEditorUtils.get_active_mod_folder()
 
 
 ## Get the active mod's base directory path
+## Note: Delegates to SparklingEditorUtils.get_active_mod_path()
 func _get_active_mod_directory() -> String:
-	if not ModLoader:
-		return ""
-	var active_mod: ModManifest = ModLoader.get_active_mod()
-	if active_mod:
-		return active_mod.mod_directory
-	return ""
+	return SparklingEditorUtils.get_active_mod_path()
 
 
 ## Get the directory path for a specific resource type in the active mod

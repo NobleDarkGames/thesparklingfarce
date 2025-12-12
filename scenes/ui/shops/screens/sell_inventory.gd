@@ -193,8 +193,6 @@ func _on_add_pressed() -> void:
 
 	_update_buttons()
 
-	print("[SellInventory] Added %s to sell queue" % selected_item_id)
-
 
 func _on_confirm_pressed() -> void:
 	push_screen("sell_confirm")

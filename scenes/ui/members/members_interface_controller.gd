@@ -73,8 +73,6 @@ func open_members(start_character_uid: String = "") -> void:
 	# Start with member select screen
 	push_screen("member_select")
 
-	print("[MembersInterfaceController] Members opened")
-
 
 ## Close the members interface
 func close_interface() -> void:
@@ -82,8 +80,6 @@ func close_interface() -> void:
 	context.cleanup()
 	hide()
 	members_closed.emit()
-
-	print("[MembersInterfaceController] Members closed")
 
 
 ## Check if the members interface is currently open
@@ -140,8 +136,6 @@ func _transition_to_screen(screen_name: String) -> void:
 
 	# Update hint based on screen
 	_update_hint_for_screen(screen_name)
-
-	print("[MembersInterfaceController] Transitioned to screen: %s" % screen_name)
 
 
 ## Get cached scene or load it

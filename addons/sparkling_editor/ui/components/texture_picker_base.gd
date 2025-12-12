@@ -429,15 +429,12 @@ func _get_editor_icon(name: String) -> Texture2D:
 func _get_active_mod_path() -> String:
 	## Get the path to the active mod's directory
 	## Returns empty string if no active mod
-
-	if not ModLoader:
-		return ""
-
-	var active_mod: ModManifest = ModLoader.get_active_mod()
-	if active_mod:
-		return "res://mods/" + active_mod.mod_id + "/"
-
-	return ""
+	## Note: Delegates to SparklingEditorUtils.get_active_mod_path()
+	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
+	# Ensure trailing slash for backwards compatibility
+	if not mod_path.is_empty() and not mod_path.ends_with("/"):
+		return mod_path + "/"
+	return mod_path
 
 
 func _get_browse_initial_path() -> String:

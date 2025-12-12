@@ -33,9 +33,13 @@ func _ready() -> void:
 	var player_character: CharacterData = _create_character("Hero", 20, 10, 10, 8, 7)
 	var enemy_character: CharacterData = _create_character("Goblin", 15, 5, 8, 6, 6)
 
-	# Load AI brain
-	var AIAggressiveClass: GDScript = load("res://mods/_base_game/ai_brains/ai_aggressive.gd")
-	var aggressive_ai: Resource = AIAggressiveClass.new()
+	# Load AI behavior (new data-driven system)
+	var aggressive_ai: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres")
+	if not aggressive_ai:
+		# Fallback: create minimal aggressive behavior for testing
+		aggressive_ai = AIBehaviorData.new()
+		aggressive_ai.display_name = "Test Aggressive"
+		aggressive_ai.behavior_mode = "aggressive"
 
 	# Spawn units
 	var player_unit: Node2D = _spawn_unit(player_character, Vector2i(2, 5), "player", null)
@@ -80,10 +84,10 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	return character
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Node2D:
 	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
 	var unit: Node2D = unit_scene.instantiate()
-	unit.initialize(character, p_faction, p_ai_brain)
+	unit.initialize(character, p_faction, p_ai_behavior)
 	unit.grid_position = cell
 	unit.position = Vector2(cell.x * 32, cell.y * 32)
 	add_child(unit)

@@ -84,8 +84,6 @@ func open_depot(from_caravan: bool = false) -> void:
 	# Start with action select screen
 	push_screen("action_select")
 
-	print("[CaravanInterfaceController] Depot opened (from_caravan=%s)" % from_caravan)
-
 
 ## Close the caravan depot interface
 func close_interface() -> void:
@@ -93,8 +91,6 @@ func close_interface() -> void:
 	context.cleanup()
 	hide()
 	depot_closed.emit()
-
-	print("[CaravanInterfaceController] Depot closed")
 
 
 ## Check if the depot interface is currently open
@@ -148,8 +144,6 @@ func _transition_to_screen(screen_name: String) -> void:
 	# THEN initialize (now @onready vars are set)
 	if current_screen.has_method("initialize"):
 		current_screen.initialize(self, context)
-
-	print("[CaravanInterfaceController] Transitioned to screen: %s" % screen_name)
 
 
 ## Get cached scene or load it

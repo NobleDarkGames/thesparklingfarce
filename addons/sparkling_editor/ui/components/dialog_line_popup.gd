@@ -82,7 +82,7 @@ func _setup_ui() -> void:
 	for i: int in range(_characters.size()):
 		var char_data: CharacterData = _characters[i] as CharacterData
 		if char_data:
-			var display_name: String = _get_character_display_name_with_mod(char_data)
+			var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
 			character_picker.add_item(display_name, i + 1)
 	character_picker.item_selected.connect(_on_character_selected)
 	char_vbox.add_child(character_picker)
@@ -218,21 +218,6 @@ func _on_cancel() -> void:
 	hide()
 
 
-## Get character display name with source mod prefix: "[mod_id] Name"
-func _get_character_display_name_with_mod(char_data: CharacterData) -> String:
-	if not char_data:
-		return "(Unknown)"
-
-	var mod_id: String = ""
-	if ModLoader and ModLoader.registry:
-		var resource_id: String = char_data.resource_path.get_file().get_basename()
-		mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-	if mod_id.is_empty():
-		return char_data.character_name
-	return "[%s] %s" % [mod_id, char_data.character_name]
-
-
 ## Show the popup, optionally pre-selecting a character
 func show_popup(preselect_character_uid: String = "") -> void:
 	_refresh_characters()
@@ -243,7 +228,7 @@ func show_popup(preselect_character_uid: String = "") -> void:
 	for i: int in range(_characters.size()):
 		var char_data: CharacterData = _characters[i] as CharacterData
 		if char_data:
-			var display_name: String = _get_character_display_name_with_mod(char_data)
+			var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
 			character_picker.add_item(display_name, i + 1)
 
 	# Preselect if provided

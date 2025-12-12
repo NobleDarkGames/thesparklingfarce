@@ -44,8 +44,6 @@ var dependency_input: LineEdit
 # Custom Types section
 var weapon_types_edit: TextEdit
 var armor_types_edit: TextEdit
-var weather_types_edit: TextEdit
-var time_of_day_edit: TextEdit
 var unit_categories_edit: TextEdit
 var trigger_types_edit: TextEdit
 var animation_offset_types_edit: TextEdit
@@ -466,8 +464,6 @@ func _create_custom_types_section() -> void:
 
 	weapon_types_edit = _create_type_editor("Weapon Types:", section, "e.g., laser, plasma, energy_blade")
 	armor_types_edit = _create_type_editor("Armor Types:", section, "e.g., energy_shield, power_armor")
-	weather_types_edit = _create_type_editor("Weather Types:", section, "e.g., acid_rain, solar_flare")
-	time_of_day_edit = _create_type_editor("Time of Day:", section, "e.g., eclipse, eternal_night")
 	unit_categories_edit = _create_type_editor("Unit Categories:", section, "e.g., mech, cyborg, undead")
 	trigger_types_edit = _create_type_editor("Trigger Types:", section, "e.g., puzzle, teleporter, shop")
 	animation_offset_types_edit = _create_type_editor("Animation Offsets:", section, "Custom sprite positioning")
@@ -996,8 +992,6 @@ func _populate_ui_from_data() -> void:
 	var custom_types: Dictionary = current_mod_data.get("custom_types", {})
 	weapon_types_edit.text = _array_to_lines(custom_types.get("weapon_types", []))
 	armor_types_edit.text = _array_to_lines(custom_types.get("armor_types", []))
-	weather_types_edit.text = _array_to_lines(custom_types.get("weather_types", []))
-	time_of_day_edit.text = _array_to_lines(custom_types.get("time_of_day", []))
 	unit_categories_edit.text = _array_to_lines(custom_types.get("unit_categories", []))
 	trigger_types_edit.text = _array_to_lines(custom_types.get("trigger_types", []))
 	animation_offset_types_edit.text = _array_to_lines(custom_types.get("animation_offset_types", []))
@@ -1089,8 +1083,6 @@ func _collect_data_from_ui() -> void:
 	var custom_types: Dictionary = {}
 	var weapon_types: Array = _lines_to_array(weapon_types_edit.text)
 	var armor_types: Array = _lines_to_array(armor_types_edit.text)
-	var weather_types: Array = _lines_to_array(weather_types_edit.text)
-	var time_of_day: Array = _lines_to_array(time_of_day_edit.text)
 	var unit_categories: Array = _lines_to_array(unit_categories_edit.text)
 	var trigger_types: Array = _lines_to_array(trigger_types_edit.text)
 	var animation_offsets: Array = _lines_to_array(animation_offset_types_edit.text)
@@ -1099,10 +1091,6 @@ func _collect_data_from_ui() -> void:
 		custom_types["weapon_types"] = weapon_types
 	if armor_types.size() > 0:
 		custom_types["armor_types"] = armor_types
-	if weather_types.size() > 0:
-		custom_types["weather_types"] = weather_types
-	if time_of_day.size() > 0:
-		custom_types["time_of_day"] = time_of_day
 	if unit_categories.size() > 0:
 		custom_types["unit_categories"] = unit_categories
 	if trigger_types.size() > 0:

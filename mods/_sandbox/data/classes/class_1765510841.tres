@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3 uid="uid://bnnh2kw4mypww"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_obdv3"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/heal_1.tres" id="2_bjyfs"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="2_ducmo"]
+
+[resource]
+script = ExtResource("2_ducmo")
+display_name = "Priest"
+equippable_weapon_types = Array[String](["staff", "tome"])
+equippable_armor_types = Array[String](["robe"])
+class_abilities = Array[ExtResource("1_obdv3")]([ExtResource("2_bjyfs")])
+ability_unlock_levels = {
+"heal_1": 1
+}

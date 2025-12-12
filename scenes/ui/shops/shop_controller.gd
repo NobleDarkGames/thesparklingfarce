@@ -183,8 +183,6 @@ func _transition_to_screen(screen_name: String) -> void:
 	var show_queue: bool = screen_name in ["item_browser", "placement_mode", "sell_inventory"]
 	show_queue_panel(show_queue and context.queue and not context.queue.is_empty())
 
-	print("[ShopController] Transitioned to screen: %s" % screen_name)
-
 
 ## Get cached scene or load it
 func _get_screen_scene(screen_name: String) -> PackedScene:

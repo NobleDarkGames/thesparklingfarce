@@ -277,10 +277,6 @@ func _on_add_to_queue_pressed() -> void:
 		_update_action_buttons()
 		show_queue_panel(true)
 
-		print("[ItemBrowser] Added %d x %s to queue" % [selected_quantity, selected_item_id])
-	else:
-		print("[ItemBrowser] Failed to add to queue - can't afford")
-
 
 func _on_proceed_pressed() -> void:
 	# Go to placement mode

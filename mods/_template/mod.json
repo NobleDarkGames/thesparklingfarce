@@ -26,8 +26,6 @@
   "_comment_custom_types": "Extend the game's type systems with your own values. These are used by registries.",
   "custom_weapon_types": [],
   "custom_armor_types": [],
-  "custom_weather_types": [],
-  "custom_time_of_day": [],
   "custom_unit_categories": [],
   "custom_trigger_types": [],
 

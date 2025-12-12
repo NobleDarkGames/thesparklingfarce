@@ -217,7 +217,7 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 	var char_path: String = character.resource_path
 
 	# Check battles across all mods
-	var battle_files: Array[Dictionary] = _scan_all_mods_for_files("battles", ".tres")
+	var battle_files: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("data/battles", ".tres")
 	for file_info: Dictionary in battle_files:
 		var battle: BattleData = load(file_info.path) as BattleData
 		if battle:
@@ -238,7 +238,7 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 
 	# Check cinematics for spawn_entity commands referencing this character
 	var char_id: String = char_path.get_file().get_basename()
-	var cinematic_files: Array[Dictionary] = _scan_all_mods_for_files("cinematics", ".json")
+	var cinematic_files: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("data/cinematics", ".json")
 	for file_info: Dictionary in cinematic_files:
 		var json_text: String = FileAccess.get_file_as_string(file_info.path)
 		# Quick check before full parse - look for character ID in JSON
@@ -246,42 +246,6 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 			references.append(file_info.path)
 
 	return references
-
-
-## Helper: Scan all mods for files of a specific type (supports any extension)
-func _scan_all_mods_for_files(type_dir: String, extension: String) -> Array[Dictionary]:
-	var results: Array[Dictionary] = []
-
-	var mods_dir: DirAccess = DirAccess.open("res://mods/")
-	if not mods_dir:
-		return results
-
-	mods_dir.list_dir_begin()
-	var mod_name: String = mods_dir.get_next()
-
-	while mod_name != "":
-		if mods_dir.current_is_dir() and not mod_name.begins_with("."):
-			var type_path: String = "res://mods/%s/data/%s/" % [mod_name, type_dir]
-			var type_dir_access: DirAccess = DirAccess.open(type_path)
-
-			if type_dir_access:
-				type_dir_access.list_dir_begin()
-				var file_name: String = type_dir_access.get_next()
-
-				while file_name != "":
-					if not type_dir_access.current_is_dir() and file_name.ends_with(extension):
-						results.append({
-							"mod_id": mod_name,
-							"path": type_path + file_name
-						})
-					file_name = type_dir_access.get_next()
-
-				type_dir_access.list_dir_end()
-
-		mod_name = mods_dir.get_next()
-
-	mods_dir.list_dir_end()
-	return results
 
 
 ## Override: Create a new character with defaults

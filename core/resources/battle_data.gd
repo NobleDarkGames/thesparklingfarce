@@ -41,14 +41,14 @@ enum DefeatCondition {
 ## Array of dictionaries with these fields:
 ## - character: CharacterData (required)
 ## - position: Vector2i (required)
-## - ai_brain: AIBrain (required) - Resource reference to AI behavior
+## - ai_behavior: AIBehaviorData (required) - Resource reference to AI behavior configuration
 @export var enemies: Array[Dictionary] = []
 
 @export_group("Neutral/NPC Forces")
 ## Array of dictionaries with these fields:
 ## - character: CharacterData (required)
 ## - position: Vector2i (required)
-## - ai_brain: AIBrain (required) - Resource reference to AI behavior
+## - ai_behavior: AIBehaviorData (required) - Resource reference to AI behavior configuration
 @export var neutrals: Array[Dictionary] = []
 
 @export_group("Victory Conditions")
@@ -85,13 +85,6 @@ enum DefeatCondition {
 @export var gold_reward: int = 0
 @export var item_rewards: Array[ItemData] = []
 
-@export_group("Environmental Settings")
-## Weather effects ("none", "rain", "snow", "fog")
-@export var weather: String = "none"
-## Time of day ("day", "night", "dawn", "dusk")
-@export var time_of_day: String = "day"
-
-
 ## Validate enemy dictionary structure
 func validate_enemies() -> bool:
 	for i in range(enemies.size()):
@@ -102,8 +95,8 @@ func validate_enemies() -> bool:
 		if not 'position' in enemy:
 			push_error("BattleData: Enemy %d missing position" % i)
 			return false
-		if not 'ai_brain' in enemy or enemy.ai_brain == null:
-			push_error("BattleData: Enemy %d missing ai_brain" % i)
+		if not 'ai_behavior' in enemy or enemy.ai_behavior == null:
+			push_error("BattleData: Enemy %d missing ai_behavior" % i)
 			return false
 	return true
 
@@ -118,8 +111,8 @@ func validate_neutrals() -> bool:
 		if not 'position' in neutral:
 			push_error("BattleData: Neutral %d missing position" % i)
 			return false
-		if not 'ai_brain' in neutral or neutral.ai_brain == null:
-			push_error("BattleData: Neutral %d missing ai_brain" % i)
+		if not 'ai_behavior' in neutral or neutral.ai_behavior == null:
+			push_error("BattleData: Neutral %d missing ai_behavior" % i)
 			return false
 	return true
 

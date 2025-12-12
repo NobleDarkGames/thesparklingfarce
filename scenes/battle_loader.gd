@@ -176,9 +176,9 @@ func _ready() -> void:
 
 		var character: CharacterData = enemy_dict.character
 		var enemy_pos: Vector2i = enemy_dict.position if 'position' in enemy_dict else Vector2i(10, 5)
-		var ai_brain: AIBrain = enemy_dict.ai_brain if 'ai_brain' in enemy_dict else null
+		var ai_behavior: AIBehaviorData = enemy_dict.ai_behavior if 'ai_behavior' in enemy_dict else null
 
-		var enemy_unit: Node2D = _spawn_unit(character, enemy_pos, "enemy", ai_brain)
+		var enemy_unit: Node2D = _spawn_unit(character, enemy_pos, "enemy", ai_behavior)
 		_enemy_units.append(enemy_unit)
 
 	# Spawn neutral units from BattleData
@@ -190,9 +190,9 @@ func _ready() -> void:
 
 			var character: CharacterData = neutral_dict.character
 			var neutral_pos: Vector2i = neutral_dict.position if 'position' in neutral_dict else Vector2i(8, 5)
-			var ai_brain: AIBrain = neutral_dict.ai_brain if 'ai_brain' in neutral_dict else null
+			var ai_behavior: AIBehaviorData = neutral_dict.ai_behavior if 'ai_behavior' in neutral_dict else null
 
-			var neutral_unit: Node2D = _spawn_unit(character, neutral_pos, "neutral", ai_brain)
+			var neutral_unit: Node2D = _spawn_unit(character, neutral_pos, "neutral", ai_behavior)
 			_neutral_units.append(neutral_unit)
 
 	print("[FLOW] Units: %d player, %d enemy, %d neutral" % [
@@ -283,15 +283,15 @@ func _ready() -> void:
 
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource, p_save_data: CharacterSaveData = null) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData, p_save_data: CharacterSaveData = null) -> Node2D:
 	# Use BattleManager's unit scene (supports mod overrides)
 	var unit: Node2D = BattleManager._get_unit_scene().instantiate()
 
 	# Initialize with character data (and save data if available for player units)
 	if p_save_data:
-		unit.initialize_from_save_data(character, p_save_data, p_faction, p_ai_brain)
+		unit.initialize_from_save_data(character, p_save_data, p_faction, p_ai_behavior)
 	else:
-		unit.initialize(character, p_faction, p_ai_brain)
+		unit.initialize(character, p_faction, p_ai_behavior)
 
 	# Set grid position
 	unit.grid_position = cell

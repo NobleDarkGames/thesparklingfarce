@@ -49,7 +49,6 @@ const NewGameConfigDataClass: GDScript = preload("res://core/resources/new_game_
 
 # Preload type registry classes
 const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
-const EnvironmentRegistryClass: GDScript = preload("res://core/registries/environment_registry.gd")
 const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_category_registry.gd")
 const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/animation_offset_registry.gd")
 const TriggerTypeRegistryClass: GDScript = preload("res://core/registries/trigger_type_registry.gd")
@@ -75,7 +74,6 @@ var active_mod_id: String = "_base_game"  # Default active mod
 
 # Type registries for mod-extensible enums
 var equipment_registry: RefCounted = EquipmentRegistryClass.new()
-var environment_registry: RefCounted = EnvironmentRegistryClass.new()
 var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
 var animation_offset_registry: RefCounted = AnimationOffsetRegistryClass.new()
 var trigger_type_registry: RefCounted = TriggerTypeRegistryClass.new()
@@ -423,12 +421,6 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 		equipment_registry.register_weapon_types(manifest.mod_id, manifest.custom_weapon_types)
 	if not manifest.custom_armor_types.is_empty():
 		equipment_registry.register_armor_types(manifest.mod_id, manifest.custom_armor_types)
-
-	# Environment types
-	if not manifest.custom_weather_types.is_empty():
-		environment_registry.register_weather_types(manifest.mod_id, manifest.custom_weather_types)
-	if not manifest.custom_time_of_day.is_empty():
-		environment_registry.register_time_of_day(manifest.mod_id, manifest.custom_time_of_day)
 
 	# Unit categories
 	if not manifest.custom_unit_categories.is_empty():
@@ -911,7 +903,6 @@ func reload_mods() -> void:
 	registry.clear()
 	# Clear type registries
 	equipment_registry.clear_mod_registrations()
-	environment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()
@@ -940,7 +931,6 @@ func reload_mods_async() -> void:
 	registry.clear()
 	# Clear type registries
 	equipment_registry.clear_mod_registrations()
-	environment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()

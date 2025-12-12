@@ -46,8 +46,6 @@ static var _mod_id_regex: RegEx = null
 ## These are registered with the type registries on mod load
 @export var custom_weapon_types: Array[String] = []
 @export var custom_armor_types: Array[String] = []
-@export var custom_weather_types: Array[String] = []
-@export var custom_time_of_day: Array[String] = []
 @export var custom_unit_categories: Array[String] = []
 @export var custom_animation_offset_types: Array[String] = []
 @export var custom_trigger_types: Array[String] = []
@@ -208,14 +206,6 @@ static func load_from_file(json_path: String) -> ModManifest:
 		if "armor_types" in custom_types and custom_types.armor_types is Array:
 			for at: Variant in custom_types.armor_types:
 				manifest.custom_armor_types.append(str(at))
-
-		if "weather_types" in custom_types and custom_types.weather_types is Array:
-			for wt: Variant in custom_types.weather_types:
-				manifest.custom_weather_types.append(str(wt))
-
-		if "time_of_day" in custom_types and custom_types.time_of_day is Array:
-			for tod: Variant in custom_types.time_of_day:
-				manifest.custom_time_of_day.append(str(tod))
 
 		if "unit_categories" in custom_types and custom_types.unit_categories is Array:
 			for uc: Variant in custom_types.unit_categories:

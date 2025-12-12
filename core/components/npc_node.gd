@@ -84,9 +84,6 @@ func _ready() -> void:
 	if not sprite:
 		sprite = _find_or_create_sprite()
 
-	# Debug: Log NPC registration
-	var npc_id: String = npc_data.npc_id if npc_data else "NO_DATA"
-	print("NPCNode: Registered '%s' at grid %s (world: %s)" % [npc_id, grid_position, global_position])
 
 
 func _notification(what: int) -> void:
@@ -192,8 +189,6 @@ func get_actor_id() -> String:
 ## Called when the player interacts with this NPC
 ## player: The HeroController or similar player node
 func interact(player: Node2D) -> void:
-	print("NPCNode: interact() called on '%s'" % (npc_data.npc_id if npc_data else name))
-
 	if not npc_data:
 		push_warning("NPCNode: Cannot interact - no npc_data set")
 		return
@@ -207,7 +202,6 @@ func interact(player: Node2D) -> void:
 
 	# Get the appropriate cinematic based on game state
 	var cinematic_id: String = npc_data.get_cinematic_id_for_state()
-	print("NPCNode: Cinematic for state = '%s'" % cinematic_id)
 
 	if cinematic_id.is_empty():
 		push_warning("NPCNode: No cinematic to play for NPC '%s'" % npc_data.npc_id)
@@ -215,7 +209,6 @@ func interact(player: Node2D) -> void:
 		return
 
 	# Play the cinematic
-	print("NPCNode: Playing cinematic '%s'" % cinematic_id)
 	var success: bool = CinematicsManager.play_cinematic(cinematic_id)
 
 	if not success:

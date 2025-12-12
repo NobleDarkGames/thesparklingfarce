@@ -2,12 +2,14 @@ extends Node
 
 ## AIController - Executes AI decisions for enemy/neutral units
 ##
-## This is ENGINE CODE - AI brains themselves are CONTENT (in mods/).
+## This is ENGINE CODE - AI behaviors are CONTENT (in mods/).
 ## Responsibilities:
 ## - Called by TurnManager when enemy/neutral unit's turn starts
 ## - Builds context dictionary with battle state
-## - Delegates decision-making to unit's AIBrain resource
+## - Interprets unit's AIBehaviorData using ConfigurableAIBrain
 ## - Handles turn completion after AI executes
+
+const ConfigurableAIBrainScript: GDScript = preload("res://core/systems/ai/configurable_ai_brain.gd")
 
 ## Configurable delays for enemy actions (in seconds)
 @export var delay_before_turn_start: float = 0.5  # Pause before enemy starts thinking
@@ -45,12 +47,17 @@ func process_enemy_turn(unit: Node2D) -> void:
 			"before_attack": delay_before_attack,
 		}
 
-	# Execute AI brain if available
-	if unit.ai_brain:
-		await unit.ai_brain.execute_async(unit, context)
+	# Execute AI behavior - prefer new AIBehaviorData system
+	# Use static method from preloaded script to get singleton instance
+	var brain: AIBrain = ConfigurableAIBrainScript.get_instance()
+
+	if unit.ai_behavior:
+		# New data-driven system: use ConfigurableAIBrain to interpret AIBehaviorData
+		await brain.execute_with_behavior(unit, context, unit.ai_behavior)
 	else:
-		# No AI brain assigned - log warning
-		push_warning("AIController: Unit %s has no ai_brain assigned, ending turn" % unit.get_display_name())
+		# No AI behavior assigned - use default aggressive
+		push_warning("AIController: Unit %s has no ai_behavior assigned, using default aggressive" % unit.get_display_name())
+		await brain.execute_async(unit, context)
 
 	# End turn (only if not already ended by BattleManager during attack)
 	# This handles cases where AI doesn't attack (movement only, or stationary with no targets)

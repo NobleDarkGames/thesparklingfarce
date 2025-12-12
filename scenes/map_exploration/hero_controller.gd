@@ -299,7 +299,6 @@ func _check_tile_triggers() -> void:
 ## Attempt to interact with whatever is in front of the hero.
 func _try_interact() -> void:
 	var interaction_pos: Vector2i = grid_position + facing_direction
-	print("HeroController: Trying to interact at %s (hero at %s, facing %s)" % [interaction_pos, grid_position, facing_direction])
 	interaction_requested.emit(interaction_pos)
 
 

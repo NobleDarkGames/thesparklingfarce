@@ -55,12 +55,16 @@ func _ready() -> void:
 	# Goblin: Weak enemy that will die quickly (low HP, low DEF)
 	var enemy_character: CharacterData = _create_character("TestGoblin", 10, 5, 5, 2, 5)
 
-	# Load AI brain for enemy
-	var AIAggressiveClass: GDScript = load("res://mods/_base_game/ai_brains/ai_aggressive.gd")
-	var aggressive_ai: Resource = AIAggressiveClass.new()
+	# Load AI behavior for enemy (new data-driven system)
+	var aggressive_ai: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres")
+	if not aggressive_ai:
+		# Fallback: create minimal aggressive behavior for testing
+		aggressive_ai = AIBehaviorData.new()
+		aggressive_ai.display_name = "Test Aggressive"
+		aggressive_ai.behavior_mode = "aggressive"
 
-	# Load AI brain for player (also aggressive - will attack)
-	var player_ai: Resource = AIAggressiveClass.new()
+	# Load AI behavior for player (also aggressive - will attack)
+	var player_ai: AIBehaviorData = aggressive_ai
 
 	# Spawn units adjacent so combat can happen immediately
 	_player_unit = _spawn_unit(player_character, Vector2i(3, 5), "player", player_ai)
@@ -108,10 +112,10 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	return character
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Node2D:
 	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
 	var unit: Node2D = unit_scene.instantiate()
-	unit.initialize(character, p_faction, p_ai_brain)
+	unit.initialize(character, p_faction, p_ai_behavior)
 	unit.grid_position = cell
 	unit.position = Vector2(cell.x * 32, cell.y * 32)
 	add_child(unit)
@@ -128,12 +132,12 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	print("\n[PLAYER TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
 
-	# For integration testing: manually invoke the AI brain for player units
+	# For integration testing: manually invoke the AI for player units
 	# TurnManager doesn't auto-invoke AI for player faction
-	if unit.ai_brain:
-		print("  -> Invoking AI brain for player unit (test automation)")
+	if unit.ai_behavior:
+		print("  -> Invoking AI behavior for player unit (test automation)")
 
-		# Swap player/enemy in context so AIAggressive targets enemies, not allies
+		# Swap player/enemy in context so AI targets enemies, not allies
 		var context: Dictionary = {
 			"player_units": BattleManager.enemy_units,
 			"enemy_units": BattleManager.player_units,
@@ -142,13 +146,16 @@ func _on_player_turn_started(unit: Node2D) -> void:
 			"ai_delays": {"after_movement": 0.0, "before_attack": 0.0}
 		}
 
-		await unit.ai_brain.execute_async(unit, context)
+		# Use ConfigurableAIBrain to interpret the behavior data
+		var ConfigurableAIBrainScript: GDScript = load("res://core/systems/ai/configurable_ai_brain.gd")
+		var brain: AIBrain = ConfigurableAIBrainScript.get_instance()
+		await brain.execute_with_behavior(unit, context, unit.ai_behavior)
 
 		# End turn if not already ended by combat
 		if TurnManager.active_unit == unit:
 			TurnManager.end_unit_turn(unit)
 	else:
-		print("  -> No AI brain, ending turn")
+		print("  -> No AI behavior, ending turn")
 		await get_tree().create_timer(0.1).timeout
 		TurnManager.end_unit_turn(unit)
 

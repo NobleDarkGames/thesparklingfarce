@@ -78,9 +78,6 @@ func _ready() -> void:
 	# Connect signals
 	_connect_signals()
 
-	# Print controls
-	_print_controls()
-
 
 ## Find all required scene nodes
 func _find_required_nodes() -> bool:
@@ -212,11 +209,6 @@ func _connect_signals() -> void:
 		InputManager.action_selected.connect(BattleManager._on_action_selected)
 	if not InputManager.target_selected.is_connected(BattleManager._on_target_selected):
 		InputManager.target_selected.connect(BattleManager._on_target_selected)
-
-
-## Print control instructions - disabled for cleaner output
-func _print_controls() -> void:
-	pass
 
 
 ## Start the battle with all spawned units

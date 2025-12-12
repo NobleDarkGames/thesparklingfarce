@@ -58,16 +58,12 @@ var pre_battle_dialogue_picker: ResourcePicker
 var victory_dialogue_picker: ResourcePicker
 var defeat_dialogue_picker: ResourcePicker
 
-# Environment
-var weather_option: OptionButton
-var time_of_day_option: OptionButton
-
 # Rewards
 var experience_reward_spin: SpinBox
 var gold_reward_spin: SpinBox
 
 # AI Behavior tracking
-var available_ai_brains: Array[AIBrain] = []  # Track loaded AI brain instances
+var available_ai_behaviors: Array[AIBehaviorData] = []  # Track loaded AI behavior resources
 
 
 func _ready() -> void:
@@ -109,10 +105,7 @@ func _create_detail_form() -> void:
 	# Section 7: Battle Flow & Dialogue
 	_add_battle_flow_section()
 
-	# Section 8: Environment
-	_add_environment_section()
-
-	# Section 9: Audio (placeholders)
+	# Section 8: Audio (placeholders)
 	_add_audio_section()
 
 	# Section 10: Rewards
@@ -373,55 +366,7 @@ func _add_battle_flow_section() -> void:
 	_add_separator()
 
 
-## Section 8: Environment
-func _add_environment_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Environment"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
-
-	var weather_label: Label = Label.new()
-	weather_label.text = "Weather:"
-	detail_panel.add_child(weather_label)
-
-	weather_option = OptionButton.new()
-	# Populate from registry
-	var weather_types: Array[String] = _get_weather_types_from_registry()
-	for weather_type: String in weather_types:
-		weather_option.add_item(weather_type.capitalize())
-	detail_panel.add_child(weather_option)
-
-	var time_label: Label = Label.new()
-	time_label.text = "Time of Day:"
-	detail_panel.add_child(time_label)
-
-	time_of_day_option = OptionButton.new()
-	# Populate from registry
-	var time_options: Array[String] = _get_time_of_day_from_registry()
-	for time_option: String in time_options:
-		time_of_day_option.add_item(time_option.capitalize())
-	detail_panel.add_child(time_of_day_option)
-
-	_add_separator()
-
-
-## Get weather types from ModLoader's environment registry (with fallback)
-func _get_weather_types_from_registry() -> Array[String]:
-	if ModLoader and ModLoader.environment_registry:
-		return ModLoader.environment_registry.get_weather_types()
-	# Fallback to defaults if registry not available
-	return ["none", "rain", "snow", "fog"]
-
-
-## Get time of day options from ModLoader's environment registry (with fallback)
-func _get_time_of_day_from_registry() -> Array[String]:
-	if ModLoader and ModLoader.environment_registry:
-		return ModLoader.environment_registry.get_time_of_day_options()
-	# Fallback to defaults if registry not available
-	return ["day", "night", "dawn", "dusk"]
-
-
-## Section 9: Audio (Placeholders)
+## Section 8: Audio (Placeholders)
 func _add_audio_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Audio"
@@ -731,8 +676,8 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 		var pos: Vector2i = enemy_dict.position
 		pos_x_spin.value = pos.x
 		pos_y_spin.value = pos.y
-	if 'ai_brain' in enemy_dict and enemy_dict.ai_brain:
-		_select_ai_in_dropdown(ai_option, enemy_dict.ai_brain)
+	if 'ai_behavior' in enemy_dict and enemy_dict.ai_behavior:
+		_select_ai_in_dropdown(ai_option, enemy_dict.ai_behavior)
 
 	# Update preview after adding enemy
 	_schedule_preview_update()
@@ -860,8 +805,8 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 		var pos: Vector2i = neutral_dict.position
 		pos_x_spin.value = pos.x
 		pos_y_spin.value = pos.y
-	if 'ai_brain' in neutral_dict and neutral_dict.ai_brain:
-		_select_ai_in_dropdown(ai_option, neutral_dict.ai_brain)
+	if 'ai_behavior' in neutral_dict and neutral_dict.ai_behavior:
+		_select_ai_in_dropdown(ai_option, neutral_dict.ai_behavior)
 
 	# Update preview after adding neutral
 	_schedule_preview_update()
@@ -902,59 +847,50 @@ func _on_place_neutral_pressed(index: int) -> void:
 			neutral_ui.place_button.disabled = true
 
 
-## Load available AI brains from the AI Brain Registry
-func _load_available_ai_brains() -> void:
-	available_ai_brains.clear()
+## Load available AI behaviors from the registry
+func _load_available_ai_behaviors() -> void:
+	available_ai_behaviors.clear()
 
-	# Use the AI Brain Registry for discovery (supports mod.json declarations + auto-discovery)
-	if ModLoader and ModLoader.ai_brain_registry:
-		var brain_instances: Array[Resource] = ModLoader.ai_brain_registry.get_all_brain_instances()
-		for instance: Resource in brain_instances:
-			var ai_brain: AIBrain = instance as AIBrain
-			if ai_brain:
-				available_ai_brains.append(ai_brain)
+	# Use ModLoader registry to get all ai_behavior resources
+	if ModLoader and ModLoader.registry:
+		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
+		for behavior: Resource in behaviors:
+			var ai_behavior: AIBehaviorData = behavior as AIBehaviorData
+			if ai_behavior:
+				available_ai_behaviors.append(ai_behavior)
 
 
-## Update AI dropdown with available AI brains
+## Update AI dropdown with available AI behaviors
 func _update_ai_dropdown(option: OptionButton) -> void:
 	option.clear()
 	option.add_item("(None)", -1)
 
-	# Load AI brains if not already loaded
-	if available_ai_brains.is_empty():
-		_load_available_ai_brains()
+	# Load AI behaviors if not already loaded
+	if available_ai_behaviors.is_empty():
+		_load_available_ai_behaviors()
 
-	# Populate dropdown using registry metadata for display names
+	# Populate dropdown using behavior display names
 	var index: int = 0
-	for ai_brain: AIBrain in available_ai_brains:
-		var display_name: String = ""
-		# Try to get display name from registry
-		if ModLoader and ModLoader.ai_brain_registry:
-			var brain_path: String = ai_brain.get_script().get_path()
-			var brains: Array[Dictionary] = ModLoader.ai_brain_registry.get_all_brains()
-			for info: Dictionary in brains:
-				if info.get("path", "") == brain_path:
-					display_name = info.get("display_name", "")
-					break
-		# Fallback to extracting from filename
-		if display_name.is_empty():
-			display_name = ai_brain.get_script().get_path().get_file().get_basename().replace("ai_", "").capitalize()
+	for ai_behavior: AIBehaviorData in available_ai_behaviors:
+		var display_name: String = ai_behavior.display_name if ai_behavior.display_name else ai_behavior.resource_path.get_file().get_basename().capitalize()
 		option.add_item(display_name, index)
-		option.set_item_metadata(index + 1, ai_brain)
+		option.set_item_metadata(index + 1, ai_behavior)
 		index += 1
 
 
-## Select an AI brain in the dropdown
-func _select_ai_in_dropdown(option: OptionButton, ai_brain: AIBrain) -> void:
-	if not ai_brain:
+## Select an AI behavior in the dropdown
+func _select_ai_in_dropdown(option: OptionButton, ai_behavior: AIBehaviorData) -> void:
+	if not ai_behavior:
 		option.selected = 0
 		return
 
 	for i in range(option.item_count):
 		var metadata: Variant = option.get_item_metadata(i)
-		if metadata and metadata.get_script() == ai_brain.get_script():
-			option.selected = i
-			return
+		if metadata and metadata is AIBehaviorData:
+			# Match by resource path for reliable comparison
+			if metadata.resource_path == ai_behavior.resource_path:
+				option.selected = i
+				return
 
 
 ## Update map dropdown with available map scenes from mod directories
@@ -1231,17 +1167,6 @@ func _load_resource_data() -> void:
 	else:
 		defeat_dialogue_picker.select_none()
 
-	# Environment - use registry for lookups
-	var weather_types: Array[String] = _get_weather_types_from_registry()
-	var weather_index: int = weather_types.find(battle.weather)
-	if weather_index >= 0:
-		weather_option.selected = weather_index
-
-	var time_options: Array[String] = _get_time_of_day_from_registry()
-	var time_index: int = time_options.find(battle.time_of_day)
-	if time_index >= 0:
-		time_of_day_option.selected = time_index
-
 	# Rewards
 	experience_reward_spin.value = battle.experience_reward
 	gold_reward_spin.value = battle.gold_reward
@@ -1297,14 +1222,14 @@ func _save_resource_data() -> void:
 		var character: CharacterData = enemy_ui.character_picker.get_selected_resource() as CharacterData
 
 		var ai_index: int = enemy_ui.ai_option.selected
-		var ai_brain: AIBrain = null
+		var ai_behavior: AIBehaviorData = null
 		if ai_index > 0:
-			ai_brain = enemy_ui.ai_option.get_item_metadata(ai_index)
+			ai_behavior = enemy_ui.ai_option.get_item_metadata(ai_index)
 
 		var enemy_dict: Dictionary = {
 			"character": character,
 			"position": Vector2i(int(enemy_ui.pos_x_spin.value), int(enemy_ui.pos_y_spin.value)),
-			"ai_brain": ai_brain
+			"ai_behavior": ai_behavior
 		}
 		new_enemies.append(enemy_dict)
 	battle.enemies = new_enemies
@@ -1315,14 +1240,14 @@ func _save_resource_data() -> void:
 		var character: CharacterData = neutral_ui.character_picker.get_selected_resource() as CharacterData
 
 		var ai_index: int = neutral_ui.ai_option.selected
-		var ai_brain: AIBrain = null
+		var ai_behavior: AIBehaviorData = null
 		if ai_index > 0:
-			ai_brain = neutral_ui.ai_option.get_item_metadata(ai_index)
+			ai_behavior = neutral_ui.ai_option.get_item_metadata(ai_index)
 
 		var neutral_dict: Dictionary = {
 			"character": character,
 			"position": Vector2i(int(neutral_ui.pos_x_spin.value), int(neutral_ui.pos_y_spin.value)),
-			"ai_brain": ai_brain
+			"ai_behavior": ai_behavior
 		}
 		new_neutrals.append(neutral_dict)
 	battle.neutrals = new_neutrals
@@ -1357,15 +1282,6 @@ func _save_resource_data() -> void:
 	battle.pre_battle_dialogue = pre_battle_dialogue_picker.get_selected_resource() as DialogueData
 	battle.victory_dialogue = victory_dialogue_picker.get_selected_resource() as DialogueData
 	battle.defeat_dialogue = defeat_dialogue_picker.get_selected_resource() as DialogueData
-
-	# Environment - use registry for lookups
-	var weather_items: Array[String] = _get_weather_types_from_registry()
-	if weather_option.selected >= 0 and weather_option.selected < weather_items.size():
-		battle.weather = weather_items[weather_option.selected]
-
-	var time_items: Array[String] = _get_time_of_day_from_registry()
-	if time_of_day_option.selected >= 0 and time_of_day_option.selected < time_items.size():
-		battle.time_of_day = time_items[time_of_day_option.selected]
 
 	# Rewards
 	battle.experience_reward = int(experience_reward_spin.value)
@@ -1407,8 +1323,8 @@ func _collect_battle_validation_errors(battle: BattleData) -> Array[String]:
 			errors.append("Enemy %d: Missing character" % (i + 1))
 		if not 'position' in enemy:
 			errors.append("Enemy %d: Missing position" % (i + 1))
-		if not 'ai_brain' in enemy or enemy.ai_brain == null:
-			errors.append("Enemy %d: Missing AI brain" % (i + 1))
+		if not 'ai_behavior' in enemy or enemy.ai_behavior == null:
+			errors.append("Enemy %d: Missing AI behavior" % (i + 1))
 
 	# Neutral validation
 	for i: int in range(battle.neutrals.size()):
@@ -1417,8 +1333,8 @@ func _collect_battle_validation_errors(battle: BattleData) -> Array[String]:
 			errors.append("Neutral %d: Missing character" % (i + 1))
 		if not 'position' in neutral:
 			errors.append("Neutral %d: Missing position" % (i + 1))
-		if not 'ai_brain' in neutral or neutral.ai_brain == null:
-			errors.append("Neutral %d: Missing AI brain" % (i + 1))
+		if not 'ai_behavior' in neutral or neutral.ai_behavior == null:
+			errors.append("Neutral %d: Missing AI behavior" % (i + 1))
 
 	# Victory condition validation
 	match battle.victory_condition:
@@ -1457,8 +1373,6 @@ func _create_new_resource() -> Resource:
 	battle.battle_description = "Enter battle description"
 	battle.victory_condition = BattleData.VictoryCondition.DEFEAT_ALL_ENEMIES
 	battle.defeat_condition = BattleData.DefeatCondition.LEADER_DEFEATED
-	battle.weather = "none"
-	battle.time_of_day = "day"
 	return battle
 
 

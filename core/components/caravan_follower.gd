@@ -320,7 +320,7 @@ func _load_directional_sprites() -> void:
 				if DEBUG_MODE:
 					print("[Caravan] Loaded directional sprite: %s" % sprite_path)
 
-	if not _direction_sprites.is_empty():
+	if DEBUG_MODE and not _direction_sprites.is_empty():
 		print("[Caravan] Loaded %d directional wagon sprites" % _direction_sprites.size())
 
 

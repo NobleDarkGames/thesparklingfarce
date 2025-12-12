@@ -198,10 +198,6 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 
-	# Debug: Log accept key presses
-	if event.is_action_pressed("ui_accept"):
-		print("[ACTION_MENU DEBUG] ui_accept pressed, selected_index=%d" % selected_index)
-
 	# Mouse click on menu items
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
