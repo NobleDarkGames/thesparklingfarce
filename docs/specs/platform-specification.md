@@ -789,6 +789,44 @@ Position: `"start"`, `"end"` (default), `"after_item"`, `"after_magic"`, `"after
 - Magic restricted to Egress/Detox only (Phase 2)
 - "Member" label (not "Status" - that's Caravan menu)
 
+### Battle Exit System (SF2-Authentic)
+
+The battle exit system handles voluntary escapes (Egress spell, Angel Wing item) and defeat (hero death).
+
+**Core Principle:** Hero death = immediate defeat, regardless of party composition. No separate "party wipe" check needed.
+
+**Exit Reasons:**
+| Reason | Trigger | Party Restoration |
+|--------|---------|-------------------|
+| `EGRESS` | Egress spell cast | None (keep current HP/MP) |
+| `ANGEL_WING` | Angel Wing item used | None (keep current HP/MP) |
+| `HERO_DEATH` | Hero character dies | Full (HP + MP restored) |
+
+**Flow:**
+1. **Voluntary Exit (Egress/Angel Wing):**
+   - Brief "Egress!" or "Angel Wing!" message (Monogram 32pt, centered)
+   - Return to last safe location (no healing)
+
+2. **Defeat (Hero Death):**
+   - Full defeat screen: "[Hero] has fallen!" / "The force retreats..."
+   - "Press any key... (ESC to quit)" hint
+   - Full party restoration (HP + MP)
+   - Return to last safe location
+
+**Key Files:**
+| File | Purpose |
+|------|---------|
+| `TurnManager.hero_died_in_battle` | Signal emitted when hero dies |
+| `BattleManager._execute_battle_exit()` | Handles all exit types |
+| `BattleManager._on_hero_died_in_battle()` | Shows defeat screen, triggers exit |
+| `GameState.last_safe_location` | Tracks return destination |
+| `scenes/ui/defeat_screen.tscn` | SF2-authentic defeat UI |
+
+**Safe Location Tracking:**
+- Updated when entering town maps
+- Falls back to `TransitionContext.return_scene_path`
+- Persisted in save data
+
 ### Modal Screen Architecture (Shop/Caravan Pattern)
 
 Multi-screen modal UIs (Shop, Caravan Depot) share a common architecture with screen-stack navigation.

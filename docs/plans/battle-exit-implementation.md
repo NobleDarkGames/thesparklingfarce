@@ -2,6 +2,7 @@
 
 **Author**: Lt. Claudbrain
 **Date**: 2025-12-12
+**Status**: ✅ COMPLETE (2025-12-12)
 **Scope**: Egress spell, Angel Wing item, defeat handling, safe location tracking
 
 ---
@@ -9,12 +10,38 @@
 ## Executive Summary
 
 This plan covers the minimum viable implementation for exiting battles:
-1. **Egress spell** - Ability that exits battle and returns to last safe location
-2. **Angel Wing item** - Consumable with same effect as Egress
-3. **Battle loss handling** - Hero death or party wipe triggers auto-exit with free revival
-4. **Safe location tracking** - GameState knows where to return players
+1. **Egress spell** - ✅ Ability that exits battle and returns to last safe location
+2. **Angel Wing item** - ✅ Consumable with same effect as Egress
+3. **Battle loss handling** - ✅ Hero death triggers auto-exit with free revival
+4. **Safe location tracking** - ✅ GameState knows where to return players
 
 **NOT in scope (Phase B)**: Church NPCs, paid resurrection, complex status effects.
+
+---
+
+## Implementation Notes (Post-Completion)
+
+### Simplification from Original Plan
+
+The original plan included separate handling for "hero death" vs "party wipe". This was **simplified** on 2025-12-12:
+
+- **Hero death = immediate defeat** regardless of party composition
+- No separate "party wipe" check needed (hero must die for party wipe anyway)
+- Simplified `TurnManager.check_battle_end()` to only check hero alive status
+
+### SF2-Authentic Defeat Screen
+
+The defeat screen was redesigned to match SF2's automatic flow:
+- No menu choices (SF2 didn't have them)
+- "[Hero] has fallen!" / "The force retreats..." text
+- "Press any key... (ESC to quit)" subtle hint
+- Full party restoration (HP + MP) on defeat
+- Egress/Angel Wing do NOT restore HP/MP (you keep current state)
+
+### Key Commits
+- `609002f` - feat: Battle exit system (Egress, Angel Wing, hero death)
+- `4776d6d` - fix: Battle state desync prevention and Egress safety guards
+- `ec26fe5` - feat: SF2-authentic defeat screen with simplified battle end logic
 
 ---
 
@@ -32,7 +59,7 @@ This plan covers the minimum viable implementation for exiting battles:
 | ItemData | `core/resources/item_data.gd` | Has `effect: Resource` field that links to AbilityData |
 | PartyManager | `core/systems/party_manager.gd` | Has `_member_save_data` dictionary with CharacterSaveData per character |
 | CharacterSaveData | `core/resources/character_save_data.gd` | Has `current_hp`, `max_hp`, `is_alive` fields |
-| DefeatScreen | `scenes/ui/defeat_screen.gd` | Has `retry_requested` and `return_requested` signals |
+| DefeatScreen | `scenes/ui/defeat_screen.gd` | SF2-authentic auto-flow with `continue_requested` and `quit_requested` signals |
 
 ### Key Discovery: TransitionContext Already Has RETREAT
 
