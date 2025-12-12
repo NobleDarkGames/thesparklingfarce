@@ -1,123 +1,132 @@
 class_name DefeatScreen
 extends CanvasLayer
 
-## Defeat Screen - Displays game over options
+## SF2-Authentic Defeat Screen
 ##
-## Simple MVP version: Shows "DEFEAT!", retry and return buttons.
-## Per Commander Claudius: SF returned you to town with gold penalty.
+## When the hero falls, this screen displays automatically with no menu choices.
+## The force retreats to the last church/safe location with full party revival.
+##
+## SF2-AUTHENTIC BEHAVIOR:
+## - Automatic fade to black with flavor text
+## - "[Hero] has fallen! The force retreats..."
+## - No retry option - you just wake up in town
+## - Full party restoration: HP, MP, status cleared, dead revived
+## - Press any key to continue (or ESC to quit to title)
 
-signal retry_requested
-signal return_requested
-signal result_dismissed  ## Generic dismiss (for compatibility)
+signal continue_requested  ## Player pressed any key to continue with retreat
+signal quit_requested      ## Player pressed ESC to quit to title
+signal result_dismissed    ## Generic dismiss (for compatibility)
 
 ## Font reference
 const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
 ## Animation constants
-const FADE_IN_DURATION: float = 0.6
+const FADE_IN_DURATION: float = 1.0
+const TEXT_DELAY: float = 0.8
+const HINT_DELAY: float = 2.0
 
-## UI References
+## UI References - simplified for automatic flow
 @onready var background: ColorRect = $Background
-@onready var panel: PanelContainer = $CenterContainer/Panel
-@onready var title_label: Label = $CenterContainer/Panel/MarginContainer/VBox/TitleLabel
-@onready var message_label: Label = $CenterContainer/Panel/MarginContainer/VBox/MessageLabel
-@onready var buttons_container: VBoxContainer = $CenterContainer/Panel/MarginContainer/VBox/ButtonsContainer
-@onready var retry_button: Button = $CenterContainer/Panel/MarginContainer/VBox/ButtonsContainer/RetryButton
-@onready var return_button: Button = $CenterContainer/Panel/MarginContainer/VBox/ButtonsContainer/ReturnButton
+@onready var message_container: VBoxContainer = $CenterContainer/MessageContainer
+@onready var defeat_label: Label = $CenterContainer/MessageContainer/DefeatLabel
+@onready var retreat_label: Label = $CenterContainer/MessageContainer/RetreatLabel
+@onready var hint_label: Label = $HintLabel
 
 ## State
 var _can_interact: bool = false
+var _hero_name: String = "The hero"
 
 
 func _ready() -> void:
 	# Start hidden
 	background.modulate.a = 0.0
-	panel.modulate.a = 0.0
-	buttons_container.visible = false
+	message_container.modulate.a = 0.0
+	hint_label.modulate.a = 0.0
 
 	# Set layer above everything else
 	layer = 100
 
-	# Connect button signals
-	retry_button.pressed.connect(_on_retry_pressed)
-	return_button.pressed.connect(_on_return_pressed)
+	# Disable input processing initially
+	set_process_input(false)
 
 
-## Show the defeat screen
-func show_defeat() -> void:
+## Show the defeat screen with hero name
+## @param hero_name: Name of the fallen hero for flavor text (pass from BattleManager)
+func show_defeat(hero_name: String = "The hero") -> void:
 	_can_interact = false
+
+	# Store hero name for display
+	_hero_name = hero_name if not hero_name.is_empty() else "The hero"
+
+	# Set up defeat message (SF2-authentic)
+	defeat_label.text = "%s has fallen!" % _hero_name
+	retreat_label.text = "The force retreats..."
 
 	# Play somber music
 	AudioManager.play_music("defeat_theme", 0.6)
 
-	# Set title
-	title_label.text = "DEFEAT..."
-	title_label.add_theme_color_override("font_color", Color.DARK_RED)
-
-	# Set message
-	message_label.text = "Your forces have fallen."
-
-	# Fade in background (darker for defeat)
+	# Phase 1: Fade to black
 	var tween: Tween = create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(background, "modulate:a", 0.9, FADE_IN_DURATION)
-	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
+	tween.tween_property(background, "modulate:a", 1.0, FADE_IN_DURATION)
 	await tween.finished
 
-	# Show buttons after a moment
-	await get_tree().create_timer(0.5).timeout
-	buttons_container.visible = true
-	buttons_container.modulate.a = 0.0
+	# Phase 2: Show defeat message
+	await get_tree().create_timer(TEXT_DELAY).timeout
+	var text_tween: Tween = create_tween()
+	text_tween.tween_property(message_container, "modulate:a", 1.0, 0.5)
+	await text_tween.finished
 
-	var button_tween: Tween = create_tween()
-	button_tween.tween_property(buttons_container, "modulate:a", 1.0, 0.3)
-	await button_tween.finished
+	# Phase 3: Show hint after delay
+	await get_tree().create_timer(HINT_DELAY).timeout
+	hint_label.text = "Press any key...  (ESC to quit)"
+	var hint_tween: Tween = create_tween()
+	hint_tween.tween_property(hint_label, "modulate:a", 0.6, 0.3)
+	await hint_tween.finished
 
-	# Focus first button and allow interaction
-	retry_button.grab_focus()
+	# Now allow interaction
 	_can_interact = true
-
-
-func _on_retry_pressed() -> void:
-	if not _can_interact:
-		return
-
-	_can_interact = false
-	AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
-
-	await _fade_out()
-	retry_requested.emit()
-	result_dismissed.emit()
-
-
-func _on_return_pressed() -> void:
-	if not _can_interact:
-		return
-
-	_can_interact = false
-	AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
-
-	await _fade_out()
-	return_requested.emit()
-	result_dismissed.emit()
-
-
-func _fade_out() -> void:
-	var tween: Tween = create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(background, "modulate:a", 0.0, 0.3)
-	tween.tween_property(panel, "modulate:a", 0.0, 0.3)
-	await tween.finished
+	set_process_input(true)
 
 
 func _input(event: InputEvent) -> void:
-	# Block ALL inputs while this modal popup is visible
-	# This prevents clicks/keys from passing through to the battle map
+	# Block ALL inputs from passing through
 	get_viewport().set_input_as_handled()
 
 	if not _can_interact:
 		return
 
-	# Handle keyboard navigation between buttons
-	if event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down"):
-		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
+	# Only respond to key/button presses, not releases or motion
+	if not event.is_pressed():
+		return
+
+	# Ignore mouse motion
+	if event is InputEventMouseMotion:
+		return
+
+	# ESC/Cancel quits to title
+	if event.is_action_pressed("sf_cancel") or event.is_action_pressed("ui_cancel"):
+		_can_interact = false
+		set_process_input(false)
+		AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
+		await _fade_out()
+		quit_requested.emit()
+		result_dismissed.emit()
+		return
+
+	# Any other key/button continues with retreat
+	if event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton:
+		_can_interact = false
+		set_process_input(false)
+		AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
+		await _fade_out()
+		continue_requested.emit()
+		result_dismissed.emit()
+
+
+func _fade_out() -> void:
+	var tween: Tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(message_container, "modulate:a", 0.0, 0.3)
+	tween.tween_property(hint_label, "modulate:a", 0.0, 0.3)
+	# Keep background black for scene transition
+	await tween.finished

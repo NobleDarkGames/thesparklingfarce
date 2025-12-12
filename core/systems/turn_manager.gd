@@ -235,23 +235,14 @@ func _check_battle_end() -> bool:
 		elif unit.is_enemy_unit():
 			enemy_count += 1
 
-	# SF2-authentic: Hero death triggers immediate battle exit (even if others survive)
-	# This is different from total party wipe - hero death is a special case
-	if not hero_alive and player_count > 0:
-		# Hero died but other party members survive
-		# Don't call _end_battle - emit signal for BattleManager to handle
-		battle_active = false
+	# SF2-authentic: Hero death = immediate defeat (regardless of party composition)
+	if not hero_alive:
 		active_unit = null
 		turn_queue.clear()
 		hero_died_in_battle.emit()
 		return true
 
-	# Check defeat (all player units dead = party wipe)
-	if player_count == 0:
-		_end_battle(false)
-		return true
-
-	# Check victory (all enemy units dead)
+	# Victory: all enemies dead
 	if enemy_count == 0:
 		_end_battle(true)
 		return true

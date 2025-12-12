@@ -11,7 +11,7 @@ script = ExtResource("1_script")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.1, 0, 0, 0.9)
+color = Color(0, 0, 0, 1)
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 anchors_preset = 15
@@ -20,56 +20,40 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(320, 220)
-
-[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/Panel"]
-layout_mode = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 24
-
-[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/MarginContainer"]
-layout_mode = 2
-theme_override_constants/separation = 16
+[node name="MessageContainer" type="VBoxContainer" parent="CenterContainer"]
+theme_override_constants/separation = 24
 alignment = 1
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox"]
+[node name="DefeatLabel" type="Label" parent="CenterContainer/MessageContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.545098, 0, 0, 1)
+theme_override_colors/font_color = Color(0.8, 0.2, 0.2, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 3
+theme_override_constants/outline_size = 4
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 48
-text = "DEFEAT..."
+theme_override_font_sizes/font_size = 32
+text = "The hero has fallen!"
 horizontal_alignment = 1
 
-[node name="MessageLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox"]
+[node name="RetreatLabel" type="Label" parent="CenterContainer/MessageContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 24
+text = "The force retreats..."
+horizontal_alignment = 1
+
+[node name="HintLabel" type="Label" parent="."]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -60.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
-text = "Your forces have fallen."
+text = "Press any key...  (ESC to quit)"
 horizontal_alignment = 1
-
-[node name="ButtonsContainer" type="VBoxContainer" parent="CenterContainer/Panel/MarginContainer/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="RetryButton" type="Button" parent="CenterContainer/Panel/MarginContainer/VBox/ButtonsContainer"]
-custom_minimum_size = Vector2(200, 36)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 24
-text = "Retry Battle"
-
-[node name="ReturnButton" type="Button" parent="CenterContainer/Panel/MarginContainer/VBox/ButtonsContainer"]
-custom_minimum_size = Vector2(200, 36)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 24
-text = "Return to Town"
+vertical_alignment = 1

@@ -1544,47 +1544,33 @@ func _handle_unit_death(unit: Node2D) -> void:
 	_on_unit_died(unit)
 
 
-## Handle battle end
+## Handle battle end (victory only - defeat goes through hero_died_in_battle)
 func _on_battle_ended(victory: bool) -> void:
-	# Note: battle_active is now a proxy to TurnManager.battle_active - no need to set here
-
 	# Clear the battle grid to avoid polluting GridManager state for non-battle maps
 	GridManager.clear_grid()
 
-	if victory:
-		GameState.increment_campaign_data("battles_won")
+	# This handler is only for victory now - defeat goes through hero_died_in_battle
+	if not victory:
+		push_warning("BattleManager: _on_battle_ended(false) should not occur - defeat uses hero_died_in_battle")
+		return
+
+	GameState.increment_campaign_data("battles_won")
 
 	# Wait for any pending level-up celebrations to finish before showing result screen
-	# This prevents the victory/defeat screen from overlapping with level-up popups
 	await _wait_for_level_ups()
 
-	# Show result screen (skip in headless mode)
-	var should_retry: bool = false
+	# Show victory screen (skip in headless mode)
 	if not TurnManager.is_headless:
-		if victory:
-			should_retry = await _show_victory_screen()
-		else:
-			should_retry = await _show_defeat_screen()
+		await _show_victory_screen()
 
-	# Emit battle_ended AFTER victory/defeat screen is dismissed
-	# This ensures CampaignManager doesn't trigger map transition too early
-	battle_ended.emit(victory)
-
-	# Handle retry request
-	if should_retry:
-		# TODO: Implement battle retry (reload current battle data)
-		return
+	# Emit battle_ended AFTER victory screen is dismissed
+	battle_ended.emit(true)
 
 	# Return to map after battle (if we came from a map trigger)
 	var context: RefCounted = GameState.get_transition_context()
 	if context and context.is_valid():
-		# Set battle outcome in transition context
-		# Access enum via the context's script
 		var TransitionContextScript: GDScript = context.get_script()
-		if victory:
-			context.battle_outcome = TransitionContextScript.BattleOutcome.VICTORY
-		else:
-			context.battle_outcome = TransitionContextScript.BattleOutcome.DEFEAT
+		context.battle_outcome = TransitionContextScript.BattleOutcome.VICTORY
 
 		# Store completed battle ID for one-shot tracking
 		if current_battle_data and current_battle_data.get("battle_id"):
@@ -1609,23 +1595,34 @@ func _show_victory_screen() -> bool:
 	return false
 
 
-## Show defeat screen and wait for player choice
-## Returns true if player chose to retry, false to return to town
+## Show defeat screen (SF2-authentic automatic flow) and wait for player input
+## Returns false always (no retry option in SF2-authentic flow)
 func _show_defeat_screen() -> bool:
 	var defeat_screen: CanvasLayer = _get_defeat_screen_scene().instantiate()
 	battle_scene_root.add_child(defeat_screen)
 
-	var retry_chosen: bool = false
+	var player_choice: String = ""  # "continue" or "quit"
 
-	# Connect to specific signals for player choice
-	defeat_screen.retry_requested.connect(func() -> void: retry_chosen = true)
-	defeat_screen.return_requested.connect(func() -> void: retry_chosen = false)
+	# Connect to SF2-authentic signals
+	defeat_screen.continue_requested.connect(func() -> void: player_choice = "continue")
+	defeat_screen.quit_requested.connect(func() -> void: player_choice = "quit")
 
-	defeat_screen.show_defeat()
+	# Get hero name for SF2-authentic flavor text
+	var hero_name: String = "The hero"
+	var hero: CharacterData = PartyManager.get_hero()
+	if hero:
+		hero_name = hero.character_name
+
+	defeat_screen.show_defeat(hero_name)
 	await defeat_screen.result_dismissed
-
 	defeat_screen.queue_free()
-	return retry_chosen
+
+	# Handle player choice
+	if player_choice == "quit":
+		# TODO: Implement return to title (Phase 3)
+		push_warning("BattleManager: Return to title not yet implemented - retreating instead")
+
+	return false
 
 
 ## Handle unit gaining XP
@@ -1775,14 +1772,18 @@ enum BattleExitReason {
 ## @param initiator: The unit that triggered the exit (for Egress/Angel Wing) or null (for death)
 ## @param reason: Why we're exiting the battle
 func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
-	# Prevent re-entry if already exiting (battle_active proxies to TurnManager)
+	# Prevent re-entry if already exiting
 	if not battle_active:
 		return
-	# Mark battle as inactive to prevent re-entry (set on TurnManager directly)
+
+	# Mark battle as inactive (set on TurnManager directly)
 	TurnManager.battle_active = false
 
-	# 1. Revive all party members (set HP to max) - SF2-authentic free revival
-	_revive_all_party_members()
+	# 1. Handle party restoration based on exit reason (SF2-authentic)
+	# DEFEAT scenarios (HERO_DEATH, PARTY_WIPE): Full restoration (HP + MP)
+	# ESCAPE scenarios (EGRESS, ANGEL_WING): No restoration (keep current state)
+	var is_defeat: bool = reason == BattleExitReason.HERO_DEATH or reason == BattleExitReason.PARTY_WIPE
+	_revive_all_party_members(is_defeat)
 
 	# 2. Set battle outcome to RETREAT in transition context
 	var context: RefCounted = GameState.get_transition_context()
@@ -1804,8 +1805,9 @@ func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
 		TurnManager.battle_active = true  # Re-enable battle since we can't exit
 		return
 
-	# 4. Show brief exit message (skip in headless mode)
-	if not TurnManager.is_headless:
+	# 4. Show brief exit message for voluntary exits (Egress/Angel Wing only)
+	# HERO_DEATH uses the full defeat screen shown earlier
+	if not TurnManager.is_headless and reason != BattleExitReason.HERO_DEATH:
 		await _show_exit_message(reason)
 
 	# 5. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
@@ -1821,17 +1823,26 @@ func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
 	await SceneManager.change_scene(return_path)
 
 
-## Revive all party members to full HP (SF2-authentic free revival on escape/defeat)
-func _revive_all_party_members() -> void:
+## Revive all party members (SF2-authentic behavior depends on reason)
+## @param full_restoration: If true (defeat), restore HP AND MP. If false (escape), no restoration.
+func _revive_all_party_members(full_restoration: bool) -> void:
+	if not full_restoration:
+		# EGRESS / ANGEL_WING: No restoration - party keeps current state
+		# SF2-AUTHENTIC: Egress exits with whatever HP/MP you had
+		return
+
+	# DEFEAT (HERO_DEATH / PARTY_WIPE): Full restoration
+	# SF2-AUTHENTIC: On defeat, party wakes up at church fully healed (HP + MP)
 	for character: CharacterData in PartyManager.party_members:
 		var uid: String = character.character_uid
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
 		if save_data:
-			# Restore to full HP (note: we don't restore MP - SF2 didn't restore MP on retreat)
 			save_data.current_hp = save_data.max_hp
+			save_data.current_mp = save_data.max_mp
+			# TODO: Clear status ailments when status system is implemented
 
 
-## Show a brief exit message before transitioning
+## Show a brief exit message for voluntary battle exits (Egress/Angel Wing)
 func _show_exit_message(reason: BattleExitReason) -> void:
 	var message: String = ""
 	match reason:
@@ -1839,28 +1850,33 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 			message = "Egress!"
 		BattleExitReason.ANGEL_WING:
 			message = "Angel Wing!"
-		BattleExitReason.HERO_DEATH:
-			message = "The hero has fallen..."
-		BattleExitReason.PARTY_WIPE:
-			message = "All forces defeated..."
+		_:
+			return  # No message for other reasons
 
-	# Create temporary label for exit message
+	# Create full-screen container for proper centering
+	var canvas: CanvasLayer = CanvasLayer.new()
+	canvas.layer = 100
+
+	var background: ColorRect = ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(background)
+
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(center)
+
 	var label: Label = Label.new()
 	label.text = message
+	label.add_theme_font_override("font", preload("res://assets/fonts/monogram.ttf"))
 	label.add_theme_font_size_override("font_size", 32)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.set_anchors_preset(Control.PRESET_CENTER)
-
-	var canvas: CanvasLayer = CanvasLayer.new()
-	canvas.layer = 100  # Above most UI
-	canvas.add_child(label)
+	center.add_child(label)
 
 	if battle_scene_root:
 		battle_scene_root.add_child(canvas)
 	else:
-		# Fallback if no battle scene root
 		get_tree().current_scene.add_child(canvas)
 
 	# Brief pause for player to read message
@@ -1869,6 +1885,11 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 	canvas.queue_free()
 
 
-## Handle hero death - auto-exit battle with revival (called from TurnManager signal)
+## Handle hero death - show defeat screen then exit battle (called from TurnManager signal)
 func _on_hero_died_in_battle() -> void:
+	# Show SF2-authentic defeat screen first (unless headless)
+	if not TurnManager.is_headless:
+		await _show_defeat_screen()
+
+	# Now execute battle exit with full party restoration
 	await _execute_battle_exit(null, BattleExitReason.HERO_DEATH)
