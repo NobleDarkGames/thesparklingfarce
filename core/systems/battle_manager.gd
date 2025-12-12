@@ -912,6 +912,63 @@ func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
 	await _execute_attack(attacker, defender)
 
 
+## Execute spell cast from AI (called by AIBrain)
+## This is the public API for AI brains to cast spells
+## @param caster: The unit casting the spell
+## @param ability_id: The ability ID to cast
+## @param target: The target unit for the spell
+## @return: True if spell was cast successfully
+func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> bool:
+	# Get the ability data from registry
+	var ability: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
+
+	if not ability:
+		push_warning("BattleManager: AI spell '%s' not found in registry" % ability_id)
+		return false
+
+	if not caster or not caster.stats:
+		push_warning("BattleManager: AI spell caster invalid")
+		return false
+
+	if not target or not target.is_alive():
+		push_warning("BattleManager: AI spell target invalid")
+		return false
+
+	# Check MP cost
+	if caster.stats.current_mp < ability.mp_cost:
+		return false
+
+	# Deduct MP
+	caster.stats.current_mp -= ability.mp_cost
+
+	# Get all targets (handles AoE)
+	var targets: Array[Node2D] = _get_spell_targets(caster, target, ability)
+
+	if targets.is_empty():
+		# Refund MP if no valid targets
+		caster.stats.current_mp += ability.mp_cost
+		return false
+
+	# Apply the spell effect to all targets
+	var any_effect_applied: bool = false
+	for spell_target: Node2D in targets:
+		var effect_applied: bool = false
+
+		match ability.ability_type:
+			AbilityData.AbilityType.HEAL:
+				effect_applied = await _apply_spell_heal(caster, spell_target, ability)
+			AbilityData.AbilityType.ATTACK:
+				effect_applied = await _apply_spell_damage(caster, spell_target, ability)
+			_:
+				push_warning("BattleManager: AI spell type '%s' not yet supported" % ability.ability_type)
+
+		if effect_applied:
+			any_effect_applied = true
+			_award_spell_xp(caster, spell_target, ability)
+
+	return any_effect_applied
+
+
 # =============================================================================
 # SF2 AUTHENTIC COMBAT SESSION SYSTEM
 # =============================================================================

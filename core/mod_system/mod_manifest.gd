@@ -104,6 +104,16 @@ static var _mod_id_regex: RegEx = null
 ## Note: Tilesets are also auto-discovered from tilesets/ directory for backwards compatibility
 @export var tilesets: Dictionary = {}
 
+## AI role declarations - allows mods to define custom AI roles with behavior scripts
+## Format: {role_id: {display_name: String, description: String, script_path: String (optional)}}
+## Example: {"hacking": {"display_name": "Hacking", "description": "Disables enemy systems", "script_path": "ai_roles/hacking_role.gd"}}
+@export var ai_roles: Dictionary = {}
+
+## AI mode declarations - allows mods to define custom AI behavior modes
+## Format: {mode_id: {display_name: String, description: String}}
+## Example: {"berserk": {"display_name": "Berserk", "description": "Maximum aggression, ignores self-preservation"}}
+@export var ai_modes: Dictionary = {}
+
 ## Field menu options - allows mods to add custom options to the exploration field menu
 ## Format: {option_id: {label: String, scene_path: String, position: String}}
 ## position options: "start", "end" (default), "after_item", "after_magic", "after_search", "after_member"
@@ -273,6 +283,20 @@ static func load_from_file(json_path: String) -> ModManifest:
 			var tileset_data: Variant = data.tilesets[tileset_id]
 			if tileset_data is Dictionary:
 				manifest.tilesets[tileset_id] = tileset_data
+
+	# Parse AI role declarations
+	if "ai_roles" in data and data.ai_roles is Dictionary:
+		for role_id: String in data.ai_roles.keys():
+			var role_data: Variant = data.ai_roles[role_id]
+			if role_data is Dictionary:
+				manifest.ai_roles[role_id] = role_data
+
+	# Parse AI mode declarations
+	if "ai_modes" in data and data.ai_modes is Dictionary:
+		for mode_id: String in data.ai_modes.keys():
+			var mode_data: Variant = data.ai_modes[mode_id]
+			if mode_data is Dictionary:
+				manifest.ai_modes[mode_id] = mode_data
 
 	# Parse field menu options
 	if "field_menu_options" in data and data.field_menu_options is Dictionary:

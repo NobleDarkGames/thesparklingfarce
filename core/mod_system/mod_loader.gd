@@ -32,7 +32,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"caravans": "caravan",  # CaravanData resources for mobile HQ configuration
 	"npcs": "npc",  # NPCData resources for interactable NPCs
 	"shops": "shop",  # ShopData resources for weapon/item shops, churches, crafters
-	"new_game_configs": "new_game_config"  # NewGameConfigData resources for starting game state
+	"new_game_configs": "new_game_config",  # NewGameConfigData resources for starting game state
+	"ai_behaviors": "ai_behavior"  # AIBehaviorData resources for configurable enemy AI
 }
 
 # Resource types that support JSON loading (in addition to .tres)
@@ -58,6 +59,8 @@ const EquipmentTypeRegistryClass: GDScript = preload("res://core/registries/equi
 const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_config.gd")
 const AIBrainRegistryClass: GDScript = preload("res://core/registries/ai_brain_registry.gd")
 const TilesetRegistryClass: GDScript = preload("res://core/registries/tileset_registry.gd")
+const AIRoleRegistryClass: GDScript = preload("res://core/registries/ai_role_registry.gd")
+const AIModeRegistryClass: GDScript = preload("res://core/registries/ai_mode_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -88,6 +91,10 @@ var ai_brain_registry: RefCounted = AIBrainRegistryClass.new()
 
 # Tileset registry (declared in mod.json with metadata, also auto-discovered)
 var tileset_registry: RefCounted = TilesetRegistryClass.new()
+
+# AI role and mode registries (for configurable AI behaviors)
+var ai_role_registry: RefCounted = AIRoleRegistryClass.new()
+var ai_mode_registry: RefCounted = AIModeRegistryClass.new()
 
 # Legacy tileset registry for backwards compatibility
 # TODO: Migrate to tileset_registry and remove this
@@ -454,6 +461,14 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	# Tileset declarations (from mod.json)
 	if not manifest.tilesets.is_empty():
 		tileset_registry.register_from_config(manifest.mod_id, manifest.tilesets, manifest.mod_directory)
+
+	# AI role declarations (from mod.json)
+	if not manifest.ai_roles.is_empty():
+		ai_role_registry.register_from_config(manifest.mod_id, manifest.ai_roles, manifest.mod_directory)
+
+	# AI mode declarations (from mod.json)
+	if not manifest.ai_modes.is_empty():
+		ai_mode_registry.register_from_config(manifest.mod_id, manifest.ai_modes)
 
 
 ## Register scenes from a mod manifest
@@ -908,6 +923,9 @@ func reload_mods() -> void:
 	# Clear AI brain and tileset registries
 	ai_brain_registry.clear_mod_registrations()
 	tileset_registry.clear_mod_registrations()
+	# Clear AI role and mode registries
+	ai_role_registry.clear_mod_registrations()
+	ai_mode_registry.clear_mod_registrations()
 	# Clear legacy tileset registry
 	_tileset_registry.clear()
 	_discover_and_load_mods()
@@ -934,6 +952,9 @@ func reload_mods_async() -> void:
 	# Clear AI brain and tileset registries
 	ai_brain_registry.clear_mod_registrations()
 	tileset_registry.clear_mod_registrations()
+	# Clear AI role and mode registries
+	ai_role_registry.clear_mod_registrations()
+	ai_mode_registry.clear_mod_registrations()
 	# Clear legacy tileset registry
 	_tileset_registry.clear()
 	await _discover_and_load_mods_async()

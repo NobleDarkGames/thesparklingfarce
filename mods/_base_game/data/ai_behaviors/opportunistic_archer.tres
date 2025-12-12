@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="AIBehaviorData" load_steps=2 format=3 uid="uid://c3opportunistic_archer"]
+
+[ext_resource type="Script" path="res://core/resources/ai_behavior_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+behavior_id = "opportunistic_archer"
+display_name = "Opportunistic Archer"
+description = "Targets wounded enemies for finishing blows. Maintains range and retreats if enemies get too close. Prefers high ground for terrain bonuses."
+role = "aggressive"
+behavior_mode = "opportunistic"
+threat_weights = {
+"wounded_target": 2.0,
+"damage_dealer": 0.8,
+"healer": 1.3,
+"proximity": 0.3
+}
+ignore_protagonist_priority = true
+retreat_hp_threshold = 60
+retreat_when_outnumbered = true
+seek_healer_when_wounded = true
+retreat_enabled = true
+aoe_minimum_targets = 2
+conserve_mp_on_heals = true
+prioritize_boss_heals = true
+use_status_effects = false
+use_healing_items = true
+use_attack_items = true
+use_buff_items = false
+alert_range = 12
+engagement_range = 8
+seek_terrain_advantage = true
+max_idle_turns = 5

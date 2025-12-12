@@ -284,8 +284,8 @@ func _ready() -> void:
 
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_brain: Resource, p_save_data: CharacterSaveData = null) -> Node2D:
-	# Use BattleManager's preloaded unit scene constant
-	var unit: Node2D = BattleManager.UNIT_SCENE.instantiate()
+	# Use BattleManager's unit scene (supports mod overrides)
+	var unit: Node2D = BattleManager._get_unit_scene().instantiate()
 
 	# Initialize with character data (and save data if available for player units)
 	if p_save_data:

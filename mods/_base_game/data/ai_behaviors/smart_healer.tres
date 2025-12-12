@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="AIBehaviorData" load_steps=2 format=3 uid="uid://c3smart_healer"]
+
+[ext_resource type="Script" path="res://core/resources/ai_behavior_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+behavior_id = "smart_healer"
+display_name = "Smart Healer"
+description = "Prioritizes healing wounded allies, especially bosses and high-value units. Conserves MP by using appropriate heal levels. Retreats when threatened."
+role = "support"
+behavior_mode = "cautious"
+threat_weights = {
+"wounded_target": 0.5,
+"damage_dealer": 0.8,
+"healer": 0.3,
+"proximity": 1.2
+}
+ignore_protagonist_priority = true
+retreat_hp_threshold = 50
+retreat_when_outnumbered = true
+seek_healer_when_wounded = true
+retreat_enabled = true
+aoe_minimum_targets = 3
+conserve_mp_on_heals = true
+prioritize_boss_heals = true
+use_status_effects = true
+preferred_status_effects = ["slow", "weaken"]
+use_healing_items = true
+use_attack_items = false
+use_buff_items = true
+alert_range = 10
+engagement_range = 4
+seek_terrain_advantage = true
+max_idle_turns = 0

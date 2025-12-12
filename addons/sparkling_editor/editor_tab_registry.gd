@@ -60,6 +60,7 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	{"id": "items", "display_name": "Items", "scene": "item_editor.tscn", "category": "content", "priority": 30},
 	{"id": "abilities", "display_name": "Abilities", "scene": "ability_editor.tscn", "category": "content", "priority": 40},
 	{"id": "terrain", "display_name": "Terrain", "scene": "terrain_editor.tscn", "category": "content", "priority": 50},
+	{"id": "ai_behaviors", "display_name": "AI Behaviors", "scene": "ai_brain_editor.tscn", "category": "content", "priority": 60},
 
 	# Battle editors
 	{"id": "party_templates", "display_name": "Party Templates", "scene": "party_template_editor.tscn", "category": "battle", "priority": 10},
