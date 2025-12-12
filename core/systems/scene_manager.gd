@@ -160,6 +160,10 @@ func fade_to_black(duration: float = FADE_DURATION, color: Color = Color.BLACK) 
 	fade_started.emit(true)
 
 	var tween: Tween = create_tween()
+	if not tween:
+		push_error("SceneManager: create_tween() returned null in fade_to_black")
+		is_fading = false
+		return
 	tween.tween_property(fade_overlay, "modulate:a", 1.0, duration)
 	await tween.finished
 
@@ -183,6 +187,10 @@ func fade_from_black(duration: float = FADE_DURATION) -> void:
 	fade_started.emit(false)
 
 	var tween: Tween = create_tween()
+	if not tween:
+		push_error("SceneManager: create_tween() returned null in fade_from_black")
+		is_fading = false
+		return
 	tween.tween_property(fade_overlay, "modulate:a", 0.0, duration)
 	await tween.finished
 

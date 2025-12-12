@@ -26,8 +26,13 @@ signal combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: boo
 ## Current battle data (loaded from mods/)
 var current_battle_data: Resource = null
 
-## Battle state
-var battle_active: bool = false
+## Battle state - delegates to TurnManager as single source of truth
+## This prevents desync bugs between BattleManager and TurnManager
+var battle_active: bool:
+	get:
+		return TurnManager.battle_active
+	set(value):
+		push_warning("BattleManager.battle_active should not be set directly - use TurnManager")
 
 ## Unit tracking
 var all_units: Array[Node2D] = []
@@ -151,7 +156,7 @@ func start_battle(battle_data: Resource) -> void:
 		return
 
 	current_battle_data = battle_data
-	battle_active = true
+	# Note: battle_active is now a proxy to TurnManager.battle_active
 
 	# 0. Set active mod for audio system
 	_initialize_audio()
@@ -763,6 +768,18 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 			AbilityData.AbilityType.SPECIAL:
 				# Handle special abilities like Egress
 				if ability.ability_id == "egress":
+					# Guard: Verify we have somewhere to return to before exiting
+					var safe_location: String = GameState.get_last_safe_location()
+					if safe_location.is_empty():
+						push_error("BattleManager: Cannot cast Egress - no safe location set!")
+						# Refund MP since spell couldn't execute
+						var stats: Node = caster.get_node_or_null("Stats")
+						if stats and "current_mp" in stats:
+							stats.current_mp += ability.mp_cost
+						InputManager.refresh_stats_panel()
+						InputManager.reset_to_waiting()
+						TurnManager.end_unit_turn(caster)
+						return
 					# Egress exits battle immediately - no per-target loop needed
 					await _execute_battle_exit(caster, BattleExitReason.EGRESS)
 					return  # Early return - battle is over, don't continue loop
@@ -1529,7 +1546,7 @@ func _handle_unit_death(unit: Node2D) -> void:
 
 ## Handle battle end
 func _on_battle_ended(victory: bool) -> void:
-	battle_active = false
+	# Note: battle_active is now a proxy to TurnManager.battle_active - no need to set here
 
 	# Clear the battle grid to avoid polluting GridManager state for non-battle maps
 	GridManager.clear_grid()
@@ -1715,7 +1732,7 @@ func _show_combat_results() -> void:
 
 ## Clean up battle
 func end_battle() -> void:
-	battle_active = false
+	# Note: battle_active proxies to TurnManager - no need to set here
 
 	# Clean up any lingering combat animation
 	if combat_anim_instance and is_instance_valid(combat_anim_instance):
@@ -1758,10 +1775,11 @@ enum BattleExitReason {
 ## @param initiator: The unit that triggered the exit (for Egress/Angel Wing) or null (for death)
 ## @param reason: Why we're exiting the battle
 func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
-	# Prevent re-entry if already exiting
+	# Prevent re-entry if already exiting (battle_active proxies to TurnManager)
 	if not battle_active:
 		return
-	battle_active = false
+	# Mark battle as inactive to prevent re-entry (set on TurnManager directly)
+	TurnManager.battle_active = false
 
 	# 1. Revive all party members (set HP to max) - SF2-authentic free revival
 	_revive_all_party_members()
@@ -1783,7 +1801,7 @@ func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
 
 	if return_path.is_empty():
 		push_error("BattleManager: Cannot exit battle - no return location available")
-		battle_active = true  # Re-enable battle since we can't exit
+		TurnManager.battle_active = true  # Re-enable battle since we can't exit
 		return
 
 	# 4. Show brief exit message (skip in headless mode)
@@ -1800,7 +1818,7 @@ func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
 	print("[BattleManager] Exiting battle via %s, returning to: %s" % [
 		BattleExitReason.keys()[reason], return_path
 	])
-	SceneManager.change_scene(return_path)
+	await SceneManager.change_scene(return_path)
 
 
 ## Revive all party members to full HP (SF2-authentic free revival on escape/defeat)
@@ -1809,10 +1827,8 @@ func _revive_all_party_members() -> void:
 		var uid: String = character.character_uid
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
 		if save_data:
-			# Restore to full HP
+			# Restore to full HP (note: we don't restore MP - SF2 didn't restore MP on retreat)
 			save_data.current_hp = save_data.max_hp
-			# Note: We don't restore MP - SF2 didn't restore MP on retreat
-			print("[BattleManager] Revived %s to %d HP" % [character.character_name, save_data.max_hp])
 
 
 ## Show a brief exit message before transitioning

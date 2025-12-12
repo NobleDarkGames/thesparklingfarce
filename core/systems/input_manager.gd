@@ -360,7 +360,6 @@ func _reconnect_action_menu_signals() -> void:
 ## Handle action menu selection signal
 ## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
 func _on_action_menu_selected(action: String, signal_session_id: int) -> void:
-	print("[SPELL DEBUG] _on_action_menu_selected: action='%s', session=%d" % [action, signal_session_id])
 	# Play menu selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -632,7 +631,6 @@ func _on_enter_selecting_item_target() -> void:
 
 
 func _on_enter_selecting_spell() -> void:
-	print("[SPELL DEBUG] _on_enter_selecting_spell() called")
 	# Disable per-frame processing (menu handles its own input)
 	set_process(false)
 
@@ -641,7 +639,6 @@ func _on_enter_selecting_spell() -> void:
 		action_menu.hide_menu()
 
 	# Show spell menu
-	print("[SPELL DEBUG] Calling _show_spell_menu()")
 	_show_spell_menu()
 
 
@@ -962,7 +959,6 @@ func _cancel_movement() -> void:
 ## Calculate which actions are available
 func _get_available_actions() -> Array[String]:
 	var actions: Array[String] = []
-	print("[SPELL DEBUG] _get_available_actions() for %s" % (active_unit.get_display_name() if active_unit else "null"))
 
 	# AUTHENTIC SHINING FORCE: No "Move" option - movement happens BEFORE menu
 	# Menu only appears after positioning (or at starting position if not moved)
@@ -973,12 +969,8 @@ func _get_available_actions() -> Array[String]:
 		actions.append("Attack")
 
 	# Magic - only if unit has spells
-	print("[SPELL DEBUG] Checking Magic: character_data=%s" % (active_unit.character_data != null if active_unit else false))
 	if active_unit.character_data and _has_spells():
-		print("[SPELL DEBUG] Magic ENABLED")
 		actions.append("Magic")
-	else:
-		print("[SPELL DEBUG] Magic DISABLED")
 
 	# Item - always available
 	actions.append("Item")
@@ -986,7 +978,6 @@ func _get_available_actions() -> Array[String]:
 	# Stay - always available (ends turn at current position)
 	actions.append("Stay")
 
-	print("[SPELL DEBUG] Available actions: %s" % str(actions))
 	return actions
 
 
@@ -1017,37 +1008,16 @@ func _check_enemies_in_range() -> bool:
 
 ## Check if unit has spells
 func _has_spells() -> bool:
-	print("[SPELL DEBUG] _has_spells() called for %s" % (active_unit.get_display_name() if active_unit else "null"))
 	if not active_unit or not active_unit.character_data:
-		print("[SPELL DEBUG] _has_spells: No active_unit or character_data")
 		return false
 
 	# Get unit's current level
 	var level: int = 1
 	if active_unit.stats:
 		level = active_unit.stats.level
-	print("[SPELL DEBUG] _has_spells: level=%d" % level)
-
-	# Debug character class and abilities
-	var char_data: CharacterData = active_unit.character_data
-	print("[SPELL DEBUG] _has_spells: character_data=%s" % char_data)
-	print("[SPELL DEBUG] _has_spells: character_data.resource_path=%s" % char_data.resource_path)
-	print("[SPELL DEBUG] _has_spells: character_class=%s" % char_data.character_class)
-	if char_data.character_class:
-		print("[SPELL DEBUG] _has_spells: character_class.resource_path=%s" % char_data.character_class.resource_path)
-		print("[SPELL DEBUG] _has_spells: class_abilities=%s" % str(char_data.character_class.class_abilities))
-		print("[SPELL DEBUG] _has_spells: class_abilities.size()=%d" % char_data.character_class.class_abilities.size())
-		# Debug: Try loading class fresh to compare
-		if not char_data.character_class.resource_path.is_empty():
-			var fresh_class: ClassData = load(char_data.character_class.resource_path) as ClassData
-			if fresh_class:
-				print("[SPELL DEBUG] _has_spells: FRESH LOAD class_abilities.size()=%d" % fresh_class.class_abilities.size())
-	print("[SPELL DEBUG] _has_spells: unique_abilities=%s" % str(char_data.unique_abilities))
 
 	# Check if character has any abilities at their current level
-	var has_abilities: bool = active_unit.character_data.has_abilities(level)
-	print("[SPELL DEBUG] _has_spells: has_abilities(%d) = %s" % [level, has_abilities])
-	return has_abilities
+	return active_unit.character_data.has_abilities(level)
 
 
 ## Show movement range highlights
@@ -1264,9 +1234,6 @@ func _show_item_menu() -> void:
 
 ## Select action from menu
 func _select_action(action: String, signal_session_id: int) -> void:
-	print("[SPELL DEBUG] _select_action: action='%s', signal_session=%d, current_session=%d, state=%s" % [
-		action, signal_session_id, _turn_session_id, InputState.keys()[current_state]
-	])
 	# Guard: Check if this signal is from a previous turn (stale)
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE action selection '%s' from session %d (current session: %d)" % [
@@ -1274,7 +1241,6 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			signal_session_id,
 			_turn_session_id
 		])
-		print("[SPELL DEBUG] BLOCKED: Stale session")
 		return
 
 	# Guard: Only process actions when in correct state AND we have an active unit
@@ -1284,16 +1250,13 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			InputState.keys()[current_state],
 			"null" if active_unit == null else active_unit.get_display_name()
 		])
-		print("[SPELL DEBUG] BLOCKED: Wrong state or no active unit")
 		return
 
 	# Additional safety: Only process if active unit is a player unit
 	if not active_unit.is_player_unit():
 		push_warning("InputManager: Ignoring action selection '%s' for non-player unit %s" % [action, active_unit.get_display_name()])
-		print("[SPELL DEBUG] BLOCKED: Non-player unit")
 		return
 
-	print("[SPELL DEBUG] Guards passed, processing action '%s'" % action)
 	current_action = action
 
 	# Convert to lowercase for BattleManager (internal representation)
@@ -1322,7 +1285,6 @@ func _select_action(action: String, signal_session_id: int) -> void:
 			set_state(InputState.TARGETING)
 		"Magic":
 			# Open spell menu - transition to SELECTING_SPELL state
-			print("[SPELL DEBUG] _select_action: Magic selected, transitioning to SELECTING_SPELL")
 			set_state(InputState.SELECTING_SPELL)
 		"Item":
 			# Open item menu - transition to SELECTING_ITEM state
@@ -2047,17 +2009,9 @@ func _confirm_item_target(target: Node2D) -> void:
 
 ## Show spell menu with available spells
 func _show_spell_menu() -> void:
-	print("[SPELL DEBUG] _show_spell_menu() called")
-	print("[SPELL DEBUG] spell_menu: %s" % spell_menu)
-	print("[SPELL DEBUG] active_unit: %s" % active_unit)
-	print("[SPELL DEBUG] active_unit.character_data: %s" % (active_unit.character_data if active_unit else null))
 
 	if not spell_menu or not active_unit or not active_unit.character_data:
 		push_warning("InputManager: Cannot show spell menu - missing spell_menu, active_unit, or character_data")
-		print("[SPELL DEBUG] FAIL: Missing spell_menu=%s, active_unit=%s, character_data=%s" % [
-			spell_menu != null, active_unit != null,
-			active_unit.character_data != null if active_unit else false
-		])
 		set_state(InputState.SELECTING_ACTION)
 		return
 
@@ -2065,27 +2019,13 @@ func _show_spell_menu() -> void:
 	var level: int = 1
 	if active_unit.stats:
 		level = active_unit.stats.level
-	print("[SPELL DEBUG] Unit level: %d" % level)
-
-	# Check character_class
-	print("[SPELL DEBUG] character_class: %s" % active_unit.character_data.character_class)
-	if active_unit.character_data.character_class:
-		print("[SPELL DEBUG] class_abilities: %s" % str(active_unit.character_data.character_class.class_abilities))
 
 	# Get available abilities for this character at this level
 	var abilities: Array[AbilityData] = active_unit.character_data.get_available_abilities(level)
-	print("[SPELL DEBUG] abilities count: %d" % abilities.size())
-	for i in range(abilities.size()):
-		var ab: AbilityData = abilities[i]
-		if ab:
-			print("[SPELL DEBUG]   [%d] %s (id=%s, mp=%d)" % [i, ab.ability_name, ab.ability_id, ab.mp_cost])
-		else:
-			print("[SPELL DEBUG]   [%d] NULL ability" % i)
 
 	if abilities.is_empty():
 		# No spells available - return to action menu
 		push_warning("InputManager: No spells available for %s" % active_unit.get_display_name())
-		print("[SPELL DEBUG] FAIL: No abilities available")
 		set_state(InputState.SELECTING_ACTION)
 		return
 
@@ -2093,12 +2033,9 @@ func _show_spell_menu() -> void:
 	var current_mp: int = 0
 	if active_unit.stats:
 		current_mp = active_unit.stats.current_mp
-	print("[SPELL DEBUG] Current MP: %d" % current_mp)
 
 	# Show spell menu with abilities and session ID
-	print("[SPELL DEBUG] Calling spell_menu.show_spells() with %d abilities" % abilities.size())
 	spell_menu.show_spells(abilities, current_mp, _turn_session_id)
-	print("[SPELL DEBUG] spell_menu.visible: %s" % spell_menu.visible)
 
 
 ## Handle spell target selection input

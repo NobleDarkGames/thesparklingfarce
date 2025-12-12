@@ -91,6 +91,10 @@ var party_followers: Array[CharacterBody2D] = []
 func _ready() -> void:
 	_debug_print("MapTemplate: Initializing...")
 
+	# Register safe location for Egress/Angel Wing returns
+	# Town/Interior maps are always safe; Overworld is safe if no random encounters
+	_register_safe_location()
+
 	# Load party from PartyManager
 	_load_party()
 
@@ -620,6 +624,47 @@ func _get_exploration_ui_controller() -> Node:
 			return child
 
 	return null
+
+
+# =============================================================================
+# SAFE LOCATION REGISTRATION
+# =============================================================================
+
+## Registers this map as a safe location for Egress/Angel Wing returns.
+## Safe locations are:
+## - TOWN and INTERIOR maps (always safe)
+## - OVERWORLD maps without random encounters
+## - Any map with save_anywhere enabled and no random encounters
+##
+## This is called automatically in _ready() - subclasses can override if needed.
+func _register_safe_location() -> void:
+	var map_meta: MapMetadata = _get_current_map_metadata()
+
+	# Determine if this is a safe location
+	var is_safe: bool = false
+
+	if map_meta:
+		match map_meta.map_type:
+			MapMetadata.MapType.TOWN, MapMetadata.MapType.INTERIOR:
+				# Towns and interiors are always safe
+				is_safe = true
+			MapMetadata.MapType.OVERWORLD:
+				# Overworld is safe if no random encounters
+				is_safe = not map_meta.random_encounters_enabled
+			MapMetadata.MapType.DUNGEON:
+				# Dungeons are NOT safe (would be weird to Egress into a dungeon)
+				is_safe = false
+			MapMetadata.MapType.BATTLE:
+				# Battle maps are never safe locations
+				is_safe = false
+	else:
+		# No metadata - assume safe (fallback for testing/development)
+		is_safe = true
+		_debug_print("MapTemplate: No MapMetadata found, assuming safe location")
+
+	if is_safe:
+		GameState.set_last_safe_location(scene_file_path)
+		_debug_print("MapTemplate: Registered as safe location: %s" % scene_file_path)
 
 
 # =============================================================================

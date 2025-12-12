@@ -245,6 +245,7 @@ func _ready() -> void:
 	# CRITICAL: Connect BattleManager signals for XP, level-ups, and victory/defeat screens
 	# This must be called because we're NOT calling BattleManager.start_battle()
 	# (we call TurnManager.start_battle() directly for more control)
+	# Note: BattleManager.battle_active now proxies to TurnManager.battle_active automatically
 	BattleManager._connect_signals()
 
 	# Populate BattleManager unit arrays (needed for AI to find targets)
