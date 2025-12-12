@@ -38,6 +38,10 @@ var all_resource_source_mods: Array[String] = []
 # Current resource being edited
 var current_resource: Resource
 
+# Persistent path of current resource (independent of ItemList selection state)
+# This is the single source of truth for what resource is being edited
+var current_resource_path: String = ""
+
 # Track source mod of current resource (for write protection)
 var current_resource_source_mod: String = ""
 
@@ -46,6 +50,10 @@ var available_resources: Array[Resource] = []
 
 # Track unsaved changes
 var is_dirty: bool = false
+
+# Guard against marking dirty during data loading (prevents false positives)
+# When true, _mark_dirty() calls are ignored
+var _is_loading: bool = false
 
 # Guard against concurrent async operations (e.g., rapid "New" button clicks)
 # Prevents race conditions during filesystem scan awaits
@@ -517,6 +525,14 @@ func _apply_filter() -> void:
 			resource_list.add_item(list_text)
 			resource_list.set_item_metadata(resource_list.item_count - 1, path)
 
+	# Restore selection based on stored path (not dependent on ItemList maintaining state)
+	# This fixes the "stateless selection" tribble where filtering loses selection
+	if not current_resource_path.is_empty():
+		for list_idx in range(resource_list.item_count):
+			if resource_list.get_item_metadata(list_idx) == current_resource_path:
+				resource_list.select(list_idx)
+				break
+
 
 ## Check if a resource matches the search filter
 ## Searches in: display name, resource ID (filename), and source mod ID
@@ -546,6 +562,11 @@ func _on_resource_selected(index: int) -> void:
 ## Internal: Perform the actual resource selection (after unsaved changes check)
 func _do_resource_selection(index: int) -> void:
 	var path: String = resource_list.get_item_metadata(index)
+
+	# Store path persistently (single source of truth for what's being edited)
+	# This persists even if the ItemList loses selection focus
+	current_resource_path = path
+
 	# Load and duplicate to make it editable (load() returns read-only cached resource)
 	var loaded_resource: Resource = load(path)
 	current_resource = loaded_resource.duplicate(true)
@@ -554,9 +575,6 @@ func _do_resource_selection(index: int) -> void:
 
 	# Track source mod for write protection
 	current_resource_source_mod = _get_mod_from_path(path)
-
-	# Clear dirty flag when loading a new resource
-	is_dirty = false
 
 	# Hide any previous errors when selecting a new resource
 	_hide_errors()
@@ -567,7 +585,13 @@ func _do_resource_selection(index: int) -> void:
 	# Check for namespace conflicts and show warning (informational)
 	_check_and_show_namespace_info(path)
 
+	# Load data with guard to prevent false dirty flags from signal triggers
+	_is_loading = true
 	_load_resource_data()
+	_is_loading = false
+
+	# Clear dirty flag AFTER loading (loading triggers signals that would set it)
+	is_dirty = false
 
 
 ## Determine which mod a resource path belongs to
@@ -586,10 +610,9 @@ func _on_save() -> void:
 		_show_errors(["No " + resource_type_name.to_lower() + " selected"])
 		return
 
-	# Check if we have a selected item
-	var selected_items: PackedInt32Array = resource_list.get_selected_items()
-	if selected_items.size() == 0:
-		_show_errors(["No " + resource_type_name.to_lower() + " selected in list"])
+	# Use stored path instead of ItemList selection (fixes stateless selection tribble)
+	if current_resource_path.is_empty():
+		_show_errors(["No " + resource_type_name.to_lower() + " path available"])
 		return
 
 	# Hide any previous errors
@@ -627,9 +650,11 @@ func _perform_save() -> void:
 	# Save UI data to resource
 	_save_resource_data()
 
-	# Save to file
-	var selected_items: PackedInt32Array = resource_list.get_selected_items()
-	var path: String = resource_list.get_item_metadata(selected_items[0])
+	# Save to file using stored path (not ItemList selection)
+	var path: String = current_resource_path
+	if path.is_empty():
+		_show_errors(["No resource path available"])
+		return
 	var err: Error = ResourceSaver.save(current_resource, path)
 	if err == OK:
 		# Clear dirty flag on successful save
@@ -736,10 +761,9 @@ func _on_duplicate_resource() -> void:
 		_operation_in_progress = false
 		return
 
-	# Get the file path of the current resource
-	var selected_items: PackedInt32Array = resource_list.get_selected_items()
-	if selected_items.size() == 0:
-		_show_errors(["No " + resource_type_name.to_lower() + " selected in list"])
+	# Verify we have a valid path (using stored path, not ItemList selection)
+	if current_resource_path.is_empty():
+		_show_errors(["No " + resource_type_name.to_lower() + " path available"])
 		_operation_in_progress = false
 		return
 
@@ -822,9 +846,8 @@ func _on_delete() -> void:
 					  "Referenced by %d resource(s):%s" % [references.size(), ref_list]])
 		return
 
-	# Get the file path
-	var selected_items: PackedInt32Array = resource_list.get_selected_items()
-	if selected_items.size() == 0:
+	# Verify we have a valid path (using stored path, not ItemList selection)
+	if current_resource_path.is_empty():
 		return
 
 	# Show confirmation dialog
@@ -838,11 +861,11 @@ func _on_delete() -> void:
 
 ## Actually perform the delete operation (called after confirmation)
 func _perform_delete() -> void:
-	var selected_items: PackedInt32Array = resource_list.get_selected_items()
-	if selected_items.size() == 0:
+	# Use stored path (not ItemList selection)
+	if current_resource_path.is_empty():
 		return
 
-	var path: String = resource_list.get_item_metadata(selected_items[0])
+	var path: String = current_resource_path
 	var resource_id: String = path.get_file().get_basename()
 
 	# Delete the file
@@ -859,8 +882,7 @@ func _perform_delete() -> void:
 			if event_bus:
 				event_bus.notify_resource_deleted(resource_type_id, path)
 
-			current_resource = null
-			current_resource_source_mod = ""
+			_clear_current_resource()
 			_hide_errors()
 			_refresh_list()
 		else:
@@ -1440,12 +1462,12 @@ func _perform_save_with_undo() -> void:
 		_perform_save()
 		return
 
-	var selected_items: PackedInt32Array = resource_list.get_selected_items()
-	if selected_items.is_empty():
+	# Use stored path (not ItemList selection)
+	if current_resource_path.is_empty():
 		_perform_save()
 		return
 
-	var path: String = resource_list.get_item_metadata(selected_items[0])
+	var path: String = current_resource_path
 
 	# Capture state before changes
 	var old_state: Dictionary = _capture_resource_state(current_resource)
@@ -1515,7 +1537,9 @@ func _do_save_resource(path: String) -> void:
 ## Internal: Refresh UI after undo/redo
 func _refresh_current_resource_ui() -> void:
 	if current_resource:
+		_is_loading = true
 		_load_resource_data()
+		_is_loading = false
 
 
 ## Compare two values for equality (handles arrays and dictionaries)
@@ -1605,6 +1629,10 @@ func _on_unsaved_dialog_custom_action(action: StringName) -> void:
 		# Discard changes and proceed
 		is_dirty = false
 
+		# CRITICAL: Hide the dialog before executing callback
+		# AcceptDialog's custom_action does NOT auto-hide (unlike confirmed/canceled)
+		unsaved_changes_dialog.hide()
+
 		# Execute the pending callback
 		if _pending_unsaved_callback.is_valid():
 			_pending_unsaved_callback.call()
@@ -1619,10 +1647,22 @@ func _on_unsaved_dialog_cancel() -> void:
 
 ## Mark the editor as having unsaved changes
 ## Call this from subclasses when user modifies any field
+## Ignored during data loading to prevent false positives
 func _mark_dirty() -> void:
+	if _is_loading:
+		return
 	is_dirty = true
 
 
 ## Clear the dirty flag (typically after saving)
 func _clear_dirty() -> void:
 	is_dirty = false
+
+
+## Clear all current resource state (used after deletion or when resetting editor)
+func _clear_current_resource() -> void:
+	current_resource = null
+	current_resource_path = ""
+	current_resource_source_mod = ""
+	is_dirty = false
+	_is_loading = false
