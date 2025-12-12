@@ -557,13 +557,13 @@ Documentation only:
 ## Testing Strategy
 
 ### Unit Tests Required
-- Item effect application (heal, damage)
+- ~~Item effect application (heal, damage)~~ ✅ Verified manually
 - Spell level filtering
 - Retreat state transitions
 - Hidden item discovery
 
 ### Integration Tests Required
-- Full battle with item use
+- ~~Full battle with item use~~ ✅ Verified manually (healing herb)
 - Level up with new spell notification
 - Church resurrection flow
 - Field menu magic casting

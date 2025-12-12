@@ -25,5 +25,5 @@ enemies = Array[Dictionary]([{
 "position": Vector2i(12, 17)
 }])
 pre_battle_dialogue = ExtResource("7_5oe2a")
-experience_reward = 100
+experience_reward = 1000
 gold_reward = 100
