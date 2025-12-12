@@ -541,7 +541,9 @@ func _on_enter_direct_movement() -> void:
 	movement_path_taken = [movement_start_cell]
 	is_direct_moving = false
 
-	# Hide grid cursor during direct movement (unit IS the cursor)
+	# SF2-AUTHENTIC: Hide grid cursor during direct movement
+	# The unit itself IS the cursor - player controls it directly
+	# The SelectionIndicator (yellow glow) on the unit shows it's active
 	if grid_cursor:
 		grid_cursor.hide_cursor()
 
@@ -562,9 +564,10 @@ func _on_enter_selecting_action() -> void:
 	# Clear path preview but KEEP cursor visible (SF-style)
 	_clear_path_preview()
 
-	# Keep cursor on unit's current position
+	# Keep cursor on unit's current position - switch to READY_TO_ACT mode (white bounce)
 	if grid_cursor and active_unit:
 		grid_cursor.set_grid_position(active_unit.grid_position)
+		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.READY_TO_ACT)
 		grid_cursor.show_cursor()
 
 	# Ensure camera is centered on unit for action menu
@@ -621,9 +624,10 @@ func _on_enter_selecting_item_target() -> void:
 	else:
 		current_cursor_position = _item_valid_targets[0]
 
-	# Show cursor at target position
+	# Show cursor at target position - item targeting is typically ally-targeted (green)
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.TARGETING, true)  # true = ally (green)
 		grid_cursor.show_cursor()
 
 	# Update stats panel to show target info
@@ -664,6 +668,13 @@ func _on_enter_selecting_spell_target() -> void:
 		set_state(InputState.SELECTING_ACTION)
 		return
 
+	# Determine if spell targets allies or enemies for cursor color
+	var is_ally_target: bool = false
+	if selected_spell_data:
+		match selected_spell_data.target_type:
+			AbilityData.TargetType.SELF, AbilityData.TargetType.SINGLE_ALLY, AbilityData.TargetType.ALL_ALLIES:
+				is_ally_target = true
+
 	# Position cursor on first valid target (prefer self for heals)
 	if selected_spell_data and selected_spell_data.ability_type == AbilityData.AbilityType.HEAL:
 		# For heals, prefer injured allies or self
@@ -680,9 +691,10 @@ func _on_enter_selecting_spell_target() -> void:
 	else:
 		_show_spell_targeting_range(_spell_valid_targets)
 
-	# Show cursor at target position
+	# Show cursor at target position with appropriate color (green for allies, red for enemies)
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.TARGETING, is_ally_target)
 		grid_cursor.show_cursor()
 
 	# Update stats panel to show target info
@@ -707,9 +719,10 @@ func _on_enter_targeting() -> void:
 		# No valid targets, position on unit
 		current_cursor_position = active_unit.grid_position
 
-	# Show cursor at target position
+	# Show cursor at target position - switch to TARGETING mode (red for enemies)
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
+		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.TARGETING, false)  # false = enemy (red)
 		grid_cursor.show_cursor()
 
 	# Show combat forecast for initial target
