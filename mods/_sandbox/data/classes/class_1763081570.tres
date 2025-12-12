@@ -1,13 +1,24 @@
-[gd_resource type="Resource" script_class="ClassData" load_steps=3 format=3 uid="uid://c78g0ifp1g87w"]
+[gd_resource type="Resource" script_class="ClassData" load_steps=6 format=3 uid="uid://c78g0ifp1g87w"]
 
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_7dbey"]
 [ext_resource type="Resource" path="res://mods/_template/data/abilities/example_heal.tres" id="1_7e3nr"]
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_nbvln"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/egress.tres" id="2_t40c3"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/cure_poison.tres" id="3_cfemr"]
 
 [resource]
 script = ExtResource("1_nbvln")
 display_name = "Hero"
+mp_growth = 45
+agility_growth = 45
+intelligence_growth = 45
 equippable_weapon_types = Array[String](["sword", "bow"])
 equippable_armor_types = Array[String](["light", "heavy"])
 learnable_abilities = {
 1: ExtResource("1_7e3nr")
+}
+class_abilities = Array[ExtResource("1_7dbey")]([ExtResource("2_t40c3"), ExtResource("3_cfemr")])
+ability_unlock_levels = {
+"cure_poison": 2,
+"egress": 1
 }

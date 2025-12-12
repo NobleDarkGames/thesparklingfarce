@@ -20,6 +20,7 @@ signal player_turn_started(unit: Node2D)
 signal enemy_turn_started(unit: Node2D)
 signal unit_turn_ended(unit: Node2D)
 signal battle_ended(victory: bool)
+signal hero_died_in_battle()  ## SF2: Hero death triggers immediate battle exit
 
 ## All units participating in battle (player + enemy + neutral)
 var all_units: Array[Node2D] = []
@@ -217,9 +218,10 @@ func _check_battle_end() -> bool:
 	if not battle_active:
 		return true
 
-	# Count living units by faction
+	# Count living units by faction and track hero status
 	var player_count: int = 0
 	var enemy_count: int = 0
+	var hero_alive: bool = false
 
 	for unit in all_units:
 		if not unit.is_alive():
@@ -227,10 +229,24 @@ func _check_battle_end() -> bool:
 
 		if unit.is_player_unit():
 			player_count += 1
+			# Check if this unit is the hero
+			if unit.character_data and unit.character_data.is_hero:
+				hero_alive = true
 		elif unit.is_enemy_unit():
 			enemy_count += 1
 
-	# Check defeat (all player units dead)
+	# SF2-authentic: Hero death triggers immediate battle exit (even if others survive)
+	# This is different from total party wipe - hero death is a special case
+	if not hero_alive and player_count > 0:
+		# Hero died but other party members survive
+		# Don't call _end_battle - emit signal for BattleManager to handle
+		battle_active = false
+		active_unit = null
+		turn_queue.clear()
+		hero_died_in_battle.emit()
+		return true
+
+	# Check defeat (all player units dead = party wipe)
 	if player_count == 0:
 		_end_battle(false)
 		return true

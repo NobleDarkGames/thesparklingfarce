@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_class"]
+
+[resource]
+script = ExtResource("1_class")
+display_name = "Knight"
+counter_rate = 6
+hp_growth = 75
+mp_growth = 15
+strength_growth = 70
+defense_growth = 70
+agility_growth = 35
+intelligence_growth = 20
+luck_growth = 35
+equippable_weapon_types = Array[String](["sword", "spear"])
+equippable_armor_types = Array[String](["heavy"])
+class_abilities = Array[Resource]([])
+ability_unlock_levels = {}

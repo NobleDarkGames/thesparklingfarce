@@ -1,28 +1,16 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://csan6ysxhu3p0"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://csan6ysxhu3p0"]
 
-[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_ccdhb"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="2_1ko5m"]
+[ext_resource type="Resource" uid="uid://casopgh4ktt3i" path="res://mods/_base_game/data/classes/hero.tres" id="2_2smfh"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_u7v87"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_1ko5m"]
 [ext_resource type="Texture2D" uid="uid://dkikwgxbrnyl2" path="res://mods/_sandbox/art/placeholder/sprites/max.png" id="4_sprite"]
-
-[sub_resource type="Resource" id="Resource_1ko5m"]
-script = ExtResource("1_ccdhb")
-display_name = "Hero"
-movement_range = 5
-hp_growth = 65
-mp_growth = 45
-strength_growth = 60
-defense_growth = 55
-agility_growth = 55
-equippable_weapon_types = Array[String](["sword", "blade"])
-equippable_armor_types = Array[String](["light", "medium"])
 
 [resource]
 script = ExtResource("2_u7v87")
 character_uid = "hk7wm4np"
 character_name = "Base Max"
-character_class = SubResource("Resource_1ko5m")
+character_class = ExtResource("2_2smfh")
 base_hp = 25
 base_mp = 10
 base_strength = 8

@@ -48,6 +48,10 @@ var campaign_data: Dictionary = {
 	"treasures_found": 0,
 }
 
+## Last safe location for retreat/defeat returns (scene path)
+## Updated when entering a town map; used by battle exit systems (Egress, defeat)
+var last_safe_location: String = ""
+
 ## Battle transition context - encapsulates all transition data
 ## Use TransitionContext for type safety and extensibility
 var _transition_context: RefCounted = null  # Actually TransitionContext
@@ -330,12 +334,34 @@ func increment_campaign_data(key: String, amount: int = 1) -> void:
 	set_campaign_data(key, current_value + amount)
 
 
+# ==== Safe Location API (Battle Exit System) ====
+
+## Update the last safe location (call when entering towns/safe areas)
+func set_last_safe_location(scene_path: String) -> void:
+	if scene_path.is_empty():
+		push_warning("GameState: set_last_safe_location called with empty path")
+		return
+	last_safe_location = scene_path
+
+
+## Get the last safe location for battle exit returns
+## Falls back to transition context's return path if no safe location set
+func get_last_safe_location() -> String:
+	if not last_safe_location.is_empty():
+		return last_safe_location
+	# Fallback to transition context's return path
+	if _transition_context and _transition_context.is_valid():
+		return _transition_context.return_scene_path
+	return ""
+
+
 ## Export state for save system
 func export_state() -> Dictionary:
 	return {
 		"story_flags": story_flags.duplicate(),
 		"completed_triggers": completed_triggers.duplicate(),
 		"campaign_data": campaign_data.duplicate(),
+		"last_safe_location": last_safe_location,
 	}
 
 
@@ -389,6 +415,13 @@ func import_state(state: Dictionary) -> bool:
 			"treasures_found": 0,
 		}
 
+	# Import last_safe_location (optional, defaults to empty string)
+	var raw_location: Variant = state.get("last_safe_location", "")
+	if raw_location is String:
+		last_safe_location = raw_location
+	else:
+		last_safe_location = ""
+
 	# Clear flag source tracking for fresh import
 	_flag_sources.clear()
 
@@ -404,6 +437,7 @@ func reset_all() -> void:
 		"battles_won": 0,
 		"treasures_found": 0,
 	}
+	last_safe_location = ""
 	clear_transition_context()  # Use new API internally to avoid deprecation warning
 
 

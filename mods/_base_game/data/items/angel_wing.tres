@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/resources/item_data.gd" id="1_item"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/egress.tres" id="2_effect"]
+
+[resource]
+script = ExtResource("1_item")
+item_name = "Angel Wing"
+item_type = 3
+equipment_type = ""
+equipment_slot = ""
+is_cursed = false
+usable_in_battle = true
+usable_on_field = false
+effect = ExtResource("2_effect")
+buy_price = 40
+sell_price = 20
+description = "A feather from a divine bird. Escape from battle and return to the last town."
+can_be_dropped = true
+confirm_on_drop = true

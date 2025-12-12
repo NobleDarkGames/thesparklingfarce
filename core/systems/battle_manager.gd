@@ -398,6 +398,9 @@ func _connect_signals() -> void:
 	if not TurnManager.battle_ended.is_connected(_on_battle_ended):
 		TurnManager.battle_ended.connect(_on_battle_ended)
 
+	if not TurnManager.hero_died_in_battle.is_connected(_on_hero_died_in_battle):
+		TurnManager.hero_died_in_battle.connect(_on_hero_died_in_battle)
+
 	# InputManager signals
 	if not InputManager.action_selected.is_connected(_on_action_selected):
 		InputManager.action_selected.connect(_on_action_selected)
@@ -499,6 +502,19 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 				item.item_name
 			)
 			phases.append(damage_phase)
+		AbilityData.AbilityType.SPECIAL:
+			# Handle special items like Angel Wing (Egress effect)
+			if ability.ability_id == "egress":
+				# Consume the item first
+				_consume_item_from_inventory(unit, item_id)
+				# Execute battle exit
+				await _execute_battle_exit(unit, BattleExitReason.ANGEL_WING)
+				return  # Early return - battle is over
+			else:
+				push_warning("BattleManager: Unknown SPECIAL item ability: %s" % ability.ability_id)
+				InputManager.reset_to_waiting()
+				TurnManager.end_unit_turn(unit)
+				return
 		_:
 			push_warning("BattleManager: Item ability type '%s' not yet supported" % ability.ability_type)
 			InputManager.reset_to_waiting()
@@ -744,8 +760,17 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 				# TODO: Implement status effects
 				push_warning("BattleManager: Status spell effects not yet implemented")
 				effect_applied = false
+			AbilityData.AbilityType.SPECIAL:
+				# Handle special abilities like Egress
+				if ability.ability_id == "egress":
+					# Egress exits battle immediately - no per-target loop needed
+					await _execute_battle_exit(caster, BattleExitReason.EGRESS)
+					return  # Early return - battle is over, don't continue loop
+				else:
+					push_warning("BattleManager: Unknown SPECIAL ability: %s" % ability.ability_id)
+					effect_applied = false
 			_:
-				push_warning("BattleManager: Unknown spell type")
+				push_warning("BattleManager: Unknown spell type: %s" % ability.ability_type)
 				effect_applied = false
 
 		if effect_applied:
@@ -1713,3 +1738,121 @@ func end_battle() -> void:
 		map_instance = null
 
 	current_battle_data = null
+
+
+# =============================================================================
+# Battle Exit System (Egress, Angel Wing, Hero Death)
+# =============================================================================
+
+## Reasons for exiting battle early (not victory/defeat)
+enum BattleExitReason {
+	EGRESS,      ## Player cast Egress spell
+	ANGEL_WING,  ## Player used Angel Wing item
+	HERO_DEATH,  ## Hero (is_hero character) died
+	PARTY_WIPE   ## All player units dead
+}
+
+
+## Execute battle exit - revive all party members, return to safe location
+## This handles Egress spell, Angel Wing item, and automatic exits from death
+## @param initiator: The unit that triggered the exit (for Egress/Angel Wing) or null (for death)
+## @param reason: Why we're exiting the battle
+func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
+	# Prevent re-entry if already exiting
+	if not battle_active:
+		return
+	battle_active = false
+
+	# 1. Revive all party members (set HP to max) - SF2-authentic free revival
+	_revive_all_party_members()
+
+	# 2. Set battle outcome to RETREAT in transition context
+	var context: RefCounted = GameState.get_transition_context()
+	if context:
+		# Access the BattleOutcome enum from the TransitionContext script
+		var TransitionContextScript: GDScript = context.get_script()
+		if TransitionContextScript and "BattleOutcome" in TransitionContextScript:
+			context.battle_outcome = TransitionContextScript.BattleOutcome.RETREAT
+
+	# 3. Determine return location
+	var return_path: String = GameState.get_last_safe_location()
+	if return_path.is_empty():
+		push_warning("BattleManager: No safe location set, using transition context fallback")
+		if context and context.is_valid():
+			return_path = context.return_scene_path
+
+	if return_path.is_empty():
+		push_error("BattleManager: Cannot exit battle - no return location available")
+		battle_active = true  # Re-enable battle since we can't exit
+		return
+
+	# 4. Show brief exit message (skip in headless mode)
+	if not TurnManager.is_headless:
+		await _show_exit_message(reason)
+
+	# 5. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
+	battle_ended.emit(false)
+
+	# 6. Clean up battle state
+	end_battle()
+
+	# 7. Transition to safe location
+	print("[BattleManager] Exiting battle via %s, returning to: %s" % [
+		BattleExitReason.keys()[reason], return_path
+	])
+	SceneManager.change_scene(return_path)
+
+
+## Revive all party members to full HP (SF2-authentic free revival on escape/defeat)
+func _revive_all_party_members() -> void:
+	for character: CharacterData in PartyManager.party_members:
+		var uid: String = character.character_uid
+		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
+		if save_data:
+			# Restore to full HP
+			save_data.current_hp = save_data.max_hp
+			# Note: We don't restore MP - SF2 didn't restore MP on retreat
+			print("[BattleManager] Revived %s to %d HP" % [character.character_name, save_data.max_hp])
+
+
+## Show a brief exit message before transitioning
+func _show_exit_message(reason: BattleExitReason) -> void:
+	var message: String = ""
+	match reason:
+		BattleExitReason.EGRESS:
+			message = "Egress!"
+		BattleExitReason.ANGEL_WING:
+			message = "Angel Wing!"
+		BattleExitReason.HERO_DEATH:
+			message = "The hero has fallen..."
+		BattleExitReason.PARTY_WIPE:
+			message = "All forces defeated..."
+
+	# Create temporary label for exit message
+	var label: Label = Label.new()
+	label.text = message
+	label.add_theme_font_size_override("font_size", 32)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_preset(Control.PRESET_CENTER)
+
+	var canvas: CanvasLayer = CanvasLayer.new()
+	canvas.layer = 100  # Above most UI
+	canvas.add_child(label)
+
+	if battle_scene_root:
+		battle_scene_root.add_child(canvas)
+	else:
+		# Fallback if no battle scene root
+		get_tree().current_scene.add_child(canvas)
+
+	# Brief pause for player to read message
+	await get_tree().create_timer(1.5).timeout
+
+	canvas.queue_free()
+
+
+## Handle hero death - auto-exit battle with revival (called from TurnManager signal)
+func _on_hero_died_in_battle() -> void:
+	await _execute_battle_exit(null, BattleExitReason.HERO_DEATH)

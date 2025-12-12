@@ -1,29 +1,14 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://c0iwkdhisxprv"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=4 format=3 uid="uid://c0iwkdhisxprv"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_char"]
-[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_tph16"]
-[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="2_class"]
-[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_8jydm"]
-
-[sub_resource type="Resource" id="warrior_class"]
-script = ExtResource("2_class")
-display_name = "Knight"
-counter_rate = 6
-hp_growth = 75
-mp_growth = 15
-strength_growth = 70
-defense_growth = 70
-agility_growth = 35
-intelligence_growth = 20
-luck_growth = 35
-equippable_weapon_types = Array[String](["sword", "spear"])
-equippable_armor_types = Array[String](["heavy"])
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_item"]
+[ext_resource type="Resource" path="res://mods/_template/data/classes/example_knight.tres" id="3_class"]
 
 [resource]
 script = ExtResource("1_char")
 character_uid = "sr7kg2nx"
 character_name = "Sir Reginald"
-character_class = SubResource("warrior_class")
+character_class = ExtResource("3_class")
 base_hp = 28
 base_mp = 0
 base_strength = 8
