@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjt888pl683l7"
-path="res://.godot/imported/armor.png-3bd2c08abc29f53bb2ef47e2c76bb7c7.ctex"
+uid="uid://cde4i2yqw2qcj"
+path="res://.godot/imported/default_weapon.png-60f595760e0abe799c381561311f85f5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://mods/_sandbox/assets/icons/items/armor.png"
-dest_files=["res://.godot/imported/armor.png-3bd2c08abc29f53bb2ef47e2c76bb7c7.ctex"]
+source_file="res://core/assets/defaults/icons/items/default_weapon.png"
+dest_files=["res://.godot/imported/default_weapon.png-60f595760e0abe799c381561311f85f5.ctex"]
 
 [params]
 

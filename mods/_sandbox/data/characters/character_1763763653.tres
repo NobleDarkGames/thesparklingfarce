@@ -16,5 +16,4 @@ character_class = ExtResource("1_2tcbs")
 base_hp = 20
 base_mp = 10
 portrait = ExtResource("3_portrait")
-battle_sprite = ExtResource("4_battle")
 starting_equipment = Array[ExtResource("2_2tcbs")]([ExtResource("6_4iqd7")])

@@ -49,6 +49,10 @@ const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/part
 const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd")
 const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
 
+## Default sprite assets from core
+const DEFAULT_SPRITESHEET_PATH: String = "res://core/assets/defaults/sprites/default_character_spritesheet.png"
+const DEFAULT_FRAME_SIZE: Vector2i = Vector2i(32, 32)
+
 
 # =============================================================================
 # NODE REFERENCES
@@ -277,34 +281,25 @@ func _create_hero() -> void:
 	hero.add_to_group("hero")  # Required for MapTrigger detection
 	hero.collision_mask = 2  # Match expected collision settings
 
-	# Add visual representation - prefer animated map_sprite_frames, fallback to battle_sprite
+	# Add visual representation using character's sprite_frames
 	var visual_container: Node2D = Node2D.new()
 	visual_container.name = "Visual"
 	hero.add_child(visual_container)
 
-	# Priority 1: Animated map sprite (SpriteFrames with walk/idle animations)
-	if hero_data.map_sprite_frames:
-		var animated_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-		animated_sprite.sprite_frames = hero_data.map_sprite_frames
-		animated_sprite.name = "AnimatedSprite2D"  # HeroController looks for this name
-		visual_container.add_child(animated_sprite)
-		_debug_print("  Using map_sprite_frames for %s" % hero_data.character_name)
-	# Priority 2: Static battle sprite
-	elif hero_data.battle_sprite:
-		var sprite: Sprite2D = Sprite2D.new()
-		sprite.texture = hero_data.battle_sprite
-		sprite.name = "Sprite"
-		visual_container.add_child(sprite)
-		_debug_print("  Using battle_sprite: %s" % hero_data.battle_sprite.resource_path)
+	# Create animated sprite - use character's sprite_frames or default fallback
+	var animated_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	animated_sprite.name = "AnimatedSprite2D"  # HeroController looks for this name
+
+	if hero_data.sprite_frames:
+		animated_sprite.sprite_frames = hero_data.sprite_frames
+		_debug_print("  Using character sprite for %s" % hero_data.character_name)
 	else:
-		# Fallback: colored square if no sprites
-		var sprite_rect: ColorRect = ColorRect.new()
-		sprite_rect.custom_minimum_size = Vector2(24, 24)
-		sprite_rect.position = Vector2(-12, -12)
-		sprite_rect.color = Color(0.2, 0.8, 0.2)  # Green for hero
-		sprite_rect.name = "SpriteRect"
-		visual_container.add_child(sprite_rect)
-		_debug_print("  Using fallback green square (no sprites)")
+		# Use core default spritesheet as fallback
+		animated_sprite.sprite_frames = _create_default_sprite_frames()
+		animated_sprite.modulate = Color(0.2, 0.8, 0.2)  # Green tint for hero
+		_debug_print("  Using default fallback sprite for %s" % hero_data.character_name)
+
+	visual_container.add_child(animated_sprite)
 
 	# Collision shape
 	var collision: CollisionShape2D = CollisionShape2D.new()
@@ -424,38 +419,29 @@ func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 	follower.z_index = 90 - index  # Followers below hero, in reverse order
 	follower.visible = false  # Hide until positioned by initialize()
 
-	# Add visual representation - prefer animated map_sprite_frames
+	# Add visual representation using character's sprite_frames
 	var visual_container: Node2D = Node2D.new()
 	visual_container.name = "Visual"
 	follower.add_child(visual_container)
 
-	# Priority 1: Animated map sprite
-	if char_data.map_sprite_frames:
-		var animated_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-		animated_sprite.sprite_frames = char_data.map_sprite_frames
-		animated_sprite.name = "AnimatedSprite2D"
-		# Start with idle_down animation
-		if char_data.map_sprite_frames.has_animation("idle_down"):
-			animated_sprite.animation = "idle_down"
-			animated_sprite.play()
-		visual_container.add_child(animated_sprite)
-	# Priority 2: Static battle sprite
-	elif char_data.battle_sprite:
-		var sprite: Sprite2D = Sprite2D.new()
-		sprite.texture = char_data.battle_sprite
-		sprite.name = "Sprite"
-		visual_container.add_child(sprite)
-	else:
-		# Fallback: colored square if no sprites
-		var hue: float = float(index) / float(maxi(party_characters.size(), 1))
-		var follower_color: Color = Color.from_hsv(hue, 0.6, 0.9)
+	# Create animated sprite - use character's sprite_frames or default fallback
+	var animated_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	animated_sprite.name = "AnimatedSprite2D"
 
-		var sprite_rect: ColorRect = ColorRect.new()
-		sprite_rect.custom_minimum_size = Vector2(24, 24)
-		sprite_rect.position = Vector2(-12, -12)
-		sprite_rect.color = follower_color
-		sprite_rect.name = "SpriteRect"
-		visual_container.add_child(sprite_rect)
+	if char_data.sprite_frames:
+		animated_sprite.sprite_frames = char_data.sprite_frames
+	else:
+		# Use core default spritesheet with unique color per follower
+		animated_sprite.sprite_frames = _create_default_sprite_frames()
+		var hue: float = float(index) / float(maxi(party_characters.size(), 1))
+		animated_sprite.modulate = Color.from_hsv(hue, 0.6, 0.9)
+
+	# Start with idle_down animation if available
+	if animated_sprite.sprite_frames.has_animation("idle_down"):
+		animated_sprite.animation = "idle_down"
+		animated_sprite.play()
+
+	visual_container.add_child(animated_sprite)
 
 	# Collision shape
 	var collision: CollisionShape2D = CollisionShape2D.new()
@@ -659,6 +645,52 @@ func _get_current_map_metadata() -> MapMetadata:
 			return map_meta
 
 	return null
+
+
+# =============================================================================
+# SPRITE UTILITIES
+# =============================================================================
+
+## Create SpriteFrames from the core default spritesheet
+## Spritesheet format: 64x128 (2 columns x 4 rows of 32x32 frames)
+## Rows: down, left, right, up (standard 4-direction layout)
+func _create_default_sprite_frames() -> SpriteFrames:
+	var frames: SpriteFrames = SpriteFrames.new()
+
+	# Remove default animation if present
+	if frames.has_animation("default"):
+		frames.remove_animation("default")
+
+	# Try to load the default spritesheet
+	var spritesheet: Texture2D = load(DEFAULT_SPRITESHEET_PATH)
+	if not spritesheet:
+		push_warning("MapTemplate: Could not load default spritesheet at %s" % DEFAULT_SPRITESHEET_PATH)
+		# Return empty frames - will show nothing but won't crash
+		frames.add_animation("idle_down")
+		return frames
+
+	# Create atlas textures for each frame
+	# Row 0: down, Row 1: left, Row 2: right, Row 3: up
+	var directions: Array[String] = ["idle_down", "idle_left", "idle_right", "idle_up"]
+
+	for row: int in range(4):
+		var anim_name: String = directions[row]
+		frames.add_animation(anim_name)
+		frames.set_animation_loop(anim_name, true)
+		frames.set_animation_speed(anim_name, 4.0)
+
+		for col: int in range(2):
+			var atlas: AtlasTexture = AtlasTexture.new()
+			atlas.atlas = spritesheet
+			atlas.region = Rect2(
+				col * DEFAULT_FRAME_SIZE.x,
+				row * DEFAULT_FRAME_SIZE.y,
+				DEFAULT_FRAME_SIZE.x,
+				DEFAULT_FRAME_SIZE.y
+			)
+			frames.add_frame(anim_name, atlas)
+
+	return frames
 
 
 # =============================================================================

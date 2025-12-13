@@ -16,7 +16,6 @@ character_class = ExtResource("1_jufb1")
 base_hp = 20
 base_mp = 10
 portrait = ExtResource("3_portrait")
-battle_sprite = ExtResource("4_battle")
 starting_equipment = Array[ExtResource("2_jufb1")]([ExtResource("6_081uo")])
 unit_category = "enemy"
 is_unique = false

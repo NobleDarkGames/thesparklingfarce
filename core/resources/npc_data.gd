@@ -114,10 +114,10 @@ func get_portrait() -> Texture2D:
 
 
 ## Get the map sprite texture for this NPC
-## Uses character_data.battle_sprite if available, otherwise the fallback map_sprite
+## Uses character_data.get_display_texture() if available, otherwise the fallback map_sprite
 func get_map_sprite() -> Texture2D:
-	if character_data and character_data.battle_sprite:
-		return character_data.battle_sprite
+	if character_data:
+		return character_data.get_display_texture()
 	return map_sprite
 
 

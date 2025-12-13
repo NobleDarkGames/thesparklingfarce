@@ -1,6 +1,5 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=22 format=3 uid="uid://beb8kn2vdnfhj"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=21 format=3 uid="uid://beb8kn2vdnfhj"]
 
-[ext_resource type="Texture2D" uid="uid://cdavuan5nrjjl" path="res://mods/_sandbox/assets/sprites/battle/boss.png" id="1_b46c3"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_v3qhj"]
 [ext_resource type="Resource" uid="uid://dn138sn6tfr8w" path="res://mods/_sandbox/data/classes/class_1765572000.tres" id="2_6hlor"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_t2psq"]
@@ -143,7 +142,6 @@ character_class = ExtResource("2_6hlor")
 base_hp = 20
 base_mp = 10
 portrait = ExtResource("4_ks3ww")
-battle_sprite = ExtResource("1_b46c3")
-map_sprite_frames = SubResource("SpriteFrames_lnv4q")
+sprite_frames = SubResource("SpriteFrames_lnv4q")
 starting_level = 5
 starting_equipment = Array[ExtResource("2_t2psq")]([ExtResource("7_b46c3")])

@@ -16,4 +16,3 @@ base_mp = 20
 base_strength = 3
 base_defense = 3
 portrait = ExtResource("2_portrait")
-battle_sprite = ExtResource("3_battle")

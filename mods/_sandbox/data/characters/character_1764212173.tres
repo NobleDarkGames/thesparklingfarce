@@ -14,6 +14,5 @@ character_class = ExtResource("1_y7w8l")
 base_hp = 20
 base_mp = 10
 portrait = ExtResource("3_portrait")
-battle_sprite = ExtResource("4_battle")
 unit_category = "neutral"
 is_unique = false

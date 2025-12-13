@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d2vfg0appqcgx"
-path="res://.godot/imported/ring.png-8e1b1527d932ba8496b43aa3c94e01f6.ctex"
+uid="uid://cn1s043k7b6uw"
+path="res://.godot/imported/default_consumable.png-5c05746c031abd0bd29e2f2f79c1676e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://mods/_sandbox/assets/icons/items/ring.png"
-dest_files=["res://.godot/imported/ring.png-8e1b1527d932ba8496b43aa3c94e01f6.ctex"]
+source_file="res://core/assets/defaults/icons/items/default_consumable.png"
+dest_files=["res://.godot/imported/default_consumable.png-5c05746c031abd0bd29e2f2f79c1676e.ctex"]
 
 [params]
 

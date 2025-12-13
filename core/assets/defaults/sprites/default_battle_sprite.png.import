@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rgcl106lqsb"
-path="res://.godot/imported/hero.png-5d7cf50763476169fcc80cc34aa37828.ctex"
+uid="uid://148itq66f3j4"
+path="res://.godot/imported/default_battle_sprite.png-d8f67625579a53d01c6cbd65579fab20.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://mods/_sandbox/assets/portraits/hero.png"
-dest_files=["res://.godot/imported/hero.png-5d7cf50763476169fcc80cc34aa37828.ctex"]
+source_file="res://core/assets/defaults/sprites/default_battle_sprite.png"
+dest_files=["res://.godot/imported/default_battle_sprite.png-d8f67625579a53d01c6cbd65579fab20.ctex"]
 
 [params]
 

@@ -120,8 +120,8 @@ func _setup_character_display(unit: Node2D, old_class: ClassData, new_class: Cla
 	character_name_label.text = char_name
 
 	# OLD class sprite (will swap to new during transformation)
-	if unit.character_data and unit.character_data.battle_sprite:
-		character_sprite.texture = unit.character_data.battle_sprite
+	if unit.character_data:
+		character_sprite.texture = unit.character_data.get_display_texture()
 	else:
 		# Placeholder if no sprite
 		character_sprite.texture = null

@@ -11,15 +11,34 @@ var bio_edit: TextEdit
 
 # Appearance pickers
 var _portrait_picker: PortraitPicker
-var _battle_sprite_picker: BattleSpritePicker
-var _map_spritesheet_picker: MapSpritesheetPicker
+var _sprite_frames_picker: MapSpritesheetPicker  # For sprite_frames (SpriteFrames)
 
 # Battle configuration fields
 var category_option: OptionButton
 var is_unique_check: CheckBox
 var is_hero_check: CheckBox
+var is_boss_check: CheckBox
 var is_default_party_member_check: CheckBox
 var default_ai_option: OptionButton
+
+# AI Threat Configuration section
+var ai_threat_section: CollapseSection
+var ai_threat_modifier_slider: HSlider
+var ai_threat_modifier_value_label: Label
+var ai_threat_tags_container: HFlowContainer
+var ai_threat_custom_tag_edit: LineEdit
+var ai_threat_add_tag_button: Button
+var _current_threat_tags: Array[String] = []
+
+# Common threat tags with descriptions (for quick-add buttons)
+# Note: "boss" was removed - use the is_boss checkbox instead
+const COMMON_THREAT_TAGS: Dictionary = {
+	"priority_target": "AI focuses this unit first",
+	"avoid": "AI ignores this unit when targeting",
+	"vip": "High-value target for protection (non-boss)",
+	"healer": "Explicitly marks as healer (usually auto-detected)",
+	"tank": "Marks as a defensive unit"
+}
 
 # Stat editors
 var hp_spin: SpinBox
@@ -36,7 +55,7 @@ var equipment_pickers: Dictionary = {}  # {slot_id: ResourcePicker}
 var equipment_warning_labels: Dictionary = {}  # {slot_id: Label}
 
 var available_ai_brains: Array[AIBrain] = []
-var current_filter: String = "all"  # "all", "player", "enemy", "boss", "neutral"
+var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 
 # Filter buttons (will be created by _setup_filter_buttons)
 var filter_buttons: Dictionary = {}  # {category: Button}
@@ -80,6 +99,9 @@ func _create_detail_form() -> void:
 	# Battle configuration section
 	_add_battle_configuration_section()
 
+	# AI Threat Configuration section (for advanced AI targeting)
+	_add_ai_threat_configuration_section()
+
 	# Stats section
 	_add_stats_section()
 
@@ -114,6 +136,7 @@ func _load_resource_data() -> void:
 
 	is_unique_check.button_pressed = character.is_unique
 	is_hero_check.button_pressed = character.is_hero
+	is_boss_check.button_pressed = character.is_boss
 	is_default_party_member_check.button_pressed = character.is_default_party_member
 
 	# Set default AI brain
@@ -146,6 +169,9 @@ func _load_resource_data() -> void:
 	# Load appearance assets
 	_load_appearance_from_character(character)
 
+	# Load AI threat configuration
+	_load_ai_threat_configuration(character)
+
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
@@ -165,6 +191,7 @@ func _save_resource_data() -> void:
 
 	character.is_unique = is_unique_check.button_pressed
 	character.is_hero = is_hero_check.button_pressed
+	character.is_boss = is_boss_check.button_pressed
 	character.is_default_party_member = is_default_party_member_check.button_pressed
 
 	# Update default AI brain
@@ -191,6 +218,9 @@ func _save_resource_data() -> void:
 
 	# Update appearance assets from pickers
 	_save_appearance_to_character(character)
+
+	# Update AI threat configuration
+	_save_ai_threat_configuration(character)
 
 
 ## Override: Validate resource before saving
@@ -292,6 +322,7 @@ func _add_basic_info_section() -> void:
 
 	name_edit = LineEdit.new()
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.tooltip_text = "Display name shown in menus and dialogue. Can differ from resource filename."
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
 
@@ -301,6 +332,7 @@ func _add_basic_info_section() -> void:
 	class_picker.label_text = "Class:"
 	class_picker.label_min_width = 120
 	class_picker.allow_none = true
+	class_picker.tooltip_text = "Determines stat growth, abilities, and equippable weapon types. E.g., Warrior, Mage, Archer."
 	section.add_child(class_picker)
 
 	# Starting Level
@@ -314,6 +346,7 @@ func _add_basic_info_section() -> void:
 	level_spin.min_value = 1
 	level_spin.max_value = 99
 	level_spin.value = 1
+	level_spin.tooltip_text = "Level when character joins the party. Higher = stronger starting stats. Typical: 1-5 for early game, 10-20 for late joiners."
 	level_container.add_child(level_spin)
 	section.add_child(level_container)
 
@@ -324,6 +357,7 @@ func _add_basic_info_section() -> void:
 
 	bio_edit = TextEdit.new()
 	bio_edit.custom_minimum_size.y = 120
+	bio_edit.tooltip_text = "Background story and personality description. Shown in character status screens and recruitment scenes."
 	section.add_child(bio_edit)
 
 	detail_panel.add_child(section)
@@ -346,18 +380,12 @@ func _add_appearance_section() -> void:
 	_portrait_picker.texture_cleared.connect(_on_portrait_cleared)
 	section.add_content_child(_portrait_picker)
 
-	# Battle Sprite Picker
-	_battle_sprite_picker = BattleSpritePicker.new()
-	_battle_sprite_picker.texture_selected.connect(_on_battle_sprite_selected)
-	_battle_sprite_picker.texture_cleared.connect(_on_battle_sprite_cleared)
-	section.add_content_child(_battle_sprite_picker)
-
-	# Map Spritesheet Picker
-	_map_spritesheet_picker = MapSpritesheetPicker.new()
-	_map_spritesheet_picker.texture_selected.connect(_on_spritesheet_selected)
-	_map_spritesheet_picker.texture_cleared.connect(_on_spritesheet_cleared)
-	_map_spritesheet_picker.sprite_frames_generated.connect(_on_sprite_frames_generated)
-	section.add_content_child(_map_spritesheet_picker)
+	# Sprite Frames Picker (consolidated: used for both map and battle grid)
+	_sprite_frames_picker = MapSpritesheetPicker.new()
+	_sprite_frames_picker.texture_selected.connect(_on_spritesheet_selected)
+	_sprite_frames_picker.texture_cleared.connect(_on_spritesheet_cleared)
+	_sprite_frames_picker.sprite_frames_generated.connect(_on_sprite_frames_generated)
+	section.add_content_child(_sprite_frames_picker)
 
 	detail_panel.add_child(section)
 
@@ -378,6 +406,7 @@ func _add_battle_configuration_section() -> void:
 	category_container.add_child(category_label)
 
 	category_option = OptionButton.new()
+	category_option.tooltip_text = "Determines AI allegiance: player = controllable ally, enemy = hostile AI, boss = high-priority enemy, neutral = non-combatant."
 	# Populate from registry
 	var categories: Array[String] = _get_unit_categories_from_registry()
 	for i in range(categories.size()):
@@ -396,6 +425,7 @@ func _add_battle_configuration_section() -> void:
 	is_unique_check = CheckBox.new()
 	is_unique_check.button_pressed = true
 	is_unique_check.text = "This is a unique character (not a reusable template)"
+	is_unique_check.tooltip_text = "ON = named character that persists across battles (e.g., Max). OFF = generic template for spawning multiple copies (e.g., Goblin)."
 	unique_container.add_child(is_unique_check)
 	section.add_child(unique_container)
 
@@ -409,8 +439,23 @@ func _add_battle_configuration_section() -> void:
 	is_hero_check = CheckBox.new()
 	is_hero_check.button_pressed = false
 	is_hero_check.text = "This is the primary Hero/protagonist (only one per party)"
+	is_hero_check.tooltip_text = "The main protagonist. If this character dies, battle is lost. Only one hero per party. Enables special story triggers."
 	hero_container.add_child(is_hero_check)
 	section.add_child(hero_container)
+
+	# Is Boss
+	var boss_container: HBoxContainer = HBoxContainer.new()
+	var boss_label: Label = Label.new()
+	boss_label.text = "Is Boss:"
+	boss_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	boss_container.add_child(boss_label)
+
+	is_boss_check = CheckBox.new()
+	is_boss_check.button_pressed = false
+	is_boss_check.text = "This is a boss enemy (allies will protect)"
+	is_boss_check.tooltip_text = "Mark as a boss enemy. Defensive AI will prioritize protecting this unit, and threat calculations are boosted."
+	boss_container.add_child(is_boss_check)
+	section.add_child(boss_container)
 
 	# Is Default Party Member
 	var party_member_container: HBoxContainer = HBoxContainer.new()
@@ -422,6 +467,7 @@ func _add_battle_configuration_section() -> void:
 	is_default_party_member_check = CheckBox.new()
 	is_default_party_member_check.button_pressed = false
 	is_default_party_member_check.text = "Include in default starting party"
+	is_default_party_member_check.tooltip_text = "If ON, character joins the party at the start of a new game. Use for starting party members."
 	party_member_container.add_child(is_default_party_member_check)
 	section.add_child(party_member_container)
 
@@ -434,6 +480,7 @@ func _add_battle_configuration_section() -> void:
 
 	default_ai_option = OptionButton.new()
 	default_ai_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	default_ai_option.tooltip_text = "AI behavior when this character is an enemy. E.g., Aggressive rushes, Cautious stays back, Healer prioritizes allies."
 	ai_container.add_child(default_ai_option)
 	section.add_child(ai_container)
 
@@ -449,6 +496,204 @@ func _add_battle_configuration_section() -> void:
 	_load_available_ai_brains()
 
 
+func _add_ai_threat_configuration_section() -> void:
+	ai_threat_section = CollapseSection.new()
+	ai_threat_section.title = "AI Threat Configuration"
+	ai_threat_section.start_collapsed = true
+
+	var help_label: Label = Label.new()
+	help_label.text = "Advanced settings for AI targeting behavior"
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	ai_threat_section.add_content_child(help_label)
+
+	# Threat Modifier with slider and preset buttons
+	var modifier_container: VBoxContainer = VBoxContainer.new()
+
+	var modifier_header: HBoxContainer = HBoxContainer.new()
+	var modifier_label: Label = Label.new()
+	modifier_label.text = "Threat Modifier:"
+	modifier_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	modifier_label.tooltip_text = "Multiplier for AI threat calculations. Higher = AI prioritizes protecting/attacking this unit more."
+	modifier_header.add_child(modifier_label)
+
+	ai_threat_modifier_value_label = Label.new()
+	ai_threat_modifier_value_label.text = "1.0"
+	ai_threat_modifier_value_label.custom_minimum_size.x = 40
+	modifier_header.add_child(ai_threat_modifier_value_label)
+	modifier_container.add_child(modifier_header)
+
+	# Slider
+	var slider_container: HBoxContainer = HBoxContainer.new()
+	ai_threat_modifier_slider = HSlider.new()
+	ai_threat_modifier_slider.min_value = 0.0
+	ai_threat_modifier_slider.max_value = 5.0
+	ai_threat_modifier_slider.step = 0.1
+	ai_threat_modifier_slider.value = 1.0
+	ai_threat_modifier_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ai_threat_modifier_slider.custom_minimum_size.x = 200
+	ai_threat_modifier_slider.tooltip_text = "Multiplier for AI targeting priority. 0.5 = low priority, 1.0 = normal, 2.0+ = high priority target."
+	ai_threat_modifier_slider.value_changed.connect(_on_threat_modifier_changed)
+	slider_container.add_child(ai_threat_modifier_slider)
+	modifier_container.add_child(slider_container)
+
+	# Preset buttons
+	var preset_container: HBoxContainer = HBoxContainer.new()
+	preset_container.add_theme_constant_override("separation", 4)
+
+	var preset_label: Label = Label.new()
+	preset_label.text = "Presets:"
+	preset_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	preset_container.add_child(preset_label)
+
+	var presets: Array[Dictionary] = [
+		{"label": "Fodder (0.5)", "value": 0.5, "tooltip": "Enemies deprioritize this unit"},
+		{"label": "Normal (1.0)", "value": 1.0, "tooltip": "Default threat level"},
+		{"label": "Elite (1.5)", "value": 1.5, "tooltip": "Slightly higher priority"},
+		{"label": "Boss (2.0)", "value": 2.0, "tooltip": "High priority protection/targeting"},
+		{"label": "VIP (3.0)", "value": 3.0, "tooltip": "Maximum priority"}
+	]
+
+	for preset: Dictionary in presets:
+		var btn: Button = Button.new()
+		btn.text = preset.label
+		btn.tooltip_text = preset.tooltip
+		btn.pressed.connect(_on_threat_modifier_preset.bind(preset.value))
+		preset_container.add_child(btn)
+
+	modifier_container.add_child(preset_container)
+	ai_threat_section.add_content_child(modifier_container)
+
+	# Separator
+	var sep: HSeparator = HSeparator.new()
+	ai_threat_section.add_content_child(sep)
+
+	# Threat Tags section
+	var tags_header: Label = Label.new()
+	tags_header.text = "Threat Tags:"
+	tags_header.tooltip_text = "Tags that modify AI targeting behavior"
+	ai_threat_section.add_content_child(tags_header)
+
+	var tags_help: Label = Label.new()
+	tags_help.text = "Click to add common tags, or type custom tags below"
+	tags_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	tags_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	ai_threat_section.add_content_child(tags_help)
+
+	# Quick-add buttons for common tags
+	var quick_tags_container: HFlowContainer = HFlowContainer.new()
+	quick_tags_container.add_theme_constant_override("h_separation", 4)
+	quick_tags_container.add_theme_constant_override("v_separation", 4)
+
+	for tag: String in COMMON_THREAT_TAGS.keys():
+		var btn: Button = Button.new()
+		btn.text = "+ " + tag
+		btn.tooltip_text = COMMON_THREAT_TAGS[tag]
+		btn.pressed.connect(_on_add_threat_tag.bind(tag))
+		quick_tags_container.add_child(btn)
+
+	ai_threat_section.add_content_child(quick_tags_container)
+
+	# Current tags display
+	var current_tags_label: Label = Label.new()
+	current_tags_label.text = "Active Tags:"
+	ai_threat_section.add_content_child(current_tags_label)
+
+	ai_threat_tags_container = HFlowContainer.new()
+	ai_threat_tags_container.add_theme_constant_override("h_separation", 4)
+	ai_threat_tags_container.add_theme_constant_override("v_separation", 4)
+	ai_threat_section.add_content_child(ai_threat_tags_container)
+
+	# Custom tag input
+	var custom_tag_container: HBoxContainer = HBoxContainer.new()
+	var custom_label: Label = Label.new()
+	custom_label.text = "Custom Tag:"
+	custom_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	custom_tag_container.add_child(custom_label)
+
+	ai_threat_custom_tag_edit = LineEdit.new()
+	ai_threat_custom_tag_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ai_threat_custom_tag_edit.placeholder_text = "e.g., flanker, glass_cannon"
+	ai_threat_custom_tag_edit.tooltip_text = "Add custom tags for mod-specific AI behaviors. Use snake_case format."
+	ai_threat_custom_tag_edit.text_submitted.connect(_on_custom_tag_submitted)
+	custom_tag_container.add_child(ai_threat_custom_tag_edit)
+
+	ai_threat_add_tag_button = Button.new()
+	ai_threat_add_tag_button.text = "Add"
+	ai_threat_add_tag_button.pressed.connect(_on_add_custom_tag_pressed)
+	custom_tag_container.add_child(ai_threat_add_tag_button)
+
+	ai_threat_section.add_content_child(custom_tag_container)
+
+	detail_panel.add_child(ai_threat_section)
+
+
+func _on_threat_modifier_changed(value: float) -> void:
+	ai_threat_modifier_value_label.text = "%.1f" % value
+	_mark_dirty()
+
+
+func _on_threat_modifier_preset(value: float) -> void:
+	ai_threat_modifier_slider.value = value
+	ai_threat_modifier_value_label.text = "%.1f" % value
+	_mark_dirty()
+
+
+func _on_add_threat_tag(tag: String) -> void:
+	if tag not in _current_threat_tags:
+		_current_threat_tags.append(tag)
+		_refresh_threat_tags_display()
+		_mark_dirty()
+
+
+func _on_remove_threat_tag(tag: String) -> void:
+	_current_threat_tags.erase(tag)
+	_refresh_threat_tags_display()
+	_mark_dirty()
+
+
+func _on_custom_tag_submitted(tag: String) -> void:
+	_add_custom_tag(tag)
+
+
+func _on_add_custom_tag_pressed() -> void:
+	_add_custom_tag(ai_threat_custom_tag_edit.text)
+
+
+func _add_custom_tag(tag: String) -> void:
+	var clean_tag: String = tag.strip_edges().to_lower().replace(" ", "_")
+	if clean_tag.is_empty():
+		return
+	if clean_tag not in _current_threat_tags:
+		_current_threat_tags.append(clean_tag)
+		_refresh_threat_tags_display()
+		_mark_dirty()
+	ai_threat_custom_tag_edit.text = ""
+
+
+func _refresh_threat_tags_display() -> void:
+	# Clear existing tag buttons
+	for child: Node in ai_threat_tags_container.get_children():
+		child.queue_free()
+
+	if _current_threat_tags.is_empty():
+		var empty_label: Label = Label.new()
+		empty_label.text = "(No tags)"
+		empty_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+		ai_threat_tags_container.add_child(empty_label)
+		return
+
+	# Create pill-style buttons for each tag
+	for tag: String in _current_threat_tags:
+		var tag_btn: Button = Button.new()
+		tag_btn.text = tag + " x"
+		tag_btn.tooltip_text = "Click to remove this tag"
+		if tag in COMMON_THREAT_TAGS:
+			tag_btn.tooltip_text = COMMON_THREAT_TAGS[tag] + "\nClick to remove"
+		tag_btn.pressed.connect(_on_remove_threat_tag.bind(tag))
+		ai_threat_tags_container.add_child(tag_btn)
+
+
 func _add_stats_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
@@ -457,29 +702,33 @@ func _add_stats_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
-	hp_spin = _create_stat_editor("HP:", section)
-	mp_spin = _create_stat_editor("MP:", section)
-	str_spin = _create_stat_editor("Strength:", section)
-	def_spin = _create_stat_editor("Defense:", section)
-	agi_spin = _create_stat_editor("Agility:", section)
-	int_spin = _create_stat_editor("Intelligence:", section)
-	luk_spin = _create_stat_editor("Luck:", section)
+	hp_spin = _create_stat_editor("HP:", section, "Hit Points - how much damage the character can take before falling. Typical: 15-25 for mages, 25-40 for warriors.")
+	mp_spin = _create_stat_editor("MP:", section, "Magic Points - resource for casting spells and abilities. Typical: 0 for melee, 15-30 for casters.")
+	str_spin = _create_stat_editor("Strength:", section, "Physical attack power. Higher = more damage with weapons. Typical: 3-6 for casters, 6-10 for fighters.")
+	def_spin = _create_stat_editor("Defense:", section, "Physical damage reduction. Higher = less damage taken from attacks. Typical: 3-5 for mages, 6-10 for tanks.")
+	agi_spin = _create_stat_editor("Agility:", section, "Turn order and evasion. Higher = acts first, harder to hit. Also affects movement range.")
+	int_spin = _create_stat_editor("Intelligence:", section, "Magic attack power and MP growth. Higher = stronger spells. Typical: 6-10 for mages, 2-4 for fighters.")
+	luk_spin = _create_stat_editor("Luck:", section, "Critical hit chance and rare drop rates. Subtle but useful. Typical: 3-7 for most characters.")
 
 	detail_panel.add_child(section)
 
 
-func _create_stat_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
+func _create_stat_editor(label_text: String, parent: VBoxContainer, tooltip: String = "") -> SpinBox:
 	var container: HBoxContainer = HBoxContainer.new()
 
 	var label: Label = Label.new()
 	label.text = label_text
 	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	if not tooltip.is_empty():
+		label.tooltip_text = tooltip
 	container.add_child(label)
 
 	var spin: SpinBox = SpinBox.new()
 	spin.min_value = 1
 	spin.max_value = 999
 	spin.value = 10
+	if not tooltip.is_empty():
+		spin.tooltip_text = tooltip
 	container.add_child(spin)
 
 	parent.add_child(container)
@@ -599,7 +848,7 @@ func _get_unit_categories_from_registry() -> Array[String]:
 	if ModLoader and ModLoader.unit_category_registry:
 		return ModLoader.unit_category_registry.get_categories()
 	# Fallback to defaults if registry not available
-	return ["player", "enemy", "boss", "neutral"]
+	return ["player", "enemy", "neutral"]
 
 
 ## Add the starting equipment section with pickers for each slot (collapsible)
@@ -819,26 +1068,20 @@ func _load_appearance_from_character(character: CharacterData) -> void:
 	else:
 		_portrait_picker.clear()
 
-	# Battle Sprite
-	if character.battle_sprite:
-		_battle_sprite_picker.set_texture_path(character.battle_sprite.resource_path)
-	else:
-		_battle_sprite_picker.clear()
-
-	# Map Sprite Frames
-	if character.map_sprite_frames:
+	# Sprite Frames (consolidated: used for both map and battle grid)
+	if character.sprite_frames:
 		# Try to load from the SpriteFrames resource
 		# The MapSpritesheetPicker needs the source spritesheet path
 		# We can try to reconstruct it from the SpriteFrames if it was saved with metadata
-		_load_map_sprite_from_sprite_frames(character.map_sprite_frames)
+		_load_sprite_frames_from_character(character.sprite_frames)
 	else:
-		_map_spritesheet_picker.clear()
+		_sprite_frames_picker.clear()
 
 
-## Try to load map sprite information from an existing SpriteFrames resource
-func _load_map_sprite_from_sprite_frames(sprite_frames: SpriteFrames) -> void:
+## Try to load sprite frames information from an existing SpriteFrames resource
+func _load_sprite_frames_from_character(sprite_frames: SpriteFrames) -> void:
 	# Clear picker first
-	_map_spritesheet_picker.clear()
+	_sprite_frames_picker.clear()
 
 	if not sprite_frames:
 		return
@@ -861,9 +1104,9 @@ func _load_map_sprite_from_sprite_frames(sprite_frames: SpriteFrames) -> void:
 
 	# If we found the source spritesheet, load it into the picker
 	if not spritesheet_path.is_empty():
-		_map_spritesheet_picker.set_sprite_frames_path(spritesheet_path, frames_path)
+		_sprite_frames_picker.set_sprite_frames_path(spritesheet_path, frames_path)
 		# Also store the existing SpriteFrames so it's preserved on save
-		_map_spritesheet_picker.set_existing_sprite_frames(sprite_frames)
+		_sprite_frames_picker.set_existing_sprite_frames(sprite_frames)
 
 
 ## Save appearance assets from pickers to CharacterData
@@ -871,23 +1114,20 @@ func _save_appearance_to_character(character: CharacterData) -> void:
 	# Portrait
 	character.portrait = _portrait_picker.get_texture()
 
-	# Battle Sprite
-	character.battle_sprite = _battle_sprite_picker.get_texture()
-
-	# Map Sprite Frames
+	# Sprite Frames (consolidated: used for both map and battle grid)
 	# If the picker has generated SpriteFrames, use them
-	if _map_spritesheet_picker.has_generated_sprite_frames():
-		character.map_sprite_frames = _map_spritesheet_picker.get_generated_sprite_frames()
-	elif _map_spritesheet_picker.is_valid() and _map_spritesheet_picker.get_texture() != null:
+	if _sprite_frames_picker.has_generated_sprite_frames():
+		character.sprite_frames = _sprite_frames_picker.get_generated_sprite_frames()
+	elif _sprite_frames_picker.is_valid() and _sprite_frames_picker.get_texture() != null:
 		# Valid spritesheet selected but no SpriteFrames generated yet
 		# Auto-generate SpriteFrames when saving
 		var output_path: String = _generate_sprite_frames_path(character)
-		if _map_spritesheet_picker.generate_sprite_frames(output_path):
-			character.map_sprite_frames = _map_spritesheet_picker.get_generated_sprite_frames()
+		if _sprite_frames_picker.generate_sprite_frames(output_path):
+			character.sprite_frames = _sprite_frames_picker.get_generated_sprite_frames()
 	else:
-		# No valid spritesheet - clear the map_sprite_frames if picker is empty
-		if _map_spritesheet_picker.get_texture_path().is_empty():
-			character.map_sprite_frames = null
+		# No valid spritesheet - clear the sprite_frames if picker is empty
+		if _sprite_frames_picker.get_texture_path().is_empty():
+			character.sprite_frames = null
 
 
 ## Generate an appropriate output path for SpriteFrames based on character resource path
@@ -926,14 +1166,6 @@ func _on_portrait_cleared() -> void:
 	_mark_dirty()
 
 
-func _on_battle_sprite_selected(_path: String, _texture: Texture2D) -> void:
-	_mark_dirty()
-
-
-func _on_battle_sprite_cleared() -> void:
-	_mark_dirty()
-
-
 func _on_spritesheet_selected(_path: String, _texture: Texture2D) -> void:
 	_mark_dirty()
 
@@ -946,3 +1178,39 @@ func _on_sprite_frames_generated(sprite_frames: SpriteFrames) -> void:
 	_mark_dirty()
 	if sprite_frames:
 		_show_success_message("SpriteFrames generated successfully")
+
+
+# =============================================================================
+# AI THREAT CONFIGURATION METHODS
+# =============================================================================
+
+## Load AI threat configuration from CharacterData into the UI
+func _load_ai_threat_configuration(character: CharacterData) -> void:
+	# Load threat modifier (with fallback for characters without the field)
+	var threat_modifier: float = 1.0
+	if "ai_threat_modifier" in character:
+		threat_modifier = character.ai_threat_modifier
+	ai_threat_modifier_slider.value = threat_modifier
+	ai_threat_modifier_value_label.text = "%.1f" % threat_modifier
+
+	# Load threat tags (with fallback for characters without the field)
+	_current_threat_tags.clear()
+	if "ai_threat_tags" in character:
+		for tag: String in character.ai_threat_tags:
+			_current_threat_tags.append(tag)
+
+	_refresh_threat_tags_display()
+
+
+## Save AI threat configuration from UI to CharacterData
+func _save_ai_threat_configuration(character: CharacterData) -> void:
+	# Save threat modifier
+	if "ai_threat_modifier" in character:
+		character.ai_threat_modifier = ai_threat_modifier_slider.value
+
+	# Save threat tags
+	if "ai_threat_tags" in character:
+		var new_tags: Array[String] = []
+		for tag: String in _current_threat_tags:
+			new_tags.append(tag)
+		character.ai_threat_tags = new_tags

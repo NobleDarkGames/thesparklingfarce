@@ -54,7 +54,7 @@ var has_acted: bool = false
 var turn_priority: float = 0.0
 
 ## References to child nodes (set by scene structure)
-@onready var sprite: Sprite2D = $Sprite2D
+@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var selection_indicator: ColorRect = $SelectionIndicator
 @onready var name_label: Label = $NameLabel
 @onready var health_bar: ProgressBar = $HealthBar
@@ -106,7 +106,7 @@ func initialize(
 
 
 
-## Update sprite based on character data
+## Update sprite based on character data (SF2-authentic: same sprite for map and battle)
 func _update_visual() -> void:
 	# If sprite isn't ready yet, defer until _ready()
 	if not is_node_ready():
@@ -115,9 +115,16 @@ func _update_visual() -> void:
 	if not sprite:
 		return
 
-	# Try to load the battle sprite from character data
-	if character_data and character_data.battle_sprite:
-		sprite.texture = character_data.battle_sprite
+	# Try to load sprite_frames from character data
+	if character_data and character_data.sprite_frames:
+		sprite.sprite_frames = character_data.sprite_frames
+		# Default to idle_down animation for battle grid
+		if character_data.sprite_frames.has_animation("idle_down"):
+			sprite.animation = "idle_down"
+			sprite.play()
+		elif character_data.sprite_frames.has_animation("walk_down"):
+			sprite.animation = "walk_down"
+			sprite.stop()  # Don't animate walk when idle
 		# Apply faction-based modulation for visual faction identification
 		match faction:
 			"player":
@@ -127,8 +134,10 @@ func _update_visual() -> void:
 			"neutral":
 				sprite.modulate = Color(1.0, 1.0, 0.8, 1.0)  # Slight yellow tint
 	else:
-		# Fallback: Create a simple colored square texture as placeholder
-		sprite.texture = _create_placeholder_texture()
+		# Fallback: Create placeholder sprite_frames with colored square
+		sprite.sprite_frames = _create_placeholder_sprite_frames()
+		sprite.animation = "idle"
+		sprite.play()
 		match faction:
 			"player":
 				sprite.modulate = COLOR_PLAYER
@@ -138,11 +147,78 @@ func _update_visual() -> void:
 				sprite.modulate = COLOR_NEUTRAL
 
 
-## Create a simple placeholder texture when no sprite is available
-func _create_placeholder_texture() -> ImageTexture:
-	var img: Image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
+## Path to default character spritesheet in core assets
+const DEFAULT_SPRITESHEET_PATH: String = "res://core/assets/defaults/sprites/default_character_spritesheet.png"
+const DEFAULT_FRAME_SIZE: Vector2i = Vector2i(32, 32)
+
+
+## Create placeholder SpriteFrames using the core default spritesheet
+## Spritesheet format: 64x128 (2 columns × 4 rows of 32x32 frames)
+## Rows: down, left, right, up (standard 4-direction layout)
+func _create_placeholder_sprite_frames() -> SpriteFrames:
+	var frames: SpriteFrames = SpriteFrames.new()
+
+	# Remove default animation if present
+	if frames.has_animation("default"):
+		frames.remove_animation("default")
+
+	# Try to load the default spritesheet
+	var spritesheet: Texture2D = load(DEFAULT_SPRITESHEET_PATH)
+	if not spritesheet:
+		# Ultimate fallback: create a simple colored square
+		push_warning("Unit: Could not load default spritesheet at %s" % DEFAULT_SPRITESHEET_PATH)
+		return _create_emergency_placeholder_frames()
+
+	# Create atlas textures for each frame
+	# Row 0: down (frames 0, 1), Row 1: left, Row 2: right, Row 3: up
+	var directions: Array[String] = ["idle_down", "idle_left", "idle_right", "idle_up"]
+
+	for row in range(4):
+		var anim_name: String = directions[row]
+		frames.add_animation(anim_name)
+		frames.set_animation_loop(anim_name, true)
+		frames.set_animation_speed(anim_name, 4.0)
+
+		for col in range(2):
+			var atlas: AtlasTexture = AtlasTexture.new()
+			atlas.atlas = spritesheet
+			atlas.region = Rect2(
+				col * DEFAULT_FRAME_SIZE.x,
+				row * DEFAULT_FRAME_SIZE.y,
+				DEFAULT_FRAME_SIZE.x,
+				DEFAULT_FRAME_SIZE.y
+			)
+			frames.add_frame(anim_name, atlas)
+
+	# Add "idle" as alias for "idle_down" (default facing)
+	frames.add_animation("idle")
+	frames.set_animation_loop("idle", true)
+	frames.set_animation_speed("idle", 4.0)
+	for col in range(2):
+		var atlas: AtlasTexture = AtlasTexture.new()
+		atlas.atlas = spritesheet
+		atlas.region = Rect2(col * DEFAULT_FRAME_SIZE.x, 0, DEFAULT_FRAME_SIZE.x, DEFAULT_FRAME_SIZE.y)
+		frames.add_frame("idle", atlas)
+
+	return frames
+
+
+## Emergency fallback if even the default spritesheet can't be loaded
+func _create_emergency_placeholder_frames() -> SpriteFrames:
+	var frames: SpriteFrames = SpriteFrames.new()
+	if frames.has_animation("default"):
+		frames.remove_animation("default")
+
+	# Create a simple colored square texture
+	var img: Image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
 	img.fill(Color.WHITE)
-	return ImageTexture.create_from_image(img)
+	var texture: ImageTexture = ImageTexture.create_from_image(img)
+
+	frames.add_animation("idle")
+	frames.set_animation_loop("idle", true)
+	frames.set_animation_speed("idle", 1.0)
+	frames.add_frame("idle", texture)
+	return frames
 
 
 ## Update health bar display with optional animation
@@ -454,7 +530,7 @@ func _set_acted_visual(dimmed: bool) -> void:
 		sprite.modulate = sprite.modulate * Color(0.6, 0.6, 0.6, 1.0)
 	else:
 		# Restore based on faction (from _update_visual logic)
-		if character_data and character_data.battle_sprite:
+		if character_data and character_data.sprite_frames:
 			match faction:
 				"player":
 					sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)

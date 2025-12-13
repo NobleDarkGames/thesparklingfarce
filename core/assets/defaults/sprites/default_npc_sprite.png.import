@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d55uigml4hb3"
-path="res://.godot/imported/hero_spritesheet.png-2cc47a0f53a78a7020144f36ae37a8cf.ctex"
+uid="uid://dyhgsmamnxaiy"
+path="res://.godot/imported/default_npc_sprite.png-e33f4093411db71a1fac41df7e9a7172.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://mods/_sandbox/assets/sprites/map/hero_spritesheet.png"
-dest_files=["res://.godot/imported/hero_spritesheet.png-2cc47a0f53a78a7020144f36ae37a8cf.ctex"]
+source_file="res://core/assets/defaults/sprites/default_npc_sprite.png"
+dest_files=["res://.godot/imported/default_npc_sprite.png-e33f4093411db71a1fac41df7e9a7172.ctex"]
 
 [params]
 
