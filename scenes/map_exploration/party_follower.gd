@@ -8,6 +8,7 @@
 class_name PartyFollower
 extends CharacterBody2D
 
+const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
 const DEBUG_MODE: bool = false
 
 @export var tile_size: int = 32
@@ -28,10 +29,17 @@ var _is_moving: bool = false
 ## Reference to tilemap for grid conversion
 var _tile_map: TileMapLayer = null
 
+## Animated sprite for visual representation
+var _sprite: AnimatedSprite2D = null
+
+## Current facing direction
+var facing_direction: String = "down"
+
 
 func _ready() -> void:
 	set_physics_process(false)  # Disabled until initialize() is called
 	_tile_map = get_node_or_null("../TileMapLayer")
+	_find_sprite()
 
 
 func _physics_process(delta: float) -> void:
@@ -46,16 +54,21 @@ func _physics_process(delta: float) -> void:
 		global_position = _target_world
 		grid_position = _target_grid
 		_is_moving = false
+		_play_idle_animation()
 		return
 
 	# Move toward target
 	var direction: Vector2 = (_target_world - global_position).normalized()
 	var move_amount: float = move_speed * delta
 
+	# Update facing based on movement direction
+	_update_facing(direction)
+
 	if move_amount >= distance:
 		global_position = _target_world
 		grid_position = _target_grid
 		_is_moving = false
+		_play_idle_animation()
 	else:
 		global_position += direction * move_amount
 
@@ -103,6 +116,11 @@ func _on_hero_moved(_hero_tile: Vector2i) -> void:
 		_target_world = _grid_to_world(_target_grid)
 		_is_moving = true
 
+		# Update facing toward new target and play walk animation
+		var direction: Vector2 = (_target_world - global_position).normalized()
+		_update_facing(direction)
+		_play_walk_animation()
+
 		if DEBUG_MODE:
 			print("[Follower %d] Moving to tile %s (hero history[%d])" % [
 				formation_index, _target_grid, formation_index
@@ -138,3 +156,52 @@ func _grid_to_world(grid_pos: Vector2i) -> Vector2:
 	if _tile_map:
 		return _tile_map.map_to_local(grid_pos)
 	return Vector2(grid_pos) * tile_size + Vector2(tile_size, tile_size) * 0.5
+
+
+# =============================================================================
+# SPRITE AND FACING
+# =============================================================================
+
+## Find the AnimatedSprite2D in the node hierarchy
+func _find_sprite() -> void:
+	# Structure: PartyFollower/Visual/AnimatedSprite2D
+	var visual: Node = get_node_or_null("Visual")
+	if visual:
+		_sprite = visual.get_node_or_null("AnimatedSprite2D")
+	if not _sprite:
+		# Try direct child as fallback
+		_sprite = get_node_or_null("AnimatedSprite2D")
+
+
+## Update facing direction based on movement vector
+func _update_facing(direction: Vector2) -> void:
+	if direction.is_zero_approx():
+		return
+
+	var new_facing: String = FacingUtils.get_dominant_direction_float(direction)
+	if new_facing != facing_direction:
+		facing_direction = new_facing
+		_play_walk_animation()
+
+
+## Play idle animation for current facing direction
+func _play_idle_animation() -> void:
+	if not _sprite or not _sprite.sprite_frames:
+		return
+	var anim_name: String = "idle_" + facing_direction
+	if _sprite.sprite_frames.has_animation(anim_name):
+		if _sprite.animation != anim_name:
+			_sprite.play(anim_name)
+
+
+## Play walk animation for current facing direction
+func _play_walk_animation() -> void:
+	if not _sprite or not _sprite.sprite_frames:
+		return
+	var anim_name: String = "walk_" + facing_direction
+	if _sprite.sprite_frames.has_animation(anim_name):
+		if _sprite.animation != anim_name:
+			_sprite.play(anim_name)
+	elif _sprite.sprite_frames.has_animation("idle_" + facing_direction):
+		# Fallback to idle if no walk animation
+		_sprite.play("idle_" + facing_direction)
