@@ -5,6 +5,8 @@
 class_name HeroController
 extends CharacterBody2D
 
+const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+
 ## Debug mode - set to true for verbose logging
 const DEBUG_MODE: bool = false
 
@@ -26,7 +28,8 @@ signal interaction_requested(interaction_position: Vector2i)
 var ui_controller: Node = null
 
 ## Current facing direction (for sprites and interactions)
-var facing_direction: Vector2i = Vector2i.DOWN
+## Uses string format ("up", "down", "left", "right") for consistency with Unit.gd
+var facing_direction: String = "down"
 
 ## Grid position tracking
 var grid_position: Vector2i = Vector2i.ZERO
@@ -223,9 +226,9 @@ func attempt_move(direction: Vector2i) -> bool:
 		return false
 
 	# Always update facing direction, even if blocked (SF-authentic)
-	facing_direction = direction
+	facing_direction = FacingUtils.direction_to_string(direction)
 	_update_interaction_ray()
-	_update_sprite_animation(direction)
+	_update_sprite_animation()
 
 	# Calculate target grid position
 	var target_grid: Vector2i = grid_position + direction
@@ -298,7 +301,8 @@ func _check_tile_triggers() -> void:
 
 ## Attempt to interact with whatever is in front of the hero.
 func _try_interact() -> void:
-	var interaction_pos: Vector2i = grid_position + facing_direction
+	var dir_vec: Vector2i = FacingUtils.string_to_direction(facing_direction)
+	var interaction_pos: Vector2i = grid_position + dir_vec
 	interaction_requested.emit(interaction_pos)
 
 
@@ -328,17 +332,16 @@ func _update_interaction_ray() -> void:
 	if not interaction_ray:
 		return
 
-	interaction_ray.target_position = Vector2(facing_direction) * tile_size
+	var dir_vec: Vector2i = FacingUtils.string_to_direction(facing_direction)
+	interaction_ray.target_position = Vector2(dir_vec) * tile_size
 
 
-## Update sprite animation based on movement direction.
-func _update_sprite_animation(direction: Vector2i) -> void:
+## Update sprite animation based on current facing direction.
+func _update_sprite_animation() -> void:
 	if not sprite:
 		return
 
-	# Map direction to animation name
-	var dir_name: String = _direction_to_string(direction)
-	var anim_name: String = "walk_" + dir_name
+	var anim_name: String = "walk_" + facing_direction
 
 	# Only change animation if it exists and is different
 	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
@@ -351,27 +354,11 @@ func _play_idle_animation() -> void:
 	if not sprite:
 		return
 
-	var dir_name: String = _direction_to_string(facing_direction)
-	var anim_name: String = "idle_" + dir_name
+	var anim_name: String = "idle_" + facing_direction
 
 	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
 		if sprite.animation != anim_name:
 			sprite.play(anim_name)
-
-
-## Convert direction vector to string name.
-func _direction_to_string(direction: Vector2i) -> String:
-	match direction:
-		Vector2i.UP:
-			return "up"
-		Vector2i.DOWN:
-			return "down"
-		Vector2i.LEFT:
-			return "left"
-		Vector2i.RIGHT:
-			return "right"
-		_:
-			return "down"  # Default
 
 
 ## Add current position to history for followers.
@@ -405,9 +392,8 @@ func initialize_formation_history() -> void:
 	tile_history.clear()
 
 	# Determine the "behind" direction (opposite of facing)
-	var behind_direction: Vector2i = -facing_direction
-	if behind_direction == Vector2i.ZERO:
-		behind_direction = Vector2i.DOWN  # Default to down
+	var facing_vec: Vector2i = FacingUtils.string_to_direction(facing_direction)
+	var behind_direction: Vector2i = -facing_vec
 
 	# Pre-seed history with tiles extending behind the hero
 	# history[0] = hero position, history[1] = 1 tile behind, etc.

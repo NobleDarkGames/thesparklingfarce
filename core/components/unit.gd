@@ -5,7 +5,7 @@
 class_name Unit
 extends Node2D
 
-# No preload needed - use load() in initialize()
+const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
 
 # Faction visual colors (placeholder until sprites are implemented)
 const COLOR_PLAYER: Color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
@@ -52,6 +52,10 @@ var has_acted: bool = false
 
 ## Turn priority (calculated by TurnManager based on AGI)
 var turn_priority: float = 0.0
+
+## Current facing direction (for sprite animations)
+## Valid values: "down", "up", "left", "right"
+var facing_direction: String = "down"
 
 ## References to child nodes (set by scene structure)
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -348,6 +352,12 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 	var distance: float = position.distance_to(target_position)
 	var duration: float = distance / movement_speed
 
+	# Update facing direction based on movement
+	_update_facing_from_movement(grid_position, target_cell)
+
+	# Play walk animation
+	_play_walk_animation()
+
 	# Create tween for smooth movement
 	_movement_tween = create_tween()
 	_movement_tween.set_trans(Tween.TRANS_LINEAR)
@@ -355,6 +365,9 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 
 	# Animate position
 	_movement_tween.tween_property(self, "position", target_position, duration)
+
+	# Return to idle when movement completes
+	_movement_tween.tween_callback(_play_idle_animation)
 
 	return _movement_tween
 
@@ -371,18 +384,37 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 	_movement_tween.set_trans(Tween.TRANS_LINEAR)
 	_movement_tween.set_ease(Tween.EASE_IN_OUT)
 
+	# Track previous direction to detect direction changes
+	var prev_direction: String = ""
+
 	# Animate through each cell in the path (skip first cell as it's the current position)
 	for i in range(1, path.size()):
+		var prev_cell: Vector2i = path[i - 1]
 		var cell: Vector2i = path[i]
 		var target_position: Vector2 = GridManager.cell_to_world(cell)
 
+		# Calculate direction for this step
+		var step_direction: String = _direction_to_string(cell - prev_cell)
+
+		# Update facing and animation when direction changes (or on first step)
+		if step_direction != prev_direction:
+			var new_dir: String = step_direction  # Capture for lambda
+			_movement_tween.tween_callback(func() -> void:
+				facing_direction = new_dir
+				_play_walk_animation()
+			)
+			prev_direction = step_direction
+
 		# Calculate duration for this step based on distance
-		var current_pos: Vector2 = GridManager.cell_to_world(path[i - 1]) if i > 0 else position
+		var current_pos: Vector2 = GridManager.cell_to_world(prev_cell)
 		var distance: float = current_pos.distance_to(target_position)
 		var duration: float = distance / movement_speed
 
 		# Chain the movement to this cell
 		_movement_tween.tween_property(self, "position", target_position, duration)
+
+	# Return to idle when movement completes
+	_movement_tween.tween_callback(_play_idle_animation)
 
 	return _movement_tween
 
@@ -609,6 +641,67 @@ func await_movement_completion() -> void:
 ## Use this instead of accessing _movement_tween directly
 func is_moving() -> bool:
 	return _movement_tween != null and _movement_tween.is_valid()
+
+
+# =============================================================================
+# FACING SYSTEM (SF2-Authentic: Units face direction of movement/action)
+# =============================================================================
+
+## Set facing direction and update sprite animation
+## direction: "up", "down", "left", "right"
+func set_facing(direction: String) -> void:
+	facing_direction = direction.to_lower()
+	_play_idle_animation()
+
+
+## Face toward a target position (for attacks, spells, etc.)
+## target_pos: Grid position to face toward
+func face_toward(target_pos: Vector2i) -> void:
+	var delta: Vector2i = target_pos - grid_position
+	set_facing(FacingUtils.get_dominant_direction(delta))
+
+
+## Convert Vector2i direction to string name (delegates to FacingUtils)
+func _direction_to_string(direction: Vector2i) -> String:
+	return FacingUtils.direction_to_string(direction)
+
+
+## Play idle animation for current facing direction
+func _play_idle_animation() -> void:
+	if not sprite or not sprite.sprite_frames:
+		return
+
+	var anim_name: String = "idle_" + facing_direction
+
+	if sprite.sprite_frames.has_animation(anim_name):
+		if sprite.animation != anim_name:
+			sprite.play(anim_name)
+	elif sprite.sprite_frames.has_animation("idle"):
+		# Fallback for sprites without directional animations
+		sprite.play("idle")
+
+
+## Play walk animation for current facing direction
+func _play_walk_animation() -> void:
+	if not sprite or not sprite.sprite_frames:
+		return
+
+	var anim_name: String = "walk_" + facing_direction
+
+	if sprite.sprite_frames.has_animation(anim_name):
+		if sprite.animation != anim_name:
+			sprite.play(anim_name)
+	elif sprite.sprite_frames.has_animation("idle_" + facing_direction):
+		# Fallback: use idle if no walk animation
+		sprite.play("idle_" + facing_direction)
+
+
+## Update facing direction based on movement from one cell to another
+func _update_facing_from_movement(from: Vector2i, to: Vector2i) -> void:
+	var delta: Vector2i = to - from
+	if delta == Vector2i.ZERO:
+		return
+	facing_direction = FacingUtils.get_dominant_direction(delta)
 
 
 ## Refresh the equipment cache from CharacterSaveData

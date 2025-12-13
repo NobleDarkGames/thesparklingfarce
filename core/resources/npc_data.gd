@@ -39,8 +39,9 @@ extends Resource
 @export_group("Appearance (Fallback)")
 ## Portrait to show in dialogs (used if character_data is null)
 @export var portrait: Texture2D
-## Sprite for map display (used if character_data is null)
-@export var map_sprite: Texture2D
+## Animated sprite frames for map display (used if character_data is null)
+## Should contain idle_up, idle_down, idle_left, idle_right animations
+@export var sprite_frames: SpriteFrames
 
 @export_group("Interaction - Primary")
 ## The cinematic to play when player interacts (simple case)
@@ -113,12 +114,34 @@ func get_portrait() -> Texture2D:
 	return portrait
 
 
-## Get the map sprite texture for this NPC
-## Uses character_data.get_display_texture() if available, otherwise the fallback map_sprite
+## Get the sprite frames for this NPC (animated directional sprites)
+## Priority: character_data.sprite_frames > sprite_frames > null
+func get_sprite_frames() -> SpriteFrames:
+	if character_data and character_data.sprite_frames:
+		return character_data.sprite_frames
+	return sprite_frames
+
+
+## Get a static texture for this NPC (for UI previews, etc.)
+## Priority: character_data.get_display_texture() > extract from sprite_frames
 func get_map_sprite() -> Texture2D:
 	if character_data:
 		return character_data.get_display_texture()
-	return map_sprite
+	# Extract first frame from sprite_frames if available
+	if sprite_frames:
+		return _extract_texture_from_sprite_frames(sprite_frames)
+	return null
+
+
+## Extract a static texture from SpriteFrames (first frame of idle_down)
+func _extract_texture_from_sprite_frames(frames: SpriteFrames) -> Texture2D:
+	if frames.has_animation("idle_down") and frames.get_frame_count("idle_down") > 0:
+		return frames.get_frame_texture("idle_down", 0)
+	# Fallback: any animation's first frame
+	for anim_name: String in frames.get_animation_names():
+		if frames.get_frame_count(anim_name) > 0:
+			return frames.get_frame_texture(anim_name, 0)
+	return null
 
 
 ## Validate that required fields are set

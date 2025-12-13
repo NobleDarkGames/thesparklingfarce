@@ -43,9 +43,7 @@ var appearance_section: VBoxContainer
 var portrait_path_edit: LineEdit
 var portrait_preview: TextureRect
 var portrait_file_dialog: EditorFileDialog
-var map_sprite_path_edit: LineEdit
-var map_sprite_preview: TextureRect
-var map_sprite_file_dialog: EditorFileDialog
+var map_spritesheet_picker: MapSpritesheetPicker
 
 # Quick Dialog section
 var quick_dialog_section: VBoxContainer
@@ -146,7 +144,8 @@ func _create_detail_form() -> void:
 	_add_advanced_options_section()
 
 	# Bind preview panel to data sources
-	preview_panel.bind_sources(npc_name_edit, quick_dialog_text, character_picker, portrait_path_edit, map_sprite_path_edit)
+	# Note: sprite_path is null since we now use MapSpritesheetPicker (which has its own preview)
+	preview_panel.bind_sources(npc_name_edit, quick_dialog_text, character_picker, portrait_path_edit, null)
 
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
@@ -181,9 +180,12 @@ func _load_resource_data() -> void:
 	portrait_path_edit.text = portrait_path
 	_load_portrait_preview(portrait_path)
 
-	var sprite_path: String = npc.map_sprite.resource_path if npc.map_sprite else ""
-	map_sprite_path_edit.text = sprite_path
-	_load_sprite_preview(sprite_path)
+	# Load sprite_frames using MapSpritesheetPicker
+	if map_spritesheet_picker:
+		if npc.sprite_frames:
+			map_spritesheet_picker.set_existing_sprite_frames(npc.sprite_frames)
+		else:
+			map_spritesheet_picker.clear()
 
 	interaction_cinematic_edit.text = npc.interaction_cinematic_id
 	fallback_cinematic_edit.text = npc.fallback_cinematic_id
@@ -220,8 +222,9 @@ func _save_resource_data() -> void:
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
 	npc.portrait = load(portrait_path) as Texture2D if not portrait_path.is_empty() and ResourceLoader.exists(portrait_path) else null
 
-	var sprite_path: String = map_sprite_path_edit.text.strip_edges()
-	npc.map_sprite = load(sprite_path) as Texture2D if not sprite_path.is_empty() and ResourceLoader.exists(sprite_path) else null
+	# Save sprite_frames from MapSpritesheetPicker
+	if map_spritesheet_picker:
+		npc.sprite_frames = map_spritesheet_picker.get_generated_sprite_frames()
 
 	npc.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
 	npc.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
@@ -271,7 +274,7 @@ func _validate_resource() -> Dictionary:
 
 
 ## Default placeholder paths in core (always available)
-const DEFAULT_NPC_SPRITE: String = "res://core/assets/defaults/default_npc_sprite.png"
+const DEFAULT_NPC_SPRITESHEET: String = "res://core/assets/defaults/sprites/default_npc_spritesheet.png"
 const DEFAULT_NPC_PORTRAIT: String = "res://core/assets/defaults/default_npc_portrait.png"
 
 
@@ -286,11 +289,12 @@ func _create_new_resource() -> Resource:
 	new_npc.fallback_cinematic_id = ""
 	new_npc.conditional_cinematics = []
 
-	# Set default placeholder sprites (from core, always available)
-	if ResourceLoader.exists(DEFAULT_NPC_SPRITE):
-		new_npc.map_sprite = load(DEFAULT_NPC_SPRITE) as Texture2D
+	# Set default placeholder portrait (from core, always available)
 	if ResourceLoader.exists(DEFAULT_NPC_PORTRAIT):
 		new_npc.portrait = load(DEFAULT_NPC_PORTRAIT) as Texture2D
+
+	# Note: sprite_frames will be set by MapSpritesheetPicker when user selects a spritesheet
+	# Default NPC spritesheet is applied at runtime by NPCNode if no sprite_frames set
 
 	return new_npc
 
@@ -410,42 +414,14 @@ func _add_appearance_fallback_section_to(parent: Control) -> void:
 	portrait_clear_btn.pressed.connect(_on_clear_portrait)
 	portrait_row.add_child(portrait_clear_btn)
 
-	# Map Sprite row with preview and browse button
-	var sprite_row: HBoxContainer = SparklingEditorUtils.create_field_row("Map Sprite:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
+	# Map Spritesheet picker (animated walk cycle)
+	map_spritesheet_picker = MapSpritesheetPicker.new()
+	map_spritesheet_picker.label_text = "Map Spritesheet:"
+	map_spritesheet_picker.texture_selected.connect(_on_spritesheet_selected)
+	map_spritesheet_picker.sprite_frames_generated.connect(_on_sprite_frames_generated)
+	appearance_section.add_child(map_spritesheet_picker)
 
-	# Preview at 32x32
-	var sprite_preview_panel: PanelContainer = PanelContainer.new()
-	sprite_preview_panel.custom_minimum_size = Vector2(36, 36)
-	var sprite_style: StyleBoxFlat = StyleBoxFlat.new()
-	sprite_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
-	sprite_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
-	sprite_style.set_border_width_all(1)
-	sprite_style.set_content_margin_all(2)
-	sprite_preview_panel.add_theme_stylebox_override("panel", sprite_style)
-
-	map_sprite_preview = TextureRect.new()
-	map_sprite_preview.custom_minimum_size = Vector2(32, 32)
-	map_sprite_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	map_sprite_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	sprite_preview_panel.add_child(map_sprite_preview)
-	sprite_row.add_child(sprite_preview_panel)
-
-	map_sprite_path_edit = LineEdit.new()
-	map_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_sprite_path_edit.placeholder_text = "res://mods/<mod>/assets/sprites/map/npc.png"
-	map_sprite_path_edit.text_changed.connect(_on_sprite_path_changed)
-	sprite_row.add_child(map_sprite_path_edit)
-
-	var sprite_browse_btn: Button = Button.new()
-	sprite_browse_btn.text = "Browse..."
-	sprite_browse_btn.pressed.connect(_on_browse_sprite)
-	sprite_row.add_child(sprite_browse_btn)
-
-	var sprite_clear_btn: Button = Button.new()
-	sprite_clear_btn.text = "X"
-	sprite_clear_btn.tooltip_text = "Clear sprite"
-	sprite_clear_btn.pressed.connect(_on_clear_sprite)
-	sprite_row.add_child(sprite_clear_btn)
+	SparklingEditorUtils.create_help_label("64x128 spritesheet with 4 directions × 2 frames", appearance_section)
 
 
 func _add_quick_dialog_section() -> void:
@@ -1091,56 +1067,17 @@ func _on_clear_portrait() -> void:
 	_update_preview()
 
 
-func _on_browse_sprite() -> void:
-	if not map_sprite_file_dialog:
-		map_sprite_file_dialog = EditorFileDialog.new()
-		map_sprite_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-		map_sprite_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
-		map_sprite_file_dialog.filters = PackedStringArray(["*.png ; PNG Images", "*.webp ; WebP Images", "*.jpg ; JPEG Images"])
-		# Safety check before connecting (prevents duplicates on plugin reload)
-		if not map_sprite_file_dialog.file_selected.is_connected(_on_sprite_file_selected):
-			map_sprite_file_dialog.file_selected.connect(_on_sprite_file_selected)
-		add_child(map_sprite_file_dialog)
-
-	# Default to active mod's sprites directory if available
-	var default_path: String = _get_default_asset_path("sprites")
-	map_sprite_file_dialog.current_dir = default_path
-	map_sprite_file_dialog.popup_centered_ratio(0.7)
-
-
-func _on_sprite_file_selected(path: String) -> void:
-	map_sprite_path_edit.text = path
-	_load_sprite_preview(path)
-	_update_preview()
-
-
-func _on_sprite_path_changed(new_text: String) -> void:
+## Called when a spritesheet is selected in the MapSpritesheetPicker
+func _on_spritesheet_selected(_path: String) -> void:
 	if _updating_ui:
 		return
-	_load_sprite_preview(new_text)
 	_update_preview()
 
 
-func _load_sprite_preview(path: String) -> void:
-	var clean_path: String = path.strip_edges()
-	if clean_path.is_empty():
-		map_sprite_preview.texture = null
-		map_sprite_preview.tooltip_text = "No sprite assigned"
+## Called when SpriteFrames are generated from the selected spritesheet
+func _on_sprite_frames_generated(_sprite_frames: SpriteFrames) -> void:
+	if _updating_ui:
 		return
-
-	if ResourceLoader.exists(clean_path):
-		var texture: Texture2D = load(clean_path) as Texture2D
-		map_sprite_preview.texture = texture
-		map_sprite_preview.tooltip_text = clean_path
-	else:
-		map_sprite_preview.texture = null
-		map_sprite_preview.tooltip_text = "File not found: " + clean_path
-
-
-func _on_clear_sprite() -> void:
-	map_sprite_path_edit.text = ""
-	map_sprite_preview.texture = null
-	map_sprite_preview.tooltip_text = "No sprite assigned"
 	_update_preview()
 
 

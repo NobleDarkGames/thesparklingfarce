@@ -7,6 +7,8 @@
 ## 4. Execution and turn end
 extends Node
 
+const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+
 ## Input state machine
 enum InputState {
 	WAITING,            # Not player's turn
@@ -1600,6 +1602,10 @@ func _try_direct_step(direction: Vector2i) -> bool:
 	if not active_unit:
 		return false
 
+	# Always update facing direction, even if blocked (SF-authentic, like hero controller)
+	if active_unit.has_method("set_facing"):
+		active_unit.set_facing(FacingUtils.direction_to_string(direction))
+
 	var target_cell: Vector2i = active_unit.grid_position + direction
 
 	# Bounds check
@@ -1653,7 +1659,13 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	if not target_occupant:
 		GridManager.set_cell_occupied(target_cell, active_unit)
 
+	# Note: Facing was already updated in _try_direct_step
+
 	active_unit.grid_position = target_cell
+
+	# Play walk animation during movement (facing was already set)
+	if active_unit.has_method("_play_walk_animation"):
+		active_unit._play_walk_animation()
 
 	# Quick tween to new position (SF2-style: nearly instant)
 	var target_world: Vector2 = GridManager.cell_to_world(target_cell)
@@ -1665,6 +1677,10 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	AudioManager.play_sfx_no_overlap("walk", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
+
+	# Return to idle animation after movement
+	if active_unit.has_method("_play_idle_animation"):
+		active_unit._play_idle_animation()
 
 	# Guard: Validate state after async operation
 	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
@@ -1701,7 +1717,16 @@ func _undo_last_step() -> void:
 	if not prev_occupant:
 		GridManager.set_cell_occupied(previous_cell, active_unit)
 
+	# Update facing direction for backward movement (SF2-authentic)
+	var move_delta: Vector2i = previous_cell - active_unit.grid_position
+	if move_delta != Vector2i.ZERO and active_unit.has_method("set_facing"):
+		active_unit.set_facing(FacingUtils.get_dominant_direction(move_delta))
+
 	active_unit.grid_position = previous_cell
+
+	# Play walk animation during movement
+	if active_unit.has_method("_play_walk_animation"):
+		active_unit._play_walk_animation()
 
 	# Animate back
 	var target_world: Vector2 = GridManager.cell_to_world(previous_cell)
@@ -1713,6 +1738,10 @@ func _undo_last_step() -> void:
 	AudioManager.play_sfx_no_overlap("walk", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
+
+	# Return to idle animation after movement
+	if active_unit.has_method("_play_idle_animation"):
+		active_unit._play_idle_animation()
 
 	# Guard: Validate state after async operation
 	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:

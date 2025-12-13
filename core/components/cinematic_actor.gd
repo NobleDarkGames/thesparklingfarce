@@ -1,6 +1,8 @@
 class_name CinematicActor
 extends Node
 
+const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+
 ## Component that makes an entity controllable during cinematics.
 ## Attach this to any CharacterBody2D, Unit, or NPC to allow scripted control.
 ##
@@ -280,20 +282,8 @@ func _update_facing_from_direction(direction: Vector2) -> void:
 	if sprite_node == null:
 		return
 
-	# Determine primary direction (similar to hero_controller logic)
-	var abs_x: float = abs(direction.x)
-	var abs_y: float = abs(direction.y)
-
-	if abs_x > abs_y:
-		if direction.x > 0:
-			_play_animation("walk_right")
-		else:
-			_play_animation("walk_left")
-	else:
-		if direction.y > 0:
-			_play_animation("walk_down")
-		else:
-			_play_animation("walk_up")
+	var dir_name: String = FacingUtils.get_dominant_direction_float(direction)
+	_play_animation("walk_" + dir_name)
 
 
 ## Set facing direction explicitly
@@ -303,17 +293,11 @@ func set_facing(direction: String) -> void:
 		facing_completed.emit()
 		return
 
-	match direction.to_lower():
-		"up":
-			_play_animation("idle_up")
-		"down":
-			_play_animation("idle_down")
-		"left":
-			_play_animation("idle_left")
-		"right":
-			_play_animation("idle_right")
-		_:
-			push_warning("CinematicActor: Invalid direction '%s' for %s" % [direction, actor_id])
+	var dir_lower: String = direction.to_lower()
+	if FacingUtils.is_valid_direction(dir_lower):
+		_play_animation("idle_" + dir_lower)
+	else:
+		push_warning("CinematicActor: Invalid direction '%s' for %s" % [direction, actor_id])
 
 	facing_completed.emit()
 

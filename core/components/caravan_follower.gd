@@ -12,6 +12,7 @@
 class_name CaravanFollower
 extends CharacterBody2D
 
+const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
 const DEBUG_MODE: bool = false
 
 # =============================================================================
@@ -342,15 +343,12 @@ func _update_sprite_direction(direction: Vector2) -> void:
 	if not _sprite:
 		return
 
-	# Determine primary direction from movement vector
-	var new_direction: String = _current_direction
+	# Skip if movement is negligible (threshold to prevent flicker)
+	if direction.is_zero_approx():
+		return
 
-	if abs(direction.x) > abs(direction.y):
-		# Horizontal movement dominates
-		new_direction = "right" if direction.x > 0 else "left"
-	elif abs(direction.y) > 0.1:
-		# Vertical movement dominates
-		new_direction = "down" if direction.y > 0 else "up"
+	# Determine primary direction from movement vector
+	var new_direction: String = FacingUtils.get_dominant_direction_float(direction)
 
 	# Only update if direction changed
 	if new_direction != _current_direction:
