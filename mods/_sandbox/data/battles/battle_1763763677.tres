@@ -1,13 +1,47 @@
-[gd_resource type="Resource" script_class="BattleData" load_steps=9 format=3 uid="uid://oxlk7n4aon0l"]
+[gd_resource type="Resource" script_class="BattleData" load_steps=18 format=3 uid="uid://oxlk7n4aon0l"]
 
+[ext_resource type="Resource" uid="uid://bnnh2kw4mypww" path="res://mods/_sandbox/data/classes/class_1765510841.tres" id="1_gxi54"]
 [ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="1_msqh6"]
-[ext_resource type="Resource" uid="uid://hnpiikrppy5h" path="res://mods/_sandbox/data/characters/character_1765510829.tres" id="1_w1h23"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_arevf"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/ai_behaviors/smart_healer.tres" id="2_fv7sc"]
-[ext_resource type="Resource" uid="uid://ckk6isxsbmavb" path="res://mods/_sandbox/data/characters/character_1763763701.tres" id="2_rat"]
 [ext_resource type="PackedScene" uid="uid://dqdc4ebp84hip" path="res://mods/_sandbox/maps/intro_battle.tscn" id="3_map"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_oxiof"]
 [ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres" id="4_ai"]
+[ext_resource type="Resource" uid="uid://4k8ssjr08d23" path="res://mods/_sandbox/data/items/item_1765240445.tres" id="4_ydnlf"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="5_u2unu"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_3way.tres" id="7_5oe2a"]
+[ext_resource type="Texture2D" uid="uid://dj6n1gipds4yi" path="res://mods/_sandbox/art/placeholder/sprites/huge_rat.png" id="7_6ouyt"]
+[ext_resource type="Resource" uid="uid://d3mr4nc200fti" path="res://mods/_sandbox/data/classes/class_1763763716.tres" id="8_x6bnv"]
+[ext_resource type="Texture2D" uid="uid://cmnx3quacssig" path="res://mods/_sandbox/art/placeholder/portraits/huge_rat.png" id="9_u2uv1"]
+[ext_resource type="Resource" uid="uid://boykapiqhf0jb" path="res://mods/_base_game/data/ai_behaviors/defensive_tank.tres" id="11_eqg4o"]
+[ext_resource type="Resource" uid="uid://beb8kn2vdnfhj" path="res://mods/_sandbox/data/characters/character_1765571968.tres" id="12_arevf"]
+
+[sub_resource type="Resource" id="Resource_agsfi"]
+script = ExtResource("2_arevf")
+character_name = "Dim Priest"
+character_class = ExtResource("1_gxi54")
+base_hp = 20
+base_mp = 10
+starting_equipment = Array[ExtResource("3_oxiof")]([ExtResource("4_ydnlf")])
+unit_category = "enemy"
+is_unique = false
+
+[sub_resource type="Resource" id="Resource_c3trk"]
+script = ExtResource("2_arevf")
+character_uid = "rt6fj2hb"
+character_name = "Huge Rat"
+character_class = ExtResource("8_x6bnv")
+base_hp = 20
+base_mp = 10
+base_strength = 2
+base_defense = 2
+base_agility = 2
+base_intelligence = 1
+base_luck = 2
+portrait = ExtResource("9_u2uv1")
+battle_sprite = ExtResource("7_6ouyt")
+unit_category = "enemy"
+is_unique = false
 
 [resource]
 script = ExtResource("1_msqh6")
@@ -17,12 +51,20 @@ map_scene = ExtResource("3_map")
 player_spawn_point = Vector2i(14, 12)
 enemies = Array[Dictionary]([{
 "ai_behavior": ExtResource("2_fv7sc"),
-"character": ExtResource("1_w1h23"),
+"character": SubResource("Resource_agsfi"),
 "position": Vector2i(10, 13)
 }, {
 "ai_behavior": ExtResource("4_ai"),
-"character": ExtResource("2_rat"),
+"character": SubResource("Resource_c3trk"),
 "position": Vector2i(12, 17)
+}, {
+"ai_behavior": ExtResource("11_eqg4o"),
+"character": SubResource("Resource_c3trk"),
+"position": Vector2i(13, 14)
+}, {
+"ai_behavior": ExtResource("4_ai"),
+"character": ExtResource("12_arevf"),
+"position": Vector2i(15, 15)
 }])
 pre_battle_dialogue = ExtResource("7_5oe2a")
 experience_reward = 1000

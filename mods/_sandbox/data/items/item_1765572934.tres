@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3 uid="uid://cwqe40fosieru"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_d1tcu"]
+
+[resource]
+script = ExtResource("1_d1tcu")
+item_name = "Stolen Tungsten Sword"
+equipment_type = "sword"
+is_cursed = true
+defense_modifier = 5
+attack_power = 5
+max_attack_range = 3
+hit_rate = 95
+critical_rate = 10
+buy_price = 100
+sell_price = 50

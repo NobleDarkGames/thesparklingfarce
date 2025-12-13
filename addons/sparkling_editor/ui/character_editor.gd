@@ -18,6 +18,7 @@ var _map_spritesheet_picker: MapSpritesheetPicker
 var category_option: OptionButton
 var is_unique_check: CheckBox
 var is_hero_check: CheckBox
+var is_default_party_member_check: CheckBox
 var default_ai_option: OptionButton
 
 # Stat editors
@@ -113,6 +114,7 @@ func _load_resource_data() -> void:
 
 	is_unique_check.button_pressed = character.is_unique
 	is_hero_check.button_pressed = character.is_hero
+	is_default_party_member_check.button_pressed = character.is_default_party_member
 
 	# Set default AI brain
 	if character.default_ai_brain:
@@ -163,6 +165,7 @@ func _save_resource_data() -> void:
 
 	character.is_unique = is_unique_check.button_pressed
 	character.is_hero = is_hero_check.button_pressed
+	character.is_default_party_member = is_default_party_member_check.button_pressed
 
 	# Update default AI brain
 	var ai_index: int = default_ai_option.selected - 1
@@ -408,6 +411,19 @@ func _add_battle_configuration_section() -> void:
 	is_hero_check.text = "This is the primary Hero/protagonist (only one per party)"
 	hero_container.add_child(is_hero_check)
 	section.add_child(hero_container)
+
+	# Is Default Party Member
+	var party_member_container: HBoxContainer = HBoxContainer.new()
+	var party_member_label: Label = Label.new()
+	party_member_label.text = "Starting Party:"
+	party_member_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	party_member_container.add_child(party_member_label)
+
+	is_default_party_member_check = CheckBox.new()
+	is_default_party_member_check.button_pressed = false
+	is_default_party_member_check.text = "Include in default starting party"
+	party_member_container.add_child(is_default_party_member_check)
+	section.add_child(party_member_container)
 
 	# Default AI Brain
 	var ai_container: HBoxContainer = HBoxContainer.new()

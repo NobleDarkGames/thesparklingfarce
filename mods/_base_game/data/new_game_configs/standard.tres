@@ -1,16 +1,9 @@
-[gd_resource type="Resource" script_class="NewGameConfigData" load_steps=2 format=3 uid="uid://newgameconfig_standard"]
+[gd_resource type="Resource" script_class="NewGameConfigData" load_steps=2 format=3 uid="uid://crn12bam62thb"]
 
-[ext_resource type="Script" path="res://core/resources/new_game_config_data.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://beybtbcw12oks" path="res://core/resources/new_game_config_data.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
 config_id = "standard"
-config_name = "Standard"
 config_description = "Begin a new adventure with the default starting conditions. Authentic Shining Force 2 experience."
-is_default = true
-starting_campaign_id = ""
-starting_location_label = "Prologue"
-starting_gold = 0
-starting_depot_items = []
-starting_story_flags = {}
 starting_party_id = "default_party"
