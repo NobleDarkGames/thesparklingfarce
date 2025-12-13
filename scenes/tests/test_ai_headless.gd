@@ -31,6 +31,7 @@ func _ready() -> void:
 
 	# Create test characters
 	var player_character: CharacterData = _create_character("Hero", 20, 10, 10, 8, 7)
+	player_character.is_hero = true  # Required for TurnManager battle end detection
 	var enemy_character: CharacterData = _create_character("Goblin", 15, 5, 8, 6, 6)
 
 	# Load AI behavior (new data-driven system)

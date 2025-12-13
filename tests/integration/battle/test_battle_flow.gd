@@ -52,6 +52,7 @@ func _ready() -> void:
 	# Create test characters
 	# Hero: Very strong to guarantee quick victory (high STR, high DEF)
 	var player_character: CharacterData = _create_character("TestHero", 50, 10, 30, 20, 15)
+	player_character.is_hero = true  # Required for TurnManager battle end detection
 	# Goblin: Weak enemy that will die quickly (low HP, low DEF)
 	var enemy_character: CharacterData = _create_character("TestGoblin", 10, 5, 5, 2, 5)
 
