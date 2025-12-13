@@ -121,7 +121,9 @@ func _execute_aggressive(unit: Node2D, context: Dictionary, behavior: AIBehavior
 		await attack_target(unit, target)
 
 
-## Cautious behavior: only attack adjacent enemies, limited pursuit
+## Cautious behavior: hold position, attack enemies that enter engagement zone, limited pursuit
+## - alert_range: how far enemy can be before AI notices and may approach
+## - engagement_range: how close enemy must be for AI to commit to attack
 func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
 	var player_units: Array[Node2D] = get_player_units(context)
 	if player_units.is_empty():
@@ -129,8 +131,9 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 
 	var delays: Dictionary = context.get("ai_delays", {})
 	var delay_before_attack: float = delays.get("before_attack", 0.3)
+	var delay_after_movement: float = delays.get("after_movement", 0.5)
 
-	# Check for adjacent targets first
+	# Check for adjacent targets first - attack immediately if found
 	for target: Node2D in player_units:
 		if not target.is_alive():
 			continue
@@ -140,17 +143,36 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 			await attack_target(unit, target)
 			return
 
-	# Only pursue if enemy within alert range
-	var alert_range: int = behavior.alert_range if behavior else 8
+	# Find nearest enemy
 	var nearest: Node2D = find_nearest_target(unit, player_units)
-	if nearest:
-		var distance: int = GridManager.grid.get_manhattan_distance(unit.grid_position, nearest.grid_position)
-		if distance <= alert_range:
-			var engagement_range: int = behavior.engagement_range if behavior else 5
-			if distance > engagement_range:
-				var moved: bool = move_toward_target(unit, nearest.grid_position)
-				if moved:
-					await unit.await_movement_completion()
+	if not nearest:
+		return
+
+	var distance: int = GridManager.grid.get_manhattan_distance(unit.grid_position, nearest.grid_position)
+	var alert_range: int = behavior.alert_range if behavior else 8
+	var engagement_range: int = behavior.engagement_range if behavior else 5
+
+	# Only react to enemies within alert range
+	if distance > alert_range:
+		return
+
+	# Determine if we should attack after moving:
+	# - If enemy is within engagement_range, commit to attack
+	# - If enemy is only within alert_range, just approach cautiously (no attack)
+	var should_attack_after_move: bool = distance <= engagement_range
+
+	# Move toward the target
+	var moved: bool = move_toward_target(unit, nearest.grid_position)
+	if moved:
+		await unit.await_movement_completion()
+		if delay_after_movement > 0:
+			await unit.get_tree().create_timer(delay_after_movement).timeout
+
+	# Attack if we're in engagement mode and now in range
+	if should_attack_after_move and is_in_attack_range(unit, nearest):
+		if delay_before_attack > 0:
+			await unit.get_tree().create_timer(delay_before_attack).timeout
+		await attack_target(unit, nearest)
 
 
 ## Opportunistic behavior: prioritize wounded, retreat if low HP
