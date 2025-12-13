@@ -27,9 +27,9 @@ func _init() -> void:
 
 	# Configure for battle sprite selection
 	label_text = "Battle Sprite:"
-	placeholder_text = "res://mods/<mod>/assets/battle_sprites/..."
+	placeholder_text = "res://mods/<mod>/assets/sprites/battle/..."
 	preview_size = Vector2(48, 48)
-	default_browse_subpath = "assets/battle_sprites/"
+	default_browse_subpath = "assets/sprites/battle/"
 
 
 func _validate_texture(path: String, texture: Texture2D) -> Dictionary:

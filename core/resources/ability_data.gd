@@ -69,6 +69,12 @@ enum TargetType {
 @export_group("Description")
 @export_multiline var description: String = ""
 
+@export_group("AI Configuration")
+## Multiplier for AI threat calculations. Higher = AI considers this ability more threatening.
+## Default 1.0. Set to 0.0 to make AI ignore this ability in threat calculations.
+## Example: A powerful AoE heal might be 1.5, a weak single-target buff might be 0.5
+@export var ai_threat_contribution: float = 1.0
+
 
 ## Check if ability can target enemies
 func can_target_enemies() -> bool:

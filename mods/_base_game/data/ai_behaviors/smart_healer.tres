@@ -10,10 +10,14 @@ description = "Prioritizes healing wounded allies, especially bosses and high-va
 role = "support"
 behavior_mode = "cautious"
 threat_weights = {
-"wounded_target": 0.5,
-"damage_dealer": 0.8,
-"healer": 0.3,
-"proximity": 1.2
+"damage_dealer": 1.5,
+"debuffer": 1.0,
+"healer": 0.5,
+"high_attack": 1.2,
+"low_defense": 0.8,
+"proximity": 1.2,
+"support": 0.5,
+"wounded_target": 0.5
 }
 ignore_protagonist_priority = true
 retreat_hp_threshold = 50

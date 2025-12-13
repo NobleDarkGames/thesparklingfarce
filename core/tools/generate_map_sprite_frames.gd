@@ -42,7 +42,7 @@ func _init() -> void:
 
 	if spritesheet_path.is_empty() or output_path.is_empty():
 		print("Usage: godot --headless --script res://core/tools/generate_map_sprite_frames.gd -- --spritesheet <path> --output <path>")
-		print("Example: ... --spritesheet res://mods/_sandbox/art/placeholder/sprites/hero_spritesheet.png --output res://mods/_sandbox/data/sprite_frames/hero_map.tres")
+		print("Example: ... --spritesheet res://mods/_sandbox/assets/sprites/map/hero_spritesheet.png --output res://mods/_sandbox/data/sprite_frames/hero_map.tres")
 		quit(1)
 		return
 

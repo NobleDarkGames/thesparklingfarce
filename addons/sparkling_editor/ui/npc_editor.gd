@@ -333,6 +333,7 @@ func _add_basic_info_section() -> void:
 	npc_name_edit = LineEdit.new()
 	npc_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	npc_name_edit.placeholder_text = "Guard, Shopkeeper, Elder..."
+	npc_name_edit.tooltip_text = "Name shown in dialog boxes when this NPC speaks. E.g., 'Guard', 'Old Man', 'Sarah'."
 	npc_name_edit.text_changed.connect(_on_name_changed)
 	name_row.add_child(npc_name_edit)
 
@@ -341,6 +342,7 @@ func _add_basic_info_section() -> void:
 	npc_id_edit = LineEdit.new()
 	npc_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	npc_id_edit.placeholder_text = "(auto-generated from name)"
+	npc_id_edit.tooltip_text = "Unique ID for referencing this NPC in scripts and triggers. Auto-generates from name."
 	npc_id_edit.text_changed.connect(_on_id_manually_changed)
 	id_row.add_child(npc_id_edit)
 
@@ -360,6 +362,7 @@ func _add_basic_info_section() -> void:
 	character_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	character_picker.allow_none = true
 	character_picker.none_text = "(Use fallback appearance)"
+	character_picker.tooltip_text = "Link to a character for portrait/sprite. If empty, use manual fallback appearance below."
 	character_picker.resource_selected.connect(_on_character_selected)
 	section.add_child(character_picker)
 
@@ -392,7 +395,7 @@ func _add_appearance_fallback_section_to(parent: Control) -> void:
 
 	portrait_path_edit = LineEdit.new()
 	portrait_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	portrait_path_edit.placeholder_text = "res://mods/<mod>/art/portraits/npc.png"
+	portrait_path_edit.placeholder_text = "res://mods/<mod>/assets/portraits/npc.png"
 	portrait_path_edit.text_changed.connect(_on_portrait_path_changed)
 	portrait_row.add_child(portrait_path_edit)
 
@@ -429,7 +432,7 @@ func _add_appearance_fallback_section_to(parent: Control) -> void:
 
 	map_sprite_path_edit = LineEdit.new()
 	map_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_sprite_path_edit.placeholder_text = "res://mods/<mod>/art/sprites/npc.png"
+	map_sprite_path_edit.placeholder_text = "res://mods/<mod>/assets/sprites/map/npc.png"
 	map_sprite_path_edit.text_changed.connect(_on_sprite_path_changed)
 	sprite_row.add_child(map_sprite_path_edit)
 
@@ -458,6 +461,7 @@ func _add_quick_dialog_section() -> void:
 	quick_dialog_text.custom_minimum_size.y = 100
 	quick_dialog_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quick_dialog_text.scroll_fit_content_height = true
+	quick_dialog_text.tooltip_text = "What the NPC says when interacted with. Each line is a separate dialog box."
 	quick_dialog_text.text_changed.connect(_on_quick_dialog_changed)
 	quick_dialog_section.add_child(quick_dialog_text)
 
@@ -483,6 +487,7 @@ func _add_place_on_map_section() -> void:
 	place_position_x.max_value = 100
 	place_position_x.value = 5
 	place_position_x.custom_minimum_size.x = 70
+	place_position_x.tooltip_text = "X grid coordinate where NPC will be placed on the map."
 	pos_row.add_child(place_position_x)
 
 	var y_label: Label = Label.new()
@@ -494,6 +499,7 @@ func _add_place_on_map_section() -> void:
 	place_position_y.max_value = 100
 	place_position_y.value = 5
 	place_position_y.custom_minimum_size.x = 70
+	place_position_y.tooltip_text = "Y grid coordinate where NPC will be placed on the map."
 	pos_row.add_child(place_position_y)
 
 	place_on_map_btn = Button.new()
@@ -625,11 +631,13 @@ func _add_behavior_section_to(parent: Control) -> void:
 	face_player_check = CheckBox.new()
 	face_player_check.text = "Turn to face player when interaction starts"
 	face_player_check.button_pressed = true
+	face_player_check.tooltip_text = "NPC rotates to look at the player when spoken to. Turn off for guards staring at walls, etc."
 	face_player_check.toggled.connect(_on_check_changed)
 	face_row.add_child(face_player_check)
 
 	var facing_row: HBoxContainer = SparklingEditorUtils.create_field_row("Facing Override:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	facing_override_option = OptionButton.new()
+	facing_override_option.tooltip_text = "Force NPC to always face a specific direction. (Auto) = faces player or uses sprite default."
 	facing_override_option.add_item("(Auto)", 0)
 	facing_override_option.add_item("Up", 1)
 	facing_override_option.add_item("Down", 2)

@@ -1,6 +1,6 @@
 [gd_resource type="SpriteFrames" load_steps=14 format=3]
 
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/goblin_spritesheet.png" id="1_vvrtv"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/assets/sprites/map/goblin_spritesheet.png" id="1_vvrtv"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_nnrws"]
 atlas = ExtResource("1_vvrtv")

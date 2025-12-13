@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://core/components/cinematic_actor.gd" id="2_cinematic_actor"]
 [ext_resource type="PackedScene" uid="uid://dialog_box_scene" path="res://scenes/ui/dialog_box.tscn" id="3_dialog_box"]
 [ext_resource type="Script" path="res://core/systems/camera_controller.gd" id="4_camera_controller"]
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/spade.png" id="5_spade_sprite"]
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/henchman.png" id="6_henchman_sprite"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/assets/sprites/battle/spade.png" id="5_spade_sprite"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/assets/sprites/battle/henchman.png" id="6_henchman_sprite"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_spade"]
 size = Vector2(28, 28)

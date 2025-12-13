@@ -10,9 +10,9 @@
 [ext_resource type="Resource" uid="uid://4k8ssjr08d23" path="res://mods/_sandbox/data/items/item_1765240445.tres" id="4_ydnlf"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="5_u2unu"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/dialogues/branch_test_3way.tres" id="7_5oe2a"]
-[ext_resource type="Texture2D" uid="uid://dj6n1gipds4yi" path="res://mods/_sandbox/art/placeholder/sprites/huge_rat.png" id="7_6ouyt"]
+[ext_resource type="Texture2D" uid="uid://dj6n1gipds4yi" path="res://mods/_sandbox/assets/sprites/battle/huge_rat.png" id="7_6ouyt"]
 [ext_resource type="Resource" uid="uid://d3mr4nc200fti" path="res://mods/_sandbox/data/classes/class_1763763716.tres" id="8_x6bnv"]
-[ext_resource type="Texture2D" uid="uid://cmnx3quacssig" path="res://mods/_sandbox/art/placeholder/portraits/huge_rat.png" id="9_u2uv1"]
+[ext_resource type="Texture2D" uid="uid://cmnx3quacssig" path="res://mods/_sandbox/assets/portraits/huge_rat.png" id="9_u2uv1"]
 [ext_resource type="Resource" uid="uid://boykapiqhf0jb" path="res://mods/_base_game/data/ai_behaviors/defensive_tank.tres" id="11_eqg4o"]
 [ext_resource type="Resource" uid="uid://beb8kn2vdnfhj" path="res://mods/_sandbox/data/characters/character_1765571968.tres" id="12_arevf"]
 

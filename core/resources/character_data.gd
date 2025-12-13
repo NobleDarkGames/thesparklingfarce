@@ -73,6 +73,19 @@ extends Resource
 ## Can be overridden in BattleData on a per-instance basis
 @export var default_ai_brain: AIBrain = null
 
+@export_group("AI Threat Configuration")
+## Multiplier applied to this character's calculated threat score.
+## Boss enemies should have higher values (2.0+) to make AI prioritize protecting them.
+## Fodder enemies might have lower values (0.5) to make AI deprioritize them.
+## Default 1.0 = no modification.
+@export var ai_threat_modifier: float = 1.0
+
+## Tags that modify AI targeting behavior.
+## Supported tags: "priority_target" (AI focuses this unit), "avoid" (AI ignores this unit)
+## "boss", "vip" (for defensive AI to protect)
+## Mods can add custom tags and handle them in custom AIBrain scripts.
+@export var ai_threat_tags: Array[String] = []
+
 
 ## Get base stat value by name
 ## Returns 0 if stat_name is not a valid stat property

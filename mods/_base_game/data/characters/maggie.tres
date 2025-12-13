@@ -4,7 +4,7 @@
 [ext_resource type="Resource" uid="uid://cfg3krjt6qa7x" path="res://mods/_base_game/data/classes/class_1764795225.tres" id="2_sykp5"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="2_y2vm2"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_mage"]
-[ext_resource type="Texture2D" uid="uid://dljgut82iyl3a" path="res://mods/_sandbox/art/placeholder/sprites/maggie.png" id="4_sprite"]
+[ext_resource type="Texture2D" uid="uid://dljgut82iyl3a" path="res://mods/_sandbox/assets/sprites/battle/maggie.png" id="4_sprite"]
 
 [resource]
 script = ExtResource("2_mage")

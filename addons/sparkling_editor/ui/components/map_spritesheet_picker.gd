@@ -86,9 +86,9 @@ func _init() -> void:
 
 	# Configure for map spritesheet selection
 	label_text = "Map Spritesheet:"
-	placeholder_text = "res://mods/<mod>/art/sprites/hero_spritesheet.png"
+	placeholder_text = "res://mods/<mod>/assets/sprites/map/hero_spritesheet.png"
 	preview_size = Vector2(64, 64)
-	default_browse_subpath = "art/sprites/"
+	default_browse_subpath = "assets/sprites/map/"
 	file_filters = PackedStringArray(["*.png ; PNG Spritesheet"])
 
 

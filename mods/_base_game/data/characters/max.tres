@@ -4,7 +4,7 @@
 [ext_resource type="Resource" uid="uid://casopgh4ktt3i" path="res://mods/_base_game/data/classes/hero.tres" id="2_2smfh"]
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="2_u7v87"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="3_1ko5m"]
-[ext_resource type="Texture2D" uid="uid://dkikwgxbrnyl2" path="res://mods/_sandbox/art/placeholder/sprites/max.png" id="4_sprite"]
+[ext_resource type="Texture2D" uid="uid://dkikwgxbrnyl2" path="res://mods/_sandbox/assets/sprites/battle/max.png" id="4_sprite"]
 
 [resource]
 script = ExtResource("2_u7v87")

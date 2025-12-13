@@ -10,10 +10,14 @@ description = "Targets wounded enemies for finishing blows. Maintains range and 
 role = "aggressive"
 behavior_mode = "opportunistic"
 threat_weights = {
-"wounded_target": 2.0,
 "damage_dealer": 0.8,
-"healer": 1.3,
-"proximity": 0.3
+"debuffer": 1.0,
+"healer": 1.5,
+"high_attack": 0.8,
+"low_defense": 1.8,
+"proximity": 0.3,
+"support": 0.5,
+"wounded_target": 2.0
 }
 ignore_protagonist_priority = true
 retreat_hp_threshold = 60

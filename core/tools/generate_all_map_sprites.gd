@@ -17,15 +17,15 @@ const DIRECTIONS: Dictionary = {
 
 ## Spritesheets to process (input path -> output path)
 const SPRITESHEETS: Dictionary = {
-	"res://mods/_sandbox/art/placeholder/sprites/hero_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/hero_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/warrior_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/warrior_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/mage_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/mage_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/archer_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/archer_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/healer_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/healer_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/knight_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/knight_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/goblin_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/goblin_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/skeleton_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/skeleton_map.tres",
-	"res://mods/_sandbox/art/placeholder/sprites/boss_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/boss_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/hero_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/hero_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/warrior_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/warrior_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/mage_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/mage_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/archer_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/archer_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/healer_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/healer_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/knight_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/knight_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/goblin_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/goblin_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/skeleton_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/skeleton_map.tres",
+	"res://mods/_sandbox/assets/sprites/map/boss_spritesheet.png": "res://mods/_sandbox/data/sprite_frames/boss_map.tres",
 }
 
 

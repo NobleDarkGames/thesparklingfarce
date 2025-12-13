@@ -1,6 +1,6 @@
 [gd_resource type="SpriteFrames" load_steps=14 format=3]
 
-[ext_resource type="Texture2D" path="res://mods/_sandbox/art/placeholder/sprites/archer_spritesheet.png" id="1_u6t3p"]
+[ext_resource type="Texture2D" path="res://mods/_sandbox/assets/sprites/map/archer_spritesheet.png" id="1_u6t3p"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_wkl4x"]
 atlas = ExtResource("1_u6t3p")

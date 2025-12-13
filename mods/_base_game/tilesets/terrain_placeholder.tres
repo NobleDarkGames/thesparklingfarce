@@ -1,14 +1,14 @@
 [gd_resource type="TileSet" load_steps=19 format=3 uid="uid://dsgco58wfm80c"]
 
-[ext_resource type="Texture2D" uid="uid://daok7oiw4e12l" path="res://mods/_base_game/art/tilesets/placeholder/grass.png" id="1_grass"]
-[ext_resource type="Texture2D" uid="uid://4qa8rj8k6ygm" path="res://mods/_base_game/art/tilesets/placeholder/wall.png" id="2_wall"]
-[ext_resource type="Texture2D" uid="uid://3850bwylod6d" path="res://mods/_base_game/art/tilesets/placeholder/water.png" id="3_water"]
-[ext_resource type="Texture2D" uid="uid://d3143x3o14mwx" path="res://mods/_base_game/art/tilesets/placeholder/road.png" id="4_road"]
-[ext_resource type="Texture2D" uid="uid://dg7ykfojs2xea" path="res://mods/_base_game/art/tilesets/placeholder/forest.png" id="5_forest"]
-[ext_resource type="Texture2D" uid="uid://bkfucipxlkiit" path="res://mods/_base_game/art/tilesets/placeholder/mountain.png" id="6_mountain"]
-[ext_resource type="Texture2D" uid="uid://deoxsm36cisn5" path="res://mods/_base_game/art/tilesets/placeholder/sand.png" id="7_sand"]
-[ext_resource type="Texture2D" uid="uid://bx53i6q5w86sy" path="res://mods/_base_game/art/tilesets/placeholder/bridge.png" id="8_bridge"]
-[ext_resource type="Texture2D" uid="uid://b3ptq7pmgp0xs" path="res://mods/_base_game/art/tilesets/placeholder/dirt.png" id="9_dirt"]
+[ext_resource type="Texture2D" uid="uid://daok7oiw4e12l" path="res://mods/_base_game/assets/tilesets/grass.png" id="1_grass"]
+[ext_resource type="Texture2D" uid="uid://4qa8rj8k6ygm" path="res://mods/_base_game/assets/tilesets/wall.png" id="2_wall"]
+[ext_resource type="Texture2D" uid="uid://3850bwylod6d" path="res://mods/_base_game/assets/tilesets/water.png" id="3_water"]
+[ext_resource type="Texture2D" uid="uid://d3143x3o14mwx" path="res://mods/_base_game/assets/tilesets/road.png" id="4_road"]
+[ext_resource type="Texture2D" uid="uid://dg7ykfojs2xea" path="res://mods/_base_game/assets/tilesets/forest.png" id="5_forest"]
+[ext_resource type="Texture2D" uid="uid://bkfucipxlkiit" path="res://mods/_base_game/assets/tilesets/mountain.png" id="6_mountain"]
+[ext_resource type="Texture2D" uid="uid://deoxsm36cisn5" path="res://mods/_base_game/assets/tilesets/sand.png" id="7_sand"]
+[ext_resource type="Texture2D" uid="uid://bx53i6q5w86sy" path="res://mods/_base_game/assets/tilesets/bridge.png" id="8_bridge"]
+[ext_resource type="Texture2D" uid="uid://b3ptq7pmgp0xs" path="res://mods/_base_game/assets/tilesets/dirt.png" id="9_dirt"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_grass"]
 texture = ExtResource("1_grass")
