@@ -74,8 +74,8 @@ func _register_tileset(mod_id: String, tileset_id: String, data: Dictionary, mod
 	var relative_path: String = str(data.path)
 	var full_path: String = mod_directory.path_join(relative_path)
 
-	# Verify the file exists
-	if not FileAccess.file_exists(full_path):
+	# Verify the file exists - use ResourceLoader.exists() for export compatibility
+	if not ResourceLoader.exists(full_path):
 		push_warning("TilesetRegistry: Tileset not found at '%s' (declared by mod '%s')" % [full_path, mod_id])
 
 	# Check for override
@@ -112,25 +112,31 @@ func discover_from_directory(mod_id: String, mod_directory: String) -> int:
 	var file_name: String = dir.get_next()
 
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
-			var full_path: String = tilesets_dir.path_join(file_name)
-			var tileset_id: String = file_name.get_basename().to_lower()
+		if not dir.current_is_dir():
+			# Strip .remap suffix when listing directories (for export builds)
+			var original_name: String = file_name
+			if file_name.ends_with(".remap"):
+				original_name = file_name.substr(0, file_name.length() - 6)
 
-			# Only register if not already declared in mod.json
-			if tileset_id not in _tilesets:
-				_tilesets[tileset_id] = {
-					"id": tileset_id,
-					"path": full_path,
-					"display_name": file_name.get_basename().capitalize(),
-					"description": "",
-					"source_mod": mod_id,
-					"resource": null
-				}
-				count += 1
-			else:
-				# Update path if the mod is overriding (higher priority wins)
-				# This is handled by load order - later mods override earlier ones
-				pass
+			if original_name.ends_with(".tres"):
+				var full_path: String = tilesets_dir.path_join(original_name)
+				var tileset_id: String = original_name.get_basename().to_lower()
+
+				# Only register if not already declared in mod.json
+				if tileset_id not in _tilesets:
+					_tilesets[tileset_id] = {
+						"id": tileset_id,
+						"path": full_path,
+						"display_name": original_name.get_basename().capitalize(),
+						"description": "",
+						"source_mod": mod_id,
+						"resource": null
+					}
+					count += 1
+				else:
+					# Update path if the mod is overriding (higher priority wins)
+					# This is handled by load order - later mods override earlier ones
+					pass
 
 		file_name = dir.get_next()
 

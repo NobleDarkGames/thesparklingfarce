@@ -47,13 +47,11 @@ const CampaignNodeScript: GDScript = preload("res://core/resources/campaign_node
 ## Load a CampaignData resource from a JSON file
 ## Returns null if loading fails
 static func load_from_json(json_path: String) -> Resource:
-	if not FileAccess.file_exists(json_path):
-		push_error("CampaignLoader: File not found: %s" % json_path)
-		return null
-
+	# Don't use FileAccess.file_exists() - it fails in exports where files are in PCK
+	# Just try to open the file directly
 	var file: FileAccess = FileAccess.open(json_path, FileAccess.READ)
 	if file == null:
-		push_error("CampaignLoader: Failed to open file: %s" % json_path)
+		push_error("CampaignLoader: File not found or failed to open: %s" % json_path)
 		return null
 
 	var json_text: String = file.get_as_text()

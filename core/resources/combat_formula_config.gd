@@ -41,8 +41,8 @@ func get_formula_calculator() -> CombatFormulaBase:
 	if formula_script_path.is_empty():
 		return null
 
-	# Validate script path exists
-	if not FileAccess.file_exists(formula_script_path):
+	# Validate script path exists - use ResourceLoader.exists() for export compatibility
+	if not ResourceLoader.exists(formula_script_path):
 		push_error("CombatFormulaConfig: Script not found: %s" % formula_script_path)
 		return null
 
@@ -75,7 +75,8 @@ func validate() -> Array[String]:
 		errors.append("Display name is required")
 
 	if not formula_script_path.is_empty():
-		if not FileAccess.file_exists(formula_script_path):
+		# Use ResourceLoader.exists() for export compatibility
+		if not ResourceLoader.exists(formula_script_path):
 			errors.append("Formula script not found: %s" % formula_script_path)
 		else:
 			var script: GDScript = load(formula_script_path) as GDScript

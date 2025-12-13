@@ -89,8 +89,8 @@ func _register_brain(mod_id: String, brain_id: String, data: Dictionary, mod_dir
 	var relative_path: String = str(data.path)
 	var full_path: String = mod_directory.path_join(relative_path)
 
-	# Verify the file exists
-	if not FileAccess.file_exists(full_path):
+	# Verify the file exists - use ResourceLoader.exists() for export compatibility
+	if not ResourceLoader.exists(full_path):
 		push_warning("AIBrainRegistry: Brain script not found at '%s' (declared by mod '%s')" % [full_path, mod_id])
 		# Still register it - the file might be added later
 

@@ -175,8 +175,10 @@ func _load_language_from_all_mods(language_code: String) -> Dictionary:
 		var translations_dir: String = mod.mod_directory.path_join(TRANSLATIONS_SUBDIR)
 		var translation_file: String = translations_dir.path_join("%s.json" % language_code)
 
-		if FileAccess.file_exists(translation_file):
-			var mod_translations: Dictionary = _load_translation_file(translation_file)
+		# Don't use FileAccess.file_exists() - it fails in exports where files are in PCK
+		# Just try to load and let _load_translation_file handle missing files
+		var mod_translations: Dictionary = _load_translation_file(translation_file)
+		if not mod_translations.is_empty():
 			combined.merge(mod_translations, true)  # Overwrite with higher priority
 
 	return combined

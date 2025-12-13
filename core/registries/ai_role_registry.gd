@@ -103,7 +103,8 @@ func _register_role(mod_id: String, role_id: String, data: Dictionary, mod_direc
 	if "script_path" in data:
 		var relative_path: String = str(data.script_path)
 		script_path = mod_directory.path_join(relative_path)
-		if not FileAccess.file_exists(script_path):
+		# Use ResourceLoader.exists() for export compatibility
+		if not ResourceLoader.exists(script_path):
 			push_warning("AIRoleRegistry: Role script not found at '%s' (declared by mod '%s')" % [script_path, mod_id])
 			# Still register - the file might be added later
 

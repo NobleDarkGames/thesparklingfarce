@@ -170,29 +170,43 @@ func _discover_and_load_mods_async() -> void:
 func _discover_mods() -> Array[ModManifest]:
 	var mods: Array[ModManifest] = []
 
+	# Debug: Log export status
+	var is_exported: bool = not OS.has_feature("editor")
+	print("ModLoader: Running in %s mode" % ("EXPORT" if is_exported else "EDITOR"))
+	print("ModLoader: Attempting to open: %s" % MODS_DIRECTORY)
+
 	var dir: DirAccess = DirAccess.open(MODS_DIRECTORY)
 	if not dir:
 		push_error("ModLoader: Failed to open mods directory: " + MODS_DIRECTORY)
+		push_error("ModLoader: DirAccess error: %s" % DirAccess.get_open_error())
 		return mods
 
+	print("ModLoader: Successfully opened mods directory")
 	dir.list_dir_begin()
 	var folder_name: String = dir.get_next()
 
 	while folder_name != "":
+		print("ModLoader: Found folder/file: '%s' (is_dir: %s)" % [folder_name, dir.current_is_dir()])
 		if dir.current_is_dir() and not folder_name.begins_with("."):
 			var mod_json_path: String = MODS_DIRECTORY.path_join(folder_name).path_join("mod.json")
 
 			# Check if mod.json exists
+			print("ModLoader: Checking for mod.json at: %s" % mod_json_path)
 			if FileAccess.file_exists(mod_json_path):
+				print("ModLoader: Found mod.json, loading...")
 				var manifest: ModManifest = ModManifest.load_from_file(mod_json_path)
 				if manifest:
+					print("ModLoader: Loaded mod '%s' from %s" % [manifest.mod_id, folder_name])
 					mods.append(manifest)
 				else:
 					push_warning("ModLoader: Failed to load manifest for mod in folder: " + folder_name)
+			else:
+				print("ModLoader: No mod.json at %s" % mod_json_path)
 
 		folder_name = dir.get_next()
 
 	dir.list_dir_end()
+	print("ModLoader: Discovered %d mods total" % mods.size())
 	return mods
 
 
@@ -305,20 +319,25 @@ func _collect_resource_paths(directory: String, resource_type: String, mod_id: S
 
 	while file_name != "":
 		if not dir.current_is_dir():
-			var full_path: String = directory.path_join(file_name)
+			# Strip .remap suffix when listing directories (for export builds)
+			var original_name: String = file_name
+			if file_name.ends_with(".remap"):
+				original_name = file_name.substr(0, file_name.length() - 6)
 
-			if file_name.ends_with(".tres"):
+			if original_name.ends_with(".tres"):
+				var full_path: String = directory.path_join(original_name)
 				requests.append({
 					"path": full_path,
 					"resource_type": resource_type,
-					"resource_id": file_name.get_basename(),
+					"resource_id": original_name.get_basename(),
 					"mod_id": mod_id
 				})
-			elif file_name.ends_with(".json") and supports_json:
+			elif original_name.ends_with(".json") and supports_json:
+				var full_path: String = directory.path_join(original_name)
 				requests.append({
 					"path": full_path,
 					"resource_type": resource_type,
-					"resource_id": file_name.get_basename(),
+					"resource_id": original_name.get_basename(),
 					"mod_id": mod_id
 				})
 
@@ -361,7 +380,13 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 
 	if not dir:
 		# Directory might not exist in this mod (that's okay)
+		# But log it for character type to debug export issues
+		if resource_type == "character":
+			print("ModLoader: Could not open character directory: %s (error: %s)" % [directory, DirAccess.get_open_error()])
 		return 0
+
+	if resource_type == "character":
+		print("ModLoader: Scanning character directory: %s" % directory)
 
 	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
 
@@ -370,25 +395,37 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 
 	while file_name != "":
 		if not dir.current_is_dir():
-			var full_path: String = directory.path_join(file_name)
+			# In exports, Godot creates .remap files - strip the suffix to get original name
+			var original_name: String = file_name
+			if file_name.ends_with(".remap"):
+				original_name = file_name.substr(0, file_name.length() - 6)  # Remove ".remap"
+
+			var full_path: String = directory.path_join(original_name)
 			var resource: Resource = null
 			var resource_id: String = ""
 
-			if file_name.ends_with(".tres"):
-				# Standard Godot resource
-				resource = load(full_path)
-				resource_id = file_name.get_basename()
+			if resource_type == "character":
+				print("ModLoader: Found character file: %s -> %s" % [file_name, original_name])
 
-			elif file_name.ends_with(".json") and supports_json:
+			if original_name.ends_with(".tres"):
+				# Standard Godot resource (load using original path - Godot handles remapping)
+				resource = load(full_path)
+				resource_id = original_name.get_basename()
+
+			elif original_name.ends_with(".json") and supports_json:
 				# JSON resource (currently only cinematics)
 				resource = _load_json_resource(full_path, resource_type)
-				resource_id = file_name.get_basename()
+				resource_id = original_name.get_basename()
 
 			if resource:
 				registry.register_resource(resource, resource_type, resource_id, mod_id)
 				# Special handling for terrain resources - also register with terrain_registry
 				if resource_type == "terrain" and resource is TerrainData:
 					terrain_registry.register_terrain(resource, mod_id)
+				# Debug: Log character registrations
+				if resource_type == "character" and resource is CharacterData:
+					var char: CharacterData = resource as CharacterData
+					print("ModLoader: Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
 				count += 1
 			elif not resource_id.is_empty():
 				push_warning("ModLoader: Failed to load resource: " + full_path)
@@ -396,6 +433,8 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
+	if resource_type == "character":
+		print("ModLoader: Loaded %d characters from %s" % [count, directory])
 	return count
 
 
@@ -471,8 +510,9 @@ func _register_mod_scenes(manifest: ModManifest) -> int:
 		var relative_path: String = manifest.scenes[scene_id]
 		var full_path: String = manifest.mod_directory.path_join(relative_path)
 
-		# Verify scene file exists
-		if not FileAccess.file_exists(full_path):
+		# Verify scene file exists - use ResourceLoader.exists() for export compatibility
+		# (FileAccess.file_exists() fails because .tscn becomes .tscn.remap in exports)
+		if not ResourceLoader.exists(full_path):
 			push_warning("ModLoader: Scene '%s' not found at: %s" % [scene_id, full_path])
 			continue
 
@@ -539,19 +579,25 @@ func _discover_tilesets(manifest: ModManifest) -> int:
 	var file_name: String = dir.get_next()
 
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
-			var full_path: String = tilesets_dir.path_join(file_name)
-			# Extract tileset name from filename: terrain_placeholder.tres -> terrain_placeholder
-			var tileset_name: String = file_name.get_basename().to_lower()
+		if not dir.current_is_dir():
+			# Strip .remap suffix when listing directories (for export builds)
+			var original_name: String = file_name
+			if file_name.ends_with(".remap"):
+				original_name = file_name.substr(0, file_name.length() - 6)
 
-			if not tileset_name.is_empty():
-				# Register (or override) the tileset in legacy registry
-				_tileset_registry[tileset_name] = {
-					"path": full_path,
-					"mod_id": manifest.mod_id,
-					"resource": null  # Lazy-loaded on first access
-				}
-				count += 1
+			if original_name.ends_with(".tres"):
+				var full_path: String = tilesets_dir.path_join(original_name)
+				# Extract tileset name from filename: terrain_placeholder.tres -> terrain_placeholder
+				var tileset_name: String = original_name.get_basename().to_lower()
+
+				if not tileset_name.is_empty():
+					# Register (or override) the tileset in legacy registry
+					_tileset_registry[tileset_name] = {
+						"path": full_path,
+						"mod_id": manifest.mod_id,
+						"resource": null  # Lazy-loaded on first access
+					}
+					count += 1
 
 		file_name = dir.get_next()
 
@@ -638,7 +684,8 @@ func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedSce
 	# First check if a mod has registered this scene
 	var mod_path: String = registry.get_scene_path(scene_id)
 	if not mod_path.is_empty():
-		if FileAccess.file_exists(mod_path):
+		# Use ResourceLoader.exists() for export compatibility (.tscn -> .tscn.remap)
+		if ResourceLoader.exists(mod_path):
 			var scene: PackedScene = load(mod_path) as PackedScene
 			if scene:
 				return scene
@@ -649,7 +696,8 @@ func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedSce
 
 	# Fallback to default path
 	if not fallback_path.is_empty():
-		if FileAccess.file_exists(fallback_path):
+		# Use ResourceLoader.exists() for export compatibility
+		if ResourceLoader.exists(fallback_path):
 			var scene: PackedScene = load(fallback_path) as PackedScene
 			if scene:
 				return scene
@@ -686,13 +734,15 @@ func resolve_asset_path(relative_path: String, fallback_base_path: String = "") 
 	var mods: Array[ModManifest] = get_mods_by_priority_descending()
 	for mod: ModManifest in mods:
 		var full_path: String = mod.get_assets_directory().path_join(relative_path)
-		if FileAccess.file_exists(full_path):
+		# Use ResourceLoader.exists() for export compatibility
+		if ResourceLoader.exists(full_path):
 			return full_path
 
 	# Fallback to base path
 	if not fallback_base_path.is_empty():
 		var fallback_full: String = fallback_base_path.path_join(relative_path)
-		if FileAccess.file_exists(fallback_full):
+		# Use ResourceLoader.exists() for export compatibility
+		if ResourceLoader.exists(fallback_full):
 			return fallback_full
 
 	return ""
