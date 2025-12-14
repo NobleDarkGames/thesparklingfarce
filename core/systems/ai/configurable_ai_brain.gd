@@ -509,10 +509,9 @@ func _find_best_heal_target(unit: Node2D, wounded: Array[Node2D], behavior: AIBe
 		score += (1.0 - hp_percent) * 100.0
 
 		# Boss/leader priority
-		if prioritize_boss:
-			# Check if this is a "boss" unit (could check a flag or position in enemy list)
-			# For now, units with higher max HP are considered more important
-			score += float(ally.stats.max_hp) * 0.1
+		if prioritize_boss and "character_data" in ally and ally.character_data:
+			if ally.character_data.is_boss:
+				score += 50.0  # Strong preference for bosses
 
 		# Proximity bonus (prefer closer allies)
 		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, ally.grid_position)
@@ -1170,13 +1169,17 @@ func _find_vip_to_protect(protector: Node2D, allies: Array[Node2D]) -> Node2D:
 
 		var priority: float = 0.0
 
-		# Check ai_threat_modifier (bosses have high values)
+		# Check is_boss flag (primary boss indicator)
+		if ally.character_data.is_boss:
+			priority += 200.0
+
+		# Check ai_threat_modifier (fine-tuning)
 		priority += ally.character_data.ai_threat_modifier * 100.0
 
-		# Check for boss/vip tags
+		# Check for vip tag (secondary protection target)
 		var tags: Array[String] = ally.character_data.ai_threat_tags
-		if "boss" in tags or "vip" in tags:
-			priority += 200.0
+		if "vip" in tags:
+			priority += 150.0
 
 		# Healers are valuable
 		var ally_class: ClassData = ally.get_current_class()

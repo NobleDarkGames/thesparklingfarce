@@ -246,6 +246,7 @@ func _add_basic_info_section() -> void:
 
 	name_edit = LineEdit.new()
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.tooltip_text = "Display name shown in battle menus. E.g., Blaze, Heal, Bolt."
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
 
@@ -256,6 +257,7 @@ func _add_basic_info_section() -> void:
 
 	description_edit = TextEdit.new()
 	description_edit.custom_minimum_size.y = 80
+	description_edit.tooltip_text = "Tooltip text shown when hovering over ability in menus. Describe what it does."
 	section.add_child(description_edit)
 
 	detail_panel.add_child(section)
@@ -277,6 +279,7 @@ func _add_type_targeting_section() -> void:
 	type_container.add_child(type_label)
 
 	ability_type_option = OptionButton.new()
+	ability_type_option.tooltip_text = "Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies."
 	ability_type_option.add_item("Attack", AbilityData.AbilityType.ATTACK)
 	ability_type_option.add_item("Heal", AbilityData.AbilityType.HEAL)
 	ability_type_option.add_item("Support", AbilityData.AbilityType.SUPPORT)
@@ -297,6 +300,7 @@ func _add_type_targeting_section() -> void:
 	target_container.add_child(target_label)
 
 	target_type_option = OptionButton.new()
+	target_type_option.tooltip_text = "Who can be targeted. Single = one target. All = entire side. Area = splash around a point."
 	target_type_option.add_item("Single Enemy", AbilityData.TargetType.SINGLE_ENEMY)
 	target_type_option.add_item("Single Ally", AbilityData.TargetType.SINGLE_ALLY)
 	target_type_option.add_item("Self", AbilityData.TargetType.SELF)
@@ -329,6 +333,7 @@ func _add_range_area_section() -> void:
 	min_range_spin.min_value = 0
 	min_range_spin.max_value = 20
 	min_range_spin.value = 1
+	min_range_spin.tooltip_text = "Closest tile this ability can target. 0 = self only, 1 = adjacent, 2+ = ranged."
 	min_container.add_child(min_range_spin)
 	section.add_child(min_container)
 
@@ -343,6 +348,7 @@ func _add_range_area_section() -> void:
 	max_range_spin.min_value = 0
 	max_range_spin.max_value = 20
 	max_range_spin.value = 1
+	max_range_spin.tooltip_text = "Farthest tile this ability can target. Typical: 1-2 melee skills, 3-5 ranged spells."
 	max_container.add_child(max_range_spin)
 	section.add_child(max_container)
 
@@ -358,6 +364,7 @@ func _add_range_area_section() -> void:
 	area_of_effect_spin.min_value = 0
 	area_of_effect_spin.max_value = 10
 	area_of_effect_spin.value = 0
+	area_of_effect_spin.tooltip_text = "Radius around target point. 0 = single target. 1 = 3x3 area. 2 = 5x5 area."
 	aoe_container.add_child(area_of_effect_spin)
 	section.add_child(aoe_container)
 
@@ -383,6 +390,7 @@ func _add_cost_section() -> void:
 	mp_cost_spin.min_value = 0
 	mp_cost_spin.max_value = 999
 	mp_cost_spin.value = 0
+	mp_cost_spin.tooltip_text = "Magic points consumed when used. Typical: 2-5 early spells, 10-20 powerful, 30+ ultimate."
 	mp_container.add_child(mp_cost_spin)
 	section.add_child(mp_container)
 
@@ -397,6 +405,7 @@ func _add_cost_section() -> void:
 	hp_cost_spin.min_value = 0
 	hp_cost_spin.max_value = 999
 	hp_cost_spin.value = 0
+	hp_cost_spin.tooltip_text = "HP sacrificed to use ability. For dark magic or desperation attacks. Usually 0."
 	hp_container.add_child(hp_cost_spin)
 	section.add_child(hp_container)
 
@@ -423,6 +432,7 @@ func _add_power_section() -> void:
 	power_spin.min_value = 0
 	power_spin.max_value = 999
 	power_spin.value = 10
+	power_spin.tooltip_text = "Base effect strength. For damage/healing, multiplied by caster stats. Typical: 10-30 basic, 50+ powerful."
 	power_container.add_child(power_spin)
 	section.add_child(power_container)
 
@@ -437,6 +447,7 @@ func _add_power_section() -> void:
 	accuracy_spin.min_value = 0
 	accuracy_spin.max_value = 100
 	accuracy_spin.value = 100
+	accuracy_spin.tooltip_text = "Base hit chance percentage. 100% = always hits (most spells). 80-90% = can miss (debuffs)."
 	acc_container.add_child(accuracy_spin)
 	section.add_child(acc_container)
 
@@ -459,6 +470,7 @@ func _add_effects_section() -> void:
 	status_effects_edit = LineEdit.new()
 	status_effects_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	status_effects_edit.placeholder_text = "e.g., poison, attack_up, paralysis"
+	status_effects_edit.tooltip_text = "Status conditions applied. Common: poison, sleep, paralysis, attack_up, defense_down, regen."
 	section.add_child(status_effects_edit)
 
 	# Effect Duration
@@ -472,6 +484,7 @@ func _add_effects_section() -> void:
 	effect_duration_spin.min_value = 1
 	effect_duration_spin.max_value = 99
 	effect_duration_spin.value = 3
+	effect_duration_spin.tooltip_text = "How many turns the status effect lasts. Typical: 2-3 short, 5 medium, 10+ long-lasting."
 	duration_container.add_child(effect_duration_spin)
 	section.add_child(duration_container)
 
@@ -486,6 +499,7 @@ func _add_effects_section() -> void:
 	effect_chance_spin.min_value = 0
 	effect_chance_spin.max_value = 100
 	effect_chance_spin.value = 100
+	effect_chance_spin.tooltip_text = "Probability that status effect applies on hit. 100% = guaranteed. 30-50% = unreliable debuff."
 	chance_container.add_child(effect_chance_spin)
 	section.add_child(chance_container)
 
@@ -510,13 +524,14 @@ func _add_animation_audio_section() -> void:
 	animation_edit = LineEdit.new()
 	animation_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	animation_edit.placeholder_text = "e.g., slash, heal_sparkle"
+	animation_edit.tooltip_text = "[NOT YET IMPLEMENTED] Animation key to play when ability is used. Field exists for future spell animation system."
 	anim_container.add_child(animation_edit)
 	section.add_child(anim_container)
 
 	var note_label: Label = Label.new()
-	note_label.text = "Note: Sound/particle effects can be assigned in the Inspector"
-	note_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	note_label.add_theme_font_size_override("font_size", 16)
+	note_label.text = "[STUB] Animation/audio fields exist but are not yet processed by the spell system"
+	note_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	note_label.add_theme_font_size_override("font_size", 12)
 	section.add_child(note_label)
 
 	detail_panel.add_child(section)

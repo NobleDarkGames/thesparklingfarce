@@ -300,6 +300,7 @@ func _add_basic_info_section() -> void:
 
 	dialogue_id_edit = LineEdit.new()
 	dialogue_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialogue_id_edit.tooltip_text = "Unique ID for referencing this dialogue. Used in triggers and NPC assignments."
 	id_container.add_child(dialogue_id_edit)
 	section.add_child(id_container)
 
@@ -312,6 +313,7 @@ func _add_basic_info_section() -> void:
 
 	dialogue_title_edit = LineEdit.new()
 	dialogue_title_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialogue_title_edit.tooltip_text = "Human-readable title for organization. Shown in editor dropdowns."
 	title_container.add_child(dialogue_title_edit)
 	section.add_child(title_container)
 
@@ -391,6 +393,7 @@ func _add_flow_control_section() -> void:
 	# Auto advance
 	auto_advance_check = CheckBox.new()
 	auto_advance_check.text = "Auto-advance dialogue"
+	auto_advance_check.tooltip_text = "Automatically progress to next line without player input. Good for cutscenes."
 	section.add_child(auto_advance_check)
 
 	# Advance delay
@@ -405,6 +408,7 @@ func _add_flow_control_section() -> void:
 	advance_delay_spin.max_value = 10.0
 	advance_delay_spin.step = 0.1
 	advance_delay_spin.value = 2.0
+	advance_delay_spin.tooltip_text = "Seconds to wait between auto-advancing lines. 2.0 is typical reading pace."
 	delay_container.add_child(advance_delay_spin)
 	section.add_child(delay_container)
 
@@ -489,6 +493,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	# Character picker dropdown
 	var character_picker: OptionButton = OptionButton.new()
 	character_picker.custom_minimum_size.x = 200
+	character_picker.tooltip_text = "Select a character to auto-use their portrait and name. Or choose Custom for named NPCs."
 	character_picker.add_item("(Custom Speaker)", 0)
 	# Populate with characters from registry (with source mod prefix)
 	for i in range(_cached_characters.size()):
@@ -502,6 +507,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var speaker_edit: LineEdit = LineEdit.new()
 	speaker_edit.placeholder_text = "Speaker name"
 	speaker_edit.custom_minimum_size.x = 120
+	speaker_edit.tooltip_text = "Name displayed above the text box. For NPCs or unnamed characters."
 	speaker_edit.text = line_dict.get("speaker_name", "")
 	speaker_container.add_child(speaker_edit)
 
@@ -512,6 +518,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 
 	var emotion_option: OptionButton = OptionButton.new()
 	emotion_option.custom_minimum_size.x = 100
+	emotion_option.tooltip_text = "Portrait expression for this line. Changes displayed portrait variant if available."
 	for emotion: String in EMOTIONS:
 		emotion_option.add_item(emotion)
 	# Set current emotion

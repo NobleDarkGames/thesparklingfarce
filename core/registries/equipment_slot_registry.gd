@@ -128,8 +128,7 @@ func get_slots_for_type(item_type: String) -> Array[String]:
 	var matching: Array[String] = []
 	var lower_type: String = item_type.to_lower()
 	for slot: Dictionary in get_slots():
-		var accepts: Array = slot.get("accepts_types", [])
-		if lower_type in accepts:
+		if slot_accepts_type(slot.get("id", ""), lower_type):
 			matching.append(slot.get("id", ""))
 	return matching
 

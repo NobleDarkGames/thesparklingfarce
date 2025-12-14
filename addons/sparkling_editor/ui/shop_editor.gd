@@ -267,6 +267,7 @@ func _add_basic_info_section() -> void:
 	id_edit = LineEdit.new()
 	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	id_edit.placeholder_text = "e.g., granseal_weapon_shop"
+	id_edit.tooltip_text = "Unique ID for referencing this shop. Use snake_case, e.g., 'granseal_weapon_shop'."
 	id_edit.text_changed.connect(_mark_dirty)
 	id_container.add_child(id_edit)
 	section.add_child(id_container)
@@ -281,6 +282,7 @@ func _add_basic_info_section() -> void:
 	name_edit = LineEdit.new()
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_edit.placeholder_text = "e.g., Granseal Weapon Shop"
+	name_edit.tooltip_text = "Display name shown to the player in menus and when entering the shop."
 	name_edit.text_changed.connect(_mark_dirty)
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
@@ -293,6 +295,7 @@ func _add_basic_info_section() -> void:
 	type_container.add_child(type_label)
 
 	shop_type_option = OptionButton.new()
+	shop_type_option.tooltip_text = "Weapon = equipment, Item = consumables, Church = heal/revive, Crafter = forging, Special = unique."
 	shop_type_option.add_item("Weapon", ShopData.ShopType.WEAPON)
 	shop_type_option.add_item("Item", ShopData.ShopType.ITEM)
 	shop_type_option.add_item("Church", ShopData.ShopType.CHURCH)
@@ -321,6 +324,7 @@ func _add_presentation_section() -> void:
 	greeting_edit = TextEdit.new()
 	greeting_edit.custom_minimum_size.y = 60
 	greeting_edit.placeholder_text = "Welcome to my shop!"
+	greeting_edit.tooltip_text = "Message displayed when player enters the shop. Multi-line supported."
 	greeting_edit.text_changed.connect(_mark_dirty)
 	section.add_child(greeting_edit)
 
@@ -334,6 +338,7 @@ func _add_presentation_section() -> void:
 	farewell_edit = LineEdit.new()
 	farewell_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	farewell_edit.placeholder_text = "Come again!"
+	farewell_edit.tooltip_text = "Message displayed when player leaves the shop."
 	farewell_edit.text_changed.connect(_mark_dirty)
 	farewell_container.add_child(farewell_edit)
 	section.add_child(farewell_container)
@@ -348,6 +353,7 @@ func _add_presentation_section() -> void:
 
 	npc_picker = OptionButton.new()
 	npc_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	npc_picker.tooltip_text = "Optional NPC to display as shopkeeper. Uses their portrait and name in shop UI."
 	npc_picker.item_selected.connect(func(_idx: int) -> void: _mark_dirty())
 	_populate_npc_picker()
 	npc_container.add_child(npc_picker)
@@ -485,6 +491,7 @@ func _add_economy_section() -> void:
 	buy_multiplier_spin.max_value = 2.0
 	buy_multiplier_spin.step = 0.05
 	buy_multiplier_spin.value = 1.0
+	buy_multiplier_spin.tooltip_text = "Multiplier on item buy prices. 1.0 = normal, 1.5 = 50% markup, 0.8 = 20% discount."
 	buy_multiplier_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	buy_container.add_child(buy_multiplier_spin)
 	section.add_child(buy_container)
@@ -502,6 +509,7 @@ func _add_economy_section() -> void:
 	sell_multiplier_spin.max_value = 2.0
 	sell_multiplier_spin.step = 0.05
 	sell_multiplier_spin.value = 1.0
+	sell_multiplier_spin.tooltip_text = "Multiplier on item sell prices. 1.0 = normal, 0.5 = pay half value, 1.2 = generous buyer."
 	sell_multiplier_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	sell_container.add_child(sell_multiplier_spin)
 	section.add_child(sell_container)
@@ -519,6 +527,7 @@ func _add_economy_section() -> void:
 	deals_discount_spin.max_value = 1.0
 	deals_discount_spin.step = 0.05
 	deals_discount_spin.value = 0.75
+	deals_discount_spin.tooltip_text = "Price multiplier for deal items. 0.75 = 25% off, 0.5 = half price, 1.0 = no discount."
 	deals_discount_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	deals_container.add_child(deals_discount_spin)
 	section.add_child(deals_container)
@@ -545,6 +554,7 @@ func _add_availability_section() -> void:
 	required_flags_edit = LineEdit.new()
 	required_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	required_flags_edit.placeholder_text = "e.g., chapter_2_started, rescued_princess"
+	required_flags_edit.tooltip_text = "Comma-separated story flags. ALL must be set for shop to appear. Empty = always available."
 	required_flags_edit.text_changed.connect(_mark_dirty)
 	req_container.add_child(required_flags_edit)
 	section.add_child(req_container)
@@ -560,6 +570,7 @@ func _add_availability_section() -> void:
 	forbidden_flags_edit = LineEdit.new()
 	forbidden_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	forbidden_flags_edit.placeholder_text = "e.g., shop_destroyed"
+	forbidden_flags_edit.tooltip_text = "Comma-separated story flags. If ANY is set, shop becomes unavailable. Use for destroyed/closed shops."
 	forbidden_flags_edit.text_changed.connect(_mark_dirty)
 	forb_container.add_child(forbidden_flags_edit)
 	section.add_child(forb_container)
@@ -578,18 +589,21 @@ func _add_features_section() -> void:
 	can_sell_check = CheckBox.new()
 	can_sell_check.text = "Can Sell Items (shop buys from player)"
 	can_sell_check.button_pressed = true
+	can_sell_check.tooltip_text = "If enabled, players can sell their items to this shop for gold."
 	can_sell_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
 	section.add_child(can_sell_check)
 
 	can_store_check = CheckBox.new()
 	can_store_check.text = "Can Store to Caravan"
 	can_store_check.button_pressed = true
+	can_store_check.tooltip_text = "If enabled, players can transfer items to the Caravan storage from this shop."
 	can_store_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
 	section.add_child(can_store_check)
 
 	can_sell_caravan_check = CheckBox.new()
 	can_sell_caravan_check.text = "Can Sell from Caravan Storage"
 	can_sell_caravan_check.button_pressed = true
+	can_sell_caravan_check.tooltip_text = "If enabled, players can sell items directly from Caravan storage without moving them first."
 	can_sell_caravan_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
 	section.add_child(can_sell_caravan_check)
 
@@ -616,6 +630,7 @@ func _add_church_section() -> void:
 	heal_cost_spin.min_value = 0
 	heal_cost_spin.max_value = 9999
 	heal_cost_spin.value = 0
+	heal_cost_spin.tooltip_text = "Gold cost to fully heal one character. 0 = free healing (classic Shining Force style)."
 	heal_cost_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	heal_container.add_child(heal_cost_spin)
 	church_section.add_child(heal_container)
@@ -631,6 +646,7 @@ func _add_church_section() -> void:
 	revive_base_spin.min_value = 0
 	revive_base_spin.max_value = 9999
 	revive_base_spin.value = 200
+	revive_base_spin.tooltip_text = "Base gold cost to revive a fallen character. Final cost = base + (level x multiplier)."
 	revive_base_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	revive_container.add_child(revive_base_spin)
 	church_section.add_child(revive_container)
@@ -648,6 +664,7 @@ func _add_church_section() -> void:
 	revive_mult_spin.max_value = 100.0
 	revive_mult_spin.step = 0.5
 	revive_mult_spin.value = 10.0
+	revive_mult_spin.tooltip_text = "Gold per character level added to revival cost. Example: 10 means level 20 adds 200G."
 	revive_mult_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	mult_container.add_child(revive_mult_spin)
 	church_section.add_child(mult_container)
@@ -663,6 +680,7 @@ func _add_church_section() -> void:
 	uncurse_cost_spin.min_value = 0
 	uncurse_cost_spin.max_value = 9999
 	uncurse_cost_spin.value = 500
+	uncurse_cost_spin.tooltip_text = "Gold cost to remove a curse from equipped item. Cursed items cannot be unequipped otherwise."
 	uncurse_cost_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	uncurse_container.add_child(uncurse_cost_spin)
 	church_section.add_child(uncurse_container)
@@ -695,6 +713,7 @@ func _add_crafter_section() -> void:
 	crafter_id_edit = LineEdit.new()
 	crafter_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	crafter_id_edit.placeholder_text = "e.g., mithril_forge"
+	crafter_id_edit.tooltip_text = "ID of the CrafterData resource that defines available recipes. Required for Crafter-type shops."
 	crafter_id_edit.text_changed.connect(_mark_dirty)
 	id_container.add_child(crafter_id_edit)
 	crafter_section.add_child(id_container)

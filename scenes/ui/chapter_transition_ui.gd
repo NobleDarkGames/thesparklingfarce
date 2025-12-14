@@ -176,7 +176,7 @@ func _build_save_prompt() -> void:
 	var hints: Label = Label.new()
 	hints.text = "[Confirm] Save    [Cancel] Skip"
 	hints.add_theme_font_override("font", MONOGRAM_FONT)
-	hints.add_theme_font_size_override("font_size", 14)
+	hints.add_theme_font_size_override("font_size", 16)
 	hints.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(hints)

@@ -844,6 +844,7 @@ func _add_basic_info_section() -> void:
 
 	party_name_edit = LineEdit.new()
 	party_name_edit.placeholder_text = "Enter party name"
+	party_name_edit.tooltip_text = "Display name for this party template. E.g., 'Starting Party', 'Boss Squad'."
 	template_parties_panel.add_child(party_name_edit)
 
 	var desc_label: Label = Label.new()
@@ -852,6 +853,7 @@ func _add_basic_info_section() -> void:
 
 	description_edit = TextEdit.new()
 	description_edit.custom_minimum_size = Vector2(0, 60)
+	description_edit.tooltip_text = "Optional notes about when/how this party is used. For modder reference."
 	template_parties_panel.add_child(description_edit)
 
 	var max_size_label: Label = Label.new()
@@ -862,6 +864,7 @@ func _add_basic_info_section() -> void:
 	max_size_spin.min_value = 1
 	max_size_spin.max_value = 12
 	max_size_spin.value = 8
+	max_size_spin.tooltip_text = "Maximum members allowed in this party. Typical: 8 for Shining Force style, 12 for larger battles."
 	template_parties_panel.add_child(max_size_spin)
 
 	_add_separator_to_panel(template_parties_panel)
@@ -885,6 +888,7 @@ func _add_party_members_section() -> void:
 
 	var add_member_button: Button = Button.new()
 	add_member_button.text = "+ Add Member"
+	add_member_button.tooltip_text = "Add a character slot to this party template."
 	add_member_button.pressed.connect(_on_add_member)
 	template_parties_panel.add_child(add_member_button)
 
@@ -968,12 +972,14 @@ func _add_member_ui(member_dict: Dictionary) -> void:
 	offset_x_spin.min_value = -5
 	offset_x_spin.max_value = 10
 	offset_x_spin.value = 0
+	offset_x_spin.tooltip_text = "X offset from party spawn point. 0 = center. Negative = left, positive = right."
 	offset_hbox.add_child(offset_x_spin)
 
 	var offset_y_spin: SpinBox = SpinBox.new()
 	offset_y_spin.min_value = -5
 	offset_y_spin.max_value = 10
 	offset_y_spin.value = 0
+	offset_y_spin.tooltip_text = "Y offset from party spawn point. 0 = center. Negative = up, positive = down."
 	offset_hbox.add_child(offset_y_spin)
 
 	# Set current formation offset if present

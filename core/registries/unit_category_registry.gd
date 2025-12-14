@@ -4,7 +4,8 @@ extends RefCounted
 ## Registry for unit categories.
 ## Allows mods to define additional unit categories beyond the defaults.
 ##
-## Default categories: player, enemy, boss, neutral
+## Default categories: player, enemy, neutral
+## Note: "boss" status is now a separate is_boss flag on CharacterData
 ##
 ## Mods can register additional categories via their mod.json:
 ## {
@@ -12,10 +13,10 @@ extends RefCounted
 ## }
 ##
 ## Note: Custom categories require corresponding AI/battle logic to be meaningful.
-## The base game only has built-in handling for the default four categories.
+## The base game only has built-in handling for the default categories.
 
 # Default categories that are always available
-const DEFAULT_CATEGORIES: Array[String] = ["player", "enemy", "boss", "neutral"]
+const DEFAULT_CATEGORIES: Array[String] = ["player", "enemy", "neutral"]
 
 # Registered categories from mods (mod_id -> Array[String])
 var _mod_categories: Dictionary = {}

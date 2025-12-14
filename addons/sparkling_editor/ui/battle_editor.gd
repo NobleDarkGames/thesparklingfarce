@@ -128,6 +128,7 @@ func _add_basic_info_section() -> void:
 
 	battle_name_edit = LineEdit.new()
 	battle_name_edit.placeholder_text = "Enter battle name"
+	battle_name_edit.tooltip_text = "Display name shown when battle begins. E.g., 'Battle of Guardiana'."
 	detail_panel.add_child(battle_name_edit)
 
 	var desc_label: Label = Label.new()
@@ -136,6 +137,7 @@ func _add_basic_info_section() -> void:
 
 	battle_description_edit = TextEdit.new()
 	battle_description_edit.custom_minimum_size = Vector2(0, 120)
+	battle_description_edit.tooltip_text = "Notes for modders describing the battle scenario, objectives, and story context."
 	detail_panel.add_child(battle_description_edit)
 
 	_add_separator()
@@ -153,6 +155,7 @@ func _add_map_section() -> void:
 	detail_panel.add_child(map_label)
 
 	map_scene_option = OptionButton.new()
+	map_scene_option.tooltip_text = "The tilemap scene where combat takes place. Maps are in mods/*/maps/."
 	map_scene_option.item_selected.connect(_on_map_scene_changed)
 	detail_panel.add_child(map_scene_option)
 
@@ -172,6 +175,7 @@ func _add_map_section() -> void:
 	player_spawn_x_spin.min_value = 0
 	player_spawn_x_spin.max_value = 100
 	player_spawn_x_spin.value = 2
+	player_spawn_x_spin.tooltip_text = "X coordinate for party formation center. Party arranges in formation around this point."
 	player_spawn_x_spin.value_changed.connect(_on_spawn_position_changed)
 	spawn_hbox.add_child(player_spawn_x_spin)
 
@@ -179,6 +183,7 @@ func _add_map_section() -> void:
 	player_spawn_y_spin.min_value = 0
 	player_spawn_y_spin.max_value = 100
 	player_spawn_y_spin.value = 2
+	player_spawn_y_spin.tooltip_text = "Y coordinate for party formation center. Party arranges in formation around this point."
 	player_spawn_y_spin.value_changed.connect(_on_spawn_position_changed)
 	spawn_hbox.add_child(player_spawn_y_spin)
 
@@ -216,6 +221,7 @@ func _add_player_forces_section() -> void:
 	player_party_picker.label_min_width = 120
 	player_party_picker.none_text = "(Use PartyManager)"
 	player_party_picker.allow_none = true
+	player_party_picker.tooltip_text = "Override party for this battle. Leave empty to use player's current party."
 	detail_panel.add_child(player_party_picker)
 
 	var party_note: Label = Label.new()
@@ -285,6 +291,7 @@ func _add_victory_conditions_section() -> void:
 	detail_panel.add_child(condition_label)
 
 	victory_condition_option = OptionButton.new()
+	victory_condition_option.tooltip_text = "How the player wins: kill all, kill boss, survive, reach location, or protect an NPC."
 	victory_condition_option.add_item("Defeat All Enemies", BattleData.VictoryCondition.DEFEAT_ALL_ENEMIES)
 	victory_condition_option.add_item("Defeat Boss", BattleData.VictoryCondition.DEFEAT_BOSS)
 	victory_condition_option.add_item("Survive Turns", BattleData.VictoryCondition.SURVIVE_TURNS)
@@ -313,6 +320,7 @@ func _add_defeat_conditions_section() -> void:
 	detail_panel.add_child(condition_label)
 
 	defeat_condition_option = OptionButton.new()
+	defeat_condition_option.tooltip_text = "How the player loses: all dead, hero dead, turn limit exceeded, or protected unit dies."
 	defeat_condition_option.add_item("All Units Defeated", BattleData.DefeatCondition.ALL_UNITS_DEFEATED)
 	defeat_condition_option.add_item("Leader Defeated", BattleData.DefeatCondition.LEADER_DEFEATED)
 	defeat_condition_option.add_item("Turn Limit", BattleData.DefeatCondition.TURN_LIMIT)
@@ -341,6 +349,7 @@ func _add_battle_flow_section() -> void:
 	pre_battle_dialogue_picker.label_text = "Pre-Battle Dialogue:"
 	pre_battle_dialogue_picker.label_min_width = 140
 	pre_battle_dialogue_picker.allow_none = true
+	pre_battle_dialogue_picker.tooltip_text = "Cutscene that plays before combat begins. Sets up story context."
 	detail_panel.add_child(pre_battle_dialogue_picker)
 
 	victory_dialogue_picker = ResourcePicker.new()
@@ -348,6 +357,7 @@ func _add_battle_flow_section() -> void:
 	victory_dialogue_picker.label_text = "Victory Dialogue:"
 	victory_dialogue_picker.label_min_width = 140
 	victory_dialogue_picker.allow_none = true
+	victory_dialogue_picker.tooltip_text = "Cutscene that plays when player wins. Rewards, story progression."
 	detail_panel.add_child(victory_dialogue_picker)
 
 	defeat_dialogue_picker = ResourcePicker.new()
@@ -355,6 +365,7 @@ func _add_battle_flow_section() -> void:
 	defeat_dialogue_picker.label_text = "Defeat Dialogue:"
 	defeat_dialogue_picker.label_min_width = 140
 	defeat_dialogue_picker.allow_none = true
+	defeat_dialogue_picker.tooltip_text = "Cutscene that plays when player loses. Usually offers retry or game over."
 	detail_panel.add_child(defeat_dialogue_picker)
 
 	var turn_note: Label = Label.new()
@@ -397,6 +408,7 @@ func _add_rewards_section() -> void:
 	experience_reward_spin.min_value = 0
 	experience_reward_spin.max_value = 10000
 	experience_reward_spin.step = 10
+	experience_reward_spin.tooltip_text = "Bonus XP for completing this battle. Divided among surviving party members."
 	detail_panel.add_child(experience_reward_spin)
 
 	var gold_label: Label = Label.new()
@@ -407,6 +419,7 @@ func _add_rewards_section() -> void:
 	gold_reward_spin.min_value = 0
 	gold_reward_spin.max_value = 10000
 	gold_reward_spin.step = 10
+	gold_reward_spin.tooltip_text = "Gold received upon victory. Added to party funds."
 	detail_panel.add_child(gold_reward_spin)
 
 	var items_note: Label = Label.new()
@@ -618,6 +631,7 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	character_picker.label_text = "Character:"
 	character_picker.label_min_width = 80
 	character_picker.allow_none = true
+	character_picker.tooltip_text = "The CharacterData template for this enemy unit. Defines stats, class, appearance."
 	enemy_vbox.add_child(character_picker)
 
 	# Position with Place button
@@ -649,9 +663,11 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	# AI Behavior
 	var ai_label: Label = Label.new()
 	ai_label.text = "AI Behavior:"
+	ai_label.tooltip_text = "How this enemy makes decisions. Affects targeting, positioning, ability usage."
 	enemy_vbox.add_child(ai_label)
 
 	var ai_option: OptionButton = OptionButton.new()
+	ai_option.tooltip_text = "AI brain controlling this enemy. Aggressive rushes, Cautious holds position, Support heals allies."
 	enemy_vbox.add_child(ai_option)
 
 	# Track UI elements - now stores ResourcePicker and place_button
@@ -747,11 +763,13 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	character_picker.label_text = "Character:"
 	character_picker.label_min_width = 80
 	character_picker.allow_none = true
+	character_picker.tooltip_text = "The CharacterData template for this neutral unit. Usually an NPC to protect or escort."
 	neutral_vbox.add_child(character_picker)
 
 	# Position with Place button
 	var pos_label: Label = Label.new()
 	pos_label.text = "Position (X, Y):"
+	pos_label.tooltip_text = "Starting coordinates on the battle map grid."
 	neutral_vbox.add_child(pos_label)
 
 	var pos_hbox: HBoxContainer = HBoxContainer.new()
@@ -778,9 +796,11 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	# AI Behavior
 	var ai_label: Label = Label.new()
 	ai_label.text = "AI Behavior:"
+	ai_label.tooltip_text = "How this neutral NPC behaves. Can flee, fight enemies, or stay in place."
 	neutral_vbox.add_child(ai_label)
 
 	var ai_option: OptionButton = OptionButton.new()
+	ai_option.tooltip_text = "AI brain for neutral units. Defensive stays in place, Support heals nearby allies."
 	neutral_vbox.add_child(ai_option)
 
 	# Track UI elements - now stores ResourcePicker and place_button

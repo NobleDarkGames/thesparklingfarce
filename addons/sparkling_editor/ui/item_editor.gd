@@ -268,6 +268,7 @@ func _add_basic_info_section() -> void:
 
 	name_edit = LineEdit.new()
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.tooltip_text = "Display name shown in menus and shops. E.g., Steel Sword, Healing Herb."
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
 
@@ -325,6 +326,7 @@ func _add_basic_info_section() -> void:
 	type_container.add_child(type_label)
 
 	item_type_option = OptionButton.new()
+	item_type_option.tooltip_text = "Weapon = equippable attack. Armor = equippable defense. Accessory = ring/trinket. Consumable = one-use. Key = quest item."
 	item_type_option.add_item("Weapon", ItemData.ItemType.WEAPON)
 	item_type_option.add_item("Armor", ItemData.ItemType.ARMOR)
 	item_type_option.add_item("Accessory", ItemData.ItemType.ACCESSORY)
@@ -345,6 +347,7 @@ func _add_basic_info_section() -> void:
 	equipment_type_edit = LineEdit.new()
 	equipment_type_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	equipment_type_edit.placeholder_text = "e.g., sword, light armor"
+	equipment_type_edit.tooltip_text = "Category for class restrictions. Weapons: sword, axe, bow, staff. Armor: light, heavy, robe."
 	equip_container.add_child(equipment_type_edit)
 	section.add_child(equip_container)
 
@@ -358,6 +361,7 @@ func _add_basic_info_section() -> void:
 
 	equipment_slot_option = OptionButton.new()
 	equipment_slot_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipment_slot_option.tooltip_text = "Which character slot this item occupies. Weapon = main hand. Ring/Accessory = accessory slots."
 	_populate_equipment_slot_options()
 	slot_container.add_child(equipment_slot_option)
 	section.add_child(slot_container)
@@ -377,6 +381,7 @@ func _add_basic_info_section() -> void:
 
 	description_edit = TextEdit.new()
 	description_edit.custom_minimum_size.y = 120
+	description_edit.tooltip_text = "Flavor text shown when examining the item. Describe effects, lore, or usage hints."
 	section.add_child(description_edit)
 
 	detail_panel.add_child(section)
@@ -390,13 +395,13 @@ func _add_stat_modifiers_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
-	hp_mod_spin = _create_modifier_editor("HP:", section)
-	mp_mod_spin = _create_modifier_editor("MP:", section)
-	str_mod_spin = _create_modifier_editor("Strength:", section)
-	def_mod_spin = _create_modifier_editor("Defense:", section)
-	agi_mod_spin = _create_modifier_editor("Agility:", section)
-	int_mod_spin = _create_modifier_editor("Intelligence:", section)
-	luk_mod_spin = _create_modifier_editor("Luck:", section)
+	hp_mod_spin = _create_modifier_editor("HP:", section, "Bonus HP when equipped. Positive = more health, negative = less. Typical: +5 to +20.")
+	mp_mod_spin = _create_modifier_editor("MP:", section, "Bonus MP when equipped. Useful for caster accessories. Typical: +5 to +15.")
+	str_mod_spin = _create_modifier_editor("Strength:", section, "Bonus physical attack power. Weapons typically add +5 to +30.")
+	def_mod_spin = _create_modifier_editor("Defense:", section, "Bonus defense. Armor typically adds +3 to +15.")
+	agi_mod_spin = _create_modifier_editor("Agility:", section, "Bonus agility (speed/evasion). Some weapons may reduce this as a tradeoff.")
+	int_mod_spin = _create_modifier_editor("Intelligence:", section, "Bonus magic power. Staves/tomes add to spell damage.")
+	luk_mod_spin = _create_modifier_editor("Luck:", section, "Bonus luck (crits/drops). Usually small bonuses from accessories.")
 
 	detail_panel.add_child(section)
 
@@ -420,6 +425,7 @@ func _add_weapon_section() -> void:
 	attack_power_spin.min_value = 0
 	attack_power_spin.max_value = 999
 	attack_power_spin.value = 10
+	attack_power_spin.tooltip_text = "Base damage added to attacks. Typical: 5-15 early game, 20-40 mid, 50+ late game."
 	power_container.add_child(attack_power_spin)
 	weapon_section.add_child(power_container)
 
@@ -435,6 +441,7 @@ func _add_weapon_section() -> void:
 	min_attack_range_spin.min_value = 1
 	min_attack_range_spin.max_value = 20
 	min_attack_range_spin.value = 1
+	min_attack_range_spin.tooltip_text = "Closest distance this weapon can hit. 1 = adjacent. 2+ = cannot hit adjacent targets (bow dead zone)."
 	min_attack_range_spin.value_changed.connect(_on_min_range_changed)
 	min_range_container.add_child(min_attack_range_spin)
 	weapon_section.add_child(min_range_container)
@@ -451,6 +458,7 @@ func _add_weapon_section() -> void:
 	max_attack_range_spin.min_value = 1
 	max_attack_range_spin.max_value = 20
 	max_attack_range_spin.value = 1
+	max_attack_range_spin.tooltip_text = "Farthest distance this weapon can hit. 1 = melee only. 2-3 = short range. 4+ = long range."
 	max_attack_range_spin.value_changed.connect(_on_max_range_changed)
 	max_range_container.add_child(max_attack_range_spin)
 	weapon_section.add_child(max_range_container)
@@ -473,6 +481,7 @@ func _add_weapon_section() -> void:
 	hit_rate_spin.min_value = 0
 	hit_rate_spin.max_value = 100
 	hit_rate_spin.value = 90
+	hit_rate_spin.tooltip_text = "Base accuracy percentage. 90% = reliable. 70% = inaccurate but powerful. Combined with character AGI."
 	hit_container.add_child(hit_rate_spin)
 	weapon_section.add_child(hit_container)
 
@@ -487,6 +496,7 @@ func _add_weapon_section() -> void:
 	crit_rate_spin.min_value = 0
 	crit_rate_spin.max_value = 100
 	crit_rate_spin.value = 5
+	crit_rate_spin.tooltip_text = "Chance for double damage. Typical: 5% normal, 15% for killer weapons, 25%+ for crit-focused builds."
 	crit_container.add_child(crit_rate_spin)
 	weapon_section.add_child(crit_container)
 
@@ -503,10 +513,12 @@ func _add_consumable_section() -> void:
 
 	usable_battle_check = CheckBox.new()
 	usable_battle_check.text = "Usable in Battle"
+	usable_battle_check.tooltip_text = "Can be used during combat. E.g., Healing Herb during a unit's turn."
 	consumable_section.add_child(usable_battle_check)
 
 	usable_field_check = CheckBox.new()
 	usable_field_check.text = "Usable on Field"
+	usable_field_check.tooltip_text = "Can be used from the menu outside of battle. E.g., healing items in town."
 	consumable_section.add_child(usable_field_check)
 
 	# Effect picker - allows selecting an AbilityData resource for the consumable effect
@@ -516,6 +528,7 @@ func _add_consumable_section() -> void:
 	effect_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
 	effect_picker.allow_none = true
 	effect_picker.none_text = "(No Effect)"
+	effect_picker.tooltip_text = "Ability that activates when used. Create abilities for healing, buffs, damage, etc."
 	consumable_section.add_child(effect_picker)
 
 	var help_label: Label = Label.new()
@@ -546,6 +559,7 @@ func _add_economy_section() -> void:
 	buy_price_spin.min_value = 0
 	buy_price_spin.max_value = 999999
 	buy_price_spin.value = 100
+	buy_price_spin.tooltip_text = "Cost to purchase from shops. Set to 0 for items that cannot be bought."
 	buy_container.add_child(buy_price_spin)
 	section.add_child(buy_container)
 
@@ -560,18 +574,21 @@ func _add_economy_section() -> void:
 	sell_price_spin.min_value = 0
 	sell_price_spin.max_value = 999999
 	sell_price_spin.value = 50
+	sell_price_spin.tooltip_text = "Gold received when selling. Typically 50% of buy price. Set to 0 for unsellable items."
 	sell_container.add_child(sell_price_spin)
 	section.add_child(sell_container)
 
 	detail_panel.add_child(section)
 
 
-func _create_modifier_editor(label_text: String, parent: VBoxContainer) -> SpinBox:
+func _create_modifier_editor(label_text: String, parent: VBoxContainer, tooltip: String = "") -> SpinBox:
 	var container: HBoxContainer = HBoxContainer.new()
 
 	var label: Label = Label.new()
 	label.text = label_text
 	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	if not tooltip.is_empty():
+		label.tooltip_text = tooltip
 	container.add_child(label)
 
 	var spin: SpinBox = SpinBox.new()
@@ -580,6 +597,8 @@ func _create_modifier_editor(label_text: String, parent: VBoxContainer) -> SpinB
 	spin.value = 0
 	spin.allow_lesser = true
 	spin.allow_greater = true
+	if not tooltip.is_empty():
+		spin.tooltip_text = tooltip
 	container.add_child(spin)
 
 	parent.add_child(container)
@@ -614,6 +633,7 @@ func _add_curse_section() -> void:
 	is_cursed_check = CheckBox.new()
 	is_cursed_check.text = "Is Cursed (cannot be unequipped normally)"
 	is_cursed_check.button_pressed = false
+	is_cursed_check.tooltip_text = "Cursed items lock to the character. Often powerful but with drawbacks. Requires special items or church to remove."
 	is_cursed_check.toggled.connect(_on_cursed_toggled)
 	curse_section.add_child(is_cursed_check)
 
@@ -628,6 +648,7 @@ func _add_curse_section() -> void:
 	uncurse_items_edit = LineEdit.new()
 	uncurse_items_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	uncurse_items_edit.placeholder_text = "e.g., purify_scroll, holy_water"
+	uncurse_items_edit.tooltip_text = "Item IDs (comma-separated) that can remove this curse. Leave empty if only church/NPC can uncurse."
 	uncurse_items_edit.editable = false  # Only enabled when cursed
 	uncurse_container.add_child(uncurse_items_edit)
 	curse_section.add_child(uncurse_container)

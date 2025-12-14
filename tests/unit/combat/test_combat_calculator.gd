@@ -121,13 +121,14 @@ func test_physical_damage_equal_stats() -> void:
 # HIT CHANCE TESTS
 # =============================================================================
 
-func test_hit_chance_base_is_80() -> void:
-	# Equal AGI should give base 80%
+func test_hit_chance_base_is_90() -> void:
+	# Equal AGI should give base 90% (default weapon hit rate)
+	# Note: UnitStats.get_weapon_hit_rate() returns 90 when no weapon equipped
 	var attacker: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var defender: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker, defender)
-	assert_int(hit_chance).is_equal(80)
+	assert_int(hit_chance).is_equal(90)
 
 
 func test_hit_chance_agility_advantage() -> void:
@@ -140,12 +141,13 @@ func test_hit_chance_agility_advantage() -> void:
 
 
 func test_hit_chance_agility_disadvantage() -> void:
-	# AGI 10 vs AGI 20 = -20% hit chance (80 - 10*2 = 60)
+	# AGI 10 vs AGI 20 = -20% hit chance (90 - 10*2 = 70)
+	# Note: Base is 90 from default weapon hit rate
 	var attacker: UnitStats = _create_test_stats(10, 5, 10, 10, 5)
 	var defender: UnitStats = _create_test_stats(10, 5, 20, 10, 5)
 
 	var hit_chance: int = CombatCalculator.calculate_hit_chance(attacker, defender)
-	assert_int(hit_chance).is_equal(60)
+	assert_int(hit_chance).is_equal(70)
 
 
 func test_hit_chance_minimum_is_10() -> void:

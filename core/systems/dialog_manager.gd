@@ -232,6 +232,14 @@ func _end_dialog_and_chain_to_next() -> void:
 		return
 
 	var next: DialogueData = current_dialogue.next_dialogue
+
+	# Check for circular reference BEFORE ending current dialog
+	# This prevents the chain stack from being cleared before the check
+	if next and next.dialogue_id in _dialog_chain_stack:
+		push_error("DialogManager: Circular dialog reference detected: %s" % next.dialogue_id)
+		_end_dialog()
+		return
+
 	_end_dialog()
 
 	if next:

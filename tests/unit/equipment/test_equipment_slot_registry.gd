@@ -93,10 +93,13 @@ func test_get_slots_for_weapon_type() -> void:
 
 
 func test_get_slots_for_ring_type() -> void:
+	# "ring" is a subtype of "accessory" category, so any slot accepting "accessory:*"
+	# will match. DEFAULT_SLOTS has ring_1, ring_2, and accessory - all accept "accessory:*"
 	var slots: Array[String] = _registry.get_slots_for_type("ring")
-	assert_int(slots.size()).is_equal(2)
+	assert_int(slots.size()).is_equal(3)
 	assert_bool("ring_1" in slots).is_true()
 	assert_bool("ring_2" in slots).is_true()
+	assert_bool("accessory" in slots).is_true()
 
 
 func test_get_slots_for_unknown_type() -> void:
@@ -118,7 +121,8 @@ func test_get_slot_display_name_ring_1() -> void:
 
 func test_get_slot_display_name_unknown_slot_capitalizes() -> void:
 	var name: String = _registry.get_slot_display_name("unknown_slot")
-	assert_str(name).is_equal("Unknown_slot")
+	# GDScript capitalize() converts underscores to spaces and capitalizes each word
+	assert_str(name).is_equal("Unknown Slot")
 
 
 # =============================================================================

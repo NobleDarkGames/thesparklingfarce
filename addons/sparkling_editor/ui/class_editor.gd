@@ -239,6 +239,7 @@ func _add_basic_info_section() -> void:
 
 	name_edit = LineEdit.new()
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.tooltip_text = "Display name shown for this class. E.g., Warrior, Mage, Knight."
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
 
@@ -261,6 +262,7 @@ func _add_movement_section() -> void:
 	type_container.add_child(type_label)
 
 	movement_type_option = OptionButton.new()
+	movement_type_option.tooltip_text = "How terrain affects movement. Walking = blocked by water/cliffs. Flying = ignores all terrain. Floating = ignores ground hazards."
 	movement_type_option.add_item("Walking", ClassData.MovementType.WALKING)
 	movement_type_option.add_item("Flying", ClassData.MovementType.FLYING)
 	movement_type_option.add_item("Floating", ClassData.MovementType.FLOATING)
@@ -280,6 +282,7 @@ func _add_movement_section() -> void:
 	movement_range_spin.min_value = 1
 	movement_range_spin.max_value = 20
 	movement_range_spin.value = 4
+	movement_range_spin.tooltip_text = "Tiles this class can move per turn. Typical: 4-5 infantry, 6-7 cavalry, 5-6 flying."
 	range_container.add_child(movement_range_spin)
 	section.add_child(range_container)
 
@@ -297,6 +300,7 @@ func _add_equipment_section() -> void:
 	# Weapon Types - get from registry or use defaults
 	var weapon_label: Label = Label.new()
 	weapon_label.text = "Equippable Weapon Types:"
+	weapon_label.tooltip_text = "Which weapon types this class can equip. Check all that apply."
 	section.add_child(weapon_label)
 
 	weapon_types_container = VBoxContainer.new()
@@ -307,6 +311,7 @@ func _add_equipment_section() -> void:
 	# Armor Types - get from registry or use defaults
 	var armor_label: Label = Label.new()
 	armor_label.text = "Equippable Armor Types:"
+	armor_label.tooltip_text = "Which armor types this class can wear. Light for agile, Heavy for tanks, Robe for casters."
 	section.add_child(armor_label)
 
 	armor_types_container = VBoxContainer.new()
@@ -360,6 +365,7 @@ func _add_promotion_section() -> void:
 	promotion_level_spin.min_value = 1
 	promotion_level_spin.max_value = 99
 	promotion_level_spin.value = 10
+	promotion_level_spin.tooltip_text = "Minimum level required to promote. Typical: 10-20. Set to 99 if class cannot promote."
 	level_container.add_child(promotion_level_spin)
 	section.add_child(level_container)
 
@@ -371,6 +377,7 @@ func _add_promotion_section() -> void:
 	class_container.add_child(class_label)
 
 	promotion_class_option = OptionButton.new()
+	promotion_class_option.tooltip_text = "Class this transforms into after promotion. (None) = final form class."
 	promotion_class_option.add_item("(None)", 0)
 	class_container.add_child(promotion_class_option)
 	section.add_child(class_container)
@@ -402,23 +409,25 @@ func _add_growth_rates_section() -> void:
 	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
 	section.add_child(help_label)
 
-	hp_growth_slider = _create_growth_editor("HP Growth:", section)
-	mp_growth_slider = _create_growth_editor("MP Growth:", section)
-	str_growth_slider = _create_growth_editor("STR Growth:", section)
-	def_growth_slider = _create_growth_editor("DEF Growth:", section)
-	agi_growth_slider = _create_growth_editor("AGI Growth:", section)
-	int_growth_slider = _create_growth_editor("INT Growth:", section)
-	luk_growth_slider = _create_growth_editor("LUK Growth:", section)
+	hp_growth_slider = _create_growth_editor("HP Growth:", section, "Chance to gain +1 HP on level up. 50% = average, 80%+ = tanky class.")
+	mp_growth_slider = _create_growth_editor("MP Growth:", section, "Chance to gain +1 MP on level up. 0% for melee, 60-80% for spellcasters.")
+	str_growth_slider = _create_growth_editor("STR Growth:", section, "Chance to gain +1 Strength on level up. High for fighters, low for mages.")
+	def_growth_slider = _create_growth_editor("DEF Growth:", section, "Chance to gain +1 Defense on level up. High for tanks, low for glass cannons.")
+	agi_growth_slider = _create_growth_editor("AGI Growth:", section, "Chance to gain +1 Agility on level up. High for scouts and assassins.")
+	int_growth_slider = _create_growth_editor("INT Growth:", section, "Chance to gain +1 Intelligence on level up. High for mages and healers.")
+	luk_growth_slider = _create_growth_editor("LUK Growth:", section, "Chance to gain +1 Luck on level up. Affects crits and rare drops.")
 
 	detail_panel.add_child(section)
 
 
-func _create_growth_editor(label_text: String, parent: VBoxContainer) -> HSlider:
+func _create_growth_editor(label_text: String, parent: VBoxContainer, tooltip: String = "") -> HSlider:
 	var container: HBoxContainer = HBoxContainer.new()
 
 	var label: Label = Label.new()
 	label.text = label_text
 	label.custom_minimum_size.x = 120
+	if not tooltip.is_empty():
+		label.tooltip_text = tooltip
 	container.add_child(label)
 
 	var slider: HSlider = HSlider.new()
@@ -427,6 +436,8 @@ func _create_growth_editor(label_text: String, parent: VBoxContainer) -> HSlider
 	slider.value = 50
 	slider.step = 5
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if not tooltip.is_empty():
+		slider.tooltip_text = tooltip
 	container.add_child(slider)
 
 	var value_label: Label = Label.new()
@@ -466,6 +477,7 @@ func _add_learnable_abilities_section() -> void:
 	# Add Ability button
 	add_ability_button = Button.new()
 	add_ability_button.text = "Add Ability"
+	add_ability_button.tooltip_text = "Add a new ability that characters of this class will learn."
 	add_ability_button.pressed.connect(_on_add_learnable_ability)
 	section.add_child(add_ability_button)
 
@@ -593,6 +605,7 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	level_spin.max_value = 99
 	level_spin.value = level
 	level_spin.custom_minimum_size.x = 70
+	level_spin.tooltip_text = "Level at which this ability is learned. Characters gain access when they reach this level."
 	level_spin.value_changed.connect(_on_ability_level_changed.bind(row))
 	row.add_child(level_spin)
 
@@ -608,6 +621,7 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	picker.allow_none = true
 	picker.none_text = "(Select Ability)"
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.tooltip_text = "Select the spell or skill this class learns at the specified level."
 	row.add_child(picker)
 
 	# Duplicate warning icon/label (hidden by default)

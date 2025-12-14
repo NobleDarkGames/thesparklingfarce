@@ -100,15 +100,17 @@ func meets_requirements(crafter: CrafterData, flag_checker: Callable) -> bool:
 ## Get the output item ID(s) based on mode
 ## For CHOICE mode, returns all options; caller handles selection
 func get_output_item_ids() -> Array[String]:
+	var result: Array[String] = []
 	match output_mode:
 		OutputMode.SINGLE:
-			return [output_item_id] if not output_item_id.is_empty() else []
+			if not output_item_id.is_empty():
+				result.append(output_item_id)
 		OutputMode.CHOICE:
-			return output_choices
+			result = output_choices.duplicate()
 		OutputMode.UPGRADE:
-			return [upgrade_result_item_id] if not upgrade_result_item_id.is_empty() else []
-		_:
-			return []
+			if not upgrade_result_item_id.is_empty():
+				result.append(upgrade_result_item_id)
+	return result
 
 
 ## Validate recipe configuration

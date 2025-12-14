@@ -469,6 +469,10 @@ func _execute_stay(unit: Node2D) -> void:
 ## Handle item use request from InputManager
 ## SF2-AUTHENTIC: Uses the full battle overlay screen, same as attacks
 func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> void:
+	# Face the target before using item (SF2-authentic)
+	if target and target != unit and unit.has_method("face_toward"):
+		unit.face_toward(target.grid_position)
+
 	# Get the item data
 	var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
 
@@ -705,6 +709,10 @@ func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
 
 ## Handle spell cast request from InputManager
 func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D) -> void:
+	# Face the target before casting (SF2-authentic)
+	if target and target != caster and caster.has_method("face_toward"):
+		caster.face_toward(target.grid_position)
+
 	# Get the ability data from registry
 	var ability: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
 
@@ -951,6 +959,7 @@ func _award_spell_xp(caster: Node2D, target: Node2D, ability: AbilityData) -> vo
 ## Execute attack from AI (called by AIBrain)
 ## This is the public API for AI brains to trigger attacks
 func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
+	# Face the target before attacking (SF2-authentic) - handled in _execute_attack
 	await _execute_attack(attacker, defender)
 
 
@@ -961,6 +970,10 @@ func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
 ## @param target: The target unit for the spell
 ## @return: True if spell was cast successfully
 func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> bool:
+	# Face the target before casting (SF2-authentic)
+	if target and target != caster and caster.has_method("face_toward"):
+		caster.face_toward(target.grid_position)
+
 	# Get the ability data from registry
 	var ability: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
 
@@ -1019,6 +1032,10 @@ func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> boo
 ## SF-AUTHENTIC: All phases (initial, double, counter) execute in a SINGLE
 ## battle screen session - one fade in, one fade out, no jarring transitions.
 func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
+	# Face the target before attacking (SF2-authentic)
+	if attacker.has_method("face_toward"):
+		attacker.face_toward(defender.grid_position)
+
 	# Build the complete combat sequence BEFORE opening the battle screen
 	var phases: Array[CombatPhase] = _build_combat_sequence(attacker, defender)
 

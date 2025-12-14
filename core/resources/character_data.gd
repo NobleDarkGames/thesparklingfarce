@@ -26,8 +26,7 @@ extends Resource
 
 @export_group("Appearance")
 @export var portrait: Texture2D
-@export var battle_sprite: Texture2D  ## Static sprite used on tactical battle grid
-@export var map_sprite_frames: SpriteFrames  ## Animated sprite for map exploration (walk_up/down/left/right, idle_up/down/left/right)
+@export var sprite_frames: SpriteFrames  ## Animated sprite for map exploration AND tactical battle grid (SF2-authentic: same sprite used everywhere)
 @export var combat_animation_data: CombatAnimationData  ## Combat screen animations (optional - uses placeholder if null)
 
 @export_group("Starting Configuration")
@@ -50,10 +49,14 @@ extends Resource
 @export_group("Battle Configuration")
 ## Category helps organize characters in the editor and determines default behavior
 ## "player" - Playable characters (heroes, party members)
-## "enemy" - Standard enemy units (can be spawned multiple times)
-## "boss" - Unique boss enemies (usually spawned once)
+## "enemy" - Enemy units (standard and boss enemies)
 ## "neutral" - Non-combatant or ally NPCs
-@export_enum("player", "enemy", "boss", "neutral") var unit_category: String = "player"
+@export_enum("player", "enemy", "neutral") var unit_category: String = "player"
+
+## If true, this is a boss enemy - defensive AI will prioritize protecting this unit
+## and threat calculations are boosted. Use for important enemies that should be
+## guarded by their allies.
+@export var is_boss: bool = false
 
 ## If false, this is a template that can be used multiple times in battles (like "Goblin")
 ## If true, this is a unique character that should only appear once (like "Max" or "Kane")
@@ -82,7 +85,7 @@ extends Resource
 
 ## Tags that modify AI targeting behavior.
 ## Supported tags: "priority_target" (AI focuses this unit), "avoid" (AI ignores this unit)
-## "boss", "vip" (for defensive AI to protect)
+## "vip" (for defensive AI to protect non-boss high-value targets)
 ## Mods can add custom tags and handle them in custom AIBrain scripts.
 @export var ai_threat_tags: Array[String] = []
 
@@ -181,16 +184,27 @@ func get_portrait_safe() -> Texture2D:
 	return CharacterData._placeholder_portrait
 
 
-## Get battle sprite with fallback for missing assets
-func get_battle_sprite_safe() -> Texture2D:
-	if battle_sprite != null:
-		return battle_sprite
+## Get a static texture from sprite_frames for UI contexts (thumbnails, etc.)
+## Extracts first frame of idle_down animation, with fallbacks
+## Safe to call without null checks - always returns a valid Texture2D
+func get_display_texture() -> Texture2D:
+	if sprite_frames != null:
+		# Try to get first frame from idle_down animation
+		if sprite_frames.has_animation("idle_down") and sprite_frames.get_frame_count("idle_down") > 0:
+			return sprite_frames.get_frame_texture("idle_down", 0)
+		# Fallback: try walk_down
+		if sprite_frames.has_animation("walk_down") and sprite_frames.get_frame_count("walk_down") > 0:
+			return sprite_frames.get_frame_texture("walk_down", 0)
+		# Last resort: any animation's first frame
+		for anim_name: String in sprite_frames.get_animation_names():
+			if sprite_frames.get_frame_count(anim_name) > 0:
+				return sprite_frames.get_frame_texture(anim_name, 0)
 
-	# Try to use portrait as fallback
+	# Fallback to portrait
 	if portrait != null:
 		return portrait
 
-	# Use placeholder
+	# Ultimate fallback: placeholder
 	if CharacterData._placeholder_portrait == null:
 		CharacterData._placeholder_portrait = _create_placeholder_portrait()
 
