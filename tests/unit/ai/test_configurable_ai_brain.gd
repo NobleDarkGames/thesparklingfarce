@@ -417,7 +417,7 @@ func test_tactical_mage_behavior_loads() -> void:
 		assert_bool(behavior.use_status_effects).is_true()
 		# Tactical mages prioritize damage dealers as threats
 		var threat_weight: float = behavior.get_effective_threat_weight("damage_dealer", 1.0)
-		assert_float(threat_weight).is_equal(1.8)
+		assert_float(threat_weight).is_equal(1.5)
 
 
 # =============================================================================

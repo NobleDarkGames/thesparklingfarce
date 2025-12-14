@@ -19,16 +19,16 @@ This document details the remaining Phase 4 tasks with implementation specifics 
 - Phase 4.5: Campaign Progression (Complete)
 - Spell System S1-S3 (Complete - spells work in battle)
 - Floating Damage/XP Numbers (Complete - 2025-12-12, SF-authentic via CombatAnimationScene)
+- Spell Progression S4 (Complete - 2025-12-13, level unlocks + AoE)
 
 **Remaining Tasks (Priority Order):**
-1. Spell Progression (S4) - Level-based unlocks, AoE spells
-2. Retreat/Resurrection System
-3. Level-Up Screen UI
-4. Victory/Defeat Screens with Rewards
-5. Field Menu Phase 2: Egress/Detox field magic
-6. Field Menu Phase 3: Search system & hidden items
-7. Field Menu Phase 4: Mod extension support
-8. Phase 2.5.1 Mod Extensibility Improvements
+1. Church Services (Retreat/Resurrection) - UI + complete revival logic
+2. Level-Up Screen UI (includes spell learned notifications)
+3. Victory/Defeat Screens with Rewards
+4. Field Menu Phase 2: Egress/Detox field magic
+5. Field Menu Phase 3: Search system & hidden items
+6. Field Menu Phase 4: Mod extension support
+7. Phase 2.5.1 Mod Extensibility Improvements
 
 ---
 
@@ -87,16 +87,21 @@ This document details the remaining Phase 4 tasks with implementation specifics 
 
 ---
 
-## Task 2: Spell Progression (S4) - Level-Based Unlocks
+## Task 2: Spell Progression (S4) - Level-Based Unlocks ✅ COMPLETE
 
-### Current State
-- `ClassData.class_abilities` holds spell arrays
-- `ClassData.ability_unlock_levels` dictionary exists: `{"blaze_2": 8}`
-- `ClassData.get_unlocked_class_abilities(level)` method implemented
-- `ClassData.is_ability_unlocked(ability_id, level)` method exists
-- SpellMenu currently shows ALL class abilities regardless of level
+**Completed:** 2025-12-13
 
-### What Needs Implementation
+### Implementation Status
+- ✅ SpellMenu level filtering via `CharacterData.get_available_abilities(level)` → `ClassData.get_unlocked_class_abilities(level)`
+- ✅ `ability_unlock_levels` dictionary used in class data (e.g., `"cure_poison": 2`)
+- ✅ AoE target selection with SF2-style white border preview (`InputManager._refresh_spell_targeting_with_aoe()`)
+- ✅ AoE damage application to all units in radius (`BattleManager._get_spell_targets()`)
+- ✅ SpellMenu displays spell name + MP cost
+
+### Remaining (Moved to Level-Up UI Task)
+- Level-up "Learned X!" notification (signal wired, handler is placeholder)
+
+### Original Plan (for reference)
 
 1. **SpellMenu Level Filtering:**
    - Filter displayed spells by character's current level
@@ -116,38 +121,22 @@ This document details the remaining Phase 4 tasks with implementation specifics 
    - Show spell levels in SpellMenu (Blaze 1, Blaze 2, etc.)
    - Higher tiers cost more MP, deal more damage
 
-### Files to Modify
-| File | Purpose |
-|------|---------|
-| `scenes/ui/spell_menu.gd` | Filter by level, show spell tiers |
-| `core/systems/input_manager.gd` | AoE target preview |
-| `core/systems/battle_manager.gd` | AoE damage application |
-| `scenes/ui/level_up_celebration.gd` | Add spell learned display |
-
-### Key Implementation Steps
-1. Modify SpellMenu to call `class_data.get_unlocked_class_abilities(level)`
-2. Add spell tier display in menu (e.g., "Blaze 2 - 4 MP")
-3. Implement AoE target preview in GridManager/InputManager
-4. Modify `_apply_spell_damage()` to iterate AoE targets
-5. Create ability learned notification UI
-6. Create test spells: blaze_2.tres, heal_2.tres with unlock levels
-
-### Complexity Estimate
-**Medium** - Core exists, AoE adds complexity
-
-### Dependencies
-- None directly, but Task 4 (floating numbers) enhances feedback
-
 ---
 
-## Task 3: Retreat/Resurrection System
+## Task 3: Retreat/Resurrection System (Church Services)
 
-### Current State
-- Units die when HP reaches 0 (handled in Unit.take_damage())
-- Dead units fade out via BattleManager._on_unit_died()
-- No retreat or resurrection mechanics exist
-- DefeatScreen offers retry or return to town
-- ChurchShop type exists with revive service hook
+### Current State - Partial Infrastructure Exists
+- ✅ DefeatScreen with SF2-authentic "The force retreats..." messaging
+- ✅ ShopData.ShopType.CHURCH enum value
+- ✅ ShopData fields: `revive_base_cost`, `revive_level_multiplier`, `get_revival_cost(level)`
+- ✅ ShopManager.church_revive() function (deducts gold, but has TODO for actual revival)
+- ✅ ShopManager.church_heal() function (works)
+- ✅ ShopManager.church_uncurse() function (works with EquipmentManager)
+- ✅ CharacterSaveData.is_alive field exists
+- ❌ No `is_retreated` flag - units currently die permanently
+- ❌ church_revive() doesn't actually restore is_alive (has TODO comment)
+- ❌ No Church Services UI screen to select characters for revival
+- ❌ No party restoration after defeat
 
 ### What Needs Implementation
 
@@ -157,55 +146,53 @@ In Shining Force, defeated units are NOT permanently dead. They can be:
 2. **Retreat automatically** - Unit leaves battle but survives
 3. **Hero death = defeat** - If hero dies, battle ends
 
-1. **Unit Death State Machine:**
-   - `ALIVE` -> `RETREATED` (HP=0, survives battle)
-   - Track retreat status in CharacterSaveData
-   - Retreated units excluded from party until healed
+1. **Church Services Screen UI:**
+   - List party members with their status (alive/retreated)
+   - Show revive cost per character (level-based)
+   - Heal option for wounded but alive characters
+   - Uncurse option for cursed equipment
 
-2. **Church Resurrection Service:**
-   - ShopData.shop_type == CHURCH already supported
-   - `revive_base_cost` field exists in ShopData
-   - Cost formula: `revive_base_cost * unit_level`
-   - Resurrect sets HP to 1, clears retreat flag
+2. **Complete church_revive() Integration:**
+   - Actually set is_alive = true
+   - Restore HP to 1 (SF2-authentic)
+   - Clear retreated status
 
-3. **Battle Integration:**
-   - Dead player units marked as "retreated" not "dead"
-   - Retreated units removed from turn order
-   - Victory/Defeat still based on hero status
+3. **Retreat State (Optional Enhancement):**
+   - Add `is_retreated: bool` to CharacterSaveData
+   - Distinguish between "retreated" (revivable) and "dead" (permadeath mode)
+   - For now, can use is_alive = false as the "retreated" state
 
-4. **Post-Battle Restoration:**
-   - Retreated units need healing before next battle
-   - Church or items can restore them
+4. **Post-Battle Party State:**
+   - After defeat, restore party at last church
+   - After victory, persist HP/MP state
 
 ### Files to Create
 | File | Purpose |
 |------|---------|
-| `core/systems/resurrection_manager.gd` | Manage retreat/revive state |
+| `scenes/ui/shops/screens/church_services_screen.gd` | Church services UI |
+| `scenes/ui/shops/screens/church_services_screen.tscn` | Church services scene |
 
 ### Files to Modify
 | File | Purpose |
 |------|---------|
-| `core/resources/character_save_data.gd` | Add `is_retreated: bool` |
-| `core/components/unit.gd` | Mark retreat on death instead of permanent |
-| `core/systems/battle_manager.gd` | Handle retreat state |
-| `scenes/ui/shops/screens/church_services_screen.gd` | Implement revive UI |
-| `core/systems/shop_manager.gd` | Add revive transaction |
+| `core/systems/shop_manager.gd` | Complete church_revive() logic |
+| `core/systems/battle_manager.gd` | Party restoration after defeat |
+| `scenes/ui/shops/shop_controller.gd` | Wire up church services screen |
 
 ### Key Implementation Steps
-1. Add `is_retreated: bool` to CharacterSaveData
-2. Modify Unit.take_damage() to set retreat flag
-3. Modify TurnManager to skip retreated units
-4. Add Church "Revive" service screen
-5. Implement revive cost calculation
-6. Add revive sound/animation
-7. Test full flow: unit dies -> church revive -> rejoin battle
+1. Create ChurchServicesScreen UI (list party, show costs)
+2. Complete church_revive() to actually restore is_alive and HP
+3. Wire church screen into ShopController for CHURCH type shops
+4. Add party restoration logic after defeat (restore HP/MP, revive dead)
+5. Test full flow: unit dies -> defeat -> church revive -> healed
 
 ### Complexity Estimate
-**Medium** - Touches multiple systems but clear design
+**Medium** - UI work + wiring existing infrastructure
 
 ### Dependencies
-- Church shop UI (exists)
-- CharacterSaveData persistence (exists)
+- Shop system (Complete)
+- CharacterSaveData persistence (Complete)
+- EquipmentManager for uncurse (Complete)
 
 ---
 
@@ -533,14 +520,14 @@ Documentation only:
 |------|----------|--------|--------|--------|
 | ~~1. Item Effects~~ | ~~High~~ | ~~Simple~~ | ~~High~~ | ✅ COMPLETE |
 | ~~4. Floating Numbers~~ | ~~Medium~~ | ~~Simple~~ | ~~High~~ | ✅ COMPLETE |
-| 1. Spell Progression | High | Medium | High | Next |
-| 2. Retreat/Resurrect | High | Medium | High | Pending |
-| 3. Victory/Defeat | Medium | Simple | Medium | Pending |
-| 4. Level-Up UI | Low | Simple | Low | Pending |
-| 5. Field Magic | Medium | Medium | Medium | Pending |
-| 6. Search System | Low | Medium | Low | Pending |
-| 7. Field Mod Ext | Low | Simple | Low | Pending |
-| 8. Mod Docs | Low | Simple | Low | Pending |
+| ~~Spell Progression~~ | ~~High~~ | ~~Medium~~ | ~~High~~ | ✅ COMPLETE |
+| 1. Church Services | High | Medium | High | Next |
+| 2. Victory/Defeat | Medium | Simple | Medium | Pending |
+| 3. Level-Up UI | Low | Simple | Low | Pending |
+| 4. Field Magic | Medium | Medium | Medium | Pending |
+| 5. Search System | Low | Medium | Low | Pending |
+| 6. Field Mod Ext | Low | Simple | Low | Pending |
+| 7. Mod Docs | Low | Simple | Low | Pending |
 
 ---
 
@@ -548,9 +535,9 @@ Documentation only:
 
 | Category | Tasks | Hours |
 |----------|-------|-------|
-| Simple | 3, 4, 7, 8 | 8-12 |
-| Medium | 1, 2, 5, 6 | 16-24 |
-| **Total** | | **24-36 hours** |
+| Simple | 2, 3, 6, 7 | 8-12 |
+| Medium | 1, 4, 5 | 12-18 |
+| **Total** | | **20-30 hours** |
 
 ---
 
@@ -558,7 +545,7 @@ Documentation only:
 
 ### Unit Tests Required
 - ~~Item effect application (heal, damage)~~ ✅ Verified manually
-- Spell level filtering
+- ~~Spell level filtering~~ ✅ Implemented via get_unlocked_class_abilities()
 - Retreat state transitions
 - Hidden item discovery
 
@@ -569,12 +556,13 @@ Documentation only:
 - Field menu magic casting
 
 ### Manual Testing Checklist
-- [ ] Use Healing Herb on injured ally in battle
-- [ ] Cast Blaze on enemy, see floating damage
+- [x] Use Healing Herb on injured ally in battle
+- [x] Cast Blaze on enemy, see floating damage
 - [ ] Level up and learn new spell
 - [ ] Win battle, see gold earned
 - [ ] Lose battle, see gold penalty
-- [ ] Unit dies, resurrect at church
+- [ ] Visit church, see services menu (heal/revive/uncurse)
+- [ ] Unit dies in battle, revive at church
 - [ ] Cast Egress in dungeon, return to town
 - [ ] Search tile, find hidden item
 - [ ] Add mod with custom field menu option

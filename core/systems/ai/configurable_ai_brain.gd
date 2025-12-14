@@ -103,7 +103,7 @@ func _execute_aggressive(unit: Node2D, context: Dictionary, behavior: AIBehavior
 
 	# If already in attack range, attack immediately
 	if is_in_attack_range(unit, target):
-		if delay_before_attack > 0:
+		if delay_before_attack > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_before_attack).timeout
 		await attack_target(unit, target)
 		return
@@ -113,12 +113,12 @@ func _execute_aggressive(unit: Node2D, context: Dictionary, behavior: AIBehavior
 
 	if moved:
 		await unit.await_movement_completion()
-		if delay_after_movement > 0:
+		if delay_after_movement > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_after_movement).timeout
 
-	# Attack if now in range
-	if is_in_attack_range(unit, target):
-		if delay_before_attack > 0:
+	# Attack if now in range (verify target still alive after movement)
+	if target.is_alive() and is_in_attack_range(unit, target):
+		if delay_before_attack > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_before_attack).timeout
 		await attack_target(unit, target)
 
@@ -135,12 +135,12 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 	var delay_before_attack: float = delays.get("before_attack", 0.3)
 	var delay_after_movement: float = delays.get("after_movement", 0.5)
 
-	# Check for adjacent targets first - attack immediately if found
+	# Check for targets in attack range first - attack immediately if found
 	for target: Node2D in player_units:
 		if not target.is_alive():
 			continue
 		if is_in_attack_range(unit, target):
-			if delay_before_attack > 0:
+			if delay_before_attack > 0 and unit.get_tree():
 				await unit.get_tree().create_timer(delay_before_attack).timeout
 			await attack_target(unit, target)
 			return
@@ -167,12 +167,12 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 	var moved: bool = move_toward_target(unit, nearest.grid_position)
 	if moved:
 		await unit.await_movement_completion()
-		if delay_after_movement > 0:
+		if delay_after_movement > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_after_movement).timeout
 
-	# Attack if we're in engagement mode and now in range
-	if should_attack_after_move and is_in_attack_range(unit, nearest):
-		if delay_before_attack > 0:
+	# Attack if we're in engagement mode and now in range (verify target still alive)
+	if should_attack_after_move and nearest.is_alive() and is_in_attack_range(unit, nearest):
+		if delay_before_attack > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_before_attack).timeout
 		await attack_target(unit, nearest)
 
@@ -1132,8 +1132,17 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 	var intercept_pos: Vector2i = _calculate_intercept_position(unit, vip, nearest_threat)
 
 	if intercept_pos == unit.grid_position:
-		# Already in position - stay put (cautious)
-		return
+		# Already in position - but still check for attack opportunity
+		for opponent: Node2D in opponents:
+			if not opponent.is_alive():
+				continue
+			if is_in_attack_range(unit, opponent):
+				var delay_before: float = delays.get("before_attack", 0.3)
+				if delay_before > 0 and unit.get_tree():
+					await unit.get_tree().create_timer(delay_before).timeout
+				await attack_target(unit, opponent)
+				return
+		return  # No attack possible, stay in position
 
 	# Move toward intercept position
 	var moved: bool = move_toward_target(unit, intercept_pos)

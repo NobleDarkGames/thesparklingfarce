@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://c5nn0fidqe7rl"]
+[gd_scene load_steps=15 format=4 uid="uid://c5nn0fidqe7rl"]
 
 [ext_resource type="Script" uid="uid://cmlikssjlryxa" path="res://mods/_sandbox/maps/noobington.gd" id="1_pm0su"]
 [ext_resource type="TileSet" uid="uid://dsgco58wfm80c" path="res://mods/_base_game/tilesets/terrain_placeholder.tres" id="1_tileset"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_vxvmt"]
 [ext_resource type="Texture2D" uid="uid://bj2n0klir1s7w" path="res://mods/_sandbox/assets/portraits/npc.png" id="9_o3pj2"]
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="10_2g16w"]
+[ext_resource type="Resource" uid="uid://bp6y8qpr5n00l" path="res://mods/_sandbox/data/npcs/church_priest.tres" id="11_2g16w"]
 [ext_resource type="Resource" uid="uid://dr2daosonooig" path="res://mods/_sandbox/data/npcs/npc_1765070024.tres" id="11_o3pj2"]
 [ext_resource type="Texture2D" uid="uid://dkkc3n0j1c736" path="res://core/assets/defaults/portraits/default_npc_portrait.png" id="12_8nygf"]
 
@@ -108,3 +109,8 @@ npc_data = ExtResource("11_o3pj2")
 position = Vector2(464, -48)
 script = ExtResource("6_vxvmt")
 npc_data = SubResource("Resource_wb0gl")
+
+[node name="ChurchPriest" type="Area2D" parent="NPCs"]
+position = Vector2(720, -368)
+script = ExtResource("6_vxvmt")
+npc_data = ExtResource("11_2g16w")

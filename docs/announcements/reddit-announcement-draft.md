@@ -22,7 +22,9 @@ Like many of you, we grew up with Shining Force. The promotion fanfare is burned
 
 We've also watched the Fire Emblem community thrive with tools like FEBuilder while the SF community has hex editors and dreams. We wanted to change that.
 
-**Our philosophy is simple:** The platform provides infrastructure. We'll be releasing with *something* of a game, but the game is just a mod. Read that again. **The game is just a mod.**
+**Our philosophy is simple:** The platform provides infrastructure, the game is just a mod. Read that again. **The game is just a mod.**
+
+You can play the Shining Force style game you like, but *so can everyone else*. 
 
 Everything - characters, items, battles, campaigns - lives in the `mods/` folder. The "base game" uses the exact same systems that your total conversion mod will use. There's no hardcoded content. If we can override it, you can override it. And if we can't, then we redesign until we CAN. 
 
@@ -164,7 +166,7 @@ All in all, the platform design is meant to support the best of all the games - 
 
 This is where we're most proud. No hex editing. No ROM corruption. Visual tools built right into the Godot editor.
 
-### 16+ Specialized Editors:
+### 15+ Specialized Editors:
 - **Character Editor** - stats, portraits, starting equipment
 - **Class Editor** - growth rates, promotions, abilities, equipment restrictions
 - **Item Editor** - equipment stats, consumables, key items
@@ -172,7 +174,7 @@ This is where we're most proud. No hex editing. No ROM corruption. Visual tools 
 - **Battle Editor** - enemy placement, victory/defeat conditions, terrain
 - **Campaign Editor** - visual node graph for campaign flow
 - **Dialogue Editor** - branching conversations with conditions
-- **Cinematic Editor** - cutscenes with 19 command types (camera, movement, fade, sound, shop, parallel execution, and more)
+- **Cinematic Editor** - cutscenes with 15 command types (camera, movement, fade, sound)
 - **Map Metadata Editor** - spawn points, Caravan visibility, connections
 - **Shop Editor** - inventory, pricing, shop type configuration
 - **Terrain Editor** - defense bonuses, movement costs by type
@@ -180,7 +182,6 @@ This is where we're most proud. No hex editing. No ROM corruption. Visual tools 
 - **Party Editor** - starting party configurations
 - **Save Editor** - debug tool for save files
 - **Mod JSON Editor** - edit mod manifests
-- **New Game Config Editor** - define starting conditions, campaigns, and difficulty presets
 
 All editors use live preview and integrate with Godot's inspector system.
 
@@ -217,7 +218,7 @@ Things you can't easily do with ROM hacking that The Sparkling Farce is **design
 - Create total conversion mods that completely replace the base game
 - Share mod packs that depend on other mods (expansion pack ecosystem)
 - Register custom debug console commands for testing (oh right, we also have a debug command console built in)
-- Use 19 cinematic commands to create cutscenes **without code**
+- Use 15 cinematic commands to create cutscenes **without code**
 - Configure AI behaviors without programming
 
 All in a cross-platform engine that exports to Windows, Linux, Mac, and potentially more.
@@ -313,7 +314,7 @@ The platform is in active development. We're showing working code because we've 
 
 - **Engine:** Godot 4.5
 - **Language:** GDScript (strict typing throughout)
-- **Test Coverage:** 40+ test files, gdUnit4 framework
+- **Test Coverage:** 36 test files, gdUnit4 framework
 - **Platforms:** Development on Linux, but Godot exports to **Windows, Mac, Linux, and more**. Cross-platform from day one - this isn't a Linux-only project.
 
 **Want to see it in action?** 

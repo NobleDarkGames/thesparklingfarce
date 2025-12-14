@@ -1,4 +1,4 @@
-It's time for a thorough audit of our Sparkling Editor.  I want Modro, Ed, Clauderina and Chief Obrien to all do a comprehensive review of the Sparkling Editor, focusing on that agent's specialities.  All agents, however, should consider concepts like the following:
+It's time for a thorough audit of our Sparkling Editor.  I want Modro, Ed, Clauderina and Burt Macklin to all do a comprehensive review of the Sparkling Editor, focusing on that agent's specialities.  All agents, however, should consider concepts like the following:
 
 Is it easy to achieve the purpose of this editor tab in a few simple steps?
 Are we using all the best patterns from the other tabs where appropriate?

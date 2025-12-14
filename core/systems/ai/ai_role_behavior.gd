@@ -212,6 +212,7 @@ func _get_best_position_toward(unit: Node2D, target_pos: Vector2i, context: Dict
 
 
 ## Check if unit is in attack range of target
+## Uses unit's equipped weapon range (min/max) to support ranged weapons and dead zones
 func _is_in_attack_range(unit: Node2D, target: Node2D) -> bool:
 	if not unit or not target:
 		return false
@@ -219,19 +220,21 @@ func _is_in_attack_range(unit: Node2D, target: Node2D) -> bool:
 	if "grid_position" not in unit or "grid_position" not in target:
 		return false
 
-	var attack_range: int = _get_attack_range(unit)
 	var distance: int = _get_manhattan_distance(unit.grid_position, target.grid_position)
-	return distance <= attack_range
+
+	# Use unit's weapon range from stats (handles min/max range bands)
+	if "stats" in unit and unit.stats:
+		return unit.stats.can_attack_at_distance(distance)
+
+	# Fallback: unarmed melee (range 1 only)
+	return distance == 1
 
 
-## Get unit's attack range
+## Get unit's maximum attack range
 func _get_attack_range(unit: Node2D) -> int:
-	# Default melee range
-	var attack_range: int = 1
-
-	# Check equipped weapon range
-	# TODO: Implement proper equipment checking
-	return attack_range
+	if "stats" in unit and unit.stats:
+		return unit.stats.get_weapon_max_range()
+	return 1  # Fallback melee
 
 
 ## Check if unit should retreat based on behavior configuration

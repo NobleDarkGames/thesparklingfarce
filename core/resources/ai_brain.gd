@@ -73,19 +73,22 @@ func find_nearest_target(unit: Node2D, targets: Array[Node2D]) -> Node2D:
 
 
 ## Helper: Check if target is in attack range
+## Uses unit's equipped weapon range (min/max) to support ranged weapons and dead zones
 func is_in_attack_range(unit: Node2D, target: Node2D) -> bool:
 	if not unit or not target:
 		return false
-
-	# TODO Phase 4: Get actual weapon range from equipment
-	var attack_range: int = 1  # Melee only for Phase 3
 
 	var distance: int = GridManager.grid.get_manhattan_distance(
 		unit.grid_position,
 		target.grid_position
 	)
 
-	return distance <= attack_range
+	# Use unit's weapon range from stats (handles min/max range bands)
+	if unit.stats:
+		return unit.stats.can_attack_at_distance(distance)
+
+	# Fallback: unarmed melee (range 1 only)
+	return distance == 1
 
 
 ## Helper: Move unit toward target position
