@@ -15,7 +15,7 @@ extends RefCounted
 const OrderQueueScript: GDScript = preload("res://scenes/ui/shops/order_queue.gd")
 
 ## Shopping modes
-enum Mode { BUY, SELL, DEALS }
+enum Mode { BUY, SELL, DEALS, HEAL, REVIVE, UNCURSE }
 
 ## The ShopData resource for the current shop
 var shop: ShopData = null

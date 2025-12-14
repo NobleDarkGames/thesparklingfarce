@@ -58,6 +58,7 @@ const DEFAULTS: Dictionary = {
 	"battle_animations": true,  # Show combat animations
 	"auto_end_turn": false,  # Auto-advance after actions
 	"confirm_attacks": true,  # Require confirmation before attacking
+	"church_revival_hp_percent": 0,  # 0 = 1 HP (SF2-authentic), 1-100 = percentage of max HP
 
 	# Accessibility
 	"screen_shake": true,
@@ -194,6 +195,14 @@ func is_attack_confirmation_enabled() -> bool:
 
 func set_attack_confirmation(enabled: bool) -> void:
 	_set_setting("confirm_attacks", enabled)
+
+
+func get_church_revival_hp_percent() -> int:
+	return _get_setting("church_revival_hp_percent")
+
+
+func set_church_revival_hp_percent(percent: int) -> void:
+	_set_setting("church_revival_hp_percent", clampi(percent, 0, 100))
 
 
 # ============================================================================

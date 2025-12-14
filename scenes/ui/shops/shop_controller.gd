@@ -40,6 +40,10 @@ const SCREEN_PATHS: Dictionary = {
 	"sell_confirm": "res://scenes/ui/shops/screens/sell_confirm.tscn",
 	"confirm_transaction": "res://scenes/ui/shops/screens/confirm_transaction.tscn",
 	"transaction_result": "res://scenes/ui/shops/screens/transaction_result.tscn",
+	# Church screens
+	"church_action_select": "res://scenes/ui/shops/screens/church_action_select.tscn",
+	"church_char_select": "res://scenes/ui/shops/screens/church_char_select.tscn",
+	"church_slot_select": "res://scenes/ui/shops/screens/church_slot_select.tscn",
 }
 
 ## Node references
@@ -97,8 +101,11 @@ func open_shop(shop_data: ShopData, save_data: SaveData) -> void:
 	show_queue_panel(false)
 	show()
 
-	# Start with action select (greetings handled by cinematics)
-	push_screen("action_select")
+	# Start with appropriate action select based on shop type
+	if shop_data.shop_type == ShopData.ShopType.CHURCH:
+		push_screen("church_action_select")
+	else:
+		push_screen("action_select")
 
 
 ## Update gold display (call after any transaction)

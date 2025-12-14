@@ -528,12 +528,23 @@ func church_heal(character_uid: String) -> Dictionary:
 	if current_shop.shop_type != ShopData.ShopType.CHURCH:
 		return {success = false, error = "Not a church", cost = 0}
 
+	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
+	if not save_data:
+		return {success = false, error = "Character not found", cost = 0}
+
+	# Check if healing is needed
+	if save_data.current_hp >= save_data.max_hp and save_data.current_mp >= save_data.max_mp:
+		return {success = false, error = "Character is already at full health", cost = 0}
+
 	var cost: int = current_shop.heal_cost
 	if _get_gold() < cost:
 		return {success = false, error = "Not enough gold", cost = cost}
 
-	# TODO: Integrate with health system when implemented
-	# For now, just deduct gold
+	# Restore HP and MP to max
+	save_data.current_hp = save_data.max_hp
+	save_data.current_mp = save_data.max_mp
+
+	# Deduct gold
 	var old_gold: int = _get_gold()
 	_set_gold(old_gold - cost)
 	gold_changed.emit(old_gold, old_gold - cost)
@@ -555,11 +566,23 @@ func church_revive(character_uid: String) -> Dictionary:
 	if not save_data:
 		return {success = false, error = "Character not found", cost = 0}
 
+	# Check if character is actually dead
+	if save_data.is_alive:
+		return {success = false, error = "Character is not dead", cost = 0}
+
 	var cost: int = current_shop.get_revival_cost(save_data.level)
 	if _get_gold() < cost:
 		return {success = false, error = "Not enough gold", cost = cost}
 
-	# TODO: Integrate with death/revival system when implemented
+	# Revive with HP based on global setting
+	save_data.is_alive = true
+	var hp_percent: int = SettingsManager.get_church_revival_hp_percent()
+	if hp_percent <= 0:
+		save_data.current_hp = 1  # SF2-authentic: revive with 1 HP
+	else:
+		save_data.current_hp = maxi(1, save_data.max_hp * hp_percent / 100)
+
+	# Deduct gold
 	var old_gold: int = _get_gold()
 	_set_gold(old_gold - cost)
 	gold_changed.emit(old_gold, old_gold - cost)

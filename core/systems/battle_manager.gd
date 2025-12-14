@@ -1537,6 +1537,8 @@ func _get_unit_weapon_max_range(unit: Node2D) -> int:
 
 ## Handle unit death - called when unit.died signal is emitted
 func _on_unit_died(unit: Node2D) -> void:
+	# Persist death to CharacterSaveData for player units
+	_persist_unit_death(unit)
 
 	# Visual feedback (fade out) - skip in headless mode
 	if "modulate" in unit and not TurnManager.is_headless:
@@ -1547,6 +1549,28 @@ func _on_unit_died(unit: Node2D) -> void:
 	# Unit stays in scene but is marked dead
 	# TurnManager will skip dead units
 	# Note: GridManager already cleared by Unit before emitting signal
+
+
+## Persist unit death to CharacterSaveData (for player units only)
+## This allows church revival to know which characters are dead
+func _persist_unit_death(unit: Node2D) -> void:
+	# Only persist for player faction
+	if not unit or unit.faction != "player":
+		return
+
+	# Get character UID
+	if not unit.character_data:
+		return
+
+	var char_uid: String = unit.character_data.character_uid
+	if char_uid.is_empty():
+		return
+
+	# Get save data and mark as dead
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
+	if save_data:
+		save_data.is_alive = false
+		print("[BattleManager] Unit '%s' died - is_alive set to false" % unit.get_display_name())
 
 
 ## Handle unit death (direct call - RARELY NEEDED)
@@ -1570,6 +1594,9 @@ func _on_battle_ended(victory: bool) -> void:
 	if not victory:
 		push_warning("BattleManager: _on_battle_ended(false) should not occur - defeat uses hero_died_in_battle")
 		return
+
+	# Sync surviving units' HP/MP to save data (dead units already marked during battle)
+	_sync_surviving_units_to_save_data()
 
 	GameState.increment_campaign_data("battles_won")
 
@@ -1854,9 +1881,27 @@ func _revive_all_party_members(full_restoration: bool) -> void:
 		var uid: String = character.character_uid
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
 		if save_data:
+			save_data.is_alive = true
 			save_data.current_hp = save_data.max_hp
 			save_data.current_mp = save_data.max_mp
 			# TODO: Clear status ailments when status system is implemented
+
+
+## Sync all surviving player units' HP/MP to their CharacterSaveData after battle
+## Called after victory to persist current state (dead units already marked via _persist_unit_death)
+func _sync_surviving_units_to_save_data() -> void:
+	for unit: Node2D in player_units:
+		if not is_instance_valid(unit) or not unit.is_alive:
+			continue
+		if not unit.character_data:
+			continue
+		var char_uid: String = unit.character_data.character_uid
+		if char_uid.is_empty():
+			continue
+		var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
+		if save_data:
+			save_data.current_hp = unit.current_hp
+			save_data.current_mp = unit.current_mp
 
 
 ## Show a brief exit message for voluntary battle exits (Egress/Angel Wing)

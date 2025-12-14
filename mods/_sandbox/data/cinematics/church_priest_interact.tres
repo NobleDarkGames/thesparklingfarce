@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CinematicData" load_steps=2 format=3 uid="uid://cn5x8qpr4m9yk"]
+
+[ext_resource type="Script" path="res://core/resources/cinematic_data.gd" id="1_cinematic_data"]
+
+[resource]
+script = ExtResource("1_cinematic_data")
+cinematic_id = "church_priest_interact"
+cinematic_name = "Church Priest Interaction"
+description = "The priest greets the player and offers church services"
+commands = Array[Dictionary]([{
+"type": "show_dialog",
+"params": {
+"lines": [{"speaker_name": "Priest", "text": "Welcome, weary traveler. How may I serve you?", "emotion": "neutral"}]
+}
+}, {
+"type": "open_shop",
+"params": {
+"shop_id": "sandbox_church"
+}
+}, {
+"type": "show_dialog",
+"params": {
+"lines": [{"speaker_name": "Priest", "text": "May light guide your path...", "emotion": "neutral"}]
+}
+}])
+disable_player_input = true
+can_skip = false

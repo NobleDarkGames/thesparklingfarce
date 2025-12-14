@@ -102,15 +102,27 @@ func _show_sell_complete(result: Dictionary) -> void:
 
 
 func _on_continue_pressed() -> void:
-	# Clear history and go back to item browser
+	# Clear history and go back to appropriate screen based on mode
 	context.clear_history()
-	push_screen("item_browser")
+	if _is_church_mode():
+		push_screen("church_char_select")
+	else:
+		push_screen("item_browser")
 
 
 func _on_done_pressed() -> void:
 	# Clear history and go to action select
 	context.clear_history()
-	push_screen("action_select")
+	if _is_church_mode():
+		push_screen("church_action_select")
+	else:
+		push_screen("action_select")
+
+
+func _is_church_mode() -> bool:
+	if not context:
+		return false
+	return context.mode in [ShopContextScript.Mode.HEAL, ShopContextScript.Mode.REVIVE, ShopContextScript.Mode.UNCURSE]
 
 
 func _get_character_name(uid: String) -> String:
