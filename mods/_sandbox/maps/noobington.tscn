@@ -8,7 +8,6 @@
 [ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_vxvmt"]
 [ext_resource type="Texture2D" uid="uid://bj2n0klir1s7w" path="res://mods/_sandbox/assets/portraits/npc.png" id="9_o3pj2"]
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="10_2g16w"]
-[ext_resource type="Resource" uid="uid://bp6y8qpr5n00l" path="res://mods/_sandbox/data/npcs/church_priest.tres" id="11_2g16w"]
 [ext_resource type="Resource" uid="uid://dr2daosonooig" path="res://mods/_sandbox/data/npcs/npc_1765070024.tres" id="11_o3pj2"]
 [ext_resource type="Texture2D" uid="uid://dkkc3n0j1c736" path="res://core/assets/defaults/portraits/default_npc_portrait.png" id="12_8nygf"]
 
@@ -32,6 +31,13 @@ npc_id = "noobington_shopkeep"
 npc_name = "Shopkeep"
 portrait = ExtResource("12_8nygf")
 interaction_cinematic_id = "noobington_shopkeep_interact"
+
+[sub_resource type="Resource" id="Resource_uy22e"]
+script = ExtResource("10_2g16w")
+npc_id = "church_priest"
+npc_name = "Priest"
+portrait = ExtResource("9_o3pj2")
+interaction_cinematic_id = "church_priest_dialog"
 
 [node name="Noobington" type="Node2D"]
 script = ExtResource("1_pm0su")
@@ -113,4 +119,4 @@ npc_data = SubResource("Resource_wb0gl")
 [node name="ChurchPriest" type="Area2D" parent="NPCs"]
 position = Vector2(720, -368)
 script = ExtResource("6_vxvmt")
-npc_data = ExtResource("11_2g16w")
+npc_data = SubResource("Resource_uy22e")

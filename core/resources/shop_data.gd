@@ -57,10 +57,6 @@ enum ShopType {
 ## Example: "Come again!"
 @export var farewell_text: String = "Come again!"
 
-## NPC ID that owns this shop (for portrait, name lookup)
-## Links to existing NPCData resource
-@export var npc_id: String = ""
-
 # ============================================================================
 # INVENTORY
 # ============================================================================

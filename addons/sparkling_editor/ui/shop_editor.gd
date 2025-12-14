@@ -16,7 +16,6 @@ var shop_type_option: OptionButton
 # Presentation
 var greeting_edit: TextEdit
 var farewell_edit: LineEdit
-var npc_picker: OptionButton
 
 # Inventory
 var inventory_container: VBoxContainer
@@ -106,7 +105,6 @@ func _load_resource_data() -> void:
 	# Presentation
 	greeting_edit.text = shop.greeting_text
 	farewell_edit.text = shop.farewell_text
-	_select_npc(shop.npc_id)
 
 	# Inventory
 	_current_inventory = shop.inventory.duplicate(true)
@@ -157,7 +155,6 @@ func _save_resource_data() -> void:
 	# Presentation
 	shop.greeting_text = greeting_edit.text
 	shop.farewell_text = farewell_edit.text.strip_edges()
-	shop.npc_id = _get_selected_npc_id()
 
 	# Inventory
 	shop.inventory = _current_inventory.duplicate(true)
@@ -342,22 +339,6 @@ func _add_presentation_section() -> void:
 	farewell_edit.text_changed.connect(_mark_dirty)
 	farewell_container.add_child(farewell_edit)
 	section.add_child(farewell_container)
-
-	# NPC Picker
-	var npc_container: HBoxContainer = HBoxContainer.new()
-	var npc_label: Label = Label.new()
-	npc_label.text = "Shopkeeper NPC:"
-	npc_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
-	npc_label.tooltip_text = "Optional: Link to an NPCData for portrait/name"
-	npc_container.add_child(npc_label)
-
-	npc_picker = OptionButton.new()
-	npc_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_picker.tooltip_text = "Optional NPC to display as shopkeeper. Uses their portrait and name in shop UI."
-	npc_picker.item_selected.connect(func(_idx: int) -> void: _mark_dirty())
-	_populate_npc_picker()
-	npc_container.add_child(npc_picker)
-	section.add_child(npc_container)
 
 	detail_panel.add_child(section)
 
@@ -877,12 +858,9 @@ func _refresh_caches() -> void:
 
 
 ## Override: Called when dependent resource types change (via base class)
-## Refreshes caches when items or NPCs are created/saved/deleted in other tabs
-func _on_dependencies_changed(changed_type: String) -> void:
+## Refreshes caches when items are created/saved/deleted in other tabs
+func _on_dependencies_changed(_changed_type: String) -> void:
 	_refresh_caches()
-	# Re-populate NPC picker when NPCs change
-	if changed_type == "npc":
-		_populate_npc_picker()
 
 
 func _refresh_inventory_list() -> void:
@@ -936,36 +914,6 @@ func _item_exists(item_id: String) -> bool:
 	return false
 
 
-func _populate_npc_picker() -> void:
-	npc_picker.clear()
-	npc_picker.add_item("(None)", 0)
-	npc_picker.set_item_metadata(0, "")
-
-	var idx: int = 1
-	for npc: Resource in _npcs_cache:
-		var npc_data: NPCData = npc as NPCData
-		if npc_data:
-			var display: String = npc_data.npc_name if not npc_data.npc_name.is_empty() else npc_data.npc_id
-			npc_picker.add_item(display, idx)
-			npc_picker.set_item_metadata(idx, npc_data.npc_id)
-			idx += 1
-
-
-func _select_npc(npc_id: String) -> void:
-	for i in range(npc_picker.item_count):
-		if npc_picker.get_item_metadata(i) == npc_id:
-			npc_picker.select(i)
-			return
-	npc_picker.select(0)  # Default to "(None)"
-
-
-func _get_selected_npc_id() -> String:
-	var idx: int = npc_picker.selected
-	if idx >= 0:
-		return npc_picker.get_item_metadata(idx)
-	return ""
-
-
 func _parse_flags(text: String) -> Array[String]:
 	var flags: Array[String] = []
 	var parts: PackedStringArray = text.split(",")
@@ -979,5 +927,4 @@ func _parse_flags(text: String) -> Array[String]:
 ## Override refresh to also refresh caches
 func refresh() -> void:
 	_refresh_caches()
-	_populate_npc_picker()
 	super.refresh()

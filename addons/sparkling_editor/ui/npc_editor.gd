@@ -26,6 +26,16 @@ var template_option: OptionButton
 # Track if ID should auto-generate from name
 var _id_is_locked: bool = false
 
+# Quick Setup section (new simplified NPC role system)
+var quick_setup_section: VBoxContainer
+var npc_role_option: OptionButton
+var shop_id_row: HBoxContainer
+var shop_id_edit: LineEdit
+var shop_id_picker: ResourcePicker
+var greeting_text_edit: TextEdit
+var farewell_text_edit: TextEdit
+var quick_setup_status: Label
+
 # NPC Templates - preset configurations for common NPC types
 const NPC_TEMPLATES: Dictionary = {
 	"custom": {"label": "Custom NPC", "name": "", "dialog": "", "face_player": true},
@@ -139,6 +149,7 @@ func _create_detail_form() -> void:
 	detail_panel = form_container
 
 	_add_basic_info_section()
+	_add_quick_setup_section()
 	_add_quick_dialog_section()
 	_add_place_on_map_section()
 	_add_advanced_options_section()
@@ -175,6 +186,24 @@ func _load_resource_data() -> void:
 		character_picker.select_none()
 
 	_update_appearance_section_visibility()
+
+	# Load Quick Setup fields
+	if npc_role_option:
+		npc_role_option.select(npc.npc_role as int)
+	if shop_id_picker and not npc.shop_id.is_empty():
+		# Try to find and select the shop resource
+		var shop_res: Resource = ModLoader.registry.get_resource("shop", npc.shop_id) if ModLoader and ModLoader.registry else null
+		if shop_res:
+			shop_id_picker.select_resource(shop_res)
+		else:
+			shop_id_picker.select_none()
+	elif shop_id_picker:
+		shop_id_picker.select_none()
+	if greeting_text_edit:
+		greeting_text_edit.text = npc.greeting_text
+	if farewell_text_edit:
+		farewell_text_edit.text = npc.farewell_text
+	_update_quick_setup_visibility()
 
 	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
 	portrait_path_edit.text = portrait_path
@@ -219,6 +248,20 @@ func _save_resource_data() -> void:
 	npc.npc_name = npc_name_edit.text.strip_edges()
 	npc.character_data = character_picker.get_selected_resource() as CharacterData
 
+	# Save Quick Setup fields
+	if npc_role_option:
+		npc.npc_role = npc_role_option.selected as NPCData.NPCRole
+	if shop_id_picker:
+		var selected_shop: Resource = shop_id_picker.get_selected_resource()
+		if selected_shop and "shop_id" in selected_shop:
+			npc.shop_id = selected_shop.shop_id
+		else:
+			npc.shop_id = ""
+	if greeting_text_edit:
+		npc.greeting_text = greeting_text_edit.text.strip_edges()
+	if farewell_text_edit:
+		npc.farewell_text = farewell_text_edit.text.strip_edges()
+
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
 	npc.portrait = load(portrait_path) as Texture2D if not portrait_path.is_empty() and ResourceLoader.exists(portrait_path) else null
 
@@ -242,14 +285,23 @@ func _validate_resource() -> Dictionary:
 	if npc_id.is_empty():
 		errors.append("NPC ID is required")
 
+	# Check Quick Setup validity
+	var has_quick_setup: bool = _has_valid_quick_setup()
+
 	var primary_id: String = interaction_cinematic_edit.text.strip_edges()
 	var fallback_id: String = fallback_cinematic_edit.text.strip_edges()
 	var has_primary: bool = not primary_id.is_empty()
 	var has_fallback: bool = not fallback_id.is_empty()
 	var has_conditional: bool = _has_valid_conditional()
 
-	# No dialog is now allowed (decorative NPCs, dialog added later, etc.)
-	if not has_primary and not has_fallback and not has_conditional:
+	# Quick Setup validation - require shop_id for non-caravan roles
+	var selected_role: int = npc_role_option.selected if npc_role_option else 0
+	if selected_role > 0 and selected_role != 4:  # Role set but not CARAVAN_DEPOT
+		if not shop_id_picker or not shop_id_picker.has_selection():
+			errors.append("Quick Setup: Shop must be selected for this role")
+
+	# No dialog is allowed if using Quick Setup (decorative NPCs, dialog added later, etc.)
+	if not has_primary and not has_fallback and not has_conditional and not has_quick_setup:
 		warnings.append("NPC has no dialog - interacting will do nothing")
 
 	var cinematics_dir: String = _get_active_mod_cinematics_path()
@@ -288,6 +340,11 @@ func _create_new_resource() -> Resource:
 	new_npc.interaction_cinematic_id = ""
 	new_npc.fallback_cinematic_id = ""
 	new_npc.conditional_cinematics = []
+	# Quick Setup defaults
+	new_npc.npc_role = NPCData.NPCRole.NONE
+	new_npc.shop_id = ""
+	new_npc.greeting_text = ""
+	new_npc.farewell_text = ""
 
 	# Set default placeholder portrait (from core, always available)
 	if ResourceLoader.exists(DEFAULT_NPC_PORTRAIT):
@@ -371,6 +428,81 @@ func _add_basic_info_section() -> void:
 	section.add_child(character_picker)
 
 	SparklingEditorUtils.create_help_label("If set, portrait and sprite come from the character. Otherwise use fallback below.", section)
+
+
+func _add_quick_setup_section() -> void:
+	quick_setup_section = SparklingEditorUtils.create_section("Quick Setup (Shop/Service NPCs)", detail_panel)
+
+	# Status label for Quick Setup state
+	quick_setup_status = Label.new()
+	quick_setup_status.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
+	quick_setup_status.visible = false
+	quick_setup_section.add_child(quick_setup_status)
+
+	# NPC Role dropdown
+	var role_row: HBoxContainer = SparklingEditorUtils.create_field_row("NPC Role:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, quick_setup_section)
+	npc_role_option = OptionButton.new()
+	npc_role_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	npc_role_option.tooltip_text = "Set a role to auto-generate shop/service behavior. Leave as 'None' for custom dialog NPCs."
+	npc_role_option.add_item("None (Custom Dialog)", 0)
+	npc_role_option.add_item("Shopkeeper", 1)
+	npc_role_option.add_item("Priest", 2)
+	npc_role_option.add_item("Innkeeper", 3)
+	npc_role_option.add_item("Caravan Depot", 4)
+	npc_role_option.item_selected.connect(_on_npc_role_changed)
+	role_row.add_child(npc_role_option)
+
+	SparklingEditorUtils.create_help_label("Select a role to simplify shop/church NPC creation", quick_setup_section)
+
+	# Shop ID field (uses ResourcePicker for shop selection)
+	shop_id_row = HBoxContainer.new()
+	shop_id_row.visible = false  # Hidden until role is selected
+	quick_setup_section.add_child(shop_id_row)
+
+	shop_id_picker = ResourcePicker.new()
+	shop_id_picker.resource_type = "shop"
+	shop_id_picker.label_text = "Shop:"
+	shop_id_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	shop_id_picker.allow_none = false
+	shop_id_picker.tooltip_text = "The shop this NPC will open. Must be created in the Shop Editor first."
+	shop_id_picker.resource_selected.connect(_on_shop_selected)
+	shop_id_row.add_child(shop_id_picker)
+
+	# Greeting text field
+	var greeting_container: VBoxContainer = VBoxContainer.new()
+	greeting_container.visible = false
+	greeting_container.name = "GreetingContainer"
+	quick_setup_section.add_child(greeting_container)
+
+	var greeting_label: Label = Label.new()
+	greeting_label.text = "Custom Greeting (optional):"
+	greeting_container.add_child(greeting_label)
+
+	greeting_text_edit = TextEdit.new()
+	greeting_text_edit.placeholder_text = "(Uses default for role)"
+	greeting_text_edit.custom_minimum_size.y = 50
+	greeting_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	greeting_text_edit.scroll_fit_content_height = true
+	greeting_text_edit.tooltip_text = "Custom greeting when player talks to this NPC. Leave empty for role default."
+	greeting_container.add_child(greeting_text_edit)
+
+	# Farewell text field
+	var farewell_container: VBoxContainer = VBoxContainer.new()
+	farewell_container.visible = false
+	farewell_container.name = "FarewellContainer"
+	quick_setup_section.add_child(farewell_container)
+
+	var farewell_label: Label = Label.new()
+	farewell_label.text = "Custom Farewell (optional):"
+	farewell_container.add_child(farewell_label)
+
+	farewell_text_edit = TextEdit.new()
+	farewell_text_edit.placeholder_text = "(Uses default for role)"
+	farewell_text_edit.custom_minimum_size.y = 50
+	farewell_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	farewell_text_edit.scroll_fit_content_height = true
+	farewell_text_edit.tooltip_text = "Custom farewell when player exits the shop. Leave empty for role default."
+	farewell_container.add_child(farewell_text_edit)
 
 
 func _add_appearance_fallback_section_to(parent: Control) -> void:
@@ -715,9 +847,115 @@ func _has_valid_conditional() -> bool:
 	return false
 
 
+## Check if Quick Setup is validly configured
+func _has_valid_quick_setup() -> bool:
+	if not npc_role_option:
+		return false
+	var role: int = npc_role_option.selected
+	if role == 0:  # NONE
+		return false
+	if role == 4:  # CARAVAN_DEPOT doesn't need shop_id
+		return true
+	# Other roles need a shop selected
+	return shop_id_picker and shop_id_picker.has_selection()
+
+
+## Update Quick Setup UI visibility based on selected role
+func _update_quick_setup_visibility() -> void:
+	if not npc_role_option:
+		return
+
+	var role: int = npc_role_option.selected
+	var is_role_selected: bool = role > 0  # Anything except NONE
+	var needs_shop: bool = role > 0 and role != 4  # Anything except NONE and CARAVAN_DEPOT
+
+	# Show/hide shop picker row
+	if shop_id_row:
+		shop_id_row.visible = needs_shop
+
+	# Show/hide greeting/farewell containers
+	var greeting_container: Control = quick_setup_section.get_node_or_null("GreetingContainer") if quick_setup_section else null
+	var farewell_container: Control = quick_setup_section.get_node_or_null("FarewellContainer") if quick_setup_section else null
+
+	if greeting_container:
+		greeting_container.visible = is_role_selected
+	if farewell_container:
+		farewell_container.visible = is_role_selected
+
+	# Update placeholder text based on role
+	_update_greeting_farewell_placeholders(role)
+
+	# Update status message
+	_update_quick_setup_status(role)
+
+
+## Update placeholder text for greeting/farewell based on role
+func _update_greeting_farewell_placeholders(role: int) -> void:
+	var greeting_default: String = "(Uses default for role)"
+	var farewell_default: String = "(Uses default for role)"
+
+	match role:
+		1:  # SHOPKEEPER
+			greeting_default = "Default: Welcome to my shop!"
+			farewell_default = "Default: Come again!"
+		2:  # PRIEST
+			greeting_default = "Default: Welcome, weary traveler. How may I serve you?"
+			farewell_default = "Default: May light guide your path..."
+		3:  # INNKEEPER
+			greeting_default = "Default: Welcome, traveler. Looking for a place to rest?"
+			farewell_default = "Default: Rest well!"
+		4:  # CARAVAN_DEPOT
+			greeting_default = "Default: The caravan is ready for your storage needs."
+			farewell_default = "Default: Safe travels!"
+
+	if greeting_text_edit:
+		greeting_text_edit.placeholder_text = greeting_default
+	if farewell_text_edit:
+		farewell_text_edit.placeholder_text = farewell_default
+
+
+## Update Quick Setup status message
+func _update_quick_setup_status(role: int) -> void:
+	if not quick_setup_status:
+		return
+
+	if role == 0:
+		quick_setup_status.visible = false
+		return
+
+	quick_setup_status.visible = true
+	var role_names: Array[String] = ["None", "Shopkeeper", "Priest", "Innkeeper", "Caravan Depot"]
+	var role_name: String = role_names[role] if role < role_names.size() else "Unknown"
+
+	if role == 4:  # CARAVAN_DEPOT
+		quick_setup_status.text = "Using Quick Setup: %s - will open caravan storage" % role_name
+		quick_setup_status.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+	elif shop_id_picker and shop_id_picker.has_selection():
+		quick_setup_status.text = "Using Quick Setup: %s - will auto-generate cinematic" % role_name
+		quick_setup_status.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+	else:
+		quick_setup_status.text = "Quick Setup: Select a shop for this %s" % role_name
+		quick_setup_status.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
+
+
 # =============================================================================
 # UI Event Handlers
 # =============================================================================
+
+## Handler for NPC Role dropdown change
+func _on_npc_role_changed(_index: int) -> void:
+	if _updating_ui:
+		return
+	_update_quick_setup_visibility()
+
+
+## Handler for Shop selection
+func _on_shop_selected(_metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
+	var role: int = npc_role_option.selected if npc_role_option else 0
+	_update_quick_setup_status(role)
+
 
 func _on_add_conditional() -> void:
 	_add_conditional_entry()

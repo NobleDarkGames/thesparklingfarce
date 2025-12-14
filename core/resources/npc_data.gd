@@ -9,6 +9,11 @@ extends Resource
 ## The cinematic can contain dialog, movement, camera effects, or any combination.
 ## This gives designers full control over what happens when you talk to an NPC.
 ##
+## QUICK SETUP (NEW):
+## For simple shop/church NPCs, set npc_role and shop_id instead of manually
+## creating cinematics. The system auto-generates: greeting -> open_shop -> farewell
+## Example: Set role=PRIEST, shop_id="granseal_church", done!
+##
 ## CONDITIONAL DIALOGS:
 ## NPCs can have different responses based on game state (story flags).
 ## Use conditional_cinematics to define priority-ordered conditions.
@@ -25,11 +30,41 @@ extends Resource
 ## Else if "chapter_2_started" is set, plays "elder_hint".
 ## Otherwise plays "elder_greeting".
 
+## NPC Role for Quick Setup - simplifies shop/service NPC creation
+enum NPCRole {
+	NONE,           ## Standard NPC - uses manual cinematic configuration
+	SHOPKEEPER,     ## Opens a weapon or item shop
+	PRIEST,         ## Opens a church (healing, revival, etc.)
+	INNKEEPER,      ## Opens an inn (rest/save)
+	CARAVAN_DEPOT   ## Opens the caravan storage interface
+}
+
 ## Unique identifier for this NPC (used in mod registry)
 @export var npc_id: String = ""
 
 ## Display name shown in dialogs and UI
 @export var npc_name: String = ""
+
+@export_group("Quick Setup")
+## NPC's role - set this for automatic shop/service behavior
+## When role != NONE and shop_id is set, cinematics are auto-generated
+@export var npc_role: NPCRole = NPCRole.NONE
+
+## Shop/service to open when interacting (requires npc_role != NONE)
+## For CARAVAN_DEPOT, leave empty - it opens the caravan interface directly
+@export var shop_id: String = ""
+
+## Custom greeting text (optional - uses role-specific default if empty)
+## Shopkeeper default: "Welcome to my shop!"
+## Priest default: "Welcome, weary traveler. How may I serve you?"
+## Innkeeper default: "Welcome, traveler. Looking for a place to rest?"
+@export_multiline var greeting_text: String = ""
+
+## Custom farewell text (optional - uses role-specific default if empty)
+## Shopkeeper default: "Come again!"
+## Priest default: "May light guide your path..."
+## Innkeeper default: "Rest well!"
+@export_multiline var farewell_text: String = ""
 
 ## Character data for portrait and sprite (optional)
 ## If set, the NPC's portrait and sprite come from this character.
@@ -74,6 +109,7 @@ extends Resource
 ## Get the appropriate cinematic ID based on current game state
 ## Checks conditional_cinematics in order, returns first match
 ## Falls back to interaction_cinematic_id, then fallback_cinematic_id
+## Finally, if NPC role is set, returns auto-generated cinematic ID
 func get_cinematic_id_for_state() -> String:
 	# Check conditional cinematics in priority order
 	for condition: Dictionary in conditional_cinematics:
@@ -90,12 +126,36 @@ func get_cinematic_id_for_state() -> String:
 		if (flag_set and not negate) or (not flag_set and negate):
 			return cinematic_id
 
-	# No conditions matched - use primary cinematic
+	# No conditions matched - use primary cinematic (explicit takes precedence)
 	if not interaction_cinematic_id.is_empty():
 		return interaction_cinematic_id
 
+	# Check for Quick Setup auto-generation
+	# Only triggers when: role is set AND no explicit cinematic is defined
+	if npc_role != NPCRole.NONE:
+		# CARAVAN_DEPOT doesn't need a shop_id, others do
+		if npc_role == NPCRole.CARAVAN_DEPOT or not shop_id.is_empty():
+			return _get_auto_cinematic_id()
+
 	# Last resort - use fallback
 	return fallback_cinematic_id
+
+
+## Generate auto-cinematic ID for Quick Setup NPCs
+## Format: __auto__{npc_id}_{shop_id} (parsed by CinematicsManager)
+func _get_auto_cinematic_id() -> String:
+	var effective_shop_id: String = shop_id if not shop_id.is_empty() else "caravan"
+	return "__auto__%s_%s" % [npc_id, effective_shop_id]
+
+
+## Check if this NPC uses Quick Setup (role-based auto-cinematics)
+func uses_quick_setup() -> bool:
+	if npc_role == NPCRole.NONE:
+		return false
+	# Must have shop_id set (except for CARAVAN_DEPOT which doesn't need one)
+	if npc_role == NPCRole.CARAVAN_DEPOT:
+		return true
+	return not shop_id.is_empty()
 
 
 ## Get the display name for this NPC
@@ -151,14 +211,16 @@ func validate() -> bool:
 		return false
 
 	# Must have at least one way to respond to interaction
+	# This includes: explicit cinematics OR Quick Setup role configuration
 	var has_response: bool = (
 		not interaction_cinematic_id.is_empty() or
 		not fallback_cinematic_id.is_empty() or
-		not conditional_cinematics.is_empty()
+		not conditional_cinematics.is_empty() or
+		uses_quick_setup()
 	)
 
 	if not has_response:
-		push_error("NPCData: NPC must have at least one cinematic defined")
+		push_error("NPCData: NPC must have at least one cinematic defined or use Quick Setup")
 		return false
 
 	return true
