@@ -372,6 +372,27 @@ func _get_resource_id(resource: Resource) -> String:
 	return resource.resource_path.get_file().get_basename()
 
 
+## Get the mod ID from a resource's path
+## Extracts mod folder name from paths like "res://mods/_base_game/data/..."
+## Also handles SubResource paths like "res://mods/.../file.tres::SubResource"
+func _get_mod_from_path(resource: Resource) -> String:
+	var path: String = resource.resource_path
+	# Handle SubResource paths - strip the ::SubResource suffix
+	if "::" in path:
+		path = path.split("::")[0]
+	if path.begins_with("res://mods/"):
+		var parts: PackedStringArray = path.split("/")
+		if parts.size() >= 4:
+			return parts[3]  # The mod folder name
+	return ""
+
+
+## Check if a resource is a SubResource (embedded in another file)
+func _is_subresource(resource: Resource) -> bool:
+	var path: String = resource.resource_path
+	return path.is_empty() or "::" in path
+
+
 ## Called when an item is selected in the dropdown
 func _on_item_selected(index: int) -> void:
 	var metadata: Variant = _option_button.get_item_metadata(index)
@@ -403,13 +424,18 @@ func _on_resource_deleted(res_type: String, _res_id: String) -> void:
 
 ## Select a resource by its metadata (mod_id + resource_id)
 func _select_by_metadata(metadata: Dictionary) -> void:
+	_try_select_by_metadata(metadata)
+
+
+## Try to select a resource by its metadata, returns true if found
+func _try_select_by_metadata(metadata: Dictionary) -> bool:
 	if not _option_button:
-		return
+		return false
 
 	if metadata.is_empty():
 		if allow_none:
 			_option_button.select(0)
-		return
+		return true  # Empty selection is valid
 
 	var target_mod_id: String = metadata.get("mod_id", "")
 	var target_resource_id: String = metadata.get("resource_id", "")
@@ -420,12 +446,67 @@ func _select_by_metadata(metadata: Dictionary) -> void:
 			if item_metadata.get("mod_id", "") == target_mod_id:
 				if item_metadata.get("resource_id", "") == target_resource_id:
 					_option_button.select(i)
-					return
+					return true
 
 	# Resource not found - might have been removed or mod unloaded
 	# Select "(None)" if available
 	if allow_none:
 		_option_button.select(0)
+	return false
+
+
+## Add a resource to the dropdown that isn't in the registry
+## Used for cross-mod references where the resource is overridden
+func _add_missing_resource_to_dropdown(resource: Resource, mod_id: String, resource_id: String) -> void:
+	if not _option_button:
+		return
+
+	var display_name: String = _get_display_name(resource)
+	var item_text: String = "[%s] %s (cross-mod)" % [mod_id, display_name]
+	var item_index: int = _option_button.item_count
+
+	_option_button.add_item(item_text)
+	_option_button.set_item_metadata(item_index, {
+		"mod_id": mod_id,
+		"resource_id": resource_id,
+		"resource": resource,
+		"is_cross_mod": true
+	})
+
+
+## Handle selection of a SubResource (embedded in another file)
+## SubResources don't have their own file path, so we add them to the dropdown with a special label
+func _select_subresource(resource: Resource) -> void:
+	if not _option_button:
+		return
+
+	var display_name: String = _get_display_name(resource)
+	var mod_id: String = _get_mod_from_path(resource)
+	# Use resource RID as a unique identifier for this SubResource
+	var subres_id: String = "subres_%d" % resource.get_rid().get_id()
+
+	var item_text: String = "[embedded] %s" % display_name
+	if not mod_id.is_empty():
+		item_text = "[%s/embedded] %s" % [mod_id, display_name]
+
+	var item_index: int = _option_button.item_count
+
+	_option_button.add_item(item_text)
+	_option_button.set_item_metadata(item_index, {
+		"mod_id": mod_id,
+		"resource_id": subres_id,
+		"resource": resource,
+		"is_subresource": true
+	})
+
+	_current_metadata = {
+		"mod_id": mod_id,
+		"resource_id": subres_id,
+		"resource": resource,
+		"is_subresource": true
+	}
+
+	_option_button.select(item_index)
 
 
 ## Select a resource by direct Resource reference
@@ -434,8 +515,18 @@ func select_resource(resource: Resource) -> void:
 		select_none()
 		return
 
+	# Check if this is a SubResource (embedded in another file)
+	if _is_subresource(resource):
+		_select_subresource(resource)
+		return
+
 	var resource_id: String = _get_resource_id(resource)
-	var mod_id: String = ModLoader.registry.get_resource_source(resource_id)
+	# Extract mod_id from the resource's actual path, not the registry
+	# This handles resources from mods that have been overridden
+	var mod_id: String = _get_mod_from_path(resource)
+	if mod_id.is_empty():
+		# Fallback to registry lookup if path extraction fails
+		mod_id = ModLoader.registry.get_resource_source(resource_id)
 
 	_current_metadata = {
 		"mod_id": mod_id,
@@ -443,7 +534,11 @@ func select_resource(resource: Resource) -> void:
 		"resource": resource
 	}
 
-	_select_by_metadata(_current_metadata)
+	# Try to select in dropdown - if it fails, the resource may be from an
+	# overridden mod that isn't in the dropdown. Add it temporarily.
+	if not _try_select_by_metadata(_current_metadata):
+		_add_missing_resource_to_dropdown(resource, mod_id, resource_id)
+		_try_select_by_metadata(_current_metadata)
 
 
 ## Select a resource by type and ID

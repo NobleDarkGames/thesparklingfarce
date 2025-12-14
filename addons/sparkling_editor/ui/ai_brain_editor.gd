@@ -17,7 +17,7 @@ var description_edit: TextEdit
 # =============================================================================
 var role_option: OptionButton
 var mode_option: OptionButton
-var base_behavior_picker: OptionButton
+var base_behavior_picker: ResourcePicker
 
 # =============================================================================
 # UI Components - Threat Assessment Section
@@ -66,7 +66,6 @@ var preview_label: RichTextLabel
 # =============================================================================
 # Cached Data
 # =============================================================================
-var _available_behaviors: Array[Resource] = []
 var _threat_weight_rows: Array[HBoxContainer] = []
 
 
@@ -91,9 +90,6 @@ func _create_detail_form() -> void:
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
-
-	# Initial cache load
-	_refresh_behavior_cache()
 
 
 ## Override: Load AI behavior data from resource into UI
@@ -254,9 +250,8 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 ## Override: Called when dependent resources change
 func _on_dependencies_changed(_changed_type: String) -> void:
-	_refresh_behavior_cache()
 	if base_behavior_picker:
-		_populate_base_behavior_picker()
+		base_behavior_picker.refresh()
 
 
 # =============================================================================
@@ -282,6 +277,7 @@ func _add_identity_section() -> void:
 	behavior_id_edit = LineEdit.new()
 	behavior_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	behavior_id_edit.placeholder_text = "e.g., smart_healer"
+	behavior_id_edit.tooltip_text = "Unique ID for referencing this behavior. Use snake_case, no spaces. E.g., aggressive_flanker."
 	behavior_id_edit.text_changed.connect(_on_field_changed)
 	id_container.add_child(behavior_id_edit)
 	section.add_child(id_container)
@@ -296,6 +292,7 @@ func _add_identity_section() -> void:
 	display_name_edit = LineEdit.new()
 	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	display_name_edit.placeholder_text = "e.g., Smart Healer"
+	display_name_edit.tooltip_text = "Human-readable name shown in editor dropdowns. E.g., 'Aggressive Flanker'."
 	display_name_edit.text_changed.connect(_on_field_changed)
 	name_container.add_child(display_name_edit)
 	section.add_child(name_container)
@@ -308,6 +305,7 @@ func _add_identity_section() -> void:
 	description_edit = TextEdit.new()
 	description_edit.custom_minimum_size.y = 60
 	description_edit.placeholder_text = "Describe what this AI behavior does..."
+	description_edit.tooltip_text = "Notes for modders. Describe the tactical intent, e.g., 'Healer that conserves MP and prioritizes the boss.'"
 	description_edit.text_changed.connect(_on_field_changed)
 	section.add_child(description_edit)
 
@@ -338,6 +336,7 @@ func _add_role_mode_section() -> void:
 
 	role_option = OptionButton.new()
 	role_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	role_option.tooltip_text = "WHAT the AI prioritizes: support (healing), aggressive (damage), defensive (protect allies), tactical (debuffs)."
 	role_option.item_selected.connect(_on_role_selected)
 	role_container.add_child(role_option)
 	section.add_child(role_container)
@@ -352,28 +351,25 @@ func _add_role_mode_section() -> void:
 
 	mode_option = OptionButton.new()
 	mode_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mode_option.tooltip_text = "HOW the AI executes: aggressive (chase targets), cautious (hold position), opportunistic (exploit weaknesses)."
 	mode_option.item_selected.connect(_on_mode_selected)
 	mode_container.add_child(mode_option)
 	section.add_child(mode_container)
 
 	# Base Behavior (Inheritance)
-	var base_container: HBoxContainer = HBoxContainer.new()
-	var base_label: Label = Label.new()
-	base_label.text = "Inherits From:"
-	base_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
-	base_label.tooltip_text = "Optional base behavior to inherit settings from"
-	base_container.add_child(base_label)
-
-	base_behavior_picker = OptionButton.new()
-	base_behavior_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	base_behavior_picker.item_selected.connect(_on_base_behavior_selected)
-	base_container.add_child(base_behavior_picker)
-	section.add_child(base_container)
+	# Base behavior picker - uses ResourcePicker for proper cross-mod support
+	base_behavior_picker = ResourcePicker.new()
+	base_behavior_picker.resource_type = "ai_behavior"
+	base_behavior_picker.label_text = "Inherits From:"
+	base_behavior_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	base_behavior_picker.allow_none = true
+	base_behavior_picker.tooltip_text = "Inherit settings from another behavior. Unset values use the base. Good for variants."
+	base_behavior_picker.resource_selected.connect(_on_base_behavior_selected)
+	section.add_child(base_behavior_picker)
 
 	# Populate dropdowns
 	_populate_role_options()
 	_populate_mode_options()
-	_populate_base_behavior_picker()
 
 	detail_panel.add_child(section)
 
@@ -405,6 +401,7 @@ func _add_threat_assessment_section() -> void:
 	# Ignore protagonist checkbox
 	ignore_protagonist_check = CheckBox.new()
 	ignore_protagonist_check.text = "Ignore protagonist priority (avoids obsessive hero targeting)"
+	ignore_protagonist_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: When ON, AI does not prioritize the hero. Prevents 'everyone attacks Max' syndrome."
 	ignore_protagonist_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(ignore_protagonist_check)
 
@@ -422,6 +419,7 @@ func _add_retreat_section() -> void:
 	# Enable retreat
 	retreat_enabled_check = CheckBox.new()
 	retreat_enabled_check.text = "Enable retreat behavior"
+	retreat_enabled_check.tooltip_text = "When ON, unit will try to escape when wounded. Off = fights to the death."
 	retreat_enabled_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(retreat_enabled_check)
 
@@ -436,6 +434,7 @@ func _add_retreat_section() -> void:
 	retreat_threshold_spin.min_value = 0
 	retreat_threshold_spin.max_value = 100
 	retreat_threshold_spin.value = 30
+	retreat_threshold_spin.tooltip_text = "HP percentage that triggers retreat. 30% = retreat when badly hurt. 50% = cautious."
 	retreat_threshold_spin.value_changed.connect(_on_spin_changed)
 	threshold_container.add_child(retreat_threshold_spin)
 	section.add_child(threshold_container)
@@ -443,12 +442,14 @@ func _add_retreat_section() -> void:
 	# Outnumbered retreat
 	retreat_when_outnumbered_check = CheckBox.new()
 	retreat_when_outnumbered_check.text = "Retreat when outnumbered"
+	retreat_when_outnumbered_check.tooltip_text = "Unit retreats if surrounded by more enemies than allies. Makes units self-preserving."
 	retreat_when_outnumbered_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(retreat_when_outnumbered_check)
 
 	# Seek healer
 	seek_healer_check = CheckBox.new()
 	seek_healer_check.text = "Move toward healers when wounded"
+	seek_healer_check.tooltip_text = "Wounded units position themselves near friendly healers for support. Smart for melee units."
 	seek_healer_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(seek_healer_check)
 
@@ -475,6 +476,7 @@ func _add_ability_usage_section() -> void:
 	aoe_minimum_targets_spin.min_value = 1
 	aoe_minimum_targets_spin.max_value = 5
 	aoe_minimum_targets_spin.value = 2
+	aoe_minimum_targets_spin.tooltip_text = "Only cast AoE spells if at least this many enemies are in range. 2 = efficient, 1 = aggressive."
 	aoe_minimum_targets_spin.value_changed.connect(_on_spin_changed)
 	aoe_container.add_child(aoe_minimum_targets_spin)
 	section.add_child(aoe_container)
@@ -482,18 +484,21 @@ func _add_ability_usage_section() -> void:
 	# Conserve MP
 	conserve_mp_check = CheckBox.new()
 	conserve_mp_check.text = "Conserve MP on heals (use lower-level spells when sufficient)"
+	conserve_mp_check.tooltip_text = "Use Heal 1 instead of Heal 2 when target only needs small heal. Saves MP for emergencies."
 	conserve_mp_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(conserve_mp_check)
 
 	# Boss heal priority
 	prioritize_boss_heals_check = CheckBox.new()
 	prioritize_boss_heals_check.text = "Prioritize healing boss/leader units"
+	prioritize_boss_heals_check.tooltip_text = "Healers focus on boss units even if other allies are more wounded. Protects key targets."
 	prioritize_boss_heals_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(prioritize_boss_heals_check)
 
 	# Status effects
 	use_status_effects_check = CheckBox.new()
 	use_status_effects_check.text = "Use debuff/status effect abilities"
+	use_status_effects_check.tooltip_text = "AI will cast sleep, poison, slow, etc. When OFF, AI only uses direct damage/healing."
 	use_status_effects_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(use_status_effects_check)
 
@@ -507,6 +512,7 @@ func _add_ability_usage_section() -> void:
 	preferred_effects_edit = LineEdit.new()
 	preferred_effects_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preferred_effects_edit.placeholder_text = "e.g., poison, sleep (comma-separated)"
+	preferred_effects_edit.tooltip_text = "Status effects this AI prefers to cast. Leave empty for no preference."
 	preferred_effects_edit.text_changed.connect(_on_field_changed)
 	effects_container.add_child(preferred_effects_edit)
 	section.add_child(effects_container)
@@ -524,18 +530,27 @@ func _add_item_usage_section() -> void:
 
 	use_healing_items_check = CheckBox.new()
 	use_healing_items_check.text = "Use healing items when wounded"
+	use_healing_items_check.tooltip_text = "AI will consume healing herbs, potions when HP is low. Good for boss units."
 	use_healing_items_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(use_healing_items_check)
 
 	use_attack_items_check = CheckBox.new()
 	use_attack_items_check.text = "Use attack items (bombs, thrown weapons)"
+	use_attack_items_check.tooltip_text = "AI will throw bombs, use attack scrolls if in inventory. Makes encounters more dangerous."
 	use_attack_items_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(use_attack_items_check)
 
 	use_buff_items_check = CheckBox.new()
 	use_buff_items_check.text = "Use buff items on self or allies"
+	use_buff_items_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: AI will use power rings, speed boots on self or nearby allies before combat."
 	use_buff_items_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(use_buff_items_check)
+
+	var item_stub_label: Label = Label.new()
+	item_stub_label.text = "[STUB] Buff items not yet processed by AI system"
+	item_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	item_stub_label.add_theme_font_size_override("font_size", 12)
+	section.add_child(item_stub_label)
 
 	detail_panel.add_child(section)
 
@@ -560,6 +575,7 @@ func _add_engagement_section() -> void:
 	alert_range_spin.min_value = 0
 	alert_range_spin.max_value = 20
 	alert_range_spin.value = 8
+	alert_range_spin.tooltip_text = "Distance at which unit notices enemies. 0 = never alert unless attacked. 8 = typical. 15+ = very aware."
 	alert_range_spin.value_changed.connect(_on_spin_changed)
 	alert_container.add_child(alert_range_spin)
 	section.add_child(alert_container)
@@ -576,6 +592,7 @@ func _add_engagement_section() -> void:
 	engagement_range_spin.min_value = 0
 	engagement_range_spin.max_value = 20
 	engagement_range_spin.value = 5
+	engagement_range_spin.tooltip_text = "Distance at which unit will move toward enemies. Lower = holds position. Must be <= alert range."
 	engagement_range_spin.value_changed.connect(_on_spin_changed)
 	engage_container.add_child(engagement_range_spin)
 	section.add_child(engage_container)
@@ -583,6 +600,7 @@ func _add_engagement_section() -> void:
 	# Terrain advantage
 	seek_terrain_check = CheckBox.new()
 	seek_terrain_check.text = "Seek terrain advantage (defense bonuses)"
+	seek_terrain_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: AI moves to forests, hills for defense bonuses. Makes enemies tactically smarter."
 	seek_terrain_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(seek_terrain_check)
 
@@ -598,9 +616,16 @@ func _add_engagement_section() -> void:
 	max_idle_turns_spin.min_value = 0
 	max_idle_turns_spin.max_value = 99
 	max_idle_turns_spin.value = 0
+	max_idle_turns_spin.tooltip_text = "[NOT YET IMPLEMENTED] Intended: After this many turns without acting, unit becomes aggressive. 0 = stay passive forever."
 	max_idle_turns_spin.value_changed.connect(_on_spin_changed)
 	idle_container.add_child(max_idle_turns_spin)
 	section.add_child(idle_container)
+
+	var engage_stub_label: Label = Label.new()
+	engage_stub_label.text = "[STUB] Terrain seeking and idle turn patience not yet processed by AI system"
+	engage_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	engage_stub_label.add_theme_font_size_override("font_size", 12)
+	section.add_child(engage_stub_label)
 
 	detail_panel.add_child(section)
 
@@ -664,29 +689,6 @@ func _populate_mode_options() -> void:
 			mode_option.set_item_tooltip(i + 1, mode.get("description", ""))
 
 
-func _populate_base_behavior_picker() -> void:
-	base_behavior_picker.clear()
-	base_behavior_picker.add_item("(None)", 0)
-	base_behavior_picker.set_item_metadata(0, null)
-
-	_refresh_behavior_cache()
-
-	for i: int in range(_available_behaviors.size()):
-		var behavior: AIBehaviorData = _available_behaviors[i] as AIBehaviorData
-		if behavior:
-			var display: String = behavior.display_name if not behavior.display_name.is_empty() else behavior.behavior_id
-			base_behavior_picker.add_item(display, i + 1)
-			base_behavior_picker.set_item_metadata(i + 1, behavior)
-
-
-func _refresh_behavior_cache() -> void:
-	_available_behaviors.clear()
-	if ModLoader and ModLoader.registry:
-		var all_behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
-		for res: Resource in all_behaviors:
-			_available_behaviors.append(res)
-
-
 # =============================================================================
 # Selection Helpers
 # =============================================================================
@@ -701,18 +703,10 @@ func _select_option_by_value(option_button: OptionButton, value: String) -> void
 
 
 func _select_base_behavior(base: AIBehaviorData) -> void:
-	if not base:
-		base_behavior_picker.select(0)
-		return
-
-	for i: int in range(base_behavior_picker.item_count):
-		var meta: Variant = base_behavior_picker.get_item_metadata(i)
-		if meta == base:
-			base_behavior_picker.select(i)
-			return
-
-	# Not found - select none
-	base_behavior_picker.select(0)
+	if base:
+		base_behavior_picker.select_resource(base)
+	else:
+		base_behavior_picker.select_none()
 
 
 func _get_selected_role() -> String:
@@ -730,10 +724,7 @@ func _get_selected_mode() -> String:
 
 
 func _get_selected_base_behavior() -> AIBehaviorData:
-	var idx: int = base_behavior_picker.selected
-	if idx > 0:  # 0 is "None"
-		return base_behavior_picker.get_item_metadata(idx) as AIBehaviorData
-	return null
+	return base_behavior_picker.get_selected_resource() as AIBehaviorData
 
 
 # =============================================================================
@@ -853,7 +844,7 @@ func _on_mode_selected(_index: int) -> void:
 	_update_preview()
 
 
-func _on_base_behavior_selected(_index: int) -> void:
+func _on_base_behavior_selected(_metadata: Dictionary) -> void:
 	_mark_dirty()
 	_update_preview()
 

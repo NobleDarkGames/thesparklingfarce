@@ -58,6 +58,9 @@ var selected_spell_id: String = ""  # Ability ID selected for casting
 var selected_spell_data: AbilityData = null  # Cached AbilityData for the selected spell
 var _spell_valid_targets: Array[Vector2i] = []  # Valid target cells for spell targeting
 
+## Attack targeting state
+var _attack_valid_targets: Array[Vector2i] = []  # Valid enemy target cells for attack targeting
+
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
 var action_menu: Control = null  # Will be set by battle scene
@@ -712,11 +715,12 @@ func _on_enter_targeting() -> void:
 	# Show valid targets based on selected action
 	_show_targeting_range()
 
-	# Position cursor on nearest valid target
-	var valid_targets: Array[Vector2i] = _get_valid_target_cells(1)  # TODO: Get actual weapon range
-	if not valid_targets.is_empty():
-		# Start cursor on first valid target
-		current_cursor_position = valid_targets[0]
+	# Cache valid targets for cursor navigation
+	_attack_valid_targets = _get_valid_target_cells(1)  # Range param is fallback, uses weapon range
+
+	# Position cursor on best valid target (facing direction priority, then closest)
+	if not _attack_valid_targets.is_empty():
+		current_cursor_position = _get_best_initial_target()
 	else:
 		# No valid targets, position on unit
 		current_cursor_position = active_unit.grid_position
@@ -1109,16 +1113,21 @@ func _move_free_cursor(offset: Vector2i) -> void:
 	_update_unit_inspector()
 
 
-## Move targeting cursor by offset (for attack/spell targeting)
+## Move targeting cursor to next valid target in the given direction
+## Cursor only snaps between valid enemy targets, not free movement
 func _move_targeting_cursor(offset: Vector2i) -> void:
-	var new_pos: Vector2i = current_cursor_position + offset
-
-	# Check if new position is within bounds
-	if not GridManager.is_within_bounds(new_pos):
+	if _attack_valid_targets.size() <= 1:
+		# No other targets to cycle to
 		return
 
-	# Update cursor position (allow moving to any valid grid cell during targeting)
-	current_cursor_position = new_pos
+	# Find the next target in the direction of the offset
+	var next_target: Vector2i = _get_next_target_in_direction(offset)
+
+	if next_target == current_cursor_position:
+		# No valid target found in that direction, don't move
+		return
+
+	current_cursor_position = next_target
 
 	# Update cursor visual
 	if grid_cursor:
@@ -1127,7 +1136,7 @@ func _move_targeting_cursor(offset: Vector2i) -> void:
 	# Update terrain panel for cursor position
 	_update_terrain_panel()
 
-	# Update combat forecast if there's a target under cursor
+	# Update combat forecast for the new target
 	_update_combat_forecast()
 
 
@@ -1376,6 +1385,138 @@ func _get_valid_target_cells(weapon_range: int) -> Array[Vector2i]:
 		pass
 
 	return valid_cells
+
+
+## Get the best initial target based on facing direction and distance
+## Priority: 1) Enemy in facing direction, 2) Closest enemy
+func _get_best_initial_target() -> Vector2i:
+	if _attack_valid_targets.is_empty():
+		return active_unit.grid_position
+
+	var unit_pos: Vector2i = active_unit.grid_position
+	var facing_dir: Vector2i = FacingUtils.string_to_direction(active_unit.facing_direction)
+
+	# Try to find a target in the facing direction
+	var facing_candidates: Array[Vector2i] = []
+	for target_cell in _attack_valid_targets:
+		var delta: Vector2i = target_cell - unit_pos
+		var target_dir: Vector2i = FacingUtils.get_dominant_direction_vector(delta)
+		if target_dir == facing_dir:
+			facing_candidates.append(target_cell)
+
+	# If we have facing candidates, return the closest one
+	if not facing_candidates.is_empty():
+		return _get_closest_cell(unit_pos, facing_candidates)
+
+	# Otherwise, return the closest enemy overall
+	return _get_closest_cell(unit_pos, _attack_valid_targets)
+
+
+## Get the closest cell to a position from a list of cells
+func _get_closest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
+	if cells.is_empty():
+		return from
+
+	var closest: Vector2i = cells[0]
+	var closest_dist: int = _manhattan_distance(from, closest)
+
+	for cell in cells:
+		var dist: int = _manhattan_distance(from, cell)
+		if dist < closest_dist:
+			closest = cell
+			closest_dist = dist
+
+	return closest
+
+
+## Calculate Manhattan distance between two cells
+func _manhattan_distance(a: Vector2i, b: Vector2i) -> int:
+	return abs(a.x - b.x) + abs(a.y - b.y)
+
+
+## Get the next valid target in the given direction from current cursor position
+## Returns current position if no valid target found in that direction
+func _get_next_target_in_direction(direction: Vector2i) -> Vector2i:
+	if _attack_valid_targets.is_empty():
+		return current_cursor_position
+
+	# Filter targets that are in the general direction of the input
+	var candidates: Array[Vector2i] = []
+	for target_cell in _attack_valid_targets:
+		if target_cell == current_cursor_position:
+			continue  # Skip current target
+
+		var delta: Vector2i = target_cell - current_cursor_position
+
+		# Check if this target is in the direction of the input
+		var is_valid_direction: bool = false
+		match direction:
+			Vector2i.UP:
+				is_valid_direction = delta.y < 0  # Target is above
+			Vector2i.DOWN:
+				is_valid_direction = delta.y > 0  # Target is below
+			Vector2i.LEFT:
+				is_valid_direction = delta.x < 0  # Target is to the left
+			Vector2i.RIGHT:
+				is_valid_direction = delta.x > 0  # Target is to the right
+
+		if is_valid_direction:
+			candidates.append(target_cell)
+
+	# If we have candidates in that direction, return the closest one
+	if not candidates.is_empty():
+		return _get_closest_cell(current_cursor_position, candidates)
+
+	# No targets in that direction - wrap around to the farthest target in opposite direction
+	# This provides intuitive cycling behavior
+	var opposite: Vector2i = -direction
+	var wrap_candidates: Array[Vector2i] = []
+	for target_cell in _attack_valid_targets:
+		if target_cell == current_cursor_position:
+			continue
+
+		var delta: Vector2i = target_cell - current_cursor_position
+		var is_opposite_direction: bool = false
+		match opposite:
+			Vector2i.UP:
+				is_opposite_direction = delta.y < 0
+			Vector2i.DOWN:
+				is_opposite_direction = delta.y > 0
+			Vector2i.LEFT:
+				is_opposite_direction = delta.x < 0
+			Vector2i.RIGHT:
+				is_opposite_direction = delta.x > 0
+
+		if is_opposite_direction:
+			wrap_candidates.append(target_cell)
+
+	# Return the farthest target in the opposite direction (wrap around)
+	if not wrap_candidates.is_empty():
+		return _get_farthest_cell(current_cursor_position, wrap_candidates)
+
+	# Fallback: just return the first other target
+	for target_cell in _attack_valid_targets:
+		if target_cell != current_cursor_position:
+			return target_cell
+
+	return current_cursor_position
+
+
+## Get the farthest cell from a position (for wrap-around behavior)
+func _get_farthest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
+	if cells.is_empty():
+		return from
+
+	var farthest: Vector2i = cells[0]
+	var farthest_dist: int = _manhattan_distance(from, farthest)
+
+	for cell in cells:
+		var dist: int = _manhattan_distance(from, cell)
+		if dist > farthest_dist:
+			farthest = cell
+			farthest_dist = dist
+
+	return farthest
 
 
 ## Show targeting range and valid targets (respects min/max range for dead zones)
