@@ -151,8 +151,8 @@ func _calculate_threat_weight(target: Node2D, behavior: Resource, context: Dicti
 		return weight
 
 	# Wounded target priority
-	if "current_hp" in target and "max_hp" in target:
-		var hp_ratio: float = float(target.current_hp) / float(target.max_hp)
+	if "stats" in target and target.stats:
+		var hp_ratio: float = float(target.stats.current_hp) / float(target.stats.max_hp)
 		if hp_ratio < 0.5:
 			weight *= behavior_data.get_effective_threat_weight("wounded_target", 1.0)
 
@@ -244,8 +244,8 @@ func _should_retreat(unit: Node2D, behavior: Resource, context: Dictionary) -> b
 		return false
 
 	# Check HP threshold
-	if "current_hp" in unit and "max_hp" in unit:
-		var hp_percent: float = 100.0 * float(unit.current_hp) / float(unit.max_hp)
+	if "stats" in unit and unit.stats:
+		var hp_percent: float = 100.0 * float(unit.stats.current_hp) / float(unit.stats.max_hp)
 		if hp_percent < behavior_data.get_effective_retreat_threshold():
 			return true
 

@@ -17,6 +17,8 @@
 ## jarring fade transitions between phases.
 extends Node
 
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+
 ## Signals for battle events
 signal battle_started(battle_data: Resource)
 signal battle_ended(victory: bool)
@@ -558,8 +560,8 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 
 ## Build display message for item use
 func _build_item_use_message(user: Node2D, target: Node2D, item: ItemData, result: Dictionary) -> String:
-	var user_name: String = user.get_display_name() if user else "???"
-	var target_name: String = target.get_display_name() if target else "???"
+	var user_name: String = UnitUtils.get_display_name(user, "???")
+	var target_name: String = UnitUtils.get_display_name(target, "???")
 	var item_name: String = item.item_name if item else "item"
 
 	var amount: int = result.get("amount", 0)
@@ -839,7 +841,7 @@ func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityD
 	if targets.size() > 1:
 		print("[BattleManager] AoE spell '%s' hits %d targets:" % [ability.ability_name, targets.size()])
 		for t: Node2D in targets:
-			print("  - %s at %s" % [t.get_display_name(), t.grid_position])
+			print("  - %s at %s" % [UnitUtils.get_display_name(t), t.grid_position])
 
 	return targets
 
@@ -885,9 +887,9 @@ func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> 
 
 	# Debug output for spell healing
 	print("[BattleManager] Spell heal: %s casts %s on %s for %d healing" % [
-		caster.get_display_name(),
+		UnitUtils.get_display_name(caster),
 		ability.ability_name,
-		target.get_display_name(),
+		UnitUtils.get_display_name(target),
 		heal_amount
 	])
 
@@ -913,9 +915,9 @@ func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -
 
 	# Debug output for spell combat
 	print("[BattleManager] Spell combat: %s casts %s on %s for %d damage" % [
-		caster.get_display_name(),
+		UnitUtils.get_display_name(caster),
 		ability.ability_name,
-		target.get_display_name(),
+		UnitUtils.get_display_name(target),
 		damage
 	])
 
@@ -1286,9 +1288,9 @@ func _execute_combat_session(
 
 		# Connect XP handler to feed entries to battle screen
 		var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
-			print("[BattleManager] Session XP handler: %s +%d %s" % [unit.get_display_name(), amount, source])
+			print("[BattleManager] Session XP handler: %s +%d %s" % [UnitUtils.get_display_name(unit), amount, source])
 			if combat_anim_instance and is_instance_valid(combat_anim_instance):
-				combat_anim_instance.queue_xp_entry(unit.get_display_name(), amount, source)
+				combat_anim_instance.queue_xp_entry(UnitUtils.get_display_name(unit), amount, source)
 		ExperienceManager.unit_gained_xp.connect(xp_handler)
 
 		# Connect damage handler to POOL damage (not award XP yet - SF2-authentic)
@@ -1570,7 +1572,7 @@ func _persist_unit_death(unit: Node2D) -> void:
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
 	if save_data:
 		save_data.is_alive = false
-		print("[BattleManager] Unit '%s' died - is_alive set to false" % unit.get_display_name())
+		print("[BattleManager] Unit '%s' died - is_alive set to false" % UnitUtils.get_display_name(unit))
 
 
 ## Handle unit death (direct call - RARELY NEEDED)
@@ -1674,7 +1676,7 @@ func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
 
 	# Queue XP entry for combat results panel
 	_pending_xp_entries.append({
-		"unit_name": unit.get_display_name(),
+		"unit_name": UnitUtils.get_display_name(unit),
 		"amount": amount,
 		"source": source
 	})
@@ -1899,9 +1901,9 @@ func _sync_surviving_units_to_save_data() -> void:
 		if char_uid.is_empty():
 			continue
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
-		if save_data:
-			save_data.current_hp = unit.current_hp
-			save_data.current_mp = unit.current_mp
+		if save_data and unit.stats:
+			save_data.current_hp = unit.stats.current_hp
+			save_data.current_mp = unit.stats.current_mp
 
 
 ## Show a brief exit message for voluntary battle exits (Egress/Angel Wing)
