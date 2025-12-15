@@ -1,18 +1,22 @@
 extends Node2D
 
-## Opening Cinematic Stage
+## Opening Cinematic Stage (Sandbox Version)
 ## Sets up the temple scene and plays the opening cinematic sequence.
 ## This scene plays before the main menu, SF2-style.
 ##
-## The cinematic sequence is loaded from ModRegistry ("game_opening"),
+## The cinematic sequence is loaded from ModRegistry ("opening_cinematic"),
 ## allowing mods to completely replace the opening cinematic by:
-## 1. Providing their own game_opening.json cinematic data
-## 2. Optionally providing their own opening_cinematic scene
+## 1. Providing their own opening_cinematic.json cinematic data
+## 2. Optionally providing their own opening_cinematic scene (like this one)
+##
+## This scene is registered in mod.json as "opening_cinematic" scene, which
+## causes the core scene to redirect here. This allows custom actors (Spade,
+## Henchman, Artifact) to be on stage for the cinematic commands.
 ##
 ## CinematicActors auto-register in _ready() and auto-unregister in _exit_tree().
 
 ## The cinematic ID to play (looked up from ModRegistry)
-const CINEMATIC_ID: String = "game_opening"
+const CINEMATIC_ID: String = "opening_cinematic"
 
 @onready var camera: Camera2D = $CinematicCamera
 @onready var dialog_box: Control = $UILayer/DialogBox

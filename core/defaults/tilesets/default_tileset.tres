@@ -1,0 +1,61 @@
+[gd_resource type="TileSet" load_steps=9 format=3]
+
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/grass.png" id="1_grass"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/dirt.png" id="2_dirt"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/water.png" id="3_water"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/sand.png" id="4_sand"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/stone.png" id="5_stone"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/forest.png" id="6_forest"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/road.png" id="7_road"]
+[ext_resource type="Texture2D" path="res://core/defaults/tilesets/textures/wall.png" id="8_wall"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_grass"]
+texture = ExtResource("1_grass")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dirt"]
+texture = ExtResource("2_dirt")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_water"]
+texture = ExtResource("3_water")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_sand"]
+texture = ExtResource("4_sand")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_stone"]
+texture = ExtResource("5_stone")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_forest"]
+texture = ExtResource("6_forest")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_road"]
+texture = ExtResource("7_road")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_wall"]
+texture = ExtResource("8_wall")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[resource]
+tile_size = Vector2i(32, 32)
+sources/0 = SubResource("TileSetAtlasSource_grass")
+sources/1 = SubResource("TileSetAtlasSource_dirt")
+sources/2 = SubResource("TileSetAtlasSource_water")
+sources/3 = SubResource("TileSetAtlasSource_sand")
+sources/4 = SubResource("TileSetAtlasSource_stone")
+sources/5 = SubResource("TileSetAtlasSource_forest")
+sources/6 = SubResource("TileSetAtlasSource_road")
+sources/7 = SubResource("TileSetAtlasSource_wall")

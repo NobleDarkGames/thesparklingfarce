@@ -1,0 +1,60 @@
+{
+  "cinematic_id": "opening_cinematic",
+  "cinematic_name": "Default Opening Cinematic",
+  "description": "Core fallback opening cinematic - text-only with no mod dependencies. Shown when no mods provide an opening_cinematic.",
+  "can_skip": true,
+  "disable_player_input": true,
+
+  "commands": [
+    {
+      "type": "fade_screen",
+      "params": {
+        "fade_type": "in",
+        "duration": 1.5
+      }
+    },
+    {
+      "type": "wait",
+      "params": {
+        "duration": 0.5
+      }
+    },
+    {
+      "type": "dialog_line",
+      "params": {
+        "speaker_name": "???",
+        "text": "In ages past, when darkness threatened the land...",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "type": "dialog_line",
+      "params": {
+        "speaker_name": "???",
+        "text": "Heroes rose to answer the call.",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "type": "dialog_line",
+      "params": {
+        "speaker_name": "???",
+        "text": "Now, a new chapter begins...",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "type": "wait",
+      "params": {
+        "duration": 1.0
+      }
+    },
+    {
+      "type": "fade_screen",
+      "params": {
+        "fade_type": "out",
+        "duration": 1.5
+      }
+    }
+  ]
+}

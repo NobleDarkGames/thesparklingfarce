@@ -1,5 +1,5 @@
 {
-  "cinematic_id": "game_opening",
+  "cinematic_id": "opening_cinematic",
   "cinematic_name": "Opening Cinematic",
   "description": "The game's opening cinematic sequence - demonstrates movement, dialog, and camera effects",
   "can_skip": true,

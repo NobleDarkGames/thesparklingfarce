@@ -880,22 +880,28 @@ func _on_new_map_dialog_close() -> void:
 func _scan_tilesets() -> void:
 	available_tilesets.clear()
 
+	# First, add core default tileset (always available as fallback)
+	var core_tileset_path: String = "res://core/defaults/tilesets/default_tileset.tres"
+	if ResourceLoader.exists(core_tileset_path):
+		available_tilesets.append(core_tileset_path)
+
 	# Use the Tileset Registry for discovery (supports mod.json declarations + auto-discovery)
 	if ModLoader and ModLoader.tileset_registry:
-		available_tilesets = ModLoader.tileset_registry.get_all_tileset_paths()
+		var registry_tilesets: Array[String] = ModLoader.tileset_registry.get_all_tileset_paths()
+		for tileset_path: String in registry_tilesets:
+			if tileset_path not in available_tilesets:
+				available_tilesets.append(tileset_path)
 	else:
 		# Fallback: Scan for .tres files in tileset directories across mods
 		var results: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("tilesets", ".tres")
 		for res: Dictionary in results:
 			var path: String = res.get("path", "")
-			# Verify it's actually a TileSet resource
-			if ResourceLoader.exists(path):
+			# Verify it's actually a TileSet resource and not already added
+			if ResourceLoader.exists(path) and path not in available_tilesets:
 				available_tilesets.append(path)
 
-	# Note: If no tilesets found, the dropdown will be empty
-	# This is intentional - total conversion mods shouldn't depend on _base_game
 	if available_tilesets.is_empty():
-		push_warning("MapMetadataEditor: No tilesets found in any mod. Please create a tileset in your mod's tilesets/ directory.")
+		push_warning("MapMetadataEditor: No tilesets found. Core default should exist at res://core/defaults/tilesets/")
 
 
 func _refresh_tileset_dropdown() -> void:
