@@ -8,7 +8,6 @@ shop_id = "noobington_item_shop"
 shop_name = "Noobington General Store"
 greeting_text = "Welcome, traveler! Fresh stock just arrived!"
 farewell_text = "Come back soon!"
-npc_id = "noobington_shopkeep"
 inventory = Array[Dictionary]([{
 "item_id": "healing_herb",
 "price_override": -1,
