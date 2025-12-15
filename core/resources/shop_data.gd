@@ -34,10 +34,10 @@ enum ShopType {
 # IDENTITY
 # ============================================================================
 
-## Unique identifier for this shop (e.g., "granseal_weapon_shop")
+## Unique identifier for this shop (e.g., "my_mod_weapon_shop")
 @export var shop_id: String = ""
 
-## Display name shown in UI (e.g., "Granseal Weapon Shop")
+## Display name shown in UI (e.g., "Weapon Shop")
 @export var shop_name: String = ""
 
 ## Type of shop - affects available menu options

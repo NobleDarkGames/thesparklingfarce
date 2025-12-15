@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_shop")
-shop_id = "granseal_item_shop"
-shop_name = "Granseal Item Shop"
+shop_id = "basegame_item_shop"
+shop_name = "Item Shop"
 shop_type = 1
 greeting_text = "Need supplies? We have everything an adventurer needs!"
 farewell_text = "Safe travels!"

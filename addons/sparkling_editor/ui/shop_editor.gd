@@ -263,8 +263,8 @@ func _add_basic_info_section() -> void:
 
 	id_edit = LineEdit.new()
 	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_edit.placeholder_text = "e.g., granseal_weapon_shop"
-	id_edit.tooltip_text = "Unique ID for referencing this shop. Use snake_case, e.g., 'granseal_weapon_shop'."
+	id_edit.placeholder_text = "e.g., my_mod_weapon_shop"
+	id_edit.tooltip_text = "Unique ID for referencing this shop. Use snake_case, e.g., 'my_mod_weapon_shop'."
 	id_edit.text_changed.connect(_mark_dirty)
 	id_container.add_child(id_edit)
 	section.add_child(id_container)

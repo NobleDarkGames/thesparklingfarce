@@ -15,7 +15,7 @@ commands = Array[Dictionary]([{
 }, {
 "type": "open_shop",
 "params": {
-"shop_id": "granseal_church"
+"shop_id": "basegame_church"
 }
 }, {
 "type": "show_dialog",
