@@ -295,7 +295,8 @@ func set_facing(direction: String) -> void:
 
 	var dir_lower: String = direction.to_lower()
 	if FacingUtils.is_valid_direction(dir_lower):
-		_play_animation("idle_" + dir_lower)
+		# SF2-authentic: walk animation plays even when stationary
+		_play_animation("walk_" + dir_lower)
 	else:
 		push_warning("CinematicActor: Invalid direction '%s' for %s" % [direction, actor_id])
 

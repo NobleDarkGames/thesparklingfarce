@@ -299,6 +299,7 @@ func _setup_file_list_panel(parent: HSplitContainer) -> void:
 
 	create_button = Button.new()
 	create_button.text = "New"
+	create_button.tooltip_text = "Create a new cinematic. Tip: Name it 'opening_cinematic' to replace the game's opening sequence."
 	create_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	create_button.pressed.connect(_on_create_new)
 	btn_row.add_child(create_button)
@@ -429,6 +430,7 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	cinematic_id_edit = LineEdit.new()
 	cinematic_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cinematic_id_edit.placeholder_text = "(auto-generated from name)"
+	cinematic_id_edit.tooltip_text = "Unique ID for this cinematic. Special IDs:\n• 'opening_cinematic' - Becomes the game's opening sequence"
 	cinematic_id_edit.text_changed.connect(_on_cinematic_id_manually_changed)
 	id_row.add_child(cinematic_id_edit)
 

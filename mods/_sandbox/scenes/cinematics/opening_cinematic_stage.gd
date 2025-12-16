@@ -1,17 +1,15 @@
 extends Node2D
 
 ## Opening Cinematic Stage (Sandbox Version)
-## Sets up the temple scene and plays the opening cinematic sequence.
-## This scene plays before the main menu, SF2-style.
 ##
-## The cinematic sequence is loaded from ModRegistry ("opening_cinematic"),
-## allowing mods to completely replace the opening cinematic by:
-## 1. Providing their own opening_cinematic.json cinematic data
-## 2. Optionally providing their own opening_cinematic scene (like this one)
+## Plays the opening cinematic with custom actors (Spade, Henchman, Artifact).
+## This scene is ONLY responsible for playing the cinematic - it does NOT
+## handle navigation to the main menu. The startup coordinator listens
+## for cinematic_ended and handles all scene transitions.
 ##
 ## This scene is registered in mod.json as "opening_cinematic" scene, which
-## causes the core scene to redirect here. This allows custom actors (Spade,
-## Henchman, Artifact) to be on stage for the cinematic commands.
+## the startup coordinator loads instead of the core version. This allows
+## custom actors to be on stage for the cinematic commands.
 ##
 ## CinematicActors auto-register in _ready() and auto-unregister in _exit_tree().
 
@@ -41,34 +39,12 @@ func _ready() -> void:
 
 
 func _start_cinematic() -> void:
-	# Connect to cinematic_ended to transition after
-	CinematicsManager.cinematic_ended.connect(_on_cinematic_ended, CONNECT_ONE_SHOT)
-
 	# Play the cinematic from ModRegistry
 	var success: bool = CinematicsManager.play_cinematic(CINEMATIC_ID)
 	if not success:
 		push_error("OpeningCinematic: Failed to play cinematic '%s'" % CINEMATIC_ID)
-		_on_cinematic_ended("")
-
-
-func _on_cinematic_ended(_cinematic_id: String) -> void:
-	print("OpeningCinematic: Sequence complete, transitioning to main menu...")
-
-	# Wait for any pending fade to complete before transitioning
-	# This prevents race conditions where the cinematic's fade_out finishes
-	# after we've already started the scene transition
-	while SceneManager.is_fading:
-		await get_tree().process_frame
-
-	# Ensure screen is black before transition (cinematic should have faded out)
-	if not SceneManager.is_faded_to_black:
-		await SceneManager.fade_to_black(0.5)
-
-	# Brief pause before transition
-	await get_tree().create_timer(0.3).timeout
-
-	# Transition to main menu - SceneManager will fade FROM black
-	SceneManager.goto_main_menu(true)
+		# Signal completion so startup coordinator can proceed
+		CinematicsManager.cinematic_ended.emit("")
 
 
 func _unhandled_input(event: InputEvent) -> void:

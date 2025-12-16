@@ -6,55 +6,55 @@
   "disable_player_input": true,
 
   "commands": [
-    {
-      "type": "fade_screen",
-      "params": {
-        "fade_type": "in",
-        "duration": 1.5
-      }
-    },
-    {
-      "type": "wait",
-      "params": {
-        "duration": 0.5
-      }
-    },
-    {
-      "type": "dialog_line",
-      "params": {
-        "speaker_name": "???",
-        "text": "In ages past, when darkness threatened the land...",
-        "emotion": "neutral"
-      }
-    },
-    {
-      "type": "dialog_line",
-      "params": {
-        "speaker_name": "???",
-        "text": "Heroes rose to answer the call.",
-        "emotion": "neutral"
-      }
-    },
-    {
-      "type": "dialog_line",
-      "params": {
-        "speaker_name": "???",
-        "text": "Now, a new chapter begins...",
-        "emotion": "neutral"
-      }
-    },
-    {
-      "type": "wait",
-      "params": {
-        "duration": 1.0
-      }
-    },
-    {
-      "type": "fade_screen",
-      "params": {
-        "fade_type": "out",
-        "duration": 1.5
-      }
-    }
+	{
+	  "type": "fade_screen",
+	  "params": {
+		"fade_type": "in",
+		"duration": 1.5
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 0.5
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"speaker_name": "Narrator",
+		"text": "Once upon a time, somone attempted to load the Sparkling Farce...",
+		"emotion": "neutral"
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"speaker_name": "Narrator",
+		"text": "With NO opening_cinematic! But fret not, all they had to do to make their own...",
+		"emotion": "neutral"
+	  }
+	},
+	{
+	  "type": "dialog_line",
+	  "params": {
+		"speaker_name": "Narrator",
+		"text": "Was create it with the Cinematic Editor, and name it Opening Cinematic!",
+		"emotion": "neutral"
+	  }
+	},
+	{
+	  "type": "wait",
+	  "params": {
+		"duration": 1.0
+	  }
+	},
+	{
+	  "type": "fade_screen",
+	  "params": {
+		"fade_type": "out",
+		"duration": 1.5
+	  }
+	}
   ]
 }
