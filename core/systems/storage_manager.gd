@@ -360,7 +360,6 @@ func load_config_from_manifest(mod_id: String, config: Dictionary) -> void:
 		var cap: Variant = config.capacity
 		if cap is int or cap is float:
 			capacity_limit = int(cap)
-			print("StorageManager: Capacity set to %d by mod '%s'" % [capacity_limit, mod_id])
 
 	# Future: Add more caravan config options here
 	# - accessible_in_battle: bool

@@ -63,7 +63,7 @@ func register_from_config(mod_id: String, config: Dictionary) -> void:
 	if replace_all:
 		_subtypes.clear()
 		_categories.clear()
-		print("[EquipmentTypeRegistry] Mod '%s' replacing all equipment types" % mod_id)
+		push_warning("[EquipmentTypeRegistry] Mod '%s' replacing all equipment types" % mod_id)
 
 	# Register categories first (so subtypes can reference them)
 	if "categories" in config and config.categories is Dictionary:

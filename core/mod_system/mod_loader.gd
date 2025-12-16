@@ -107,6 +107,12 @@ var _tileset_registry: Dictionary = {}
 var _is_loading: bool = false
 
 
+## Check if mods are currently being loaded
+## @return: true if mod loading is in progress
+func is_loading() -> bool:
+	return _is_loading
+
+
 func _ready() -> void:
 	# Initial load is SYNCHRONOUS to ensure all resources are available
 	# before any scenes try to use them. Use reload_mods_async() for

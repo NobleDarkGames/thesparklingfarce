@@ -460,11 +460,6 @@ func _check_learned_abilities(unit: Node2D, old_level: int, new_level: int, clas
 				# This is a newly unlocked ability!
 				learned.append(ability)
 				unit_learned_ability.emit(unit, ability)
-				print("[ExperienceManager] %s learned %s at level %d!" % [
-					UnitUtils.get_display_name(unit, "Unit"),
-					ability.ability_name,
-					new_level
-				])
 
 	# ==========================================================================
 	# LEGACY SYSTEM: Check learnable_abilities dictionary (deprecated)

@@ -276,3 +276,57 @@ func set_text_speed(speed: TextSpeed) -> void:
 			text_speed_multiplier = 2.0
 		TextSpeed.INSTANT:
 			text_speed_multiplier = 999.0
+
+
+# ============================================================================
+# SAVE/LOAD SUPPORT
+# ============================================================================
+
+## Export current dialog state for save system
+## @return: Dictionary with dialog state, or empty if no dialog active
+func export_state() -> Dictionary:
+	if current_state == State.IDLE:
+		return {}
+
+	if not current_dialogue:
+		return {}
+
+	return {
+		"dialogue_id": current_dialogue.dialogue_id,
+		"line_index": current_line_index,
+		"state": current_state,
+		"chain_stack": _dialog_chain_stack.duplicate()
+	}
+
+
+## Import dialog state from save system
+## @param state: Dictionary from export_state()
+## @return: true if state was restored successfully
+func import_state(state: Dictionary) -> bool:
+	if state.is_empty():
+		return true  # No dialog to restore is valid
+
+	var dialogue_id: String = state.get("dialogue_id", "")
+	if dialogue_id.is_empty():
+		push_warning("DialogManager: Cannot restore dialog - no dialogue_id in state")
+		return false
+
+	# Look up dialogue resource
+	var dialogue: DialogueData = ModLoader.registry.get_resource("dialogue", dialogue_id) as DialogueData
+	if not dialogue:
+		push_warning("DialogManager: Cannot restore dialog - dialogue '%s' not found" % dialogue_id)
+		return false
+
+	# Restore state
+	current_dialogue = dialogue
+	current_line_index = state.get("line_index", 0)
+	current_state = state.get("state", State.WAITING_FOR_INPUT) as State
+	_dialog_chain_stack = state.get("chain_stack", []).duplicate()
+
+	# Emit signals to restore UI
+	dialog_started.emit(dialogue)
+	if current_line_index < dialogue.get_line_count():
+		var line_data: Dictionary = dialogue.get_line(current_line_index)
+		line_changed.emit(current_line_index, line_data)
+
+	return true

@@ -197,8 +197,9 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 			purchase_failed.emit(inventory_check.error)
 			return {success = false, error = inventory_check.error, transaction = {}}
 
-	# Execute transaction
+	# Execute transaction with rollback support
 	var add_result: Dictionary = {success = false, error = ""}
+	var items_added: int = 0  # Track for rollback
 
 	for i: int in range(quantity):
 		if target == "caravan":
@@ -207,10 +208,16 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 			add_result = _add_to_character(target, item_id)
 
 		if not add_result.success:
-			# Rollback: refund any items already added
-			# (In practice, we check capacity upfront, so this shouldn't happen)
+			# Rollback: remove any items already added
+			for j: int in range(items_added):
+				if target == "caravan":
+					_remove_from_caravan(item_id)
+				else:
+					_remove_from_character(target, item_id)
 			purchase_failed.emit(add_result.error)
 			return {success = false, error = add_result.error, transaction = {}}
+
+		items_added += 1
 
 	# Deduct gold
 	var old_gold: int = current_gold
@@ -323,8 +330,9 @@ func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary
 		sale_failed.emit(validation_result.reason)
 		return {success = false, error = validation_result.reason, transaction = {}}
 
-	# Execute removal
+	# Execute removal with rollback support
 	var remove_result: Dictionary = {success = false, error = ""}
+	var items_removed: int = 0  # Track for rollback
 
 	for i: int in range(quantity):
 		if is_caravan:
@@ -333,8 +341,16 @@ func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary
 			remove_result = _remove_from_character(source, item_id)
 
 		if not remove_result.success:
+			# Rollback: restore any items already removed
+			for j: int in range(items_removed):
+				if is_caravan:
+					_add_to_caravan(item_id)
+				else:
+					_add_to_character(source, item_id)
 			sale_failed.emit(remove_result.error)
 			return {success = false, error = remove_result.error, transaction = {}}
+
+		items_removed += 1
 
 	# Add gold
 	var old_gold: int = _get_gold()

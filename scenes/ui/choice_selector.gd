@@ -27,6 +27,14 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
+func _exit_tree() -> void:
+	# Disconnect from DialogManager signals to prevent stale references
+	if DialogManager.choices_ready.is_connected(_on_choices_ready):
+		DialogManager.choices_ready.disconnect(_on_choices_ready)
+	if DialogManager.dialog_ended.is_connected(_on_dialog_ended):
+		DialogManager.dialog_ended.disconnect(_on_dialog_ended)
+
+
 func _input(event: InputEvent) -> void:
 	if not is_active or not visible:
 		return

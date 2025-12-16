@@ -568,7 +568,8 @@ func _get_role_name(role: NPCData.NPCRole) -> String:
 func _disable_player_input() -> void:
 	# InputManager is for battles - only try to disable if it has the method
 	if InputManager.has_method("set_input_enabled"):
-		_previous_input_state = InputManager.get("input_enabled") if "input_enabled" in InputManager else true
+		var current_state: Variant = InputManager.get("input_enabled")
+		_previous_input_state = current_state if current_state != null else true
 		InputManager.set_input_enabled(false)
 
 	_player_input_disabled = true

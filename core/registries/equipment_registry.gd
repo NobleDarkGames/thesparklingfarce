@@ -15,6 +15,9 @@ extends RefCounted
 ##   }
 ## }
 
+## Emitted when registrations change (for editor refresh)
+signal registrations_changed()
+
 # Default types that are always available
 const DEFAULT_WEAPON_TYPES: Array[String] = ["sword", "axe", "lance", "bow", "staff", "tome"]
 const DEFAULT_ARMOR_TYPES: Array[String] = ["light", "heavy", "robe", "shield"]
@@ -45,6 +48,7 @@ func register_weapon_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_weapon_types[mod_id] = typed_array
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Register armor types from a mod
@@ -63,6 +67,7 @@ func register_armor_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_armor_types[mod_id] = typed_array
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Unregister all types from a mod (called when mod is unloaded)
@@ -76,6 +81,7 @@ func unregister_mod(mod_id: String) -> void:
 		changed = true
 	if changed:
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Clear all mod registrations (called on full mod reload)
@@ -83,6 +89,7 @@ func clear_mod_registrations() -> void:
 	_mod_weapon_types.clear()
 	_mod_armor_types.clear()
 	_cache_dirty = true
+	registrations_changed.emit()
 
 
 ## Get all available weapon types (defaults + mod-registered)

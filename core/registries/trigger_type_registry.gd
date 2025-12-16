@@ -14,6 +14,9 @@ extends RefCounted
 ## Or programmatically:
 ##   ModLoader.trigger_type_registry.register_trigger_types("my_mod", ["puzzle", "minigame"])
 
+## Emitted when registrations change (for editor refresh)
+signal registrations_changed()
+
 # Default types that are always available (matching the original enum)
 const DEFAULT_TRIGGER_TYPES: Array[String] = [
 	"battle",
@@ -48,6 +51,7 @@ func register_trigger_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_trigger_types[mod_id] = typed_array
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Register a trigger script for a specific trigger type
@@ -58,6 +62,7 @@ func register_trigger_script(trigger_type: String, script_path: String, mod_id: 
 		"path": script_path,
 		"mod_id": mod_id
 	}
+	registrations_changed.emit()
 
 
 ## Unregister all types from a mod (called when mod is unloaded)
@@ -79,6 +84,7 @@ func unregister_mod(mod_id: String) -> void:
 
 	if changed:
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Clear all mod registrations (called on full mod reload)
@@ -86,6 +92,7 @@ func clear_mod_registrations() -> void:
 	_mod_trigger_types.clear()
 	_trigger_scripts.clear()
 	_cache_dirty = true
+	registrations_changed.emit()
 
 
 ## Get all available trigger types (defaults + mod-registered)

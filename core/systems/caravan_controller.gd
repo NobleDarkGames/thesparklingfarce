@@ -65,8 +65,8 @@ const DEFAULT_CARAVAN_ID: String = "default_caravan"
 ## Whether the caravan system is enabled (mods can disable)
 var enabled: bool = true
 
-## Currently active caravan configuration (CaravanData resource)
-var current_config: Resource = null
+## Currently active caravan configuration
+var current_config: CaravanData = null
 
 # =============================================================================
 # RUNTIME STATE
@@ -172,13 +172,13 @@ func _load_caravan_config() -> void:
 
 		# Check if mod disables caravan entirely
 		if "enabled" in manifest.caravan_config:
-			caravan_enabled = manifest.caravan_config.enabled
+			caravan_enabled = manifest.caravan_config.get("enabled", true)
 			if not caravan_enabled:
 				break  # Highest priority mod disabled it
 
 		# Check for caravan_data_id override
 		if "caravan_data_id" in manifest.caravan_config:
-			caravan_data_id = manifest.caravan_config.caravan_data_id
+			caravan_data_id = manifest.caravan_config.get("caravan_data_id", DEFAULT_CARAVAN_ID)
 
 		# Register custom services
 		if "custom_services" in manifest.caravan_config:

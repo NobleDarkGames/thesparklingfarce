@@ -190,7 +190,6 @@ func _process(_delta: float) -> void:
 ## @param current_mp: Character's current MP
 ## @param session_id: Turn session ID from InputManager
 func show_spells(abilities: Array[AbilityData], current_mp: int, session_id: int) -> void:
-	print("[SPELL_MENU DEBUG] show_spells() called with %d abilities, %d MP, session %d" % [abilities.size(), current_mp, session_id])
 	_menu_session_id = session_id
 	_hover_index = -1
 	_abilities = abilities
@@ -198,7 +197,6 @@ func show_spells(abilities: Array[AbilityData], current_mp: int, session_id: int
 
 	# Create labels if needed
 	if _spell_labels.size() != abilities.size():
-		print("[SPELL_MENU DEBUG] Creating %d spell labels" % abilities.size())
 		_create_spell_labels(abilities.size())
 
 	# Populate spell labels
@@ -215,11 +213,9 @@ func show_spells(abilities: Array[AbilityData], current_mp: int, session_id: int
 	_resize_menu()
 
 	# Show menu
-	print("[SPELL_MENU DEBUG] Setting visible=true, process_input=true, process=true")
 	visible = true
 	set_process_input(true)
 	set_process(true)
-	print("[SPELL_MENU DEBUG] Menu shown. visible=%s, size=%s, position=%s" % [visible, size, position])
 
 
 ## Populate spell labels with ability data

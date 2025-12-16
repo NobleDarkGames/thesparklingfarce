@@ -19,6 +19,9 @@ extends RefCounted
 ##   }
 ## }
 
+## Emitted when registrations change (for editor refresh)
+signal registrations_changed()
+
 ## Enum for built-in offset calculation methods
 enum OffsetMethod {
 	NONE,           ## No offset applied
@@ -65,6 +68,7 @@ func register_offset_types(mod_id: String, types: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_offset_types[mod_id] = typed_array
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Unregister all types from a mod (called when mod is unloaded)
@@ -72,12 +76,14 @@ func unregister_mod(mod_id: String) -> void:
 	if mod_id in _mod_offset_types:
 		_mod_offset_types.erase(mod_id)
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Clear all mod registrations (called on full mod reload)
 func clear_mod_registrations() -> void:
 	_mod_offset_types.clear()
 	_cache_dirty = true
+	registrations_changed.emit()
 
 
 ## Get all available offset types (defaults + mod-registered)

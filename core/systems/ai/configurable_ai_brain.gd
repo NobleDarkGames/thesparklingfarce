@@ -1068,7 +1068,7 @@ func _select_best_debuff_ability(unit: Node2D, target: Node2D, abilities: Array[
 
 		# Prefer abilities that match preferred_status_effects (if specified)
 		var effects: Array = ability_info.get("effects", [])
-		for effect: Variant in effects:
+		for effect: String in effects:
 			if effect in behavior.preferred_status_effects:
 				score += 50.0
 

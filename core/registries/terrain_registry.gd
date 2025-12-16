@@ -10,6 +10,9 @@ extends RefCounted
 ##
 ## Mods register terrain via TerrainData .tres files in mods/*/data/terrain/
 
+## Emitted when registrations change (for editor refresh)
+signal registrations_changed()
+
 # Minimal fallback terrain data (only used when terrain_type not found)
 # This is intentionally sparse - full definitions belong in mod .tres files
 const FALLBACK_TERRAIN_ID: String = "plains"
@@ -22,28 +25,22 @@ var _terrain_data: Dictionary = {}
 var _terrain_sources: Dictionary = {}
 
 # Cached fallback terrain (lazy-created)
-var _fallback_terrain: Resource = null
+var _fallback_terrain: TerrainData = null
 
 
 ## Register a TerrainData resource from a mod
-func register_terrain(terrain: Resource, mod_id: String) -> void:
+func register_terrain(terrain: TerrainData, mod_id: String) -> void:
 	if not terrain:
 		push_warning("TerrainRegistry: Cannot register null terrain")
 		return
 
-	# Verify it's a TerrainData resource
-	if not terrain is TerrainData:
-		push_warning("TerrainRegistry: Resource is not a TerrainData")
-		return
-
-	var terrain_data: TerrainData = terrain as TerrainData
-
-	if terrain_data.terrain_id.is_empty():
+	if terrain.terrain_id.is_empty():
 		push_warning("TerrainRegistry: Cannot register terrain with empty terrain_id")
 		return
 
-	_terrain_data[terrain_data.terrain_id] = terrain_data
-	_terrain_sources[terrain_data.terrain_id] = mod_id
+	_terrain_data[terrain.terrain_id] = terrain
+	_terrain_sources[terrain.terrain_id] = mod_id
+	registrations_changed.emit()
 
 
 ## Get TerrainData by ID (returns fallback plains if not found)
@@ -89,6 +86,7 @@ func clear_mod_registrations() -> void:
 	_terrain_data.clear()
 	_terrain_sources.clear()
 	# Don't clear fallback - it's a static safety net
+	registrations_changed.emit()
 
 
 ## Get or create the fallback plains terrain

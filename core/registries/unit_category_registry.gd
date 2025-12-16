@@ -15,6 +15,9 @@ extends RefCounted
 ## Note: Custom categories require corresponding AI/battle logic to be meaningful.
 ## The base game only has built-in handling for the default categories.
 
+## Emitted when registrations change (for editor refresh)
+signal registrations_changed()
+
 # Default categories that are always available
 const DEFAULT_CATEGORIES: Array[String] = ["player", "enemy", "neutral"]
 
@@ -37,6 +40,7 @@ func register_categories(mod_id: String, categories: Array) -> void:
 	if not typed_array.is_empty():
 		_mod_categories[mod_id] = typed_array
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Unregister all categories from a mod (called when mod is unloaded)
@@ -44,12 +48,14 @@ func unregister_mod(mod_id: String) -> void:
 	if mod_id in _mod_categories:
 		_mod_categories.erase(mod_id)
 		_cache_dirty = true
+		registrations_changed.emit()
 
 
 ## Clear all mod registrations (called on full mod reload)
 func clear_mod_registrations() -> void:
 	_mod_categories.clear()
 	_cache_dirty = true
+	registrations_changed.emit()
 
 
 ## Get all available unit categories (defaults + mod-registered)

@@ -37,6 +37,14 @@ func _ready() -> void:
 	hide()
 	modulate.a = 0.0
 
+
+func _exit_tree() -> void:
+	# Disconnect from DialogManager signals to prevent stale references
+	if DialogManager.line_changed.is_connected(_on_line_changed):
+		DialogManager.line_changed.disconnect(_on_line_changed)
+	if DialogManager.dialog_ended.is_connected(_on_dialog_ended):
+		DialogManager.dialog_ended.disconnect(_on_dialog_ended)
+
 	# Clear any stale text content to prevent flicker on first show
 	_clear_all_content()
 

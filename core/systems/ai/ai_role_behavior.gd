@@ -175,17 +175,19 @@ func _calculate_threat_weight(target: Node2D, behavior: Resource, context: Dicti
 	return weight
 
 
+## Threshold for considering a unit a "high damage" dealer
+const HIGH_DAMAGE_THRESHOLD: int = 15
+
+
 ## Check if a unit appears to be a healer
 func _is_healer(unit: Node2D) -> bool:
 	# Check if unit has healing abilities
 	if "character_data" in unit:
-		var char_data: Resource = unit.character_data
-		if char_data and "unique_abilities" in char_data:
-			for ability: Resource in char_data.unique_abilities:
-				if ability and "ability_type" in ability:
-					# AbilityType.HEAL = 1 (check AbilityData enum)
-					if ability.ability_type == 1:
-						return true
+		var char_data: CharacterData = unit.character_data as CharacterData
+		if char_data and char_data.unique_abilities:
+			for ability: AbilityData in char_data.unique_abilities:
+				if ability and ability.ability_type == AbilityData.AbilityType.HEAL:
+					return true
 	return false
 
 
@@ -193,9 +195,9 @@ func _is_healer(unit: Node2D) -> bool:
 func _is_damage_dealer(unit: Node2D) -> bool:
 	# Check for high attack stat
 	if "stats" in unit:
-		var stats: Resource = unit.stats
-		if stats and "attack" in stats:
-			return stats.attack > 15  # Threshold for "high" damage
+		var stats: UnitStats = unit.stats as UnitStats
+		if stats:
+			return stats.attack > HIGH_DAMAGE_THRESHOLD
 	return false
 
 

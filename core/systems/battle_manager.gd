@@ -1689,8 +1689,8 @@ func _check_double_attack(attacker: Node2D) -> bool:
 	if class_data == null:
 		return false
 
-	# Get double attack rate from class (default 0 if not set)
-	var double_attack_rate: int = class_data.double_attack_rate if "double_attack_rate" in class_data else 0
+	# Get double attack rate from class
+	var double_attack_rate: int = class_data.double_attack_rate
 
 	if double_attack_rate <= 0:
 		return false
