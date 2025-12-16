@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://bqy405v67vhgq"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_rnbrv"]
+
+[resource]
+script = ExtResource("1_rnbrv")
+ability_name = "Confuse"
+ability_id = "confuse"
+ability_type = 5
+target_type = 0
+max_range = 2
+mp_cost = 2
+power = 0
+status_effects = Array[String](["confusion"])
+description = "Confusinates someone"

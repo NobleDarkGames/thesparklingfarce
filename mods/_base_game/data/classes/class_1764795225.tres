@@ -1,14 +1,20 @@
-[gd_resource type="Resource" script_class="ClassData" load_steps=3 format=3 uid="uid://cfg3krjt6qa7x"]
+[gd_resource type="Resource" script_class="ClassData" load_steps=5 format=3 uid="uid://cfg3krjt6qa7x"]
 
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_22k2v"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_mmroo"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/abilities/blaze_1.tres" id="2_blaze1"]
+[ext_resource type="Resource" uid="uid://bqy405v67vhgq" path="res://mods/_base_game/data/abilities/ability_1765912847.tres" id="3_0w6hs"]
 
 [resource]
 script = ExtResource("1_22k2v")
 display_name = "BASE Mage"
-mp_growth = 60
+mp_growth = 55
 strength_growth = 30
-defense_growth = 40
+defense_growth = 35
 intelligence_growth = 60
 equippable_weapon_types = Array[String](["staff", "tome"])
-class_abilities = Array[AbilityData]([ExtResource("2_blaze1")])
+class_abilities = Array[ExtResource("1_mmroo")]([ExtResource("2_blaze1"), ExtResource("3_0w6hs")])
+ability_unlock_levels = {
+"": 1,
+"blaze_1": 1
+}
