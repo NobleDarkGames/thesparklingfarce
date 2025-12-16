@@ -29,7 +29,8 @@ func _store_original_position() -> void:
 	_original_position = position
 
 
-## Display terrain information for the given cell.
+## Display terrain information for the given cell (with animation).
+## Use update_terrain_info() for rapid updates during movement.
 func show_terrain_info(unit_cell: Vector2i) -> void:
 	# Kill any existing tween to prevent conflicts
 	if _current_tween and _current_tween.is_valid():
@@ -43,6 +44,10 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 	terrain_name_label.text = terrain.display_name
 	terrain_effect_label.text = _format_terrain_effects(terrain)
 
+	# If already visible, skip animation (just update text)
+	if visible and modulate.a > 0.9:
+		return
+
 	# Setup for animation - slide down from above
 	visible = true
 	modulate.a = 0.0
@@ -55,6 +60,13 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 	_current_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_current_tween.tween_property(self, "modulate:a", 1.0, duration)
 	_current_tween.tween_property(self, "position", _original_position, duration)
+
+
+## Update terrain info without animation (for rapid updates during movement)
+func update_terrain_info(unit_cell: Vector2i) -> void:
+	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit_cell)
+	terrain_name_label.text = terrain.display_name
+	terrain_effect_label.text = _format_terrain_effects(terrain)
 
 
 ## Hide the terrain panel with animation.

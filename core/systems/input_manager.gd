@@ -1820,6 +1820,10 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 
 	await step_tween.finished
 
+	# Emit cell_entered for terrain panel updates
+	if active_unit.has_signal("cell_entered"):
+		active_unit.cell_entered.emit(target_cell)
+
 	# Return to idle animation after movement
 	if active_unit.has_method("_play_idle_animation"):
 		active_unit._play_idle_animation()
@@ -1880,6 +1884,10 @@ func _undo_last_step() -> void:
 	AudioManager.play_sfx_no_overlap("walk", AudioManager.SFXCategory.MOVEMENT)
 
 	await step_tween.finished
+
+	# Emit cell_entered for terrain panel updates
+	if active_unit.has_signal("cell_entered"):
+		active_unit.cell_entered.emit(previous_cell)
 
 	# Return to idle animation after movement
 	if active_unit.has_method("_play_idle_animation"):

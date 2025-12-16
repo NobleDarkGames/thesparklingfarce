@@ -1,27 +1,26 @@
-## BATTLE LOADER - ENGINE COMPONENT
+## BATTLE SCENE - Primary battle scene controller
 ##
-## Loads battles created in the Sparkling Editor and executes them.
-## Fully dynamic - uses PartyManager for player units and BattleData for enemies/neutrals.
+## ARCHITECTURE:
+## This is the single entry point for all tactical battles. Responsibilities are split:
+##   - battle_loader.gd (this file): Scene structure, map loading, unit spawning, UI updates
+##   - BattleManager (autoload): Combat execution, XP/level-ups, victory/defeat screens
+##   - TurnManager (autoload): Turn flow, active unit tracking
+##
+## Called via: TriggerManager -> SceneManager.change_scene("res://scenes/battle_loader.tscn")
 ##
 ## This is an ENGINE component that loads CONTENT (maps, battles) from mods.
 ## Maps come from: mods/*/maps/
 ## Battles come from: mods/*/data/battles/
 ##
-## Features:
-## - Loads BattleData resources from editor
-## - Spawns player party from PartyManager
-## - Spawns enemies and neutral units from BattleData
-## - Complete turn-based battle flow (TurnManager + InputManager + BattleManager)
-## - Full XP system integration (damage, kill, participation, level-ups)
-## - Visual grid with cursor and path preview
-## - Action menu UI with Attack/Stay options
-## - Combat resolution with damage calculation
+## For modders:
+## - Define battles via BattleData resources (no code required)
+## - Override unit/combat scenes via mod.json "scenes" section
+## - Custom AI via AIBehaviorData resources
 ##
 ## Controls:
 ## - Arrow Keys: Move cursor during your turn
 ## - Enter/Space: Confirm movement (opens action menu)
-## - Backspace/X: Cancel/go back/free cursor inspect (B button)
-## - Q: Quit test scene
+## - Backspace/X: Cancel/go back/free cursor inspect
 ## - Action Menu: Arrow keys to select, Enter to confirm
 extends Node2D
 
@@ -243,10 +242,9 @@ func _ready() -> void:
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
 
-	# CRITICAL: Connect BattleManager signals for XP, level-ups, and victory/defeat screens
-	# This must be called because we're NOT calling BattleManager.start_battle()
-	# (we call TurnManager.start_battle() directly for more control)
-	# Note: BattleManager.battle_active now proxies to TurnManager.battle_active automatically
+	# Connect BattleManager signals for XP, level-ups, and victory/defeat screens
+	# We call setup() + _connect_signals() directly rather than start_battle() because
+	# this scene handles map loading and unit spawning with specific scene integration
 	BattleManager._connect_signals()
 
 	# Populate BattleManager unit arrays (needed for AI to find targets)
@@ -399,6 +397,10 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	var unit_cell: Vector2i = unit.grid_position
 	_terrain_panel.show_terrain_info(unit_cell)
 
+	# Connect to cell_entered to update terrain panel during movement
+	if unit.has_signal("cell_entered") and not unit.cell_entered.is_connected(_on_active_unit_cell_entered):
+		unit.cell_entered.connect(_on_active_unit_cell_entered)
+
 	# Update turn order panel
 	_update_turn_order_display(unit)
 
@@ -418,6 +420,10 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 	var unit_cell: Vector2i = unit.grid_position
 	_terrain_panel.show_terrain_info(unit_cell)
 
+	# Connect to cell_entered to update terrain panel during movement
+	if unit.has_signal("cell_entered") and not unit.cell_entered.is_connected(_on_active_unit_cell_entered):
+		unit.cell_entered.connect(_on_active_unit_cell_entered)
+
 	# Update turn order panel
 	_update_turn_order_display(unit)
 
@@ -425,11 +431,24 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 func _on_unit_turn_ended(unit: Node2D) -> void:
 	unit.hide_selection()
 
+	# Disconnect from cell_entered signal
+	if unit.has_signal("cell_entered") and unit.cell_entered.is_connected(_on_active_unit_cell_entered):
+		unit.cell_entered.disconnect(_on_active_unit_cell_entered)
+
 	# Hide stats and terrain panels
 	_stats_panel.hide_stats()
 	_terrain_panel.hide_terrain_info()
 
 	# GridManager now handles clearing highlights
+
+
+## Update terrain panel when active unit enters a new cell during movement
+func _on_active_unit_cell_entered(cell: Vector2i) -> void:
+	# Use non-animating update for rapid movement updates
+	if _terrain_panel.has_method("update_terrain_info"):
+		_terrain_panel.update_terrain_info(cell)
+	else:
+		_terrain_panel.show_terrain_info(cell)
 
 
 func _on_battle_ended(_victory: bool) -> void:

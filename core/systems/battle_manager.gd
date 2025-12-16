@@ -147,6 +147,10 @@ func _get_combat_results_scene() -> PackedScene:
 
 
 ## Start a battle from BattleData resource (loaded from mods/)
+## NOTE: This method is currently UNUSED. The production battle flow uses
+## battle_loader.gd which calls setup() + _connect_signals() directly for
+## more control over scene structure. This method remains for potential
+## future use or alternative battle entry points.
 func start_battle(battle_data: Resource) -> void:
 	if not battle_data:
 		push_error("BattleManager: Cannot start battle with null BattleData")

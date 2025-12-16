@@ -14,6 +14,7 @@ const COLOR_NEUTRAL: Color = Color(1.0, 1.0, 0.2, 1.0)  # Bright yellow
 
 ## Signals for battle events
 signal moved(from: Vector2i, to: Vector2i)
+signal cell_entered(cell: Vector2i)  ## Emitted when unit reaches each cell during path movement
 signal attacked(target: Node2D, damage: int)  # Changed from Unit to Node2D
 signal damaged(amount: int)
 signal healed(amount: int)
@@ -400,6 +401,10 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 
 		# Chain the movement to this cell
 		_movement_tween.tween_property(self, "position", target_position, duration)
+
+		# Emit cell_entered when reaching this cell (for terrain panel updates, etc.)
+		var entered_cell: Vector2i = cell  # Capture for lambda
+		_movement_tween.tween_callback(func() -> void: cell_entered.emit(entered_cell))
 
 	# Return to idle when movement completes
 	_movement_tween.tween_callback(_play_idle_animation)
