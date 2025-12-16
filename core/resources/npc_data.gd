@@ -75,7 +75,7 @@ enum NPCRole {
 ## Portrait to show in dialogs (used if character_data is null)
 @export var portrait: Texture2D
 ## Animated sprite frames for map display (used if character_data is null)
-## Should contain idle_up, idle_down, idle_left, idle_right animations
+## SF2-authentic: should contain walk_up, walk_down, walk_left, walk_right animations
 @export var sprite_frames: SpriteFrames
 
 @export_group("Interaction - Primary")
@@ -193,10 +193,11 @@ func get_map_sprite() -> Texture2D:
 	return null
 
 
-## Extract a static texture from SpriteFrames (first frame of idle_down)
+## Extract a static texture from SpriteFrames (first frame of walk_down)
 func _extract_texture_from_sprite_frames(frames: SpriteFrames) -> Texture2D:
-	if frames.has_animation("idle_down") and frames.get_frame_count("idle_down") > 0:
-		return frames.get_frame_texture("idle_down", 0)
+	# SF2-authentic: walk_down is the primary animation
+	if frames.has_animation("walk_down") and frames.get_frame_count("walk_down") > 0:
+		return frames.get_frame_texture("walk_down", 0)
 	# Fallback: any animation's first frame
 	for anim_name: String in frames.get_animation_names():
 		if frames.get_frame_count(anim_name) > 0:

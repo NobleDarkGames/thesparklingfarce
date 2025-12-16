@@ -63,16 +63,11 @@ func _generate_sprite_frames(spritesheet_path: String, output_path: String) -> b
 		sprite_frames.remove_animation("default")
 
 	# Walk animations (2 frames, looping)
+	# SF2-authentic: walk animations play continuously, even when stationary (no separate idle)
 	for dir_name: String in DIRECTIONS:
 		var row: int = DIRECTIONS[dir_name]
 		var anim_name: String = "walk_" + dir_name.replace("walk_", "")
 		_add_animation(sprite_frames, texture, anim_name, row, FRAME_COUNT, true)
-
-	# Idle animations (first frame only, looping)
-	for dir_name: String in DIRECTIONS:
-		var row: int = DIRECTIONS[dir_name]
-		var anim_name: String = "idle_" + dir_name.replace("walk_", "")
-		_add_animation(sprite_frames, texture, anim_name, row, 1, true)
 
 	var error: Error = ResourceSaver.save(sprite_frames, output_path)
 	if error != OK:

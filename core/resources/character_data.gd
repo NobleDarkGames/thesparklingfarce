@@ -185,14 +185,11 @@ func get_portrait_safe() -> Texture2D:
 
 
 ## Get a static texture from sprite_frames for UI contexts (thumbnails, etc.)
-## Extracts first frame of idle_down animation, with fallbacks
+## Extracts first frame of walk_down animation, with fallbacks
 ## Safe to call without null checks - always returns a valid Texture2D
 func get_display_texture() -> Texture2D:
 	if sprite_frames != null:
-		# Try to get first frame from idle_down animation
-		if sprite_frames.has_animation("idle_down") and sprite_frames.get_frame_count("idle_down") > 0:
-			return sprite_frames.get_frame_texture("idle_down", 0)
-		# Fallback: try walk_down
+		# SF2-authentic: walk_down is the primary animation (no separate idle)
 		if sprite_frames.has_animation("walk_down") and sprite_frames.get_frame_count("walk_down") > 0:
 			return sprite_frames.get_frame_texture("walk_down", 0)
 		# Last resort: any animation's first frame

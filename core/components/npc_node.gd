@@ -206,17 +206,12 @@ func _create_animated_sprite_from_texture(texture: Texture2D) -> AnimatedSprite2
 
 
 ## Create SpriteFrames from a single static texture (all directions use same image)
+## SF2-authentic: only walk animations (no separate idle)
 func _create_sprite_frames_from_texture(texture: Texture2D) -> SpriteFrames:
 	var frames: SpriteFrames = SpriteFrames.new()
 
 	for direction: String in FacingUtils.DIRECTIONS:
-		var idle_name: String = "idle_" + direction
 		var walk_name: String = "walk_" + direction
-
-		frames.add_animation(idle_name)
-		frames.set_animation_loop(idle_name, true)
-		frames.set_animation_speed(idle_name, 4.0)
-		frames.add_frame(idle_name, texture)
 
 		frames.add_animation(walk_name)
 		frames.set_animation_loop(walk_name, true)
@@ -248,6 +243,7 @@ func _create_default_animated_sprite() -> AnimatedSprite2D:
 
 ## Create SpriteFrames from a 64x128 spritesheet (2 columns x 4 rows)
 ## Layout: columns are frames, rows are directions (down, up, left, right)
+## SF2-authentic: only walk animations (no separate idle)
 func _create_sprite_frames_from_spritesheet(texture: Texture2D) -> SpriteFrames:
 	var frames: SpriteFrames = SpriteFrames.new()
 	var frame_width: int = 32
@@ -257,19 +253,7 @@ func _create_sprite_frames_from_spritesheet(texture: Texture2D) -> SpriteFrames:
 
 	for row: int in range(4):
 		var direction: String = direction_order[row]
-		var idle_name: String = "idle_" + direction
 		var walk_name: String = "walk_" + direction
-
-		# Create idle animation (first frame only)
-		frames.add_animation(idle_name)
-		frames.set_animation_loop(idle_name, true)
-		frames.set_animation_speed(idle_name, 4.0)
-
-		var idle_region: Rect2 = Rect2(0, row * frame_height, frame_width, frame_height)
-		var idle_texture: AtlasTexture = AtlasTexture.new()
-		idle_texture.atlas = texture
-		idle_texture.region = idle_region
-		frames.add_frame(idle_name, idle_texture)
 
 		# Create walk animation (both frames)
 		frames.add_animation(walk_name)
@@ -287,6 +271,7 @@ func _create_sprite_frames_from_spritesheet(texture: Texture2D) -> SpriteFrames:
 
 
 ## Create procedural placeholder SpriteFrames (colored rectangle)
+## SF2-authentic: only walk animations (no separate idle)
 func _create_procedural_placeholder_frames() -> SpriteFrames:
 	var frames: SpriteFrames = SpriteFrames.new()
 
@@ -305,13 +290,7 @@ func _create_procedural_placeholder_frames() -> SpriteFrames:
 	var texture: ImageTexture = ImageTexture.create_from_image(img)
 
 	for direction: String in FacingUtils.DIRECTIONS:
-		var idle_name: String = "idle_" + direction
 		var walk_name: String = "walk_" + direction
-
-		frames.add_animation(idle_name)
-		frames.set_animation_loop(idle_name, true)
-		frames.set_animation_speed(idle_name, 4.0)
-		frames.add_frame(idle_name, texture)
 
 		frames.add_animation(walk_name)
 		frames.set_animation_loop(walk_name, true)
@@ -321,11 +300,11 @@ func _create_procedural_placeholder_frames() -> SpriteFrames:
 	return frames
 
 
-## Helper to play idle animation on a sprite
+## Helper to play walk animation on a sprite (SF2-authentic: walk plays even when stationary)
 func _play_idle_animation_on_sprite(animated_sprite: AnimatedSprite2D) -> void:
 	if not animated_sprite or not animated_sprite.sprite_frames:
 		return
-	var anim_name: String = "idle_" + facing_direction
+	var anim_name: String = "walk_" + facing_direction
 	if animated_sprite.sprite_frames.has_animation(anim_name):
 		animated_sprite.play(anim_name)
 
@@ -404,14 +383,14 @@ func set_facing(direction: String) -> void:
 		cinematic_actor.set_facing(facing_direction)
 
 
-## Play idle animation for current facing direction
+## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary)
 func play_idle_animation() -> void:
 	if not sprite or not sprite is AnimatedSprite2D:
 		return
 	var animated_sprite: AnimatedSprite2D = sprite as AnimatedSprite2D
 	if not animated_sprite.sprite_frames:
 		return
-	var anim_name: String = "idle_" + facing_direction
+	var anim_name: String = "walk_" + facing_direction
 	if animated_sprite.sprite_frames.has_animation(anim_name):
 		if animated_sprite.animation != anim_name:
 			animated_sprite.play(anim_name)
@@ -428,9 +407,9 @@ func play_walk_animation() -> void:
 	if animated_sprite.sprite_frames.has_animation(anim_name):
 		if animated_sprite.animation != anim_name:
 			animated_sprite.play(anim_name)
-	elif animated_sprite.sprite_frames.has_animation("idle_" + facing_direction):
-		# Fallback to idle if no walk animation
-		animated_sprite.play("idle_" + facing_direction)
+	elif animated_sprite.sprite_frames.has_animation("walk_down"):
+		# Fallback to walk_down if no directional animation
+		animated_sprite.play("walk_down")
 
 
 ## Get the display name for this NPC (for UI/dialogs)

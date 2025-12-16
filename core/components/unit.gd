@@ -122,13 +122,10 @@ func _update_visual() -> void:
 	# Try to load sprite_frames from character data
 	if character_data and character_data.sprite_frames:
 		sprite.sprite_frames = character_data.sprite_frames
-		# Default to idle_down animation for battle grid
-		if character_data.sprite_frames.has_animation("idle_down"):
-			sprite.animation = "idle_down"
-			sprite.play()
-		elif character_data.sprite_frames.has_animation("walk_down"):
+		# SF2-authentic: walk animation plays continuously (even when stationary)
+		if character_data.sprite_frames.has_animation("walk_down"):
 			sprite.animation = "walk_down"
-			sprite.stop()  # Don't animate walk when idle
+			sprite.play()
 		# Apply faction-based modulation for visual faction identification
 		match faction:
 			"player":
@@ -140,7 +137,7 @@ func _update_visual() -> void:
 	else:
 		# Fallback: Create placeholder sprite_frames with colored square
 		sprite.sprite_frames = _create_placeholder_sprite_frames()
-		sprite.animation = "idle"
+		sprite.animation = "walk_down"
 		sprite.play()
 		match faction:
 			"player":
@@ -175,7 +172,8 @@ func _create_placeholder_sprite_frames() -> SpriteFrames:
 
 	# Create atlas textures for each frame
 	# Row 0: down (frames 0, 1), Row 1: left, Row 2: right, Row 3: up
-	var directions: Array[String] = ["idle_down", "idle_left", "idle_right", "idle_up"]
+	# SF2-authentic: only walk animations (no separate idle)
+	var directions: Array[String] = ["walk_down", "walk_left", "walk_right", "walk_up"]
 
 	for row in range(4):
 		var anim_name: String = directions[row]
@@ -194,16 +192,6 @@ func _create_placeholder_sprite_frames() -> SpriteFrames:
 			)
 			frames.add_frame(anim_name, atlas)
 
-	# Add "idle" as alias for "idle_down" (default facing)
-	frames.add_animation("idle")
-	frames.set_animation_loop("idle", true)
-	frames.set_animation_speed("idle", 4.0)
-	for col in range(2):
-		var atlas: AtlasTexture = AtlasTexture.new()
-		atlas.atlas = spritesheet
-		atlas.region = Rect2(col * DEFAULT_FRAME_SIZE.x, 0, DEFAULT_FRAME_SIZE.x, DEFAULT_FRAME_SIZE.y)
-		frames.add_frame("idle", atlas)
-
 	return frames
 
 
@@ -218,10 +206,10 @@ func _create_emergency_placeholder_frames() -> SpriteFrames:
 	img.fill(Color.WHITE)
 	var texture: ImageTexture = ImageTexture.create_from_image(img)
 
-	frames.add_animation("idle")
-	frames.set_animation_loop("idle", true)
-	frames.set_animation_speed("idle", 1.0)
-	frames.add_frame("idle", texture)
+	frames.add_animation("walk_down")
+	frames.set_animation_loop("walk_down", true)
+	frames.set_animation_speed("walk_down", 1.0)
+	frames.add_frame("walk_down", texture)
 	return frames
 
 
@@ -666,19 +654,20 @@ func _direction_to_string(direction: Vector2i) -> String:
 	return FacingUtils.direction_to_string(direction)
 
 
-## Play idle animation for current facing direction
+## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary)
 func _play_idle_animation() -> void:
 	if not sprite or not sprite.sprite_frames:
 		return
 
-	var anim_name: String = "idle_" + facing_direction
+	# SF2-authentic: walk animation loops continuously, even when "idle"
+	var anim_name: String = "walk_" + facing_direction
 
 	if sprite.sprite_frames.has_animation(anim_name):
 		if sprite.animation != anim_name:
 			sprite.play(anim_name)
-	elif sprite.sprite_frames.has_animation("idle"):
-		# Fallback for sprites without directional animations
-		sprite.play("idle")
+	elif sprite.sprite_frames.has_animation("walk_down"):
+		# Fallback for sprites without all directional animations
+		sprite.play("walk_down")
 
 
 ## Play walk animation for current facing direction
@@ -691,9 +680,9 @@ func _play_walk_animation() -> void:
 	if sprite.sprite_frames.has_animation(anim_name):
 		if sprite.animation != anim_name:
 			sprite.play(anim_name)
-	elif sprite.sprite_frames.has_animation("idle_" + facing_direction):
-		# Fallback: use idle if no walk animation
-		sprite.play("idle_" + facing_direction)
+	elif sprite.sprite_frames.has_animation("walk_down"):
+		# Fallback for sprites without all directional animations
+		sprite.play("walk_down")
 
 
 ## Update facing direction based on movement from one cell to another
