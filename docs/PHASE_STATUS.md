@@ -79,7 +79,6 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 
 ### Phase 5 - Advanced Features
 - **Status effects** (poison, sleep, paralysis, confusion)
-- **Advanced AI behaviors** (support caster, defensive, boss patterns)
 - **Retreat/resurrection system** (SF-style unit recovery)
 
 ### Minor UI Polish
@@ -100,7 +99,7 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 | Trigger System | Complete | Flag-based, one-shot, extensible |
 | Mod System | Complete | Priority-based loading |
 | Audio Manager | Complete | Music, SFX, mod-aware |
-| AI System | 30% | Basic behaviors only |
+| AI System | 85% | Roles, modes, phases, items, retreat |
 | Equipment | Complete | Items, effects, cursed items |
 | Magic/Spells | Complete | Single + AOE targeting, MP |
 | Promotion | Complete | SF2-style paths |
@@ -130,7 +129,6 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 ## Known Issues
 
-- AI system has only 2 basic behaviors (aggressive, defensive)
 - Status effects not yet implemented (poison, sleep, paralysis)
 - Placeholder art throughout (by design - modder content)
 

@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ClassData" load_steps=6 format=3 uid="uid://c78g0ifp1g87w"]
 
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_7dbey"]
-[ext_resource type="Resource" path="res://mods/_template/data/abilities/example_heal.tres" id="1_7e3nr"]
+[ext_resource type="Resource" path="res://mods/_base_game/data/abilities/heal_1.tres" id="1_7e3nr"]
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="1_nbvln"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/abilities/egress.tres" id="2_t40c3"]
 [ext_resource type="Resource" path="res://mods/_base_game/data/abilities/cure_poison.tres" id="3_cfemr"]
