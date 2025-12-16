@@ -1,6 +1,6 @@
 # The Sparkling Farce Platform Specification
 
-**For AI Agents** | Godot 4.5.1 | v4.0.0
+**For AI Agents** | Godot 4.5.1 | v4.1.0
 
 ---
 
@@ -21,25 +21,35 @@
 core/                    # Platform code ONLY
   mod_system/            # ModLoader, ModRegistry
   resources/             # Resource class definitions
-  systems/               # Autoload singletons
+  systems/               # Autoload singleton scripts
   components/            # Reusable node components
-  registries/            # Type registries
+  registries/            # Type registries (equipment, terrain, AI, etc.)
+  defaults/              # Core fallback assets
+    cinematics/          # opening_cinematic.json
+    tilesets/            # terrain_default.tres
 
 mods/                    # ALL game content
   _base_game/            # Official content (priority 0)
     mod.json             # Manifest
-    data/                # Resources: characters/, classes/, items/, abilities/,
-                         #   battles/, parties/, dialogues/, cinematics/, maps/,
-                         #   campaigns/, terrain/, npcs/, shops/, caravans/
+    data/                # Resources by type (see Resource Types)
     ai_brains/           # AI behavior scripts
-    assets/              # Art, icons
+    assets/              # Art, icons, portraits
     audio/sfx/, music/   # Sound
     tilesets/            # TileSet resources
   _sandbox/              # Dev testing (priority 100)
 
-scenes/                  # Engine scenes (UI, exploration)
-tests/                   # gdUnit4 tests
+scenes/                  # Engine scenes
+  startup.tscn           # Main entry point (coordinator)
+  cinematics/            # Core cinematic stages
+  map_exploration/       # Hero controller, party followers
+  ui/                    # All UI scenes
+    main_menu.tscn       # Core fallback main menu
+    shops/               # SF2-authentic shop interface
+    caravan/             # SF2-authentic depot interface
+    components/          # Reusable UI components
+tests/                   # gdUnit4 tests (at project root)
 addons/                  # gdUnit4, sparkling_editor
+templates/               # Code templates
 ```
 
 ---
@@ -67,6 +77,10 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 | StorageManager | Caravan depot (shared item storage) |
 | SceneManager | Scene transitions |
 | TriggerManager | Map trigger routing |
+| SettingsManager | User preferences |
+| LocalizationManager | Internationalization |
+| RandomManager | Deterministic RNG for replays |
+| GameEventBus | Cross-system event dispatch |
 
 ### Party & Equipment
 | Singleton | Purpose |
@@ -75,7 +89,8 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 | EquipmentManager | Equipment slots, cursed items |
 | ExperienceManager | XP distribution, level-up |
 | PromotionManager | Class promotion |
-| ShopManager | Buy/sell, church services |
+| ShopManager | Buy/sell logic, church services |
+| ShopController | Shop UI state machine |
 
 ### Battle
 | Singleton | Purpose |
@@ -131,6 +146,9 @@ ModLoader auto-discovers from `mods/*/data/<directory>/`:
 | caravans/ | caravan | CaravanData |
 | experience_configs/ | experience_config | ExperienceConfig |
 | new_game_configs/ | new_game_config | NewGameConfigData |
+| ai_behaviors/ | ai_behavior | AIBehaviorData |
+
+**JSON-supported types:** cinematic, campaign, map
 
 ---
 
@@ -145,8 +163,13 @@ Accessed via `ModLoader.<registry_name>`:
 | equipment_slot_registry | Data-driven equipment slots |
 | terrain_registry | Terrain data by type |
 | ai_brain_registry | AI brain scripts |
+| ai_role_registry | Configurable AI roles |
+| ai_mode_registry | AI behavior modes |
 | tileset_registry | TileSet resources |
 | trigger_type_registry | Map trigger types |
+| unit_category_registry | Unit type categories |
+| animation_offset_registry | Sprite animation offsets |
+| inventory_config | Inventory size/rules |
 
 ---
 
@@ -173,6 +196,37 @@ var char = load("res://mods/_base_game/data/characters/max.tres")
 
 ---
 
+## Game Startup Architecture
+
+**Entry Point:** `scenes/startup.tscn` (main_scene in project.godot)
+
+```
+startup.tscn (coordinator)
+    |
+    v
+Wait for autoloads (ModLoader, etc.)
+    |
+    v
+Load opening_cinematic scene:
+  1. Check ModLoader.registry for mod-provided scene
+  2. Fall back to core: scenes/cinematics/opening_cinematic_stage.tscn
+    |
+    v
+Wait for CinematicsManager.cinematic_ended signal
+    |
+    v
+Transition to main_menu:
+  1. Check ModLoader.registry for mod-provided scene
+  2. Fall back to core: scenes/ui/main_menu.tscn
+```
+
+**Design Principles:**
+- Cinematic scenes are ONLY responsible for playing cinematics (no navigation)
+- Startup coordinator owns all scene transition decisions
+- Core fallbacks ensure game works even if all mods fail to load
+
+---
+
 ## Map Architecture
 
 **SF2 open-world model:** Free backtracking, mobile Caravan, no permanent lockouts.
@@ -184,6 +238,35 @@ var char = load("res://mods/_base_game/data/characters/max.tres")
 | DUNGEON | Mixed | Optional | Yes |
 | INTERIOR | 1:1 | Hidden | No |
 | BATTLE | Grid | No | N/A |
+
+---
+
+## Character Sprites (SF2-Authentic)
+
+**Walk animation plays continuously** — NO separate idle animations (matches SF2, halves art requirements).
+
+### SpriteFrames Structure
+| Animation | Frames | Usage |
+|-----------|--------|-------|
+| walk_down | 2 | Default facing, dialog display |
+| walk_up | 2 | Moving/facing up |
+| walk_left | 2 | Moving/facing left |
+| walk_right | 2 | Moving/facing right |
+
+### Spritesheet Format
+**64x128 pixels** (2 columns x 4 rows of 32x32 frames)
+
+```
+Row 0: walk_down  [frame0, frame1]
+Row 1: walk_left  [frame0, frame1]
+Row 2: walk_right [frame0, frame1]
+Row 3: walk_up    [frame0, frame1]
+```
+
+### Storage
+- Location: `mods/*/data/sprite_frames/<entity>_map_sprites.tres`
+- Referenced by: `CharacterData.sprite_frames`, `NPCData.sprite_frames`
+- Always external resources (ExtResource), never embedded
 
 ---
 
@@ -200,24 +283,12 @@ var char = load("res://mods/_base_game/data/characters/max.tres")
 
 Godot's `_unhandled_input()` does NOT block `Input.is_action_pressed()` polling.
 
-**When creating modal UI, add checks to:**
+**Add modal UIs to these checks:**
 1. `ExplorationUIController.is_blocking_input()`
 2. `HeroController._is_modal_ui_active()` (defense-in-depth)
 3. `DebugConsole._is_other_modal_active()`
 
 **Existing modal checks:** `DebugConsole.is_open`, `ShopManager.is_shop_open()`, `DialogManager.is_dialog_active()`, `ExplorationUIController.current_state != EXPLORING`
-
----
-
-## Dogfood Rule
-
-We have built an advanced game editor, complete cinematic/dialog system, and comprehensive UI patterns. **Always look for existing infrastructure before writing from scratch.**
-
-Key UI patterns in `scenes/ui/`:
-- `components/modal_screen_base.gd` — Base class for modal screen-stack UIs
-- `shops/` — SF2-authentic shop interface
-- `caravan/` — SF2-authentic depot interface
-- `exploration_field_menu.tscn` — SF2-style field menu
 
 ---
 
@@ -232,6 +303,19 @@ Toggle: **F1**, **F12**, or **~**
 | campaign.* | set_flag, clear_flag, list_flags |
 | battle.* | win, lose, spawn, kill |
 | debug.* | clear, fps, reload_mods, scene |
+
+---
+
+## Reusable Infrastructure
+
+Key patterns to use instead of writing from scratch:
+
+| Location | Purpose |
+|----------|---------|
+| `scenes/ui/components/modal_screen_base.gd` | Base class for modal screen-stack UIs |
+| `scenes/ui/shops/` | SF2-authentic shop interface |
+| `scenes/ui/caravan/` | SF2-authentic depot interface |
+| `scenes/ui/exploration_field_menu.tscn` | SF2-style field menu |
 
 ---
 
