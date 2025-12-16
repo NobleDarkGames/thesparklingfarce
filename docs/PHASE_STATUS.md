@@ -79,7 +79,6 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 
 ### Phase 5 - Advanced Features
 - **Status effects** (poison, sleep, paralysis, confusion)
-- **Retreat/resurrection system** (SF-style unit recovery)
 
 ### Minor UI Polish
 - ✅ Terrain panel now updates during unit movement (December 16, 2025)
