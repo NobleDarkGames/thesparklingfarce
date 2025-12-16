@@ -158,11 +158,6 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 	if distance > alert_range:
 		return
 
-	# Determine if we should attack after moving:
-	# - If enemy is within engagement_range, commit to attack
-	# - If enemy is only within alert_range, just approach cautiously (no attack)
-	var should_attack_after_move: bool = distance <= engagement_range
-
 	# Move toward the target
 	var moved: bool = move_toward_target(unit, nearest.grid_position)
 	if moved:
@@ -170,8 +165,14 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 		if delay_after_movement > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_after_movement).timeout
 
-	# Attack if we're in engagement mode and now in range (verify target still alive)
-	if should_attack_after_move and nearest.is_alive() and is_in_attack_range(unit, nearest):
+	# Recalculate distance after movement to decide whether to attack
+	# - Only attack if enemy is now within engagement_range (committed engagement)
+	# - If still outside engagement_range, we were just approaching cautiously
+	var new_distance: int = GridManager.grid.get_manhattan_distance(unit.grid_position, nearest.grid_position)
+	var should_attack: bool = new_distance <= engagement_range
+
+	# Attack if we're in engagement range and now in attack range (verify target still alive)
+	if should_attack and nearest.is_alive() and is_in_attack_range(unit, nearest):
 		if delay_before_attack > 0 and unit.get_tree():
 			await unit.get_tree().create_timer(delay_before_attack).timeout
 		await attack_target(unit, nearest)
@@ -441,7 +442,7 @@ func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehavi
 			await unit.await_movement_completion()
 			var delays: Dictionary = context.get("ai_delays", {})
 			var delay_after_movement: float = delays.get("after_movement", 0.5)
-			if delay_after_movement > 0:
+			if delay_after_movement > 0 and unit.get_tree():
 				await unit.get_tree().create_timer(delay_after_movement).timeout
 
 		# Recalculate distance after moving
@@ -452,7 +453,7 @@ func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehavi
 	# Cast the healing spell
 	var delays: Dictionary = context.get("ai_delays", {})
 	var delay_before_spell: float = delays.get("before_attack", 0.3)
-	if delay_before_spell > 0:
+	if delay_before_spell > 0 and unit.get_tree():
 		await unit.get_tree().create_timer(delay_before_spell).timeout
 
 	var success: bool = await BattleManager.execute_ai_spell(unit, ability_id, heal_target)
@@ -1128,11 +1129,14 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 			await attack_target(unit, opponent)
 			return
 
-	# Calculate interception position (between VIP and threat)
+	# Calculate ideal interception position (between VIP and threat)
 	var intercept_pos: Vector2i = _calculate_intercept_position(unit, vip, nearest_threat)
 
-	if intercept_pos == unit.grid_position:
-		# Already in position - but still check for attack opportunity
+	# Find the best move target that balances protection and attack opportunity
+	var best_target: Vector2i = _find_best_defensive_position(unit, intercept_pos, opponents)
+
+	if best_target == unit.grid_position:
+		# Already in best position - check for attack opportunity
 		for opponent: Node2D in opponents:
 			if not opponent.is_alive():
 				continue
@@ -1144,8 +1148,8 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 				return
 		return  # No attack possible, stay in position
 
-	# Move toward intercept position
-	var moved: bool = move_toward_target(unit, intercept_pos)
+	# Move toward the best defensive position
+	var moved: bool = move_toward_target(unit, best_target)
 	if moved:
 		await unit.await_movement_completion()
 		var delay_after: float = delays.get("after_movement", 0.5)
@@ -1239,3 +1243,50 @@ func _calculate_intercept_position(protector: Node2D, vip: Node2D, threat: Node2
 		return protector.grid_position
 
 	return intercept
+
+
+## Find best defensive position balancing protection and attack opportunity
+func _find_best_defensive_position(unit: Node2D, intercept_pos: Vector2i, opponents: Array[Node2D]) -> Vector2i:
+	var unit_class: ClassData = unit.get_current_class()
+	if not unit_class:
+		return intercept_pos
+
+	var movement_range: int = unit_class.movement_range
+	var reachable: Array[Vector2i] = GridManager.get_walkable_cells(
+		unit.grid_position, movement_range, unit_class.movement_type, unit.faction
+	)
+
+	if reachable.is_empty():
+		return unit.grid_position
+
+	var best_cell: Vector2i = unit.grid_position
+	var best_score: float = -999.0
+
+	# Get weapon range for attack opportunity checks
+	var min_attack_range: int = 1
+	var max_attack_range: int = 1
+	if unit.stats:
+		min_attack_range = unit.stats.get_weapon_min_range()
+		max_attack_range = unit.stats.get_weapon_max_range()
+
+	for cell: Vector2i in reachable:
+		var score: float = 0.0
+
+		# Score: closer to intercept position is better (protection duty)
+		var dist_to_intercept: int = GridManager.grid.get_manhattan_distance(cell, intercept_pos)
+		score -= dist_to_intercept * 2.0  # Penalty for distance from intercept
+
+		# Bonus: can attack an opponent from this cell
+		for opponent: Node2D in opponents:
+			if not opponent.is_alive():
+				continue
+			var dist_to_enemy: int = GridManager.grid.get_manhattan_distance(cell, opponent.grid_position)
+			if dist_to_enemy >= min_attack_range and dist_to_enemy <= max_attack_range:
+				score += 10.0  # Big bonus for attack opportunity
+				break  # Only need one attackable target
+
+		if score > best_score:
+			best_score = score
+			best_cell = cell
+
+	return best_cell

@@ -383,6 +383,9 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 		unit.grid_position = grid_pos
 		unit.position = GridManager.cell_to_world(grid_pos)
 
+		# Register with GridManager for pathfinding and occupation checks
+		GridManager.set_cell_occupied(grid_pos, unit)
+
 		# Add to scene
 		if units_parent:
 			units_parent.add_child(unit)

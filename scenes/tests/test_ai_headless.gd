@@ -93,6 +93,8 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 	unit.grid_position = cell
 	unit.position = Vector2(cell.x * 32, cell.y * 32)
 	add_child(unit)
+	# Register with GridManager (critical for AI pathfinding/occupation checks)
+	GridManager.set_cell_occupied(cell, unit)
 	return unit
 
 
