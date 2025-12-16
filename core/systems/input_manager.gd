@@ -8,6 +8,7 @@
 extends Node
 
 const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 
 ## Input state machine
 enum InputState {
@@ -419,7 +420,7 @@ func start_player_turn(unit: Node2D) -> void:
 		movement_range = current_class.movement_range
 		movement_type = current_class.movement_type
 	else:
-		push_warning("InputManager: Unit %s has no character_class, using default movement (range=%d)" % [unit.get_display_name(), movement_range])
+		push_warning("InputManager: Unit %s has no character_class, using default movement (range=%d)" % [UnitUtils.get_display_name(unit), movement_range])
 
 	walkable_cells = GridManager.get_walkable_cells(
 		movement_start_position,
@@ -1272,13 +1273,13 @@ func _select_action(action: String, signal_session_id: int) -> void:
 		push_warning("InputManager: Ignoring action selection '%s' in state %s (active_unit: %s)" % [
 			action,
 			InputState.keys()[current_state],
-			"null" if active_unit == null else active_unit.get_display_name()
+			"null" if active_unit == null else UnitUtils.get_display_name(active_unit)
 		])
 		return
 
 	# Additional safety: Only process if active unit is a player unit
 	if not active_unit.is_player_unit():
-		push_warning("InputManager: Ignoring action selection '%s' for non-player unit %s" % [action, active_unit.get_display_name()])
+		push_warning("InputManager: Ignoring action selection '%s' for non-player unit %s" % [action, UnitUtils.get_display_name(active_unit)])
 		return
 
 	current_action = action
@@ -2208,7 +2209,7 @@ func _show_spell_menu() -> void:
 
 	if abilities.is_empty():
 		# No spells available - return to action menu
-		push_warning("InputManager: No spells available for %s" % active_unit.get_display_name())
+		push_warning("InputManager: No spells available for %s" % UnitUtils.get_display_name(active_unit))
 		set_state(InputState.SELECTING_ACTION)
 		return
 
