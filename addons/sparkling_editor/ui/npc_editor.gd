@@ -266,8 +266,20 @@ func _save_resource_data() -> void:
 	npc.portrait = load(portrait_path) as Texture2D if not portrait_path.is_empty() and ResourceLoader.exists(portrait_path) else null
 
 	# Save sprite_frames from MapSpritesheetPicker
+	# IMPORTANT: SpriteFrames must have a valid resource_path to be saved as ExtResource.
+	# If no path, Godot embeds it as SubResource (duplicating data in NPC file).
 	if map_spritesheet_picker:
-		npc.sprite_frames = map_spritesheet_picker.get_generated_sprite_frames()
+		var sprite_frames: SpriteFrames = map_spritesheet_picker.get_generated_sprite_frames()
+		if sprite_frames:
+			# Ensure sprite_frames is saved to disk (not embedded as SubResource)
+			if sprite_frames.resource_path.is_empty():
+				var output_path: String = _generate_sprite_frames_path(npc)
+				if map_spritesheet_picker.generate_sprite_frames(output_path):
+					# Reload from disk to ensure it's an external reference
+					sprite_frames = load(output_path) as SpriteFrames
+			npc.sprite_frames = sprite_frames
+		else:
+			npc.sprite_frames = null
 
 	npc.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
 	npc.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
@@ -1246,6 +1258,22 @@ func _get_facing_from_dropdown() -> String:
 		3: return "left"
 		4: return "right"
 	return ""
+
+
+## Generate a unique path for NPC's sprite_frames resource
+## Format: res://mods/<mod>/data/sprite_frames/npc_<npc_id>_map_sprites.tres
+func _generate_sprite_frames_path(npc: NPCData) -> String:
+	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
+	if mod_path.is_empty():
+		mod_path = "res://mods/_sandbox"
+
+	var sprite_frames_dir: String = mod_path.path_join("data/sprite_frames/")
+	# Ensure directory exists
+	if not DirAccess.dir_exists_absolute(sprite_frames_dir):
+		DirAccess.make_dir_recursive_absolute(sprite_frames_dir)
+
+	var npc_id: String = npc.npc_id if npc and not npc.npc_id.is_empty() else "unnamed_npc"
+	return sprite_frames_dir.path_join("npc_%s_map_sprites.tres" % npc_id)
 
 
 # =============================================================================
