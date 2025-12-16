@@ -8,6 +8,7 @@
 extends Node2D
 
 const UnitScript: GDScript = preload("res://core/components/unit.gd")
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 
 var _test_complete: bool = false
 var _turn_count: int = 0
@@ -96,7 +97,7 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 
 
 func _on_player_turn_started(unit: Node2D) -> void:
-	print("\n[PLAYER TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
+	print("\n[PLAYER TURN] %s at %s" % [UnitUtils.get_display_name(unit), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
 
 	# Auto-end player turn (we're testing AI, not player input)
@@ -106,21 +107,21 @@ func _on_player_turn_started(unit: Node2D) -> void:
 
 
 func _on_enemy_turn_started(unit: Node2D) -> void:
-	print("\n[ENEMY TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
+	print("\n[ENEMY TURN] %s at %s" % [UnitUtils.get_display_name(unit), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
 	# AIController will handle the turn
 
 
 func _on_unit_turn_ended(unit: Node2D) -> void:
-	print("  -> Turn ended for %s" % unit.get_display_name())
+	print("  -> Turn ended for %s" % UnitUtils.get_display_name(unit))
 
 
 func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
 	var hit_str: String = "HIT" if hit else "MISS"
 	var crit_str: String = " (CRIT!)" if crit else ""
 	print("  [COMBAT] %s attacks %s: %s for %d damage%s" % [
-		attacker.get_display_name(),
-		defender.get_display_name(),
+		UnitUtils.get_display_name(attacker),
+		UnitUtils.get_display_name(defender),
 		hit_str,
 		damage,
 		crit_str

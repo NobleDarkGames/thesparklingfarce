@@ -436,9 +436,9 @@ func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 		var hue: float = float(index) / float(maxi(party_characters.size(), 1))
 		animated_sprite.modulate = Color.from_hsv(hue, 0.6, 0.9)
 
-	# Start with idle_down animation if available
-	if animated_sprite.sprite_frames.has_animation("idle_down"):
-		animated_sprite.animation = "idle_down"
+	# SF2-authentic: walk animation plays continuously, even when stationary
+	if animated_sprite.sprite_frames.has_animation("walk_down"):
+		animated_sprite.animation = "walk_down"
 		animated_sprite.play()
 
 	visual_container.add_child(animated_sprite)
@@ -666,12 +666,13 @@ func _create_default_sprite_frames() -> SpriteFrames:
 	if not spritesheet:
 		push_warning("MapTemplate: Could not load default spritesheet at %s" % DEFAULT_SPRITESHEET_PATH)
 		# Return empty frames - will show nothing but won't crash
-		frames.add_animation("idle_down")
+		frames.add_animation("walk_down")
 		return frames
 
 	# Create atlas textures for each frame
 	# Row 0: down, Row 1: left, Row 2: right, Row 3: up
-	var directions: Array[String] = ["idle_down", "idle_left", "idle_right", "idle_up"]
+	# SF2-authentic: only walk animations (no separate idle)
+	var directions: Array[String] = ["walk_down", "walk_left", "walk_right", "walk_up"]
 
 	for row: int in range(4):
 		var anim_name: String = directions[row]

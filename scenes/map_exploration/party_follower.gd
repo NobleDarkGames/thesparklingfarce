@@ -184,11 +184,12 @@ func _update_facing(direction: Vector2) -> void:
 		_play_walk_animation()
 
 
-## Play idle animation for current facing direction
+## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary)
 func _play_idle_animation() -> void:
 	if not _sprite or not _sprite.sprite_frames:
 		return
-	var anim_name: String = "idle_" + facing_direction
+	# SF2-authentic: walk animation loops continuously, even when "idle"
+	var anim_name: String = "walk_" + facing_direction
 	if _sprite.sprite_frames.has_animation(anim_name):
 		if _sprite.animation != anim_name:
 			_sprite.play(anim_name)
@@ -202,6 +203,6 @@ func _play_walk_animation() -> void:
 	if _sprite.sprite_frames.has_animation(anim_name):
 		if _sprite.animation != anim_name:
 			_sprite.play(anim_name)
-	elif _sprite.sprite_frames.has_animation("idle_" + facing_direction):
-		# Fallback to idle if no walk animation
-		_sprite.play("idle_" + facing_direction)
+	elif _sprite.sprite_frames.has_animation("walk_down"):
+		# Fallback to walk_down if no directional animation
+		_sprite.play("walk_down")

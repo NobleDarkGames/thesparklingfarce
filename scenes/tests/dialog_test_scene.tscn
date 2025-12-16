@@ -1,8 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://dialog_test_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://cuugjhllgskg8"]
 
-[ext_resource type="Script" path="res://scenes/tests/dialog_test_scene.gd" id="1_test_script"]
-[ext_resource type="PackedScene" uid="uid://dialog_box_scene" path="res://scenes/ui/dialog_box.tscn" id="2_dialog_box"]
-[ext_resource type="PackedScene" uid="uid://choice_selector_scene" path="res://scenes/ui/choice_selector.tscn" id="3_choice_selector"]
+[ext_resource type="Script" uid="uid://cehp6qm26olus" path="res://scenes/tests/dialog_test_scene.gd" id="1_test_script"]
+[ext_resource type="PackedScene" path="res://scenes/ui/dialog_box.tscn" id="2_dialog_box"]
+[ext_resource type="PackedScene" path="res://scenes/ui/choice_selector.tscn" id="3_choice_selector"]
 [ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="4_ui_theme"]
 
 [node name="DialogTestScene" type="Node2D"]

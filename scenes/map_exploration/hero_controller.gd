@@ -349,12 +349,13 @@ func _update_sprite_animation() -> void:
 			sprite.play(anim_name)
 
 
-## Play idle animation for current facing direction.
+## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary).
 func _play_idle_animation() -> void:
 	if not sprite:
 		return
 
-	var anim_name: String = "idle_" + facing_direction
+	# SF2-authentic: walk animation loops continuously, even when "idle"
+	var anim_name: String = "walk_" + facing_direction
 
 	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
 		if sprite.animation != anim_name:

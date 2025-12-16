@@ -42,16 +42,12 @@ const EXPECTED_SIZE: Vector2i = Vector2i(64, 128)
 ## Animation playback speed (Shining Force authentic)
 const ANIMATION_FPS: float = 4.0
 
-## Direction row mapping for spritesheet layout
+## Direction row mapping for spritesheet layout (SF2-authentic: walk only, no separate idle)
 const DIRECTIONS: Dictionary = {
 	"walk_down": 0,
 	"walk_left": 1,
 	"walk_right": 2,
 	"walk_up": 3,
-	"idle_down": 0,
-	"idle_left": 1,
-	"idle_right": 2,
-	"idle_up": 3,
 }
 
 # =============================================================================
@@ -305,14 +301,10 @@ func _create_sprite_frames_from_texture(texture: Texture2D) -> SpriteFrames:
 		sprite_frames.remove_animation("default")
 
 	# Create walk animations (2 frames each, looping)
+	# SF2-authentic: walk animations play continuously, even when stationary (no separate idle)
 	for anim_name: String in ["walk_down", "walk_left", "walk_right", "walk_up"]:
 		var row: int = DIRECTIONS[anim_name]
 		_add_animation(sprite_frames, texture, anim_name, row, EXPECTED_COLS, true)
-
-	# Create idle animations (1 frame, looping for consistency)
-	for anim_name: String in ["idle_down", "idle_left", "idle_right", "idle_up"]:
-		var row: int = DIRECTIONS[anim_name]
-		_add_animation(sprite_frames, texture, anim_name, row, 1, true)
 
 	return sprite_frames
 

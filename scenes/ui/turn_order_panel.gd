@@ -7,6 +7,8 @@
 class_name TurnOrderPanel
 extends PanelContainer
 
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+
 ## Faction colors for the indicator bars
 const COLOR_ALLY: Color = Color(0.3, 0.6, 1.0, 1.0)  # Blue
 const COLOR_ENEMY: Color = Color(1.0, 0.3, 0.3, 1.0)  # Red
@@ -154,7 +156,7 @@ func _update_slot(slot_index: int, unit: Node2D, is_current: bool) -> void:
 	faction_bar.color = faction_color
 
 	# Set unit name (truncate if too long)
-	var display_name: String = unit.get_display_name()
+	var display_name: String = UnitUtils.get_display_name(unit)
 	if display_name.length() > 10:
 		display_name = display_name.left(9) + "."
 	name_label.text = display_name

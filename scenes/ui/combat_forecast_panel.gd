@@ -5,6 +5,8 @@
 class_name CombatForecastPanel
 extends PanelContainer
 
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+
 @onready var target_name_label: Label = %TargetNameLabel
 @onready var hit_label: Label = %HitLabel
 @onready var damage_label: Label = %DamageLabel
@@ -67,7 +69,7 @@ func show_forecast(attacker: Node2D, defender: Node2D) -> void:
 	var counter_chance: int = _calculate_counter_chance_for_forecast(attacker, defender)
 
 	# Update labels with terrain bonus indicators
-	target_name_label.text = defender.get_display_name()
+	target_name_label.text = UnitUtils.get_display_name(defender)
 
 	# Show hit chance with terrain evasion indicator
 	if terrain_evasion > 0:

@@ -27,6 +27,7 @@ extends Node2D
 
 # Preload scenes
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 const ItemMenuScene: PackedScene = preload("res://scenes/ui/item_menu.tscn")
 const SpellMenuScene: PackedScene = preload("res://scenes/ui/spell_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
@@ -356,13 +357,13 @@ func _process(_delta: float) -> void:
 	debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
 
 	if active_unit:
-		debug_label.text += "Active: %s\n" % active_unit.get_display_name()
+		debug_label.text += "Active: %s\n" % UnitUtils.get_display_name(active_unit)
 
 	debug_label.text += "\n--- Units ---\n"
 	for unit in _player_units:
 		if unit.is_alive():
 			debug_label.text += "P: %s HP:%d/%d\n" % [
-				unit.get_display_name().left(8),
+				UnitUtils.get_display_name(unit).left(8),
 				unit.stats.current_hp,
 				unit.stats.max_hp
 			]
@@ -370,7 +371,7 @@ func _process(_delta: float) -> void:
 	for unit in _enemy_units:
 		if unit.is_alive():
 			debug_label.text += "E: %s HP:%d/%d\n" % [
-				unit.get_display_name().left(8),
+				UnitUtils.get_display_name(unit).left(8),
 				unit.stats.current_hp,
 				unit.stats.max_hp
 			]
