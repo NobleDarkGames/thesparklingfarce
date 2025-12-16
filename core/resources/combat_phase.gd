@@ -204,8 +204,8 @@ func get_description() -> String:
 		PhaseType.SPELL_HEAL:
 			type_str = "Spell Heal"
 
-	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
-	var defender_name: String = defender.get_display_name() if defender and defender.has_method("get_display_name") else "Unknown"
+	var attacker_name: String = str(attacker.call("get_display_name")) if attacker and attacker.has_method("get_display_name") else "Unknown"
+	var defender_name: String = str(defender.call("get_display_name")) if defender and defender.has_method("get_display_name") else "Unknown"
 	var action_str: String = " with %s" % action_name if not action_name.is_empty() else ""
 
 	# Handle healing phases
@@ -230,8 +230,8 @@ func get_description() -> String:
 ##   Spell Heal: "Name cast SPELL - Recovered X HP!"
 ##   Miss:    "Name missed!" or "Name's counter missed!"
 func get_result_text() -> String:
-	var attacker_name: String = attacker.get_display_name() if attacker and attacker.has_method("get_display_name") else "Unknown"
-	var defender_name: String = defender.get_display_name() if defender and defender.has_method("get_display_name") else "Unknown"
+	var attacker_name: String = str(attacker.call("get_display_name")) if attacker and attacker.has_method("get_display_name") else "Unknown"
+	var defender_name: String = str(defender.call("get_display_name")) if defender and defender.has_method("get_display_name") else "Unknown"
 
 	# Handle healing phases first (before miss check - heals don't miss)
 	if phase_type == PhaseType.ITEM_HEAL:

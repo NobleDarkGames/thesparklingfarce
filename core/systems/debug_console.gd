@@ -1,4 +1,7 @@
 extends CanvasLayer
+
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+
 ## DebugConsole - Quake-style dropdown debug console for developer testing
 ##
 ## Provides namespaced commands for manipulating game state:
@@ -843,7 +846,7 @@ func _cmd_battle_kill(args: Array) -> void:
 			continue
 		var unit_name: String = ""
 		if unit.has_method("get_display_name"):
-			unit_name = unit.get_display_name().to_lower()
+			unit_name = UnitUtils.get_display_name(unit).to_lower()
 		elif "character_data" in unit and unit.character_data:
 			unit_name = unit.character_data.character_name.to_lower()
 

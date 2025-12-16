@@ -185,8 +185,9 @@ static func load_from_file(json_path: String) -> ModManifest:
 
 	# Parse content paths
 	if "content" in data and data.content is Dictionary:
-		manifest.data_path = data.content.get("data_path", "data/")
-		manifest.assets_path = data.content.get("assets_path", "assets/")
+		var content_dict: Dictionary = data.content as Dictionary
+		manifest.data_path = content_dict.get("data_path", "data/")
+		manifest.assets_path = content_dict.get("assets_path", "assets/")
 
 	# Parse scene mappings
 	if "scenes" in data and data.scenes is Dictionary:

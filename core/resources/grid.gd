@@ -25,6 +25,7 @@ func _init() -> void:
 
 
 ## Update cached values
+@warning_ignore("integer_division")
 func _update_cache() -> void:
 	_half_cell_size = cell_size / 2
 

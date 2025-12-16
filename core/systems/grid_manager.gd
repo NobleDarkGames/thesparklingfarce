@@ -661,6 +661,7 @@ func cell_to_world(cell: Vector2i) -> Vector2:
 		return grid.map_to_local(cell)
 	else:
 		# Fallback: use default tile size for simple conversion
+		@warning_ignore("integer_division")
 		return Vector2(cell * DEFAULT_TILE_SIZE) + Vector2.ONE * (DEFAULT_TILE_SIZE / 2)
 
 

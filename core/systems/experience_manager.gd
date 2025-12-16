@@ -1,5 +1,7 @@
 extends Node
 
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+
 ## ExperienceManager - Central system for XP awards and level-up mechanics.
 ##
 ## Autoload singleton responsible for:
@@ -459,7 +461,7 @@ func _check_learned_abilities(unit: Node2D, old_level: int, new_level: int, clas
 				learned.append(ability)
 				unit_learned_ability.emit(unit, ability)
 				print("[ExperienceManager] %s learned %s at level %d!" % [
-					unit.get_display_name() if unit.has_method("get_display_name") else "Unit",
+					UnitUtils.get_display_name(unit, "Unit"),
 					ability.ability_name,
 					new_level
 				])

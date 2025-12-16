@@ -78,6 +78,7 @@ func calculate_magic_damage(
 	if "power" in ability:
 		ability_power = ability.power
 
+	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var damage: int = int(base_damage * variance)
@@ -130,6 +131,7 @@ func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int:
 	if "power" in ability:
 		ability_power = ability.power
 
+	@warning_ignore("integer_division")
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var healing: int = int(base_healing * variance)

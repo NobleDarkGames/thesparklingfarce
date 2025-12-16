@@ -183,7 +183,15 @@ func get_valid_slots() -> Array[String]:
 		if mod_loader == null:
 			mod_loader = Engine.get_main_loop().root.get_node_or_null("ModLoader") if Engine.get_main_loop() else null
 		if mod_loader and "equipment_slot_registry" in mod_loader:
-			return mod_loader.equipment_slot_registry.get_slots_for_type(equipment_type)
+			var registry: Variant = mod_loader.get("equipment_slot_registry")
+			if registry and registry.has_method("get_slots_for_type"):
+				var result: Variant = registry.call("get_slots_for_type", equipment_type)
+				if result is Array:
+					var typed_result: Array[String] = []
+					for slot: Variant in result:
+						if slot is String:
+							typed_result.append(slot)
+					return typed_result
 	# Fallback to default slot matching
 	return _get_default_valid_slots()
 

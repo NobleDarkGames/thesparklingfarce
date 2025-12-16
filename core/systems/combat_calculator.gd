@@ -113,6 +113,7 @@ static func _calculate_magic_damage_default(
 	else:
 		push_warning("CombatCalculator: Ability missing power property")
 
+	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
 
 	# Apply variance (±10%)
@@ -210,6 +211,7 @@ static func _calculate_healing_default(caster_stats: UnitStats, ability: Resourc
 	else:
 		push_warning("CombatCalculator: Healing ability missing power property")
 
+	@warning_ignore("integer_division")
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)
 
 	# Apply variance (±10%)

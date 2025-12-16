@@ -1,5 +1,7 @@
 extends Node
 
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+
 ## PromotionManager - Central system for class promotion mechanics
 ##
 ## Autoload singleton responsible for:
@@ -443,7 +445,7 @@ func _get_unit_class(unit: Node2D) -> ClassData:
 func _set_unit_class(unit: Node2D, new_class: ClassData) -> void:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if not save_data:
-		push_error("PromotionManager: Cannot set class - no CharacterSaveData for unit '%s'" % unit.get_display_name())
+		push_error("PromotionManager: Cannot set class - no CharacterSaveData for unit '%s'" % UnitUtils.get_display_name(unit))
 		return
 
 	save_data.set_current_class(new_class)
@@ -462,7 +464,7 @@ func _get_unit_save_data(unit: Node2D) -> CharacterSaveData:
 
 	var character_uid: String = unit.character_data.character_uid
 	if character_uid.is_empty():
-		push_warning("PromotionManager: Unit '%s' has no character_uid" % unit.get_display_name())
+		push_warning("PromotionManager: Unit '%s' has no character_uid" % UnitUtils.get_display_name(unit))
 		return null
 
 	return PartyManager.get_member_save_data(character_uid)

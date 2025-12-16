@@ -10,6 +10,7 @@ extends Node
 ## - Handles turn completion after AI executes
 
 const ConfigurableAIBrainScript: GDScript = preload("res://core/systems/ai/configurable_ai_brain.gd")
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 
 ## Configurable delays for enemy actions (in seconds)
 @export var delay_before_turn_start: float = 0.5  # Pause before enemy starts thinking
@@ -56,7 +57,7 @@ func process_enemy_turn(unit: Node2D) -> void:
 		await brain.execute_with_behavior(unit, context, unit.ai_behavior)
 	else:
 		# No AI behavior assigned - use default aggressive
-		push_warning("AIController: Unit %s has no ai_behavior assigned, using default aggressive" % unit.get_display_name())
+		push_warning("AIController: Unit %s has no ai_behavior assigned, using default aggressive" % UnitUtils.get_display_name(unit))
 		await brain.execute_async(unit, context)
 
 	# End turn (only if not already ended by BattleManager during attack)

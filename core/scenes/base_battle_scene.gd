@@ -31,6 +31,7 @@ extends Node2D
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
 const ItemMenuScene: PackedScene = preload("res://scenes/ui/item_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
+const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 
 ## Map layers
 var _ground_layer: TileMapLayer = null
@@ -276,7 +277,7 @@ func _update_debug_label() -> void:
 	debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
 
 	if active_unit:
-		debug_label.text += "Active: %s\n" % active_unit.get_display_name()
+		debug_label.text += "Active: %s\n" % UnitUtils.get_display_name(active_unit)
 	else:
 		debug_label.text += "Active: None\n"
 
@@ -284,7 +285,7 @@ func _update_debug_label() -> void:
 	for unit in _player_units:
 		if unit.is_alive():
 			debug_label.text += "P: %s HP:%d/%d\n" % [
-				unit.get_display_name().left(8),
+				UnitUtils.get_display_name(unit).left(8),
 				unit.stats.current_hp,
 				unit.stats.max_hp
 			]
@@ -292,7 +293,7 @@ func _update_debug_label() -> void:
 	for unit in _enemy_units:
 		if unit.is_alive():
 			debug_label.text += "E: %s HP:%d/%d\n" % [
-				unit.get_display_name().left(8),
+				UnitUtils.get_display_name(unit).left(8),
 				unit.stats.current_hp,
 				unit.stats.max_hp
 			]
