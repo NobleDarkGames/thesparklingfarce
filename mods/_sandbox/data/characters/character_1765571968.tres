@@ -1,139 +1,11 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=21 format=3 uid="uid://beb8kn2vdnfhj"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=8 format=3 uid="uid://beb8kn2vdnfhj"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_v3qhj"]
 [ext_resource type="Resource" uid="uid://dn138sn6tfr8w" path="res://mods/_sandbox/data/classes/class_1765572000.tres" id="2_6hlor"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_t2psq"]
-[ext_resource type="Texture2D" uid="uid://dcxumhcxu232g" path="res://mods/_sandbox/assets/sprites/map/mage_spritesheet.png" id="3_ah6e4"]
-[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_o1yao"]
 [ext_resource type="Texture2D" uid="uid://beckas3h73v7b" path="res://mods/_sandbox/assets/portraits/cruss.png" id="4_ks3ww"]
 [ext_resource type="Resource" uid="uid://cwqe40fosieru" path="res://mods/_sandbox/data/items/item_1765572934.tres" id="7_b46c3"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_6hlor"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ah6e4"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ks3ww"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_o8vot"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 96, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_7jkd8"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_8qmx1"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(32, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_rfnyg"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_jughy"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(32, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_k6wwe"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_hqlg2"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(32, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_5k05n"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(0, 96, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_20hc4"]
-atlas = ExtResource("3_ah6e4")
-region = Rect2(32, 96, 32, 32)
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_lnv4q"]
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_6hlor")
-}],
-"loop": true,
-"name": &"idle_down",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ah6e4")
-}],
-"loop": true,
-"name": &"idle_left",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ks3ww")
-}],
-"loop": true,
-"name": &"idle_right",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_o8vot")
-}],
-"loop": true,
-"name": &"idle_up",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_7jkd8")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_8qmx1")
-}],
-"loop": true,
-"name": &"walk_down",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_rfnyg")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_jughy")
-}],
-"loop": true,
-"name": &"walk_left",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_k6wwe")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_hqlg2")
-}],
-"loop": true,
-"name": &"walk_right",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_5k05n")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_20hc4")
-}],
-"loop": true,
-"name": &"walk_up",
-"speed": 4.0
-}]
+[ext_resource type="SpriteFrames" uid="uid://b33lnkrwaanbo" path="res://mods/_sandbox/data/sprite_frames/character_1765571968_map_sprites.tres" id="8_sprite_frames"]
 
 [resource]
 script = ExtResource("1_v3qhj")
@@ -142,6 +14,6 @@ character_class = ExtResource("2_6hlor")
 base_hp = 20
 base_mp = 10
 portrait = ExtResource("4_ks3ww")
-sprite_frames = SubResource("SpriteFrames_lnv4q")
+sprite_frames = ExtResource("8_sprite_frames")
 starting_level = 5
 starting_equipment = Array[ExtResource("2_t2psq")]([ExtResource("7_b46c3")])

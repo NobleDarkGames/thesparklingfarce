@@ -1,22 +1,6 @@
-[gd_resource type="SpriteFrames" load_steps=14 format=3 uid="uid://b33lnkrwaanbo"]
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://b33lnkrwaanbo"]
 
 [ext_resource type="Texture2D" uid="uid://dcxumhcxu232g" path="res://mods/_sandbox/assets/sprites/map/mage_spritesheet.png" id="1_w36nq"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_u1fi3"]
-atlas = ExtResource("1_w36nq")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_eatsc"]
-atlas = ExtResource("1_w36nq")
-region = Rect2(0, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ihhr4"]
-atlas = ExtResource("1_w36nq")
-region = Rect2(0, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_kgix0"]
-atlas = ExtResource("1_w36nq")
-region = Rect2(0, 96, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_w7vbd"]
 atlas = ExtResource("1_w36nq")
@@ -52,38 +36,6 @@ region = Rect2(32, 96, 32, 32)
 
 [resource]
 animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_u1fi3")
-}],
-"loop": true,
-"name": &"idle_down",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_eatsc")
-}],
-"loop": true,
-"name": &"idle_left",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ihhr4")
-}],
-"loop": true,
-"name": &"idle_right",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_kgix0")
-}],
-"loop": true,
-"name": &"idle_up",
-"speed": 4.0
-}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_w7vbd")

@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=14 format=3]
+[gd_resource type="SpriteFrames" load_steps=10 format=3]
 
 [ext_resource type="Texture2D" path="res://mods/_sandbox/assets/sprites/map/goblin_spritesheet.png" id="1_vvrtv"]
 
@@ -8,45 +8,29 @@ region = Rect2(0, 0, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qy233"]
 atlas = ExtResource("1_vvrtv")
-region = Rect2(0, 32, 32, 32)
+region = Rect2(32, 0, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kbajy"]
 atlas = ExtResource("1_vvrtv")
-region = Rect2(0, 64, 32, 32)
+region = Rect2(0, 32, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_c4yox"]
 atlas = ExtResource("1_vvrtv")
-region = Rect2(0, 96, 32, 32)
+region = Rect2(32, 32, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ucibx"]
 atlas = ExtResource("1_vvrtv")
-region = Rect2(0, 0, 32, 32)
+region = Rect2(0, 64, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_th8rs"]
 atlas = ExtResource("1_vvrtv")
-region = Rect2(32, 0, 32, 32)
+region = Rect2(32, 64, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ar2m7"]
 atlas = ExtResource("1_vvrtv")
-region = Rect2(0, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_gvp6w"]
-atlas = ExtResource("1_vvrtv")
-region = Rect2(32, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_tloee"]
-atlas = ExtResource("1_vvrtv")
-region = Rect2(0, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_nkiid"]
-atlas = ExtResource("1_vvrtv")
-region = Rect2(32, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_r7f3x"]
-atlas = ExtResource("1_vvrtv")
 region = Rect2(0, 96, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_yroj5"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_gvp6w"]
 atlas = ExtResource("1_vvrtv")
 region = Rect2(32, 96, 32, 32)
 
@@ -55,33 +39,23 @@ animations = [{
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_nnrws")
-}],
-"loop": true,
-"name": &"idle_down",
-"speed": 4.0
 }, {
-"frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_qy233")
 }],
 "loop": true,
-"name": &"idle_left",
+"name": &"walk_down",
 "speed": 4.0
 }, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_kbajy")
-}],
-"loop": true,
-"name": &"idle_right",
-"speed": 4.0
 }, {
-"frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_c4yox")
 }],
 "loop": true,
-"name": &"idle_up",
+"name": &"walk_left",
 "speed": 4.0
 }, {
 "frames": [{
@@ -92,7 +66,7 @@ animations = [{
 "texture": SubResource("AtlasTexture_th8rs")
 }],
 "loop": true,
-"name": &"walk_down",
+"name": &"walk_right",
 "speed": 4.0
 }, {
 "frames": [{
@@ -101,28 +75,6 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_gvp6w")
-}],
-"loop": true,
-"name": &"walk_left",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_tloee")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_nkiid")
-}],
-"loop": true,
-"name": &"walk_right",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_r7f3x")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_yroj5")
 }],
 "loop": true,
 "name": &"walk_up",
