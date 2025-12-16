@@ -458,8 +458,120 @@ func _on_action_selected(unit: Node2D, action: String) -> void:
 
 ## Handle target selection from InputManager
 func _on_target_selected(unit: Node2D, target: Node2D) -> void:
-	# Execute the queued action
-	_execute_attack(unit, target)
+	# Check for action modifiers from status effects (confusion, berserk, etc.)
+	var actual_target: Node2D = _check_action_modifiers(unit, target)
+
+	# Execute the attack on the actual target
+	_execute_attack(unit, actual_target)
+
+
+## Check if any status effects modify the unit's action target
+## Uses data-driven StatusEffectData from ModLoader.status_effect_registry
+## Falls back to legacy hardcoded confusion handling if effect not in registry
+## @param unit: The acting unit
+## @param intended_target: The player/AI's intended target
+## @return: The actual target after any modifications
+func _check_action_modifiers(unit: Node2D, intended_target: Node2D) -> Node2D:
+	if not unit or not unit.stats:
+		return intended_target
+
+	var stats: RefCounted = unit.stats
+
+	for effect_state: Dictionary in stats.status_effects:
+		var effect_type: String = effect_state.get("type", "")
+
+		# Look up effect data from registry
+		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
+
+		if effect_data:
+			# Data-driven action modifier
+			if effect_data.action_modifier == StatusEffectData.ActionModifier.NONE:
+				continue
+
+			# Check if modifier triggers this action
+			if randi_range(1, 100) > effect_data.action_modifier_chance:
+				continue  # Modifier didn't trigger this time
+
+			match effect_data.action_modifier:
+				StatusEffectData.ActionModifier.RANDOM_TARGET:
+					var random_target: Node2D = _get_random_unit_except_self(unit)
+					print("[BattleManager] %s is %s and targets %s instead!" % [
+						UnitUtils.get_display_name(unit),
+						effect_data.display_name.to_lower(),
+						UnitUtils.get_display_name(random_target)
+					])
+					return random_target
+
+				StatusEffectData.ActionModifier.ATTACK_ALLIES:
+					var ally_target: Node2D = _get_random_ally(unit)
+					if ally_target:
+						print("[BattleManager] %s is %s and attacks ally %s!" % [
+							UnitUtils.get_display_name(unit),
+							effect_data.display_name.to_lower(),
+							UnitUtils.get_display_name(ally_target)
+						])
+						return ally_target
+
+				StatusEffectData.ActionModifier.CANNOT_USE_MAGIC, StatusEffectData.ActionModifier.CANNOT_USE_ITEMS:
+					# These modifiers are checked elsewhere (spell/item menus)
+					pass
+
+		else:
+			# Legacy fallback for hardcoded effects not yet in registry
+			if effect_type == "confusion":
+				var confusion_roll: int = randi_range(1, 100)
+				if confusion_roll <= 50:
+					# Confused! Attack a random unit (friend or foe, including self)
+					var random_target: Node2D = _get_random_confusion_target(unit)
+					print("[BattleManager] %s is confused and attacks %s instead!" % [
+						UnitUtils.get_display_name(unit),
+						UnitUtils.get_display_name(random_target)
+					])
+					return random_target
+
+	return intended_target
+
+
+## Get a random target for a confused unit (any living unit on the battlefield, including self)
+func _get_random_confusion_target(confused_unit: Node2D) -> Node2D:
+	var valid_targets: Array[Node2D] = []
+
+	for unit: Node2D in all_units:
+		if unit.is_alive():
+			valid_targets.append(unit)
+
+	if valid_targets.is_empty():
+		return confused_unit  # Fallback to self if somehow no targets
+
+	return valid_targets[randi() % valid_targets.size()]
+
+
+## Get a random unit except the specified one (for RANDOM_TARGET modifier)
+func _get_random_unit_except_self(acting_unit: Node2D) -> Node2D:
+	var valid_targets: Array[Node2D] = []
+
+	for unit: Node2D in all_units:
+		if unit.is_alive() and unit != acting_unit:
+			valid_targets.append(unit)
+
+	if valid_targets.is_empty():
+		return acting_unit  # Fallback to self if somehow no other targets
+
+	return valid_targets[randi() % valid_targets.size()]
+
+
+## Get a random ally of the unit (for ATTACK_ALLIES modifier like berserk/charm)
+func _get_random_ally(acting_unit: Node2D) -> Node2D:
+	var allies: Array[Node2D] = []
+
+	for unit: Node2D in all_units:
+		if unit.is_alive() and unit != acting_unit and unit.faction == acting_unit.faction:
+			allies.append(unit)
+
+	if allies.is_empty():
+		return acting_unit  # Fallback to self if no other allies
+
+	return allies[randi() % allies.size()]
 
 
 ## Execute Stay action (end turn)
@@ -714,16 +826,14 @@ func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
 # =============================================================================
 
 ## Handle spell cast request from InputManager
-func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D) -> void:
+func _on_spell_cast_requested(caster: Node2D, ability: AbilityData, target: Node2D) -> void:
 	# Face the target before casting (SF2-authentic)
 	if target and target != caster and caster.has_method("face_toward"):
 		caster.face_toward(target.grid_position)
 
-	# Get the ability data from registry
-	var ability: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
-
+	# Validate ability
 	if not ability:
-		push_warning("BattleManager: Ability '%s' not found in registry" % ability_id)
+		push_warning("BattleManager: Received null ability for spell cast")
 		InputManager.reset_to_waiting()
 		TurnManager.end_unit_turn(caster)
 		return
@@ -736,7 +846,7 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 		return
 
 	if caster.stats.current_mp < ability.mp_cost:
-		push_warning("BattleManager: Insufficient MP for spell '%s'" % ability_id)
+		push_warning("BattleManager: Insufficient MP for spell '%s'" % ability.ability_id)
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		InputManager.reset_to_waiting()
 		TurnManager.end_unit_turn(caster)
@@ -752,7 +862,7 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 	var targets: Array[Node2D] = _get_spell_targets(caster, target, ability)
 
 	if targets.is_empty():
-		push_warning("BattleManager: No valid targets for spell '%s'" % ability_id)
+		push_warning("BattleManager: No valid targets for spell '%s'" % ability.ability_id)
 		InputManager.reset_to_waiting()
 		TurnManager.end_unit_turn(caster)
 		return
@@ -776,9 +886,7 @@ func _on_spell_cast_requested(caster: Node2D, ability_id: String, target: Node2D
 				push_warning("BattleManager: Debuff spell effects not yet implemented")
 				effect_applied = false
 			AbilityData.AbilityType.STATUS:
-				# TODO: Implement status effects
-				push_warning("BattleManager: Status spell effects not yet implemented")
-				effect_applied = false
+				effect_applied = await _apply_spell_status(caster, spell_target, ability)
 			AbilityData.AbilityType.SPECIAL:
 				# Handle special abilities like Egress
 				if ability.ability_id == "egress":
@@ -929,6 +1037,80 @@ func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -
 	await _execute_combat_session(caster, target, phases)
 
 	return true
+
+
+## Apply status effect spell to target
+## Handles both applying status effects and removing them (cure spells)
+## Returns true if any effect was applied/removed
+func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+	if not target or not target.stats:
+		push_warning("BattleManager: Invalid target for status spell")
+		return false
+
+	if ability.status_effects.is_empty():
+		push_warning("BattleManager: Status spell '%s' has no status_effects defined" % ability.ability_name)
+		return false
+
+	# Roll against effect_chance to determine resistance
+	var roll: int = randi_range(1, 100)
+	var chance: int = ability.effect_chance
+	var was_resisted: bool = roll > chance
+
+	# Get the primary status effect name for display
+	var primary_effect: String = ability.status_effects[0] if ability.status_effects.size() > 0 else "status"
+	# Clean up effect name for display (remove "remove_" prefix if present)
+	var display_effect: String = primary_effect
+	if display_effect.begins_with("remove_"):
+		display_effect = "Cured " + display_effect.substr(7)
+
+	# Build spell status combat phase
+	var phases: Array[CombatPhase] = []
+	var status_phase: CombatPhase = CombatPhase.create_spell_status(
+		caster, target,
+		ability.ability_name,
+		display_effect,
+		was_resisted
+	)
+	phases.append(status_phase)
+
+	# Debug output for spell combat
+	if was_resisted:
+		print("[BattleManager] Status spell '%s' resisted (rolled %d vs %d%% chance) by %s" % [
+			ability.ability_name, roll, chance, UnitUtils.get_display_name(target)
+		])
+	else:
+		print("[BattleManager] Status spell '%s' will apply to %s" % [
+			ability.ability_name, UnitUtils.get_display_name(target)
+		])
+
+	# Execute combat session (shows combat screen with status effect result)
+	await _execute_combat_session(caster, target, phases)
+
+	# If resisted, we're done
+	if was_resisted:
+		return false
+
+	# Apply each status effect after combat animation
+	var any_effect_applied: bool = false
+	for effect: String in ability.status_effects:
+		if effect.begins_with("remove_"):
+			# This is a cure effect - remove the status
+			var status_to_remove: String = effect.substr(7)  # Strip "remove_" prefix
+			if target.has_status_effect(status_to_remove):
+				target.remove_status_effect(status_to_remove)
+				print("[BattleManager] Removed status '%s' from %s" % [
+					status_to_remove, UnitUtils.get_display_name(target)
+				])
+				any_effect_applied = true
+		else:
+			# Apply the status effect
+			target.add_status_effect(effect, ability.effect_duration, ability.power)
+			print("[BattleManager] Applied status '%s' (duration: %d, power: %d) to %s" % [
+				effect, ability.effect_duration, ability.power, UnitUtils.get_display_name(target)
+			])
+			any_effect_applied = true
+
+	return any_effect_applied
 
 
 ## Award XP for spell casting (SF2-authentic)

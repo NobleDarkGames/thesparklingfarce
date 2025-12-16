@@ -6,7 +6,7 @@
 extends Control
 
 ## Signals - session_id prevents stale signals from previous turns
-signal spell_selected(ability_id: String, session_id: int)
+signal spell_selected(ability: AbilityData, session_id: int)
 signal menu_cancelled(session_id: int)
 
 ## UI element references (built dynamically)
@@ -461,7 +461,7 @@ func _try_confirm_selection() -> void:
 
 	# Emit selection signal before hiding
 	var emit_session_id: int = _menu_session_id
-	spell_selected.emit(ability.ability_id, emit_session_id)
+	spell_selected.emit(ability, emit_session_id)
 	hide_menu()
 
 

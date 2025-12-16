@@ -33,7 +33,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"npcs": "npc",  # NPCData resources for interactable NPCs
 	"shops": "shop",  # ShopData resources for weapon/item shops, churches, crafters
 	"new_game_configs": "new_game_config",  # NewGameConfigData resources for starting game state
-	"ai_behaviors": "ai_behavior"  # AIBehaviorData resources for configurable enemy AI
+	"ai_behaviors": "ai_behavior",  # AIBehaviorData resources for configurable enemy AI
+	"status_effects": "status_effect"  # StatusEffectData resources for data-driven status effects
 }
 
 # Resource types that support JSON loading (in addition to .tres)
@@ -60,6 +61,7 @@ const AIBrainRegistryClass: GDScript = preload("res://core/registries/ai_brain_r
 const TilesetRegistryClass: GDScript = preload("res://core/registries/tileset_registry.gd")
 const AIRoleRegistryClass: GDScript = preload("res://core/registries/ai_role_registry.gd")
 const AIModeRegistryClass: GDScript = preload("res://core/registries/ai_mode_registry.gd")
+const StatusEffectRegistryClass: GDScript = preload("res://core/registries/status_effect_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -93,6 +95,9 @@ var tileset_registry: RefCounted = TilesetRegistryClass.new()
 # AI role and mode registries (for configurable AI behaviors)
 var ai_role_registry: RefCounted = AIRoleRegistryClass.new()
 var ai_mode_registry: RefCounted = AIModeRegistryClass.new()
+
+# Status effect registry (data-driven status effects)
+var status_effect_registry: RefCounted = StatusEffectRegistryClass.new()
 
 # Legacy tileset registry for backwards compatibility
 # TODO: Migrate to tileset_registry and remove this
@@ -288,6 +293,9 @@ func _load_mod_async(manifest: ModManifest) -> void:
 			# Special handling for terrain resources - also register with terrain_registry
 			if req.resource_type == "terrain" and resource is TerrainData:
 				terrain_registry.register_terrain(resource, manifest.mod_id)
+			# Special handling for status effect resources - also register with status_effect_registry
+			if req.resource_type == "status_effect" and resource is StatusEffectData:
+				status_effect_registry.register_effect(resource, manifest.mod_id)
 			loaded_count += 1
 		else:
 			push_warning("ModLoader: Failed to load resource: " + req.path)
@@ -422,6 +430,9 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 				# Special handling for terrain resources - also register with terrain_registry
 				if resource_type == "terrain" and resource is TerrainData:
 					terrain_registry.register_terrain(resource, mod_id)
+				# Special handling for status effect resources - also register with status_effect_registry
+				if resource_type == "status_effect" and resource is StatusEffectData:
+					status_effect_registry.register_effect(resource, mod_id)
 				# Debug: Log character registrations
 				if resource_type == "character" and resource is CharacterData:
 					var char: CharacterData = resource as CharacterData
@@ -967,6 +978,8 @@ func reload_mods() -> void:
 	# Clear AI role and mode registries
 	ai_role_registry.clear_mod_registrations()
 	ai_mode_registry.clear_mod_registrations()
+	# Clear status effect registry
+	status_effect_registry.clear_mod_registrations()
 	# Clear legacy tileset registry
 	_tileset_registry.clear()
 	_discover_and_load_mods()
@@ -995,6 +1008,8 @@ func reload_mods_async() -> void:
 	# Clear AI role and mode registries
 	ai_role_registry.clear_mod_registrations()
 	ai_mode_registry.clear_mod_registrations()
+	# Clear status effect registry
+	status_effect_registry.clear_mod_registrations()
 	# Clear legacy tileset registry
 	_tileset_registry.clear()
 	await _discover_and_load_mods_async()

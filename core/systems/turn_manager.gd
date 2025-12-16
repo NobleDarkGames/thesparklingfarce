@@ -151,9 +151,23 @@ func start_unit_turn(unit: Node2D) -> void:
 	active_unit = unit
 
 	# Process terrain effects BEFORE unit.start_turn() (damage happens at turn start)
-	var unit_died: bool = await _process_terrain_effects(unit)
-	if unit_died:
+	var terrain_died: bool = await _process_terrain_effects(unit)
+	if terrain_died:
 		# Unit died from terrain damage - skip their turn
+		unit_turn_ended.emit(unit)
+		advance_to_next_unit()
+		return
+
+	# Process status effects (sleep, paralysis, poison damage, etc.)
+	var status_result: Dictionary = await _process_status_effects(unit)
+	if status_result.died:
+		# Unit died from status effect damage (e.g., poison)
+		unit_turn_ended.emit(unit)
+		advance_to_next_unit()
+		return
+	if status_result.skip_turn:
+		# Unit is incapacitated (sleep, paralysis) - skip their turn
+		unit.end_turn()
 		unit_turn_ended.emit(unit)
 		advance_to_next_unit()
 		return
@@ -348,6 +362,224 @@ func _show_terrain_damage_popup(unit: Node2D, damage: int, terrain_name: String)
 		tween.tween_property(label, "position:y", label.position.y - 30, 0.8)
 		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)
 		tween.tween_callback(label.queue_free)
+
+
+## Process status effects for a unit at the start of their turn
+## Returns Dictionary: {skip_turn: bool, died: bool}
+## - skip_turn: true if unit should skip their turn (sleep, paralysis)
+## - died: true if unit died from status damage (poison)
+##
+## Uses data-driven StatusEffectData from ModLoader.status_effect_registry
+func _process_status_effects(unit: Node2D) -> Dictionary:
+	var result: Dictionary = {"skip_turn": false, "died": false}
+
+	if not unit or not unit.is_alive() or not unit.stats:
+		return result
+
+	var stats: RefCounted = unit.stats
+	var effects_to_remove: Array[String] = []
+	var showed_popup: bool = false
+
+	# Process each status effect on the unit
+	for i in range(stats.status_effects.size() - 1, -1, -1):
+		var effect_state: Dictionary = stats.status_effects[i]
+		var effect_type: String = effect_state.get("type", "")
+
+		# Look up effect data from registry
+		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
+
+		if not effect_data:
+			# Effect not in registry - use legacy hardcoded fallback for backwards compatibility
+			var legacy_result: Dictionary = _process_legacy_status_effect(unit, effect_state, effects_to_remove)
+			if legacy_result.skip_turn:
+				result.skip_turn = true
+			if legacy_result.showed_popup:
+				showed_popup = true
+			continue
+
+		# Only process TURN_START effects here (other timings handled elsewhere)
+		if effect_data.trigger_timing != StatusEffectData.TriggerTiming.TURN_START:
+			# Still show visual feedback for non-TURN_START effects
+			if effect_data.trigger_timing == StatusEffectData.TriggerTiming.ON_ACTION:
+				if not is_headless:
+					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+					showed_popup = true
+			continue
+
+		# Handle skip_turn effects with recovery chance
+		if effect_data.skips_turn:
+			if effect_data.recovery_chance_per_turn > 0:
+				var recovery_roll: int = randi_range(1, 100)
+				if recovery_roll <= effect_data.recovery_chance_per_turn:
+					# Recovered!
+					effects_to_remove.append(effect_type)
+					if not is_headless:
+						_show_status_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
+						showed_popup = true
+					print("[TurnManager] %s recovered from %s!" % [_get_unit_name(unit), effect_type])
+					continue
+
+			# Still affected - skip turn
+			result.skip_turn = true
+			if not is_headless:
+				_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+				showed_popup = true
+			print("[TurnManager] %s has %s - skipping turn" % [_get_unit_name(unit), effect_type])
+
+		# Handle damage over time
+		if effect_data.damage_per_turn != 0:
+			if effect_data.damage_per_turn > 0:
+				# Damage
+				if not is_headless:
+					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+					showed_popup = true
+
+				if unit.has_method("take_damage"):
+					unit.take_damage(effect_data.damage_per_turn)
+				else:
+					stats.current_hp -= effect_data.damage_per_turn
+					stats.current_hp = maxi(0, stats.current_hp)
+
+				print("[TurnManager] %s takes %d damage from %s" % [
+					_get_unit_name(unit), effect_data.damage_per_turn, effect_type
+				])
+
+				# Check for death
+				if not unit.is_alive():
+					result.died = true
+					return result
+			else:
+				# Healing (negative damage)
+				var heal_amount: int = -effect_data.damage_per_turn
+				if unit.has_method("heal"):
+					unit.heal(heal_amount)
+				else:
+					stats.current_hp = mini(stats.current_hp + heal_amount, stats.max_hp)
+
+				if not is_headless:
+					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+					showed_popup = true
+
+				print("[TurnManager] %s heals %d from %s" % [
+					_get_unit_name(unit), heal_amount, effect_type
+				])
+
+		# Decrement duration
+		effect_state.duration -= 1
+		if effect_state.duration <= 0:
+			effects_to_remove.append(effect_type)
+			print("[TurnManager] Status effect '%s' expired on %s" % [effect_type, _get_unit_name(unit)])
+
+	# Remove expired effects and recovered effects
+	for effect_type: String in effects_to_remove:
+		unit.remove_status_effect(effect_type)
+
+	# Brief visual pause if any status was shown
+	if not is_headless and showed_popup:
+		await get_tree().create_timer(0.6).timeout
+
+	return result
+
+
+## Legacy fallback for status effects not in registry (backwards compatibility)
+## Returns: {skip_turn: bool, showed_popup: bool}
+func _process_legacy_status_effect(
+	unit: Node2D,
+	effect_state: Dictionary,
+	effects_to_remove: Array[String]
+) -> Dictionary:
+	var result: Dictionary = {"skip_turn": false, "showed_popup": false}
+	var effect_type: String = effect_state.get("type", "")
+
+	match effect_type:
+		"poison":
+			# Poison damage is handled at END of turn via UnitStats.process_status_effects()
+			# Just show visual feedback here at turn start
+			if not is_headless:
+				_show_status_popup(unit, "Poisoned!", Color(0.6, 0.2, 0.8))
+				result.showed_popup = true
+
+		"sleep":
+			# Sleep: skip turn, show message
+			result.skip_turn = true
+			if not is_headless:
+				_show_status_popup(unit, "Asleep!", Color(0.4, 0.4, 1.0))
+				result.showed_popup = true
+			print("[TurnManager] %s is asleep - skipping turn" % _get_unit_name(unit))
+
+		"paralysis":
+			# Paralysis: 25% chance to recover each turn, otherwise skip
+			var recovery_roll: int = randi_range(1, 100)
+			if recovery_roll <= 25:
+				# Recovered from paralysis!
+				effects_to_remove.append("paralysis")
+				if not is_headless:
+					_show_status_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
+					result.showed_popup = true
+				print("[TurnManager] %s recovered from paralysis!" % _get_unit_name(unit))
+			else:
+				# Still paralyzed
+				result.skip_turn = true
+				if not is_headless:
+					_show_status_popup(unit, "Paralyzed!", Color(1.0, 1.0, 0.2))
+					result.showed_popup = true
+				print("[TurnManager] %s is paralyzed - skipping turn" % _get_unit_name(unit))
+
+		"confusion":
+			# Confusion is handled during action selection, not here
+			# Just show visual feedback
+			if not is_headless:
+				_show_status_popup(unit, "Confused!", Color(1.0, 0.5, 0.7))
+				result.showed_popup = true
+
+		"attack_up", "attack_down", "defense_up", "defense_down", "speed_up", "speed_down":
+			# Stat modifiers are handled in UnitStats.get_effective_*() methods
+			# No visual feedback at turn start (they're passive)
+			pass
+
+		"regen":
+			# Regen healing is handled at END of turn via UnitStats.process_status_effects()
+			if not is_headless:
+				_show_status_popup(unit, "Regenerating", Color(0.2, 1.0, 0.5))
+				result.showed_popup = true
+
+		_:
+			# Unknown effect - log but don't crash
+			push_warning("[TurnManager] Unknown legacy status effect: '%s'" % effect_type)
+
+	# Decrement duration for legacy effects
+	effect_state.duration -= 1
+	if effect_state.duration <= 0:
+		effects_to_remove.append(effect_type)
+		print("[TurnManager] Status effect '%s' expired on %s" % [effect_type, _get_unit_name(unit)])
+
+	return result
+
+
+## Show a status effect popup above unit
+func _show_status_popup(unit: Node2D, message: String, color: Color) -> void:
+	var label: Label = Label.new()
+	label.text = message
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_font_size_override("font_size", 16)
+	label.position = unit.position + Vector2(0, -30)
+	label.z_index = 100
+
+	if unit.get_parent():
+		unit.get_parent().add_child(label)
+
+		# Animate and remove
+		var tween: Tween = label.create_tween()
+		tween.tween_property(label, "position:y", label.position.y - 20, 0.6)
+		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.6)
+		tween.tween_callback(label.queue_free)
+
+
+## Helper to get unit display name safely
+func _get_unit_name(unit: Node2D) -> String:
+	if unit.has_method("get_display_name"):
+		return unit.get_display_name()
+	return "Unknown"
 
 
 ## Clear battle state (call when exiting battle)

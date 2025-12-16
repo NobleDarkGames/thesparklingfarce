@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/status_effect_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+effect_id = "attack_down"
+display_name = "Attack Down"
+description = "Attack power decreased."
+icon_color = Color(0.5, 0.2, 0.2, 1)
+popup_text = "Attack Down"
+popup_color = Color(0.5, 0.2, 0.2, 1)
+trigger_timing = 4
+skips_turn = false
+recovery_chance_per_turn = 0
+damage_per_turn = 0
+stat_modifiers = {"strength": -5}
+removed_on_damage = false
+removal_on_damage_chance = 100
+action_modifier = 0
+action_modifier_chance = 100

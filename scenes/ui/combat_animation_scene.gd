@@ -276,6 +276,12 @@ func _execute_phase(phase: CombatPhase) -> void:
 		# Healing phases don't cause death, so skip death check
 		return
 
+	# Handle status effect phases (no damage, just effect application)
+	if phase.phase_type == CombatPhase.PhaseType.SPELL_STATUS:
+		await _play_status_animation(phase.was_resisted, phase.status_effect_name, phase.defender)
+		# Status phases don't cause death
+		return
+
 	# Play appropriate animation based on hit/miss/critical
 	if phase.was_miss:
 		await _play_miss_animation()
@@ -581,6 +587,28 @@ func _play_heal_animation(heal_amount: int, target: Node2D) -> void:
 	# Update defender HP bar (HP goes UP - target.stats.current_hp now has new value)
 	var hp_tween: Tween = create_tween()
 	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
+
+	# Brief pause
+	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
+
+
+## Play status effect animation (for SPELL_STATUS phases)
+@warning_ignore("unused_parameter")
+func _play_status_animation(was_resisted: bool, status_name: String, _target: Node2D) -> void:
+	if was_resisted:
+		# Similar to miss - white flash, "Resisted!" text
+		combat_log.text = "Resisted!"
+		combat_log.add_theme_font_override("font", monogram_font)
+		combat_log.add_theme_color_override("font_color", Color.WHITE)
+		_flash_sprite(defender_sprite, Color.WHITE, _get_duration(BASE_FLASH_DURATION))
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+	else:
+		# Status applied - purple flash, show status name
+		combat_log.text = status_name.capitalize() + "!"
+		combat_log.add_theme_font_override("font", monogram_font)
+		combat_log.add_theme_color_override("font_color", Color(0.8, 0.4, 1.0))  # Purple
+		_flash_sprite(defender_sprite, Color(0.8, 0.4, 1.0), _get_duration(BASE_FLASH_DURATION))
+		AudioManager.play_sfx("spell_cast", AudioManager.SFXCategory.COMBAT)
 
 	# Brief pause
 	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout

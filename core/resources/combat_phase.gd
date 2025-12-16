@@ -18,6 +18,7 @@ enum PhaseType {
 	DOUBLE_ATTACK,    ## Second strike if AGI/class allows
 	COUNTER_ATTACK,   ## Defender's retaliation (75% damage)
 	SPELL_ATTACK,     ## Magic attack (no counter possible)
+	SPELL_STATUS,     ## Status effect spell (confusion, sleep, etc.)
 	ITEM_HEAL,        ## Item used to heal (shows HP going UP)
 	SPELL_HEAL        ## Healing spell (shows HP going UP)
 }
@@ -53,6 +54,12 @@ var is_double_attack: bool = false
 
 ## Name of the action (weapon name, spell name) for display in results
 var action_name: String = ""
+
+## Name of status effect applied (for SPELL_STATUS phases)
+var status_effect_name: String = ""
+
+## Whether the status effect was resisted
+var was_resisted: bool = false
 
 
 ## Factory method to create an initial attack phase
@@ -187,6 +194,31 @@ static func create_spell_heal(
 	return phase
 
 
+## Factory method to create a status spell phase
+## Shows status effect being applied (or resisted)
+static func create_spell_status(
+	p_caster: Node2D,
+	p_target: Node2D,
+	p_spell_name: String,
+	p_status_effect: String,
+	p_was_resisted: bool = false
+) -> CombatPhase:
+	var phase: CombatPhase = CombatPhase.new()
+	phase.phase_type = PhaseType.SPELL_STATUS
+	phase.attacker = p_caster
+	phase.defender = p_target
+	phase.damage = 0
+	phase.heal_amount = 0
+	phase.was_critical = false
+	phase.was_miss = false
+	phase.was_resisted = p_was_resisted
+	phase.is_counter = false
+	phase.is_double_attack = false
+	phase.action_name = p_spell_name
+	phase.status_effect_name = p_status_effect
+	return phase
+
+
 ## Get a human-readable description for debugging
 func get_description() -> String:
 	var type_str: String = ""
@@ -199,6 +231,8 @@ func get_description() -> String:
 			type_str = "Counter"
 		PhaseType.SPELL_ATTACK:
 			type_str = "Spell"
+		PhaseType.SPELL_STATUS:
+			type_str = "Status"
 		PhaseType.ITEM_HEAL:
 			type_str = "Item Heal"
 		PhaseType.SPELL_HEAL:
@@ -207,6 +241,13 @@ func get_description() -> String:
 	var attacker_name: String = str(attacker.call("get_display_name")) if attacker and attacker.has_method("get_display_name") else "Unknown"
 	var defender_name: String = str(defender.call("get_display_name")) if defender and defender.has_method("get_display_name") else "Unknown"
 	var action_str: String = " with %s" % action_name if not action_name.is_empty() else ""
+
+	# Handle status phases
+	if phase_type == PhaseType.SPELL_STATUS:
+		if was_resisted:
+			return "%s: %s casts %s on %s - RESISTED" % [type_str, attacker_name, action_name, defender_name]
+		else:
+			return "%s: %s casts %s on %s - %s applied" % [type_str, attacker_name, action_name, defender_name, status_effect_name]
 
 	# Handle healing phases
 	if phase_type == PhaseType.ITEM_HEAL or phase_type == PhaseType.SPELL_HEAL:
@@ -261,6 +302,19 @@ func get_result_text() -> String:
 				return "%s cast %s on %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), defender_name, heal_amount]
 			else:
 				return "%s healed %s - Recovered %d HP!" % [attacker_name, defender_name, heal_amount]
+
+	# Handle status effect phases
+	if phase_type == PhaseType.SPELL_STATUS:
+		if was_resisted:
+			if not action_name.is_empty():
+				return "%s cast %s on %s - Resisted!" % [attacker_name, action_name.to_upper(), defender_name]
+			else:
+				return "%s's spell was resisted by %s!" % [attacker_name, defender_name]
+		else:
+			if not action_name.is_empty():
+				return "%s cast %s on %s - %s!" % [attacker_name, action_name.to_upper(), defender_name, status_effect_name.capitalize()]
+			else:
+				return "%s inflicted %s on %s!" % [attacker_name, status_effect_name.capitalize(), defender_name]
 
 	# Handle misses based on phase type
 	if was_miss:

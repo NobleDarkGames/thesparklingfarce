@@ -413,10 +413,15 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 
 
 ## Take damage from attack
+## Checks status effects for removed_on_damage using registry (data-driven)
 func take_damage(damage: int) -> void:
 	if stats == null:
 		push_error("Unit: Cannot take damage (no stats)")
 		return
+
+	# Check for status effects that should be removed on damage
+	if damage > 0:
+		_check_effects_removed_on_damage()
 
 	# Apply damage
 	var unit_died: bool = stats.take_damage(damage)
@@ -431,6 +436,46 @@ func take_damage(damage: int) -> void:
 	if unit_died:
 		GridManager.clear_cell_occupied(grid_position)
 		died.emit()
+
+
+## Check all status effects for removed_on_damage flag
+## Uses data-driven StatusEffectData with legacy fallback
+func _check_effects_removed_on_damage() -> void:
+	if stats == null:
+		return
+
+	# Build list of effects to remove (iterate backwards to safely modify)
+	var effects_to_remove: Array[String] = []
+
+	for effect_state: Dictionary in stats.status_effects:
+		var effect_type: String = effect_state.get("type", "")
+
+		# Look up effect data from registry
+		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
+
+		if effect_data:
+			# Data-driven: check removed_on_damage flag
+			if effect_data.removed_on_damage:
+				# Check removal chance
+				if randi_range(1, 100) <= effect_data.removal_on_damage_chance:
+					effects_to_remove.append(effect_type)
+					print("[Unit] %s: %s removed by damage!" % [get_display_name(), effect_data.display_name])
+		else:
+			# Legacy fallback for hardcoded effects not yet in registry
+			if effect_type == "sleep":
+				# Sleep always breaks on damage (SF2-authentic)
+				effects_to_remove.append("sleep")
+				print("[Unit] %s woke up from damage!" % get_display_name())
+			elif effect_type == "confusion":
+				# Confusion has 50% chance to break when hit (SF2-authentic)
+				var break_roll: int = randi_range(1, 100)
+				if break_roll <= 50:
+					effects_to_remove.append("confusion")
+					print("[Unit] %s snapped out of confusion from being hit!" % get_display_name())
+
+	# Remove flagged effects
+	for effect_type: String in effects_to_remove:
+		remove_status_effect(effect_type)
 
 
 ## Heal HP

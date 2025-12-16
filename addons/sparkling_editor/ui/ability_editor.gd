@@ -23,9 +23,14 @@ var power_spin: SpinBox
 var accuracy_spin: SpinBox
 
 # Effects
-var status_effects_edit: LineEdit
+var status_effects_container: HBoxContainer
+var status_effects_button: MenuButton
+var status_effects_label: Label  # Shows current selection
 var effect_duration_spin: SpinBox
 var effect_chance_spin: SpinBox
+
+# Track selected status effects
+var _selected_effects: Array[String] = []
 
 # Animation and Audio
 var animation_edit: LineEdit
@@ -89,8 +94,14 @@ func _load_resource_data() -> void:
 	power_spin.value = ability.power
 	accuracy_spin.value = ability.accuracy
 
-	# Effects
-	status_effects_edit.text = ", ".join(ability.status_effects)
+	# Effects - filter out unknown effects (stale data from old text input)
+	_selected_effects = []
+	for effect_id: String in ability.status_effects:
+		if ModLoader and ModLoader.status_effect_registry and ModLoader.status_effect_registry.has_effect(effect_id):
+			_selected_effects.append(effect_id)
+		else:
+			push_warning("AbilityEditor: Unknown status effect '%s' in ability '%s' - removing" % [effect_id, ability.ability_name])
+	_update_status_effects_display()
 	effect_duration_spin.value = ability.effect_duration
 	effect_chance_spin.value = ability.effect_chance
 
@@ -110,6 +121,10 @@ func _save_resource_data() -> void:
 	ability.target_type = target_type_option.selected
 	ability.description = description_edit.text
 
+	# Auto-generate ability_id from name if empty
+	if ability.ability_id.is_empty() and not ability.ability_name.is_empty():
+		ability.ability_id = ability.ability_name.to_lower().replace(" ", "_")
+
 	# Range and area
 	ability.min_range = int(min_range_spin.value)
 	ability.max_range = int(max_range_spin.value)
@@ -123,16 +138,8 @@ func _save_resource_data() -> void:
 	ability.power = int(power_spin.value)
 	ability.accuracy = int(accuracy_spin.value)
 
-	# Effects - parse comma-separated string into array
-	var effects_text: String = status_effects_edit.text.strip_edges()
-	var new_effects: Array[String] = []
-	if not effects_text.is_empty():
-		var effect_list: PackedStringArray = effects_text.split(",")
-		for effect in effect_list:
-			var trimmed: String = effect.strip_edges()
-			if not trimmed.is_empty():
-				new_effects.append(trimmed)
-	ability.status_effects = new_effects
+	# Effects - use selected effects array directly
+	ability.status_effects = _selected_effects.duplicate()
 	ability.effect_duration = int(effect_duration_spin.value)
 	ability.effect_chance = int(effect_chance_spin.value)
 
@@ -462,16 +469,31 @@ func _add_effects_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
-	# Status Effects (comma-separated)
-	var effects_label: Label = Label.new()
-	effects_label.text = "Effects (comma-separated):"
-	section.add_child(effects_label)
+	# Status Effects picker
+	var effects_header: Label = Label.new()
+	effects_header.text = "Effects:"
+	section.add_child(effects_header)
 
-	status_effects_edit = LineEdit.new()
-	status_effects_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_effects_edit.placeholder_text = "e.g., poison, attack_up, paralysis"
-	status_effects_edit.tooltip_text = "Status conditions applied. Common: poison, sleep, paralysis, attack_up, defense_down, regen."
-	section.add_child(status_effects_edit)
+	status_effects_container = HBoxContainer.new()
+
+	status_effects_button = MenuButton.new()
+	status_effects_button.text = "Select Effects..."
+	status_effects_button.tooltip_text = "Choose status effects to apply when this ability hits."
+	status_effects_button.flat = false
+	status_effects_button.get_popup().hide_on_checkable_item_selection = false
+	status_effects_button.get_popup().index_pressed.connect(_on_status_effect_toggled)
+	status_effects_container.add_child(status_effects_button)
+
+	status_effects_label = Label.new()
+	status_effects_label.text = "(none)"
+	status_effects_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	status_effects_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	status_effects_container.add_child(status_effects_label)
+
+	section.add_child(status_effects_container)
+
+	# Populate the dropdown lazily when opened (registry may not be ready on startup)
+	status_effects_button.get_popup().about_to_popup.connect(_populate_status_effects_menu)
 
 	# Effect Duration
 	var duration_container: HBoxContainer = HBoxContainer.new()
@@ -535,3 +557,90 @@ func _add_animation_audio_section() -> void:
 	section.add_child(note_label)
 
 	detail_panel.add_child(section)
+
+
+# =============================================================================
+# STATUS EFFECT PICKER HELPERS
+# =============================================================================
+
+## Populate the status effects dropdown from registry
+func _populate_status_effects_menu() -> void:
+	var popup: PopupMenu = status_effects_button.get_popup()
+	popup.clear()
+
+	# Get all registered status effects
+	if not ModLoader or not ModLoader.status_effect_registry:
+		popup.add_item("(Registry not available)")
+		popup.set_item_disabled(0, true)
+		return
+
+	var effect_ids: Array[String] = ModLoader.status_effect_registry.get_all_effect_ids()
+
+	if effect_ids.is_empty():
+		popup.add_item("(No status effects registered)")
+		popup.set_item_disabled(0, true)
+		return
+
+	for effect_id: String in effect_ids:
+		var effect: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_id)
+		var display_text: String = effect.display_name if effect and not effect.display_name.is_empty() else effect_id.capitalize()
+
+		popup.add_check_item(display_text)
+		var idx: int = popup.item_count - 1
+		popup.set_item_metadata(idx, effect_id)
+
+		# Check if this effect is currently selected
+		if effect_id in _selected_effects:
+			popup.set_item_checked(idx, true)
+
+
+## Handle status effect checkbox toggle
+func _on_status_effect_toggled(index: int) -> void:
+	var popup: PopupMenu = status_effects_button.get_popup()
+	var effect_id: String = popup.get_item_metadata(index)
+
+	if effect_id.is_empty():
+		return
+
+	var is_checked: bool = popup.is_item_checked(index)
+
+	if is_checked:
+		# Unchecking - remove from selection
+		_selected_effects.erase(effect_id)
+		popup.set_item_checked(index, false)
+	else:
+		# Checking - add to selection
+		if effect_id not in _selected_effects:
+			_selected_effects.append(effect_id)
+		popup.set_item_checked(index, true)
+
+	_update_status_effects_display()
+
+
+## Update the label showing currently selected effects
+func _update_status_effects_display() -> void:
+	# Also refresh checkboxes in menu
+	_refresh_menu_checkboxes()
+
+	if _selected_effects.is_empty():
+		status_effects_label.text = "(none)"
+		status_effects_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	else:
+		# Build display string with display names
+		var display_names: Array[String] = []
+		for effect_id: String in _selected_effects:
+			var display_name: String = effect_id.capitalize()
+			if ModLoader and ModLoader.status_effect_registry:
+				display_name = ModLoader.status_effect_registry.get_display_name(effect_id)
+			display_names.append(display_name)
+		status_effects_label.text = ", ".join(display_names)
+		status_effects_label.remove_theme_color_override("font_color")
+
+
+## Refresh menu checkboxes to match current selection
+func _refresh_menu_checkboxes() -> void:
+	var popup: PopupMenu = status_effects_button.get_popup()
+	for i: int in range(popup.item_count):
+		var effect_id: String = popup.get_item_metadata(i)
+		if not effect_id.is_empty():
+			popup.set_item_checked(i, effect_id in _selected_effects)

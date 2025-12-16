@@ -5,10 +5,27 @@
 ## 2. Action menu (Attack, Magic, Item, Stay)
 ## 3. Targeting (if applicable)
 ## 4. Execution and turn end
+##
+## State Transitions:
+##   WAITING -> DIRECT_MOVEMENT (start_player_turn)
+##   DIRECT_MOVEMENT -> INSPECTING (cancel at start position)
+##   DIRECT_MOVEMENT -> SELECTING_ACTION (confirm position)
+##   INSPECTING -> DIRECT_MOVEMENT (accept or cancel)
+##   SELECTING_ACTION -> TARGETING (Attack selected)
+##   SELECTING_ACTION -> SELECTING_ITEM (Item selected)
+##   SELECTING_ACTION -> SELECTING_SPELL (Magic selected)
+##   SELECTING_ACTION -> EXECUTING (Stay selected)
+##   SELECTING_ITEM -> SELECTING_ITEM_TARGET (item needs target)
+##   SELECTING_SPELL -> SELECTING_SPELL_TARGET (spell needs target)
+##   TARGETING -> EXECUTING (confirm) | SELECTING_ACTION (cancel)
+##   SELECTING_ITEM_TARGET -> EXECUTING | SELECTING_ACTION (cancel)
+##   SELECTING_SPELL_TARGET -> EXECUTING | SELECTING_ACTION (cancel)
+##   EXECUTING -> WAITING (turn ends via BattleManager)
 extends Node
 
 const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
 const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const InputHelpers: GDScript = preload("res://core/systems/input_manager_helpers.gd")
 
 ## Input state machine
 enum InputState {
@@ -30,7 +47,7 @@ signal movement_confirmed(unit: Node2D, destination: Vector2i)
 signal action_selected(unit: Node2D, action: String)
 signal target_selected(unit: Node2D, target: Node2D)
 signal item_use_requested(unit: Node2D, item_id: String, target: Node2D)  # Player used an item on a target
-signal spell_cast_requested(unit: Node2D, ability_id: String, target: Node2D)  # Player cast a spell on a target
+signal spell_cast_requested(unit: Node2D, ability: AbilityData, target: Node2D)  # Player cast a spell on a target
 signal turn_cancelled()  # Player wants to redo movement
 
 ## Current state
@@ -61,6 +78,10 @@ var _spell_valid_targets: Array[Vector2i] = []  # Valid target cells for spell t
 
 ## Attack targeting state
 var _attack_valid_targets: Array[Vector2i] = []  # Valid enemy target cells for attack targeting
+
+## Unified targeting context (used for attack/item/spell targeting)
+var _targeting_context: InputHelpers.TargetingContext = null
+var _unified_valid_targets: Array[Vector2i] = []  # Valid targets for current targeting mode
 
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
@@ -175,7 +196,7 @@ func _reconnect_spell_menu_signals() -> void:
 
 
 ## Handle spell menu selection signal
-func _on_spell_menu_selected(ability_id: String, signal_session_id: int) -> void:
+func _on_spell_menu_selected(ability: AbilityData, signal_session_id: int) -> void:
 	# Guard: Reject stale signals from previous turns
 	if signal_session_id != _turn_session_id:
 		push_warning("InputManager: Ignoring STALE spell selection from session %d (current: %d)" % [
@@ -189,21 +210,22 @@ func _on_spell_menu_selected(ability_id: String, signal_session_id: int) -> void
 		push_warning("InputManager: Ignoring spell selection in state %s" % InputState.keys()[current_state])
 		return
 
-	# Play selection sound
-	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
-
-	# Store selected spell for target selection
-	selected_spell_id = ability_id
-	selected_spell_data = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
-
-	if not selected_spell_data:
-		push_warning("InputManager: Ability '%s' not found in registry" % ability_id)
+	# Guard: Valid ability
+	if not ability:
+		push_warning("InputManager: Received null ability from spell menu")
 		set_state(InputState.SELECTING_ACTION)
 		return
 
+	# Play selection sound
+	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+
+	# Store selected spell for target selection (use ability directly, no registry lookup needed)
+	selected_spell_id = ability.ability_id
+	selected_spell_data = ability
+
 	# Check MP cost - prevent casting if insufficient MP
 	if active_unit.stats and active_unit.stats.current_mp < selected_spell_data.mp_cost:
-		push_warning("InputManager: Insufficient MP for spell '%s'" % ability_id)
+		push_warning("InputManager: Insufficient MP for spell '%s'" % ability.ability_id)
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		set_state(InputState.SELECTING_SPELL)  # Return to spell menu
 		return
@@ -240,7 +262,7 @@ func _spell_needs_target_selection(ability: AbilityData) -> bool:
 ## Cast the selected spell on the given target
 func _cast_spell_on_target(target: Node2D) -> void:
 	# Emit spell cast signal for BattleManager to handle
-	spell_cast_requested.emit(active_unit, selected_spell_id, target)
+	spell_cast_requested.emit(active_unit, selected_spell_data, target)
 
 	# Clear spell selection state
 	selected_spell_id = ""
@@ -766,15 +788,7 @@ func _process(delta: float) -> void:
 		return
 
 	# Check if any directional key is held
-	var direction: Vector2i = Vector2i.ZERO
-	if Input.is_action_pressed("ui_up"):
-		direction.y = -1
-	elif Input.is_action_pressed("ui_down"):
-		direction.y = 1
-	elif Input.is_action_pressed("ui_left"):
-		direction.x = -1
-	elif Input.is_action_pressed("ui_right"):
-		direction.x = 1
+	var direction: Vector2i = InputHelpers.get_held_direction()
 
 	# If a direction is held, handle with delay
 	if direction != Vector2i.ZERO:
@@ -826,21 +840,10 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 	var handled: bool = false
 
 	# Arrow keys move cursor freely (no restrictions)
-	if event.is_action_pressed("ui_up"):
-		_move_free_cursor(Vector2i(0, -1))
+	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	if direction != Vector2i.ZERO:
+		_move_free_cursor(direction)
 		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
-		handled = true
-	elif event.is_action_pressed("ui_down"):
-		_move_free_cursor(Vector2i(0, 1))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_left"):
-		_move_free_cursor(Vector2i(-1, 0))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_right"):
-		_move_free_cursor(Vector2i(1, 0))
-		_input_delay = INPUT_DELAY_INITIAL
 		handled = true
 
 	# Accept key: Check what's under cursor
@@ -886,21 +889,10 @@ func _handle_movement_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move cursor
-	if event.is_action_pressed("ui_up"):
-		_move_cursor(Vector2i(0, -1))
+	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	if direction != Vector2i.ZERO:
+		_move_cursor(direction)
 		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
-		handled = true
-	elif event.is_action_pressed("ui_down"):
-		_move_cursor(Vector2i(0, 1))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_left"):
-		_move_cursor(Vector2i(-1, 0))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_right"):
-		_move_cursor(Vector2i(1, 0))
-		_input_delay = INPUT_DELAY_INITIAL
 		handled = true
 
 	# Accept key - Opens action menu (moved or not)
@@ -1381,9 +1373,7 @@ func _get_valid_target_cells(weapon_range: int) -> Array[Vector2i]:
 			if occupant and occupant.is_enemy_unit():
 				valid_cells.append(cell)
 
-	elif current_action == "Magic":
-		# TODO: Implement spell targeting when spell system exists
-		pass
+	# Note: Magic action routes to SELECTING_SPELL state, not TARGETING
 
 	return valid_cells
 
@@ -1415,109 +1405,27 @@ func _get_best_initial_target() -> Vector2i:
 
 ## Get the closest cell to a position from a list of cells
 func _get_closest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
-	if cells.is_empty():
-		return from
-
-	var closest: Vector2i = cells[0]
-	var closest_dist: int = _manhattan_distance(from, closest)
-
-	for cell in cells:
-		var dist: int = _manhattan_distance(from, cell)
-		if dist < closest_dist:
-			closest = cell
-			closest_dist = dist
-
-	return closest
+	return InputHelpers.get_closest_cell(from, cells)
 
 
 ## Calculate Manhattan distance between two cells
 func _manhattan_distance(a: Vector2i, b: Vector2i) -> int:
-	return abs(a.x - b.x) + abs(a.y - b.y)
+	return InputHelpers.manhattan_distance(a, b)
 
 
 ## Get the next valid target in the given direction from current cursor position
 ## Returns current position if no valid target found in that direction
 func _get_next_target_in_direction(direction: Vector2i) -> Vector2i:
-	if _attack_valid_targets.is_empty():
-		return current_cursor_position
-
-	# Filter targets that are in the general direction of the input
-	var candidates: Array[Vector2i] = []
-	for target_cell in _attack_valid_targets:
-		if target_cell == current_cursor_position:
-			continue  # Skip current target
-
-		var delta: Vector2i = target_cell - current_cursor_position
-
-		# Check if this target is in the direction of the input
-		var is_valid_direction: bool = false
-		match direction:
-			Vector2i.UP:
-				is_valid_direction = delta.y < 0  # Target is above
-			Vector2i.DOWN:
-				is_valid_direction = delta.y > 0  # Target is below
-			Vector2i.LEFT:
-				is_valid_direction = delta.x < 0  # Target is to the left
-			Vector2i.RIGHT:
-				is_valid_direction = delta.x > 0  # Target is to the right
-
-		if is_valid_direction:
-			candidates.append(target_cell)
-
-	# If we have candidates in that direction, return the closest one
-	if not candidates.is_empty():
-		return _get_closest_cell(current_cursor_position, candidates)
-
-	# No targets in that direction - wrap around to the farthest target in opposite direction
-	# This provides intuitive cycling behavior
-	var opposite: Vector2i = -direction
-	var wrap_candidates: Array[Vector2i] = []
-	for target_cell in _attack_valid_targets:
-		if target_cell == current_cursor_position:
-			continue
-
-		var delta: Vector2i = target_cell - current_cursor_position
-		var is_opposite_direction: bool = false
-		match opposite:
-			Vector2i.UP:
-				is_opposite_direction = delta.y < 0
-			Vector2i.DOWN:
-				is_opposite_direction = delta.y > 0
-			Vector2i.LEFT:
-				is_opposite_direction = delta.x < 0
-			Vector2i.RIGHT:
-				is_opposite_direction = delta.x > 0
-
-		if is_opposite_direction:
-			wrap_candidates.append(target_cell)
-
-	# Return the farthest target in the opposite direction (wrap around)
-	if not wrap_candidates.is_empty():
-		return _get_farthest_cell(current_cursor_position, wrap_candidates)
-
-	# Fallback: just return the first other target
-	for target_cell in _attack_valid_targets:
-		if target_cell != current_cursor_position:
-			return target_cell
-
-	return current_cursor_position
+	return InputHelpers.get_next_target_in_direction(
+		current_cursor_position,
+		direction,
+		_attack_valid_targets
+	)
 
 
 ## Get the farthest cell from a position (for wrap-around behavior)
 func _get_farthest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
-	if cells.is_empty():
-		return from
-
-	var farthest: Vector2i = cells[0]
-	var farthest_dist: int = _manhattan_distance(from, farthest)
-
-	for cell in cells:
-		var dist: int = _manhattan_distance(from, cell)
-		if dist > farthest_dist:
-			farthest = cell
-			farthest_dist = dist
-
-	return farthest
+	return InputHelpers.get_farthest_cell(from, cells)
 
 
 ## Show targeting range and valid targets (respects min/max range for dead zones)
@@ -1558,17 +1466,9 @@ func _handle_targeting_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
-	if event.is_action_pressed("ui_up"):
-		_move_targeting_cursor(Vector2i(0, -1))
-		handled = true
-	elif event.is_action_pressed("ui_down"):
-		_move_targeting_cursor(Vector2i(0, 1))
-		handled = true
-	elif event.is_action_pressed("ui_left"):
-		_move_targeting_cursor(Vector2i(-1, 0))
-		handled = true
-	elif event.is_action_pressed("ui_right"):
-		_move_targeting_cursor(Vector2i(1, 0))
+	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	if direction != Vector2i.ZERO:
+		_move_targeting_cursor(direction)
 		handled = true
 
 	# Accept key to confirm target selection
@@ -1919,20 +1819,9 @@ func _handle_direct_movement_input(event: InputEvent) -> void:
 		return
 
 	# Arrow keys directly move the unit
-	if event.is_action_pressed("ui_up"):
-		_try_direct_step(Vector2i(0, -1))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_down"):
-		_try_direct_step(Vector2i(0, 1))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_left"):
-		_try_direct_step(Vector2i(-1, 0))
-		_input_delay = INPUT_DELAY_INITIAL
-		handled = true
-	elif event.is_action_pressed("ui_right"):
-		_try_direct_step(Vector2i(1, 0))
+	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	if direction != Vector2i.ZERO:
+		_try_direct_step(direction)
 		_input_delay = INPUT_DELAY_INITIAL
 		handled = true
 
@@ -1990,17 +1879,9 @@ func _handle_item_target_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
-	if event.is_action_pressed("ui_up"):
-		_move_item_target_cursor(Vector2i(0, -1))
-		handled = true
-	elif event.is_action_pressed("ui_down"):
-		_move_item_target_cursor(Vector2i(0, 1))
-		handled = true
-	elif event.is_action_pressed("ui_left"):
-		_move_item_target_cursor(Vector2i(-1, 0))
-		handled = true
-	elif event.is_action_pressed("ui_right"):
-		_move_item_target_cursor(Vector2i(1, 0))
+	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	if direction != Vector2i.ZERO:
+		_move_item_target_cursor(direction)
 		handled = true
 
 	# Accept key to confirm target selection
@@ -2027,33 +1908,28 @@ func _handle_item_target_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Get valid target cells for the selected item
-func _get_valid_item_target_cells() -> Array[Vector2i]:
+## Get valid target cells for an ability (unified for item/spell targeting)
+func _get_valid_ability_target_cells(ability: AbilityData) -> Array[Vector2i]:
 	var valid_cells: Array[Vector2i] = []
 
-	if not selected_item_data or not selected_item_data.effect:
-		# No effect - only self is valid
-		valid_cells.append(active_unit.grid_position)
-		return valid_cells
-
-	var effect: AbilityData = selected_item_data.effect as AbilityData
-	if not effect:
+	if not ability:
+		# No ability - only self is valid
 		valid_cells.append(active_unit.grid_position)
 		return valid_cells
 
 	# Get cells in range based on ability
 	var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range(
 		active_unit.grid_position,
-		effect.max_range
+		ability.max_range
 	)
 
 	# Also include self if min_range is 0
-	if effect.min_range == 0:
+	if ability.min_range == 0:
 		if active_unit.grid_position not in cells_in_range:
 			cells_in_range.append(active_unit.grid_position)
 
 	# Filter based on target type
-	match effect.target_type:
+	match ability.target_type:
 		AbilityData.TargetType.SELF:
 			valid_cells.append(active_unit.grid_position)
 
@@ -2063,7 +1939,7 @@ func _get_valid_item_target_cells() -> Array[Vector2i]:
 				var unit: Node2D = GridManager.get_unit_at_cell(cell)
 				if unit and unit.faction == active_unit.faction and unit.is_alive():
 					valid_cells.append(cell)
-			# Always include self for healing items
+			# Always include self for healing abilities
 			if active_unit.grid_position not in valid_cells:
 				valid_cells.append(active_unit.grid_position)
 
@@ -2079,32 +1955,34 @@ func _get_valid_item_target_cells() -> Array[Vector2i]:
 			valid_cells.append(active_unit.grid_position)
 
 		AbilityData.TargetType.AREA:
-			# All cells in range
+			# All cells in range (will affect area around selected point)
 			valid_cells = cells_in_range
 
 	return valid_cells
 
 
-## Check if a unit is a valid target for the selected item
-func _is_valid_item_target(unit: Node2D) -> bool:
+## Get valid target cells for the selected item
+func _get_valid_item_target_cells() -> Array[Vector2i]:
+	var effect: AbilityData = selected_item_data.effect as AbilityData if selected_item_data else null
+	return _get_valid_ability_target_cells(effect)
+
+
+## Check if a unit is a valid target for an ability (unified for item/spell)
+func _is_valid_ability_target(unit: Node2D, ability: AbilityData) -> bool:
 	if not unit or not unit.is_alive():
 		return false
 
-	if not selected_item_data or not selected_item_data.effect:
-		# No effect - only self is valid
-		return unit == active_unit
-
-	var effect: AbilityData = selected_item_data.effect as AbilityData
-	if not effect:
+	if not ability:
+		# No ability - only self is valid
 		return unit == active_unit
 
 	# Check range
 	var distance: int = GridManager.get_distance(active_unit.grid_position, unit.grid_position)
-	if distance < effect.min_range or distance > effect.max_range:
+	if distance < ability.min_range or distance > ability.max_range:
 		return false
 
 	# Check target type
-	match effect.target_type:
+	match ability.target_type:
 		AbilityData.TargetType.SELF:
 			return unit == active_unit
 		AbilityData.TargetType.SINGLE_ALLY:
@@ -2113,6 +1991,12 @@ func _is_valid_item_target(unit: Node2D) -> bool:
 			return unit.faction != active_unit.faction
 		_:
 			return true
+
+
+## Check if a unit is a valid target for the selected item
+func _is_valid_item_target(unit: Node2D) -> bool:
+	var effect: AbilityData = selected_item_data.effect as AbilityData if selected_item_data else null
+	return _is_valid_ability_target(unit, effect)
 
 
 ## Show item targeting range highlights
@@ -2138,25 +2022,13 @@ func _show_item_targeting_range(valid_targets: Array[Vector2i]) -> void:
 
 ## Move item target cursor (snap-to-target navigation for better UX)
 func _move_item_target_cursor(offset: Vector2i) -> void:
-	# SF-authentic: Snap between valid targets instead of cell-by-cell movement
-	if _item_valid_targets.is_empty():
-		return
-
-	# Find current target index
-	var current_idx: int = _item_valid_targets.find(current_cursor_position)
-
-	if current_idx == -1:
-		# Not on a valid target - snap to first one
-		current_cursor_position = _item_valid_targets[0]
-	else:
-		# Snap to next/previous valid target based on direction
-		# Up or Left = previous, Down or Right = next
-		if offset.y < 0 or offset.x < 0:
-			current_idx = wrapi(current_idx - 1, 0, _item_valid_targets.size())
-		else:
-			current_idx = wrapi(current_idx + 1, 0, _item_valid_targets.size())
-
-		current_cursor_position = _item_valid_targets[current_idx]
+	# SF-authentic: Snap between valid targets (up/left = previous, down/right = next)
+	var direction_sign: int = -1 if (offset.y < 0 or offset.x < 0) else 1
+	current_cursor_position = InputHelpers.cycle_target(
+		current_cursor_position,
+		direction_sign,
+		_item_valid_targets
+	)
 
 	# Play cursor movement sound
 	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
@@ -2169,8 +2041,8 @@ func _move_item_target_cursor(offset: Vector2i) -> void:
 	_update_item_target_info()
 
 
-## Update stats panel to show target info during item targeting
-func _update_item_target_info() -> void:
+## Update stats panel to show target info (unified for item/spell targeting)
+func _update_target_info_panel() -> void:
 	if not stats_panel:
 		return
 
@@ -2184,6 +2056,11 @@ func _update_item_target_info() -> void:
 		# No valid target, show active unit stats
 		if active_unit:
 			stats_panel.show_unit_stats(active_unit)
+
+
+## Update stats panel to show target info during item targeting
+func _update_item_target_info() -> void:
+	_update_target_info_panel()
 
 
 ## Confirm item target and use item
@@ -2246,17 +2123,9 @@ func _handle_spell_target_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
-	if event.is_action_pressed("ui_up"):
-		_move_spell_target_cursor(Vector2i(0, -1))
-		handled = true
-	elif event.is_action_pressed("ui_down"):
-		_move_spell_target_cursor(Vector2i(0, 1))
-		handled = true
-	elif event.is_action_pressed("ui_left"):
-		_move_spell_target_cursor(Vector2i(-1, 0))
-		handled = true
-	elif event.is_action_pressed("ui_right"):
-		_move_spell_target_cursor(Vector2i(1, 0))
+	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	if direction != Vector2i.ZERO:
+		_move_spell_target_cursor(direction)
 		handled = true
 
 	# Accept key to confirm target selection
@@ -2285,81 +2154,12 @@ func _handle_spell_target_input(event: InputEvent) -> void:
 
 ## Get valid target cells for the selected spell
 func _get_valid_spell_target_cells() -> Array[Vector2i]:
-	var valid_cells: Array[Vector2i] = []
-
-	if not selected_spell_data:
-		# No spell - only self is valid
-		valid_cells.append(active_unit.grid_position)
-		return valid_cells
-
-	# Get cells in range based on ability
-	var cells_in_range: Array[Vector2i] = GridManager.get_cells_in_range(
-		active_unit.grid_position,
-		selected_spell_data.max_range
-	)
-
-	# Also include self if min_range is 0
-	if selected_spell_data.min_range == 0:
-		if active_unit.grid_position not in cells_in_range:
-			cells_in_range.append(active_unit.grid_position)
-
-	# Filter based on target type
-	match selected_spell_data.target_type:
-		AbilityData.TargetType.SELF:
-			valid_cells.append(active_unit.grid_position)
-
-		AbilityData.TargetType.SINGLE_ALLY:
-			# Include self and all allies (same faction) in range
-			for cell in cells_in_range:
-				var unit: Node2D = GridManager.get_unit_at_cell(cell)
-				if unit and unit.faction == active_unit.faction and unit.is_alive():
-					valid_cells.append(cell)
-			# Always include self for healing spells
-			if active_unit.grid_position not in valid_cells:
-				valid_cells.append(active_unit.grid_position)
-
-		AbilityData.TargetType.SINGLE_ENEMY:
-			# Only enemies in range
-			for cell in cells_in_range:
-				var unit: Node2D = GridManager.get_unit_at_cell(cell)
-				if unit and unit.faction != active_unit.faction and unit.is_alive():
-					valid_cells.append(cell)
-
-		AbilityData.TargetType.ALL_ALLIES, AbilityData.TargetType.ALL_ENEMIES:
-			# No target selection needed - affects all of type
-			valid_cells.append(active_unit.grid_position)
-
-		AbilityData.TargetType.AREA:
-			# All cells in range (will affect area around selected point)
-			valid_cells = cells_in_range
-
-	return valid_cells
+	return _get_valid_ability_target_cells(selected_spell_data)
 
 
 ## Check if a unit is a valid target for the selected spell
 func _is_valid_spell_target(unit: Node2D) -> bool:
-	if not unit or not unit.is_alive():
-		return false
-
-	if not selected_spell_data:
-		# No spell - only self is valid
-		return unit == active_unit
-
-	# Check range
-	var distance: int = GridManager.get_distance(active_unit.grid_position, unit.grid_position)
-	if distance < selected_spell_data.min_range or distance > selected_spell_data.max_range:
-		return false
-
-	# Check target type
-	match selected_spell_data.target_type:
-		AbilityData.TargetType.SELF:
-			return unit == active_unit
-		AbilityData.TargetType.SINGLE_ALLY:
-			return unit.faction == active_unit.faction
-		AbilityData.TargetType.SINGLE_ENEMY:
-			return unit.faction != active_unit.faction
-		_:
-			return true
+	return _is_valid_ability_target(unit, selected_spell_data)
 
 
 ## Show spell targeting range highlights
@@ -2370,13 +2170,13 @@ func _show_spell_targeting_range(valid_targets: Array[Vector2i]) -> void:
 		GridManager.highlight_cells(valid_targets, GridManager.HIGHLIGHT_GREEN)
 		return
 
-	# Determine base color based on spell type
-	var range_color: int = GridManager.HIGHLIGHT_GREEN  # Default for heals/support
+	# Determine base color based on target type (more accurate than ability_type)
+	var range_color: int = GridManager.HIGHLIGHT_GREEN  # Default for friendly spells
 
-	match selected_spell_data.ability_type:
-		AbilityData.AbilityType.ATTACK, AbilityData.AbilityType.DEBUFF:
+	match selected_spell_data.target_type:
+		AbilityData.TargetType.SINGLE_ENEMY, AbilityData.TargetType.ALL_ENEMIES:
 			range_color = GridManager.HIGHLIGHT_RED
-		AbilityData.AbilityType.HEAL, AbilityData.AbilityType.SUPPORT:
+		AbilityData.TargetType.SINGLE_ALLY, AbilityData.TargetType.ALL_ALLIES, AbilityData.TargetType.SELF:
 			range_color = GridManager.HIGHLIGHT_GREEN
 		_:
 			range_color = GridManager.HIGHLIGHT_BLUE
@@ -2398,25 +2198,13 @@ func _show_spell_targeting_range(valid_targets: Array[Vector2i]) -> void:
 
 ## Move spell target cursor (snap-to-target navigation for better UX)
 func _move_spell_target_cursor(offset: Vector2i) -> void:
-	# SF-authentic: Snap between valid targets instead of cell-by-cell movement
-	if _spell_valid_targets.is_empty():
-		return
-
-	# Find current target index
-	var current_idx: int = _spell_valid_targets.find(current_cursor_position)
-
-	if current_idx == -1:
-		# Not on a valid target - snap to first one
-		current_cursor_position = _spell_valid_targets[0]
-	else:
-		# Snap to next/previous valid target based on direction
-		# Up or Left = previous, Down or Right = next
-		if offset.y < 0 or offset.x < 0:
-			current_idx = wrapi(current_idx - 1, 0, _spell_valid_targets.size())
-		else:
-			current_idx = wrapi(current_idx + 1, 0, _spell_valid_targets.size())
-
-		current_cursor_position = _spell_valid_targets[current_idx]
+	# SF-authentic: Snap between valid targets (up/left = previous, down/right = next)
+	var direction_sign: int = -1 if (offset.y < 0 or offset.x < 0) else 1
+	current_cursor_position = InputHelpers.cycle_target(
+		current_cursor_position,
+		direction_sign,
+		_spell_valid_targets
+	)
 
 	# Play cursor movement sound
 	AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
@@ -2435,19 +2223,7 @@ func _move_spell_target_cursor(offset: Vector2i) -> void:
 
 ## Update stats panel to show target info during spell targeting
 func _update_spell_target_info() -> void:
-	if not stats_panel:
-		return
-
-	# Check what's under the cursor
-	var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
-
-	if unit_at_cursor and unit_at_cursor.is_alive():
-		# Show stats for potential target
-		stats_panel.show_unit_stats(unit_at_cursor)
-	else:
-		# No valid target, show active unit stats
-		if active_unit:
-			stats_panel.show_unit_stats(active_unit)
+	_update_target_info_panel()
 
 
 ## Confirm spell target and cast spell

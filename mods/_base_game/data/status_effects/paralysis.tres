@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/status_effect_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+effect_id = "paralysis"
+display_name = "Paralyzed"
+description = "Cannot act. 25% chance to recover each turn."
+icon_color = Color(1.0, 1.0, 0.2, 1)
+popup_text = "Paralyzed!"
+popup_color = Color(1.0, 1.0, 0.2, 1)
+trigger_timing = 0
+skips_turn = true
+recovery_chance_per_turn = 25
+damage_per_turn = 0
+stat_modifiers = {}
+removed_on_damage = false
+removal_on_damage_chance = 100
+action_modifier = 0
+action_modifier_chance = 100
