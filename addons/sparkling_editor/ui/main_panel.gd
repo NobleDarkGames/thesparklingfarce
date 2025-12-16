@@ -21,6 +21,11 @@ var tab_container: TabContainer
 var mod_selector: OptionButton
 var mod_info_label: Label
 
+# Two-tier category navigation
+var category_bar: HBoxContainer
+var category_buttons: Dictionary = {}  # category_id -> Button
+var current_category: String = "content"  # Default to Content category
+
 # Mod Creation Wizard
 var create_mod_dialog: ConfirmationDialog
 var wizard_mod_id_edit: LineEdit
@@ -51,9 +56,9 @@ func _setup_ui() -> void:
 	# Set minimum width to prevent extreme collapse, but allow laptop-friendly widths
 	custom_minimum_size = Vector2(600, 0)
 
-	# Configure TabContainer positioning
+	# Configure TabContainer positioning (leave space for mod selector + category bar)
 	tab_container.anchor_bottom = 1.0
-	tab_container.offset_top = 40  # Leave space for mod selector
+	tab_container.offset_top = 80  # 40 for mod selector + 40 for category bar
 	tab_container.offset_bottom = 0
 
 	# Add mod selector UI at the top
@@ -65,6 +70,9 @@ func _setup_ui() -> void:
 
 	# Initialize the tab registry and create tabs
 	_initialize_tab_registry()
+
+	# Create category bar after tabs are registered (needs category info)
+	_create_category_bar()
 
 
 # =============================================================================
@@ -209,8 +217,140 @@ For more information, check the documentation in the user_content folder."""
 
 func _refresh_all_editors() -> void:
 	## Refresh all editor tabs using the registry
+	## NOTE: This refreshes ALL tabs regardless of current category to ensure data sync
 	if tab_registry:
 		tab_registry.refresh_all()
+
+
+# =============================================================================
+# TWO-TIER CATEGORY NAVIGATION
+# =============================================================================
+
+func _create_category_bar() -> void:
+	## Create the primary category bar for two-tier navigation
+	var category_panel: PanelContainer = PanelContainer.new()
+	category_panel.name = "CategoryBarPanel"
+	category_panel.anchor_right = 1.0
+	category_panel.offset_top = 40  # Below mod selector
+	category_panel.offset_bottom = 80
+	category_panel.size_flags_horizontal = Control.SIZE_FILL
+
+	# Insert after mod selector panel
+	var mod_panel: Control = get_node_or_null("ModSelectorPanel")
+	if mod_panel:
+		add_child(category_panel)
+		move_child(category_panel, mod_panel.get_index() + 1)
+	else:
+		add_child(category_panel)
+
+	category_bar = HBoxContainer.new()
+	category_bar.add_theme_constant_override("separation", 4)
+	category_panel.add_child(category_bar)
+
+	# Load persisted category selection
+	current_category = _load_last_selected_category()
+
+	# Create category buttons
+	_rebuild_category_buttons()
+
+	# Apply initial category filter
+	_apply_category_filter()
+
+
+func _rebuild_category_buttons() -> void:
+	## Rebuild category buttons based on registered tabs
+	# Clear existing buttons
+	for child: Node in category_bar.get_children():
+		child.queue_free()
+	category_buttons.clear()
+
+	# Get categories that have tabs
+	var categories: Array[String] = tab_registry.get_active_categories()
+
+	for category: String in categories:
+		var button: Button = Button.new()
+		button.text = tab_registry.get_category_display_name(category)
+		button.toggle_mode = true
+		button.button_pressed = (category == current_category)
+		button.pressed.connect(_on_category_button_pressed.bind(category))
+		button.add_theme_font_size_override("font_size", 14)
+		button.custom_minimum_size = Vector2(80, 0)
+
+		category_bar.add_child(button)
+		category_buttons[category] = button
+
+	# Validate current_category exists
+	if current_category not in categories and not categories.is_empty():
+		current_category = categories[0]
+		if current_category in category_buttons:
+			category_buttons[current_category].button_pressed = true
+
+
+func _on_category_button_pressed(category: String) -> void:
+	## Handle category button press
+	if category == current_category:
+		# Don't allow deselection - keep current category selected
+		if category in category_buttons:
+			category_buttons[category].button_pressed = true
+		return
+
+	# Update button states
+	for cat: String in category_buttons.keys():
+		category_buttons[cat].button_pressed = (cat == category)
+
+	current_category = category
+	_save_last_selected_category(category)
+	_apply_category_filter()
+
+
+func _apply_category_filter() -> void:
+	## Show only tabs that belong to the current category
+	if not tab_container or not tab_registry:
+		return
+
+	var first_visible_index: int = -1
+	var tab_count: int = tab_container.get_tab_count()
+
+	for i in range(tab_count):
+		var tab_control: Control = tab_container.get_tab_control(i)
+		if not tab_control:
+			continue
+
+		# Find the tab's category
+		var tab_category: String = _get_tab_category_by_control(tab_control)
+		var should_show: bool = (tab_category == current_category)
+
+		tab_container.set_tab_hidden(i, not should_show)
+
+		if should_show and first_visible_index < 0:
+			first_visible_index = i
+
+	# Select first visible tab if current selection is hidden
+	if first_visible_index >= 0:
+		var current_tab: int = tab_container.current_tab
+		if current_tab < 0 or tab_container.is_tab_hidden(current_tab):
+			tab_container.current_tab = first_visible_index
+
+
+func _get_tab_category_by_control(tab_control: Control) -> String:
+	## Get the category of a tab by its Control instance
+	for tab_id: String in tab_registry.get_all_tab_ids():
+		var instance: Control = tab_registry.get_instance(tab_id)
+		if instance == tab_control:
+			var tab_info: Dictionary = tab_registry.get_tab(tab_id)
+			return tab_info.get("category", "content")
+	return "content"
+
+
+func _save_last_selected_category(category: String) -> void:
+	var settings: Dictionary = _load_editor_settings()
+	settings["last_selected_category"] = category
+	_save_editor_settings(settings)
+
+
+func _load_last_selected_category() -> String:
+	var settings: Dictionary = _load_editor_settings()
+	return settings.get("last_selected_category", "content")
 
 
 func _reload_mod_tabs() -> void:
@@ -243,6 +383,10 @@ func _reload_mod_tabs() -> void:
 		if not tab_registry.get_source_mod(tab_id).is_empty():
 			if not tab_registry.has_instance(tab_id):
 				_create_tab_from_info(tab_info)
+
+	# Rebuild category buttons (Mods category may have appeared/disappeared)
+	_rebuild_category_buttons()
+	_apply_category_filter()
 
 
 # =============================================================================

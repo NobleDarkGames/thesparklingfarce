@@ -33,46 +33,53 @@ extends RefCounted
 # CONSTANTS
 # =============================================================================
 
-## Tab categories for logical grouping
-## Tabs are sorted by category order, then by priority within category
+## Tab categories for logical grouping (two-tier navigation)
+## Primary categories shown in category bar, secondary tabs shown below
 const CATEGORIES: Array[String] = [
-	"overview",    # Welcome/info tabs (always first)
-	"settings",    # Mod settings, configuration
-	"content",     # Characters, classes, items, abilities, terrain
-	"battle",      # Parties, battles, maps
-	"story",       # Cinematics, campaigns, NPCs
+	"content",     # Characters, classes, items, abilities (core content creation)
+	"battle",      # Maps, terrain, battles, AI (tactical scenario design)
+	"story",       # NPCs, cinematics, campaigns, shops (narrative elements)
+	"system",      # Overview, mod settings, configs, party templates, save slots
 	"mod"          # Mod-provided custom tabs (always last)
 ]
 
+## Display names for primary category tabs
+const CATEGORY_DISPLAY_NAMES: Dictionary = {
+	"content": "Content",
+	"battle": "Battles",
+	"story": "Story",
+	"system": "System",
+	"mod": "Mods"
+}
+
 ## Default built-in tabs with their metadata
 ## These are registered automatically if the scene files exist
+## Organized by two-tier category system for improved navigation
 const BUILTIN_TABS: Array[Dictionary] = [
-	# Overview
-	{"id": "overview", "display_name": "Overview", "category": "overview", "priority": 0, "is_static": true},
+	# Content editors (core content creation)
+	{"id": "characters", "display_name": "Characters", "scene": "character_editor.tscn", "category": "content", "priority": 10},
+	{"id": "classes", "display_name": "Classes", "scene": "class_editor.tscn", "category": "content", "priority": 20},
+	{"id": "abilities", "display_name": "Abilities", "scene": "ability_editor.tscn", "category": "content", "priority": 30},
+	{"id": "items", "display_name": "Items", "scene": "item_editor.tscn", "category": "content", "priority": 40},
 
-	# Settings
-	{"id": "mod_settings", "display_name": "Mod Settings", "scene": "mod_json_editor.tscn", "category": "settings", "priority": 10},
-	{"id": "new_game_configs", "display_name": "New Game Configs", "scene": "new_game_config_editor.tscn", "category": "settings", "priority": 20},
-
-	# Content editors
-	{"id": "classes", "display_name": "Classes", "scene": "class_editor.tscn", "category": "content", "priority": 10},
-	{"id": "characters", "display_name": "Characters", "scene": "character_editor.tscn", "category": "content", "priority": 20},
-	{"id": "items", "display_name": "Items", "scene": "item_editor.tscn", "category": "content", "priority": 30},
-	{"id": "abilities", "display_name": "Abilities", "scene": "ability_editor.tscn", "category": "content", "priority": 40},
-	{"id": "terrain", "display_name": "Terrain", "scene": "terrain_editor.tscn", "category": "content", "priority": 50},
-	{"id": "ai_behaviors", "display_name": "AI Behaviors", "scene": "ai_brain_editor.tscn", "category": "content", "priority": 60},
-
-	# Battle editors
-	{"id": "party_templates", "display_name": "Party Templates", "scene": "party_template_editor.tscn", "category": "battle", "priority": 10},
-	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "battle", "priority": 20},
+	# Battle editors (tactical scenario design)
+	{"id": "maps", "display_name": "Maps", "scene": "map_metadata_editor.tscn", "category": "battle", "priority": 10},
+	{"id": "terrain", "display_name": "Terrain", "scene": "terrain_editor.tscn", "category": "battle", "priority": 20},
 	{"id": "battles", "display_name": "Battles", "scene": "battle_editor.tscn", "category": "battle", "priority": 30},
-	{"id": "maps", "display_name": "Maps", "scene": "map_metadata_editor.tscn", "category": "battle", "priority": 40},
+	{"id": "ai_behaviors", "display_name": "AI Behaviors", "scene": "ai_brain_editor.tscn", "category": "battle", "priority": 40},
 
-	# Story editors
-	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 10},
-	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 20},
-	{"id": "shops", "display_name": "Shops", "scene": "shop_editor.tscn", "category": "story", "priority": 25},
-	{"id": "npcs", "display_name": "NPCs", "scene": "npc_editor.tscn", "category": "story", "priority": 30}
+	# Story editors (narrative elements)
+	{"id": "npcs", "display_name": "NPCs", "scene": "npc_editor.tscn", "category": "story", "priority": 10},
+	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 20},
+	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 30},
+	{"id": "shops", "display_name": "Shops", "scene": "shop_editor.tscn", "category": "story", "priority": 40},
+
+	# System editors (configuration and setup)
+	{"id": "overview", "display_name": "Overview", "category": "system", "priority": 0, "is_static": true},
+	{"id": "mod_settings", "display_name": "Mod Settings", "scene": "mod_json_editor.tscn", "category": "system", "priority": 10},
+	{"id": "new_game_configs", "display_name": "New Game Configs", "scene": "new_game_config_editor.tscn", "category": "system", "priority": 20},
+	{"id": "party_templates", "display_name": "Party Templates", "scene": "party_template_editor.tscn", "category": "system", "priority": 30},
+	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "system", "priority": 40}
 ]
 
 ## Base path for built-in editor scenes
@@ -335,6 +342,34 @@ func is_static_tab(tab_id: String) -> bool:
 	if tab_id in _tabs:
 		return _tabs[tab_id].get("is_static", false)
 	return false
+
+
+# =============================================================================
+# CATEGORY API (Two-Tier Navigation)
+# =============================================================================
+
+## Get all categories that have at least one registered tab
+func get_active_categories() -> Array[String]:
+	var active: Array[String] = []
+	for category: String in CATEGORIES:
+		if not get_tabs_by_category(category).is_empty():
+			active.append(category)
+	return active
+
+
+## Get display name for a category
+func get_category_display_name(category: String) -> String:
+	if category in CATEGORY_DISPLAY_NAMES:
+		return CATEGORY_DISPLAY_NAMES[category]
+	return category.capitalize()
+
+
+## Get all category display names (for categories with tabs)
+func get_category_display_names() -> Dictionary:
+	var result: Dictionary = {}
+	for category: String in get_active_categories():
+		result[category] = get_category_display_name(category)
+	return result
 
 
 # =============================================================================
