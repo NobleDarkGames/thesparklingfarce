@@ -121,6 +121,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 | Class | Purpose |
 |-------|---------|
 | CombatCalculator | Pure static damage/hit/crit formulas |
+| InputManagerHelpers | Targeting context, directional input, grid selection utilities |
 
 ---
 
@@ -147,6 +148,7 @@ ModLoader auto-discovers from `mods/*/data/<directory>/`:
 | experience_configs/ | experience_config | ExperienceConfig |
 | new_game_configs/ | new_game_config | NewGameConfigData |
 | ai_behaviors/ | ai_behavior | AIBehaviorData |
+| status_effects/ | status_effect | StatusEffectData |
 
 **JSON-supported types:** cinematic, campaign, map
 
@@ -165,6 +167,7 @@ Accessed via `ModLoader.<registry_name>`:
 | ai_brain_registry | AI brain scripts |
 | ai_role_registry | Configurable AI roles |
 | ai_mode_registry | AI behavior modes |
+| status_effect_registry | Status effect definitions |
 | tileset_registry | TileSet resources |
 | trigger_type_registry | Map trigger types |
 | unit_category_registry | Unit type categories |

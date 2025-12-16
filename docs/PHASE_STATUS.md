@@ -1,7 +1,7 @@
 # The Sparkling Farce - Development Status
 
 **Last Updated:** December 16, 2025
-**Current Phase:** Phase 4 Complete — Ready for Phase 5
+**Current Phase:** Phase 5 Complete — Battle System Feature-Complete
 
 ---
 
@@ -9,8 +9,8 @@
 
 | What's Done | What's In Progress | What's Next |
 |-------------|-------------------|-------------|
-| Map exploration, collision, triggers | — | Status effects |
-| Battle system (turn order, combat, AI) | | Advanced AI behaviors |
+| Map exploration, collision, triggers | — | — |
+| Battle system (turn order, combat, AI) | | |
 | Dialog system (branching, portraits) | | |
 | Save/load (3-slot, mod-compatible) | | |
 | Equipment system (items, effects) | | |
@@ -19,6 +19,7 @@
 | Caravan mobile HQ | | |
 | Campaign progression | | |
 | Promotion system | | |
+| Status effects (poison, sleep, confusion, etc.) | | |
 
 ---
 
@@ -75,10 +76,25 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 
 ---
 
+## Recently Completed: Phase 5 - Status Effects
+
+**Status:** Complete (December 16, 2025)
+
+**Delivered:**
+- StatusEffectData resource with predefined behavior types
+- StatusEffectRegistry following existing registry pattern
+- 11 base game status effects (poison, sleep, confusion, paralysis, etc.)
+- Status spell combat overlay with animation
+- Ability editor dropdown picker for status effects
+- Hostile spell targeting with red highlights
+
+---
+
 ## Upcoming Work
 
-### Phase 5 - Advanced Features
-- **Status effects** (poison, sleep, paralysis, confusion)
+### Polish & Content
+- Additional status effect animations
+- More spell varieties
 
 ### Minor UI Polish
 - ✅ Terrain panel now updates during unit movement (December 16, 2025)
@@ -90,7 +106,7 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 | System | Status | Notes |
 |--------|--------|-------|
 | Map Exploration | Complete | Collision, triggers, scene transitions |
-| Battle Core | 95% | Status effects remaining |
+| Battle Core | Complete | Combat, status effects, animations |
 | Dialog System | Complete | Branching, portraits, choices |
 | Save System | Complete | 3-slot, mod-compatible |
 | Party Management | Complete | Active/reserve, hero protection |
@@ -98,12 +114,13 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 | Trigger System | Complete | Flag-based, one-shot, extensible |
 | Mod System | Complete | Priority-based loading |
 | Audio Manager | Complete | Music, SFX, mod-aware |
-| AI System | 85% | Roles, modes, phases, items, retreat |
+| AI System | Complete | Roles, modes, phases, items, retreat, defensive positioning |
 | Equipment | Complete | Items, effects, cursed items |
-| Magic/Spells | Complete | Single + AOE targeting, MP |
+| Magic/Spells | Complete | Single + AOE targeting, MP, status spells |
 | Promotion | Complete | SF2-style paths |
 | Caravan | Complete | SF2-authentic mobile HQ |
 | Campaign | Complete | Node-graph, chapter UI |
+| Status Effects | Complete | 11 effects, data-driven, combat overlay |
 
 ---
 
@@ -128,20 +145,34 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 ## Known Issues
 
-- Status effects not yet implemented (poison, sleep, paralysis)
 - Placeholder art throughout (by design - modder content)
 
 ---
 
 ## Recent Session (December 16, 2025)
 
-**Architecture Cleanup:**
-1. **Deleted `BaseBattleScene`** - Unused abstraction that caused duplicate code maintenance
-2. **Consolidated battle architecture** - Single entry point via `battle_loader.gd`:
-   - `battle_loader.gd`: Scene structure, map loading, unit spawning, UI updates
-   - `BattleManager`: Combat execution, XP/level-ups, victory/defeat screens
-   - `TurnManager`: Turn flow, active unit tracking
-3. **Terrain panel updates during movement** - Connected `cell_entered` signal for real-time terrain info
+**Status Effects System:**
+- Data-driven StatusEffectData with behavior types (skip turn, DoT, stat mods, random targeting)
+- StatusEffectRegistry following existing registry pattern
+- 11 base game effects: poison, sleep, confusion, paralysis, slow, muddle, attack up/down, defense up/down, boost
+- Combat overlay for status spells (purple flash for applied, white flash for resisted)
+- Ability editor dropdown picker for status effects
+
+**AI Combat Fixes:**
+- Fixed BattleManager._spawn_units() to register units with GridManager (critical pathfinding bug)
+- Fixed cautious mode to recalculate distance AFTER movement for attack decisions
+- Improved defensive role to score positions for both VIP protection AND attack opportunity
+- Added null safety checks for get_tree() calls in async AI code
+
+**Infrastructure:**
+- InputManagerHelpers: Extracted targeting utilities (TargetingContext, directional input, grid selection)
+- Resource picker: Resolves embedded SubResources to registered equivalents by UID
+- Defensive AI debug test for behavioral verification
+
+**Content:**
+- New "Confuse" status spell (range 2, 2 MP)
+- "Rodent of Unusual Size" enemy character
+- BASE Mage class: adjusted growth, added Confuse ability
 
 ---
 
