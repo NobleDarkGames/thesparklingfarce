@@ -393,6 +393,33 @@ func _is_subresource(resource: Resource) -> bool:
 	return path.is_empty() or "::" in path
 
 
+## Find a registered equivalent of a resource that may have been embedded/serialized
+## This handles the case where CharacterData or AIBehaviorData stored in BattleData
+## dictionaries get serialized as SubResources, losing their original path.
+## We look them up by their identifier property (character_uid, behavior_id, etc.)
+func _find_registered_equivalent(resource: Resource) -> Resource:
+	if not ModLoader or not ModLoader.registry:
+		return null
+
+	# CharacterData: look up by character_uid
+	if resource is CharacterData:
+		var char_data: CharacterData = resource as CharacterData
+		if char_data.character_uid and not char_data.character_uid.is_empty():
+			var registered: Resource = ModLoader.registry.get_resource("character", char_data.character_uid)
+			if registered:
+				return registered
+
+	# AIBehaviorData: look up by behavior_id
+	if resource is AIBehaviorData:
+		var ai_data: AIBehaviorData = resource as AIBehaviorData
+		if ai_data.behavior_id and not ai_data.behavior_id.is_empty():
+			var registered: Resource = ModLoader.registry.get_resource("ai_behavior", ai_data.behavior_id)
+			if registered:
+				return registered
+
+	return null
+
+
 ## Called when an item is selected in the dropdown
 func _on_item_selected(index: int) -> void:
 	var metadata: Variant = _option_button.get_item_metadata(index)
@@ -515,10 +542,17 @@ func select_resource(resource: Resource) -> void:
 		select_none()
 		return
 
-	# Check if this is a SubResource (embedded in another file)
+	# First, try to find a registered equivalent if this looks like an embedded resource.
+	# This handles the case where CharacterData/AIBehaviorData stored in BattleData
+	# dictionaries get serialized as SubResources, losing their original path.
 	if _is_subresource(resource):
-		_select_subresource(resource)
-		return
+		var registered_equivalent: Resource = _find_registered_equivalent(resource)
+		if registered_equivalent:
+			resource = registered_equivalent
+		else:
+			# No registered equivalent found - truly an embedded SubResource
+			_select_subresource(resource)
+			return
 
 	var resource_id: String = _get_resource_id(resource)
 	# Extract mod_id from the resource's actual path, not the registry
