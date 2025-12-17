@@ -81,8 +81,8 @@ func get_manhattan_distance(from: Vector2i, to: Vector2i) -> int:
 func get_cells_in_range(center: Vector2i, radius: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 
-	for x in range(-radius, radius + 1):
-		for y in range(-radius, radius + 1):
+	for x: int in range(-radius, radius + 1):
+		for y: int in range(-radius, radius + 1):
 			var cell: Vector2i = center + Vector2i(x, y)
 			if get_manhattan_distance(center, cell) <= radius and is_within_bounds(cell):
 				cells.append(cell)
@@ -97,8 +97,8 @@ func get_cells_in_range(center: Vector2i, radius: int) -> Array[Vector2i]:
 func get_cells_in_range_band(center: Vector2i, min_range: int, max_range: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 
-	for x in range(-max_range, max_range + 1):
-		for y in range(-max_range, max_range + 1):
+	for x: int in range(-max_range, max_range + 1):
+		for y: int in range(-max_range, max_range + 1):
 			var cell: Vector2i = center + Vector2i(x, y)
 			var distance: int = get_manhattan_distance(center, cell)
 			if distance >= min_range and distance <= max_range and is_within_bounds(cell):
@@ -117,7 +117,7 @@ func get_neighbors(grid_position: Vector2i) -> Array[Vector2i]:
 		Vector2i.RIGHT
 	]
 
-	for direction in directions:
+	for direction: Vector2i in directions:
 		var neighbor: Vector2i = grid_position + direction
 		if is_within_bounds(neighbor):
 			neighbors.append(neighbor)

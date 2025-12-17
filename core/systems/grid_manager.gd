@@ -101,8 +101,8 @@ func _setup_astar() -> void:
 	_astar.update()
 
 	# Mark all cells as walkable by default
-	for x in range(grid.grid_size.x):
-		for y in range(grid.grid_size.y):
+	for x: int in range(grid.grid_size.x):
+		for y: int in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
 			_astar.set_point_solid(cell, false)
 
@@ -129,8 +129,8 @@ func load_terrain_data() -> void:
 		return
 
 	# Cache terrain data for each cell in the grid
-	for x in range(grid.grid_size.x):
-		for y in range(grid.grid_size.y):
+	for x: int in range(grid.grid_size.x):
+		for y: int in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
 			var terrain_id: String = _get_terrain_id_at_cell(cell)
 			if not terrain_id.is_empty():
@@ -144,7 +144,7 @@ func _tileset_has_terrain_type() -> bool:
 		return false
 
 	var custom_data_count: int = tilemap.tile_set.get_custom_data_layers_count()
-	for i in range(custom_data_count):
+	for i: int in range(custom_data_count):
 		if tilemap.tile_set.get_custom_data_layer_name(i) == TERRAIN_TYPE_LAYER_NAME:
 			return true
 	return false
@@ -243,7 +243,7 @@ func find_path(from: Vector2i, to: Vector2i, movement_type: int = 0, mover_facti
 
 	# Convert to Array[Vector2i]
 	var path: Array[Vector2i] = []
-	for point in path_packed:
+	for point: Vector2 in path_packed:
 		path.append(Vector2i(point))
 
 	return path
@@ -326,7 +326,7 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 		# Get neighbors
 		var neighbors: Array[Vector2i] = grid.get_neighbors(current_cell)
 
-		for neighbor in neighbors:
+		for neighbor: Vector2i in neighbors:
 			# Check occupancy - can pass through allies, blocked by enemies
 			if is_cell_occupied(neighbor) and neighbor != from:
 				var occupant: Node = get_unit_at_cell(neighbor)
@@ -371,8 +371,8 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 ## Future optimization: Cache A* weights per movement type, invalidate only on occupation changes.
 ## mover_faction: Faction of the moving unit - allows passing through allies
 func _update_astar_weights(movement_type: int, mover_faction: String = "") -> void:
-	for x in range(grid.grid_size.x):
-		for y in range(grid.grid_size.y):
+	for x: int in range(grid.grid_size.x):
+		for y: int in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
 			var terrain_cost: int = get_terrain_cost(cell, movement_type)
 
@@ -457,7 +457,7 @@ func highlight_cells(cells: Array[Vector2i], color_type: int = 0, pulse: bool = 
 		push_warning("GridManager: No highlight layer set. Call set_highlight_layer() first.")
 		return
 
-	for cell in cells:
+	for cell: Vector2i in cells:
 		if grid.is_within_bounds(cell):
 			# Use source_id to select the correct colored tile
 			# source_id corresponds to: 0=blue, 1=red, 2=yellow
@@ -498,7 +498,7 @@ func show_attack_range_band(from: Vector2i, min_range: int, max_range: int) -> v
 
 	# Filter out the center cell (can't attack yourself)
 	var filtered_cells: Array[Vector2i] = []
-	for cell in attack_cells:
+	for cell: Vector2i in attack_cells:
 		if cell != from:
 			filtered_cells.append(cell)
 
@@ -536,7 +536,7 @@ func show_aoe_borders(cells: Array[Vector2i]) -> void:
 	var tile_size: int = grid.cell_size if grid else DEFAULT_TILE_SIZE
 
 	# Create border rectangles for each cell
-	for cell in cells:
+	for cell: Vector2i in cells:
 		if not grid or grid.is_within_bounds(cell):
 			var border: ReferenceRect = ReferenceRect.new()
 			border.position = Vector2(cell.x * tile_size, cell.y * tile_size)
@@ -550,7 +550,7 @@ func show_aoe_borders(cells: Array[Vector2i]) -> void:
 ## Clear AoE border highlights
 func clear_aoe_borders() -> void:
 	if _aoe_border_container:
-		for child in _aoe_border_container.get_children():
+		for child: Node in _aoe_border_container.get_children():
 			child.queue_free()
 
 

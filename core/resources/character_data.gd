@@ -215,14 +215,14 @@ static func _create_placeholder_portrait() -> Texture2D:
 	img.fill(Color(1.0, 0.0, 1.0, 1.0))
 
 	# Draw a simple "?" pattern in white
-	for x in range(24, 40):
-		for y in range(12, 20):  # Top of question mark
+	for x: int in range(24, 40):
+		for y: int in range(12, 20):  # Top of question mark
 			img.set_pixel(x, y, Color.WHITE)
-	for x in range(32, 40):
-		for y in range(20, 36):  # Stem of question mark
+	for x: int in range(32, 40):
+		for y: int in range(20, 36):  # Stem of question mark
 			img.set_pixel(x, y, Color.WHITE)
-	for x in range(32, 40):
-		for y in range(44, 52):  # Dot of question mark
+	for x: int in range(32, 40):
+		for y: int in range(44, 52):  # Dot of question mark
 			img.set_pixel(x, y, Color.WHITE)
 
 	return ImageTexture.create_from_image(img)

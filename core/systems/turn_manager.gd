@@ -103,7 +103,7 @@ func calculate_turn_order() -> void:
 	turn_queue.clear()
 
 	# Calculate priority for each living unit
-	for unit in all_units:
+	for unit: Node2D in all_units:
 		if not unit.is_alive():
 			continue
 
@@ -121,7 +121,7 @@ func start_new_turn_cycle() -> void:
 	turn_cycle_started.emit(turn_number)
 
 	# Reset all unit visuals (remove dimming from previous round)
-	for unit in all_units:
+	for unit: Node2D in all_units:
 		if unit.is_alive() and unit.has_method("reset_acted_visual"):
 			unit.reset_acted_visual()
 
@@ -237,7 +237,7 @@ func _check_battle_end() -> bool:
 	var enemy_count: int = 0
 	var hero_alive: bool = false
 
-	for unit in all_units:
+	for unit: Node2D in all_units:
 		if not unit.is_alive():
 			continue
 
@@ -381,7 +381,7 @@ func _process_status_effects(unit: Node2D) -> Dictionary:
 	var showed_popup: bool = false
 
 	# Process each status effect on the unit
-	for i in range(stats.status_effects.size() - 1, -1, -1):
+	for i: int in range(stats.status_effects.size() - 1, -1, -1):
 		var effect_state: Dictionary = stats.status_effects[i]
 		var effect_type: String = effect_state.get("type", "")
 

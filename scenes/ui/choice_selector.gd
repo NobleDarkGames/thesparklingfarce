@@ -65,7 +65,7 @@ func _on_choices_ready(choices: Array[Dictionary]) -> void:
 	_clear_choices()
 
 	# Create labels for each choice
-	for i in range(choices.size()):
+	for i: int in range(choices.size()):
 		var choice_dict: Dictionary = choices[i]
 		var choice_text: String = choice_dict.get("choice_text", "Choice " + str(i + 1))
 
@@ -136,7 +136,7 @@ func _move_selection(delta: int) -> void:
 
 ## Update visual highlighting of selected choice
 func _update_selection_visual() -> void:
-	for i in range(choice_labels.size()):
+	for i: int in range(choice_labels.size()):
 		if i == selected_index:
 			# Highlight selected choice (yellow)
 			choice_labels[i].modulate = Color(1.0, 1.0, 0.3, 1.0)
@@ -154,7 +154,7 @@ func _select_current_choice() -> void:
 
 ## Clear all choice labels
 func _clear_choices() -> void:
-	for label in choice_labels:
+	for label: Label in choice_labels:
 		label.queue_free()
 	choice_labels.clear()
 

@@ -214,7 +214,7 @@ func _process(_delta: float) -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var new_hover: int = -1
 
-	for i in range(_option_labels.size()):
+	for i: int in range(_option_labels.size()):
 		var label: Label = _option_labels[i]
 		var label_rect: Rect2 = label.get_global_rect()
 		if label_rect.has_point(mouse_pos):
@@ -316,7 +316,7 @@ func _build_menu_options() -> void:
 	# Check if party has field magic
 	var has_field_magic: bool = _party_has_field_magic()
 
-	for option in DEFAULT_OPTIONS:
+	for option: Dictionary in DEFAULT_OPTIONS:
 		var opt_copy: Dictionary = option.duplicate()
 
 		# SF2-authentic: HIDE Magic option if no party member has field spells
@@ -360,13 +360,13 @@ func _party_has_field_magic() -> bool:
 ## Rebuild the option labels from current _menu_options
 func _rebuild_option_labels() -> void:
 	# Clear existing labels
-	for label in _option_labels:
+	for label: Label in _option_labels:
 		if is_instance_valid(label):
 			label.queue_free()
 	_option_labels.clear()
 
 	# Create label for each option
-	for option in _menu_options:
+	for option: Dictionary in _menu_options:
 		var label: Label = Label.new()
 		label.text = "  " + option.label  # Indent for cursor space
 		label.add_theme_font_override("font", MONOGRAM_FONT)
@@ -378,7 +378,7 @@ func _rebuild_option_labels() -> void:
 
 ## Update visual selection (cursor and colors)
 func _update_selection_visual() -> void:
-	for i in range(_option_labels.size()):
+	for i: int in range(_option_labels.size()):
 		var label: Label = _option_labels[i]
 		var option: Dictionary = _menu_options[i]
 
@@ -425,7 +425,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i in range(_option_labels.size()):
+			for i: int in range(_option_labels.size()):
 				var label: Label = _option_labels[i]
 				var label_rect: Rect2 = label.get_global_rect()
 				if label_rect.has_point(mouse_pos):

@@ -274,7 +274,7 @@ func _find_tilemap_in_scene(node: Node) -> TileMapLayer:
 	if node is TileMapLayer:
 		return node
 
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		var result: TileMapLayer = _find_tilemap_in_scene(child)
 		if result:
 			return result
@@ -942,8 +942,8 @@ func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityD
 	var center_cell: Vector2i = center_target.grid_position
 
 	# Get all cells in AoE radius (Manhattan distance for SF-style grid)
-	for dx in range(-ability.area_of_effect, ability.area_of_effect + 1):
-		for dy in range(-ability.area_of_effect, ability.area_of_effect + 1):
+	for dx: int in range(-ability.area_of_effect, ability.area_of_effect + 1):
+		for dy: int in range(-ability.area_of_effect, ability.area_of_effect + 1):
 			var manhattan_dist: int = absi(dx) + absi(dy)
 			if manhattan_dist <= ability.area_of_effect:
 				var cell: Vector2i = center_cell + Vector2i(dx, dy)
@@ -1647,7 +1647,7 @@ func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Node
 	# Return the most recent phase where this unit is the defender
 	# (In practice, the damage_applied signal fires during execute_all_phases,
 	#  so we track which phase we're on via the scene's internal state)
-	for i in range(phases.size() - 1, -1, -1):
+	for i: int in range(phases.size() - 1, -1, -1):
 		if phases[i].defender == defender:
 			return phases[i]
 	return null
@@ -1972,7 +1972,7 @@ func end_battle() -> void:
 		combat_anim_instance = null
 
 	# Clear units
-	for unit in all_units:
+	for unit: Node2D in all_units:
 		if is_instance_valid(unit):
 			unit.queue_free()
 

@@ -69,7 +69,7 @@ func _process(_delta: float) -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var new_hover: int = -1
 
-	for i in range(menu_items.size()):
+	for i: int in range(menu_items.size()):
 		var label: Label = menu_items[i]["label"]
 		var action: String = menu_items[i]["action"]
 
@@ -106,7 +106,7 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 		_slide_tween = null
 
 	# Update menu item visibility/colors
-	for item in menu_items:
+	for item: Dictionary in menu_items:
 		var label: Label = item["label"]
 		var action: String = item["action"]
 
@@ -187,7 +187,7 @@ func reset_menu() -> void:
 	visible = false
 
 	# Reset all labels to default state
-	for item in menu_items:
+	for item: Dictionary in menu_items:
 		var label: Label = item["label"]
 		label.modulate = COLOR_DISABLED
 		label.remove_theme_color_override("font_color")
@@ -203,7 +203,7 @@ func _input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			# Check which label was clicked
 			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i in range(menu_items.size()):
+			for i: int in range(menu_items.size()):
 				var label: Label = menu_items[i]["label"]
 				var action: String = menu_items[i]["action"]
 
@@ -270,7 +270,7 @@ func _move_selection(direction: int) -> void:
 	var start_index: int = selected_index
 
 	# Loop until we find an available action
-	for i in range(menu_items.size()):
+	for i: int in range(menu_items.size()):
 		selected_index = wrapi(selected_index + direction, 0, menu_items.size())
 
 		var item: Dictionary = menu_items[selected_index]
@@ -289,7 +289,7 @@ func _move_selection(direction: int) -> void:
 
 ## Select action by name
 func _select_action_by_name(action: String) -> void:
-	for i in range(menu_items.size()):
+	for i: int in range(menu_items.size()):
 		if menu_items[i]["action"] == action:
 			selected_index = i
 			break
@@ -297,7 +297,7 @@ func _select_action_by_name(action: String) -> void:
 
 ## Update visual highlighting
 func _update_selection_visual() -> void:
-	for i in range(menu_items.size()):
+	for i: int in range(menu_items.size()):
 		var item: Dictionary = menu_items[i]
 		var label: Label = item["label"]
 		var action: String = item["action"]

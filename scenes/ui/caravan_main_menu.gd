@@ -182,7 +182,7 @@ func _build_ui() -> void:
 ## Refresh menu options from CaravanController (supports mod custom services)
 func _refresh_menu_options() -> void:
 	# Clear existing option UI
-	for child in _options_container.get_children():
+	for child: Node in _options_container.get_children():
 		child.queue_free()
 	_option_labels.clear()
 
@@ -191,14 +191,14 @@ func _refresh_menu_options() -> void:
 		_menu_options = CaravanController.get_menu_options()
 	else:
 		_menu_options = []
-		for opt in FALLBACK_OPTIONS:
+		for opt: Dictionary in FALLBACK_OPTIONS:
 			_menu_options.append(opt.duplicate())
 
 	# Wait a frame for queue_free to complete
 	await get_tree().process_frame
 
 	# Create option labels dynamically
-	for i in range(_menu_options.size()):
+	for i: int in range(_menu_options.size()):
 		var option: Dictionary = _menu_options[i]
 
 		var option_row: HBoxContainer = HBoxContainer.new()
@@ -319,7 +319,7 @@ func _update_selection_visual() -> void:
 	if _menu_options.is_empty():
 		return
 
-	for i in range(_option_labels.size()):
+	for i: int in range(_option_labels.size()):
 		if i >= _menu_options.size():
 			break
 

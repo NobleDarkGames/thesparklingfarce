@@ -151,7 +151,7 @@ func queue_phase(phase: CombatPhase) -> void:
 ## Execute all queued phases WITHOUT fading between them
 ## This is the core of the SF2-authentic experience
 func execute_all_phases() -> void:
-	for i in range(_combat_phases.size()):
+	for i: int in range(_combat_phases.size()):
 		_current_phase_index = i
 		var phase: CombatPhase = _combat_phases[i]
 
@@ -668,7 +668,7 @@ func _screen_shake() -> void:
 	var shake_count: int = 6
 	var shake_delay: float = 0.05
 
-	for i in shake_count:
+	for i: int in shake_count:
 		var shake_amount: Vector2 = Vector2(
 			randf_range(-SCREEN_SHAKE_AMOUNT, SCREEN_SHAKE_AMOUNT),
 			randf_range(-SCREEN_SHAKE_AMOUNT, SCREEN_SHAKE_AMOUNT)

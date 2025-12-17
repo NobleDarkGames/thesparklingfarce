@@ -338,7 +338,7 @@ func _rebuild_slots() -> void:
 		slot.hover_exited.connect(_on_slot_hover_exited)
 
 	# Create inventory slots
-	for i in range(max_inventory_slots):
+	for i: int in range(max_inventory_slots):
 		var slot: ItemSlot = _create_item_slot()
 		slot.name = "InvSlot_%d" % i
 		_inventory_container.add_child(slot)
@@ -401,7 +401,7 @@ func _update_inventory_slots() -> void:
 	if not _save_data:
 		return
 
-	for i in range(_inventory_slots.size()):
+	for i: int in range(_inventory_slots.size()):
 		var slot: ItemSlot = _inventory_slots[i]
 		if i < _save_data.inventory.size():
 			slot.set_item(_save_data.inventory[i], false)

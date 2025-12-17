@@ -377,7 +377,7 @@ func _refresh_party_data() -> void:
 
 func _populate_character_dropdown() -> void:
 	_char_dropdown.clear()
-	for i in range(_party_character_data.size()):
+	for i: int in range(_party_character_data.size()):
 		var character: CharacterData = _party_character_data[i]
 		var save_data: CharacterSaveData = _party_save_data[i]
 		var slots_used: int = save_data.inventory.size()
@@ -420,7 +420,7 @@ func _refresh_depot_display() -> void:
 		_depot_grid.remove_child(child)
 
 	# Add slots for items
-	for i in range(items.size()):
+	for i: int in range(items.size()):
 		var item_id: String = items[i]
 		var slot: Control = _slot_pool[i]
 		slot.set_item(item_id, false)
@@ -548,7 +548,7 @@ func _refresh_inventory_display() -> void:
 		_inventory_grid.remove_child(child)
 
 	# Add slots for inventory items (show empty slots too)
-	for i in range(max_slots):
+	for i: int in range(max_slots):
 		var slot: Control = _inventory_slot_pool[i]
 
 		# Disconnect old clicked connection and reconnect with current index
@@ -656,7 +656,7 @@ func _on_inventory_slot_clicked_at_index(item_id: String, slot_index: int) -> vo
 	# Update selection visuals
 	for slot: Control in _depot_grid.get_children():
 		slot.set_selected(false)
-	for i in range(_inventory_grid.get_child_count()):
+	for i: int in range(_inventory_grid.get_child_count()):
 		var slot: Control = _inventory_grid.get_child(i) as Control
 		if slot:
 			slot.set_selected(i == slot_index)

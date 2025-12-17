@@ -56,7 +56,7 @@ func find_nearest_target(unit: Node2D, targets: Array[Node2D]) -> Node2D:
 	var nearest: Node2D = null
 	var nearest_distance: int = 9999
 
-	for target in targets:
+	for target: Node2D in targets:
 		if not target.is_alive():
 			continue
 
