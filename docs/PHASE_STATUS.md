@@ -32,7 +32,7 @@ Grid-based movement, party followers, camera system, teleportation.
 AGI-based turn order, A* pathfinding, combat mechanics (hit/miss/crit/counter), combat animations, input flow.
 
 ### Phase 2.5 - Collision & Triggers (November 2025)
-GameState story flags, MapTrigger system, TileMapLayer collision, scene transitions. **Unlocked the core gameplay loop:** Exploration -> Battle -> Victory -> Return to Map.
+GameState story flags, MapTrigger system, TileMapLayer collision, scene transitions. **Unlocked the core gameplay loop:** Exploration -> Battle -> Victory -> Return to Map. Full loop validated through manual playtesting including both victory and defeat paths (with resurrection system).
 
 ### Phase 3 - Dialog, Save, Party (November 2025)
 Typewriter dialog with portraits, branching choices, 3-slot save system, party composition management.

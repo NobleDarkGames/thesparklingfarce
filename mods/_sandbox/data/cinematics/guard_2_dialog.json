@@ -1,17 +1,25 @@
 {
-  "can_skip": true,
-  "cinematic_id": "guard_2_dialog",
-  "cinematic_name": "Guard 2 Dialog",
-  "commands": [
-    {
-      "params": {
-        "emotion": "neutral",
-        "speaker_name": "Guard 2",
-        "text": "Watch out!  I know Karate!"
-      },
-      "type": "dialog_line"
-    }
-  ],
-  "description": "Auto-generated dialog for Guard 2",
-  "disable_player_input": true
+	"can_skip": true,
+	"cinematic_id": "guard_2_dialog",
+	"cinematic_name": "Guard 2 Dialog",
+	"commands": [
+		{
+			"params": {
+				"emotion": "neutral",
+				"speaker_name": "Guard 2",
+				"text": "Watch out!  I know Karate!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "character_1765936530",
+				"recruitment_chapter": "",
+				"to_active": true
+			},
+			"type": "add_party_member"
+		}
+	],
+	"description": "Auto-generated dialog for Guard 2",
+	"disable_player_input": true
 }

@@ -19,16 +19,22 @@ extends Resource
 ## Use conditional_cinematics to define priority-ordered conditions.
 ## The first matching condition's cinematic plays; if none match, use fallback.
 ##
+## Supported condition formats:
+##   - "flag": String (legacy single flag - still supported)
+##   - "flags": Array[String] (AND logic - ALL must be true)
+##   - "any_flags": Array[String] (OR logic - at least ONE must be true)
+##   - "negate": bool (optional - inverts the overall result)
+##
 ## Example conditional setup:
 ## - conditional_cinematics: [
 ##     { "flag": "rescued_princess", "cinematic_id": "elder_thanks" },
-##     { "flag": "chapter_2_started", "cinematic_id": "elder_hint" }
+##     { "flags": ["chapter_2", "talked_to_king"], "cinematic_id": "elder_quest" },
+##     { "any_flags": ["saved_village", "saved_castle"], "cinematic_id": "elder_praise" },
+##     { "flags": ["chapter_3"], "any_flags": ["hero_a_joined", "hero_b_joined"], "cinematic_id": "elder_advice" }
 ##   ]
 ## - fallback_cinematic_id: "elder_greeting"
 ##
-## If "rescued_princess" is set, plays "elder_thanks".
-## Else if "chapter_2_started" is set, plays "elder_hint".
-## Otherwise plays "elder_greeting".
+## Conditions are checked in order. First match wins.
 
 ## NPC Role for Quick Setup - simplifies shop/service NPC creation
 enum NPCRole {
@@ -89,9 +95,15 @@ enum NPCRole {
 @export_group("Interaction - Conditional")
 ## Priority-ordered array of conditional cinematics
 ## Each entry is a Dictionary with:
-##   - "flag": String (the GameState flag to check)
-##   - "cinematic_id": String (the cinematic to play if flag is set)
-##   - "negate": bool (optional, if true, triggers when flag is NOT set)
+##   - "flag": String (legacy single flag - still supported for backward compatibility)
+##   - "flags": Array[String] (AND logic - ALL flags must be true)
+##   - "any_flags": Array[String] (OR logic - at least ONE flag must be true)
+##   - "cinematic_id": String (the cinematic to play if condition is met)
+##   - "negate": bool (optional, applies to the OVERALL result of the condition)
+##
+## You can combine "flags" and "any_flags" - both conditions must pass.
+## Example: {"flags": ["chapter_2"], "any_flags": ["saved_princess", "saved_prince"], "cinematic_id": "thanks"}
+## This triggers when chapter_2 is set AND (saved_princess OR saved_prince) is set.
 ##
 ## Conditions are checked in order; first match wins.
 ## If no conditions match, fallback_cinematic_id is used.
@@ -113,17 +125,12 @@ enum NPCRole {
 func get_cinematic_id_for_state() -> String:
 	# Check conditional cinematics in priority order
 	for condition: Dictionary in conditional_cinematics:
-		var flag_name: String = condition.get("flag", "")
 		var cinematic_id: String = condition.get("cinematic_id", "")
-		var negate: bool = condition.get("negate", false)
-
-		if flag_name.is_empty() or cinematic_id.is_empty():
+		if cinematic_id.is_empty():
 			continue
 
-		var flag_set: bool = GameState.has_flag(flag_name)
-
-		# Check if condition is met (considering negation)
-		if (flag_set and not negate) or (not flag_set and negate):
+		var condition_met: bool = _evaluate_condition(condition)
+		if condition_met:
 			return cinematic_id
 
 	# No conditions matched - use primary cinematic (explicit takes precedence)
@@ -139,6 +146,56 @@ func get_cinematic_id_for_state() -> String:
 
 	# Last resort - use fallback
 	return fallback_cinematic_id
+
+
+## Evaluate a single condition entry from conditional_cinematics
+## Supports legacy "flag" key, "flags" array (AND), and "any_flags" array (OR)
+## Returns true if the condition is met (after applying negate if present)
+func _evaluate_condition(condition: Dictionary) -> bool:
+	var negate: bool = condition.get("negate", false)
+
+	# Track whether we have any conditions to check
+	var has_any_condition: bool = false
+	var all_conditions_pass: bool = true
+
+	# Legacy single flag support (backward compatibility)
+	var single_flag: String = condition.get("flag", "")
+	if not single_flag.is_empty():
+		has_any_condition = true
+		if not GameState.has_flag(single_flag):
+			all_conditions_pass = false
+
+	# AND logic: all flags in "flags" array must be true
+	var and_flags: Array = condition.get("flags", [])
+	if not and_flags.is_empty():
+		has_any_condition = true
+		for flag_name: String in and_flags:
+			if not flag_name.is_empty() and not GameState.has_flag(flag_name):
+				all_conditions_pass = false
+				break
+
+	# OR logic: at least one flag in "any_flags" array must be true
+	var or_flags: Array = condition.get("any_flags", [])
+	if not or_flags.is_empty():
+		has_any_condition = true
+		var any_or_flag_set: bool = false
+		for flag_name: String in or_flags:
+			if not flag_name.is_empty() and GameState.has_flag(flag_name):
+				any_or_flag_set = true
+				break
+		if not any_or_flag_set:
+			all_conditions_pass = false
+
+	# If no conditions were specified, the condition is not met
+	if not has_any_condition:
+		return false
+
+	# Apply negation to the overall result
+	var result: bool = all_conditions_pass
+	if negate:
+		result = not result
+
+	return result
 
 
 ## Generate auto-cinematic ID for Quick Setup NPCs
