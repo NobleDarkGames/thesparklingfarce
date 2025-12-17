@@ -1,6 +1,6 @@
 # The Sparkling Farce Platform Specification
 
-**For AI Agents** | Godot 4.5.1 | v4.1.0
+**For AI Agents** | Godot 4.5.1 | v4.2.0
 
 ---
 
@@ -61,6 +61,9 @@ templates/               # Code templates
 | Strict typing | `var speed: float = 5.0` | `var speed = 5.0` |
 | No walrus operator | `var x: int = calc()` | `var x := calc()` |
 | Dictionary key checks | `if "key" in dict:` | `if dict.has("key"):` |
+| Negative key checks | `if "key" not in dict:` | `if not "key" in dict:` |
+| Typed loop variables | `for item: ItemData in items:` | `for item in items:` |
+| Modern signal syntax | `my_signal.emit(value)` | `emit_signal("my_signal", value)` |
 
 Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Error
 
@@ -71,7 +74,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 ### Infrastructure
 | Singleton | Purpose |
 |-----------|---------|
-| ModLoader | Mod discovery, registry access, type registries |
+| ModLoader | Mod discovery, registry access, type registries, `is_loading()` status |
 | GameState | Story flags, trigger tracking |
 | SaveManager | Save/load, gold management |
 | StorageManager | Caravan depot (shared item storage) |
@@ -89,7 +92,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 | EquipmentManager | Equipment slots, cursed items |
 | ExperienceManager | XP distribution, level-up |
 | PromotionManager | Class promotion |
-| ShopManager | Buy/sell logic, church services |
+| ShopManager | Buy/sell logic with atomic rollback, church services |
 | ShopController | Shop UI state machine |
 
 ### Battle
@@ -104,7 +107,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 ### Content & Narrative
 | Singleton | Purpose |
 |-----------|---------|
-| DialogManager | Dialog state machine |
+| DialogManager | Dialog state machine, save/load via `export_state()`/`import_state()` |
 | CinematicsManager | Cutscene execution |
 | CampaignManager | Campaign progression |
 | CaravanController | Caravan HQ lifecycle |
@@ -173,6 +176,8 @@ Accessed via `ModLoader.<registry_name>`:
 | unit_category_registry | Unit type categories |
 | animation_offset_registry | Sprite animation offsets |
 | inventory_config | Inventory size/rules |
+
+**All registries emit `registrations_changed` signal** when registrations are added/removed/modified. Connect to this signal for editor refresh or dynamic UI updates.
 
 ---
 
@@ -329,9 +334,56 @@ Key patterns to use instead of writing from scratch:
 | Content in `core/` | Put in `mods/_base_game/data/` |
 | Hardcoded resource paths | Use `ModLoader.registry.get_resource()` |
 | `dict.has("key")` | `if "key" in dict:` |
+| `not "key" in dict` | `if "key" not in dict:` |
 | Walrus operator `:=` | Explicit type annotation |
 | Missing explicit types | Add type to all declarations |
+| Untyped loop variables | `for item: Type in array:` |
+| `emit_signal("name")` | `signal_name.emit()` |
 | Modal UI without input blocking | Add to blocking checks (see above) |
+
+---
+
+## Key API Reference
+
+### ModLoader
+
+```gdscript
+# Check if mods are currently being loaded (useful for startup sequencing)
+if ModLoader.is_loading():
+    await ModLoader.mods_loaded
+```
+
+### DialogManager Save/Load
+
+```gdscript
+# Export dialog state for save system
+var dialog_state: Dictionary = DialogManager.export_state()
+save_data.dialog_state = dialog_state
+
+# Import dialog state when loading
+if "dialog_state" in save_data:
+    DialogManager.import_state(save_data.dialog_state)
+```
+
+### ShopManager Atomic Transactions
+
+Bulk buy/sell operations are atomic with automatic rollback. If any item in a multi-quantity transaction fails, all previously added/removed items are restored:
+
+```gdscript
+# Buy 5 healing herbs - if slot 3 fails, slots 1-2 are rolled back
+var result: Dictionary = ShopManager.buy_item("healing_herb", 5, "caravan")
+if not result.success:
+    # No partial state - either all 5 succeed or none do
+    print(result.error)
+```
+
+### Registry Change Notifications
+
+```gdscript
+# React to registry modifications (useful for editor plugins)
+ModLoader.terrain_registry.registrations_changed.connect(_on_terrain_changed)
+ModLoader.equipment_registry.registrations_changed.connect(_refresh_equipment_ui)
+```
 
 ---
 
