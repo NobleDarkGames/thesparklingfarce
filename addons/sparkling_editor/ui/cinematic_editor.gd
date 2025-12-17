@@ -153,6 +153,101 @@ const COMMAND_DEFINITIONS: Dictionary = {
 	}
 }
 
+# Default category assignments for commands without explicit category metadata
+const DEFAULT_CATEGORIES: Dictionary = {
+	"dialog_line": "Dialog",
+	"show_dialog": "Dialog",
+	"move_entity": "Entity",
+	"set_facing": "Entity",
+	"play_animation": "Entity",
+	"spawn_entity": "Entity",
+	"despawn_entity": "Entity",
+	"camera_move": "Camera",
+	"camera_follow": "Camera",
+	"camera_shake": "Camera",
+	"fade_screen": "Screen",
+	"wait": "Screen",
+	"play_sound": "Audio",
+	"play_music": "Audio",
+	"set_variable": "Game State",
+	"open_shop": "Interaction"
+}
+
+
+## Get merged command definitions (hardcoded + dynamic from executor scripts)
+## Dynamic definitions take priority over hardcoded ones
+static func _get_merged_command_definitions() -> Dictionary:
+	var merged: Dictionary = COMMAND_DEFINITIONS.duplicate(true)
+
+	# Scan executor scripts directly for metadata (works reliably in @tool scripts)
+	# This approach doesn't depend on CinematicsManager being initialized
+	var executor_dir: String = "res://core/systems/cinematic_commands/"
+	var dir: DirAccess = DirAccess.open(executor_dir)
+	if dir:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with("_executor.gd") and not dir.current_is_dir():
+				var script_path: String = executor_dir + file_name
+				var script: GDScript = load(script_path) as GDScript
+				if script:
+					# Extract command type from filename (e.g., "add_party_member_executor.gd" -> "add_party_member")
+					var cmd_type: String = file_name.replace("_executor.gd", "")
+
+					# Instantiate to get metadata
+					var executor: RefCounted = script.new()
+					if executor.has_method("get_editor_metadata"):
+						var metadata: Dictionary = executor.get_editor_metadata()
+						if not metadata.is_empty():
+							if cmd_type in merged:
+								# Merge: overlay dynamic onto hardcoded
+								var base: Dictionary = merged[cmd_type]
+								for key: String in metadata.keys():
+									base[key] = metadata[key]
+							else:
+								# New command type from executor
+								merged[cmd_type] = metadata
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	return merged
+
+
+## Build categories dictionary from command definitions
+## Commands provide their own category via metadata, or use DEFAULT_CATEGORIES fallback
+static func _build_categories_from_definitions(definitions: Dictionary) -> Dictionary:
+	var categories: Dictionary = {}
+
+	for cmd_type: String in definitions:
+		var def: Dictionary = definitions[cmd_type]
+		var category: String = ""
+
+		# Get category from metadata, or fallback to default
+		if "category" in def:
+			category = def.category
+		elif cmd_type in DEFAULT_CATEGORIES:
+			category = DEFAULT_CATEGORIES[cmd_type]
+		else:
+			category = "Other"
+
+		if category not in categories:
+			categories[category] = []
+		categories[category].append(cmd_type)
+
+	# Sort categories in a sensible order
+	var ordered: Dictionary = {}
+	var preferred_order: Array = ["Dialog", "Entity", "Camera", "Screen", "Audio", "Game State", "Interaction", "Party"]
+	for cat: String in preferred_order:
+		if cat in categories:
+			ordered[cat] = categories[cat]
+			categories.erase(cat)
+	# Add any remaining categories at the end
+	for cat: String in categories:
+		ordered[cat] = categories[cat]
+
+	return ordered
+
+
 # UI Components - Left panel (file list)
 var cinematic_list: ItemList
 var refresh_button: Button
@@ -336,7 +431,8 @@ func _setup_command_list_panel(parent: HSplitContainer) -> void:
 	add_command_button = MenuButton.new()
 	add_command_button.text = "+ Add"
 	add_command_button.tooltip_text = "Add a new command"
-	_setup_add_command_menu()
+	# Rebuild menu dynamically each time it's shown (ensures CinematicsManager commands are loaded)
+	add_command_button.get_popup().about_to_popup.connect(_setup_add_command_menu)
 	cmd_header.add_child(add_command_button)
 
 	# Quick Add Dialog button
@@ -499,16 +595,15 @@ func _setup_add_command_menu() -> void:
 	var popup: PopupMenu = add_command_button.get_popup()
 	popup.clear()
 
-	# Group commands by category
-	var categories: Dictionary = {
-		"Dialog": ["dialog_line", "show_dialog"],
-		"Entity": ["move_entity", "set_facing", "play_animation", "spawn_entity", "despawn_entity"],
-		"Camera": ["camera_move", "camera_follow", "camera_shake"],
-		"Screen": ["fade_screen", "wait"],
-		"Audio": ["play_sound", "play_music"],
-		"Game State": ["set_variable"],
-		"Interaction": ["open_shop"]
-	}
+	# Disconnect previous signal connection if any (menu rebuilds dynamically)
+	if popup.id_pressed.is_connected(_on_add_command_menu_selected):
+		popup.id_pressed.disconnect(_on_add_command_menu_selected)
+
+	# Get merged definitions (hardcoded + dynamic from executors)
+	var definitions: Dictionary = _get_merged_command_definitions()
+
+	# Build categories dynamically from definitions
+	var categories: Dictionary = _build_categories_from_definitions(definitions)
 
 	var idx: int = 0
 	for category: String in categories.keys():
@@ -516,9 +611,10 @@ func _setup_add_command_menu() -> void:
 			popup.add_separator()
 		popup.add_separator(category)
 		for cmd_type: String in categories[category]:
-			if cmd_type in COMMAND_DEFINITIONS:
-				var def: Dictionary = COMMAND_DEFINITIONS[cmd_type]
-				popup.add_item(cmd_type + " - " + def.description.substr(0, 30), idx)
+			if cmd_type in definitions:
+				var def: Dictionary = definitions[cmd_type]
+				var desc: String = def.get("description", cmd_type)
+				popup.add_item(cmd_type + " - " + desc.substr(0, 30), idx)
 				popup.set_item_metadata(idx, cmd_type)
 				idx += 1
 
@@ -538,16 +634,18 @@ func _add_new_command(cmd_type: String) -> void:
 
 	var commands: Array = current_cinematic_data["commands"]
 
-	# Build new command from definition
+	# Build new command from definition (merged hardcoded + dynamic)
 	var new_cmd: Dictionary = {"type": cmd_type, "params": {}}
+	var definitions: Dictionary = _get_merged_command_definitions()
 
-	if cmd_type in COMMAND_DEFINITIONS:
-		var def: Dictionary = COMMAND_DEFINITIONS[cmd_type]
+	if cmd_type in definitions:
+		var def: Dictionary = definitions[cmd_type]
 		if "has_target" in def and def.has_target:
 			new_cmd["target"] = ""
-		for param_name: String in def.params.keys():
-			var param_def: Dictionary = def.params[param_name]
-			new_cmd["params"][param_name] = param_def.default
+		if "params" in def:
+			for param_name: String in def.params.keys():
+				var param_def: Dictionary = def.params[param_name]
+				new_cmd["params"][param_name] = param_def.get("default", "")
 
 	# Insert after current selection or at end
 	var insert_idx: int = selected_command_index + 1 if selected_command_index >= 0 else commands.size()
@@ -737,9 +835,15 @@ func _get_character_name(character_uid: String) -> String:
 	if character_uid.is_empty():
 		return "[?]"
 	for char_res: Resource in _characters:
-		var char_data: CharacterData = char_res as CharacterData
-		if char_data and char_data.character_uid == character_uid:
-			return char_data.character_name
+		# Use get() for safe property access in editor context
+		var res_uid: String = ""
+		var res_name: String = ""
+		if "character_uid" in char_res:
+			res_uid = str(char_res.get("character_uid"))
+		if "character_name" in char_res:
+			res_name = str(char_res.get("character_name"))
+		if res_uid == character_uid:
+			return res_name if not res_name.is_empty() else "[" + character_uid + "]"
 	return "[" + character_uid + "]"
 
 
@@ -802,10 +906,11 @@ func _build_inspector_for_command(index: int) -> void:
 	type_label.add_theme_color_override("font_color", _get_command_color(cmd_type))
 	inspector_panel.add_child(type_label)
 
-	# Description
-	if cmd_type in COMMAND_DEFINITIONS:
+	# Description (from merged definitions)
+	var definitions: Dictionary = _get_merged_command_definitions()
+	if cmd_type in definitions and "description" in definitions[cmd_type]:
 		var desc_label: Label = Label.new()
-		desc_label.text = COMMAND_DEFINITIONS[cmd_type].description
+		desc_label.text = definitions[cmd_type].description
 		desc_label.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inspector_panel.add_child(desc_label)
@@ -830,12 +935,12 @@ func _build_inspector_for_command(index: int) -> void:
 		target_field.text_changed.connect(_on_target_changed)
 		target_row.add_child(target_field)
 
-	# Build parameter fields based on definition
-	if cmd_type in COMMAND_DEFINITIONS:
-		var def: Dictionary = COMMAND_DEFINITIONS[cmd_type]
+	# Build parameter fields based on definition (using merged definitions)
+	if cmd_type in definitions and "params" in definitions[cmd_type]:
+		var def: Dictionary = definitions[cmd_type]
 		for param_name: String in def.params.keys():
 			var param_def: Dictionary = def.params[param_name]
-			var current_value: Variant = params.get(param_name, param_def.default)
+			var current_value: Variant = params.get(param_name, param_def.get("default", ""))
 			_create_param_field(param_name, param_def, current_value)
 	else:
 		# Unknown command type - show raw JSON
@@ -901,12 +1006,22 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 
 			# Add characters first
 			for i: int in range(_characters.size()):
-				var char_data: CharacterData = _characters[i] as CharacterData
-				if char_data:
-					var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
+				var char_res: Resource = _characters[i]
+				if char_res:
+					# Use get() for safe property access in editor context
+					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
+					# Get character_uid - try direct access, then get(), then fallback to filename
+					var char_uid: String = ""
+					if char_res is CharacterData:
+						char_uid = (char_res as CharacterData).character_uid
+					if char_uid.is_empty() and char_res.get("character_uid") != null:
+						char_uid = str(char_res.get("character_uid"))
+					if char_uid.is_empty():
+						# Fallback: use filename as identifier (resource ID)
+						char_uid = char_res.resource_path.get_file().get_basename()
 					char_btn.add_item(display_name, item_idx)
-					char_btn.set_item_metadata(item_idx, {"type": "character", "id": char_data.character_uid})
-					if char_data.character_uid == str(current_value):
+					char_btn.set_item_metadata(item_idx, {"type": "character", "id": char_uid})
+					if char_uid == str(current_value):
 						selected_idx = item_idx
 					item_idx += 1
 

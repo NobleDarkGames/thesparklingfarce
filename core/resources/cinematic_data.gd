@@ -25,7 +25,11 @@ enum CommandType {
 	SET_VARIABLE,     ## Set game state variable
 	CONDITIONAL,      ## Branch based on condition
 	PARALLEL,         ## Execute commands simultaneously
-	OPEN_SHOP         ## Open a shop interface (weapon shop, item shop, church, etc.)
+	OPEN_SHOP,        ## Open a shop interface (weapon shop, item shop, church, etc.)
+	ADD_PARTY_MEMBER,    ## Recruit character to party
+	REMOVE_PARTY_MEMBER, ## Remove character from party (departure/death)
+	REJOIN_PARTY_MEMBER, ## Return departed character to party
+	SET_CHARACTER_STATUS ## Modify character alive/available status
 }
 
 @export var cinematic_id: String = ""
@@ -239,6 +243,78 @@ func add_open_shop(shop_id: String) -> void:
 		"params": {
 			"shop_id": shop_id
 		}
+	}
+	commands.append(command)
+
+
+## Add a character to the party (recruitment)
+## @param character_id: The ID of the character in ModRegistry
+## @param to_active: If true, add to active party; if false, add to reserves
+## @param recruitment_chapter: Optional chapter ID for tracking when they joined
+func add_party_member(character_id: String, to_active: bool = true, recruitment_chapter: String = "") -> void:
+	var params: Dictionary = {
+		"character_id": character_id,
+		"to_active": to_active
+	}
+	if not recruitment_chapter.is_empty():
+		params["recruitment_chapter"] = recruitment_chapter
+
+	var command: Dictionary = {
+		"type": "add_party_member",
+		"params": params
+	}
+	commands.append(command)
+
+
+## Remove a character from the party (departure, death, capture)
+## @param character_id: The ID of the character in ModRegistry
+## @param reason: Why they left ("left", "died", "captured", etc.)
+## @param mark_dead: If true, sets is_alive=false (permanent death)
+## @param mark_unavailable: If true, sets is_available=false (temporary absence)
+func remove_party_member(character_id: String, reason: String = "left", mark_dead: bool = false, mark_unavailable: bool = false) -> void:
+	var command: Dictionary = {
+		"type": "remove_party_member",
+		"params": {
+			"character_id": character_id,
+			"reason": reason,
+			"mark_dead": mark_dead,
+			"mark_unavailable": mark_unavailable
+		}
+	}
+	commands.append(command)
+
+
+## Return a departed character to the party
+## @param character_id: The ID of the character in ModRegistry
+## @param to_active: If true, add to active party; if false, add to reserves
+## @param resurrect: If true, also sets is_alive=true (for previously dead characters)
+func rejoin_party_member(character_id: String, to_active: bool = true, resurrect: bool = false) -> void:
+	var command: Dictionary = {
+		"type": "rejoin_party_member",
+		"params": {
+			"character_id": character_id,
+			"to_active": to_active,
+			"resurrect": resurrect
+		}
+	}
+	commands.append(command)
+
+
+## Set a character's status flags (is_alive, is_available)
+## Works on both active party members and departed characters
+## @param character_id: The ID of the character in ModRegistry
+## @param is_alive: Set alive status (null to leave unchanged)
+## @param is_available: Set availability status (null to leave unchanged)
+func set_character_status(character_id: String, is_alive: Variant = null, is_available: Variant = null) -> void:
+	var params: Dictionary = {"character_id": character_id}
+	if is_alive != null:
+		params["is_alive"] = is_alive
+	if is_available != null:
+		params["is_available"] = is_available
+
+	var command: Dictionary = {
+		"type": "set_character_status",
+		"params": params
 	}
 	commands.append(command)
 

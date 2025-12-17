@@ -178,9 +178,13 @@ func _build_command_dict() -> Dictionary:
 	if char_idx > 0:
 		var data_idx: int = char_idx - 1
 		if data_idx >= 0 and data_idx < _characters.size():
-			var char_data: CharacterData = _characters[data_idx] as CharacterData
-			if char_data:
-				params["character_id"] = char_data.character_uid
+			var char_res: Resource = _characters[data_idx]
+			if char_res:
+				# Use get() for safe property access in editor context
+				var char_uid: String = ""
+				if "character_uid" in char_res:
+					char_uid = str(char_res.get("character_uid"))
+				params["character_id"] = char_uid
 	else:
 		# Custom speaker - user needs to fill in manually
 		params["character_id"] = "REPLACE_WITH_CHARACTER_UID"
@@ -226,16 +230,21 @@ func show_popup(preselect_character_uid: String = "") -> void:
 	character_picker.clear()
 	character_picker.add_item("(Custom Speaker)", 0)
 	for i: int in range(_characters.size()):
-		var char_data: CharacterData = _characters[i] as CharacterData
-		if char_data:
-			var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
+		var char_res: Resource = _characters[i]
+		if char_res:
+			# Use get() for safe property access in editor context
+			var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
 			character_picker.add_item(display_name, i + 1)
 
 	# Preselect if provided
 	if not preselect_character_uid.is_empty():
 		for i: int in range(_characters.size()):
-			var char_data: CharacterData = _characters[i] as CharacterData
-			if char_data and char_data.character_uid == preselect_character_uid:
+			var char_res: Resource = _characters[i]
+			# Use get() for safe property access in editor context
+			var char_uid: String = ""
+			if "character_uid" in char_res:
+				char_uid = str(char_res.get("character_uid"))
+			if char_uid == preselect_character_uid:
 				character_picker.selected = i + 1
 				_on_character_selected(i + 1)
 				break

@@ -25,6 +25,12 @@ signal item_transferred(from_uid: String, to_uid: String, item_id: String)
 ## Emitted when a party member's inventory changes
 signal member_inventory_changed(character_uid: String)
 
+## Emitted when a party member departs (removed with preserved data)
+signal member_departed(character_uid: String, reason: String)
+
+## Emitted when a departed member rejoins the party
+signal member_rejoined(character_uid: String)
+
 # ============================================================================
 # PARTY DATA
 # ============================================================================
@@ -37,6 +43,11 @@ var party_members: Array[CharacterData] = []
 ## This stores mutable state (inventory, equipment changes, stat gains)
 ## Initialized when characters are added to the party
 var _member_save_data: Dictionary = {}
+
+## Save data for characters who have departed (died, left, captured, etc.)
+## Preserved so they can potentially rejoin or for save game persistence
+## Keyed by character_uid
+var _departed_save_data: Dictionary = {}
 
 ## Maximum ACTIVE party size (goes into battle) - SF2 allows 12
 ## Can be modified by mods at runtime, but bounds checked
@@ -175,6 +186,92 @@ func remove_member(character: CharacterData) -> bool:
 	var uid: String = character.get_uid()
 	if uid in _member_save_data:
 		_member_save_data.erase(uid)
+
+	return true
+
+
+## Remove a character from the party but preserve their save data
+## Use this for story departures (death, capture, leaving) where character may return
+## or where we want to track their final state for narrative purposes
+## @param character: CharacterData to remove
+## @param reason: Why they left ("died", "left", "captured", etc.)
+## @return: The preserved CharacterSaveData, or null if removal failed
+func remove_member_preserve_data(character: CharacterData, reason: String = "left") -> CharacterSaveData:
+	# Prevent removing the hero
+	if character.is_hero:
+		push_error("PartyManager: Cannot remove hero from party! Hero must always be present.")
+		return null
+
+	var index: int = party_members.find(character)
+	if index == -1:
+		push_warning("PartyManager: Cannot remove member, not in party")
+		return null
+
+	var uid: String = character.get_uid()
+
+	# Preserve save data before removal
+	var preserved_data: CharacterSaveData = null
+	if uid in _member_save_data:
+		preserved_data = _member_save_data[uid]
+		_departed_save_data[uid] = preserved_data
+		_member_save_data.erase(uid)
+
+	party_members.remove_at(index)
+
+	# Emit signal for UI/story tracking
+	member_departed.emit(uid, reason)
+
+	return preserved_data
+
+
+## Get save data for a departed character
+## @param character_uid: The unique identifier of the departed character
+## @return: CharacterSaveData if found, null otherwise
+func get_departed_save_data(character_uid: String) -> CharacterSaveData:
+	return _departed_save_data.get(character_uid, null)
+
+
+## Check if a character has departed (is in departed list)
+## @param character_uid: The unique identifier to check
+## @return: true if character is in departed list
+func is_departed(character_uid: String) -> bool:
+	return character_uid in _departed_save_data
+
+
+## Rejoin a departed character to the party
+## Restores their preserved save data (levels, equipment, etc.)
+## @param character: CharacterData to rejoin
+## @param to_active: Whether to add to active party (true) or reserves (false)
+## @return: true if rejoined successfully
+func rejoin_departed_member(character: CharacterData, to_active: bool = true) -> bool:
+	var uid: String = character.get_uid()
+
+	if uid not in _departed_save_data:
+		push_warning("PartyManager: Character '%s' is not in departed list" % character.character_name)
+		return false
+
+	if character in party_members:
+		push_warning("PartyManager: Character '%s' is already in party" % character.character_name)
+		return false
+
+	# Restore save data
+	var restored_data: CharacterSaveData = _departed_save_data[uid]
+	_departed_save_data.erase(uid)
+	_member_save_data[uid] = restored_data
+
+	# Reset availability flags (they're back!)
+	restored_data.is_available = true
+	# Note: is_alive is NOT automatically reset - use set_character_status for resurrection
+
+	# Add to party
+	if to_active and party_members.size() < MAX_ACTIVE_SIZE:
+		party_members.append(character)
+	elif to_active:
+		party_members.insert(MAX_ACTIVE_SIZE, character)
+	else:
+		party_members.append(character)
+
+	member_rejoined.emit(uid)
 
 	return true
 
@@ -704,6 +801,50 @@ func _resolve_character_from_save(char_save: CharacterSaveData) -> CharacterData
 	# TODO Phase 2: Create placeholder character from fallback data
 	# For now, just return null and skip this character
 	return null
+
+
+## Export departed members to save data
+## Returns CharacterSaveData for all characters who have left/died
+## @return: Array of CharacterSaveData representing departed members
+func export_departed_to_save() -> Array[CharacterSaveData]:
+	var save_array: Array[CharacterSaveData] = []
+
+	for uid: String in _departed_save_data:
+		save_array.append(_departed_save_data[uid])
+
+	return save_array
+
+
+## Import departed members from save data
+## Restores the departed character tracking from a save file
+## @param saved_departed: Array of CharacterSaveData for departed members
+func import_departed_from_save(saved_departed: Array[CharacterSaveData]) -> void:
+	_departed_save_data.clear()
+
+	for char_save: CharacterSaveData in saved_departed:
+		# We don't need to resolve CharacterData for departed - just store the save data
+		# The CharacterData will be resolved if/when they rejoin
+		var uid: String = ""
+
+		# Try to get UID from the save data or resolve from registry
+		var character_data: CharacterData = _resolve_character_from_save(char_save)
+		if character_data:
+			uid = character_data.character_uid
+		else:
+			# Fallback: use resource_id as key (won't match if mod is missing)
+			uid = char_save.character_resource_id
+			push_warning("PartyManager: Departed character '%s' from mod '%s' not found - storing with fallback key" % [
+				char_save.fallback_character_name,
+				char_save.character_mod_id
+			])
+
+		if not uid.is_empty():
+			_departed_save_data[uid] = char_save
+
+
+## Clear departed members list
+func clear_departed() -> void:
+	_departed_save_data.clear()
 
 
 # ============================================================================

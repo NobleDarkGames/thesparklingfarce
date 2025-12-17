@@ -402,18 +402,24 @@ func _find_registered_equivalent(resource: Resource) -> Resource:
 		return null
 
 	# CharacterData: look up by character_uid
-	if resource is CharacterData:
-		var char_data: CharacterData = resource as CharacterData
-		if char_data.character_uid and not char_data.character_uid.is_empty():
-			var registered: Resource = ModLoader.registry.get_resource("character", char_data.character_uid)
+	# Use get() for safe property access in editor context
+	if resource is CharacterData or "character_uid" in resource:
+		var char_uid: String = ""
+		if "character_uid" in resource:
+			char_uid = str(resource.get("character_uid"))
+		if not char_uid.is_empty():
+			var registered: Resource = ModLoader.registry.get_resource("character", char_uid)
 			if registered:
 				return registered
 
 	# AIBehaviorData: look up by behavior_id
-	if resource is AIBehaviorData:
-		var ai_data: AIBehaviorData = resource as AIBehaviorData
-		if ai_data.behavior_id and not ai_data.behavior_id.is_empty():
-			var registered: Resource = ModLoader.registry.get_resource("ai_behavior", ai_data.behavior_id)
+	# Use get() for safe property access in editor context
+	if resource is AIBehaviorData or "behavior_id" in resource:
+		var behavior_id: String = ""
+		if "behavior_id" in resource:
+			behavior_id = str(resource.get("behavior_id"))
+		if not behavior_id.is_empty():
+			var registered: Resource = ModLoader.registry.get_resource("ai_behavior", behavior_id)
 			if registered:
 				return registered
 

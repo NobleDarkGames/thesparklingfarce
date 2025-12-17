@@ -9,9 +9,16 @@ extends Resource
 ## to reference characters by ID rather than name, allowing name changes
 ## without breaking references.
 
-## Auto-generated unique identifier (6-8 alphanumeric characters)
+## Auto-generated unique identifier (8 alphanumeric characters)
 ## This is immutable once generated - do not modify after creation
 @export var character_uid: String = ""
+
+
+func _init() -> void:
+	# Auto-generate UID for new resources
+	# When loading from disk, the saved UID will overwrite this after _init()
+	if character_uid.is_empty():
+		character_uid = generate_uid()
 
 @export var character_name: String = ""
 @export var character_class: ClassData

@@ -40,3 +40,36 @@ func interrupt() -> void:
 	# Default: no cleanup needed
 	# Override in subclass if your command has state to clean up
 	pass
+
+
+## Returns editor metadata for this command type
+##
+## Override this to provide metadata for the cinematic editor UI.
+## This enables dynamic command discovery - mods can register custom commands
+## that automatically appear in the editor dropdown.
+##
+## Return format:
+## {
+##     "description": "Human-readable description",
+##     "category": "Category name for dropdown grouping",
+##     "icon": "Godot editor icon name (e.g., 'Timer', 'Camera2D')",
+##     "has_target": bool,  # Whether command needs a target actor_id
+##     "params": {
+##         "param_name": {
+##             "type": "string|float|int|bool|enum|text|character|vector2|path",
+##             "default": default_value,
+##             "hint": "Tooltip text",
+##             # For float/int:
+##             "min": min_value,
+##             "max": max_value,
+##             # For enum:
+##             "options": ["option1", "option2"]
+##         }
+##     }
+## }
+##
+## Return empty dictionary to use hardcoded fallback (for backwards compatibility).
+func get_editor_metadata() -> Dictionary:
+	# Default: return empty to signal "use hardcoded definitions"
+	# Override in subclass to provide dynamic metadata
+	return {}

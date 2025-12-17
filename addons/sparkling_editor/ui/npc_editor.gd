@@ -324,15 +324,27 @@ func _validate_resource() -> Dictionary:
 
 	for i in range(conditional_entries.size()):
 		var entry: Dictionary = conditional_entries[i]
-		var flag_edit: LineEdit = entry.get("flag_edit") as LineEdit
+		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
+		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
 		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
-		if flag_edit and cinematic_edit:
-			var flag_text: String = flag_edit.text.strip_edges()
-			var cine_text: String = cinematic_edit.text.strip_edges()
-			if (not flag_text.is_empty() and cine_text.is_empty()) or (flag_text.is_empty() and not cine_text.is_empty()):
-				errors.append("Conditional entry %d: Both flag and cinematic ID are required" % (i + 1))
-			elif not cine_text.is_empty() and not QuickDialogGenerator.cinematic_exists(cinematics_dir, cine_text):
-				warnings.append("Conditional cinematic '%s' not found in loaded mods" % cine_text)
+
+		if not cinematic_edit:
+			continue
+
+		var and_text: String = and_flags_edit.text.strip_edges() if and_flags_edit else ""
+		var or_text: String = or_flags_edit.text.strip_edges() if or_flags_edit else ""
+		var cine_text: String = cinematic_edit.text.strip_edges()
+
+		var has_any_flags: bool = not and_text.is_empty() or not or_text.is_empty()
+		var has_cinematic: bool = not cine_text.is_empty()
+
+		# Validate: must have either both (flags and cinematic) or neither
+		if has_any_flags and not has_cinematic:
+			errors.append("Conditional entry %d: Cinematic ID is required when flags are specified" % (i + 1))
+		elif has_cinematic and not has_any_flags:
+			errors.append("Conditional entry %d: At least one flag (ALL of or ANY of) is required" % (i + 1))
+		elif has_cinematic and not QuickDialogGenerator.cinematic_exists(cinematics_dir, cine_text):
+			warnings.append("Conditional cinematic '%s' not found in loaded mods" % cine_text)
 
 	return {valid = errors.is_empty(), errors = errors, warnings = warnings}
 
@@ -777,49 +789,130 @@ func _add_behavior_section_to(parent: Control) -> void:
 func _load_conditional_cinematics(conditionals: Array[Dictionary]) -> void:
 	_clear_conditional_entries()
 	for cond: Dictionary in conditionals:
-		_add_conditional_entry(cond.get("flag", ""), cond.get("negate", false), cond.get("cinematic_id", ""))
+		# Build the AND flags array
+		var flags_and: Array = []
+		# Legacy single "flag" key gets converted to AND array
+		var single_flag: String = cond.get("flag", "")
+		if not single_flag.is_empty():
+			flags_and.append(single_flag)
+		# Add any flags from "flags" array
+		var explicit_flags: Array = cond.get("flags", [])
+		for flag: String in explicit_flags:
+			if not flag.is_empty() and flag not in flags_and:
+				flags_and.append(flag)
+
+		# OR flags from "any_flags" array
+		var flags_or: Array = cond.get("any_flags", [])
+
+		var negate: bool = cond.get("negate", false)
+		var cinematic_id: String = cond.get("cinematic_id", "")
+
+		_add_conditional_entry(flags_and, flags_or, negate, cinematic_id)
 
 
-func _add_conditional_entry(flag_name: String = "", negate: bool = false, cinematic_id: String = "") -> void:
-	var entry_container: HBoxContainer = HBoxContainer.new()
-	entry_container.add_theme_constant_override("separation", 4)
+## Add a conditional entry to the UI
+## Parameters:
+##   flags_and: Array of flag names that must ALL be true (AND logic)
+##   flags_or: Array of flag names where at least ONE must be true (OR logic)
+##   negate: If true, invert the overall condition result
+##   cinematic_id: The cinematic to play when condition is met
+func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate: bool = false, cinematic_id: String = "") -> void:
+	var entry_container: VBoxContainer = VBoxContainer.new()
+	entry_container.add_theme_constant_override("separation", 2)
 
-	var flag_edit: LineEdit = LineEdit.new()
-	flag_edit.placeholder_text = "flag_name"
-	flag_edit.text = flag_name
-	flag_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	flag_edit.custom_minimum_size.x = 120
-	flag_edit.text_changed.connect(_on_field_changed)
-	entry_container.add_child(flag_edit)
+	# Create a panel for visual grouping
+	var panel: PanelContainer = PanelContainer.new()
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.15, 0.15, 0.2, 0.5)
+	panel_style.set_border_width_all(1)
+	panel_style.border_color = Color(0.3, 0.3, 0.4, 0.8)
+	panel_style.set_content_margin_all(6)
+	panel_style.set_corner_radius_all(4)
+	panel.add_theme_stylebox_override("panel", panel_style)
+
+	var panel_content: VBoxContainer = VBoxContainer.new()
+	panel_content.add_theme_constant_override("separation", 4)
+	panel.add_child(panel_content)
+	entry_container.add_child(panel)
+
+	# Row 1: AND flags (all must be true)
+	var and_row: HBoxContainer = HBoxContainer.new()
+	and_row.add_theme_constant_override("separation", 4)
+	panel_content.add_child(and_row)
+
+	var and_label: Label = Label.new()
+	and_label.text = "ALL of:"
+	and_label.tooltip_text = "All these flags must be set (AND logic)"
+	and_label.custom_minimum_size.x = 55
+	and_row.add_child(and_label)
+
+	var and_flags_edit: LineEdit = LineEdit.new()
+	and_flags_edit.placeholder_text = "flag1, flag2, flag3 (comma-separated)"
+	and_flags_edit.text = ", ".join(flags_and) if not flags_and.is_empty() else ""
+	and_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	and_flags_edit.tooltip_text = "Enter flag names separated by commas. ALL must be set for condition to match."
+	and_flags_edit.text_changed.connect(_on_field_changed)
+	and_row.add_child(and_flags_edit)
+
+	# Row 2: OR flags (at least one must be true)
+	var or_row: HBoxContainer = HBoxContainer.new()
+	or_row.add_theme_constant_override("separation", 4)
+	panel_content.add_child(or_row)
+
+	var or_label: Label = Label.new()
+	or_label.text = "ANY of:"
+	or_label.tooltip_text = "At least one of these flags must be set (OR logic)"
+	or_label.custom_minimum_size.x = 55
+	or_row.add_child(or_label)
+
+	var or_flags_edit: LineEdit = LineEdit.new()
+	or_flags_edit.placeholder_text = "flagA, flagB (at least one)"
+	or_flags_edit.text = ", ".join(flags_or) if not flags_or.is_empty() else ""
+	or_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	or_flags_edit.tooltip_text = "Enter flag names separated by commas. At least ONE must be set for condition to match."
+	or_flags_edit.text_changed.connect(_on_field_changed)
+	or_row.add_child(or_flags_edit)
+
+	# Row 3: Cinematic ID and controls
+	var cinematic_row: HBoxContainer = HBoxContainer.new()
+	cinematic_row.add_theme_constant_override("separation", 4)
+	panel_content.add_child(cinematic_row)
 
 	var negate_check: CheckBox = CheckBox.new()
 	negate_check.text = "NOT"
-	negate_check.tooltip_text = "Trigger when flag is NOT set"
+	negate_check.tooltip_text = "Invert the condition (trigger when flags are NOT matched)"
 	negate_check.button_pressed = negate
 	negate_check.toggled.connect(_on_check_changed)
-	entry_container.add_child(negate_check)
+	cinematic_row.add_child(negate_check)
 
 	var arrow: Label = Label.new()
 	arrow.text = "->"
-	entry_container.add_child(arrow)
+	cinematic_row.add_child(arrow)
 
 	var cinematic_edit: LineEdit = LineEdit.new()
 	cinematic_edit.placeholder_text = "cinematic_id"
 	cinematic_edit.text = cinematic_id
 	cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_edit.custom_minimum_size.x = 120
+	cinematic_edit.custom_minimum_size.x = 150
+	cinematic_edit.tooltip_text = "The cinematic to play when this condition is met"
 	cinematic_edit.text_changed.connect(_on_field_changed)
-	entry_container.add_child(cinematic_edit)
+	cinematic_row.add_child(cinematic_edit)
 
 	var remove_btn: Button = Button.new()
 	remove_btn.text = "X"
 	remove_btn.tooltip_text = "Remove this condition"
 	remove_btn.custom_minimum_size.x = 30
 	remove_btn.pressed.connect(_on_remove_conditional.bind(entry_container))
-	entry_container.add_child(remove_btn)
+	cinematic_row.add_child(remove_btn)
 
 	conditionals_container.add_child(entry_container)
-	conditional_entries.append({"container": entry_container, "flag_edit": flag_edit, "negate_check": negate_check, "cinematic_edit": cinematic_edit})
+	conditional_entries.append({
+		"container": entry_container,
+		"and_flags_edit": and_flags_edit,
+		"or_flags_edit": or_flags_edit,
+		"negate_check": negate_check,
+		"cinematic_edit": cinematic_edit
+	})
 
 
 func _clear_conditional_entries() -> void:
@@ -833,29 +926,77 @@ func _clear_conditional_entries() -> void:
 func _collect_conditional_cinematics() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in conditional_entries:
-		var flag_edit: LineEdit = entry.get("flag_edit") as LineEdit
+		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
+		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
 		var negate_check: CheckBox = entry.get("negate_check") as CheckBox
 		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
-		if not flag_edit or not cinematic_edit:
+
+		if not cinematic_edit:
 			continue
-		var flag_text: String = flag_edit.text.strip_edges()
+
 		var cine_text: String = cinematic_edit.text.strip_edges()
-		if flag_text.is_empty() and cine_text.is_empty():
+
+		# Parse AND flags (comma-separated)
+		var and_flags: Array[String] = []
+		if and_flags_edit:
+			var and_text: String = and_flags_edit.text.strip_edges()
+			if not and_text.is_empty():
+				for flag: String in and_text.split(","):
+					var clean_flag: String = flag.strip_edges()
+					if not clean_flag.is_empty():
+						and_flags.append(clean_flag)
+
+		# Parse OR flags (comma-separated)
+		var or_flags: Array[String] = []
+		if or_flags_edit:
+			var or_text: String = or_flags_edit.text.strip_edges()
+			if not or_text.is_empty():
+				for flag: String in or_text.split(","):
+					var clean_flag: String = flag.strip_edges()
+					if not clean_flag.is_empty():
+						or_flags.append(clean_flag)
+
+		# Skip entries with no flags and no cinematic
+		if and_flags.is_empty() and or_flags.is_empty() and cine_text.is_empty():
 			continue
-		var cond_dict: Dictionary = {"flag": flag_text, "cinematic_id": cine_text}
+
+		# Build the condition dictionary
+		var cond_dict: Dictionary = {"cinematic_id": cine_text}
+
+		# Use "flags" array for AND logic (new format)
+		if not and_flags.is_empty():
+			cond_dict["flags"] = and_flags
+
+		# Use "any_flags" array for OR logic
+		if not or_flags.is_empty():
+			cond_dict["any_flags"] = or_flags
+
 		if negate_check and negate_check.button_pressed:
 			cond_dict["negate"] = true
+
 		result.append(cond_dict)
 	return result
 
 
 func _has_valid_conditional() -> bool:
 	for entry: Dictionary in conditional_entries:
-		var flag_edit: LineEdit = entry.get("flag_edit") as LineEdit
+		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
+		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
 		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
-		if flag_edit and cinematic_edit:
-			if not flag_edit.text.strip_edges().is_empty() and not cinematic_edit.text.strip_edges().is_empty():
-				return true
+
+		if not cinematic_edit:
+			continue
+
+		var cine_text: String = cinematic_edit.text.strip_edges()
+		if cine_text.is_empty():
+			continue
+
+		# Check if there are any flags defined (AND or OR)
+		var has_and_flags: bool = and_flags_edit and not and_flags_edit.text.strip_edges().is_empty()
+		var has_or_flags: bool = or_flags_edit and not or_flags_edit.text.strip_edges().is_empty()
+
+		if has_and_flags or has_or_flags:
+			return true
 	return false
 
 

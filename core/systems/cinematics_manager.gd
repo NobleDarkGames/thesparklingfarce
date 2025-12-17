@@ -147,6 +147,38 @@ func unregister_command_executor(command_type: String) -> void:
 	_command_executors.erase(command_type)
 
 
+## Get list of all registered command types
+## Used by editor to discover available commands dynamically
+func get_registered_command_types() -> Array[String]:
+	var types: Array[String] = []
+	for key: String in _command_executors.keys():
+		types.append(key)
+	return types
+
+
+## Get editor metadata for a specific command type
+## Returns executor's metadata if available, empty dict otherwise
+## Used by cinematic editor to build dynamic UI
+func get_command_editor_metadata(command_type: String) -> Dictionary:
+	if command_type not in _command_executors:
+		return {}
+
+	var executor: CinematicCommandExecutor = _command_executors[command_type]
+	return executor.get_editor_metadata()
+
+
+## Get all command metadata for editor
+## Returns dictionary of command_type -> metadata for all registered commands
+## Commands without metadata return empty dict (editor should use hardcoded fallback)
+func get_all_command_metadata() -> Dictionary:
+	var result: Dictionary = {}
+	for command_type: String in _command_executors:
+		var executor: CinematicCommandExecutor = _command_executors[command_type]
+		var metadata: Dictionary = executor.get_editor_metadata()
+		result[command_type] = metadata
+	return result
+
+
 ## Register all built-in command executors (Phase 2)
 ## Called during _ready() to set up the command registry
 func _register_built_in_commands() -> void:
@@ -166,6 +198,10 @@ func _register_built_in_commands() -> void:
 	const SpawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
 	const DespawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/despawn_entity_executor.gd")
 	const OpenShopExecutor: GDScript = preload("res://core/systems/cinematic_commands/open_shop_executor.gd")
+	const AddPartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/add_party_member_executor.gd")
+	const RemovePartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/remove_party_member_executor.gd")
+	const RejoinPartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/rejoin_party_member_executor.gd")
+	const SetCharacterStatusExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_character_status_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -183,6 +219,10 @@ func _register_built_in_commands() -> void:
 	register_command_executor("spawn_entity", SpawnEntityExecutor.new())
 	register_command_executor("despawn_entity", DespawnEntityExecutor.new())
 	register_command_executor("open_shop", OpenShopExecutor.new())
+	register_command_executor("add_party_member", AddPartyMemberExecutor.new())
+	register_command_executor("remove_party_member", RemovePartyMemberExecutor.new())
+	register_command_executor("rejoin_party_member", RejoinPartyMemberExecutor.new())
+	register_command_executor("set_character_status", SetCharacterStatusExecutor.new())
 
 
 ## Register a camera for cinematic control

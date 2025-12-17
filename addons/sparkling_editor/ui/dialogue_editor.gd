@@ -59,17 +59,24 @@ func _refresh_character_cache() -> void:
 ## Get character by UID from cache
 func _get_character_by_uid(uid: String) -> CharacterData:
 	for char_res: Resource in _cached_characters:
-		var char_data: CharacterData = char_res as CharacterData
-		if char_data and char_data.character_uid == uid:
-			return char_data
+		# Use get() for safe property access in editor context
+		var res_uid: String = ""
+		if "character_uid" in char_res:
+			res_uid = str(char_res.get("character_uid"))
+		if res_uid == uid:
+			return char_res as CharacterData
 	return null
 
 
 ## Find character index in cache by UID (for dropdown selection)
 func _get_character_index_by_uid(uid: String) -> int:
 	for i in range(_cached_characters.size()):
-		var char_data: CharacterData = _cached_characters[i] as CharacterData
-		if char_data and char_data.character_uid == uid:
+		var char_res: Resource = _cached_characters[i]
+		# Use get() for safe property access in editor context
+		var res_uid: String = ""
+		if "character_uid" in char_res:
+			res_uid = str(char_res.get("character_uid"))
+		if res_uid == uid:
 			return i
 	return -1
 
@@ -154,11 +161,18 @@ func _save_resource_data() -> void:
 			# Character selected - store character_id
 			var char_idx: int = picker_idx - 1
 			if char_idx >= 0 and char_idx < _cached_characters.size():
-				var char_data: CharacterData = _cached_characters[char_idx] as CharacterData
-				if char_data:
-					line_dict["character_id"] = char_data.character_uid
+				var char_res: Resource = _cached_characters[char_idx]
+				if char_res:
+					# Use get() for safe property access in editor context
+					var char_uid: String = ""
+					var char_name: String = ""
+					if "character_uid" in char_res:
+						char_uid = str(char_res.get("character_uid"))
+					if "character_name" in char_res:
+						char_name = str(char_res.get("character_name"))
+					line_dict["character_id"] = char_uid
 					# Also store speaker_name as fallback/display hint
-					line_dict["speaker_name"] = char_data.character_name
+					line_dict["speaker_name"] = char_name
 		else:
 			# Custom speaker - store speaker_name only
 			line_dict["speaker_name"] = line_ui.speaker_edit.text
