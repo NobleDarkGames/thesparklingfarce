@@ -15,3 +15,4 @@ base_mp = 10
 base_strength = 7
 base_defense = 7
 starting_equipment = Array[ExtResource("2_kno18")]([ExtResource("4_q40dp")])
+starting_inventory = Array[String](["mithril", "item_1765244691"])

@@ -54,6 +54,12 @@ var equipment_section: CollapseSection
 var equipment_pickers: Dictionary = {}  # {slot_id: ResourcePicker}
 var equipment_warning_labels: Dictionary = {}  # {slot_id: Label}
 
+# Starting Inventory section (collapsible)
+var inventory_section: CollapseSection
+var inventory_list_container: VBoxContainer
+var inventory_add_button: Button
+var _current_inventory_items: Array[String] = []  # Item IDs
+
 var available_ai_brains: Array[AIBrain] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 
@@ -107,6 +113,9 @@ func _create_detail_form() -> void:
 
 	# Equipment section (starting equipment for this character)
 	_add_equipment_section()
+
+	# Starting Inventory section (items character carries but doesn't equip)
+	_add_inventory_section()
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
@@ -166,6 +175,9 @@ func _load_resource_data() -> void:
 	# Load starting equipment into pickers
 	_load_equipment_from_character(character)
 
+	# Load starting inventory items
+	_load_inventory_from_character(character)
+
 	# Load appearance assets
 	_load_appearance_from_character(character)
 
@@ -215,6 +227,9 @@ func _save_resource_data() -> void:
 
 	# Update starting equipment from pickers
 	_save_equipment_to_character(character)
+
+	# Update starting inventory from list
+	_save_inventory_to_character(character)
 
 	# Update appearance assets from pickers
 	_save_appearance_to_character(character)
@@ -1054,6 +1069,165 @@ func _clear_equipment_warning(slot_id: String) -> void:
 		var label: Label = equipment_warning_labels[slot_id]
 		label.text = ""
 		label.visible = false
+
+
+# =============================================================================
+# STARTING INVENTORY SECTION
+# =============================================================================
+
+## Add the starting inventory section with an item list and add button
+func _add_inventory_section() -> void:
+	inventory_section = CollapseSection.new()
+	inventory_section.title = "Starting Inventory"
+	inventory_section.start_collapsed = true
+
+	var help_label: Label = Label.new()
+	help_label.text = "Items the character carries (not equipped) when recruited"
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	inventory_section.add_content_child(help_label)
+
+	# Container for the list of inventory items
+	inventory_list_container = VBoxContainer.new()
+	inventory_list_container.add_theme_constant_override("separation", 4)
+	inventory_section.add_content_child(inventory_list_container)
+
+	# Add Item button
+	var button_container: HBoxContainer = HBoxContainer.new()
+	inventory_add_button = Button.new()
+	inventory_add_button.text = "+ Add Item"
+	inventory_add_button.tooltip_text = "Add an item to the character's starting inventory"
+	inventory_add_button.pressed.connect(_on_inventory_add_pressed)
+	button_container.add_child(inventory_add_button)
+	inventory_section.add_content_child(button_container)
+
+	detail_panel.add_child(inventory_section)
+
+
+## Load starting inventory from CharacterData into the list
+func _load_inventory_from_character(character: CharacterData) -> void:
+	_current_inventory_items.clear()
+
+	if character and not character.starting_inventory.is_empty():
+		for item_id: String in character.starting_inventory:
+			_current_inventory_items.append(item_id)
+
+	_refresh_inventory_list_display()
+
+
+## Save starting inventory from list to CharacterData
+func _save_inventory_to_character(character: CharacterData) -> void:
+	var new_inventory: Array[String] = []
+	for item_id: String in _current_inventory_items:
+		new_inventory.append(item_id)
+	character.starting_inventory = new_inventory
+
+
+## Handle Add Item button press - opens a ResourcePicker dialog
+func _on_inventory_add_pressed() -> void:
+	# Create a popup dialog with a ResourcePicker
+	var dialog: AcceptDialog = AcceptDialog.new()
+	dialog.title = "Add Inventory Item"
+	dialog.min_size = Vector2(400, 100)
+
+	var picker: ResourcePicker = ResourcePicker.new()
+	picker.resource_type = "item"
+	picker.label_text = "Item:"
+	picker.label_min_width = 60
+	picker.allow_none = false
+
+	dialog.add_child(picker)
+
+	# Store reference for the confirmation callback
+	dialog.set_meta("picker", picker)
+
+	dialog.confirmed.connect(_on_inventory_add_confirmed.bind(dialog))
+	dialog.canceled.connect(dialog.queue_free)
+
+	# Add to editor and show
+	EditorInterface.popup_dialog_centered(dialog)
+
+
+## Handle confirmation of adding an inventory item
+func _on_inventory_add_confirmed(dialog: AcceptDialog) -> void:
+	var picker: ResourcePicker = dialog.get_meta("picker") as ResourcePicker
+	if picker and picker.has_selection():
+		var item: ItemData = picker.get_selected_resource() as ItemData
+		if item:
+			# Extract item_id from resource path (filename without extension)
+			var item_id: String = item.resource_path.get_file().get_basename()
+			if item_id not in _current_inventory_items:
+				_current_inventory_items.append(item_id)
+				_refresh_inventory_list_display()
+				_mark_dirty()
+
+	dialog.queue_free()
+
+
+## Handle removing an item from the inventory list
+func _on_inventory_remove_item(item_id: String) -> void:
+	_current_inventory_items.erase(item_id)
+	_refresh_inventory_list_display()
+	_mark_dirty()
+
+
+## Refresh the visual display of the inventory item list
+func _refresh_inventory_list_display() -> void:
+	# Clear existing items
+	for child: Node in inventory_list_container.get_children():
+		child.queue_free()
+
+	if _current_inventory_items.is_empty():
+		var empty_label: Label = Label.new()
+		empty_label.text = "(No items)"
+		empty_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+		inventory_list_container.add_child(empty_label)
+		return
+
+	# Create a row for each item
+	for item_id: String in _current_inventory_items:
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		# Try to get item display name from registry
+		var display_name: String = item_id
+		var item: ItemData = null
+		if ModLoader and ModLoader.registry:
+			item = ModLoader.registry.get_resource("item", item_id) as ItemData
+			if item:
+				display_name = item.item_name if not item.item_name.is_empty() else item_id
+
+		# Item icon (if available)
+		if item and item.icon:
+			var icon_rect: TextureRect = TextureRect.new()
+			icon_rect.texture = item.icon
+			icon_rect.custom_minimum_size = Vector2(24, 24)
+			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			row.add_child(icon_rect)
+
+		# Item name label
+		var name_label: Label = Label.new()
+		name_label.text = display_name
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if item:
+			# Add item type to tooltip
+			var type_name: String = ItemData.ItemType.keys()[item.item_type]
+			name_label.tooltip_text = "%s (%s)" % [item_id, type_name]
+		else:
+			name_label.tooltip_text = item_id
+			name_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))  # Orange for missing
+		row.add_child(name_label)
+
+		# Remove button
+		var remove_btn: Button = Button.new()
+		remove_btn.text = "x"
+		remove_btn.tooltip_text = "Remove from inventory"
+		remove_btn.custom_minimum_size.x = 24
+		remove_btn.pressed.connect(_on_inventory_remove_item.bind(item_id))
+		row.add_child(remove_btn)
+
+		inventory_list_container.add_child(row)
 
 
 # =============================================================================
