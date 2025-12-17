@@ -165,11 +165,17 @@ The platform is in active development with these systems **implemented and funct
 - Depot storage with Take/Store modes
 - SF2-authentic UI patterns
 
+### Cinematic & Dialog System
+- Text interpolation: `{player_name}`, `{gold}`, `{char:id}`, `{flag:name}`
+- Party management commands: recruit, remove, rejoin characters
+- System messages with customization
+- NPC conditional dialogs with AND/OR flag logic
+
 ### Editor Tooling (15+ Editors)
 - Character, Class, Item, Ability editors
 - Battle editor with enemy placement
 - Campaign editor (visual node graph)
-- Cinematic editor (15 command types)
+- Cinematic editor (19 command types)
 - Dialogue editor with branching
 - Shop, NPC, Terrain, Map editors
 - Save file debug editor
@@ -184,11 +190,8 @@ We believe in honest assessments:
 
 | Feature | Status |
 |---------|--------|
-| AI behavior variety | Only aggressive/stationary implemented |
-| Area-of-effect spells | Single-target works; multi-target patterns planned |
 | Full demo campaign | Placeholder content exists; polished campaign in progress |
 | Crafting system | Resource classes exist; UI/integration pending |
-| Status effect terrain | Damage-per-turn works; poison/freeze effects pending |
 
 ---
 
@@ -208,7 +211,6 @@ sparklingfarce/
       ai_brains/        # AI behavior scripts
       tilesets/         # TileSet resources
     _sandbox/           # Your development mod (priority 100)
-    _template/          # Starter template for new mods
 
   scenes/               # UI scenes, exploration, tests
   addons/               # Sparkling Editor, gdUnit4
@@ -238,8 +240,8 @@ sparklingfarce/
 
 ### Manual Setup
 
-1. Copy `mods/_template/` to `mods/your_mod_name/`
-2. Edit `mod.json`:
+1. Create `mods/your_mod_name/` directory
+2. Create `mod.json`:
    ```json
    {
      "id": "your_mod_name",
@@ -250,7 +252,7 @@ sparklingfarce/
      "dependencies": []
    }
    ```
-3. Add resources to `data/` subdirectories
+3. Create `data/` subdirectory with resource type folders (characters/, items/, etc.)
 4. Resources auto-discovered on game launch
 
 ### Load Priority Guide

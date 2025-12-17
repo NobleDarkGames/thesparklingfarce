@@ -11,7 +11,7 @@
 |-------------|-------------------|-------------|
 | Map exploration, collision, triggers | — | — |
 | Battle system (turn order, combat, AI) | | |
-| Dialog system (branching, portraits) | | |
+| Dialog system (branching, portraits, interpolation) | | |
 | Save/load (3-slot, mod-compatible) | | |
 | Equipment system (items, effects) | | |
 | Magic/spells (single + AOE targeting) | | |
@@ -20,6 +20,8 @@
 | Campaign progression | | |
 | Promotion system | | |
 | Status effects (poison, sleep, confusion, etc.) | | |
+| Cinematic party management (recruit/remove/rejoin) | | |
+| NPC conditional dialogs (AND/OR flag logic) | | |
 
 ---
 
@@ -76,6 +78,34 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 
 ---
 
+## Recently Completed: Phase 5.1 - Cinematic Enhancements
+
+**Status:** Complete (December 16, 2025)
+
+**Delivered:**
+- **Text Interpolation System**: `TextInterpolator` class with runtime variable replacement
+  - Supported: `{player_name}`, `{gold}`, `{chapter}`, `{party_count}`, `{active_count}`
+  - Character references: `{char:id}` (by resource ID or character_uid)
+  - Story flags: `{flag:name}` returns "true"/"false"
+  - Campaign data: `{var:key}` for custom variables
+- **Party Management Cinematic Commands**:
+  - `add_party_member`: Recruit characters with system messages
+  - `remove_party_member`: Story departures with reason tracking (left, died, captured, betrayed)
+  - `rejoin_party_member`: Return departed characters with resurrection support
+  - `set_character_status`: Modify is_alive/is_available flags
+  - All commands support custom messages with text interpolation
+- **NPC Conditional Dialog Logic**: AND/OR flag combinations
+  - `flags` array (AND logic): all must be true
+  - `any_flags` array (OR logic): at least one must be true
+  - `negate` option to invert condition results
+  - Backward-compatible with legacy single `flag` key
+- **Character UID System**: Auto-generated 8-character unique IDs
+  - Generated in `CharacterData._init()`
+  - Immutable after creation, stable across renames
+  - Used by text interpolation and cinematic commands
+
+---
+
 ## Recently Completed: Phase 5 - Status Effects
 
 **Status:** Complete (December 16, 2025)
@@ -107,7 +137,7 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 |--------|--------|-------|
 | Map Exploration | Complete | Collision, triggers, scene transitions |
 | Battle Core | Complete | Combat, status effects, animations |
-| Dialog System | Complete | Branching, portraits, choices |
+| Dialog System | Complete | Branching, portraits, choices, text interpolation |
 | Save System | Complete | 3-slot, mod-compatible |
 | Party Management | Complete | Active/reserve, hero protection |
 | Experience/Leveling | Complete | SF2-authentic pooled XP |
@@ -121,6 +151,8 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 | Caravan | Complete | SF2-authentic mobile HQ |
 | Campaign | Complete | Node-graph, chapter UI |
 | Status Effects | Complete | 11 effects, data-driven, combat overlay |
+| Cinematic System | Complete | 19 command types, party management, text interpolation |
+| NPC System | Complete | Conditional dialogs with AND/OR logic, Quick Setup roles |
 
 ---
 

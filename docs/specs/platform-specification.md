@@ -1,6 +1,6 @@
 # The Sparkling Farce Platform Specification
 
-**For AI Agents** | Godot 4.5.1 | v4.2.0
+**For AI Agents** | Godot 4.5.1 | v4.3.0
 
 ---
 
@@ -365,6 +365,26 @@ if "dialog_state" in save_data:
     DialogManager.import_state(save_data.dialog_state)
 ```
 
+### Text Interpolation
+
+`TextInterpolator` replaces variables in dialog and cinematic text with runtime values. Applied automatically by DialogBox.
+
+| Syntax | Result |
+|--------|--------|
+| `{player_name}` | Hero character's name |
+| `{party_count}` | Total party size |
+| `{active_count}` | Active party members |
+| `{gold}` | Current gold |
+| `{chapter}` | Current chapter number |
+| `{char:id}` | Character name by resource ID or UID |
+| `{flag:name}` | "true" or "false" |
+| `{var:key}` | Campaign data value |
+
+```gdscript
+# Manual interpolation (rarely needed - DialogBox handles automatically)
+var text: String = TextInterpolator.interpolate("Hello, {player_name}! You have {gold} gold.")
+```
+
 ### ShopManager Atomic Transactions
 
 Bulk buy/sell operations are atomic with automatic rollback. If any item in a multi-quantity transaction fails, all previously added/removed items are restored:
@@ -383,6 +403,61 @@ if not result.success:
 # React to registry modifications (useful for editor plugins)
 ModLoader.terrain_registry.registrations_changed.connect(_on_terrain_changed)
 ModLoader.equipment_registry.registrations_changed.connect(_refresh_equipment_ui)
+```
+
+### Character UID System
+
+Every `CharacterData` has an auto-generated `character_uid` (8 alphanumeric characters). Generated in `_init()`, immutable once created.
+
+```gdscript
+# UIDs enable stable references across renames
+var char: CharacterData = ModLoader.registry.get_character_by_uid("hk7wm4np")
+
+# Text interpolation uses UIDs
+var text: String = "Thanks, {char:hk7wm4np}!"  # Resolves to character name
+```
+
+### Party Management Cinematic Commands
+
+Four commands for story-driven party changes:
+
+| Command | Purpose | Key Parameters |
+|---------|---------|----------------|
+| `add_party_member` | Recruit character | `character_id`, `to_active`, `show_message`, `custom_message` |
+| `remove_party_member` | Story departure/death | `character_id`, `reason`, `mark_dead`, `mark_unavailable`, `show_message` |
+| `rejoin_party_member` | Return departed member | `character_id`, `to_active`, `resurrect`, `show_message` |
+| `set_character_status` | Modify flags | `character_id`, `is_alive`, `is_available` |
+
+System messages auto-display with text interpolation. Customize via `custom_message` parameter or disable via `show_message: false`.
+
+Default messages by reason:
+- `left`: "{char:id} has left the party."
+- `died`: "{char:id} has fallen..."
+- `captured`: "{char:id} was captured!"
+- `betrayed`: "{char:id} has betrayed the force!"
+
+### NPC Conditional Cinematics
+
+NPCs support complex flag-based dialog branching via `conditional_cinematics` array.
+
+| Key | Logic | Description |
+|-----|-------|-------------|
+| `flag` | Single | Legacy single flag check |
+| `flags` | AND | All flags must be true |
+| `any_flags` | OR | At least one flag must be true |
+| `negate` | Invert | Inverts the overall result |
+
+Conditions checked in order; first match wins. Fallback used if none match.
+
+```gdscript
+# Example: Complex condition combining AND + OR
+conditional_cinematics = [
+    {
+        "flags": ["chapter_2", "met_elder"],           # AND: both required
+        "any_flags": ["saved_princess", "saved_prince"], # OR: at least one
+        "cinematic_id": "elder_thanks"
+    }
+]
 ```
 
 ---
