@@ -15,7 +15,7 @@ extends RefCounted
 const OrderQueueScript: GDScript = preload("res://scenes/ui/shops/order_queue.gd")
 
 ## Shopping modes
-enum Mode { BUY, SELL, DEALS, HEAL, REVIVE, UNCURSE }
+enum Mode { BUY, SELL, DEALS, HEAL, REVIVE, UNCURSE, CRAFT }
 
 ## The ShopData resource for the current shop
 var shop: ShopData = null
@@ -38,6 +38,12 @@ var selected_destination: String = ""
 ## In sell mode: whose inventory are we selling from?
 var selling_from_uid: String = ""
 
+## In craft mode: the selected recipe ID
+var selected_recipe_id: String = ""
+
+## In craft mode: selected output choice index (for CHOICE mode recipes)
+var selected_output_index: int = 0
+
 ## Reference to SaveData (for gold operations)
 var save_data: SaveData = null
 
@@ -58,6 +64,8 @@ func initialize(p_shop: ShopData, p_save_data: SaveData) -> void:
 	selected_quantity = 1
 	selected_destination = ""
 	selling_from_uid = ""
+	selected_recipe_id = ""
+	selected_output_index = 0
 	screen_history.clear()
 	last_result.clear()
 
@@ -177,3 +185,27 @@ func can_sell() -> bool:
 ## Check if shop can store to caravan
 func can_store_to_caravan() -> bool:
 	return shop and shop.can_store_to_caravan
+
+
+## Check if we're in craft mode
+func is_craft_mode() -> bool:
+	return mode == Mode.CRAFT
+
+
+## Get CrafterData for the current crafter shop
+func get_crafter_data() -> CrafterData:
+	if not shop or shop.crafter_id.is_empty():
+		return null
+	return ModLoader.registry.get_resource("crafter", shop.crafter_id) as CrafterData
+
+
+## Get CraftingRecipeData by ID
+func get_recipe_data(recipe_id: String) -> CraftingRecipeData:
+	if recipe_id.is_empty():
+		return null
+	return ModLoader.registry.get_resource("crafting_recipe", recipe_id) as CraftingRecipeData
+
+
+## Get the currently selected recipe
+func get_selected_recipe() -> CraftingRecipeData:
+	return get_recipe_data(selected_recipe_id)

@@ -149,7 +149,7 @@ func _refresh_for_current_member() -> void:
 
 func _rebuild_equipment_list() -> void:
 	# Clear existing
-	for child in equipment_list.get_children():
+	for child: Node in equipment_list.get_children():
 		child.queue_free()
 	equipment_buttons.clear()
 
@@ -201,7 +201,7 @@ func _rebuild_equipment_list() -> void:
 
 func _rebuild_inventory_list() -> void:
 	# Clear existing
-	for child in inventory_list.get_children():
+	for child: Node in inventory_list.get_children():
 		child.queue_free()
 	inventory_buttons.clear()
 

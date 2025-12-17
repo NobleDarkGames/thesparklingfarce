@@ -110,7 +110,7 @@ func _build_ui() -> void:
 ## Create item slot labels based on inventory size
 func _create_item_labels(slot_count: int) -> void:
 	# Clear existing labels
-	for label in _item_labels:
+	for label: Label in _item_labels:
 		if is_instance_valid(label):
 			label.queue_free()
 	_item_labels.clear()
@@ -228,7 +228,7 @@ func _load_inventory_from_unit(unit: Node2D) -> void:
 
 	if save_data:
 		# Copy inventory from save data
-		for item_id in save_data.inventory:
+		for item_id: String in save_data.inventory:
 			_inventory_items.append(item_id)
 
 	# Pad with empty strings up to max slots

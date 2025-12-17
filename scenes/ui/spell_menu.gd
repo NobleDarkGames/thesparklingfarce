@@ -3,6 +3,7 @@
 ## Displays character's available spells for battle casting.
 ## Features keyboard/mouse navigation, spell descriptions, MP costs, and smart defaults.
 ## Follows ItemMenu patterns for session IDs and signal handling.
+class_name SpellMenu
 extends Control
 
 ## Signals - session_id prevents stale signals from previous turns
@@ -108,12 +109,12 @@ func _build_ui() -> void:
 ## Create spell slot labels based on number of spells
 func _create_spell_labels(slot_count: int) -> void:
 	# Clear existing labels
-	for label in _spell_labels:
+	for label: Label in _spell_labels:
 		if is_instance_valid(label):
 			label.queue_free()
 	_spell_labels.clear()
 
-	for label in _mp_labels:
+	for label: Label in _mp_labels:
 		if is_instance_valid(label):
 			label.queue_free()
 	_mp_labels.clear()

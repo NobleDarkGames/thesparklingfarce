@@ -473,6 +473,7 @@ func _add_quick_setup_section() -> void:
 	npc_role_option.add_item("Priest", 2)
 	npc_role_option.add_item("Innkeeper", 3)
 	npc_role_option.add_item("Caravan Depot", 4)
+	npc_role_option.add_item("Crafter", 5)
 	npc_role_option.item_selected.connect(_on_npc_role_changed)
 	role_row.add_child(npc_role_option)
 
@@ -1060,6 +1061,9 @@ func _update_greeting_farewell_placeholders(role: int) -> void:
 		4:  # CARAVAN_DEPOT
 			greeting_default = "Default: The caravan is ready for your storage needs."
 			farewell_default = "Default: Safe travels!"
+		5:  # CRAFTER
+			greeting_default = "Default: Looking to craft something?"
+			farewell_default = "Default: Come back when you need more crafted!"
 
 	if greeting_text_edit:
 		greeting_text_edit.placeholder_text = greeting_default
@@ -1077,7 +1081,7 @@ func _update_quick_setup_status(role: int) -> void:
 		return
 
 	quick_setup_status.visible = true
-	var role_names: Array[String] = ["None", "Shopkeeper", "Priest", "Innkeeper", "Caravan Depot"]
+	var role_names: Array[String] = ["None", "Shopkeeper", "Priest", "Innkeeper", "Caravan Depot", "Crafter"]
 	var role_name: String = role_names[role] if role < role_names.size() else "Unknown"
 
 	if role == 4:  # CARAVAN_DEPOT

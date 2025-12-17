@@ -56,7 +56,7 @@ var uncurse_cost_spin: SpinBox
 
 # Crafter (conditional)
 var crafter_section: VBoxContainer
-var crafter_id_edit: LineEdit
+var crafter_picker: ResourcePicker
 
 # Cached data
 var _items_cache: Array[Resource] = []
@@ -69,7 +69,7 @@ func _ready() -> void:
 	resource_type_id = "shop"
 	resource_type_name = "Shop"
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
-	resource_dependencies = ["item", "npc"]
+	resource_dependencies = ["item", "npc", "crafter"]
 	super._ready()
 
 
@@ -135,7 +135,14 @@ func _load_resource_data() -> void:
 	uncurse_cost_spin.value = shop.uncurse_base_cost
 
 	# Crafter
-	crafter_id_edit.text = shop.crafter_id
+	if crafter_picker and not shop.crafter_id.is_empty():
+		var crafter_res: Resource = ModLoader.registry.get_resource("crafter", shop.crafter_id) if ModLoader and ModLoader.registry else null
+		if crafter_res:
+			crafter_picker.select_resource(crafter_res)
+		else:
+			crafter_picker.select_none()
+	elif crafter_picker:
+		crafter_picker.select_none()
 
 	# Update conditional visibility
 	_on_shop_type_changed(shop.shop_type)
@@ -184,7 +191,12 @@ func _save_resource_data() -> void:
 	shop.uncurse_base_cost = int(uncurse_cost_spin.value)
 
 	# Crafter
-	shop.crafter_id = crafter_id_edit.text.strip_edges()
+	if crafter_picker:
+		var selected_crafter: Resource = crafter_picker.get_selected_resource()
+		if selected_crafter and "crafter_id" in selected_crafter:
+			shop.crafter_id = selected_crafter.crafter_id
+		else:
+			shop.crafter_id = ""
 
 
 ## Override: Validate resource before saving
@@ -214,8 +226,8 @@ func _validate_resource() -> Dictionary:
 
 	# Crafter validation
 	if shop_type_option.selected == ShopData.ShopType.CRAFTER:
-		if crafter_id_edit.text.strip_edges().is_empty():
-			errors.append("Crafter shops require a crafter_id")
+		if not crafter_picker or not crafter_picker.has_selection():
+			errors.append("Crafter shops require a crafter to be selected")
 
 	return {valid = errors.is_empty(), errors = errors}
 
@@ -684,20 +696,14 @@ func _add_crafter_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 16)
 	crafter_section.add_child(section_label)
 
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Crafter ID:"
-	id_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
-	id_label.tooltip_text = "ID of the CrafterData resource for forging"
-	id_container.add_child(id_label)
-
-	crafter_id_edit = LineEdit.new()
-	crafter_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	crafter_id_edit.placeholder_text = "e.g., mithril_forge"
-	crafter_id_edit.tooltip_text = "ID of the CrafterData resource that defines available recipes. Required for Crafter-type shops."
-	crafter_id_edit.text_changed.connect(_mark_dirty)
-	id_container.add_child(crafter_id_edit)
-	crafter_section.add_child(id_container)
+	crafter_picker = ResourcePicker.new()
+	crafter_picker.resource_type = "crafter"
+	crafter_picker.label_text = "Crafter:"
+	crafter_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	crafter_picker.allow_none = false
+	crafter_picker.tooltip_text = "The CrafterData resource that defines available recipes. Required for Crafter-type shops."
+	crafter_picker.resource_selected.connect(_on_crafter_selected)
+	crafter_section.add_child(crafter_picker)
 
 	detail_panel.add_child(crafter_section)
 
@@ -720,6 +726,10 @@ func _on_shop_type_changed(index: int) -> void:
 	var shows_inventory: bool = (index != ShopData.ShopType.CHURCH)
 	inventory_container.visible = shows_inventory
 	deals_container.visible = shows_inventory
+
+
+func _on_crafter_selected(_metadata: Dictionary) -> void:
+	_mark_dirty()
 
 
 func _on_inventory_item_selected(index: int) -> void:

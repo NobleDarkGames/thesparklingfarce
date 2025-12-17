@@ -91,6 +91,10 @@ enum ItemType {
 ## Defaults to true for safety; set false for common consumables if desired
 @export var confirm_on_drop: bool = true
 
+## Whether this item is a crafting material (mithril, dragon scale, etc.)
+## Crafting materials can be combined at crafter NPCs to create equipment
+@export var is_crafting_material: bool = false
+
 
 ## Get stat modifier by name
 func get_stat_modifier(stat_name: String) -> int:

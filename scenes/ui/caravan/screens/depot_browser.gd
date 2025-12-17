@@ -80,11 +80,14 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 
-	# L/R bumpers for filter cycling
-	if event.is_action_pressed("sf_left_shoulder") or event.is_action_pressed("ui_page_up"):
+	# L/R bumpers for filter cycling (shoulder buttons optional - may not be mapped)
+	var left_shoulder: bool = InputMap.has_action("sf_left_shoulder") and event.is_action_pressed("sf_left_shoulder")
+	var right_shoulder: bool = InputMap.has_action("sf_right_shoulder") and event.is_action_pressed("sf_right_shoulder")
+
+	if left_shoulder or event.is_action_pressed("ui_page_up"):
 		_cycle_filter(-1)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("sf_right_shoulder") or event.is_action_pressed("ui_page_down"):
+	elif right_shoulder or event.is_action_pressed("ui_page_down"):
 		_cycle_filter(1)
 		get_viewport().set_input_as_handled()
 	# Triggers for sort cycling (or use Select button)

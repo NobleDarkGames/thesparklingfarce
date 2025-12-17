@@ -34,7 +34,9 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"shops": "shop",  # ShopData resources for weapon/item shops, churches, crafters
 	"new_game_configs": "new_game_config",  # NewGameConfigData resources for starting game state
 	"ai_behaviors": "ai_behavior",  # AIBehaviorData resources for configurable enemy AI
-	"status_effects": "status_effect"  # StatusEffectData resources for data-driven status effects
+	"status_effects": "status_effect",  # StatusEffectData resources for data-driven status effects
+	"crafting_recipes": "crafting_recipe",  # CraftingRecipeData resources for crafting system
+	"crafters": "crafter"  # CrafterData resources for crafter NPCs and locations
 }
 
 # Resource types that support JSON loading (in addition to .tres)

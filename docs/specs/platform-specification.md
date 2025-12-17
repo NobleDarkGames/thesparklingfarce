@@ -94,6 +94,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 | PromotionManager | Class promotion |
 | ShopManager | Buy/sell logic with atomic rollback, church services |
 | ShopController | Shop UI state machine |
+| CraftingManager | Crafting transactions, material counting across inventories |
 
 ### Battle
 | Singleton | Purpose |
@@ -152,6 +153,8 @@ ModLoader auto-discovers from `mods/*/data/<directory>/`:
 | new_game_configs/ | new_game_config | NewGameConfigData |
 | ai_behaviors/ | ai_behavior | AIBehaviorData |
 | status_effects/ | status_effect | StatusEffectData |
+| crafting_recipes/ | crafting_recipe | CraftingRecipeData |
+| crafters/ | crafter | CrafterData |
 
 **JSON-supported types:** cinematic, campaign, map
 

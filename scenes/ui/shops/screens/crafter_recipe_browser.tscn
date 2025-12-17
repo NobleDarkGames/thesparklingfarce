@@ -1,0 +1,132 @@
+[gd_scene load_steps=2 format=3 uid="uid://craftr3cipebrows"]
+
+[ext_resource type="Script" path="res://scenes/ui/shops/screens/crafter_recipe_browser.gd" id="1_recipe_browser"]
+
+[node name="CrafterRecipeBrowser" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_recipe_browser")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = -200
+
+[node name="LeftPanel" type="PanelContainer" parent="HSplitContainer"]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/LeftPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderLabel" type="Label" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "AVAILABLE RECIPES"
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="RecipeScroll" type="ScrollContainer" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RecipeList" type="VBoxContainer" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer/RecipeScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="RightPanel" type="PanelContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="DetailsPanel" type="PanelContainer" parent="HSplitContainer/RightPanel/MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="RecipeNameLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "RECIPE NAME"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="RecipeDescLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Recipe description goes here."
+autowrap_mode = 2
+
+[node name="OutputLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
+text = "Creates: Mithril Sword"
+
+[node name="MaterialsLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Materials Required:
+  Mithril x1"
+
+[node name="GoldCostLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.2, 1)
+text = "Cost: 500G"
+
+[node name="Spacer" type="Control" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ButtonRow" type="HBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="BackButton" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 36)
+layout_mode = 2
+focus_mode = 2
+text = "BACK"
+
+[node name="CraftButton" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+focus_mode = 2
+text = "CRAFT"

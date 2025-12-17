@@ -46,6 +46,9 @@ var effect_picker: ResourcePicker  # AbilityData picker for consumable effect
 var buy_price_spin: SpinBox
 var sell_price_spin: SpinBox
 
+# Item Management
+var is_crafting_material_check: CheckBox
+
 
 func _ready() -> void:
 	resource_type_id = "item"
@@ -73,6 +76,9 @@ func _create_detail_form() -> void:
 
 	# Economy section
 	_add_economy_section()
+
+	# Item Management section
+	_add_item_management_section()
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
@@ -134,6 +140,10 @@ func _load_resource_data() -> void:
 	buy_price_spin.value = item.buy_price
 	sell_price_spin.value = item.sell_price
 
+	# Item Management
+	if is_crafting_material_check:
+		is_crafting_material_check.button_pressed = item.is_crafting_material
+
 	# Update section visibility
 	_on_item_type_changed(item.item_type)
 
@@ -188,6 +198,10 @@ func _save_resource_data() -> void:
 	# Update economy
 	item.buy_price = int(buy_price_spin.value)
 	item.sell_price = int(sell_price_spin.value)
+
+	# Update item management
+	if is_crafting_material_check:
+		item.is_crafting_material = is_crafting_material_check.button_pressed
 
 
 ## Override: Validate resource before saving
@@ -577,6 +591,30 @@ func _add_economy_section() -> void:
 	sell_price_spin.tooltip_text = "Gold received when selling. Typically 50% of buy price. Set to 0 for unsellable items."
 	sell_container.add_child(sell_price_spin)
 	section.add_child(sell_container)
+
+	detail_panel.add_child(section)
+
+
+func _add_item_management_section() -> void:
+	var section: VBoxContainer = VBoxContainer.new()
+
+	var section_label: Label = Label.new()
+	section_label.text = "Item Management"
+	section_label.add_theme_font_size_override("font_size", 16)
+	section.add_child(section_label)
+
+	# Is Crafting Material checkbox
+	is_crafting_material_check = CheckBox.new()
+	is_crafting_material_check.text = "Is Crafting Material"
+	is_crafting_material_check.tooltip_text = "Check if this item is a crafting material (mithril, dragon scales, etc.) that can be used at crafter NPCs to create equipment"
+	section.add_child(is_crafting_material_check)
+
+	var help_label: Label = Label.new()
+	help_label.text = "Crafting materials can be combined at crafter NPCs to forge new equipment"
+	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(help_label)
 
 	detail_panel.add_child(section)
 

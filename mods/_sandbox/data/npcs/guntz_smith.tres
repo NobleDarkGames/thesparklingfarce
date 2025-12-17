@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="NPCData" load_steps=2 format=3 uid="uid://qkaqyh2yp4h"]
+
+[ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="1_sqnyd"]
+
+[resource]
+script = ExtResource("1_sqnyd")
+npc_id = "guntz_smith"
+npc_name = "Guntz Smith"
+npc_role = 5
+shop_id = "guntz_forge"
+greeting_text = "We sell Mithril weapons!"

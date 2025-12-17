@@ -480,8 +480,6 @@ func _sort_items(a_id: String, b_id: String) -> bool:
 		_:
 			return false
 
-	return false
-
 
 func _update_take_button() -> void:
 	if _selected_depot_item_id.is_empty():

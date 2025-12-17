@@ -42,7 +42,8 @@ enum NPCRole {
 	SHOPKEEPER,     ## Opens a weapon or item shop
 	PRIEST,         ## Opens a church (healing, revival, etc.)
 	INNKEEPER,      ## Opens an inn (rest/save)
-	CARAVAN_DEPOT   ## Opens the caravan storage interface
+	CARAVAN_DEPOT,  ## Opens the caravan storage interface
+	CRAFTER         ## Opens a crafting shop (mithril forge, enchanter, etc.)
 }
 
 ## Unique identifier for this NPC (used in mod registry)
@@ -199,10 +200,11 @@ func _evaluate_condition(condition: Dictionary) -> bool:
 
 
 ## Generate auto-cinematic ID for Quick Setup NPCs
-## Format: __auto__{npc_id}_{shop_id} (parsed by CinematicsManager)
+## Format: __auto__{npc_id}::{shop_id} (parsed by CinematicsManager)
+## Uses :: delimiter to avoid conflicts with underscores in IDs
 func _get_auto_cinematic_id() -> String:
 	var effective_shop_id: String = shop_id if not shop_id.is_empty() else "caravan"
-	return "__auto__%s_%s" % [npc_id, effective_shop_id]
+	return "__auto__%s::%s" % [npc_id, effective_shop_id]
 
 
 ## Check if this NPC uses Quick Setup (role-based auto-cinematics)

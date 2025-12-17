@@ -180,7 +180,7 @@ func _build_ui() -> void:
 	active_section.add_child(_active_grid)
 
 	# Create active slots
-	for i in range(ACTIVE_COLS * ACTIVE_ROWS):
+	for i: int in range(ACTIVE_COLS * ACTIVE_ROWS):
 		var slot: PanelContainer = _create_slot(i, true)
 		_active_grid.add_child(slot)
 		_active_slots.append(slot)
@@ -334,7 +334,7 @@ func _refresh_slots() -> void:
 			_set_slot_style(slot, true, false)
 
 	# Clear and rebuild reserve slots
-	for child in _reserve_container.get_children():
+	for child: Node in _reserve_container.get_children():
 		child.queue_free()
 	_reserve_slots.clear()
 
@@ -452,12 +452,12 @@ func _move_selection(direction: Vector2i) -> void:
 
 func _update_selection_visual() -> void:
 	# Reset all slot borders
-	for slot in _active_slots:
+	for slot: PanelContainer in _active_slots:
 		var style: StyleBoxFlat = slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
 		style.border_color = Color(0.3, 0.3, 0.35, 0.8)
 		slot.add_theme_stylebox_override("panel", style)
 
-	for slot in _reserve_slots:
+	for slot: PanelContainer in _reserve_slots:
 		var style: StyleBoxFlat = slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
 		style.border_color = Color(0.3, 0.3, 0.35, 0.8)
 		slot.add_theme_stylebox_override("panel", style)

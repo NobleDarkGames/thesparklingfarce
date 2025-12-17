@@ -44,6 +44,10 @@ const SCREEN_PATHS: Dictionary = {
 	"church_action_select": "res://scenes/ui/shops/screens/church_action_select.tscn",
 	"church_char_select": "res://scenes/ui/shops/screens/church_char_select.tscn",
 	"church_slot_select": "res://scenes/ui/shops/screens/church_slot_select.tscn",
+	# Crafter screens
+	"crafter_action_select": "res://scenes/ui/shops/screens/crafter_action_select.tscn",
+	"crafter_recipe_browser": "res://scenes/ui/shops/screens/crafter_recipe_browser.tscn",
+	"crafter_confirm": "res://scenes/ui/shops/screens/crafter_confirm.tscn",
 }
 
 ## Node references
@@ -104,6 +108,8 @@ func open_shop(shop_data: ShopData, save_data: SaveData) -> void:
 	# Start with appropriate action select based on shop type
 	if shop_data.shop_type == ShopData.ShopType.CHURCH:
 		push_screen("church_action_select")
+	elif shop_data.shop_type == ShopData.ShopType.CRAFTER:
+		push_screen("crafter_action_select")
 	else:
 		push_screen("action_select")
 

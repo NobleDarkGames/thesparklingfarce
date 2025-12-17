@@ -505,7 +505,8 @@ const AUTO_GREETINGS: Dictionary = {
 	"SHOPKEEPER": "Welcome to my shop!",
 	"PRIEST": "Welcome, weary traveler. How may I serve you?",
 	"INNKEEPER": "Welcome, traveler. Looking for a place to rest?",
-	"CARAVAN_DEPOT": "The caravan is ready for your storage needs."
+	"CARAVAN_DEPOT": "The caravan is ready for your storage needs.",
+	"CRAFTER": "Welcome! What can I craft for you today?"
 }
 
 ## Default farewells per NPC role
@@ -513,31 +514,26 @@ const AUTO_FAREWELLS: Dictionary = {
 	"SHOPKEEPER": "Come again!",
 	"PRIEST": "May light guide your path...",
 	"INNKEEPER": "Rest well!",
-	"CARAVAN_DEPOT": "Safe travels!"
+	"CARAVAN_DEPOT": "Safe travels!",
+	"CRAFTER": "May your new gear serve you well!"
 }
 
 
 ## Generate a CinematicData at runtime for Quick Setup NPCs
-## Auto-cinematic IDs have format: __auto__{npc_id}_{shop_id}
+## Auto-cinematic IDs have format: __auto__{npc_id}::{shop_id}
+## Uses :: delimiter to avoid conflicts with underscores in IDs
 ## Returns null if generation fails
 func _generate_auto_cinematic(cinematic_id: String) -> CinematicData:
 	# Parse the auto-cinematic ID
-	# Format: __auto__{npc_id}_{shop_id}
-	var parts: PackedStringArray = cinematic_id.split("_")
-	if parts.size() < 4:
+	# Format: __auto__{npc_id}::{shop_id}
+	var content: String = cinematic_id.substr(8)  # Skip "__auto__"
+	var delimiter_pos: int = content.find("::")
+	if delimiter_pos <= 0:
 		push_error("CinematicsManager: Invalid auto-cinematic ID format: %s" % cinematic_id)
 		return null
 
-	# Extract npc_id and shop_id from format: __auto__{npc_id}_{shop_id}
-	# Skip "__", "auto", then reconstruct npc_id and shop_id (they may contain underscores)
-	var content: String = cinematic_id.substr(8)  # Skip "__auto__"
-	var last_underscore: int = content.rfind("_")
-	if last_underscore <= 0:
-		push_error("CinematicsManager: Cannot parse auto-cinematic ID: %s" % cinematic_id)
-		return null
-
-	var npc_id: String = content.substr(0, last_underscore)
-	var shop_id: String = content.substr(last_underscore + 1)
+	var npc_id: String = content.substr(0, delimiter_pos)
+	var shop_id: String = content.substr(delimiter_pos + 2)  # Skip "::"
 
 	# Look up the NPC data
 	var npc_data: NPCData = ModLoader.registry.get_resource("npc", npc_id) as NPCData
@@ -570,7 +566,7 @@ func _generate_auto_cinematic(cinematic_id: String) -> CinematicData:
 
 	# Build cinematic commands based on role
 	match npc_data.npc_role:
-		NPCData.NPCRole.SHOPKEEPER, NPCData.NPCRole.PRIEST, NPCData.NPCRole.INNKEEPER:
+		NPCData.NPCRole.SHOPKEEPER, NPCData.NPCRole.PRIEST, NPCData.NPCRole.INNKEEPER, NPCData.NPCRole.CRAFTER:
 			# Standard flow: greeting -> shop -> farewell
 			cinematic.add_dialog_line(speaker_name, greeting)
 			cinematic.add_open_shop(shop_id)
@@ -601,6 +597,7 @@ func _get_role_name(role: NPCData.NPCRole) -> String:
 		NPCData.NPCRole.PRIEST: return "PRIEST"
 		NPCData.NPCRole.INNKEEPER: return "INNKEEPER"
 		NPCData.NPCRole.CARAVAN_DEPOT: return "CARAVAN_DEPOT"
+		NPCData.NPCRole.CRAFTER: return "CRAFTER"
 	return "NONE"
 
 

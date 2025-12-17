@@ -728,6 +728,8 @@ func _execute_caravan_command(command: String, args: Array) -> void:
 			_cmd_caravan_toggle(args)
 		"status":
 			_cmd_caravan_status(args)
+		"add_item":
+			_cmd_caravan_add_item(args)
 		_:
 			_print_error("Unknown caravan command: %s" % command)
 
@@ -769,6 +771,36 @@ func _cmd_caravan_status(_args: Array) -> void:
 	if StorageManager:
 		var depot_count: int = StorageManager.get_depot_item_count()
 		_print_line("  Depot Items: %d" % depot_count)
+
+
+func _cmd_caravan_add_item(args: Array) -> void:
+	if args.is_empty():
+		_print_error("Usage: caravan.add_item <item_id> [count]")
+		return
+
+	var item_id: String = str(args[0])
+	var count: int = args[1] if args.size() > 1 and args[1] is int else 1
+
+	# Verify item exists
+	if not ModLoader.registry.has_resource("item", item_id):
+		_print_error("Item not found: %s" % item_id)
+		return
+
+	if not StorageManager:
+		_print_error("StorageManager not available")
+		return
+
+	var added: int = 0
+	for i: int in range(count):
+		if StorageManager.add_to_depot(item_id):
+			added += 1
+		else:
+			break
+
+	if added > 0:
+		_print_success("Added %d x %s to caravan depot" % [added, item_id])
+	else:
+		_print_error("Could not add item to depot")
 
 
 # =============================================================================
@@ -1033,10 +1065,11 @@ func _print_help() -> void:
 	_print_line("")
 
 	_print_line("%s--- Caravan Commands ---%s" % [COLOR_INFO, COLOR_END])
-	_print_line("  caravan.unlock   - Unlock caravan (enable party storage)")
-	_print_line("  caravan.lock     - Lock caravan (disable party storage)")
-	_print_line("  caravan.toggle   - Toggle caravan unlock state")
-	_print_line("  caravan.status   - Show caravan status and depot info")
+	_print_line("  caravan.unlock               - Unlock caravan (enable party storage)")
+	_print_line("  caravan.lock                 - Lock caravan (disable party storage)")
+	_print_line("  caravan.toggle               - Toggle caravan unlock state")
+	_print_line("  caravan.status               - Show caravan status and depot info")
+	_print_line("  caravan.add_item <id> [count] - Add item(s) to depot")
 	_print_line("")
 
 	_print_line("%s--- Battle Commands ---%s" % [COLOR_INFO, COLOR_END])

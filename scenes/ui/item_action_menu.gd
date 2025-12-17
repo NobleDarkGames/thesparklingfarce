@@ -298,13 +298,13 @@ func _determine_available_actions() -> void:
 
 func _rebuild_action_labels() -> void:
 	# Clear existing labels
-	for label in _action_labels:
+	for label: Label in _action_labels:
 		if is_instance_valid(label):
 			label.queue_free()
 	_action_labels.clear()
 
 	# Create label for each available action
-	for action_type in _available_actions:
+	for action_type: ActionType in _available_actions:
 		var label: Label = Label.new()
 		label.text = "  " + ACTION_NAMES[action_type]
 		label.add_theme_font_override("font", MONOGRAM_FONT)
