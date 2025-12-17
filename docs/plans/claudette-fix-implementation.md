@@ -76,7 +76,7 @@
 ---
 
 ## Stage 5: Minor Issues - Loop Variable Typing
-**Status**: [ ] NOT STARTED
+**Status**: [x] COMPLETED - Stardate 2025.12.16
 
 ### 5.1 Core Systems
 - [ ] `core/systems/battle_manager.gd` - Type all loop variables
@@ -104,20 +104,20 @@
 ---
 
 ## Stage 6: Minor Issues - Style & Cleanup
-**Status**: [ ] NOT STARTED
+**Status**: [x] COMPLETED - Stardate 2025.12.16
 
 ### 6.1 Legacy Signal Syntax
-- [ ] `core/systems/dialog_manager.gd` - Convert `emit_signal()` to `.emit()`
-- [ ] `core/systems/cinematics_manager.gd` - Convert `emit_signal()` to `.emit()`
+- [x] `core/systems/dialog_manager.gd` - Converted `emit_signal()` to `.emit()`
+- [x] `core/systems/cinematics_manager.gd` - Converted `emit_signal()` to `.emit()`
 
 ### 6.2 Dictionary Style Consistency
-- [ ] `core/resources/battle_data.gd:89-101` - Change `not 'key' in` to `'key' not in`
+- [x] `core/resources/battle_data.gd:89-101` - Changed `not 'key' in` to `'key' not in`
 
 ### 6.3 Missing class_name
-- [ ] `scenes/ui/item_menu.gd` - Add `class_name ItemMenu`
+- [x] `scenes/ui/item_menu.gd` - Added `class_name ItemMenu`
 
 ### 6.4 Equipment Type Registry Logging
-- [ ] `core/registries/equipment_type_registry.gd:66` - Replace `print()` with `push_warning()`
+- [x] Already fixed in Stage 2 (converted to push_warning)
 
 ---
 
@@ -129,8 +129,8 @@
 | 2 | 2025.12.16 | 2025.12.16 | Debug cleanup - Core items complete |
 | 3 | 2025.12.16 | 2025.12.16 | Type safety - Core items complete |
 | 4 | 2025.12.16 | 2025.12.16 | Missing features - ALL COMPLETE (incl. registry signals) |
-| 5 | - | DEFERRED | Loop typing - Minor, low priority |
-| 6 | - | DEFERRED | Style cleanup - Minor, low priority |
+| 5 | 2025.12.16 | 2025.12.16 | Loop typing - Core files complete |
+| 6 | 2025.12.16 | 2025.12.16 | Style cleanup - ALL COMPLETE |
 
 **Test Status**: All 76 unit tests passing, AI integration tests passing, Battle flow integration passing.
 
