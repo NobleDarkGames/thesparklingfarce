@@ -25,7 +25,7 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"icon": "RichTextLabel",
 		"params": {
 			"character_id": {"type": "character", "default": "", "hint": "Character UID"},
-			"text": {"type": "text", "default": "", "hint": "Dialog text (use {var} for variables)"},
+			"text": {"type": "text", "default": "", "hint": "Variables: {player_name}, {char:id}, {gold}, {party_count}, {flag:name}, {var:key}"},
 			"emotion": {"type": "enum", "default": "neutral", "options": ["neutral", "happy", "sad", "angry", "worried", "surprised", "determined", "thinking"], "hint": "Character emotion"}
 		}
 	},

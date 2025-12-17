@@ -144,8 +144,8 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 		var speaker_tween: Tween = create_tween()
 		speaker_tween.tween_property(speaker_label, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.3)
 
-	# Start text reveal
-	full_text = line_data.get("text", "")
+	# Start text reveal (with variable interpolation)
+	full_text = TextInterpolator.interpolate(line_data.get("text", ""))
 	_start_text_reveal()
 
 
