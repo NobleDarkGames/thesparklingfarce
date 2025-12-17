@@ -1,29 +1,44 @@
 extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 
 ## TransactionResult - Shows success/failure feedback after transactions
-
-## Colors matching project standards
-const COLOR_SUCCESS: Color = Color(0.4, 1.0, 0.4, 1.0)  # Soft green
-const COLOR_ERROR: Color = Color(1.0, 0.4, 0.4, 1.0)  # Soft red
-const COLOR_WARNING: Color = Color(1.0, 1.0, 0.4, 1.0)  # Soft yellow
 ##
-## Displays the result stored in context.last_result
-## Allows returning to item_browser (continue) or action_select (done)
+## SF2-authentic behavior: Auto-returns to appropriate screen after brief display.
+## No Continue/Done choice - assumes you have more to do (SF2 pattern).
+## Press B to skip directly to action menu if desired.
+
+## Use shared color constants for consistency
+const COLOR_SUCCESS: Color = UIColors.RESULT_SUCCESS
+const COLOR_ERROR: Color = UIColors.RESULT_ERROR
+const COLOR_WARNING: Color = UIColors.RESULT_WARNING
+
+## Auto-return delay in seconds (SF2-style quick feedback)
+const AUTO_RETURN_DELAY: float = 1.5
 
 @onready var result_label: Label = %ResultLabel
 @onready var details_label: Label = %DetailsLabel
 @onready var continue_button: Button = %ContinueButton
 @onready var done_button: Button = %DoneButton
+@onready var button_row: HBoxContainer = %ContinueButton.get_parent()
+
+var _auto_return_timer: SceneTreeTimer = null
+var _return_destination: String = ""
 
 
 func _on_initialized() -> void:
 	_display_result()
 
-	continue_button.pressed.connect(_on_continue_pressed)
-	done_button.pressed.connect(_on_done_pressed)
+	# Hide the buttons - SF2 didn't ask, it just kept you shopping
+	button_row.visible = false
 
-	await get_tree().process_frame
-	continue_button.grab_focus()
+	# Determine return destination based on result type
+	_return_destination = _get_return_destination()
+
+	# Show hint about what's happening
+	details_label.text += "\n\n[B: Menu]"
+
+	# Start auto-return timer
+	_auto_return_timer = get_tree().create_timer(AUTO_RETURN_DELAY)
+	_auto_return_timer.timeout.connect(_on_auto_return)
 
 
 func _display_result() -> void:
@@ -101,28 +116,46 @@ func _show_sell_complete(result: Dictionary) -> void:
 	details_label.text = "Sold %d items.\nEarned %dG" % [items_sold, earned]
 
 
-func _on_continue_pressed() -> void:
-	# Clear history and go back to appropriate screen based on mode
-	context.clear_history()
+## Determine where to return based on result type (SF2-style defaults)
+func _get_return_destination() -> String:
+	var result: Dictionary = context.last_result
+	var result_type: String = result.get("type", "unknown")
+
+	# Church modes: return to character selection (heal more characters)
 	if _is_church_mode():
-		push_screen("church_char_select")
-	else:
-		push_screen("item_browser")
+		return "church_char_select"
+
+	# Crafter mode: return to recipe browser
+	if _is_crafter_mode():
+		return "crafter_recipe_browser"
+
+	# Sells: return to action menu (natural "done selling" point)
+	if result_type == "sell_complete":
+		return "action_select"
+
+	# Purchases/placements: return to item browser (keep shopping - SF2 style)
+	return "item_browser"
 
 
-func _on_done_pressed() -> void:
-	# Clear history and go to action select
-	context.clear_history()
-	if _is_church_mode():
-		push_screen("church_action_select")
-	else:
-		push_screen("action_select")
+## Auto-return after timer expires
+func _on_auto_return() -> void:
+	if not is_inside_tree():
+		return
+	# Use replace_with so transaction_result isn't in history
+	# This prevents the loop when user presses back on item_browser
+	replace_with(_return_destination)
 
 
 func _is_church_mode() -> bool:
 	if not context:
 		return false
 	return context.mode in [ShopContextScript.Mode.HEAL, ShopContextScript.Mode.REVIVE, ShopContextScript.Mode.UNCURSE]
+
+
+func _is_crafter_mode() -> bool:
+	if not context:
+		return false
+	return context.mode == ShopContextScript.Mode.CRAFT
 
 
 func _get_character_name(uid: String) -> String:
@@ -134,6 +167,14 @@ func _get_character_name(uid: String) -> String:
 	return uid
 
 
-## Override back behavior - same as done
+## B button skips directly to action menu (escape hatch)
 func _on_back_requested() -> void:
-	_on_done_pressed()
+	# Cancel the auto-return timer if still pending
+	_auto_return_timer = null
+	# Use replace_with to avoid history loop
+	if _is_church_mode():
+		replace_with("church_action_select")
+	elif _is_crafter_mode():
+		replace_with("crafter_action_select")
+	else:
+		replace_with("action_select")
