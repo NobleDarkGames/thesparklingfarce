@@ -298,7 +298,7 @@ func play_cinematic_from_resource(cinematic: CinematicData) -> bool:
 	if cinematic.disable_player_input:
 		_disable_player_input()
 
-	emit_signal("cinematic_started", cinematic.cinematic_id)
+	cinematic_started.emit(cinematic.cinematic_id)
 
 	# Enable per-frame processing while cinematic is active
 	set_process(true)
@@ -334,7 +334,7 @@ func _execute_next_command() -> void:
 
 	# Execute command based on type
 	var command_type: String = command.get("type", "")
-	emit_signal("command_executed", command_type, current_command_index)
+	command_executed.emit(command_type, current_command_index)
 
 	# Check custom executor registry first (allows mods to add/override commands)
 	if command_type in _command_executors:
@@ -406,7 +406,7 @@ func _end_cinematic() -> void:
 	_is_waiting = false
 	_current_executor = null  # Clear executor reference
 
-	emit_signal("cinematic_ended", finished_cinematic.cinematic_id if finished_cinematic else "")
+	cinematic_ended.emit(finished_cinematic.cinematic_id if finished_cinematic else "")
 
 	current_state = State.IDLE
 
@@ -433,7 +433,7 @@ func skip_cinematic() -> void:
 		_current_executor.interrupt()
 		_current_executor = null
 
-	emit_signal("cinematic_skipped")
+	cinematic_skipped.emit()
 	_end_cinematic()
 
 
@@ -443,7 +443,7 @@ func resume_cinematic() -> void:
 		return
 
 	current_state = State.PLAYING
-	emit_signal("cinematic_resumed")
+	cinematic_resumed.emit()
 
 
 ## Check if a cinematic is currently active

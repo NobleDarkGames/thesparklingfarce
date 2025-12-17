@@ -111,7 +111,7 @@ func start_dialog_from_resource(dialogue: DialogueData) -> bool:
 	current_line_index = 0
 	current_state = State.DIALOG_STARTING
 
-	emit_signal("dialog_started", dialogue)
+	dialog_started.emit(dialogue)
 
 	# Move to first line
 	_show_line(0)
@@ -151,7 +151,7 @@ func _show_line(line_index: int) -> void:
 	current_state = State.SHOWING_LINE
 	current_line_index = line_index
 
-	emit_signal("line_changed", line_index, line_data)
+	line_changed.emit(line_index, line_data)
 
 	# After text reveal completes, move to waiting for input
 	# (This will be handled by DialogBox emitting text_reveal_finished)
@@ -173,7 +173,7 @@ func _show_choices() -> void:
 		choices.append(current_dialogue.get_choice(i))
 
 	current_state = State.WAITING_FOR_CHOICE
-	emit_signal("choices_ready", choices)
+	choices_ready.emit(choices)
 
 
 ## Player selected a choice
@@ -188,7 +188,7 @@ func select_choice(choice_index: int) -> void:
 		return
 
 	var next_dialogue: DialogueData = choice.get("next_dialogue", null)
-	emit_signal("choice_selected", choice_index, next_dialogue)
+	choice_selected.emit(choice_index, next_dialogue)
 
 	# End current dialog
 	_end_dialog()
@@ -215,7 +215,7 @@ func _end_dialog() -> void:
 	current_dialogue = null
 	current_line_index = 0
 
-	emit_signal("dialog_ended", finished_dialogue)
+	dialog_ended.emit(finished_dialogue)
 
 	current_state = State.IDLE
 
@@ -251,7 +251,7 @@ func cancel_dialog() -> void:
 	if current_state == State.IDLE:
 		return
 
-	emit_signal("dialog_cancelled")
+	dialog_cancelled.emit()
 	_end_dialog()
 
 

@@ -3,6 +3,7 @@
 ## Displays character's inventory items for battle use.
 ## Features keyboard/mouse navigation, item descriptions, and smart defaults.
 ## Follows ActionMenu patterns for session IDs and signal handling.
+class_name ItemMenu
 extends Control
 
 ## Signals - session_id prevents stale signals from previous turns

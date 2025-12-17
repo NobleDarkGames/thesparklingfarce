@@ -87,15 +87,15 @@ enum DefeatCondition {
 
 ## Validate enemy dictionary structure
 func validate_enemies() -> bool:
-	for i in range(enemies.size()):
+	for i: int in range(enemies.size()):
 		var enemy: Dictionary = enemies[i]
-		if not 'character' in enemy or enemy.character == null:
+		if "character" not in enemy or enemy.character == null:
 			push_error("BattleData: Enemy %d missing character" % i)
 			return false
-		if not 'position' in enemy:
+		if "position" not in enemy:
 			push_error("BattleData: Enemy %d missing position" % i)
 			return false
-		if not 'ai_behavior' in enemy or enemy.ai_behavior == null:
+		if "ai_behavior" not in enemy or enemy.ai_behavior == null:
 			push_error("BattleData: Enemy %d missing ai_behavior" % i)
 			return false
 	return true
