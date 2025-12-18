@@ -1,6 +1,6 @@
 # The Sparkling Farce Platform Specification
 
-**For AI Agents** | Godot 4.5.1 | v4.3.0
+**For AI Agents** | Godot 4.5.1 | v4.4.0
 
 ---
 
@@ -48,7 +48,7 @@ scenes/                  # Engine scenes
     caravan/             # SF2-authentic depot interface
     components/          # Reusable UI components
 tests/                   # gdUnit4 tests (at project root)
-addons/                  # gdUnit4, sparkling_editor
+addons/                  # gdUnit4, sparkling_editor (20 visual editors)
 templates/               # Code templates
 ```
 
@@ -94,7 +94,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 | PromotionManager | Class promotion |
 | ShopManager | Buy/sell logic with atomic rollback, church services |
 | ShopController | Shop UI state machine |
-| CraftingManager | Crafting transactions, material counting across inventories |
+| CraftingManager | Crafter NPC transactions, recipe validation, material counting across inventories |
 
 ### Battle
 | Singleton | Purpose |
@@ -108,8 +108,8 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 ### Content & Narrative
 | Singleton | Purpose |
 |-----------|---------|
-| DialogManager | Dialog state machine, save/load via `export_state()`/`import_state()` |
-| CinematicsManager | Cutscene execution |
+| DialogManager | Dialog state machine, external choice routing, save/load via `export_state()`/`import_state()` |
+| CinematicsManager | Cutscene execution, choice signals |
 | CampaignManager | Campaign progression |
 | CaravanController | Caravan HQ lifecycle |
 | AudioManager | Music, SFX |

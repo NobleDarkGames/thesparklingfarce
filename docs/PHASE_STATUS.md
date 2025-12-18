@@ -1,7 +1,7 @@
 # The Sparkling Farce - Development Status
 
-**Last Updated:** December 16, 2025
-**Current Phase:** Phase 5 Complete — Battle System Feature-Complete
+**Last Updated:** December 18, 2025
+**Current Phase:** Phase 5.2 Complete — Editor & Tooling Feature-Complete
 
 ---
 
@@ -22,6 +22,9 @@
 | Status effects (poison, sleep, confusion, etc.) | | |
 | Cinematic party management (recruit/remove/rejoin) | | |
 | NPC conditional dialogs (AND/OR flag logic) | | |
+| Crafting system (crafter NPCs, recipes) | | |
+| Sparkling Editor (20/20 editors, 100% coverage) | | |
+| External choice support (dialog/campaign integration) | | |
 
 ---
 
@@ -47,6 +50,51 @@ SF2-authentic mobile HQ with party management, depot storage, screen-stack navig
 
 ### Phase 4.5 - Campaign Progression (December 2025)
 Node-graph campaign structure, chapter boundaries, animated title cards, save prompts.
+
+---
+
+## Recently Completed: Phase 5.2 - Editor & Tooling (December 18, 2025)
+
+**Status:** Complete
+
+**Delivered:**
+- **Sparkling Editor 100% Resource Coverage** (20 visual editors):
+  - New: Status Effect Editor (triggers, stat modifiers, DoT, action modifiers)
+  - New: Experience Config Editor (combat XP, leveling, promotion bonuses, adjutant system)
+  - New: Caravan Editor (appearance, following behavior, terrain, services, audio)
+  - Crafting Tab consolidates Crafter + Recipe editors
+  - Removed: Armor system (SF2 had weapon + rings only), Party Template editor (redundant)
+- **Create New Mod Wizard**: Now scaffolds all 20 resource directories
+- **Integration Test Infrastructure**:
+  - EditorScript for manual stress testing (tools/editor_scripts/)
+  - GUT integration tests for CI (tests/integration/editor/)
+  - Comprehensive stress test report
+- **SF2 Authenticity Refactor**: Removed armor, streamlined editors (-1,300 lines)
+
+**Editor Tab Organization (Two-Tier):**
+| Category | Editors |
+|----------|---------|
+| Content | Characters, Classes, Abilities, Items, Status Effects |
+| Battles | Maps, Terrain, Battles, AI Behaviors |
+| Story | NPCs, Cinematics, Campaigns, Shops, Crafting |
+| System | Overview, Mod Settings, New Game Configs, Save Slots, Caravans, Experience |
+
+---
+
+## Recently Completed: Phase 5.1.5 - External Choice & Crafter Systems
+
+**Status:** Complete (December 17, 2025)
+
+**Delivered:**
+- **External Choice Support**: DialogManager integration with CampaignManager for branching storylines
+- **Crafter NPC System**:
+  - New CRAFTER NPC role with auto-cinematic support
+  - Recipe browser, action select, and confirm screens
+  - CraftingManager autoload for crafting transactions
+  - Debug command: `caravan.add_item` for testing
+- **Battle Defeat Flow**: Now correctly transitions to campaign hub
+- **SF2-Authentic Shop Flow**: Auto-return after transactions
+- **Members UI Improvements**: Updated layout and navigation
 
 ---
 
@@ -153,19 +201,21 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 | Status Effects | Complete | 11 effects, data-driven, combat overlay |
 | Cinematic System | Complete | 19 command types, party management, text interpolation |
 | NPC System | Complete | Conditional dialogs with AND/OR logic, Quick Setup roles |
+| Crafting System | Complete | Crafter NPCs, recipe browser, material transformation |
+| Sparkling Editor | Complete | 20/20 editors, 100% resource coverage, two-tier navigation |
 
 ---
 
 ## Technical Overview
 
 **Codebase:**
-- ~690 GDScript files
-- ~147,000 lines of code (excluding GUT framework)
-- 1,180 automated tests
+- ~703 GDScript files
+- ~154,500 lines of code (excluding GUT framework)
+- ~1,155 automated tests
 - Godot 4.5.1 stable
 
-**Autoload Singletons (30):**
-ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager, PartyManager, ExperienceManager, PromotionManager, EquipmentManager, ShopManager, AudioManager, DialogManager, CinematicsManager, GridManager, TurnManager, InputManager, BattleManager, ExplorationUIManager, AIController, CampaignManager, GameJuice, CaravanController, DebugConsole, ShopController, RandomManager, SettingsManager, GameEventBus, LocalizationManager, EditorEventBus
+**Autoload Singletons (31):**
+ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager, PartyManager, ExperienceManager, PromotionManager, EquipmentManager, ShopManager, CraftingManager, AudioManager, DialogManager, CinematicsManager, GridManager, TurnManager, InputManager, BattleManager, ExplorationUIManager, AIController, CampaignManager, GameJuice, CaravanController, EditorEventBus, DebugConsole, ShopController, RandomManager, SettingsManager, GameEventBus, LocalizationManager
 
 **Design Principles:**
 - "The base game is a mod" - complete engine/content separation
@@ -181,7 +231,34 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 ---
 
-## Recent Session (December 16, 2025)
+## Recent Session (December 18, 2025)
+
+**Sparkling Editor 100% Coverage:**
+- Three new visual editors (Status Effect, Experience Config, Caravan)
+- Create New Mod Wizard now scaffolds all 20 resource directories
+- Integration test infrastructure (EditorScript + GUT tests)
+- Stress test report documenting findings
+
+**SF2 Authenticity Refactor:**
+- Removed armor system (SF2 had weapon + rings only)
+- Deleted party_template_editor (redundant with party_editor)
+- Merged Crafter + Recipe editors into unified Crafting tab
+- Net reduction of ~1,300 lines
+
+---
+
+## Session (December 17, 2025)
+
+**External Choice & Crafter Systems:**
+- External choice support in DialogManager for CampaignManager integration
+- Crafter NPC system with recipe browser UI
+- Battle defeat flow now correctly transitions to campaign hub
+- SF2-authentic shop flow with auto-return after transactions
+- Members UI improvements (layout, navigation)
+
+---
+
+## Session (December 16, 2025)
 
 **Status Effects System:**
 - Data-driven StatusEffectData with behavior types (skip turn, DoT, stat mods, random targeting)
@@ -208,7 +285,7 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 ---
 
-## Previous Session (December 15, 2025)
+## Session (December 15, 2025)
 
 **Major Changes:**
 1. **Startup Coordinator** - New `scenes/startup.tscn` entry point handles opening cinematics and navigation
