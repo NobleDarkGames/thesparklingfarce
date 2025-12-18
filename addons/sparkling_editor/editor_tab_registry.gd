@@ -61,6 +61,7 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	{"id": "classes", "display_name": "Classes", "scene": "class_editor.tscn", "category": "content", "priority": 20},
 	{"id": "abilities", "display_name": "Abilities", "scene": "ability_editor.tscn", "category": "content", "priority": 30},
 	{"id": "items", "display_name": "Items", "scene": "item_editor.tscn", "category": "content", "priority": 40},
+	{"id": "status_effects", "display_name": "Status Effects", "scene": "status_effect_editor.tscn", "category": "content", "priority": 50},
 
 	# Battle editors (tactical scenario design)
 	{"id": "maps", "display_name": "Maps", "scene": "map_metadata_editor.tscn", "category": "battle", "priority": 10},
@@ -79,7 +80,9 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	{"id": "overview", "display_name": "Overview", "category": "system", "priority": 0, "is_static": true},
 	{"id": "mod_settings", "display_name": "Mod Settings", "scene": "mod_json_editor.tscn", "category": "system", "priority": 10},
 	{"id": "new_game_configs", "display_name": "New Game Configs", "scene": "new_game_config_editor.tscn", "category": "system", "priority": 20},
-	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "system", "priority": 30}
+	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "system", "priority": 30},
+	{"id": "caravans", "display_name": "Caravans", "scene": "caravan_editor.tscn", "category": "system", "priority": 40},
+	{"id": "experience_configs", "display_name": "Experience", "scene": "experience_config_editor.tscn", "category": "system", "priority": 50}
 ]
 
 ## Base path for built-in editor scenes

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/sparkling_editor/ui/experience_config_editor.gd" id="1_experience_config_editor"]
+
+[node name="ExperienceConfig" type="Control"]
+script = ExtResource("1_experience_config_editor")

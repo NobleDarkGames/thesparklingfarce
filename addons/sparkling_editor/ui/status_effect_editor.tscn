@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/sparkling_editor/ui/status_effect_editor.gd" id="1_status_effect_editor"]
+
+[node name="StatusEffects" type="Control"]
+script = ExtResource("1_status_effect_editor")
