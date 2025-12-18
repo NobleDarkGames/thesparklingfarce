@@ -209,9 +209,9 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 ## Technical Overview
 
 **Codebase:**
-- ~703 GDScript files
+- 703 GDScript files
 - ~154,500 lines of code (excluding GUT framework)
-- ~1,155 automated tests
+- 1,155 automated tests
 - Godot 4.5.1 stable
 
 **Autoload Singletons (31):**

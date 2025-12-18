@@ -20,7 +20,8 @@ func _create_weapon(
 	item.equipment_type = equipment_type
 	item.equipment_slot = equipment_slot
 	item.attack_power = 10
-	item.attack_range = 1
+	item.min_attack_range = 1
+	item.max_attack_range = 1
 	item.hit_rate = 90
 	item.critical_rate = 5
 	return item

@@ -28,9 +28,9 @@ func test_categories_array_exists() -> void:
 	assert_bool(categories.size() > 0).is_true()
 
 
-func test_categories_includes_overview() -> void:
+func test_categories_includes_system() -> void:
 	var categories: Array[String] = _registry.CATEGORIES
-	assert_bool(categories.has("overview")).is_true()
+	assert_bool(categories.has("system")).is_true()
 
 
 func test_categories_includes_content() -> void:
@@ -53,9 +53,9 @@ func test_categories_includes_mod() -> void:
 	assert_bool(categories.has("mod")).is_true()
 
 
-func test_overview_is_first_category() -> void:
+func test_content_is_first_category() -> void:
 	var categories: Array[String] = _registry.CATEGORIES
-	assert_str(categories[0]).is_equal("overview")
+	assert_str(categories[0]).is_equal("content")
 
 
 func test_mod_is_last_category() -> void:
@@ -277,13 +277,13 @@ func test_get_all_tabs_sorted_returns_array() -> void:
 func test_tabs_sorted_by_category_order() -> void:
 	# Register tabs in reverse category order
 	_registry.register_tab("mod_tab", "Mod Tab", "res://mod.tscn", "mod", 10)
+	_registry.register_tab("story_tab", "Story Tab", "res://story.tscn", "story", 10)
 	_registry.register_tab("content_tab", "Content Tab", "res://content.tscn", "content", 10)
-	_registry.register_tab("overview_tab", "Overview Tab", "res://overview.tscn", "overview", 10)
 
 	var tabs: Array[Dictionary] = _registry.get_all_tabs_sorted()
 
-	# Overview should come first
-	assert_str(tabs[0].get("id", "")).is_equal("overview_tab")
+	# Content should come first
+	assert_str(tabs[0].get("id", "")).is_equal("content_tab")
 	# Content should come before mod
 	var content_idx: int = -1
 	var mod_idx: int = -1

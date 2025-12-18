@@ -13,6 +13,22 @@ extends GdUnitTestSuite
 
 var _shop_data: ShopData
 var _save_data: SaveData
+var _test_character_uid: String = "test_character"
+
+
+## Helper to create and register a test character with PartyManager
+func _setup_test_character(needs_healing: bool = true) -> void:
+	var char_save: CharacterSaveData = CharacterSaveData.new()
+	char_save.max_hp = 100
+	char_save.max_mp = 50
+	if needs_healing:
+		char_save.current_hp = 50  # Needs healing
+		char_save.current_mp = 25
+	else:
+		char_save.current_hp = 100  # Full health
+		char_save.current_mp = 50
+	char_save.level = 1
+	PartyManager.update_member_save_data(_test_character_uid, char_save)
 
 
 func before_test() -> void:
@@ -372,36 +388,39 @@ func test_church_heal_wrong_shop_type() -> void:
 
 
 func test_church_heal_not_enough_gold() -> void:
+	_setup_test_character(true)  # Character needs healing
 	_shop_data.shop_type = ShopData.ShopType.CHURCH
 	_shop_data.heal_cost = 100
 	ShopManager.open_shop(_shop_data, _save_data)
 	_save_data.gold = 50
 
-	var result: Dictionary = ShopManager.church_heal("test_character")
+	var result: Dictionary = ShopManager.church_heal(_test_character_uid)
 
 	assert_bool(result.success).is_false()
 	assert_str(result.error).contains("gold")
 
 
 func test_church_heal_free() -> void:
+	_setup_test_character(true)  # Character needs healing
 	_shop_data.shop_type = ShopData.ShopType.CHURCH
 	_shop_data.heal_cost = 0
 	ShopManager.open_shop(_shop_data, _save_data)
 	var initial_gold: int = _save_data.gold
 
-	var result: Dictionary = ShopManager.church_heal("test_character")
+	var result: Dictionary = ShopManager.church_heal(_test_character_uid)
 
 	assert_bool(result.success).is_true()
 	assert_int(_save_data.gold).is_equal(initial_gold)  # No gold deducted
 
 
 func test_church_heal_costs_gold() -> void:
+	_setup_test_character(true)  # Character needs healing
 	_shop_data.shop_type = ShopData.ShopType.CHURCH
 	_shop_data.heal_cost = 50
 	ShopManager.open_shop(_shop_data, _save_data)
 	_save_data.gold = 100
 
-	var result: Dictionary = ShopManager.church_heal("test_character")
+	var result: Dictionary = ShopManager.church_heal(_test_character_uid)
 
 	assert_bool(result.success).is_true()
 	assert_int(_save_data.gold).is_equal(50)

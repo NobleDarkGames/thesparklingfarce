@@ -358,7 +358,7 @@ func test_create_npc_via_editor_pattern() -> void:
 	new_npc.facing_override = ""
 	new_npc.interaction_cinematic_id = ""
 	new_npc.fallback_cinematic_id = ""
-	new_npc.conditional_cinematics = []
+	# Note: conditional_cinematics defaults to empty Array[Dictionary] - don't reassign
 
 	var path: String = TEST_MOD_PATH + "data/npcs/gut_shopkeeper.tres"
 	var err: Error = ResourceSaver.save(new_npc, path)
@@ -487,7 +487,7 @@ func test_create_crafter_via_editor_pattern() -> void:
 	new_crafter.crafter_name = "GUT Blacksmith"
 	new_crafter.crafter_type = "blacksmith"
 	new_crafter.skill_level = 1
-	new_crafter.specializations = []
+	# Note: specializations defaults to empty Array[String] - don't reassign
 	new_crafter.service_fee_modifier = 1.0
 	new_crafter.description = ""
 
@@ -511,8 +511,8 @@ func test_create_crafting_recipe_via_editor_pattern() -> void:
 	new_recipe.recipe_name = "GUT Upgrade"
 	new_recipe.output_mode = 0  # SINGLE enum
 	new_recipe.output_item_id = ""
-	new_recipe.output_choices = []
-	new_recipe.inputs = []
+	# Note: output_choices defaults to empty Array[String] - don't reassign
+	# Note: inputs defaults to empty Array[Dictionary] - don't reassign
 	new_recipe.gold_cost = 100
 	new_recipe.required_crafter_type = "blacksmith"
 	new_recipe.required_crafter_skill = 1

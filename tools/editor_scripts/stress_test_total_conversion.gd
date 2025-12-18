@@ -683,7 +683,7 @@ func _create_npcs() -> void:
 	shopkeeper.character_id = ""  # No linked character
 	shopkeeper.primary_interaction_cinematic = ""
 	shopkeeper.fallback_cinematic = ""
-	shopkeeper.conditional_cinematics = []
+	# Note: conditional_cinematics defaults to empty Array[Dictionary] - don't reassign
 	shopkeeper.face_player = true
 
 	var path: String = "res://mods/" + MOD_ID + "/data/npcs/test_shopkeeper.tres"

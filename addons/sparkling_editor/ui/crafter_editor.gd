@@ -210,12 +210,11 @@ func _create_new_resource() -> Resource:
 	new_crafter.crafter_name = "New Crafter"
 	new_crafter.crafter_type = "blacksmith"
 	new_crafter.skill_level = 1
-	new_crafter.specializations = []
+	# Note: specializations defaults to empty Array[String] - don't reassign
 	new_crafter.location_map_id = ""
 	new_crafter.location_grid_position = Vector2i.ZERO
 	new_crafter.character_id = ""
-	new_crafter.required_flags = []
-	new_crafter.forbidden_flags = []
+	# Note: required_flags, forbidden_flags default to empty Array[String] - don't reassign
 	new_crafter.service_fee_modifier = 1.0
 	new_crafter.description = ""
 	return new_crafter

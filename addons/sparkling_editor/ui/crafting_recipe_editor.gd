@@ -283,14 +283,14 @@ func _create_new_resource() -> Resource:
 	new_recipe.recipe_name = "New Recipe"
 	new_recipe.output_mode = CraftingRecipeData.OutputMode.SINGLE
 	new_recipe.output_item_id = ""
-	new_recipe.output_choices = []
+	# Note: output_choices defaults to empty Array[String] - don't reassign
 	new_recipe.upgrade_base_item_id = ""
 	new_recipe.upgrade_result_item_id = ""
-	new_recipe.inputs = []
+	# Note: inputs defaults to empty Array[Dictionary] - don't reassign
 	new_recipe.gold_cost = 100
 	new_recipe.required_crafter_type = "blacksmith"
 	new_recipe.required_crafter_skill = 1
-	new_recipe.required_flags = []
+	# Note: required_flags defaults to empty Array[String] - don't reassign
 	new_recipe.description = ""
 	new_recipe.unlock_hint = ""
 	return new_recipe

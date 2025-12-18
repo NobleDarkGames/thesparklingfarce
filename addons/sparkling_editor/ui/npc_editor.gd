@@ -363,7 +363,7 @@ func _create_new_resource() -> Resource:
 	new_npc.facing_override = ""
 	new_npc.interaction_cinematic_id = ""
 	new_npc.fallback_cinematic_id = ""
-	new_npc.conditional_cinematics = []
+	# Note: conditional_cinematics defaults to empty Array[Dictionary] - don't reassign
 	# Quick Setup defaults
 	new_npc.npc_role = NPCData.NPCRole.NONE
 	new_npc.shop_id = ""
