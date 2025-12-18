@@ -12,6 +12,7 @@ extends Node
 # Preload resource scripts for type access
 const CampaignDataScript: GDScript = preload("res://core/resources/campaign_data.gd")
 const CampaignNodeScript: GDScript = preload("res://core/resources/campaign_node.gd")
+const DialogueData: GDScript = preload("res://core/resources/dialogue_data.gd")
 
 # ---- Signals ----
 
@@ -86,6 +87,16 @@ var _custom_handlers: Dictionary = {}
 ## Chapter transition UI (spawned automatically)
 var _chapter_ui: Node = null
 
+# ---- Scene Node Completion Trigger State ----
+## Tracks which completion trigger type is currently active for scene nodes
+var _active_completion_trigger: String = ""
+
+## For npc_interaction: the NPC ID we're waiting for
+var _completion_npc_id: String = ""
+
+## For flag_set: the flag name we're waiting for
+var _completion_flag: String = ""
+
 
 func _ready() -> void:
 	_spawn_chapter_ui()
@@ -102,6 +113,13 @@ func _ready() -> void:
 	if BattleManager:
 		BattleManager.battle_ended.connect(_on_battle_ended)
 
+	# Connect signals for scene node completion triggers
+	_connect_completion_trigger_signals()
+
+	# Connect to DialogManager for choice handling
+	if DialogManager:
+		DialogManager.choice_selected.connect(_on_dialog_choice_selected)
+
 
 ## Spawn the chapter transition UI
 func _spawn_chapter_ui() -> void:
@@ -110,6 +128,139 @@ func _spawn_chapter_ui() -> void:
 		_chapter_ui = ChapterTransitionUIScript.new()
 		_chapter_ui.name = "ChapterTransitionUI"
 		add_child(_chapter_ui)
+
+
+## Connect signals needed for scene node completion triggers
+func _connect_completion_trigger_signals() -> void:
+	# exit_trigger: Listen for doors that explicitly complete campaign nodes
+	if TriggerManager:
+		TriggerManager.campaign_node_completion_requested.connect(_on_campaign_node_completion_requested)
+
+	# flag_set: Listen for story flag changes
+	GameState.flag_changed.connect(_on_flag_changed_for_completion)
+
+	# npc_interaction: Listen for NPC cinematic completion
+	# NOTE: This uses CinematicsManager context for NPC identification.
+	# If more systems need to hook NPC interactions (achievements, quests, etc.),
+	# consider abstracting to a GameEventBus pattern instead.
+	if CinematicsManager:
+		CinematicsManager.cinematic_ended.connect(_on_cinematic_ended_for_completion)
+
+	# npc_interaction (legacy): Listen for dialog completion
+	# Keep for backwards compatibility with DialogueData that has npc_id
+	if DialogManager:
+		DialogManager.dialog_ended.connect(_on_dialog_ended_for_completion)
+
+
+## Handler for exit_trigger completion - a door with completes_campaign_node was used
+func _on_campaign_node_completion_requested() -> void:
+	if _active_completion_trigger != "exit_trigger":
+		return
+	if not current_node or current_node.node_type != "scene":
+		return
+
+	# A door explicitly marked as completing the campaign node was used
+	_clear_completion_trigger()
+	complete_current_node({"trigger": "exit_trigger"})
+
+
+## Handler for flag_set completion - a story flag changed
+func _on_flag_changed_for_completion(flag_name: String, value: bool) -> void:
+	if _active_completion_trigger != "flag_set":
+		return
+	if not current_node or current_node.node_type != "scene":
+		return
+
+	# Check if this is the flag we're waiting for and it's being set to true
+	if flag_name == _completion_flag and value:
+		_clear_completion_trigger()
+		complete_current_node({"trigger": "flag_set", "flag": flag_name})
+
+
+## Handler for npc_interaction completion - dialog with specific NPC ended
+## (Legacy path - DialogueData may have npc_id/speaker_id)
+func _on_dialog_ended_for_completion(dialogue_data: DialogueData) -> void:
+	if _active_completion_trigger != "npc_interaction":
+		return
+	if not current_node or current_node.node_type != "scene":
+		return
+
+	# Check if this dialog was with the NPC we're waiting for
+	# DialogueData should have speaker/npc info we can check
+	var npc_id: String = ""
+	if dialogue_data and "npc_id" in dialogue_data:
+		npc_id = dialogue_data.npc_id
+	elif dialogue_data and "speaker_id" in dialogue_data:
+		npc_id = dialogue_data.speaker_id
+
+	if npc_id == _completion_npc_id:
+		_clear_completion_trigger()
+		complete_current_node({"trigger": "npc_interaction", "npc_id": npc_id})
+
+
+## Handler for npc_interaction completion - cinematic from NPC ended
+## Uses CinematicsManager interaction context for NPC identification
+func _on_cinematic_ended_for_completion(_cinematic_id: String) -> void:
+	if _active_completion_trigger != "npc_interaction":
+		return
+	if not current_node or current_node.node_type != "scene":
+		return
+
+	# Check if this cinematic was triggered by the NPC we're waiting for
+	var context: Dictionary = CinematicsManager.get_interaction_context()
+	var npc_id: String = context.get("npc_id", "")
+
+	if npc_id == _completion_npc_id:
+		_clear_completion_trigger()
+		complete_current_node({"trigger": "npc_interaction", "npc_id": npc_id})
+
+
+## Handler for DialogManager choice selection - routes to on_choice_made()
+func _on_dialog_choice_selected(choice_index: int, _next_dialogue: DialogueData) -> void:
+	# Only handle if we're in a choice node
+	if not current_node or current_node.node_type != "choice":
+		return
+
+	# Get the choice value from DialogManager's stored external choices
+	var choice_value: String = DialogManager.get_external_choice_value(choice_index)
+	DialogManager.clear_external_choices()
+
+	if not choice_value.is_empty():
+		on_choice_made(choice_value)
+
+
+## Set up completion trigger monitoring for a scene node
+func _setup_completion_trigger(node: Resource) -> void:
+	_clear_completion_trigger()
+
+	var trigger: String = node.completion_trigger if "completion_trigger" in node else "manual"
+
+	match trigger:
+		"exit_trigger":
+			_active_completion_trigger = "exit_trigger"
+		"flag_set":
+			_active_completion_trigger = "flag_set"
+			_completion_flag = node.completion_flag if "completion_flag" in node else ""
+			if _completion_flag.is_empty():
+				push_warning("CampaignManager: Scene node '%s' has flag_set trigger but no completion_flag" % node.node_id)
+		"npc_interaction":
+			_active_completion_trigger = "npc_interaction"
+			_completion_npc_id = node.completion_npc_id if "completion_npc_id" in node else ""
+			if _completion_npc_id.is_empty():
+				push_warning("CampaignManager: Scene node '%s' has npc_interaction trigger but no completion_npc_id" % node.node_id)
+		"manual":
+			# No automatic completion - code must call complete_current_node() explicitly
+			_active_completion_trigger = "manual"
+		_:
+			push_warning("CampaignManager: Unknown completion_trigger '%s' for node '%s'" % [trigger, node.node_id])
+			_active_completion_trigger = "manual"
+
+
+## Clear completion trigger state
+func _clear_completion_trigger() -> void:
+	_active_completion_trigger = ""
+	_completion_flag = ""
+	_completion_npc_id = ""
 
 
 ## Register built-in node type processors
@@ -303,7 +454,8 @@ func enter_node(node_id: String) -> bool:
 		chapter_boundary_reached.emit(chapter)
 
 	# Process node based on type
-	_process_node(node)
+	# Await is needed for cutscene nodes which auto-complete after cinematic finishes
+	await _process_node(node)
 
 	return true
 
@@ -348,6 +500,7 @@ func _handle_missing_node_error(node_id: String) -> void:
 
 
 ## Process a node based on its type using registry
+## Note: Cutscene nodes use await internally - this function handles that transparently
 func _process_node(node: Resource) -> void:
 	var node_type: String = node.node_type
 
@@ -362,8 +515,14 @@ func _process_node(node: Resource) -> void:
 		return
 
 	# Handle built-in types via registry
+	# Note: Cutscene type needs special handling because it uses await internally
+	# and .call() doesn't propagate coroutine awaiting
 	if node_type in _node_processors:
-		_node_processors[node_type].call(node)
+		if node_type == "cutscene":
+			# Direct call to preserve await semantics
+			await _process_cutscene_node(node)
+		else:
+			_node_processors[node_type].call(node)
 	else:
 		push_error("CampaignManager: No processor registered for node type '%s'" % node_type)
 
@@ -403,7 +562,17 @@ func _process_scene_node(node: Resource) -> void:
 		_handle_missing_node_error(node.node_id)
 		return
 
-	SceneManager.change_scene(target_scene_path)
+	# CRITICAL: Clear any stale transition context from battles
+	# Otherwise map_template may try to restore hero to the old battle map position
+	# which doesn't exist on the new scene, causing spawn issues
+	GameState.clear_transition_context()
+
+	# Set up completion trigger monitoring based on node configuration
+	_setup_completion_trigger(node)
+
+	# CRITICAL: Await scene change to prevent race conditions with other systems
+	# (e.g., BattleManager also trying to change scenes after battle_ended signal)
+	await SceneManager.change_scene(target_scene_path)
 
 
 ## Process a cutscene node
@@ -436,9 +605,14 @@ func _process_choice_node(node: Resource) -> void:
 		complete_current_node({})
 		return
 
-	# Emit signal for UI to display choice dialog
-	# UI should call on_choice_made(choice_value) when player selects
+	# Emit signal for potential listeners (future use)
 	choice_requested.emit(choices)
+
+	# Route through DialogManager's choice system for UI display
+	if DialogManager:
+		DialogManager.show_choices(choices)
+	else:
+		push_error("CampaignManager: DialogManager not available for choice display")
 
 
 # ==== Completion Handlers ====
@@ -448,6 +622,9 @@ func complete_current_node(outcome: Dictionary) -> void:
 	if not current_node:
 		push_error("CampaignManager: No current node to complete")
 		return
+
+	# Clear any active completion trigger monitoring
+	_clear_completion_trigger()
 
 	# Set on_complete flags
 	for flag_name: String in current_node.on_complete_flags:
@@ -459,8 +636,8 @@ func complete_current_node(outcome: Dictionary) -> void:
 
 	node_completed.emit(current_node, outcome)
 
-	# Find and execute transition
-	_execute_transition(outcome)
+	# Find and execute transition (must await to ensure scene change completes)
+	await _execute_transition(outcome)
 
 
 ## Notify CampaignManager that a battle is starting (called by TriggerManager)
@@ -576,6 +753,12 @@ func has_encounter_return() -> bool:
 	return not _return_context.is_empty() and _return_context.get("is_encounter", false)
 
 
+## Check if CampaignManager is currently managing a campaign battle
+## Used by BattleManager to determine if it should handle scene transitions
+func is_managing_campaign_battle() -> bool:
+	return current_node != null and current_node.node_type == "battle"
+
+
 ## Get the stored return position (for scenes to query on load)
 func get_encounter_return_position() -> Vector2:
 	return _return_context.get("position", Vector2.ZERO)
@@ -620,6 +803,7 @@ func _handle_encounter_return(victory: bool) -> void:
 ## Find and execute the appropriate transition
 func _execute_transition(outcome: Dictionary) -> void:
 	if not current_node:
+		push_error("CampaignManager: current_node is null in _execute_transition")
 		return
 
 	# Use the node's transition logic with our flag checker
@@ -629,7 +813,7 @@ func _execute_transition(outcome: Dictionary) -> void:
 		# No transition found - check for default hub fallback
 		if current_campaign and current_node.node_type == "battle":
 			if not current_campaign.default_hub_id.is_empty():
-				enter_node(current_campaign.default_hub_id)
+				await enter_node(current_campaign.default_hub_id)
 				return
 
 		push_warning("CampaignManager: No valid transition from node '%s'" % current_node.node_id)
@@ -654,18 +838,19 @@ func _has_cinematics_manager() -> bool:
 	return has_node("/root/CinematicsManager")
 
 
-## Play a cinematic by ID
+## Play a cinematic by ID and wait for it to complete
 func _play_cinematic(cinematic_id: String) -> void:
 	if not _has_cinematics_manager():
 		push_warning("CampaignManager: CinematicsManager not available")
 		return
 
-	var cinematic: Resource = ModLoader.registry.get_resource("cinematic", cinematic_id)
-	if cinematic:
-		var cinematics_manager: Node = get_node("/root/CinematicsManager")
-		await cinematics_manager.play_cinematic(cinematic)
-	else:
-		push_warning("CampaignManager: Cinematic '%s' not found" % cinematic_id)
+	var cinematics_manager: Node = get_node("/root/CinematicsManager")
+	var success: bool = cinematics_manager.play_cinematic(cinematic_id)
+
+	# If cinematic started successfully, wait for it to end
+	# play_cinematic() returns immediately - the cinematic runs asynchronously
+	if success:
+		await cinematics_manager.cinematic_ended
 
 
 ## Check for chapter transitions

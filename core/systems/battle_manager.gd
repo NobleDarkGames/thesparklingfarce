@@ -2045,17 +2045,28 @@ func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
 	if not TurnManager.is_headless and reason != BattleExitReason.HERO_DEATH:
 		await _show_exit_message(reason)
 
-	# 5. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
+	# 5. Check if CampaignManager is managing this battle
+	# If so, let it handle the scene transition via its on_defeat/on_victory branches
+	var campaign_handles_transition: bool = CampaignManager and CampaignManager.is_managing_campaign_battle()
+
+	# 6. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
+	# CampaignManager listens to this and will handle the transition if it's a campaign battle
 	battle_ended.emit(false)
 
-	# 6. Clean up battle state
+	# 7. Clean up battle state
 	end_battle()
 
-	# 7. Transition to safe location
-	print("[BattleManager] Exiting battle via %s, returning to: %s" % [
-		BattleExitReason.keys()[reason], return_path
-	])
-	await SceneManager.change_scene(return_path)
+	# 8. Transition to safe location ONLY if CampaignManager is NOT handling it
+	# For campaign battles, CampaignManager uses on_defeat target from campaign config
+	if campaign_handles_transition:
+		print("[BattleManager] Exiting battle via %s - CampaignManager handling transition" % [
+			BattleExitReason.keys()[reason]
+		])
+	else:
+		print("[BattleManager] Exiting battle via %s, returning to: %s" % [
+			BattleExitReason.keys()[reason], return_path
+		])
+		await SceneManager.change_scene(return_path)
 
 
 ## Revive all party members (SF2-authentic behavior depends on reason)

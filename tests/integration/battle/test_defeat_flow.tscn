@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/integration/battle/test_defeat_flow.gd" id="1"]
+
+[node name="TestDefeatFlow" type="Node"]
+script = ExtResource("1")

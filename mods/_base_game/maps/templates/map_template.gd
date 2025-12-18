@@ -48,6 +48,7 @@ const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_came
 const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
 const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd")
 const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
+const ChoiceSelectorScene: PackedScene = preload("res://scenes/ui/choice_selector.tscn")
 
 ## Default sprite assets from core
 const DEFAULT_SPRITESHEET_PATH: String = "res://core/assets/defaults/sprites/default_character_spritesheet.png"
@@ -354,6 +355,11 @@ func _setup_dialog_box() -> void:
 	dialog_box = DialogBoxScene.instantiate()
 	dialog_box.hide()  # Start hidden
 	ui_layer.add_child(dialog_box)
+
+	# Instantiate choice selector (for campaign choices, dialog choices, etc.)
+	var choice_selector: Control = ChoiceSelectorScene.instantiate()
+	choice_selector.hide()  # Start hidden - will show when choices_ready emits
+	ui_layer.add_child(choice_selector)
 
 	# Register with DialogManager
 	if DialogManager:
