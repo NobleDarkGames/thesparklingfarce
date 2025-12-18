@@ -340,9 +340,8 @@ func _add_basic_info_section() -> void:
 	type_container.add_child(type_label)
 
 	item_type_option = OptionButton.new()
-	item_type_option.tooltip_text = "Weapon = equippable attack. Armor = equippable defense. Accessory = ring/trinket. Consumable = one-use. Key = quest item."
+	item_type_option.tooltip_text = "Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item."
 	item_type_option.add_item("Weapon", ItemData.ItemType.WEAPON)
-	item_type_option.add_item("Armor", ItemData.ItemType.ARMOR)
 	item_type_option.add_item("Accessory", ItemData.ItemType.ACCESSORY)
 	item_type_option.add_item("Consumable", ItemData.ItemType.CONSUMABLE)
 	item_type_option.add_item("Key Item", ItemData.ItemType.KEY_ITEM)
@@ -355,13 +354,13 @@ func _add_basic_info_section() -> void:
 	var equip_label: Label = Label.new()
 	equip_label.text = "Equipment Type:"
 	equip_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
-	equip_label.tooltip_text = "For weapons: sword, axe, bow, etc.\nFor armor: light, heavy, robe, etc."
+	equip_label.tooltip_text = "For weapons: sword, axe, bow, etc.\nFor accessories: ring, amulet, etc."
 	equip_container.add_child(equip_label)
 
 	equipment_type_edit = LineEdit.new()
 	equipment_type_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_type_edit.placeholder_text = "e.g., sword, light armor"
-	equipment_type_edit.tooltip_text = "Category for class restrictions. Weapons: sword, axe, bow, staff. Armor: light, heavy, robe."
+	equipment_type_edit.placeholder_text = "e.g., sword, ring"
+	equipment_type_edit.tooltip_text = "Category for class restrictions. Weapons: sword, axe, bow, staff. Accessories: ring, amulet."
 	equip_container.add_child(equipment_type_edit)
 	section.add_child(equip_container)
 
@@ -382,7 +381,7 @@ func _add_basic_info_section() -> void:
 
 	# Help text explaining equipment type vs slot
 	var equip_help: Label = Label.new()
-	equip_help.text = "Type = weapon/armor category (sword, light, heavy). Slot = where equipped (main_hand, body, accessory)."
+	equip_help.text = "Type = weapon/accessory category (sword, ring). Slot = where equipped (weapon, ring_1, ring_2)."
 	equip_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
 	equip_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
 	equip_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -650,10 +649,9 @@ func _on_item_type_changed(index: int) -> void:
 	weapon_section.visible = (item_type == ItemData.ItemType.WEAPON)
 	consumable_section.visible = (item_type == ItemData.ItemType.CONSUMABLE)
 
-	# Curse section visible for equippable items (weapons, armor, accessories)
+	# Curse section visible for equippable items (weapons, accessories)
 	var is_equippable: bool = (
 		item_type == ItemData.ItemType.WEAPON or
-		item_type == ItemData.ItemType.ARMOR or
 		item_type == ItemData.ItemType.ACCESSORY
 	)
 	curse_section.visible = is_equippable

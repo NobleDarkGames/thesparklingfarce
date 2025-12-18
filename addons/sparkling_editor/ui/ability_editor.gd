@@ -190,15 +190,14 @@ func _check_resource_references(resource_to_check: Resource) -> Array[String]:
 
 	var references: Array[String] = []
 
-	# Check all classes across all mods for references in learnable_abilities
+	# Check all classes across all mods for references in class_abilities
 	var class_files: Array[Dictionary] = _scan_all_mods_for_resource_type("class")
 	for file_info: Dictionary in class_files:
 		var class_data: ClassData = load(file_info.path) as ClassData
 		if class_data:
-			# Check if ability is in learnable_abilities dictionary
-			for level: int in class_data.learnable_abilities.keys():
-				var learnable_ability: Resource = class_data.learnable_abilities[level]
-				if learnable_ability == ability_to_check:
+			# Check if ability is in class_abilities array
+			for class_ability: AbilityData in class_data.class_abilities:
+				if class_ability == ability_to_check:
 					references.append(file_info.path)
 					break
 

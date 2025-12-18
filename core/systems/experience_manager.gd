@@ -461,33 +461,6 @@ func _check_learned_abilities(unit: Node2D, old_level: int, new_level: int, clas
 				learned.append(ability)
 				unit_learned_ability.emit(unit, ability)
 
-	# ==========================================================================
-	# LEGACY SYSTEM: Check learnable_abilities dictionary (deprecated)
-	# Kept for backward compatibility with older data
-	# ==========================================================================
-	if "learnable_abilities" in class_data:
-		var learnable_abilities_raw: Variant = class_data.learnable_abilities
-		if learnable_abilities_raw != null and learnable_abilities_raw is Dictionary:
-			var learnable_abilities: Dictionary = learnable_abilities_raw as Dictionary
-
-			# Check if this level has abilities
-			if new_level in learnable_abilities:
-				var abilities: Variant = learnable_abilities[new_level]
-
-				# Handle both single ability and array of abilities
-				if abilities is Array:
-					for ability: Resource in abilities:
-						if unit.has_method("add_ability"):
-							unit.add_ability(ability)
-						learned.append(ability)
-						unit_learned_ability.emit(unit, ability)
-				else:
-					# Single ability
-					if unit.has_method("add_ability"):
-						unit.add_ability(abilities)
-					learned.append(abilities)
-					unit_learned_ability.emit(unit, abilities)
-
 	return learned
 
 

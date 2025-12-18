@@ -20,7 +20,6 @@ var int_growth_slider: HSlider
 var luk_growth_slider: HSlider
 
 var weapon_types_container: VBoxContainer
-var armor_types_container: VBoxContainer
 
 # Learnable abilities UI
 var learnable_abilities_container: VBoxContainer
@@ -108,12 +107,6 @@ func _load_resource_data() -> void:
 			var type_name: String = child.get_meta("equipment_type")
 			child.button_pressed = type_name in class_data.equippable_weapon_types
 
-	# Set armor types
-	for child in armor_types_container.get_children():
-		if child is CheckBox:
-			var type_name: String = child.get_meta("equipment_type")
-			child.button_pressed = type_name in class_data.equippable_armor_types
-
 	# Load learnable abilities from class_abilities + ability_unlock_levels (new system)
 	_load_learnable_abilities_new(class_data)
 
@@ -153,14 +146,6 @@ func _save_resource_data() -> void:
 			var type_name: String = child.get_meta("equipment_type")
 			new_weapon_types.append(type_name)
 	class_data.equippable_weapon_types = new_weapon_types
-
-	# Update armor types - create new array to avoid read-only issues
-	var new_armor_types: Array[String] = []
-	for child in armor_types_container.get_children():
-		if child is CheckBox and child.button_pressed:
-			var type_name: String = child.get_meta("equipment_type")
-			new_armor_types.append(type_name)
-	class_data.equippable_armor_types = new_armor_types
 
 	# Update class_abilities and ability_unlock_levels (new system)
 	_save_learnable_abilities_new(class_data)
@@ -308,17 +293,6 @@ func _add_equipment_section() -> void:
 	_add_equipment_type_checkboxes(weapon_types_container, weapon_types)
 	section.add_child(weapon_types_container)
 
-	# Armor Types - get from registry or use defaults
-	var armor_label: Label = Label.new()
-	armor_label.text = "Equippable Armor Types:"
-	armor_label.tooltip_text = "Which armor types this class can wear. Light for agile, Heavy for tanks, Robe for casters."
-	section.add_child(armor_label)
-
-	armor_types_container = VBoxContainer.new()
-	var armor_types: Array[String] = _get_armor_types_from_registry()
-	_add_equipment_type_checkboxes(armor_types_container, armor_types)
-	section.add_child(armor_types_container)
-
 	detail_panel.add_child(section)
 
 
@@ -328,14 +302,6 @@ func _get_weapon_types_from_registry() -> Array[String]:
 		return ModLoader.equipment_registry.get_weapon_types()
 	# Fallback to defaults if registry not available
 	return ["sword", "axe", "lance", "bow", "staff", "tome"]
-
-
-## Get armor types from ModLoader's equipment registry (with fallback)
-func _get_armor_types_from_registry() -> Array[String]:
-	if ModLoader and ModLoader.equipment_registry:
-		return ModLoader.equipment_registry.get_armor_types()
-	# Fallback to defaults if registry not available
-	return ["light", "heavy", "robe", "shield"]
 
 
 func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String]) -> void:
@@ -551,41 +517,6 @@ func _save_learnable_abilities_new(class_data: ClassData) -> void:
 
 	class_data.class_abilities = new_class_abilities
 	class_data.ability_unlock_levels = new_unlock_levels
-
-
-## DEPRECATED: Load from old learnable_abilities dictionary (kept for backwards compat)
-func _load_learnable_abilities(abilities_dict: Dictionary) -> void:
-	# Clear existing rows
-	for child in learnable_abilities_container.get_children():
-		child.queue_free()
-
-	# Sort levels for consistent display order
-	var levels: Array = abilities_dict.keys()
-	levels.sort()
-
-	for level: int in levels:
-		var ability: Resource = abilities_dict[level]
-		_add_ability_row(level, ability)
-
-
-## DEPRECATED: Collect to old learnable_abilities dictionary (kept for backwards compat)
-func _collect_learnable_abilities() -> Dictionary:
-	var result: Dictionary = {}
-
-	for child in learnable_abilities_container.get_children():
-		if child is HBoxContainer:
-			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
-			var picker: ResourcePicker = child.get_node_or_null("AbilityPicker")
-
-			if level_spin and picker:
-				var level: int = int(level_spin.value)
-				var ability: Resource = picker.get_selected_resource()
-
-				# Only add if ability is selected and level is not duplicate
-				if ability and level not in result:
-					result[level] = ability
-
-	return result
 
 
 ## Add a single ability row to the UI

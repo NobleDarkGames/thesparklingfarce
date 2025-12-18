@@ -1,13 +1,13 @@
 class_name ItemData
 extends Resource
 
-## Represents an item in the game (weapon, armor, or consumable).
+## Represents an item in the game (weapon, accessory, or consumable).
 ## Contains stats modifiers, usability information, and appearance.
+## Note: Shining Force 2 did not have armor slots - equipment was weapon + rings only.
 
 enum ItemType {
 	WEAPON,
-	ARMOR,
-	ACCESSORY,  ## Rings, amulets, and other accessories
+	ACCESSORY,  ## Rings, amulets, and other accessories (SF2-authentic)
 	CONSUMABLE,
 	KEY_ITEM
 }
@@ -18,7 +18,6 @@ enum ItemType {
 
 @export_group("Equipment Properties")
 ## For weapons: type like "sword", "axe", "bow"
-## For armor: type like "light", "heavy", "robe"
 ## For rings: "ring"
 ## For accessories: "accessory"
 @export var equipment_type: String = ""
@@ -54,16 +53,6 @@ enum ItemType {
 @export var min_attack_range: int = 1
 ## For weapons: maximum attack range (1 for melee, higher for ranged)
 @export var max_attack_range: int = 1
-## DEPRECATED: Legacy single attack range property, kept for backwards compatibility
-## New code should use min_attack_range and max_attack_range instead
-## Returns max_attack_range for compatibility with old code
-@export var attack_range: int = 1:
-	get:
-		return max_attack_range
-	set(value):
-		# When old code sets attack_range, update max_attack_range
-		# and keep min_attack_range at 1 (melee default) unless already set
-		max_attack_range = value
 ## Weapon hit rate bonus (percentage)
 @export_range(0, 100) var hit_rate: int = 90
 ## Critical hit rate (percentage)
@@ -114,7 +103,7 @@ func has_stat_modifiers() -> bool:
 
 ## Check if item is equippable
 func is_equippable() -> bool:
-	return item_type == ItemType.WEAPON or item_type == ItemType.ARMOR or item_type == ItemType.ACCESSORY
+	return item_type == ItemType.WEAPON or item_type == ItemType.ACCESSORY
 
 
 ## Check if item is usable (in any context)
@@ -138,7 +127,7 @@ func validate() -> bool:
 		push_error("ItemData: item_name is required")
 		return false
 	if is_equippable() and equipment_type.is_empty():
-		push_error("ItemData: equipment_type is required for weapons and armor")
+		push_error("ItemData: equipment_type is required for weapons and accessories")
 		return false
 	if item_type == ItemType.CONSUMABLE and effect == null:
 		push_warning("ItemData: consumable item has no effect assigned")

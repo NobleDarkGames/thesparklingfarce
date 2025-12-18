@@ -174,7 +174,7 @@ func _update_details_panel(index: int) -> void:
 			desc_lines.append(item_data.description)
 		if item_data.item_type == ItemData.ItemType.WEAPON and item_data.attack_power > 0:
 			desc_lines.append("AT: %d" % item_data.attack_power)
-		if item_data.item_type == ItemData.ItemType.ARMOR and item_data.defense_modifier > 0:
+		if item_data.defense_modifier > 0:
 			desc_lines.append("DF: %d" % item_data.defense_modifier)
 		item_desc_label.text = "\n".join(desc_lines) if desc_lines.size() > 0 else ""
 	else:

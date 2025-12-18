@@ -824,8 +824,8 @@ func _get_item_slot_display(item: ItemData) -> String:
 			type_str = "Weapon"
 			if not item.equipment_type.is_empty():
 				type_str += " (%s)" % item.equipment_type.capitalize()
-		ItemData.ItemType.ARMOR:
-			type_str = "Armor"
+		ItemData.ItemType.ACCESSORY:
+			type_str = "Accessory"
 			if not item.equipment_type.is_empty():
 				type_str += " (%s)" % item.equipment_type.capitalize()
 		ItemData.ItemType.CONSUMABLE:

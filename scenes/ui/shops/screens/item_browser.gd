@@ -173,7 +173,7 @@ func _update_details_panel() -> void:
 	var stats_lines: Array[String] = []
 	if item_data.item_type == ItemData.ItemType.WEAPON:
 		stats_lines.append("AT: %d" % item_data.attack_power)
-	if item_data.item_type == ItemData.ItemType.ARMOR:
+	if item_data.defense_modifier > 0:
 		stats_lines.append("DF: %d" % item_data.defense_modifier)
 	item_stats_label.text = "\n".join(stats_lines)
 

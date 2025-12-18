@@ -192,7 +192,7 @@ This editor allows you to create content for your tactical RPG game without writ
 [b]Content Types:[/b]
 • [b]Characters:[/b] Create playable units and enemies with stats and equipment
 • [b]Classes:[/b] Define character classes with movement and abilities
-• [b]Items:[/b] Create weapons, armor, and consumable items
+• [b]Items:[/b] Create weapons, accessories, and consumable items
 • [b]Abilities:[/b] Define skills and spells for combat
 • [b]Parties:[/b] Create and manage party compositions for battles
 • [b]Battles:[/b] Configure tactical battle scenarios with enemies and objectives

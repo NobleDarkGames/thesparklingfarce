@@ -186,10 +186,8 @@ func _create_item_button(item_id: String, item_data: ItemData) -> Button:
 	match item_data.item_type:
 		ItemData.ItemType.WEAPON:
 			type_prefix = "[W] "
-		ItemData.ItemType.ARMOR:
-			type_prefix = "[A] "
 		ItemData.ItemType.ACCESSORY:
-			type_prefix = "[C] "
+			type_prefix = "[A] "  # Accessories (rings, etc.)
 		ItemData.ItemType.CONSUMABLE:
 			type_prefix = "[I] "
 	button.text = type_prefix + item_data.item_name
@@ -235,7 +233,7 @@ func _update_details_panel(item_id: String) -> void:
 	# Add stats
 	if item_data.item_type == ItemData.ItemType.WEAPON and item_data.attack_power > 0:
 		desc_lines.append("AT: %d" % item_data.attack_power)
-	if item_data.item_type == ItemData.ItemType.ARMOR and item_data.defense_modifier > 0:
+	if item_data.defense_modifier > 0:
 		desc_lines.append("DF: %d" % item_data.defense_modifier)
 
 	item_desc_label.text = "\n".join(desc_lines) if desc_lines.size() > 0 else "No description"

@@ -75,8 +75,7 @@ const CRAFTER_TYPES: Array[String] = [
 	"alchemist",
 	"jeweler",
 	"tailor",
-	"weaponsmith",
-	"armorsmith"
+	"weaponsmith"
 ]
 
 # Flag to prevent signal feedback loops during UI updates

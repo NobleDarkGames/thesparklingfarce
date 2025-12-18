@@ -43,7 +43,6 @@ var dependency_input: LineEdit
 
 # Custom Types section
 var weapon_types_edit: TextEdit
-var armor_types_edit: TextEdit
 var unit_categories_edit: TextEdit
 var trigger_types_edit: TextEdit
 var animation_offset_types_edit: TextEdit
@@ -463,7 +462,6 @@ func _create_custom_types_section() -> void:
 	section.add_child(help_text)
 
 	weapon_types_edit = _create_type_editor("Weapon Types:", section, "e.g., laser, plasma, energy_blade")
-	armor_types_edit = _create_type_editor("Armor Types:", section, "e.g., energy_shield, power_armor")
 	unit_categories_edit = _create_type_editor("Unit Categories:", section, "e.g., mech, cyborg, undead")
 	trigger_types_edit = _create_type_editor("Trigger Types:", section, "e.g., puzzle, teleporter, shop")
 	animation_offset_types_edit = _create_type_editor("Animation Offsets:", section, "Custom sprite positioning")
@@ -503,7 +501,7 @@ func _create_equipment_slots_section() -> void:
 	id_label.custom_minimum_size.x = 120
 	id_row.add_child(id_label)
 	slot_id_edit = LineEdit.new()
-	slot_id_edit.placeholder_text = "e.g., weapon, armor, accessory"
+	slot_id_edit.placeholder_text = "e.g., weapon, ring_1, ring_2"
 	slot_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	id_row.add_child(slot_id_edit)
 	slot_edit_container.add_child(id_row)
@@ -514,7 +512,7 @@ func _create_equipment_slots_section() -> void:
 	name_label.custom_minimum_size.x = 120
 	name_row.add_child(name_label)
 	slot_display_name_edit = LineEdit.new()
-	slot_display_name_edit.placeholder_text = "e.g., Weapon, Armor, Accessory"
+	slot_display_name_edit.placeholder_text = "e.g., Weapon, Ring 1, Ring 2"
 	slot_display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(slot_display_name_edit)
 	slot_edit_container.add_child(name_row)
@@ -991,7 +989,6 @@ func _populate_ui_from_data() -> void:
 	# Custom types
 	var custom_types: Dictionary = current_mod_data.get("custom_types", {})
 	weapon_types_edit.text = _array_to_lines(custom_types.get("weapon_types", []))
-	armor_types_edit.text = _array_to_lines(custom_types.get("armor_types", []))
 	unit_categories_edit.text = _array_to_lines(custom_types.get("unit_categories", []))
 	trigger_types_edit.text = _array_to_lines(custom_types.get("trigger_types", []))
 	animation_offset_types_edit.text = _array_to_lines(custom_types.get("animation_offset_types", []))
@@ -1082,15 +1079,12 @@ func _collect_data_from_ui() -> void:
 	# Custom types (only include non-empty)
 	var custom_types: Dictionary = {}
 	var weapon_types: Array = _lines_to_array(weapon_types_edit.text)
-	var armor_types: Array = _lines_to_array(armor_types_edit.text)
 	var unit_categories: Array = _lines_to_array(unit_categories_edit.text)
 	var trigger_types: Array = _lines_to_array(trigger_types_edit.text)
 	var animation_offsets: Array = _lines_to_array(animation_offset_types_edit.text)
 
 	if weapon_types.size() > 0:
 		custom_types["weapon_types"] = weapon_types
-	if armor_types.size() > 0:
-		custom_types["armor_types"] = armor_types
 	if unit_categories.size() > 0:
 		custom_types["unit_categories"] = unit_categories
 	if trigger_types.size() > 0:

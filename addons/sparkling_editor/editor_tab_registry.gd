@@ -39,7 +39,7 @@ const CATEGORIES: Array[String] = [
 	"content",     # Characters, classes, items, abilities (core content creation)
 	"battle",      # Maps, terrain, battles, AI (tactical scenario design)
 	"story",       # NPCs, cinematics, campaigns, shops (narrative elements)
-	"system",      # Overview, mod settings, configs, party templates, save slots
+	"system",      # Overview, mod settings, new game configs, save editing
 	"mod"          # Mod-provided custom tabs (always last)
 ]
 
@@ -73,15 +73,13 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 20},
 	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 30},
 	{"id": "shops", "display_name": "Shops", "scene": "shop_editor.tscn", "category": "story", "priority": 40},
-	{"id": "crafters", "display_name": "Crafters", "scene": "crafter_editor.tscn", "category": "story", "priority": 50},
-	{"id": "crafting_recipes", "display_name": "Recipes", "scene": "crafting_recipe_editor.tscn", "category": "story", "priority": 60},
+	{"id": "crafting", "display_name": "Crafting", "scene": "crafting_editor.tscn", "category": "story", "priority": 50},
 
 	# System editors (configuration and setup)
 	{"id": "overview", "display_name": "Overview", "category": "system", "priority": 0, "is_static": true},
 	{"id": "mod_settings", "display_name": "Mod Settings", "scene": "mod_json_editor.tscn", "category": "system", "priority": 10},
 	{"id": "new_game_configs", "display_name": "New Game Configs", "scene": "new_game_config_editor.tscn", "category": "system", "priority": 20},
-	{"id": "party_templates", "display_name": "Party Templates", "scene": "party_template_editor.tscn", "category": "system", "priority": 30},
-	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "system", "priority": 40}
+	{"id": "save_slots", "display_name": "Save Slots", "scene": "save_slot_editor.tscn", "category": "system", "priority": 30}
 ]
 
 ## Base path for built-in editor scenes

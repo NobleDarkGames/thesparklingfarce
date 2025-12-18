@@ -41,16 +41,10 @@ enum MovementType {
 
 @export_group("Equipment")
 ## Weapon types this class can equip (e.g., "sword", "axe", "bow")
+## Note: SF2 did not have armor - equipment was weapon + rings only
 @export var equippable_weapon_types: Array[String] = []
-## Armor types this class can equip (e.g., "light", "heavy", "robe")
-@export var equippable_armor_types: Array[String] = []
 
 @export_group("Abilities")
-## Abilities learned at specific levels: {level: AbilityData}
-## DEPRECATED: Use class_abilities + ability_unlock_levels instead
-## Kept for backward compatibility with existing data
-@export var learnable_abilities: Dictionary = {}
-
 ## Active spells/abilities granted by this class (PRIMARY spell source)
 ## Characters get their spells from their class, not individually
 ## Example: MAGE class has [blaze_1, blaze_2, blaze_3, blaze_4]
@@ -93,43 +87,6 @@ func can_equip_weapon(weapon_type: String) -> bool:
 				return true
 
 	return false
-
-
-## Check if this class can equip a specific armor type
-## Supports category wildcards: "armor:*" matches any armor subtype
-func can_equip_armor(armor_type: String) -> bool:
-	var lower_type: String = armor_type.to_lower()
-
-	for allowed: String in equippable_armor_types:
-		# Use EquipmentTypeRegistry for wildcard matching if available
-		if ModLoader and ModLoader.equipment_type_registry:
-			if ModLoader.equipment_type_registry.matches_accept_type(lower_type, allowed):
-				return true
-		else:
-			# Fallback: direct match only
-			if allowed.to_lower() == lower_type:
-				return true
-
-	return false
-
-
-## Get ability learned at a specific level (if any)
-func get_ability_at_level(level: int) -> Resource:
-	if level in learnable_abilities:
-		return learnable_abilities[level]
-	return null
-
-
-## Get all abilities learned up to a specific level
-## DEPRECATED: Use get_unlocked_class_abilities() for the new system
-func get_abilities_up_to_level(level: int) -> Array[Resource]:
-	var abilities: Array[Resource] = []
-	for learn_level: int in learnable_abilities.keys():
-		if learn_level <= level:
-			var ability: Resource = learnable_abilities[learn_level]
-			if ability != null:
-				abilities.append(ability)
-	return abilities
 
 
 ## Get all class abilities unlocked at a given level

@@ -590,10 +590,10 @@ func _get_item_type_string(item: ItemData) -> String:
 			if not item.equipment_type.is_empty():
 				return "Weapon (%s)" % item.equipment_type.capitalize()
 			return "Weapon"
-		ItemData.ItemType.ARMOR:
+		ItemData.ItemType.ACCESSORY:
 			if not item.equipment_type.is_empty():
-				return "Armor (%s)" % item.equipment_type.capitalize()
-			return "Armor"
+				return "Accessory (%s)" % item.equipment_type.capitalize()
+			return "Accessory"
 		ItemData.ItemType.CONSUMABLE:
 			return "Consumable"
 		ItemData.ItemType.KEY_ITEM:
