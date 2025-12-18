@@ -146,7 +146,7 @@ func test_create_ability_via_editor_pattern() -> void:
 	new_ability.target_type = 0   # SINGLE_ENEMY enum
 	new_ability.min_range = 1
 	new_ability.max_range = 1
-	new_ability.power = 10
+	new_ability.potency = 10
 
 	var path: String = TEST_MOD_PATH + "data/abilities/gut_slash.tres"
 	var err: Error = ResourceSaver.save(new_ability, path)
@@ -155,7 +155,7 @@ func test_create_ability_via_editor_pattern() -> void:
 
 	var loaded: Resource = load(path)
 	assert_str(loaded.ability_name).is_equal("GUT Slash")
-	assert_int(loaded.power).is_equal(10)
+	assert_int(loaded.potency).is_equal(10)
 
 
 # =============================================================================

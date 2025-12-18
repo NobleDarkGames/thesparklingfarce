@@ -8,7 +8,12 @@ var name_edit: LineEdit
 var movement_type_option: OptionButton
 var movement_range_spin: SpinBox
 var promotion_level_spin: SpinBox
-var promotion_class_option: OptionButton
+var promotion_resets_level_check: CheckBox
+var consume_promotion_item_check: CheckBox
+
+# Promotion paths UI
+var promotion_paths_container: VBoxContainer
+var add_promotion_path_button: Button
 
 # Growth rate editors
 var hp_growth_slider: HSlider
@@ -42,7 +47,8 @@ func _ready() -> void:
 ## Called when a dependent resource type changes (class created/saved/deleted)
 func _on_dependencies_changed(changed_type: String) -> void:
 	if changed_type == "class":
-		_update_promotion_options()
+		# ResourcePickers in promotion paths auto-refresh via EditorEventBus
+		pass
 
 
 ## Override: Create the class-specific detail form
@@ -79,6 +85,8 @@ func _load_resource_data() -> void:
 	movement_type_option.selected = class_data.movement_type
 	movement_range_spin.value = class_data.movement_range
 	promotion_level_spin.value = class_data.promotion_level
+	promotion_resets_level_check.button_pressed = class_data.promotion_resets_level
+	consume_promotion_item_check.button_pressed = class_data.consume_promotion_item
 
 	# Set growth rates
 	hp_growth_slider.value = class_data.hp_growth
@@ -89,23 +97,14 @@ func _load_resource_data() -> void:
 	int_growth_slider.value = class_data.intelligence_growth
 	luk_growth_slider.value = class_data.luck_growth
 
-	# Update promotion class options first
-	_update_promotion_options()
-
-	# Set promotion class
-	if class_data.promotion_class:
-		for i in range(available_resources.size()):
-			if available_resources[i] == class_data.promotion_class:
-				promotion_class_option.selected = i + 1
-				break
-	else:
-		promotion_class_option.selected = 0
-
 	# Set weapon types
 	for child in weapon_types_container.get_children():
 		if child is CheckBox:
 			var type_name: String = child.get_meta("equipment_type")
 			child.button_pressed = type_name in class_data.equippable_weapon_types
+
+	# Load promotion paths
+	_load_promotion_paths(class_data)
 
 	# Load learnable abilities from class_abilities + ability_unlock_levels (new system)
 	_load_learnable_abilities_new(class_data)
@@ -122,6 +121,8 @@ func _save_resource_data() -> void:
 	class_data.movement_type = movement_type_option.selected
 	class_data.movement_range = int(movement_range_spin.value)
 	class_data.promotion_level = int(promotion_level_spin.value)
+	class_data.promotion_resets_level = promotion_resets_level_check.button_pressed
+	class_data.consume_promotion_item = consume_promotion_item_check.button_pressed
 
 	# Update growth rates
 	class_data.hp_growth = int(hp_growth_slider.value)
@@ -132,13 +133,6 @@ func _save_resource_data() -> void:
 	class_data.intelligence_growth = int(int_growth_slider.value)
 	class_data.luck_growth = int(luk_growth_slider.value)
 
-	# Update promotion class
-	var promo_index: int = promotion_class_option.selected - 1
-	if promo_index >= 0 and promo_index < available_resources.size():
-		class_data.promotion_class = available_resources[promo_index] as ClassData
-	else:
-		class_data.promotion_class = null
-
 	# Update weapon types - create new array to avoid read-only issues
 	var new_weapon_types: Array[String] = []
 	for child in weapon_types_container.get_children():
@@ -146,6 +140,9 @@ func _save_resource_data() -> void:
 			var type_name: String = child.get_meta("equipment_type")
 			new_weapon_types.append(type_name)
 	class_data.equippable_weapon_types = new_weapon_types
+
+	# Update promotion paths
+	_save_promotion_paths(class_data)
 
 	# Update class_abilities and ability_unlock_levels (new system)
 	_save_learnable_abilities_new(class_data)
@@ -320,7 +317,7 @@ func _add_promotion_section() -> void:
 	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
-	# Promotion Level
+	# Promotion Level (applies to all paths)
 	var level_container: HBoxContainer = HBoxContainer.new()
 	var level_label: Label = Label.new()
 	level_label.text = "Promotion Level:"
@@ -335,30 +332,155 @@ func _add_promotion_section() -> void:
 	level_container.add_child(promotion_level_spin)
 	section.add_child(level_container)
 
-	# Promotion Class
-	var class_container: HBoxContainer = HBoxContainer.new()
-	var class_label: Label = Label.new()
-	class_label.text = "Promotes To:"
-	class_label.custom_minimum_size.x = 150
-	class_container.add_child(class_label)
+	# Promotion Settings (apply to all paths)
+	promotion_resets_level_check = CheckBox.new()
+	promotion_resets_level_check.text = "Reset Level on Promotion (SF2 Style)"
+	promotion_resets_level_check.tooltip_text = "If checked, level resets to 1 on promotion. If unchecked, level continues from current value."
+	section.add_child(promotion_resets_level_check)
 
-	promotion_class_option = OptionButton.new()
-	promotion_class_option.tooltip_text = "Class this transforms into after promotion. (None) = final form class."
-	promotion_class_option.add_item("(None)", 0)
-	class_container.add_child(promotion_class_option)
-	section.add_child(class_container)
+	consume_promotion_item_check = CheckBox.new()
+	consume_promotion_item_check.text = "Consume Promotion Items"
+	consume_promotion_item_check.tooltip_text = "Whether promotion items are consumed when used. Applies to all paths that require items."
+	section.add_child(consume_promotion_item_check)
+
+	# Promotion Paths subsection
+	var paths_label: Label = Label.new()
+	paths_label.text = "Promotion Paths:"
+	paths_label.add_theme_font_size_override("font_size", 14)
+	section.add_child(paths_label)
+
+	var paths_help: Label = Label.new()
+	paths_help.text = "Each path leads to a different promoted class. Optionally require an item."
+	paths_help.modulate = Color(0.8, 0.8, 0.8, 1.0)
+	section.add_child(paths_help)
+
+	# Scrollable container for promotion paths
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.custom_minimum_size.y = 100
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	promotion_paths_container = VBoxContainer.new()
+	promotion_paths_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(promotion_paths_container)
+	section.add_child(scroll)
+
+	# Add Path button
+	add_promotion_path_button = Button.new()
+	add_promotion_path_button.text = "Add Promotion Path"
+	add_promotion_path_button.tooltip_text = "Add a new promotion path. Each path can lead to a different class."
+	add_promotion_path_button.pressed.connect(_on_add_promotion_path)
+	section.add_child(add_promotion_path_button)
 
 	detail_panel.add_child(section)
 
 
-func _update_promotion_options() -> void:
-	promotion_class_option.clear()
-	promotion_class_option.add_item("(None)", 0)
+## Load promotion paths from ClassData into UI
+func _load_promotion_paths(class_data: ClassData) -> void:
+	# Clear existing rows
+	for child in promotion_paths_container.get_children():
+		child.queue_free()
 
-	for i in range(available_resources.size()):
-		var class_data: ClassData = available_resources[i] as ClassData
-		if class_data:
-			promotion_class_option.add_item(class_data.display_name, i + 1)
+	# Add a row for each promotion path
+	for path: PromotionPath in class_data.get_promotion_path_resources():
+		_add_promotion_path_row(path.target_class, path.required_item, path.path_name)
+
+
+## Save promotion paths from UI to ClassData
+func _save_promotion_paths(class_data: ClassData) -> void:
+	var new_paths: Array[PromotionPath] = []
+
+	for child in promotion_paths_container.get_children():
+		if child is HBoxContainer:
+			var class_picker: ResourcePicker = child.get_node_or_null("ClassPicker")
+			var item_picker: ResourcePicker = child.get_node_or_null("ItemPicker")
+			var name_edit_node: LineEdit = child.get_node_or_null("PathNameEdit")
+
+			if class_picker:
+				var target_class: ClassData = class_picker.get_selected_resource() as ClassData
+				if target_class:
+					var path: PromotionPath = PromotionPath.new()
+					path.target_class = target_class
+					if item_picker:
+						path.required_item = item_picker.get_selected_resource() as ItemData
+					if name_edit_node:
+						path.path_name = name_edit_node.text.strip_edges()
+					new_paths.append(path)
+
+	class_data.promotion_paths = new_paths
+
+
+## Add a single promotion path row to the UI
+func _add_promotion_path_row(target_class: ClassData = null, required_item: ItemData = null, path_name: String = "") -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	# Target class picker
+	var class_label: Label = Label.new()
+	class_label.text = "Class:"
+	row.add_child(class_label)
+
+	var class_picker: ResourcePicker = ResourcePicker.new()
+	class_picker.name = "ClassPicker"
+	class_picker.resource_type = "class"
+	class_picker.allow_none = false
+	class_picker.none_text = "(Select Class)"
+	class_picker.custom_minimum_size.x = 180
+	class_picker.tooltip_text = "The target class for this promotion path."
+	row.add_child(class_picker)
+
+	# Required item picker (optional)
+	var item_label: Label = Label.new()
+	item_label.text = "Requires:"
+	row.add_child(item_label)
+
+	var item_picker: ResourcePicker = ResourcePicker.new()
+	item_picker.name = "ItemPicker"
+	item_picker.resource_type = "item"
+	item_picker.allow_none = true
+	item_picker.none_text = "(No item required)"
+	item_picker.custom_minimum_size.x = 150
+	item_picker.tooltip_text = "Optional item required to unlock this path. Leave empty for always-available paths."
+	row.add_child(item_picker)
+
+	# Optional path name
+	var name_label: Label = Label.new()
+	name_label.text = "Name:"
+	name_label.tooltip_text = "Optional custom name (shown in promotion UI)"
+	row.add_child(name_label)
+
+	var name_edit_field: LineEdit = LineEdit.new()
+	name_edit_field.name = "PathNameEdit"
+	name_edit_field.placeholder_text = "(auto)"
+	name_edit_field.custom_minimum_size.x = 100
+	name_edit_field.tooltip_text = "Optional custom name for this path. If empty, uses the target class name."
+	name_edit_field.text = path_name
+	row.add_child(name_edit_field)
+
+	# Remove button
+	var remove_btn: Button = Button.new()
+	remove_btn.text = "X"
+	remove_btn.tooltip_text = "Remove this promotion path"
+	remove_btn.custom_minimum_size.x = 30
+	remove_btn.pressed.connect(_on_remove_promotion_path.bind(row))
+	row.add_child(remove_btn)
+
+	promotion_paths_container.add_child(row)
+
+	# Select the resources after adding to tree
+	if target_class:
+		class_picker.call_deferred("select_resource", target_class)
+	if required_item:
+		item_picker.call_deferred("select_resource", required_item)
+
+
+## Called when "Add Promotion Path" button is pressed
+func _on_add_promotion_path() -> void:
+	_add_promotion_path_row(null, null, "")
+
+
+## Called when a remove button is pressed on a promotion path row
+func _on_remove_promotion_path(row: HBoxContainer) -> void:
+	row.queue_free()
 
 
 func _add_growth_rates_section() -> void:

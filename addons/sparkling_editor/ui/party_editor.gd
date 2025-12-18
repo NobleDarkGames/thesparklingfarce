@@ -217,7 +217,7 @@ func _add_party_members_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add characters to this party. Formation offsets determine spawn positions."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(help_label)
 
@@ -379,8 +379,8 @@ func _add_default_party_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Configure this party as the default starting party for new games in your mod."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
@@ -552,11 +552,11 @@ func _show_success_message(message: String) -> void:
 	print("[PartyEditor] " + message)
 	# If we have the error panel, use it with success styling
 	if error_panel and error_label:
-		var success_color: Color = EditorThemeUtils.get_success_color()
+		var success_color: Color = SparklingEditorUtils.get_success_color()
 		error_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
 
 		# Apply success panel style
-		var success_style: StyleBoxFlat = EditorThemeUtils.create_success_panel_style()
+		var success_style: StyleBoxFlat = SparklingEditorUtils.create_success_panel_style()
 		error_panel.add_theme_stylebox_override("panel", success_style)
 
 		# Insert error panel just before button_container
@@ -582,7 +582,7 @@ func _hide_success_panel() -> void:
 
 	# Restore error styling for next use
 	if error_panel:
-		var error_style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
+		var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
 		error_panel.add_theme_stylebox_override("panel", error_style)
 
 

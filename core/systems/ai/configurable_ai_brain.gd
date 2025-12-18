@@ -344,13 +344,13 @@ func _calculate_unit_threat(unit: Node2D, behavior: AIBehaviorData) -> float:
 		match ability.ability_type:
 			AbilityData.AbilityType.HEAL:
 				# Healers are high-value targets
-				var base_threat: float = 30.0 + ability.power * 0.5
+				var base_threat: float = 30.0 + ability.potency * 0.5
 				var weight: float = behavior.get_effective_threat_weight("healer", 1.0)
 				threat += base_threat * contribution * weight
 
 			AbilityData.AbilityType.ATTACK:
 				# Damage dealers based on spell power
-				var base_threat: float = ability.power * 0.5
+				var base_threat: float = ability.potency * 0.5
 				var weight: float = behavior.get_effective_threat_weight("damage_dealer", 1.0)
 				threat += base_threat * contribution * weight
 
@@ -555,7 +555,7 @@ func _get_unit_healing_abilities(unit: Node2D) -> Array[Dictionary]:
 				"ability": ability,
 				"range": ability.max_range,
 				"mp_cost": ability.mp_cost,
-				"power": ability.power,
+				"potency": ability.potency,
 				"aoe": ability.area_of_effect
 			})
 
@@ -577,7 +577,7 @@ func _select_best_healing_ability(unit: Node2D, target: Node2D, abilities: Array
 
 	for ability_info: Dictionary in abilities:
 		var mp_cost: int = ability_info.get("mp_cost", 0)
-		var power: int = ability_info.get("power", 0)
+		var power: int = ability_info.get("potency", 0)
 		var aoe_radius: int = ability_info.get("aoe", 0)
 
 		# Can't afford this spell

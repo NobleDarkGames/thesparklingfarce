@@ -18,8 +18,8 @@ var area_of_effect_spin: SpinBox
 var mp_cost_spin: SpinBox
 var hp_cost_spin: SpinBox
 
-# Power
-var power_spin: SpinBox
+# Potency
+var potency_spin: SpinBox
 var accuracy_spin: SpinBox
 
 # Effects
@@ -57,8 +57,8 @@ func _create_detail_form() -> void:
 	# Cost section
 	_add_cost_section()
 
-	# Power section
-	_add_power_section()
+	# Potency section
+	_add_potency_section()
 
 	# Effects section
 	_add_effects_section()
@@ -90,8 +90,8 @@ func _load_resource_data() -> void:
 	mp_cost_spin.value = ability.mp_cost
 	hp_cost_spin.value = ability.hp_cost
 
-	# Power
-	power_spin.value = ability.power
+	# Potency
+	potency_spin.value = ability.potency
 	accuracy_spin.value = ability.accuracy
 
 	# Effects - filter out unknown effects (stale data from old text input)
@@ -135,7 +135,7 @@ func _save_resource_data() -> void:
 	ability.hp_cost = int(hp_cost_spin.value)
 
 	# Power
-	ability.power = int(power_spin.value)
+	ability.potency = int(potency_spin.value)
 	ability.accuracy = int(accuracy_spin.value)
 
 	# Effects - use selected effects array directly
@@ -221,7 +221,7 @@ func _create_new_resource() -> Resource:
 	new_ability.target_type = AbilityData.TargetType.SINGLE_ENEMY
 	new_ability.min_range = 1
 	new_ability.max_range = 1
-	new_ability.power = 10
+	new_ability.potency = 10
 	new_ability.accuracy = 100
 
 	return new_ability
@@ -418,29 +418,29 @@ func _add_cost_section() -> void:
 	detail_panel.add_child(section)
 
 
-func _add_power_section() -> void:
+func _add_potency_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
 	var section_label: Label = Label.new()
-	section_label.text = "Power"
+	section_label.text = "Potency"
 	section_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(section_label)
 
-	# Power
-	var power_container: HBoxContainer = HBoxContainer.new()
-	var power_label: Label = Label.new()
-	power_label.text = "Power:"
-	power_label.custom_minimum_size.x = 150
-	power_label.tooltip_text = "Base effectiveness of the ability"
-	power_container.add_child(power_label)
+	# Potency
+	var potency_container: HBoxContainer = HBoxContainer.new()
+	var potency_label: Label = Label.new()
+	potency_label.text = "Potency:"
+	potency_label.custom_minimum_size.x = 150
+	potency_label.tooltip_text = "Base effectiveness of the ability (damage for attacks, healing amount for heals)"
+	potency_container.add_child(potency_label)
 
-	power_spin = SpinBox.new()
-	power_spin.min_value = 0
-	power_spin.max_value = 999
-	power_spin.value = 10
-	power_spin.tooltip_text = "Base effect strength. For damage/healing, multiplied by caster stats. Typical: 10-30 basic, 50+ powerful."
-	power_container.add_child(power_spin)
-	section.add_child(power_container)
+	potency_spin = SpinBox.new()
+	potency_spin.min_value = 0
+	potency_spin.max_value = 999
+	potency_spin.value = 10
+	potency_spin.tooltip_text = "Base effect strength. For damage/healing, multiplied by caster stats. Typical: 10-30 basic, 50+ powerful."
+	potency_container.add_child(potency_spin)
+	section.add_child(potency_container)
 
 	# Accuracy
 	var acc_container: HBoxContainer = HBoxContainer.new()

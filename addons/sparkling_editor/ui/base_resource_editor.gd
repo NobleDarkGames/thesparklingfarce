@@ -222,7 +222,7 @@ func _setup_base_ui() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a " + resource_type_name.to_lower() + " to edit"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
@@ -335,7 +335,7 @@ func _setup_base_ui() -> void:
 	# Create error panel (hidden by default)
 	error_panel = PanelContainer.new()
 	error_panel.visible = false
-	var error_style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
+	var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
 	error_panel.add_theme_stylebox_override("panel", error_style)
 
 	error_label = RichTextLabel.new()
@@ -924,11 +924,11 @@ func _show_success_message(message: String) -> void:
 		return
 
 	# Use success styling
-	var success_color: Color = EditorThemeUtils.get_success_color()
+	var success_color: Color = SparklingEditorUtils.get_success_color()
 	error_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
 
 	# Apply success panel style
-	var success_style: StyleBoxFlat = EditorThemeUtils.create_success_panel_style()
+	var success_style: StyleBoxFlat = SparklingEditorUtils.create_success_panel_style()
 	error_panel.add_theme_stylebox_override("panel", success_style)
 
 	# Insert error panel just before button_container (where user's attention is)
@@ -951,7 +951,7 @@ func _hide_success_and_restore_style() -> void:
 	error_label.text = ""
 
 	# Restore error styling for next use
-	var error_style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
+	var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
 	error_panel.add_theme_stylebox_override("panel", error_style)
 
 
@@ -1073,7 +1073,6 @@ func _on_copy_to_mod() -> void:
 		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 		if event_bus:
 			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
-			event_bus.resource_copied.emit(resource_type_id, current_resource.resource_path, active_mod.mod_id, full_path)
 
 		# Select the newly created resource
 		for i in range(resource_list.item_count):
@@ -1170,8 +1169,6 @@ func _perform_create_override(override_path: String) -> void:
 		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 		if event_bus:
 			event_bus.notify_resource_created(resource_type_id, override_path, override_resource)
-			if event_bus.has_signal("resource_override_created"):
-				event_bus.resource_override_created.emit(resource_type_id, resource_id, active_mod_id)
 
 		# Select the override
 		for i in range(resource_list.item_count):

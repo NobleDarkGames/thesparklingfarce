@@ -265,14 +265,14 @@ func _add_identity_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Caravan ID
 	var id_container: HBoxContainer = HBoxContainer.new()
 	var id_label: Label = Label.new()
 	id_label.text = "Caravan ID:"
-	id_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	id_label.tooltip_text = "Unique identifier (namespaced: 'mod_id:caravan_id')"
 	id_container.add_child(id_label)
 
@@ -287,7 +287,7 @@ func _add_identity_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_label.tooltip_text = "Name shown in UI (e.g., 'Caravan Headquarters')"
 	name_container.add_child(name_label)
 
@@ -306,20 +306,20 @@ func _add_appearance_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Appearance"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Visual appearance of the caravan wagon on the overworld"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Wagon Sprite
 	var sprite_container: HBoxContainer = HBoxContainer.new()
 	var sprite_label: Label = Label.new()
 	sprite_label.text = "Wagon Sprite:"
-	sprite_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	sprite_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	sprite_label.tooltip_text = "Main wagon texture (single frame or idle state)"
 	sprite_container.add_child(sprite_label)
 
@@ -340,7 +340,7 @@ func _add_appearance_section() -> void:
 	var anim_container: HBoxContainer = HBoxContainer.new()
 	var anim_label: Label = Label.new()
 	anim_label.text = "Animation Frames:"
-	anim_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	anim_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	anim_label.tooltip_text = "SpriteFrames for directional movement (optional)"
 	anim_container.add_child(anim_label)
 
@@ -355,7 +355,7 @@ func _add_appearance_section() -> void:
 	var scale_container: HBoxContainer = HBoxContainer.new()
 	var scale_label: Label = Label.new()
 	scale_label.text = "Scale:"
-	scale_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	scale_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	scale_label.tooltip_text = "Scale factor for the wagon sprite"
 	scale_container.add_child(scale_label)
 
@@ -388,7 +388,7 @@ func _add_appearance_section() -> void:
 	var z_container: HBoxContainer = HBoxContainer.new()
 	var z_label: Label = Label.new()
 	z_label.text = "Z-Index Offset:"
-	z_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	z_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	z_label.tooltip_text = "Rendering order offset (higher = in front)"
 	z_container.add_child(z_label)
 
@@ -408,20 +408,20 @@ func _add_following_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Following Behavior"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "How the caravan follows the party on overworld maps"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Follow Distance
 	var dist_container: HBoxContainer = HBoxContainer.new()
 	var dist_label: Label = Label.new()
 	dist_label.text = "Follow Distance:"
-	dist_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	dist_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	dist_label.tooltip_text = "Tiles behind the last party member (SF2 default: 2-3)"
 	dist_container.add_child(dist_label)
 
@@ -438,7 +438,7 @@ func _add_following_section() -> void:
 	var speed_container: HBoxContainer = HBoxContainer.new()
 	var speed_label: Label = Label.new()
 	speed_label.text = "Follow Speed:"
-	speed_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	speed_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	speed_label.tooltip_text = "Movement speed in pixels per second"
 	speed_container.add_child(speed_label)
 
@@ -464,7 +464,7 @@ func _add_following_section() -> void:
 	var history_container: HBoxContainer = HBoxContainer.new()
 	var history_label: Label = Label.new()
 	history_label.text = "Max History Size:"
-	history_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	history_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	history_label.tooltip_text = "Maximum tiles of movement history to maintain"
 	history_container.add_child(history_label)
 
@@ -485,13 +485,13 @@ func _add_terrain_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Terrain Restrictions"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Where the caravan can and cannot travel"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Can Cross Water
@@ -514,7 +514,7 @@ func _add_terrain_section() -> void:
 	var blocked_container: HBoxContainer = HBoxContainer.new()
 	var blocked_label: Label = Label.new()
 	blocked_label.text = "Blocked Terrain:"
-	blocked_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	blocked_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	blocked_label.tooltip_text = "Terrain types the caravan cannot traverse (comma-separated)"
 	blocked_container.add_child(blocked_label)
 
@@ -533,13 +533,13 @@ func _add_services_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Services Available"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Features offered by this caravan to the player"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Item Storage
@@ -590,20 +590,20 @@ func _add_interior_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Interior (Future)"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Optional walkable interior scene (leave empty for standard menu)"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Interior Scene Path
 	var interior_container: HBoxContainer = HBoxContainer.new()
 	var interior_label: Label = Label.new()
 	interior_label.text = "Interior Scene:"
-	interior_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	interior_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	interior_label.tooltip_text = "Path to a walkable interior scene (.tscn)"
 	interior_container.add_child(interior_label)
 
@@ -616,8 +616,8 @@ func _add_interior_section() -> void:
 
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Interior NPCs can be configured in the Godot Inspector"
-	note_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	note_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	note_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	note_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(note_label)
 
 	detail_panel.add_child(section)
@@ -628,14 +628,14 @@ func _add_audio_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Audio"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Menu Open SFX
 	var open_container: HBoxContainer = HBoxContainer.new()
 	var open_label: Label = Label.new()
 	open_label.text = "Menu Open SFX:"
-	open_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	open_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	open_label.tooltip_text = "Sound when opening the caravan menu"
 	open_container.add_child(open_label)
 
@@ -650,7 +650,7 @@ func _add_audio_section() -> void:
 	var close_container: HBoxContainer = HBoxContainer.new()
 	var close_label: Label = Label.new()
 	close_label.text = "Menu Close SFX:"
-	close_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	close_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	close_label.tooltip_text = "Sound when closing the caravan menu"
 	close_container.add_child(close_label)
 
@@ -665,7 +665,7 @@ func _add_audio_section() -> void:
 	var heal_container: HBoxContainer = HBoxContainer.new()
 	var heal_label: Label = Label.new()
 	heal_label.text = "Heal/Rest SFX:"
-	heal_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	heal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	heal_label.tooltip_text = "Sound when using the rest service"
 	heal_container.add_child(heal_label)
 
@@ -680,7 +680,7 @@ func _add_audio_section() -> void:
 	var ambient_container: HBoxContainer = HBoxContainer.new()
 	var ambient_label: Label = Label.new()
 	ambient_label.text = "Ambient SFX:"
-	ambient_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	ambient_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	ambient_label.tooltip_text = "Ambient sound while menu is open (optional)"
 	ambient_container.add_child(ambient_label)
 

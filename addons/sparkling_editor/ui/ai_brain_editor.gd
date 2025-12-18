@@ -263,14 +263,14 @@ func _add_identity_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Behavior ID
 	var id_container: HBoxContainer = HBoxContainer.new()
 	var id_label: Label = Label.new()
 	id_label.text = "Behavior ID:"
-	id_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	id_label.tooltip_text = "Unique identifier used in BattleData references (no spaces)"
 	id_container.add_child(id_label)
 
@@ -286,7 +286,7 @@ func _add_identity_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_container.add_child(name_label)
 
 	display_name_edit = LineEdit.new()
@@ -317,20 +317,20 @@ func _add_role_mode_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Role & Mode"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Role = WHAT the AI prioritizes. Mode = HOW it executes."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Role
 	var role_container: HBoxContainer = HBoxContainer.new()
 	var role_label: Label = Label.new()
 	role_label.text = "Role:"
-	role_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	role_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	role_label.tooltip_text = "Tactical role: Support (heals), Aggressive (attacks), Defensive (protects), Tactical (debuffs)"
 	role_container.add_child(role_label)
 
@@ -345,7 +345,7 @@ func _add_role_mode_section() -> void:
 	var mode_container: HBoxContainer = HBoxContainer.new()
 	var mode_label: Label = Label.new()
 	mode_label.text = "Behavior Mode:"
-	mode_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	mode_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	mode_label.tooltip_text = "Execution style: Aggressive (chase), Cautious (hold), Opportunistic (exploit weakness)"
 	mode_container.add_child(mode_label)
 
@@ -361,7 +361,7 @@ func _add_role_mode_section() -> void:
 	base_behavior_picker = ResourcePicker.new()
 	base_behavior_picker.resource_type = "ai_behavior"
 	base_behavior_picker.label_text = "Inherits From:"
-	base_behavior_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	base_behavior_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	base_behavior_picker.allow_none = true
 	base_behavior_picker.tooltip_text = "Inherit settings from another behavior. Unset values use the base. Good for variants."
 	base_behavior_picker.resource_selected.connect(_on_base_behavior_selected)
@@ -379,13 +379,13 @@ func _add_threat_assessment_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Threat Assessment"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Higher weights = higher priority targets. 1.0 = normal."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Threat weights container
@@ -413,7 +413,7 @@ func _add_retreat_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Retreat & Self-Preservation"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Enable retreat
@@ -427,7 +427,7 @@ func _add_retreat_section() -> void:
 	var threshold_container: HBoxContainer = HBoxContainer.new()
 	var threshold_label: Label = Label.new()
 	threshold_label.text = "Retreat HP %:"
-	threshold_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	threshold_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	threshold_container.add_child(threshold_label)
 
 	retreat_threshold_spin = SpinBox.new()
@@ -461,14 +461,14 @@ func _add_ability_usage_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Ability Usage (Spells)"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# AoE minimum targets
 	var aoe_container: HBoxContainer = HBoxContainer.new()
 	var aoe_label: Label = Label.new()
 	aoe_label.text = "AoE Min Targets:"
-	aoe_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	aoe_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	aoe_label.tooltip_text = "Minimum enemies in area before using AoE spells"
 	aoe_container.add_child(aoe_label)
 
@@ -506,7 +506,7 @@ func _add_ability_usage_section() -> void:
 	var effects_container: HBoxContainer = HBoxContainer.new()
 	var effects_label: Label = Label.new()
 	effects_label.text = "Preferred Effects:"
-	effects_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	effects_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	effects_container.add_child(effects_label)
 
 	preferred_effects_edit = LineEdit.new()
@@ -525,7 +525,7 @@ func _add_item_usage_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Item Usage"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	use_healing_items_check = CheckBox.new()
@@ -560,14 +560,14 @@ func _add_engagement_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Engagement Rules"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Alert range
 	var alert_container: HBoxContainer = HBoxContainer.new()
 	var alert_label: Label = Label.new()
 	alert_label.text = "Alert Range:"
-	alert_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	alert_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	alert_label.tooltip_text = "Distance at which unit becomes aware of enemies"
 	alert_container.add_child(alert_label)
 
@@ -584,7 +584,7 @@ func _add_engagement_section() -> void:
 	var engage_container: HBoxContainer = HBoxContainer.new()
 	var engage_label: Label = Label.new()
 	engage_label.text = "Engagement Range:"
-	engage_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	engage_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	engage_label.tooltip_text = "Distance at which unit actively pursues enemies"
 	engage_container.add_child(engage_label)
 
@@ -608,7 +608,7 @@ func _add_engagement_section() -> void:
 	var idle_container: HBoxContainer = HBoxContainer.new()
 	var idle_label: Label = Label.new()
 	idle_label.text = "Max Idle Turns:"
-	idle_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	idle_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	idle_label.tooltip_text = "Turns waiting before becoming aggressive (0 = stay passive)"
 	idle_container.add_child(idle_label)
 
@@ -635,11 +635,11 @@ func _add_preview_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Behavior Preview"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var preview_panel: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = EditorThemeUtils.create_info_panel_style()
+	var style: StyleBoxFlat = SparklingEditorUtils.create_info_panel_style()
 	preview_panel.add_theme_stylebox_override("panel", style)
 
 	preview_label = RichTextLabel.new()

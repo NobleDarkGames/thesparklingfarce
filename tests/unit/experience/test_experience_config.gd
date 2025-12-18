@@ -178,10 +178,6 @@ func test_default_max_level() -> void:
 	assert_int(_config.max_level).is_equal(20)
 
 
-func test_default_promotion_level() -> void:
-	assert_int(_config.promotion_level).is_equal(10)
-
-
 func test_default_max_xp_per_action() -> void:
 	assert_int(_config.max_xp_per_action).is_equal(49)
 

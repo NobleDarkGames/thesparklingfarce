@@ -14,13 +14,9 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 
 # Basic Info
 var crafter_id_edit: LineEdit
-var crafter_id_lock_btn: Button
 var name_edit: LineEdit
 var crafter_type_option: OptionButton
 var crafter_type_custom_edit: LineEdit
-
-# Track if ID should auto-generate from name
-var _id_is_locked: bool = false
 
 # Capabilities
 var skill_level_spin: SpinBox
@@ -92,11 +88,6 @@ func _load_resource_data() -> void:
 	# Basic info
 	crafter_id_edit.text = _get_crafter_id_from_resource()
 	name_edit.text = crafter.crafter_name
-
-	# Check if ID should be locked (differs from auto-generated)
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(crafter.crafter_name)
-	_id_is_locked = (_get_crafter_id_from_resource() != expected_auto_id) and not _get_crafter_id_from_resource().is_empty()
-	_update_lock_button()
 
 	# Crafter type
 	_set_crafter_type(crafter.crafter_type)
@@ -245,23 +236,14 @@ func _add_basic_info_section() -> void:
 	name_edit.text_changed.connect(_on_name_changed)
 	name_row.add_child(name_edit)
 
-	# Crafter ID
+	# Crafter ID (read-only, derived from filename)
 	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("Crafter ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	crafter_id_edit = LineEdit.new()
 	crafter_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	crafter_id_edit.placeholder_text = "(auto-generated from name)"
-	crafter_id_edit.tooltip_text = "Unique ID for referencing this crafter. Auto-generates from name."
+	crafter_id_edit.placeholder_text = "(from filename)"
+	crafter_id_edit.tooltip_text = "Unique ID derived from filename. Rename file to change ID."
 	crafter_id_edit.editable = false
 	id_row.add_child(crafter_id_edit)
-
-	crafter_id_lock_btn = Button.new()
-	crafter_id_lock_btn.text = "Unlock"
-	crafter_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
-	crafter_id_lock_btn.custom_minimum_size.x = 60
-	crafter_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(crafter_id_lock_btn)
-
-	SparklingEditorUtils.create_help_label("ID is derived from filename. Click lock to edit manually.", section)
 
 	# Crafter Type
 	var type_row: HBoxContainer = SparklingEditorUtils.create_field_row("Crafter Type:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
@@ -427,25 +409,10 @@ func _add_description_section() -> void:
 # EVENT HANDLERS
 # =============================================================================
 
-func _on_name_changed(new_text: String) -> void:
+func _on_name_changed(_new_text: String) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		crafter_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_text)
 	_mark_dirty()
-
-
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	crafter_id_edit.editable = _id_is_locked
-	if not _id_is_locked:
-		crafter_id_edit.text = SparklingEditorUtils.generate_id_from_name(name_edit.text)
-
-
-func _update_lock_button() -> void:
-	crafter_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
-	crafter_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "ID auto-generates from name. Click to lock."
 
 
 func _on_crafter_type_selected(index: int) -> void:

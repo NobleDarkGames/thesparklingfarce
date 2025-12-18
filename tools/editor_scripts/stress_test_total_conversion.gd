@@ -247,7 +247,7 @@ func _create_abilities() -> void:
 	slash.area_of_effect = 0
 	slash.mp_cost = 0
 	slash.hp_cost = 0
-	slash.power = 10
+	slash.potency = 10
 	slash.accuracy = 95
 
 	var path: String = "res://mods/" + MOD_ID + "/data/abilities/test_slash.tres"
@@ -268,7 +268,7 @@ func _create_abilities() -> void:
 	fireball.area_of_effect = 1
 	fireball.mp_cost = 5
 	fireball.hp_cost = 0
-	fireball.power = 15
+	fireball.potency = 15
 	fireball.accuracy = 90
 
 	path = "res://mods/" + MOD_ID + "/data/abilities/test_fireball.tres"
@@ -289,7 +289,7 @@ func _create_abilities() -> void:
 	heal.area_of_effect = 0
 	heal.mp_cost = 3
 	heal.hp_cost = 0
-	heal.power = 10
+	heal.potency = 10
 	heal.accuracy = 100
 
 	path = "res://mods/" + MOD_ID + "/data/abilities/test_heal.tres"

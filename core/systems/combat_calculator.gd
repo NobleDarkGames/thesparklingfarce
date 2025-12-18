@@ -106,12 +106,12 @@ static func _calculate_magic_damage_default(
 		push_error("CombatCalculator: Cannot calculate magic damage with null parameters")
 		return 0
 
-	# Get ability power (AbilityData uses 'power' field)
+	# Get ability potency (AbilityData uses 'potency' field)
 	var ability_power: int = 0
-	if "power" in ability:
-		ability_power = ability.power
+	if "potency" in ability:
+		ability_power = ability.potency
 	else:
-		push_warning("CombatCalculator: Ability missing power property")
+		push_warning("CombatCalculator: Ability missing potency property")
 
 	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)

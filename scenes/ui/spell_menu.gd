@@ -306,9 +306,9 @@ func _update_description() -> void:
 		# Start with effect description based on type
 		match ability.ability_type:
 			AbilityData.AbilityType.HEAL:
-				desc = "Heals: %d HP" % ability.power
+				desc = "Heals: %d HP" % ability.potency
 			AbilityData.AbilityType.ATTACK:
-				desc = "Damage: %d" % ability.power
+				desc = "Damage: %d" % ability.potency
 			AbilityData.AbilityType.SUPPORT:
 				desc = "Buff effect"
 			AbilityData.AbilityType.DEBUFF:

@@ -587,7 +587,7 @@ func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	var placeholder: Label = Label.new()
 	placeholder.name = "Placeholder"
 	placeholder.text = "Select a command to edit its parameters"
-	placeholder.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
+	placeholder.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
 	inspector_panel.add_child(placeholder)
 
 
@@ -879,7 +879,7 @@ func _clear_inspector() -> void:
 	var placeholder: Label = Label.new()
 	placeholder.name = "Placeholder"
 	placeholder.text = "Select a command to edit its parameters"
-	placeholder.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
+	placeholder.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
 	inspector_panel.add_child(placeholder)
 
 
@@ -911,7 +911,7 @@ func _build_inspector_for_command(index: int) -> void:
 	if cmd_type in definitions and "description" in definitions[cmd_type]:
 		var desc_label: Label = Label.new()
 		desc_label.text = definitions[cmd_type].description
-		desc_label.add_theme_color_override("font_color", EditorThemeUtils.get_disabled_color())
+		desc_label.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inspector_panel.add_child(desc_label)
 

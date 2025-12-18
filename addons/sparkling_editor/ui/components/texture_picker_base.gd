@@ -412,7 +412,7 @@ func _update_validation_display() -> void:
 	# Update path edit styling for errors
 	if _path_edit:
 		if _validation_severity == "error" and not _current_path.is_empty():
-			_path_edit.add_theme_color_override("font_color", EditorThemeUtils.get_error_color())
+			_path_edit.add_theme_color_override("font_color", SparklingEditorUtils.get_error_color())
 		else:
 			_path_edit.remove_theme_color_override("font_color")
 

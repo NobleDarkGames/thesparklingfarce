@@ -5,22 +5,55 @@
 class_name TestPromotionManager
 extends GdUnitTestSuite
 
+# Preload resources that may not be indexed yet during test runs
+const PromotionPathScript: GDScript = preload("res://core/resources/promotion_path.gd")
+const ClassDataScript: GDScript = preload("res://core/resources/class_data.gd")
+
 
 # =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
-## Create a basic ClassData with promotion settings
+## Create a basic ClassData with promotion settings using new promotion_paths system
 func _create_test_class(
 	name: String = "Warrior",
 	promotion_level: int = 10,
-	promotion_class: ClassData = null
+	target_class: ClassData = null,
+	required_item: ItemData = null
 ) -> ClassData:
 	var class_data: ClassData = ClassData.new()
 	class_data.display_name = name
 	class_data.promotion_level = promotion_level
-	class_data.promotion_class = promotion_class
 	class_data.movement_range = 4
+
+	# Add promotion path if target specified
+	if target_class:
+		var path: Resource = PromotionPathScript.new()
+		path.target_class = target_class
+		path.required_item = required_item
+		class_data.promotion_paths.append(path)
+
+	return class_data
+
+
+## Create a ClassData with multiple promotion paths
+func _create_multi_path_class(
+	name: String,
+	promotion_level: int,
+	paths_data: Array  # Array of {target: ClassData, item: ItemData or null, name: String or ""}
+) -> ClassData:
+	var class_data: ClassData = ClassData.new()
+	class_data.display_name = name
+	class_data.promotion_level = promotion_level
+	class_data.movement_range = 4
+
+	for path_info: Dictionary in paths_data:
+		var path: Resource = PromotionPathScript.new()
+		path.target_class = path_info.get("target")
+		path.required_item = path_info.get("item")
+		path.path_name = path_info.get("name", "")
+		class_data.promotion_paths.append(path)
+
 	return class_data
 
 
@@ -46,6 +79,65 @@ func _create_alternate_class(name: String = "Baron") -> ClassData:
 	return class_data
 
 
+## Create a test promotion item
+func _create_promotion_item(name: String = "Pegasus Wing") -> ItemData:
+	var item: ItemData = ItemData.new()
+	item.item_name = name
+	item.item_type = ItemData.ItemType.KEY_ITEM  # Promotion items are key items
+	return item
+
+
+# =============================================================================
+# PROMOTION PATH RESOURCE TESTS
+# =============================================================================
+
+func test_promotion_path_requires_item() -> void:
+	var item: ItemData = _create_promotion_item()
+	var path: Resource = PromotionPathScript.new()
+	path.target_class = _create_promoted_class()
+	path.required_item = item
+
+	assert_bool(path.requires_item()).is_true()
+
+
+func test_promotion_path_no_item_required() -> void:
+	var path: Resource = PromotionPathScript.new()
+	path.target_class = _create_promoted_class()
+	path.required_item = null
+
+	assert_bool(path.requires_item()).is_false()
+
+
+func test_promotion_path_display_name_from_target() -> void:
+	var path: Resource = PromotionPathScript.new()
+	path.target_class = _create_promoted_class("Paladin")
+	path.path_name = ""
+
+	assert_str(path.get_display_name()).is_equal("Paladin")
+
+
+func test_promotion_path_display_name_custom() -> void:
+	var path: Resource = PromotionPathScript.new()
+	path.target_class = _create_promoted_class("Paladin")
+	path.path_name = "Holy Knight Path"
+
+	assert_str(path.get_display_name()).is_equal("Holy Knight Path")
+
+
+func test_promotion_path_is_valid() -> void:
+	var path: Resource = PromotionPathScript.new()
+	path.target_class = _create_promoted_class()
+
+	assert_bool(path.is_valid()).is_true()
+
+
+func test_promotion_path_invalid_without_target() -> void:
+	var path: Resource = PromotionPathScript.new()
+	path.target_class = null
+
+	assert_bool(path.is_valid()).is_false()
+
+
 # =============================================================================
 # CLASS DATA PROMOTION PROPERTIES TESTS
 # =============================================================================
@@ -54,14 +146,16 @@ func test_class_has_promotion_path() -> void:
 	var promoted: ClassData = _create_promoted_class()
 	var base_class: ClassData = _create_test_class("Warrior", 10, promoted)
 
-	assert_object(base_class.promotion_class).is_not_null()
-	assert_str(base_class.promotion_class.display_name).is_equal("Gladiator")
+	var paths: Array[ClassData] = base_class.get_all_promotion_paths()
+	assert_int(paths.size()).is_equal(1)
+	assert_str(paths[0].display_name).is_equal("Gladiator")
 
 
 func test_class_without_promotion_path() -> void:
 	var base_class: ClassData = _create_test_class("Gladiator", 10, null)
 
-	assert_object(base_class.promotion_class).is_null()
+	var paths: Array[ClassData] = base_class.get_all_promotion_paths()
+	assert_int(paths.size()).is_equal(0)
 
 
 func test_class_promotion_level_default() -> void:
@@ -72,16 +166,20 @@ func test_class_promotion_level_default() -> void:
 	assert_int(base_class.promotion_level).is_equal(10)
 
 
-func test_class_has_special_promotion() -> void:
+func test_class_has_special_promotion_with_item_path() -> void:
 	var promoted: ClassData = _create_promoted_class()
 	var special: ClassData = _create_alternate_class()
-	var base_class: ClassData = _create_test_class("Knight", 10, promoted)
-	base_class.special_promotion_class = special
+	var item: ItemData = _create_promotion_item()
+
+	var base_class: ClassData = _create_multi_path_class("Knight", 10, [
+		{"target": promoted, "item": null},
+		{"target": special, "item": item}
+	])
 
 	assert_bool(base_class.has_special_promotion()).is_true()
 
 
-func test_class_no_special_promotion() -> void:
+func test_class_no_special_promotion_without_item_paths() -> void:
 	var promoted: ClassData = _create_promoted_class()
 	var base_class: ClassData = _create_test_class("Knight", 10, promoted)
 
@@ -98,15 +196,22 @@ func test_class_get_all_promotion_paths_single() -> void:
 	assert_str(paths[0].display_name).is_equal("Gladiator")
 
 
-func test_class_get_all_promotion_paths_with_special() -> void:
-	var promoted: ClassData = _create_promoted_class()
-	var special: ClassData = _create_alternate_class()
-	var base_class: ClassData = _create_test_class("Knight", 10, promoted)
-	base_class.special_promotion_class = special
+func test_class_get_all_promotion_paths_multiple() -> void:
+	var promoted: ClassData = _create_promoted_class("Paladin")
+	var special: ClassData = _create_alternate_class("Pegasus Knight")
+	var dark: ClassData = _create_alternate_class("Dark Knight")
+	var item1: ItemData = _create_promotion_item("Pegasus Wing")
+	var item2: ItemData = _create_promotion_item("Dark Stone")
+
+	var base_class: ClassData = _create_multi_path_class("Knight", 10, [
+		{"target": promoted, "item": null},
+		{"target": special, "item": item1},
+		{"target": dark, "item": item2}
+	])
 
 	var paths: Array[ClassData] = base_class.get_all_promotion_paths()
 
-	assert_int(paths.size()).is_equal(2)
+	assert_int(paths.size()).is_equal(3)
 
 
 func test_class_get_all_promotion_paths_no_promotion() -> void:
@@ -115,6 +220,56 @@ func test_class_get_all_promotion_paths_no_promotion() -> void:
 	var paths: Array[ClassData] = base_class.get_all_promotion_paths()
 
 	assert_int(paths.size()).is_equal(0)
+
+
+func test_class_get_promotion_path_resources() -> void:
+	var promoted: ClassData = _create_promoted_class()
+	var base_class: ClassData = _create_test_class("Warrior", 10, promoted)
+
+	var path_resources: Array = base_class.get_promotion_path_resources()
+
+	assert_int(path_resources.size()).is_equal(1)
+	assert_object(path_resources[0].target_class).is_same(promoted)
+
+
+func test_class_get_promotion_path_for_class() -> void:
+	var promoted: ClassData = _create_promoted_class("Paladin")
+	var special: ClassData = _create_alternate_class("Pegasus Knight")
+	var item: ItemData = _create_promotion_item("Pegasus Wing")
+
+	var base_class: ClassData = _create_multi_path_class("Knight", 10, [
+		{"target": promoted, "item": null},
+		{"target": special, "item": item}
+	])
+
+	var path: Resource = base_class.get_promotion_path_for_class(special)
+
+	assert_object(path).is_not_null()
+	assert_object(path.target_class).is_same(special)
+	assert_object(path.required_item).is_same(item)
+
+
+func test_class_get_promotion_path_for_nonexistent_class() -> void:
+	var promoted: ClassData = _create_promoted_class()
+	var other: ClassData = _create_alternate_class("Other")
+	var base_class: ClassData = _create_test_class("Warrior", 10, promoted)
+
+	var path: Resource = base_class.get_promotion_path_for_class(other)
+
+	assert_object(path).is_null()
+
+
+func test_class_can_promote() -> void:
+	var promoted: ClassData = _create_promoted_class()
+	var base_class: ClassData = _create_test_class("Warrior", 10, promoted)
+
+	assert_bool(base_class.can_promote()).is_true()
+
+
+func test_class_cannot_promote_without_paths() -> void:
+	var base_class: ClassData = _create_test_class("Hero", 10, null)
+
+	assert_bool(base_class.can_promote()).is_false()
 
 
 # =============================================================================
@@ -225,31 +380,24 @@ func test_character_save_data_deserialization_handles_missing_promotion_fields()
 
 
 # =============================================================================
-# EXPERIENCE CONFIG PROMOTION SETTINGS TESTS
+# CLASS DATA PROMOTION SETTINGS TESTS
 # =============================================================================
 
-func test_experience_config_has_promotion_settings() -> void:
-	var config: ExperienceConfig = ExperienceConfig.new()
+func test_class_data_has_promotion_settings() -> void:
+	var class_data: ClassData = ClassData.new()
 
-	# Check all new promotion properties exist with defaults
-	assert_bool(config.promotion_resets_level).is_true()
-	assert_bool(config.consume_promotion_item).is_true()
-	assert_int(config.promotion_bonus_hp).is_equal(0)
-	assert_int(config.promotion_bonus_mp).is_equal(0)
-	assert_int(config.promotion_bonus_strength).is_equal(0)
-	assert_int(config.promotion_bonus_defense).is_equal(0)
-	assert_int(config.promotion_bonus_agility).is_equal(0)
-	assert_int(config.promotion_bonus_intelligence).is_equal(0)
-	assert_int(config.promotion_bonus_luck).is_equal(0)
+	# Check promotion properties exist with SF2-style defaults
+	assert_bool(class_data.promotion_resets_level).is_true()
+	assert_bool(class_data.consume_promotion_item).is_true()
 
 
-func test_experience_config_promotion_bonuses_can_be_set() -> void:
-	var config: ExperienceConfig = ExperienceConfig.new()
-	config.promotion_bonus_hp = 5
-	config.promotion_bonus_strength = 2
+func test_class_data_promotion_settings_can_be_customized() -> void:
+	var class_data: ClassData = ClassData.new()
+	class_data.promotion_resets_level = false
+	class_data.consume_promotion_item = false
 
-	assert_int(config.promotion_bonus_hp).is_equal(5)
-	assert_int(config.promotion_bonus_strength).is_equal(2)
+	assert_bool(class_data.promotion_resets_level).is_false()
+	assert_bool(class_data.consume_promotion_item).is_false()
 
 
 # =============================================================================
@@ -281,10 +429,10 @@ func test_promotion_eligibility_requires_promotion_path() -> void:
 	var without_path: ClassData = _create_test_class("Hero", 10, null)
 
 	# Class with promotion path can promote
-	assert_object(with_path.promotion_class).is_not_null()
+	assert_bool(with_path.can_promote()).is_true()
 
 	# Class without promotion path cannot promote
-	assert_object(without_path.promotion_class).is_null()
+	assert_bool(without_path.can_promote()).is_false()
 
 
 func test_promotion_eligibility_custom_level_requirement() -> void:
@@ -322,37 +470,28 @@ func test_stat_preservation_logic() -> void:
 	assert_int(post_promotion_stats.strength).is_equal(14)
 
 
-func test_promotion_bonus_application_logic() -> void:
-	# Simulate applying promotion bonuses
-	var config: ExperienceConfig = ExperienceConfig.new()
-	config.promotion_bonus_hp = 5
-	config.promotion_bonus_strength = 2
-	config.promotion_bonus_defense = 1
-
+func test_promotion_preserves_stats() -> void:
+	# SF2-style: Stats carry over on promotion exactly as-is
 	var stats: Dictionary = {
 		"max_hp": 30,
 		"strength": 12,
 		"defense": 10
 	}
 
-	# Apply bonuses
-	stats.max_hp += config.promotion_bonus_hp
-	stats.strength += config.promotion_bonus_strength
-	stats.defense += config.promotion_bonus_defense
-
-	assert_int(stats.max_hp).is_equal(35)
-	assert_int(stats.strength).is_equal(14)
-	assert_int(stats.defense).is_equal(11)
+	# Stats are preserved exactly on promotion (no bonuses in SF2 style)
+	assert_int(stats.max_hp).is_equal(30)
+	assert_int(stats.strength).is_equal(12)
+	assert_int(stats.defense).is_equal(10)
 
 
 func test_level_reset_on_promotion_logic() -> void:
 	# SF2 style: level resets to 1, stats carry over
 	var pre_promotion_level: int = 10
-	var config: ExperienceConfig = ExperienceConfig.new()
-	config.promotion_resets_level = true
+	var class_data: ClassData = ClassData.new()
+	class_data.promotion_resets_level = true
 
 	# After promotion, level should reset to 1
-	var post_promotion_level: int = 1 if config.promotion_resets_level else pre_promotion_level
+	var post_promotion_level: int = 1 if class_data.promotion_resets_level else pre_promotion_level
 
 	assert_int(post_promotion_level).is_equal(1)
 
@@ -393,14 +532,47 @@ func test_standard_promotion_path_available() -> void:
 func test_special_promotion_path_with_item() -> void:
 	var promoted: ClassData = _create_promoted_class("Paladin")
 	var special: ClassData = _create_alternate_class("Pegasus Knight")
-	var base_class: ClassData = _create_test_class("Knight", 10, promoted)
-	base_class.special_promotion_class = special
+	var item: ItemData = _create_promotion_item("Pegasus Wing")
+
+	var base_class: ClassData = _create_multi_path_class("Knight", 10, [
+		{"target": promoted, "item": null},
+		{"target": special, "item": item}
+	])
 
 	var available_paths: Array[ClassData] = base_class.get_all_promotion_paths()
 
 	assert_int(available_paths.size()).is_equal(2)
 	assert_bool(promoted in available_paths).is_true()
 	assert_bool(special in available_paths).is_true()
+
+
+func test_multiple_item_gated_paths() -> void:
+	var paladin: ClassData = _create_promoted_class("Paladin")
+	var pegasus_knight: ClassData = _create_alternate_class("Pegasus Knight")
+	var dark_knight: ClassData = _create_alternate_class("Dark Knight")
+	var pegasus_wing: ItemData = _create_promotion_item("Pegasus Wing")
+	var dark_stone: ItemData = _create_promotion_item("Dark Stone")
+
+	var base_class: ClassData = _create_multi_path_class("Knight", 10, [
+		{"target": paladin, "item": null},
+		{"target": pegasus_knight, "item": pegasus_wing},
+		{"target": dark_knight, "item": dark_stone}
+	])
+
+	# Verify all paths exist
+	var paths: Array = base_class.get_promotion_path_resources()
+	assert_int(paths.size()).is_equal(3)
+
+	# Verify item requirements
+	var paladin_path: Resource = base_class.get_promotion_path_for_class(paladin)
+	var pegasus_path: Resource = base_class.get_promotion_path_for_class(pegasus_knight)
+	var dark_path: Resource = base_class.get_promotion_path_for_class(dark_knight)
+
+	assert_bool(paladin_path.requires_item()).is_false()
+	assert_bool(pegasus_path.requires_item()).is_true()
+	assert_bool(dark_path.requires_item()).is_true()
+	assert_object(pegasus_path.required_item).is_same(pegasus_wing)
+	assert_object(dark_path.required_item).is_same(dark_stone)
 
 
 # =============================================================================
@@ -410,8 +582,8 @@ func test_special_promotion_path_with_item() -> void:
 func test_already_promoted_class_has_no_promotion() -> void:
 	var final_class: ClassData = ClassData.new()
 	final_class.display_name = "Hero"
-	final_class.promotion_class = null  # No further promotion
 	final_class.promotion_level = 0
+	# No promotion paths added
 
 	var paths: Array[ClassData] = final_class.get_all_promotion_paths()
 

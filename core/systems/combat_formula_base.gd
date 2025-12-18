@@ -75,8 +75,8 @@ func calculate_magic_damage(
 		return 0
 
 	var ability_power: int = 0
-	if "power" in ability:
-		ability_power = ability.power
+	if "potency" in ability:
+		ability_power = ability.potency
 
 	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
@@ -128,8 +128,8 @@ func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int:
 		return 0
 
 	var ability_power: int = 0
-	if "power" in ability:
-		ability_power = ability.power
+	if "potency" in ability:
+		ability_power = ability.potency
 
 	@warning_ignore("integer_division")
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)

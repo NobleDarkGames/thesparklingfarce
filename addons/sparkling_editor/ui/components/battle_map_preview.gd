@@ -141,7 +141,7 @@ func _setup_ui() -> void:
 	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_loading_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_loading_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_loading_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	_loading_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	_viewport_container.add_child(_loading_label)
 
 	# Error label (hidden by default)

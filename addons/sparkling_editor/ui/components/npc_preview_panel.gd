@@ -70,7 +70,7 @@ func _add_portrait_section(parent: VBoxContainer) -> void:
 	var label: Label = Label.new()
 	label.text = "Portrait"
 	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	section.add_child(label)
 
 	var container: CenterContainer = CenterContainer.new()
@@ -92,7 +92,7 @@ func _add_sprite_section(parent: VBoxContainer) -> void:
 	var label: Label = Label.new()
 	label.text = "Map Sprite"
 	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	section.add_child(label)
 
 	var container: CenterContainer = CenterContainer.new()
@@ -115,7 +115,7 @@ func _add_name_section(parent: VBoxContainer) -> void:
 	var label: Label = Label.new()
 	label.text = "Display Name"
 	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	section.add_child(label)
 
 	preview_name_label = Label.new()
@@ -133,7 +133,7 @@ func _add_dialog_section(parent: VBoxContainer) -> void:
 	var label: Label = Label.new()
 	label.text = "Dialog Preview"
 	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	section.add_child(label)
 
 	var dialog_box: PanelContainer = PanelContainer.new()

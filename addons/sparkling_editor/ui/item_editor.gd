@@ -277,7 +277,7 @@ func _add_basic_info_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Item Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_container.add_child(name_label)
 
 	name_edit = LineEdit.new()
@@ -290,7 +290,7 @@ func _add_basic_info_section() -> void:
 	var icon_container: HBoxContainer = HBoxContainer.new()
 	var icon_label: Label = Label.new()
 	icon_label.text = "Icon:"
-	icon_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	icon_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	icon_container.add_child(icon_label)
 
 	# Preview at actual game size (32x32) with border
@@ -336,7 +336,7 @@ func _add_basic_info_section() -> void:
 	var type_container: HBoxContainer = HBoxContainer.new()
 	var type_label: Label = Label.new()
 	type_label.text = "Item Type:"
-	type_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	type_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	type_container.add_child(type_label)
 
 	item_type_option = OptionButton.new()
@@ -353,7 +353,7 @@ func _add_basic_info_section() -> void:
 	var equip_container: HBoxContainer = HBoxContainer.new()
 	var equip_label: Label = Label.new()
 	equip_label.text = "Equipment Type:"
-	equip_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	equip_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	equip_label.tooltip_text = "For weapons: sword, axe, bow, etc.\nFor accessories: ring, amulet, etc."
 	equip_container.add_child(equip_label)
 
@@ -368,7 +368,7 @@ func _add_basic_info_section() -> void:
 	var slot_container: HBoxContainer = HBoxContainer.new()
 	var slot_label: Label = Label.new()
 	slot_label.text = "Equipment Slot:"
-	slot_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	slot_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	slot_label.tooltip_text = "Which slot this item occupies when equipped"
 	slot_container.add_child(slot_label)
 
@@ -382,8 +382,8 @@ func _add_basic_info_section() -> void:
 	# Help text explaining equipment type vs slot
 	var equip_help: Label = Label.new()
 	equip_help.text = "Type = weapon/accessory category (sword, ring). Slot = where equipped (weapon, ring_1, ring_2)."
-	equip_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	equip_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	equip_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	equip_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	equip_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(equip_help)
 
@@ -431,7 +431,7 @@ func _add_weapon_section() -> void:
 	var power_container: HBoxContainer = HBoxContainer.new()
 	var power_label: Label = Label.new()
 	power_label.text = "Attack Power:"
-	power_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	power_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	power_container.add_child(power_label)
 
 	attack_power_spin = SpinBox.new()
@@ -446,7 +446,7 @@ func _add_weapon_section() -> void:
 	var min_range_container: HBoxContainer = HBoxContainer.new()
 	var min_range_label: Label = Label.new()
 	min_range_label.text = "Min Attack Range:"
-	min_range_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	min_range_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	min_range_label.tooltip_text = "Minimum attack distance. Set to 2+ for ranged weapons with dead zones (cannot hit adjacent)."
 	min_range_container.add_child(min_range_label)
 
@@ -463,7 +463,7 @@ func _add_weapon_section() -> void:
 	var max_range_container: HBoxContainer = HBoxContainer.new()
 	var max_range_label: Label = Label.new()
 	max_range_label.text = "Max Attack Range:"
-	max_range_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	max_range_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	max_range_label.tooltip_text = "Maximum attack distance. Set to 1 for melee, higher for ranged weapons."
 	max_range_container.add_child(max_range_label)
 
@@ -487,7 +487,7 @@ func _add_weapon_section() -> void:
 	var hit_container: HBoxContainer = HBoxContainer.new()
 	var hit_label: Label = Label.new()
 	hit_label.text = "Hit Rate (%):"
-	hit_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	hit_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	hit_container.add_child(hit_label)
 
 	hit_rate_spin = SpinBox.new()
@@ -502,7 +502,7 @@ func _add_weapon_section() -> void:
 	var crit_container: HBoxContainer = HBoxContainer.new()
 	var crit_label: Label = Label.new()
 	crit_label.text = "Critical Rate (%):"
-	crit_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	crit_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	crit_container.add_child(crit_label)
 
 	crit_rate_spin = SpinBox.new()
@@ -538,7 +538,7 @@ func _add_consumable_section() -> void:
 	effect_picker = ResourcePicker.new()
 	effect_picker.resource_type = "ability"
 	effect_picker.label_text = "Effect:"
-	effect_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	effect_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	effect_picker.allow_none = true
 	effect_picker.none_text = "(No Effect)"
 	effect_picker.tooltip_text = "Ability that activates when used. Create abilities for healing, buffs, damage, etc."
@@ -546,8 +546,8 @@ func _add_consumable_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "The ability that activates when this item is used"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	consumable_section.add_child(help_label)
 
 	detail_panel.add_child(consumable_section)
@@ -565,7 +565,7 @@ func _add_economy_section() -> void:
 	var buy_container: HBoxContainer = HBoxContainer.new()
 	var buy_label: Label = Label.new()
 	buy_label.text = "Buy Price:"
-	buy_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	buy_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	buy_container.add_child(buy_label)
 
 	buy_price_spin = SpinBox.new()
@@ -580,7 +580,7 @@ func _add_economy_section() -> void:
 	var sell_container: HBoxContainer = HBoxContainer.new()
 	var sell_label: Label = Label.new()
 	sell_label.text = "Sell Price:"
-	sell_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	sell_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	sell_container.add_child(sell_label)
 
 	sell_price_spin = SpinBox.new()
@@ -610,8 +610,8 @@ func _add_item_management_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Crafting materials can be combined at crafter NPCs to forge new equipment"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(help_label)
 
@@ -623,7 +623,7 @@ func _create_modifier_editor(label_text: String, parent: VBoxContainer, tooltip:
 
 	var label: Label = Label.new()
 	label.text = label_text
-	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	if not tooltip.is_empty():
 		label.tooltip_text = tooltip
 	container.add_child(label)
@@ -677,7 +677,7 @@ func _add_curse_section() -> void:
 	var uncurse_container: HBoxContainer = HBoxContainer.new()
 	var uncurse_label: Label = Label.new()
 	uncurse_label.text = "Uncurse Items:"
-	uncurse_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	uncurse_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	uncurse_label.tooltip_text = "Item IDs that can remove this curse (comma-separated)"
 	uncurse_container.add_child(uncurse_label)
 
@@ -691,7 +691,7 @@ func _add_curse_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Leave empty if only church service can remove curse"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 14)
 	curse_section.add_child(help_label)
 

@@ -270,7 +270,7 @@ func _add_basic_info_section() -> void:
 	var id_container: HBoxContainer = HBoxContainer.new()
 	var id_label: Label = Label.new()
 	id_label.text = "Shop ID:"
-	id_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	id_container.add_child(id_label)
 
 	id_edit = LineEdit.new()
@@ -285,7 +285,7 @@ func _add_basic_info_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Shop Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_container.add_child(name_label)
 
 	name_edit = LineEdit.new()
@@ -300,7 +300,7 @@ func _add_basic_info_section() -> void:
 	var type_container: HBoxContainer = HBoxContainer.new()
 	var type_label: Label = Label.new()
 	type_label.text = "Shop Type:"
-	type_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	type_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	type_container.add_child(type_label)
 
 	shop_type_option = OptionButton.new()
@@ -341,7 +341,7 @@ func _add_presentation_section() -> void:
 	var farewell_container: HBoxContainer = HBoxContainer.new()
 	var farewell_label: Label = Label.new()
 	farewell_label.text = "Farewell Text:"
-	farewell_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	farewell_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	farewell_container.add_child(farewell_label)
 
 	farewell_edit = LineEdit.new()
@@ -365,7 +365,7 @@ func _add_inventory_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Items available for purchase in this shop"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 12)
 	inventory_container.add_child(help_label)
 
@@ -438,7 +438,7 @@ func _add_deals_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Items shown in the 'Deals' menu with discount applied"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 12)
 	deals_container.add_child(help_label)
 
@@ -475,7 +475,7 @@ func _add_economy_section() -> void:
 	var buy_container: HBoxContainer = HBoxContainer.new()
 	var buy_label: Label = Label.new()
 	buy_label.text = "Buy Multiplier:"
-	buy_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	buy_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	buy_label.tooltip_text = "Multiplier on item buy prices (1.0 = normal)"
 	buy_container.add_child(buy_label)
 
@@ -493,7 +493,7 @@ func _add_economy_section() -> void:
 	var sell_container: HBoxContainer = HBoxContainer.new()
 	var sell_label: Label = Label.new()
 	sell_label.text = "Sell Multiplier:"
-	sell_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	sell_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	sell_label.tooltip_text = "Multiplier on item sell prices (1.0 = normal)"
 	sell_container.add_child(sell_label)
 
@@ -511,7 +511,7 @@ func _add_economy_section() -> void:
 	var deals_container: HBoxContainer = HBoxContainer.new()
 	var deals_label: Label = Label.new()
 	deals_label.text = "Deals Discount:"
-	deals_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	deals_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	deals_label.tooltip_text = "Discount on deals items (0.75 = 25% off)"
 	deals_container.add_child(deals_label)
 
@@ -540,7 +540,7 @@ func _add_availability_section() -> void:
 	var req_container: HBoxContainer = HBoxContainer.new()
 	var req_label: Label = Label.new()
 	req_label.text = "Required Flags:"
-	req_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	req_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	req_label.tooltip_text = "All flags must be set for shop to be available"
 	req_container.add_child(req_label)
 
@@ -556,7 +556,7 @@ func _add_availability_section() -> void:
 	var forb_container: HBoxContainer = HBoxContainer.new()
 	var forb_label: Label = Label.new()
 	forb_label.text = "Forbidden Flags:"
-	forb_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	forb_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	forb_label.tooltip_text = "If any of these flags are set, shop is unavailable"
 	forb_container.add_child(forb_label)
 
@@ -615,7 +615,7 @@ func _add_church_section() -> void:
 	var heal_container: HBoxContainer = HBoxContainer.new()
 	var heal_label: Label = Label.new()
 	heal_label.text = "Heal Cost:"
-	heal_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	heal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	heal_label.tooltip_text = "Cost to fully heal a character (0 = free)"
 	heal_container.add_child(heal_label)
 
@@ -632,7 +632,7 @@ func _add_church_section() -> void:
 	var revive_container: HBoxContainer = HBoxContainer.new()
 	var revive_label: Label = Label.new()
 	revive_label.text = "Revive Base Cost:"
-	revive_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	revive_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	revive_container.add_child(revive_label)
 
 	revive_base_spin = SpinBox.new()
@@ -648,7 +648,7 @@ func _add_church_section() -> void:
 	var mult_container: HBoxContainer = HBoxContainer.new()
 	var mult_label: Label = Label.new()
 	mult_label.text = "Revive Level Mult:"
-	mult_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	mult_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	mult_label.tooltip_text = "Cost per character level added to base"
 	mult_container.add_child(mult_label)
 
@@ -666,7 +666,7 @@ func _add_church_section() -> void:
 	var uncurse_container: HBoxContainer = HBoxContainer.new()
 	var uncurse_label: Label = Label.new()
 	uncurse_label.text = "Uncurse Cost:"
-	uncurse_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	uncurse_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	uncurse_container.add_child(uncurse_label)
 
 	uncurse_cost_spin = SpinBox.new()
@@ -681,7 +681,7 @@ func _add_church_section() -> void:
 	# Preview
 	var preview_label: Label = Label.new()
 	preview_label.text = "Example: Level 10 revival = %d + (10 x 10) = %d G" % [200, 300]
-	preview_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	preview_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	preview_label.add_theme_font_size_override("font_size", 12)
 	church_section.add_child(preview_label)
 
@@ -699,7 +699,7 @@ func _add_crafter_section() -> void:
 	crafter_picker = ResourcePicker.new()
 	crafter_picker.resource_type = "crafter"
 	crafter_picker.label_text = "Crafter:"
-	crafter_picker.label_min_width = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	crafter_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	crafter_picker.allow_none = false
 	crafter_picker.tooltip_text = "The CrafterData resource that defines available recipes. Required for Crafter-type shops."
 	crafter_picker.resource_selected.connect(_on_crafter_selected)

@@ -99,7 +99,7 @@ func _setup_ui() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Edit party composition for save slots. Select a slot, modify the party, then save changes."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 14)
 	main_vbox.add_child(help_label)
 

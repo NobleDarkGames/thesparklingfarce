@@ -47,9 +47,9 @@ enum TargetType {
 @export var mp_cost: int = 0
 @export var hp_cost: int = 0
 
-@export_group("Power")
-## Base power/effectiveness of the ability
-@export var power: int = 10
+@export_group("Potency")
+## Base potency/effectiveness of the ability (damage for attacks, healing amount for heals)
+@export var potency: int = 10
 ## Accuracy percentage
 @export_range(0, 100) var accuracy: int = 100
 

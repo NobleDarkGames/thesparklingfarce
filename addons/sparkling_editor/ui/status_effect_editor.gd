@@ -273,14 +273,14 @@ func _add_identity_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Effect ID
 	var id_container: HBoxContainer = HBoxContainer.new()
 	var id_label: Label = Label.new()
 	id_label.text = "Effect ID:"
-	id_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	id_label.tooltip_text = "Unique identifier used in code (lowercase, underscores)"
 	id_container.add_child(id_label)
 
@@ -296,7 +296,7 @@ func _add_identity_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_label.tooltip_text = "Name shown in game UI"
 	name_container.add_child(name_label)
 
@@ -328,20 +328,20 @@ func _add_visual_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Visual Display"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Configure how the status effect appears in the UI."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Icon Color
 	var icon_container: HBoxContainer = HBoxContainer.new()
 	var icon_label: Label = Label.new()
 	icon_label.text = "Icon Color:"
-	icon_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	icon_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	icon_label.tooltip_text = "Color tint for the status icon in UI"
 	icon_container.add_child(icon_label)
 
@@ -357,7 +357,7 @@ func _add_visual_section() -> void:
 	var popup_container: HBoxContainer = HBoxContainer.new()
 	var popup_label: Label = Label.new()
 	popup_label.text = "Popup Text:"
-	popup_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	popup_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	popup_label.tooltip_text = "Text shown when effect triggers (optional)"
 	popup_container.add_child(popup_label)
 
@@ -373,7 +373,7 @@ func _add_visual_section() -> void:
 	var popup_color_container: HBoxContainer = HBoxContainer.new()
 	var popup_color_label: Label = Label.new()
 	popup_color_label.text = "Popup Color:"
-	popup_color_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	popup_color_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	popup_color_label.tooltip_text = "Color for the popup text"
 	popup_color_container.add_child(popup_color_label)
 
@@ -393,20 +393,20 @@ func _add_timing_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Trigger Timing"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "When does this effect's behavior activate?"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Trigger Timing
 	var timing_container: HBoxContainer = HBoxContainer.new()
 	var timing_label: Label = Label.new()
 	timing_label.text = "Timing:"
-	timing_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	timing_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	timing_container.add_child(timing_label)
 
 	trigger_timing_option = OptionButton.new()
@@ -422,8 +422,8 @@ func _add_timing_section() -> void:
 
 	var timing_help: Label = Label.new()
 	timing_help.text = "Turn Start: Poison damage, paralysis checks\nTurn End: After action processing\nOn Damage: When unit takes damage\nOn Action: When unit tries to act\nPassive: Always active (stat modifiers)"
-	timing_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	timing_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	timing_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	timing_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	timing_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(timing_help)
 
@@ -435,13 +435,13 @@ func _add_skip_turn_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Skip Turn Effects"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "For effects like Sleep, Stun, or Paralysis that prevent action."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Skips Turn checkbox
@@ -457,7 +457,7 @@ func _add_skip_turn_section() -> void:
 	recovery_chance_container = HBoxContainer.new()
 	var recovery_label: Label = Label.new()
 	recovery_label.text = "Recovery Chance (%):"
-	recovery_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	recovery_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	recovery_label.tooltip_text = "Chance to recover at the start of each turn"
 	recovery_chance_container.add_child(recovery_label)
 
@@ -479,20 +479,20 @@ func _add_damage_over_time_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Damage/Healing Over Time"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "HP change applied when the effect triggers."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Damage per Turn
 	var damage_container: HBoxContainer = HBoxContainer.new()
 	var damage_label: Label = Label.new()
 	damage_label.text = "HP Change/Turn:"
-	damage_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	damage_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	damage_label.tooltip_text = "Positive = damage (poison), Negative = healing (regen)"
 	damage_container.add_child(damage_label)
 
@@ -506,7 +506,7 @@ func _add_damage_over_time_section() -> void:
 
 	var damage_note: Label = Label.new()
 	damage_note.text = "  (+ = damage, - = heal)"
-	damage_note.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	damage_note.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	damage_container.add_child(damage_note)
 	section.add_child(damage_container)
 
@@ -518,13 +518,13 @@ func _add_stat_modifiers_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Stat Modifiers"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Stat bonuses/penalties applied while the effect is active. Leave at 0 for no change."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(help_label)
 
@@ -562,7 +562,7 @@ func _create_stat_spin(label_text: String, stat_name: String) -> SpinBox:
 
 	var label: Label = Label.new()
 	label.text = label_text
-	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	container.add_child(label)
 
 	var spin: SpinBox = SpinBox.new()
@@ -582,13 +582,13 @@ func _add_removal_conditions_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Removal Conditions"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "When should this effect be removed early?"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Removed on Damage checkbox
@@ -604,7 +604,7 @@ func _add_removal_conditions_section() -> void:
 	removal_chance_container = HBoxContainer.new()
 	var removal_label: Label = Label.new()
 	removal_label.text = "Removal Chance (%):"
-	removal_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	removal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	removal_label.tooltip_text = "Chance to remove when damaged"
 	removal_chance_container.add_child(removal_label)
 
@@ -626,20 +626,20 @@ func _add_action_modifiers_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Action Modifiers"
-	section_label.add_theme_font_size_override("font_size", EditorThemeUtils.SECTION_FONT_SIZE)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "How does this effect modify the unit's actions?"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Action Modifier Type
 	var modifier_container: HBoxContainer = HBoxContainer.new()
 	var modifier_label: Label = Label.new()
 	modifier_label.text = "Modifier Type:"
-	modifier_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	modifier_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	modifier_container.add_child(modifier_label)
 
 	action_modifier_option = OptionButton.new()
@@ -657,7 +657,7 @@ func _add_action_modifiers_section() -> void:
 	action_modifier_chance_container = HBoxContainer.new()
 	var chance_label: Label = Label.new()
 	chance_label.text = "Modifier Chance (%):"
-	chance_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	chance_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	chance_label.tooltip_text = "Chance the modifier applies each turn"
 	action_modifier_chance_container.add_child(chance_label)
 
@@ -673,8 +673,8 @@ func _add_action_modifiers_section() -> void:
 
 	var modifier_help: Label = Label.new()
 	modifier_help.text = "None: Normal actions\nRandom Target: Confusion - hits random unit\nAttack Allies: Berserk/Charm - forced to attack allies\nCannot Use Magic: Silence effect\nCannot Use Items: Item restriction"
-	modifier_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	modifier_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	modifier_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	modifier_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	modifier_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(modifier_help)
 

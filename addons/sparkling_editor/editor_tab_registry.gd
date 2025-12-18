@@ -74,7 +74,8 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 20},
 	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 30},
 	{"id": "shops", "display_name": "Shops", "scene": "shop_editor.tscn", "category": "story", "priority": 40},
-	{"id": "crafting", "display_name": "Crafting", "scene": "crafting_editor.tscn", "category": "story", "priority": 50},
+	{"id": "crafters", "display_name": "Crafters", "scene": "crafter_editor.tscn", "category": "story", "priority": 50},
+	{"id": "recipes", "display_name": "Recipes", "scene": "crafting_recipe_editor.tscn", "category": "story", "priority": 60},
 
 	# System editors (configuration and setup)
 	{"id": "overview", "display_name": "Overview", "category": "system", "priority": 0, "is_static": true},

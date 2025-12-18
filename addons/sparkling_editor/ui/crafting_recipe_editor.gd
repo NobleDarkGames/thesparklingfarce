@@ -16,10 +16,6 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 # Basic Info
 var recipe_name_edit: LineEdit
 var recipe_id_edit: LineEdit
-var recipe_id_lock_btn: Button
-
-# Track if ID should auto-generate from name
-var _id_is_locked: bool = false
 
 # Output Mode
 var output_mode_option: OptionButton
@@ -124,11 +120,6 @@ func _load_resource_data() -> void:
 	# Basic info
 	recipe_id_edit.text = _get_recipe_id_from_resource()
 	recipe_name_edit.text = recipe.recipe_name
-
-	# Check if ID should be locked
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(recipe.recipe_name)
-	_id_is_locked = (_get_recipe_id_from_resource() != expected_auto_id) and not _get_recipe_id_from_resource().is_empty()
-	_update_lock_button()
 
 	# Output mode
 	output_mode_option.select(recipe.output_mode)
@@ -325,19 +316,10 @@ func _add_basic_info_section() -> void:
 	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("Recipe ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	recipe_id_edit = LineEdit.new()
 	recipe_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	recipe_id_edit.placeholder_text = "(auto-generated from name)"
-	recipe_id_edit.tooltip_text = "Unique ID for referencing this recipe. Auto-generates from name."
+	recipe_id_edit.placeholder_text = "(from filename)"
+	recipe_id_edit.tooltip_text = "Unique ID derived from filename. Rename file to change ID."
 	recipe_id_edit.editable = false
 	id_row.add_child(recipe_id_edit)
-
-	recipe_id_lock_btn = Button.new()
-	recipe_id_lock_btn.text = "Unlock"
-	recipe_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
-	recipe_id_lock_btn.custom_minimum_size.x = 60
-	recipe_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(recipe_id_lock_btn)
-
-	SparklingEditorUtils.create_help_label("ID is derived from filename. Click lock to edit manually.", section)
 
 
 func _add_output_mode_section() -> void:
@@ -554,25 +536,10 @@ func _create_item_picker_popup() -> void:
 # EVENT HANDLERS
 # =============================================================================
 
-func _on_name_changed(new_text: String) -> void:
+func _on_name_changed(_new_text: String) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		recipe_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_text)
 	_mark_dirty()
-
-
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	recipe_id_edit.editable = _id_is_locked
-	if not _id_is_locked:
-		recipe_id_edit.text = SparklingEditorUtils.generate_id_from_name(recipe_name_edit.text)
-
-
-func _update_lock_button() -> void:
-	recipe_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
-	recipe_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "ID auto-generates from name. Click to lock."
 
 
 func _on_output_mode_changed(index: int) -> void:

@@ -404,6 +404,12 @@ func _on_scene_changed(scene_path: String) -> void:
 		_despawn_caravan()
 		return
 
+	# Check if caravan is unlocked via GameState flag
+	# (set by NewGameConfigData.caravan_unlocked or story progression)
+	if GameState and not GameState.has_flag("caravan_unlocked"):
+		_despawn_caravan()
+		return
+
 	# Try to get current map metadata
 	_current_map = _get_current_map_metadata()
 
@@ -424,6 +430,10 @@ func _on_battle_ended(_victory: bool) -> void:
 	# Wait for scene to potentially change, then try to spawn
 	await get_tree().process_frame
 	await get_tree().process_frame  # Extra frame for safety
+
+	# Check if caravan is unlocked
+	if GameState and not GameState.has_flag("caravan_unlocked"):
+		return
 
 	_current_map = _get_current_map_metadata()
 	if _current_map and _current_map.caravan_visible:

@@ -478,7 +478,7 @@ func _apply_item_effect(item: ItemData, target: CharacterSaveData) -> Dictionary
 			if target.current_hp >= target.max_hp:
 				return {"success": false, "message": "%s is already at full HP!" % _get_character_name(target)}
 
-			var heal_amount: int = ability.power
+			var heal_amount: int = ability.potency
 			var old_hp: int = target.current_hp
 			target.current_hp = mini(target.current_hp + heal_amount, target.max_hp)
 			var actual_heal: int = target.current_hp - old_hp

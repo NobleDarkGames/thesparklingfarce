@@ -355,9 +355,9 @@ func _update_description() -> void:
 			var effect_text: String = ""
 			match ability.ability_type:
 				AbilityData.AbilityType.HEAL:
-					effect_text = "Heals: %d HP" % ability.power
+					effect_text = "Heals: %d HP" % ability.potency
 				AbilityData.AbilityType.ATTACK:
-					effect_text = "Damage: %d" % ability.power
+					effect_text = "Damage: %d" % ability.potency
 				AbilityData.AbilityType.SUPPORT:
 					effect_text = "Buff effect"
 				AbilityData.AbilityType.DEBUFF:

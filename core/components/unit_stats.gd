@@ -246,9 +246,9 @@ func get_effective_strength() -> int:
 	# Add strength buffs
 	for effect: Dictionary in status_effects:
 		if effect.type == "attack_up":
-			total += effect.power
+			total += effect.potency
 		elif effect.type == "attack_down":
-			total -= effect.power
+			total -= effect.potency
 
 	return maxi(0, total)
 
@@ -260,9 +260,9 @@ func get_effective_defense() -> int:
 	# Add defense buffs
 	for effect: Dictionary in status_effects:
 		if effect.type == "defense_up":
-			total += effect.power
+			total += effect.potency
 		elif effect.type == "defense_down":
-			total -= effect.power
+			total -= effect.potency
 
 	return maxi(0, total)
 
@@ -274,9 +274,9 @@ func get_effective_agility() -> int:
 	# Add agility buffs
 	for effect: Dictionary in status_effects:
 		if effect.type == "speed_up":
-			total += effect.power
+			total += effect.potency
 		elif effect.type == "speed_down":
-			total -= effect.power
+			total -= effect.potency
 
 	return maxi(0, total)
 
@@ -303,20 +303,20 @@ func get_effective_max_mp() -> int:
 
 
 ## Add a status effect
-func add_status_effect(effect_type: String, duration: int, power: int = 0) -> void:
+func add_status_effect(effect_type: String, duration: int, potency: int = 0) -> void:
 	# Check if effect already exists
 	for effect in status_effects:
 		if effect.type == effect_type:
-			# Refresh duration and power
+			# Refresh duration and potency
 			effect.duration = maxi(effect.duration, duration)
-			effect.power = maxi(effect.power, power)
+			effect.potency = maxi(effect.potency, potency)
 			return
 
 	# Add new effect
 	status_effects.append({
 		"type": effect_type,
 		"duration": duration,
-		"power": power
+		"potency": potency
 	})
 
 
@@ -345,12 +345,12 @@ func process_status_effects() -> bool:
 		match effect.type:
 			"poison":
 				# Take damage based on power
-				var damage: int = maxi(1, effect.power)
+				var damage: int = maxi(1, effect.potency)
 				current_hp -= damage
 
 			"regen":
 				# Heal based on power
-				var heal: int = maxi(1, effect.power)
+				var heal: int = maxi(1, effect.potency)
 				current_hp = mini(current_hp + heal, get_effective_max_hp())
 
 		# Decrement duration

@@ -349,7 +349,7 @@ func _add_identity_section() -> void:
 	var id_container: HBoxContainer = HBoxContainer.new()
 	var id_label: Label = Label.new()
 	id_label.text = "Config ID:"
-	id_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	id_label.tooltip_text = "Unique identifier (e.g., 'standard', 'hard_mode', 'demo')"
 	id_container.add_child(id_label)
 
@@ -364,7 +364,7 @@ func _add_identity_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_label.tooltip_text = "Human-readable name shown in the new game UI"
 	name_container.add_child(name_label)
 
@@ -407,7 +407,7 @@ func _add_campaign_section() -> void:
 	var campaign_container: HBoxContainer = HBoxContainer.new()
 	var campaign_label: Label = Label.new()
 	campaign_label.text = "Starting Campaign:"
-	campaign_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	campaign_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	campaign_label.tooltip_text = "Which campaign to start. Leave as 'Auto' to use the first available."
 	campaign_container.add_child(campaign_label)
 
@@ -421,7 +421,7 @@ func _add_campaign_section() -> void:
 	var location_container: HBoxContainer = HBoxContainer.new()
 	var location_label: Label = Label.new()
 	location_label.text = "Location Label:"
-	location_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	location_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	location_label.tooltip_text = "Display text for save slot (e.g., 'Prologue', 'Chapter 1')"
 	location_container.add_child(location_label)
 
@@ -434,8 +434,8 @@ func _add_campaign_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Location label is cosmetic - shown in save slots. Actual location is determined by campaign."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
@@ -453,7 +453,7 @@ func _add_economy_section() -> void:
 	var gold_container: HBoxContainer = HBoxContainer.new()
 	var gold_label: Label = Label.new()
 	gold_label.text = "Starting Gold:"
-	gold_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	gold_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	gold_label.tooltip_text = "Gold the party starts with. SF2 authentic default is 0."
 	gold_container.add_child(gold_label)
 
@@ -466,8 +466,8 @@ func _add_economy_section() -> void:
 
 	var gold_help: Label = Label.new()
 	gold_help.text = "(SF2 default: 0)"
-	gold_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	gold_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	gold_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	gold_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	gold_container.add_child(gold_help)
 
 	detail_panel.add_child(gold_container)
@@ -486,7 +486,7 @@ func _add_party_section() -> void:
 	var party_container: HBoxContainer = HBoxContainer.new()
 	var party_label: Label = Label.new()
 	party_label.text = "Party Template:"
-	party_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	party_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	party_label.tooltip_text = "Select a PartyData template or auto-detect from character flags"
 	party_container.add_child(party_label)
 
@@ -499,8 +499,8 @@ func _add_party_section() -> void:
 	# Help label explaining party resolution
 	party_help_label = Label.new()
 	party_help_label.text = "Select a PartyData template, or use 'Auto-detect' to use is_hero + is_default_party_member flags."
-	party_help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	party_help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	party_help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	party_help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	party_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(party_help_label)
 
@@ -527,8 +527,8 @@ func _add_caravan_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Controls whether the Caravan (party storage, shops access) is available. Uncheck for authentic SF2 experience where the Caravan is unlocked through story progression."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
@@ -544,8 +544,8 @@ func _add_depot_items_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Items placed in the Caravan depot at game start. Duplicates allowed for stacking."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
@@ -569,8 +569,8 @@ func _add_story_flags_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Story flags to set at game start. These supplement (and override) the campaign's initial_flags."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
@@ -797,13 +797,13 @@ func _update_party_preview(is_auto: bool) -> void:
 	if members.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "No party members found"
-		empty_label.add_theme_color_override("font_color", EditorThemeUtils.get_warning_color())
-		empty_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_warning_color())
+		empty_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 		party_preview_container.add_child(empty_label)
 	else:
 		var title_label: Label = Label.new()
 		title_label.text = preview_title
-		title_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+		title_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 		party_preview_container.add_child(title_label)
 
 		var members_hbox: HBoxContainer = HBoxContainer.new()
@@ -817,16 +817,16 @@ func _update_party_preview(is_auto: bool) -> void:
 			if member.is_hero:
 				member_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))  # Gold for hero
 			else:
-				member_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-			member_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+				member_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+			member_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 			members_hbox.add_child(member_label)
 
 			# Add separator between members (except last)
 			if i < members.size() - 1:
 				var sep: Label = Label.new()
 				sep.text = "|"
-				sep.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-				sep.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+				sep.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+				sep.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 				members_hbox.add_child(sep)
 
 		party_preview_container.add_child(members_hbox)
@@ -1159,7 +1159,7 @@ func _add_preview_configuration_panel() -> void:
 	preview_panel.visible = false
 
 	# Apply info panel style
-	var info_style: StyleBoxFlat = EditorThemeUtils.create_info_panel_style()
+	var info_style: StyleBoxFlat = SparklingEditorUtils.create_info_panel_style()
 	preview_panel.add_theme_stylebox_override("panel", info_style)
 
 	preview_container = VBoxContainer.new()
@@ -1202,7 +1202,7 @@ func _update_preview_panel() -> void:
 	if not active_config:
 		var no_config_label: Label = Label.new()
 		no_config_label.text = "No default configuration found. The game will use auto-detection for party."
-		no_config_label.add_theme_color_override("font_color", EditorThemeUtils.get_warning_color())
+		no_config_label.add_theme_color_override("font_color", SparklingEditorUtils.get_warning_color())
 		no_config_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		preview_container.add_child(no_config_label)
 		return
@@ -1210,7 +1210,7 @@ func _update_preview_panel() -> void:
 	# Config source info
 	var source_label: Label = Label.new()
 	source_label.text = "Active Config: %s (from mod: %s)" % [active_config.config_name, active_default_source_mod]
-	source_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	source_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	preview_container.add_child(source_label)
 
 	# Check if current config is being overridden
@@ -1219,7 +1219,7 @@ func _update_preview_panel() -> void:
 		if current_config.is_default and current_config.config_id != active_default_config_id:
 			var override_warning: Label = Label.new()
 			override_warning.text = "Note: This config is marked as default but is overridden by a higher-priority mod."
-			override_warning.add_theme_color_override("font_color", EditorThemeUtils.get_warning_color())
+			override_warning.add_theme_color_override("font_color", SparklingEditorUtils.get_warning_color())
 			override_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			preview_container.add_child(override_warning)
 
@@ -1246,7 +1246,7 @@ func _update_preview_panel() -> void:
 		elif ModLoader and ModLoader.registry:
 			if not ModLoader.registry.has_resource("party", active_config.starting_party_id):
 				party_preview.text += " (NOT FOUND!)"
-				party_preview.add_theme_color_override("font_color", EditorThemeUtils.get_error_color())
+				party_preview.add_theme_color_override("font_color", SparklingEditorUtils.get_error_color())
 	party_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	preview_container.add_child(party_preview)
 

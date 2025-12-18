@@ -190,7 +190,7 @@ func create_error_panel() -> PanelContainer:
 	error_panel = PanelContainer.new()
 	error_panel.visible = false
 
-	var style: StyleBoxFlat = EditorThemeUtils.create_error_panel_style()
+	var style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
 	error_panel.add_theme_stylebox_override("panel", style)
 
 	error_label = RichTextLabel.new()

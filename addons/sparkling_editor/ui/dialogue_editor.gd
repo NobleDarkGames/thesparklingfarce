@@ -365,7 +365,7 @@ func _add_choices_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add choices for yes/no branches. If no choices, dialogue flows to 'Next Dialogue'."
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_label)
 
@@ -439,7 +439,7 @@ func _add_audio_section() -> void:
 
 	var note_label: Label = Label.new()
 	note_label.text = "Note: Background music, text sounds, portraits, and backgrounds\ncan be assigned in the Inspector after saving."
-	note_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	note_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	note_label.add_theme_font_size_override("font_size", 16)
 	section.add_child(note_label)
 

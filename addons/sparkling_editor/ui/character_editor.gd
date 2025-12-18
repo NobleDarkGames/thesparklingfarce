@@ -70,8 +70,6 @@ var filter_buttons: Dictionary = {}  # {category: Button}
 func _ready() -> void:
 	resource_type_name = "Character"
 	resource_type_id = "character"
-	# Enable undo/redo for save operations (Ctrl+Z support)
-	enable_undo_redo = true
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 
 	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
@@ -332,7 +330,7 @@ func _add_basic_info_section() -> void:
 	var name_container: HBoxContainer = HBoxContainer.new()
 	var name_label: Label = Label.new()
 	name_label.text = "Name:"
-	name_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_container.add_child(name_label)
 
 	name_edit = LineEdit.new()
@@ -354,7 +352,7 @@ func _add_basic_info_section() -> void:
 	var level_container: HBoxContainer = HBoxContainer.new()
 	var level_label: Label = Label.new()
 	level_label.text = "Starting Level:"
-	level_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	level_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	level_container.add_child(level_label)
 
 	level_spin = SpinBox.new()
@@ -385,8 +383,8 @@ func _add_appearance_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Visual assets for this character"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	section.add_content_child(help_label)
 
 	# Portrait Picker
@@ -417,7 +415,7 @@ func _add_battle_configuration_section() -> void:
 	var category_container: HBoxContainer = HBoxContainer.new()
 	var category_label: Label = Label.new()
 	category_label.text = "Unit Category:"
-	category_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	category_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	category_container.add_child(category_label)
 
 	category_option = OptionButton.new()
@@ -434,7 +432,7 @@ func _add_battle_configuration_section() -> void:
 	var unique_container: HBoxContainer = HBoxContainer.new()
 	var unique_label: Label = Label.new()
 	unique_label.text = "Is Unique:"
-	unique_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	unique_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	unique_container.add_child(unique_label)
 
 	is_unique_check = CheckBox.new()
@@ -448,7 +446,7 @@ func _add_battle_configuration_section() -> void:
 	var hero_container: HBoxContainer = HBoxContainer.new()
 	var hero_label: Label = Label.new()
 	hero_label.text = "Is Hero:"
-	hero_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	hero_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	hero_container.add_child(hero_label)
 
 	is_hero_check = CheckBox.new()
@@ -462,7 +460,7 @@ func _add_battle_configuration_section() -> void:
 	var boss_container: HBoxContainer = HBoxContainer.new()
 	var boss_label: Label = Label.new()
 	boss_label.text = "Is Boss:"
-	boss_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	boss_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	boss_container.add_child(boss_label)
 
 	is_boss_check = CheckBox.new()
@@ -476,7 +474,7 @@ func _add_battle_configuration_section() -> void:
 	var party_member_container: HBoxContainer = HBoxContainer.new()
 	var party_member_label: Label = Label.new()
 	party_member_label.text = "Starting Party:"
-	party_member_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	party_member_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	party_member_container.add_child(party_member_label)
 
 	is_default_party_member_check = CheckBox.new()
@@ -490,7 +488,7 @@ func _add_battle_configuration_section() -> void:
 	var ai_container: HBoxContainer = HBoxContainer.new()
 	var ai_label: Label = Label.new()
 	ai_label.text = "Default AI:"
-	ai_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	ai_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	ai_container.add_child(ai_label)
 
 	default_ai_option = OptionButton.new()
@@ -501,7 +499,7 @@ func _add_battle_configuration_section() -> void:
 
 	var ai_help: Label = Label.new()
 	ai_help.text = "AI used when this character is an enemy (can override in Battle Editor)"
-	ai_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	ai_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	ai_help.add_theme_font_size_override("font_size", 16)
 	section.add_child(ai_help)
 
@@ -518,8 +516,8 @@ func _add_ai_threat_configuration_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Advanced settings for AI targeting behavior"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	ai_threat_section.add_content_child(help_label)
 
 	# Threat Modifier with slider and preset buttons
@@ -528,7 +526,7 @@ func _add_ai_threat_configuration_section() -> void:
 	var modifier_header: HBoxContainer = HBoxContainer.new()
 	var modifier_label: Label = Label.new()
 	modifier_label.text = "Threat Modifier:"
-	modifier_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	modifier_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	modifier_label.tooltip_text = "Multiplier for AI threat calculations. Higher = AI prioritizes protecting/attacking this unit more."
 	modifier_header.add_child(modifier_label)
 
@@ -558,7 +556,7 @@ func _add_ai_threat_configuration_section() -> void:
 
 	var preset_label: Label = Label.new()
 	preset_label.text = "Presets:"
-	preset_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	preset_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	preset_container.add_child(preset_label)
 
 	var presets: Array[Dictionary] = [
@@ -591,8 +589,8 @@ func _add_ai_threat_configuration_section() -> void:
 
 	var tags_help: Label = Label.new()
 	tags_help.text = "Click to add common tags, or type custom tags below"
-	tags_help.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	tags_help.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	tags_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	tags_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	ai_threat_section.add_content_child(tags_help)
 
 	# Quick-add buttons for common tags
@@ -623,7 +621,7 @@ func _add_ai_threat_configuration_section() -> void:
 	var custom_tag_container: HBoxContainer = HBoxContainer.new()
 	var custom_label: Label = Label.new()
 	custom_label.text = "Custom Tag:"
-	custom_label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	custom_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	custom_tag_container.add_child(custom_label)
 
 	ai_threat_custom_tag_edit = LineEdit.new()
@@ -694,7 +692,7 @@ func _refresh_threat_tags_display() -> void:
 	if _current_threat_tags.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "(No tags)"
-		empty_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 		ai_threat_tags_container.add_child(empty_label)
 		return
 
@@ -733,7 +731,7 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer, tooltip: Str
 
 	var label: Label = Label.new()
 	label.text = label_text
-	label.custom_minimum_size.x = EditorThemeUtils.DEFAULT_LABEL_WIDTH
+	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	if not tooltip.is_empty():
 		label.tooltip_text = tooltip
 	container.add_child(label)
@@ -874,7 +872,7 @@ func _add_equipment_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Equipment the character starts with when recruited"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 14)
 	equipment_section.add_content_child(help_label)
 
@@ -1083,8 +1081,8 @@ func _add_inventory_section() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Items the character carries (not equipped) when recruited"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", EditorThemeUtils.HELP_FONT_SIZE)
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	inventory_section.add_content_child(help_label)
 
 	# Container for the list of inventory items
@@ -1180,7 +1178,7 @@ func _refresh_inventory_list_display() -> void:
 	if _current_inventory_items.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "(No items)"
-		empty_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 		inventory_list_container.add_child(empty_label)
 		return
 

@@ -619,7 +619,7 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 			var heal_phase: CombatPhase = CombatPhase.create_item_heal(
 				unit,
 				target,
-				ability.power,
+				ability.potency,
 				item.item_name
 			)
 			phases.append(heal_phase)
@@ -628,7 +628,7 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 			var damage_phase: CombatPhase = CombatPhase.create_spell_attack(
 				unit,
 				target,
-				ability.power,
+				ability.potency,
 				item.item_name
 			)
 			phases.append(damage_phase)
@@ -735,7 +735,7 @@ func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -
 	var max_hp: int = stats.max_hp
 
 	# Calculate healing amount
-	var heal_amount: int = ability.power
+	var heal_amount: int = ability.potency
 
 	# Track actual healing (may be less if near max HP)
 	var old_hp: int = stats.current_hp
@@ -764,7 +764,7 @@ func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) ->
 		return {"success": false, "effect_type": "damage", "amount": 0}
 
 	# Calculate damage (simplified - no defense calculation for items)
-	var damage: int = ability.power
+	var damage: int = ability.potency
 
 	# Apply damage
 	if target.has_method("take_damage"):
@@ -1107,9 +1107,9 @@ func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -
 				any_effect_applied = true
 		else:
 			# Apply the status effect
-			target.add_status_effect(effect, ability.effect_duration, ability.power)
+			target.add_status_effect(effect, ability.effect_duration, ability.potency)
 			print("[BattleManager] Applied status '%s' (duration: %d, power: %d) to %s" % [
-				effect, ability.effect_duration, ability.power, UnitUtils.get_display_name(target)
+				effect, ability.effect_duration, ability.potency, UnitUtils.get_display_name(target)
 			])
 			any_effect_applied = true
 

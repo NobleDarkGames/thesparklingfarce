@@ -87,7 +87,7 @@ func can_promote(unit: Node2D) -> bool:
 		return false
 
 	# Must have at least one promotion path
-	if not class_data.promotion_class:
+	if not class_data.can_promote():
 		return false
 
 	# Check level requirement
@@ -107,19 +107,12 @@ func check_promotion_eligibility(unit: Node2D) -> bool:
 
 
 ## Get the level required for promotion.
-## Uses class-specific level if set, otherwise falls back to config default.
+## Uses class-specific level (defaults to 10 if not set).
 ## @param class_data: ClassData to check
 ## @return: Required level for promotion
 func _get_promotion_level(class_data: ClassData) -> int:
-	if class_data.promotion_level > 0:
-		return class_data.promotion_level
-
-	# Fallback to global config
-	if _experience_config and "promotion_level" in _experience_config:
-		return _experience_config.promotion_level
-
-	# Default if no config
-	return 10
+	# ClassData.promotion_level defaults to 10, so just return it
+	return class_data.promotion_level if class_data.promotion_level > 0 else 10
 
 
 # ============================================================================
@@ -127,7 +120,7 @@ func _get_promotion_level(class_data: ClassData) -> int:
 # ============================================================================
 
 ## Get all available promotion paths for a unit.
-## Returns standard promotion plus special promotion if item requirements are met.
+## Returns all paths where item requirements are met.
 ## @param unit: Unit to get promotions for
 ## @return: Array of ClassData options
 func get_available_promotions(unit: Node2D) -> Array[ClassData]:
@@ -140,35 +133,56 @@ func get_available_promotions(unit: Node2D) -> Array[ClassData]:
 	if not class_data:
 		return promotions
 
-	# Standard promotion path
-	if class_data.promotion_class:
-		promotions.append(class_data.promotion_class)
-
-	# Special promotion path (requires item)
-	if _has_special_promotion(class_data):
-		if has_item_for_special_promotion(unit, class_data):
-			promotions.append(class_data.special_promotion_class)
+	# Check each promotion path
+	for path: PromotionPath in class_data.get_promotion_path_resources():
+		if path.requires_item():
+			# Item-gated path - check if player has the required item
+			if _has_required_item(unit, path.required_item):
+				promotions.append(path.target_class)
+		else:
+			# No item required - always available
+			promotions.append(path.target_class)
 
 	return promotions
 
 
-## Check if unit has the required item for special promotion.
-## @param unit: Unit to check inventory
-## @param class_data: ClassData with special promotion requirements
-## @return: true if item is available
-func has_item_for_special_promotion(unit: Node2D, class_data: ClassData = null) -> bool:
-	if class_data == null:
-		class_data = _get_unit_class(unit)
+## Get all promotion paths with full metadata for UI display.
+## Returns paths with availability status for each.
+## @param unit: Unit to get promotions for
+## @return: Array of Dictionaries with path info and availability
+func get_available_promotions_detailed(unit: Node2D) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
 
+	if not _validate_unit(unit):
+		return results
+
+	var class_data: ClassData = _get_unit_class(unit)
 	if not class_data:
-		return false
+		return results
 
-	if not _has_special_promotion(class_data):
-		return false
+	for path: PromotionPath in class_data.get_promotion_path_resources():
+		var has_item: bool = true
+		if path.requires_item():
+			has_item = _has_required_item(unit, path.required_item)
 
-	var required_item: Resource = class_data.special_promotion_item
+		results.append({
+			"path": path,
+			"target_class": path.target_class,
+			"display_name": path.get_display_name(),
+			"required_item": path.required_item,
+			"has_required_item": has_item,
+			"is_available": has_item
+		})
+
+	return results
+
+
+## Check if unit has a specific required item.
+## @param unit: Unit to check (for future unit-specific inventory)
+## @param required_item: ItemData to check for
+## @return: true if item is available
+func _has_required_item(_unit: Node2D, required_item: ItemData) -> bool:
 	if not required_item:
-		# Special promotion exists but no item required
 		return true
 
 	# TODO: Check party inventory for the item when inventory system is implemented
@@ -177,13 +191,50 @@ func has_item_for_special_promotion(unit: Node2D, class_data: ClassData = null) 
 		return PartyManager.has_item(required_item)
 
 	# Fallback: assume item is available (for testing)
-	push_warning("PromotionManager: Inventory system not implemented, assuming special promotion item available")
+	push_warning("PromotionManager: Inventory system not implemented, assuming promotion item available")
 	return true
 
 
-## Check if class has a special promotion path defined.
+## Check if unit has the required item for a specific promotion path.
+## @param unit: Unit to check inventory
+## @param target_class: The target ClassData of the promotion path
+## @return: true if item is available (or no item required)
+func has_item_for_promotion(unit: Node2D, target_class: ClassData) -> bool:
+	var class_data: ClassData = _get_unit_class(unit)
+	if not class_data:
+		return false
+
+	var path: PromotionPath = class_data.get_promotion_path_for_class(target_class)
+	if not path:
+		return false
+
+	if not path.requires_item():
+		return true
+
+	return _has_required_item(unit, path.required_item)
+
+
+## DEPRECATED: Use has_item_for_promotion instead.
+## Kept for backward compatibility.
+func has_item_for_special_promotion(unit: Node2D, class_data: ClassData = null) -> bool:
+	if class_data == null:
+		class_data = _get_unit_class(unit)
+
+	if not class_data:
+		return false
+
+	# Find any item-gated path and check if we have its item
+	for path: PromotionPath in class_data.get_promotion_path_resources():
+		if path.requires_item():
+			if _has_required_item(unit, path.required_item):
+				return true
+
+	return false
+
+
+## Check if class has any item-gated promotion paths.
 ## @param class_data: ClassData to check
-## @return: true if special_promotion_class is set
+## @return: true if any path requires an item
 func _has_special_promotion(class_data: ClassData) -> bool:
 	return class_data.has_special_promotion()
 
@@ -227,9 +278,10 @@ func execute_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 	if not unequipped.is_empty():
 		equipment_unequipped.emit(unit, unequipped)
 
-	# Consume special promotion item if applicable
-	if _is_special_promotion(old_class, target_class):
-		_consume_promotion_item(unit, old_class)
+	# Consume promotion item if applicable
+	var promotion_path: PromotionPath = old_class.get_promotion_path_for_class(target_class)
+	if promotion_path and promotion_path.requires_item():
+		_consume_promotion_item(unit, old_class, promotion_path)
 
 	# Store cumulative level before reset
 	var cumulative_before: int = _get_cumulative_level(unit)
@@ -243,7 +295,7 @@ func execute_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 	_set_unit_class(unit, target_class)
 
 	# Reset level to 1 (SF2-style)
-	if _should_reset_level():
+	if _should_reset_level(target_class):
 		unit.stats.level = 1
 		stat_changes["level_reset"] = true
 
@@ -283,7 +335,7 @@ func preview_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 		"new_class_name": "",
 		"stat_bonuses": {},
 		"equipment_conflicts": [],
-		"level_reset": _should_reset_level(),
+		"level_reset": _should_reset_level(target_class),
 		"is_special_promotion": false
 	}
 
@@ -299,7 +351,7 @@ func preview_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 	preview["old_class_name"] = old_class.display_name
 	preview["new_class_name"] = target_class.display_name
 	preview["stat_bonuses"] = _calculate_promotion_bonuses()
-	preview["is_special_promotion"] = _is_special_promotion(old_class, target_class)
+	preview["is_special_promotion"] = _is_item_gated_promotion(old_class, target_class)
 
 	# Equipment compatibility check
 	preview["equipment_conflicts"] = _get_equipment_conflicts(unit, target_class)
@@ -470,37 +522,47 @@ func _get_unit_save_data(unit: Node2D) -> CharacterSaveData:
 	return PartyManager.get_member_save_data(character_uid)
 
 
-## Check if promotion is to special class (not standard path).
-func _is_special_promotion(old_class: ClassData, target_class: ClassData) -> bool:
+## Check if a promotion path requires an item.
+## @param old_class: The class being promoted from
+## @param target_class: The target ClassData
+## @return: true if the path requires an item
+func _is_item_gated_promotion(old_class: ClassData, target_class: ClassData) -> bool:
 	if not old_class:
 		return false
-	if not _has_special_promotion(old_class):
+
+	var path: PromotionPath = old_class.get_promotion_path_for_class(target_class)
+	if not path:
 		return false
-	return target_class == old_class.special_promotion_class
+
+	return path.requires_item()
 
 
-## Consume the special promotion item from inventory.
-func _consume_promotion_item(unit: Node2D, class_data: ClassData) -> void:
-	if not _experience_config:
+## DEPRECATED: Use _is_item_gated_promotion instead.
+func _is_special_promotion(old_class: ClassData, target_class: ClassData) -> bool:
+	return _is_item_gated_promotion(old_class, target_class)
+
+
+## Consume the promotion item from inventory.
+## @param unit: Unit being promoted (for future unit-specific inventory)
+## @param class_data: The class being promoted from
+## @param path: The PromotionPath being taken
+func _consume_promotion_item(_unit: Node2D, class_data: ClassData, path: PromotionPath) -> void:
+	# Check if class says to consume item (defaults to true)
+	if not class_data.consume_promotion_item:
 		return
 
-	# Check if config says to consume item
-	var consume: bool = true
-	if "consume_promotion_item" in _experience_config:
-		consume = _experience_config.consume_promotion_item
-
-	if not consume:
+	if not path or not path.required_item:
 		return
 
-	var item: Resource = class_data.special_promotion_item
-	if item and PartyManager.has_method("remove_item"):
-		PartyManager.remove_item(item)
+	if PartyManager.has_method("remove_item"):
+		PartyManager.remove_item(path.required_item)
 
 
 ## Check if level should reset on promotion.
-func _should_reset_level() -> bool:
-	if _experience_config and "promotion_resets_level" in _experience_config:
-		return _experience_config.promotion_resets_level
+## Uses the target class's setting (defaults to true for SF2 behavior).
+func _should_reset_level(target_class: ClassData) -> bool:
+	if target_class:
+		return target_class.promotion_resets_level
 	return true  # Default SF2 behavior
 
 

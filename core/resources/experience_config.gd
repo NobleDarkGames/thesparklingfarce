@@ -106,55 +106,6 @@ extends Resource
 ## Maximum level characters can reach.
 @export_range(1, 99) var max_level: int = 20
 
-## Level at which units can promote to advanced classes.
-@export_range(1, 50) var promotion_level: int = 10
-
-# ============================================================================
-# PROMOTION SETTINGS
-# ============================================================================
-
-## Whether level resets to 1 on promotion (SF2 style).
-## If false, level continues incrementing.
-@export var promotion_resets_level: bool = true
-
-## Whether special promotion items are consumed on use.
-@export var consume_promotion_item: bool = true
-
-## Flat HP bonus applied when promoting.
-@export_range(0, 20) var promotion_bonus_hp: int = 0
-
-## Flat MP bonus applied when promoting.
-@export_range(0, 10) var promotion_bonus_mp: int = 0
-
-## Flat Strength bonus applied when promoting.
-@export_range(0, 5) var promotion_bonus_strength: int = 0
-
-## Flat Defense bonus applied when promoting.
-@export_range(0, 5) var promotion_bonus_defense: int = 0
-
-## Flat Agility bonus applied when promoting.
-@export_range(0, 5) var promotion_bonus_agility: int = 0
-
-## Flat Intelligence bonus applied when promoting.
-@export_range(0, 5) var promotion_bonus_intelligence: int = 0
-
-## Flat Luck bonus applied when promoting.
-@export_range(0, 5) var promotion_bonus_luck: int = 0
-
-# ============================================================================
-# ADJUTANT SYSTEM (Skeleton for Future Implementation)
-# ============================================================================
-
-## Enable adjutant system (units gain XP while not deployed).
-@export var enable_adjutant_system: bool = false
-
-## Percentage of XP shared with adjutants (0.5 = 50%).
-@export_range(0.0, 1.0) var adjutant_xp_share: float = 0.5
-
-## Maximum number of adjutants per deployed unit.
-@export_range(1, 5) var max_adjutants: int = 3
-
-
 # ============================================================================
 # HELPER METHODS
 # ============================================================================

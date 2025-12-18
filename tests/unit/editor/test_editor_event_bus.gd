@@ -51,14 +51,6 @@ func test_mods_reloaded_signal_exists() -> void:
 	assert_bool(_event_bus.has_signal("mods_reloaded")).is_true()
 
 
-func test_resource_copied_signal_exists() -> void:
-	assert_bool(_event_bus.has_signal("resource_copied")).is_true()
-
-
-func test_resource_override_created_signal_exists() -> void:
-	assert_bool(_event_bus.has_signal("resource_override_created")).is_true()
-
-
 # =============================================================================
 # RESOURCE_SAVED SIGNAL TESTS
 # =============================================================================
@@ -290,73 +282,6 @@ func test_debounce_delay_constant_is_reasonable() -> void:
 	# Debounce delay should be between 50ms and 500ms for responsive UX
 	assert_float(_event_bus.DEBOUNCE_DELAY_MS).is_greater_equal(50.0)
 	assert_float(_event_bus.DEBOUNCE_DELAY_MS).is_less_equal(500.0)
-
-
-# =============================================================================
-# RESOURCE_COPIED SIGNAL TESTS
-# =============================================================================
-
-var _copied_type: String = ""
-var _copied_source_path: String = ""
-var _copied_target_mod: String = ""
-var _copied_target_path: String = ""
-
-
-func _on_resource_copied(res_type: String, source_path: String, target_mod: String, target_path: String) -> void:
-	_copied_type = res_type
-	_copied_source_path = source_path
-	_copied_target_mod = target_mod
-	_copied_target_path = target_path
-
-
-func test_resource_copied_emits_with_correct_parameters() -> void:
-	_copied_type = ""
-	_copied_source_path = ""
-	_copied_target_mod = ""
-	_copied_target_path = ""
-
-	_event_bus.resource_copied.connect(_on_resource_copied)
-
-	_event_bus.resource_copied.emit(
-		"character",
-		"res://mods/_base_game/data/characters/hero.tres",
-		"my_mod",
-		"res://mods/my_mod/data/characters/hero_copy.tres"
-	)
-
-	assert_str(_copied_type).is_equal("character")
-	assert_str(_copied_source_path).is_equal("res://mods/_base_game/data/characters/hero.tres")
-	assert_str(_copied_target_mod).is_equal("my_mod")
-	assert_str(_copied_target_path).is_equal("res://mods/my_mod/data/characters/hero_copy.tres")
-
-
-# =============================================================================
-# RESOURCE_OVERRIDE_CREATED SIGNAL TESTS
-# =============================================================================
-
-var _override_type: String = ""
-var _override_id: String = ""
-var _override_mod: String = ""
-
-
-func _on_resource_override_created(res_type: String, res_id: String, mod_id: String) -> void:
-	_override_type = res_type
-	_override_id = res_id
-	_override_mod = mod_id
-
-
-func test_resource_override_created_emits_with_correct_parameters() -> void:
-	_override_type = ""
-	_override_id = ""
-	_override_mod = ""
-
-	_event_bus.resource_override_created.connect(_on_resource_override_created)
-
-	_event_bus.resource_override_created.emit("item", "healing_potion", "balance_mod")
-
-	assert_str(_override_type).is_equal("item")
-	assert_str(_override_id).is_equal("healing_potion")
-	assert_str(_override_mod).is_equal("balance_mod")
 
 
 # =============================================================================

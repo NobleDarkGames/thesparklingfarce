@@ -149,7 +149,7 @@ func _setup_ui() -> void:
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a mod to edit its settings"
-	help_label.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", 16)
 	left_panel.add_child(help_label)
 
@@ -274,7 +274,7 @@ func _create_load_priority_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Higher priority mods override lower priority content with matching IDs"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -330,7 +330,7 @@ func _create_total_conversion_section() -> void:
 	var help_text: Label = Label.new()
 	help_text.text = "Total conversions create entirely new games using the platform.\n" + \
 		"They override or replace all base game content."
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 12)
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	total_conversion_section.add_child(help_text)
@@ -350,7 +350,7 @@ func _create_hidden_campaigns_section() -> void:
 	var help_text: Label = Label.new()
 	help_text.text = "Hide campaigns from lower-priority mods (supports wildcards: * matches any).\n" + \
 		"Example: '_base_game:*' hides all base game campaigns"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 12)
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hidden_campaigns_section.add_child(help_text)
@@ -412,7 +412,7 @@ func _create_dependencies_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Other mods that must be loaded before this one"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -457,7 +457,7 @@ func _create_custom_types_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Register new enum-like values (one per line)"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -480,7 +480,7 @@ func _create_equipment_slots_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Define custom equipment slots (for total conversions)"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -619,7 +619,7 @@ func _create_scene_overrides_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Replace engine scenes with custom versions (for total conversions)"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
@@ -688,7 +688,7 @@ func _create_field_menu_options_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(help_text)
@@ -804,7 +804,7 @@ func _create_content_paths_section() -> void:
 
 	var help_text: Label = Label.new()
 	help_text.text = "Relative paths within the mod folder"
-	help_text.add_theme_color_override("font_color", EditorThemeUtils.get_help_color())
+	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_text.add_theme_font_size_override("font_size", 16)
 	section.add_child(help_text)
 
