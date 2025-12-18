@@ -57,6 +57,10 @@ var _previous_input_state: bool = false
 var _wait_timer: float = 0.0
 var _is_waiting: bool = false
 
+## Interaction context - stores metadata about what triggered the current cinematic
+## Used by systems like CampaignManager to identify NPC interactions
+var _interaction_context: Dictionary = {}
+
 ## Command execution state
 var _current_command_waits: bool = false
 var _command_completed: bool = false
@@ -79,8 +83,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	# Handle wait timer
-	if _is_waiting:
+	# Handle wait timer - only when in PLAYING state (not waiting for dialog/shop)
+	# This prevents the timer from firing when _is_waiting is set for dialog commands
+	if _is_waiting and current_state == State.PLAYING:
 		_wait_timer -= delta
 		if _wait_timer <= 0.0:
 			_is_waiting = false
@@ -207,6 +212,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("wait", WaitExecutor.new())
 	register_command_executor("set_variable", SetVariableExecutor.new())
 	register_command_executor("show_dialog", DialogExecutor.new())
+	register_command_executor("dialog_line", DialogExecutor.new())  # Single-line dialog from Cinematic Editor
 	register_command_executor("move_entity", MoveEntityExecutor.new())
 	register_command_executor("set_facing", SetFacingExecutor.new())
 	register_command_executor("play_animation", PlayAnimationExecutor.new())
@@ -494,6 +500,28 @@ func is_cinematic_active() -> bool:
 ## Get the current state
 func get_current_state() -> State:
 	return current_state
+
+
+# =============================================================================
+# INTERACTION CONTEXT (NPC identification for external systems)
+# =============================================================================
+
+## Set context about what triggered the current cinematic
+## Called by NPCNode before playing a cinematic
+func set_interaction_context(context: Dictionary) -> void:
+	_interaction_context = context.duplicate()
+
+
+## Get the current interaction context
+## Returns empty dictionary if no context set
+func get_interaction_context() -> Dictionary:
+	return _interaction_context
+
+
+## Clear the interaction context
+## Called when cinematic ends or interaction completes
+func clear_interaction_context() -> void:
+	_interaction_context.clear()
 
 
 # =============================================================================

@@ -184,16 +184,27 @@ func update_header(text: String) -> void:
 		header_label.text = text
 
 
-## Update the hint label based on current screen
+## Update the header/hint visibility based on current screen
+## member_detail has its own header and hints, so hide parent's to avoid duplication
 func _update_hint_for_screen(screen_name: String) -> void:
+	# member_detail has its own header (character name) and hints (L/R: Switch Character)
+	# Hide parent's to avoid overlapping labels
+	var hide_parent_ui: bool = (screen_name == "member_detail")
+
+	if header_label:
+		header_label.visible = not hide_parent_ui
+
 	if not hint_label:
 		return
 
+	if hide_parent_ui:
+		hint_label.visible = false
+		return
+
+	hint_label.visible = true
 	match screen_name:
 		"member_select":
 			hint_label.text = "A: Select | B: Close"
-		"member_detail":
-			hint_label.text = "L/R: Switch | A: Select | B: Back"
 		"give_recipient_select":
 			hint_label.text = "A: Give | B: Cancel"
 		"depot_browser":

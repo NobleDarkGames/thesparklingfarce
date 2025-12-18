@@ -19,6 +19,9 @@ const START_NODE_COLOR: Color = Color(0.2, 0.8, 0.5)  # Teal accent
 # Node types for dropdown
 const NODE_TYPES: Array[String] = ["battle", "scene", "cutscene", "choice"]
 
+# Completion trigger options for scene nodes
+const COMPLETION_TRIGGERS: Array[String] = ["manual", "exit_trigger", "flag_set", "npc_interaction"]
+
 # UI Components
 var campaign_list: ItemList
 var graph_edit: GraphEdit
@@ -54,6 +57,14 @@ var repeatable_check: CheckBox
 var defeat_penalty_spin: SpinBox
 var pre_cinematic_edit: LineEdit
 var post_cinematic_edit: LineEdit
+
+# Completion trigger components (scene nodes only)
+var completion_trigger_row: HBoxContainer
+var completion_trigger_option: OptionButton
+var completion_flag_label: Label
+var completion_flag_edit: LineEdit
+var completion_npc_label: Label
+var completion_npc_edit: LineEdit
 
 # Error panel
 var error_panel: PanelContainer
@@ -454,6 +465,46 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 
 	inspector_panel.add_child(misc_row)
 
+	# Completion trigger row (scene nodes only)
+	completion_trigger_row = HBoxContainer.new()
+	completion_trigger_row.add_theme_constant_override("separation", 10)
+
+	var trigger_label: Label = Label.new()
+	trigger_label.text = "Completion Trigger:"
+	trigger_label.custom_minimum_size.x = 115
+	completion_trigger_row.add_child(trigger_label)
+
+	completion_trigger_option = OptionButton.new()
+	completion_trigger_option.custom_minimum_size.x = 120
+	for t: String in COMPLETION_TRIGGERS:
+		completion_trigger_option.add_item(t)
+	completion_trigger_option.item_selected.connect(_on_completion_trigger_changed)
+	completion_trigger_row.add_child(completion_trigger_option)
+
+	completion_flag_label = Label.new()
+	completion_flag_label.text = "Flag:"
+	completion_flag_label.custom_minimum_size.x = 35
+	completion_trigger_row.add_child(completion_flag_label)
+
+	completion_flag_edit = LineEdit.new()
+	completion_flag_edit.custom_minimum_size.x = 120
+	completion_flag_edit.placeholder_text = "flag_name"
+	completion_flag_edit.text_changed.connect(_on_completion_flag_changed)
+	completion_trigger_row.add_child(completion_flag_edit)
+
+	completion_npc_label = Label.new()
+	completion_npc_label.text = "NPC ID:"
+	completion_npc_label.custom_minimum_size.x = 50
+	completion_trigger_row.add_child(completion_npc_label)
+
+	completion_npc_edit = LineEdit.new()
+	completion_npc_edit.custom_minimum_size.x = 120
+	completion_npc_edit.placeholder_text = "npc_id"
+	completion_npc_edit.text_changed.connect(_on_completion_npc_changed)
+	completion_trigger_row.add_child(completion_npc_edit)
+
+	inspector_panel.add_child(completion_trigger_row)
+
 	parent.add_child(inspector_scroll)
 
 
@@ -767,6 +818,19 @@ func _populate_node_inspector() -> void:
 	pre_cinematic_edit.text = node_data.get("pre_cinematic_id", "")
 	post_cinematic_edit.text = node_data.get("post_cinematic_id", "")
 
+	# Completion trigger fields (scene nodes only)
+	var completion_trigger: String = node_data.get("completion_trigger", "exit_trigger")
+	for i in range(COMPLETION_TRIGGERS.size()):
+		if COMPLETION_TRIGGERS[i] == completion_trigger:
+			completion_trigger_option.select(i)
+			break
+
+	completion_flag_edit.text = node_data.get("completion_flag", "")
+	completion_npc_edit.text = node_data.get("completion_npc_id", "")
+
+	# Update visibility based on node type and completion trigger
+	_update_completion_trigger_visibility(node_type, completion_trigger)
+
 	_updating_ui = false
 
 
@@ -801,6 +865,10 @@ func _clear_node_inspector() -> void:
 	defeat_penalty_spin.value = 0.5
 	pre_cinematic_edit.text = ""
 	post_cinematic_edit.text = ""
+	completion_trigger_option.select(1)  # Default to exit_trigger
+	completion_flag_edit.text = ""
+	completion_npc_edit.text = ""
+	completion_trigger_row.visible = false
 	_updating_ui = false
 
 
@@ -863,6 +931,10 @@ func _on_node_type_changed(index: int) -> void:
 		return
 	var new_type: String = NODE_TYPES[index]
 	_update_node_data(selected_node_id, "node_type", new_type)
+	# Update completion trigger visibility based on new type
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var completion_trigger: String = node_data.get("completion_trigger", "exit_trigger")
+	_update_completion_trigger_visibility(new_type, completion_trigger)
 	_rebuild_graph()  # Rebuild to update colors and slots
 
 
@@ -932,6 +1004,40 @@ func _on_pre_cinematic_changed(new_text: String) -> void:
 
 func _on_post_cinematic_changed(new_text: String) -> void:
 	_update_node_data(selected_node_id, "post_cinematic_id", new_text)
+
+
+func _on_completion_trigger_changed(index: int) -> void:
+	if _updating_ui:
+		return
+	var new_trigger: String = COMPLETION_TRIGGERS[index]
+	_update_node_data(selected_node_id, "completion_trigger", new_trigger)
+	# Update visibility of flag/npc fields based on selected trigger
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var node_type: String = node_data.get("node_type", "scene")
+	_update_completion_trigger_visibility(node_type, new_trigger)
+
+
+func _on_completion_flag_changed(new_text: String) -> void:
+	_update_node_data(selected_node_id, "completion_flag", new_text)
+
+
+func _on_completion_npc_changed(new_text: String) -> void:
+	_update_node_data(selected_node_id, "completion_npc_id", new_text)
+
+
+func _update_completion_trigger_visibility(node_type: String, completion_trigger: String) -> void:
+	# Only show completion trigger row for scene nodes
+	completion_trigger_row.visible = (node_type == "scene")
+
+	# Show flag field only when trigger is "flag_set"
+	var show_flag: bool = (completion_trigger == "flag_set")
+	completion_flag_label.visible = show_flag
+	completion_flag_edit.visible = show_flag
+
+	# Show NPC field only when trigger is "npc_interaction"
+	var show_npc: bool = (completion_trigger == "npc_interaction")
+	completion_npc_label.visible = show_npc
+	completion_npc_edit.visible = show_npc
 
 
 func _on_starting_node_changed(index: int) -> void:

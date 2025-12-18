@@ -127,13 +127,13 @@ func _refresh_for_current_member() -> void:
 	else:
 		stats_label.text = ""
 
-	# Update cycle hint
+	# Update cycle hint - include all controls since parent hints are hidden
 	var party_size: int = get_party_size()
 	if party_size > 1:
-		cycle_hint_label.text = "L/R: Switch Character"
-		cycle_hint_label.visible = true
+		cycle_hint_label.text = "L/R: Switch | A: Select | B: Back"
 	else:
-		cycle_hint_label.visible = false
+		cycle_hint_label.text = "A: Select | B: Back"
+	cycle_hint_label.visible = true
 
 	# Rebuild button lists
 	_rebuild_equipment_list()
@@ -172,7 +172,7 @@ func _rebuild_equipment_list() -> void:
 
 		# Create button
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 36)
+		button.custom_minimum_size = Vector2(0, 26)
 		button.focus_mode = Control.FOCUS_ALL
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.add_theme_font_size_override("font_size", 16)
@@ -217,7 +217,7 @@ func _rebuild_inventory_list() -> void:
 		var item_data: ItemData = get_item_data(item_id)
 
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 32)
+		button.custom_minimum_size = Vector2(0, 24)
 		button.focus_mode = Control.FOCUS_ALL
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.add_theme_font_size_override("font_size", 16)
@@ -652,12 +652,19 @@ func _input(event: InputEvent) -> void:
 		return
 
 	# L/R bumpers - CRITICAL SF2 pattern for character cycling
-	if event.is_action_pressed("sf_left_shoulder") or event.is_action_pressed("ui_page_up"):
+	# Check if shoulder actions exist before using them (may not be mapped)
+	var left_shoulder: bool = InputMap.has_action("sf_left_shoulder") and event.is_action_pressed("sf_left_shoulder")
+	var right_shoulder: bool = InputMap.has_action("sf_right_shoulder") and event.is_action_pressed("sf_right_shoulder")
+
+	if left_shoulder or event.is_action_pressed("ui_page_up"):
 		_cycle_to_previous_member()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("sf_right_shoulder") or event.is_action_pressed("ui_page_down"):
+	elif right_shoulder or event.is_action_pressed("ui_page_down"):
 		_cycle_to_next_member()
 		get_viewport().set_input_as_handled()
+	else:
+		# Let base class handle ui_cancel/sf_cancel for back navigation
+		super._input(event)
 
 
 func _cycle_to_previous_member() -> void:

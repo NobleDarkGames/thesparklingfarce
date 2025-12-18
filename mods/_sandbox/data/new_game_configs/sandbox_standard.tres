@@ -7,5 +7,6 @@ script = ExtResource("1_script")
 config_id = "sandbox_standard"
 config_name = "Sandbox Standard"
 config_description = "Default starting configuration for the Development Sandbox mod."
+starting_campaign_id = "sandbox:example_campaign"
 starting_gold = 2000
 starting_depot_items = Array[String](["item_1765165788"])

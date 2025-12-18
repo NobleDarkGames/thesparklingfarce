@@ -10,7 +10,7 @@ npc_id = "mayor_chuck"
 npc_name = "Mayor Chuck"
 portrait = ExtResource("2_7dejg")
 map_sprite = ExtResource("1_eiyew")
-interaction_cinematic_id = "noobington_mayor_1"
+interaction_cinematic_id = ""
 conditional_cinematics = Array[Dictionary]([{
 "cinematic_id": "noobington_mayor_post_victory",
 "flag": "completed_battle_of_noobs"

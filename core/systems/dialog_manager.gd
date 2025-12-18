@@ -177,9 +177,29 @@ func _show_choices() -> void:
 
 
 ## Player selected a choice
+## Handles both dialogue choices (from current_dialogue) and external choices (from CampaignManager)
 func select_choice(choice_index: int) -> void:
 	if current_state != State.WAITING_FOR_CHOICE:
 		push_warning("DialogManager: Cannot select choice - not waiting for choice")
+		return
+
+	# Check if this is an external choice (from CampaignManager, etc.)
+	if not _external_choices.is_empty():
+		if choice_index < 0 or choice_index >= _external_choices.size():
+			push_error("DialogManager: Invalid external choice index %d" % choice_index)
+			return
+
+		# Emit signal - listeners (CampaignManager) will call get_external_choice_value()
+		# and clear_external_choices() after retrieving the value
+		choice_selected.emit(choice_index, null)
+
+		# Reset state (but don't clear _external_choices - CampaignManager needs them)
+		current_state = State.IDLE
+		return
+
+	# Traditional dialogue choice path
+	if not current_dialogue:
+		push_error("DialogManager: No current dialogue for choice selection")
 		return
 
 	var choice: Dictionary = current_dialogue.get_choice(choice_index)
@@ -253,6 +273,53 @@ func cancel_dialog() -> void:
 
 	dialog_cancelled.emit()
 	_end_dialog()
+
+
+# ============================================================================
+# EXTERNAL CHOICE SUPPORT
+# ============================================================================
+
+## Pending external choices (stored so we can map index back to value)
+var _external_choices: Array[Dictionary] = []
+
+## Show choices from an external source (e.g., CampaignManager)
+## Choices should have: value, label, description (optional)
+## Returns true if choices were shown
+func show_choices(choices: Array[Dictionary]) -> bool:
+	if choices.is_empty():
+		push_warning("DialogManager: Cannot show empty choices")
+		return false
+
+	# Store for later lookup when selection is made
+	_external_choices = choices.duplicate()
+
+	# Map to format expected by ChoiceSelector (choice_text key)
+	var ui_choices: Array[Dictionary] = []
+	for choice: Dictionary in choices:
+		ui_choices.append({
+			"choice_text": choice.get("label", choice.get("value", "Option")),
+			"value": choice.get("value", ""),
+			"description": choice.get("description", "")
+		})
+
+	current_state = State.WAITING_FOR_CHOICE
+	choices_ready.emit(ui_choices)
+	return true
+
+
+## Called when an external choice is selected (by index)
+## Returns the choice value string, or empty string if invalid
+func get_external_choice_value(choice_index: int) -> String:
+	if choice_index < 0 or choice_index >= _external_choices.size():
+		return ""
+	return _external_choices[choice_index].get("value", "")
+
+
+## Clear external choice state
+func clear_external_choices() -> void:
+	_external_choices.clear()
+	if current_state == State.WAITING_FOR_CHOICE:
+		current_state = State.IDLE
 
 
 ## Check if a dialog is currently active

@@ -23,6 +23,10 @@ signal door_transition_started(from_map: String, to_map: String)
 ## Emitted when a door transition completes and spawn point is resolved
 signal door_transition_completed(spawn_point_id: String)
 
+## Emitted when a door with completes_campaign_node: true is used
+## CampaignManager listens to this for explicit opt-in campaign node completion
+signal campaign_node_completion_requested
+
 ## Preload TransitionContext for door transitions
 const TransitionContext: GDScript = preload("res://core/resources/transition_context.gd")
 
@@ -389,6 +393,10 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 
 	# Emit signal for any listeners (UI animations, etc.)
 	door_transition_started.emit(context.return_scene_path, destination_scene)
+
+	# Check if this door explicitly completes a campaign node
+	if trigger_data.get("completes_campaign_node", false):
+		campaign_node_completion_requested.emit()
 
 	# Transition to new scene
 	match transition_type:

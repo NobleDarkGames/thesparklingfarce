@@ -90,8 +90,11 @@ func _on_choices_ready(choices: Array[Dictionary]) -> void:
 
 
 ## Called when dialog ends
+## Only hide if choices are currently active - don't hide on dialog_ended if choices
+## haven't been shown yet (e.g., campaign choices come AFTER dialog ends)
 func _on_dialog_ended(dialogue_data: DialogueData) -> void:
-	_hide_with_animation()
+	if is_active:
+		_hide_with_animation()
 
 
 ## Show choices with slide-in animation from bottom

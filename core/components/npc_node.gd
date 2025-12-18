@@ -335,8 +335,14 @@ func interact(player: Node2D) -> void:
 	# Get the appropriate cinematic based on game state
 	var cinematic_id: String = npc_data.get_cinematic_id_for_state()
 
+	# Set interaction context so other systems (CampaignManager, etc.) can identify this NPC
+	CinematicsManager.set_interaction_context({"npc_id": npc_data.npc_id})
+
 	if cinematic_id.is_empty():
-		push_warning("NPCNode: No cinematic to play for NPC '%s'" % npc_data.npc_id)
+		# No cinematic, but still notify campaign system of interaction
+		# Emit cinematic_ended so CampaignManager can process npc_interaction completion
+		CinematicsManager.cinematic_ended.emit("")
+		CinematicsManager.clear_interaction_context()
 		interaction_ended.emit(self)
 		return
 
@@ -345,6 +351,7 @@ func interact(player: Node2D) -> void:
 
 	if not success:
 		push_error("NPCNode: Failed to play cinematic '%s' for NPC '%s'" % [cinematic_id, npc_data.npc_id])
+		CinematicsManager.clear_interaction_context()
 		interaction_ended.emit(self)
 		return
 
@@ -355,6 +362,7 @@ func interact(player: Node2D) -> void:
 
 ## Called when the cinematic finishes
 func _on_cinematic_ended(_cinematic_id: String) -> void:
+	CinematicsManager.clear_interaction_context()
 	interaction_ended.emit(self)
 
 
