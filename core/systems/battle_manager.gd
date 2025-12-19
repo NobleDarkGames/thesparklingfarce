@@ -2069,8 +2069,13 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 
 	if battle_scene_root:
 		battle_scene_root.add_child(canvas)
-	else:
+	elif get_tree().current_scene:
 		get_tree().current_scene.add_child(canvas)
+	else:
+		# Rare edge case: no valid scene root during transition
+		push_warning("BattleManager: Cannot show exit message - no scene root available")
+		canvas.queue_free()
+		return
 
 	# Brief pause for player to read message
 	await get_tree().create_timer(1.5).timeout

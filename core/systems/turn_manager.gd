@@ -37,6 +37,9 @@ var turn_number: int = 0
 ## Battle state
 var battle_active: bool = false
 
+## Guard flag to prevent re-entry during async turn advancement
+var _advancing_turn: bool = false
+
 ## Victory/defeat conditions (from BattleData)
 var victory_condition: int = -1
 var defeat_condition: int = -1
@@ -212,11 +215,22 @@ func end_unit_turn(unit: Node2D) -> void:
 ## Advance to the next unit in queue
 ## Now async to allow for turn transition delay
 func advance_to_next_unit() -> void:
+	# Guard against re-entry during async operations
+	# This prevents double-popping from turn_queue if called concurrently
+	if _advancing_turn:
+		push_warning("TurnManager: advance_to_next_unit called while already advancing")
+		return
+	_advancing_turn = true
+
 	# Add delay before starting next unit's turn
 	# This allows camera pans, animations, and UI updates to complete
 	# Skip in headless mode for faster automated testing
 	if turn_transition_delay > 0 and not is_headless:
 		await get_tree().create_timer(turn_transition_delay).timeout
+
+	# Clear flag before start_unit_turn - it may recursively call advance_to_next_unit
+	# if the unit is invalid/dead/incapacitated
+	_advancing_turn = false
 
 	if turn_queue.is_empty():
 		# Turn cycle complete, start new cycle
@@ -574,3 +588,4 @@ func clear_battle() -> void:
 	active_unit = null
 	turn_number = 0
 	battle_active = false
+	_advancing_turn = false
