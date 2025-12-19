@@ -66,12 +66,6 @@ enum MovementType {
 ## Whether promotion items are consumed when used (applies to all paths)
 @export var consume_promotion_item: bool = true
 
-## DEPRECATED: Use promotion_paths instead. Kept for backward compatibility with existing .tres files.
-## These will be auto-migrated to promotion_paths on first access.
-@export_storage var _legacy_promotion_class: ClassData
-@export_storage var _legacy_special_promotion_class: ClassData
-@export_storage var _legacy_special_promotion_item: ItemData
-
 @export_group("Appearance")
 @export var class_icon: Texture2D
 
@@ -146,7 +140,6 @@ func get_growth_rate(stat_name: String) -> int:
 
 ## Check if this class has any item-gated promotion paths
 func has_special_promotion() -> bool:
-	_migrate_legacy_promotion_data()
 	for path: PromotionPath in promotion_paths:
 		if path and path.requires_item():
 			return true
@@ -156,7 +149,6 @@ func has_special_promotion() -> bool:
 ## Get all available promotion paths for this class
 ## Returns array of target ClassData for all defined paths
 func get_all_promotion_paths() -> Array[ClassData]:
-	_migrate_legacy_promotion_data()
 	var classes: Array[ClassData] = []
 	for path: PromotionPath in promotion_paths:
 		if path and path.target_class:
@@ -166,7 +158,6 @@ func get_all_promotion_paths() -> Array[ClassData]:
 
 ## Get all promotion path resources (full PromotionPath objects)
 func get_promotion_path_resources() -> Array[PromotionPath]:
-	_migrate_legacy_promotion_data()
 	var valid_paths: Array[PromotionPath] = []
 	for path: PromotionPath in promotion_paths:
 		if path and path.is_valid():
@@ -177,7 +168,6 @@ func get_promotion_path_resources() -> Array[PromotionPath]:
 ## Get the promotion path for a specific target class
 ## Returns null if no path leads to that class
 func get_promotion_path_for_class(target: ClassData) -> PromotionPath:
-	_migrate_legacy_promotion_data()
 	for path: PromotionPath in promotion_paths:
 		if path and path.target_class == target:
 			return path
@@ -186,46 +176,10 @@ func get_promotion_path_for_class(target: ClassData) -> PromotionPath:
 
 ## Check if this class can promote (has at least one valid promotion path)
 func can_promote() -> bool:
-	_migrate_legacy_promotion_data()
 	for path: PromotionPath in promotion_paths:
 		if path and path.is_valid():
 			return true
 	return false
-
-
-## Migrate legacy promotion fields to the new promotion_paths array
-## Called automatically when accessing promotion data
-## Safe to call multiple times - only migrates once
-func _migrate_legacy_promotion_data() -> void:
-	# Skip if already migrated (promotion_paths has content)
-	if not promotion_paths.is_empty():
-		return
-
-	# Check for legacy data to migrate
-	var has_legacy: bool = _legacy_promotion_class != null or _legacy_special_promotion_class != null
-	if not has_legacy:
-		return
-
-	# Migrate standard promotion path
-	if _legacy_promotion_class != null:
-		var standard_path: PromotionPath = PromotionPath.new()
-		standard_path.target_class = _legacy_promotion_class
-		standard_path.required_item = null
-		standard_path.path_name = ""
-		promotion_paths.append(standard_path)
-
-	# Migrate special promotion path
-	if _legacy_special_promotion_class != null:
-		var special_path: PromotionPath = PromotionPath.new()
-		special_path.target_class = _legacy_special_promotion_class
-		special_path.required_item = _legacy_special_promotion_item
-		special_path.path_name = ""
-		promotion_paths.append(special_path)
-
-	# Clear legacy fields to prevent re-migration
-	_legacy_promotion_class = null
-	_legacy_special_promotion_class = null
-	_legacy_special_promotion_item = null
 
 
 ## Validate that required fields are set
