@@ -401,22 +401,23 @@ func _add_basic_info_section() -> void:
 
 
 func _add_stat_modifiers_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Stat Modifiers")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Stat Modifiers"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	hp_mod_spin = _create_modifier_editor("HP:", section, "Bonus HP when equipped. Positive = more health, negative = less. Typical: +5 to +20.")
-	mp_mod_spin = _create_modifier_editor("MP:", section, "Bonus MP when equipped. Useful for caster accessories. Typical: +5 to +15.")
-	str_mod_spin = _create_modifier_editor("Strength:", section, "Bonus physical attack power. Weapons typically add +5 to +30.")
-	def_mod_spin = _create_modifier_editor("Defense:", section, "Bonus defense. Armor typically adds +3 to +15.")
-	agi_mod_spin = _create_modifier_editor("Agility:", section, "Bonus agility (speed/evasion). Some weapons may reduce this as a tradeoff.")
-	int_mod_spin = _create_modifier_editor("Intelligence:", section, "Bonus magic power. Staves/tomes add to spell damage.")
-	luk_mod_spin = _create_modifier_editor("Luck:", section, "Bonus luck (crits/drops). Usually small bonuses from accessories.")
-
-	detail_panel.add_child(section)
+	hp_mod_spin = form.add_number_field("HP:", -999, 999, 0,
+		"Bonus HP when equipped. Positive = more health, negative = less. Typical: +5 to +20.")
+	mp_mod_spin = form.add_number_field("MP:", -999, 999, 0,
+		"Bonus MP when equipped. Useful for caster accessories. Typical: +5 to +15.")
+	str_mod_spin = form.add_number_field("Strength:", -999, 999, 0,
+		"Bonus physical attack power. Weapons typically add +5 to +30.")
+	def_mod_spin = form.add_number_field("Defense:", -999, 999, 0,
+		"Bonus defense. Armor typically adds +3 to +15.")
+	agi_mod_spin = form.add_number_field("Agility:", -999, 999, 0,
+		"Bonus agility (speed/evasion). Some weapons may reduce this as a tradeoff.")
+	int_mod_spin = form.add_number_field("Intelligence:", -999, 999, 0,
+		"Bonus magic power. Staves/tomes add to spell damage.")
+	luk_mod_spin = form.add_number_field("Luck:", -999, 999, 0,
+		"Bonus luck (crits/drops). Usually small bonuses from accessories.")
 
 
 func _add_weapon_section() -> void:
@@ -554,92 +555,24 @@ func _add_consumable_section() -> void:
 
 
 func _add_economy_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Economy")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Economy"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	buy_price_spin = form.add_number_field("Buy Price:", 0, 999999, 100,
+		"Cost to purchase from shops. Set to 0 for items that cannot be bought.")
 
-	# Buy Price
-	var buy_container: HBoxContainer = HBoxContainer.new()
-	var buy_label: Label = Label.new()
-	buy_label.text = "Buy Price:"
-	buy_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	buy_container.add_child(buy_label)
-
-	buy_price_spin = SpinBox.new()
-	buy_price_spin.min_value = 0
-	buy_price_spin.max_value = 999999
-	buy_price_spin.value = 100
-	buy_price_spin.tooltip_text = "Cost to purchase from shops. Set to 0 for items that cannot be bought."
-	buy_container.add_child(buy_price_spin)
-	section.add_child(buy_container)
-
-	# Sell Price
-	var sell_container: HBoxContainer = HBoxContainer.new()
-	var sell_label: Label = Label.new()
-	sell_label.text = "Sell Price:"
-	sell_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	sell_container.add_child(sell_label)
-
-	sell_price_spin = SpinBox.new()
-	sell_price_spin.min_value = 0
-	sell_price_spin.max_value = 999999
-	sell_price_spin.value = 50
-	sell_price_spin.tooltip_text = "Gold received when selling. Typically 50% of buy price. Set to 0 for unsellable items."
-	sell_container.add_child(sell_price_spin)
-	section.add_child(sell_container)
-
-	detail_panel.add_child(section)
+	sell_price_spin = form.add_number_field("Sell Price:", 0, 999999, 50,
+		"Gold received when selling. Typically 50% of buy price. Set to 0 for unsellable items.")
 
 
 func _add_item_management_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Item Management")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Item Management"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	is_crafting_material_check = form.add_standalone_checkbox("Is Crafting Material", false,
+		"Check if this item is a crafting material (mithril, dragon scales, etc.) that can be used at crafter NPCs to create equipment")
 
-	# Is Crafting Material checkbox
-	is_crafting_material_check = CheckBox.new()
-	is_crafting_material_check.text = "Is Crafting Material"
-	is_crafting_material_check.tooltip_text = "Check if this item is a crafting material (mithril, dragon scales, etc.) that can be used at crafter NPCs to create equipment"
-	section.add_child(is_crafting_material_check)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Crafting materials can be combined at crafter NPCs to forge new equipment"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_label)
-
-	detail_panel.add_child(section)
-
-
-func _create_modifier_editor(label_text: String, parent: VBoxContainer, tooltip: String = "") -> SpinBox:
-	var container: HBoxContainer = HBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	if not tooltip.is_empty():
-		label.tooltip_text = tooltip
-	container.add_child(label)
-
-	var spin: SpinBox = SpinBox.new()
-	spin.min_value = -999
-	spin.max_value = 999
-	spin.value = 0
-	spin.allow_lesser = true
-	spin.allow_greater = true
-	if not tooltip.is_empty():
-		spin.tooltip_text = tooltip
-	container.add_child(spin)
-
-	parent.add_child(container)
-	return spin
+	form.add_help_text("Crafting materials can be combined at crafter NPCs to forge new equipment")
 
 
 func _on_item_type_changed(index: int) -> void:

@@ -209,42 +209,14 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_identity_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Identity")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	terrain_id_edit = form.add_text_field("Terrain ID:", "e.g., deep_water, lava_flow",
+		"Unique identifier used in map tiles (lowercase, no spaces)")
 
-	# Terrain ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Terrain ID:"
-	id_label.custom_minimum_size.x = 150
-	id_label.tooltip_text = "Unique identifier used in map tiles (lowercase, no spaces)"
-	id_container.add_child(id_label)
-
-	terrain_id_edit = LineEdit.new()
-	terrain_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	terrain_id_edit.placeholder_text = "e.g., deep_water, lava_flow"
-	id_container.add_child(terrain_id_edit)
-	section.add_child(id_container)
-
-	# Display Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = 150
-	name_label.tooltip_text = "Name shown in game UI when hovering over terrain"
-	name_container.add_child(name_label)
-
-	display_name_edit = LineEdit.new()
-	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display_name_edit.placeholder_text = "e.g., Deep Water, Lava Flow"
-	name_container.add_child(display_name_edit)
-	section.add_child(name_container)
-
-	detail_panel.add_child(section)
+	display_name_edit = form.add_text_field("Display Name:", "e.g., Deep Water, Lava Flow",
+		"Name shown in game UI when hovering over terrain")
 
 
 func _add_movement_section() -> void:
@@ -330,177 +302,47 @@ func _add_movement_section() -> void:
 
 
 func _add_combat_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Combat Modifiers")
+	form.add_help_text("Bonuses applied to units standing on this terrain during combat.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Combat Modifiers"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	defense_bonus_spin = form.add_number_field("Defense Bonus:", 0, 10, 0,
+		"Flat bonus added to unit's defense stat (0-10 typical)")
 
-	var help_label: Label = Label.new()
-	help_label.text = "Bonuses applied to units standing on this terrain during combat."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(help_label)
-
-	# Defense Bonus
-	var def_container: HBoxContainer = HBoxContainer.new()
-	var def_label: Label = Label.new()
-	def_label.text = "Defense Bonus:"
-	def_label.custom_minimum_size.x = 150
-	def_label.tooltip_text = "Flat bonus added to unit's defense stat (0-10 typical)"
-	def_container.add_child(def_label)
-
-	defense_bonus_spin = SpinBox.new()
-	defense_bonus_spin.min_value = 0
-	defense_bonus_spin.max_value = 10
-	defense_bonus_spin.value = 0
-	def_container.add_child(defense_bonus_spin)
-	section.add_child(def_container)
-
-	# Evasion Bonus
-	var eva_container: HBoxContainer = HBoxContainer.new()
-	var eva_label: Label = Label.new()
-	eva_label.text = "Evasion Bonus (%):"
-	eva_label.custom_minimum_size.x = 150
-	eva_label.tooltip_text = "Percentage added to evasion chance (0-50% typical)"
-	eva_container.add_child(eva_label)
-
-	evasion_bonus_spin = SpinBox.new()
-	evasion_bonus_spin.min_value = 0
-	evasion_bonus_spin.max_value = 50
-	evasion_bonus_spin.value = 0
+	evasion_bonus_spin = form.add_number_field("Evasion Bonus (%):", 0, 50, 0,
+		"Percentage added to evasion chance (0-50% typical)")
 	evasion_bonus_spin.suffix = "%"
-	eva_container.add_child(evasion_bonus_spin)
-	section.add_child(eva_container)
-
-	detail_panel.add_child(section)
 
 
 func _add_turn_effects_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Turn Effects")
+	form.add_help_text("Effects applied at the start of each turn for units on this terrain.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Turn Effects"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	damage_per_turn_spin = form.add_number_field("Damage per Turn:", 0, 99, 0,
+		"HP lost at start of turn (for lava, poison swamp, etc.)")
 
-	var help_label: Label = Label.new()
-	help_label.text = "Effects applied at the start of each turn for units on this terrain."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(help_label)
+	healing_per_turn_spin = form.add_number_field("Healing per Turn:", 0, 99, 0,
+		"HP restored at start of turn (for sacred ground, healing tiles)")
+	form.add_help_text("(Deferred) Healing feature exists but may not be fully implemented yet")
 
-	# Damage per Turn
-	var dmg_container: HBoxContainer = HBoxContainer.new()
-	var dmg_label: Label = Label.new()
-	dmg_label.text = "Damage per Turn:"
-	dmg_label.custom_minimum_size.x = 150
-	dmg_label.tooltip_text = "HP lost at start of turn (for lava, poison swamp, etc.)"
-	dmg_container.add_child(dmg_label)
+	status_effect_edit = form.add_text_field("Status Effect:", "e.g., poison, slow",
+		"Status effect applied when entering this terrain")
+	form.add_help_text("(Deferred) Status effect feature exists but may not be fully implemented yet")
 
-	damage_per_turn_spin = SpinBox.new()
-	damage_per_turn_spin.min_value = 0
-	damage_per_turn_spin.max_value = 99
-	damage_per_turn_spin.value = 0
-	dmg_container.add_child(damage_per_turn_spin)
-	section.add_child(dmg_container)
-
-	# Healing per Turn
-	var heal_container: HBoxContainer = HBoxContainer.new()
-	var heal_label: Label = Label.new()
-	heal_label.text = "Healing per Turn:"
-	heal_label.custom_minimum_size.x = 150
-	heal_label.tooltip_text = "HP restored at start of turn (for sacred ground, healing tiles)"
-	heal_container.add_child(heal_label)
-
-	healing_per_turn_spin = SpinBox.new()
-	healing_per_turn_spin.min_value = 0
-	healing_per_turn_spin.max_value = 99
-	healing_per_turn_spin.value = 0
-	heal_container.add_child(healing_per_turn_spin)
-
-	var heal_note: Label = Label.new()
-	heal_note.text = "(Deferred)"
-	heal_note.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	heal_note.tooltip_text = "This feature exists but may not be fully implemented yet"
-	heal_container.add_child(heal_note)
-	section.add_child(heal_container)
-
-	# Status Effect on Entry
-	var status_container: HBoxContainer = HBoxContainer.new()
-	var status_label: Label = Label.new()
-	status_label.text = "Status Effect:"
-	status_label.custom_minimum_size.x = 150
-	status_label.tooltip_text = "Status effect applied when entering this terrain"
-	status_container.add_child(status_label)
-
-	status_effect_edit = LineEdit.new()
-	status_effect_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_effect_edit.placeholder_text = "e.g., poison, slow"
-	status_container.add_child(status_effect_edit)
-
-	var status_note: Label = Label.new()
-	status_note.text = "(Deferred)"
-	status_note.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	status_note.tooltip_text = "This feature exists but may not be fully implemented yet"
-	status_container.add_child(status_note)
-	section.add_child(status_container)
-
-	# Status Effect Duration
-	var duration_container: HBoxContainer = HBoxContainer.new()
-	var duration_label: Label = Label.new()
-	duration_label.text = "Effect Duration:"
-	duration_label.custom_minimum_size.x = 150
-	duration_label.tooltip_text = "How many turns the status effect lasts"
-	duration_container.add_child(duration_label)
-
-	status_effect_duration_spin = SpinBox.new()
-	status_effect_duration_spin.min_value = 1
-	status_effect_duration_spin.max_value = 10
-	status_effect_duration_spin.value = 1
+	status_effect_duration_spin = form.add_number_field("Effect Duration:", 1, 10, 1,
+		"How many turns the status effect lasts")
 	status_effect_duration_spin.suffix = " turns"
-	duration_container.add_child(status_effect_duration_spin)
-	section.add_child(duration_container)
-
-	detail_panel.add_child(section)
 
 
 func _add_audio_visual_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Audio & Visual")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Audio & Visual"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Footstep Sound
-	var sound_container: HBoxContainer = HBoxContainer.new()
-	var sound_label: Label = Label.new()
-	sound_label.text = "Footstep Sound:"
-	sound_label.custom_minimum_size.x = 150
-	sound_label.tooltip_text = "Sound effect ID when walking on this terrain"
-	sound_container.add_child(sound_label)
-
-	footstep_sound_edit = LineEdit.new()
-	footstep_sound_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footstep_sound_edit.placeholder_text = "e.g., grass_step, metal_clang"
-	sound_container.add_child(footstep_sound_edit)
-
-	var sound_note: Label = Label.new()
-	sound_note.text = "(Deferred)"
-	sound_note.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	sound_note.tooltip_text = "This feature exists but may not be fully implemented yet"
-	sound_container.add_child(sound_note)
-	section.add_child(sound_container)
-
-	var note_label: Label = Label.new()
-	note_label.text = "Note: Walk particle and icon can be assigned in the Godot Inspector"
-	note_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	note_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(note_label)
-
-	detail_panel.add_child(section)
+	footstep_sound_edit = form.add_text_field("Footstep Sound:", "e.g., grass_step, metal_clang",
+		"Sound effect ID when walking on this terrain")
+	form.add_help_text("(Deferred) Footstep sound feature exists but may not be fully implemented yet")
+	form.add_help_text("Note: Walk particle and icon can be assigned in the Godot Inspector")
 
 
 ## Update visual feedback when impassable checkboxes are toggled

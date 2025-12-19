@@ -236,54 +236,21 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Basic Information")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	name_edit = form.add_text_field("Ability Name:", "",
+		"Display name shown in battle menus. E.g., Blaze, Heal, Bolt.")
 
-	# Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Ability Name:"
-	name_label.custom_minimum_size.x = 150
-	name_container.add_child(name_label)
-
-	name_edit = LineEdit.new()
-	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_edit.tooltip_text = "Display name shown in battle menus. E.g., Blaze, Heal, Bolt."
-	name_container.add_child(name_edit)
-	section.add_child(name_container)
-
-	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	section.add_child(desc_label)
-
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 80
-	description_edit.tooltip_text = "Tooltip text shown when hovering over ability in menus. Describe what it does."
-	section.add_child(description_edit)
-
-	detail_panel.add_child(section)
+	description_edit = form.add_text_area("Description:", 80,
+		"Tooltip text shown when hovering over ability in menus. Describe what it does.")
 
 
 func _add_type_targeting_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Type & Targeting")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Type & Targeting"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Ability Type
-	var type_container: HBoxContainer = HBoxContainer.new()
-	var type_label: Label = Label.new()
-	type_label.text = "Ability Type:"
-	type_label.custom_minimum_size.x = 150
-	type_container.add_child(type_label)
-
+	# Ability Type - custom dropdown with specific IDs
 	ability_type_option = OptionButton.new()
 	ability_type_option.tooltip_text = "Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies."
 	ability_type_option.add_item("Attack", AbilityData.AbilityType.ATTACK)
@@ -295,16 +262,10 @@ func _add_type_targeting_section() -> void:
 	ability_type_option.add_item("Counter", AbilityData.AbilityType.COUNTER)
 	ability_type_option.add_item("Special", AbilityData.AbilityType.SPECIAL)
 	ability_type_option.add_item("Custom", AbilityData.AbilityType.CUSTOM)
-	type_container.add_child(ability_type_option)
-	section.add_child(type_container)
+	form.add_labeled_control("Ability Type:", ability_type_option,
+		"Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies.")
 
-	# Target Type
-	var target_container: HBoxContainer = HBoxContainer.new()
-	var target_label: Label = Label.new()
-	target_label.text = "Target Type:"
-	target_label.custom_minimum_size.x = 150
-	target_container.add_child(target_label)
-
+	# Target Type - custom dropdown with specific IDs
 	target_type_option = OptionButton.new()
 	target_type_option.tooltip_text = "Who can be targeted. Single = one target. All = entire side. Area = splash around a point."
 	target_type_option.add_item("Single Enemy", AbilityData.TargetType.SINGLE_ENEMY)
@@ -313,166 +274,51 @@ func _add_type_targeting_section() -> void:
 	target_type_option.add_item("All Enemies", AbilityData.TargetType.ALL_ENEMIES)
 	target_type_option.add_item("All Allies", AbilityData.TargetType.ALL_ALLIES)
 	target_type_option.add_item("Area", AbilityData.TargetType.AREA)
-	target_container.add_child(target_type_option)
-	section.add_child(target_container)
-
-	detail_panel.add_child(section)
+	form.add_labeled_control("Target Type:", target_type_option,
+		"Who can be targeted. Single = one target. All = entire side. Area = splash around a point.")
 
 
 func _add_range_area_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Range & Area of Effect")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Range & Area of Effect"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	min_range_spin = form.add_number_field("Min Range:", 0, 20, 1,
+		"Closest tile this ability can target. 0 = self only, 1 = adjacent, 2+ = ranged.")
 
-	# Min Range
-	var min_container: HBoxContainer = HBoxContainer.new()
-	var min_label: Label = Label.new()
-	min_label.text = "Min Range:"
-	min_label.custom_minimum_size.x = 150
-	min_label.tooltip_text = "0 = self, 1 = adjacent, etc."
-	min_container.add_child(min_label)
+	max_range_spin = form.add_number_field("Max Range:", 0, 20, 1,
+		"Farthest tile this ability can target. Typical: 1-2 melee skills, 3-5 ranged spells.")
 
-	min_range_spin = SpinBox.new()
-	min_range_spin.min_value = 0
-	min_range_spin.max_value = 20
-	min_range_spin.value = 1
-	min_range_spin.tooltip_text = "Closest tile this ability can target. 0 = self only, 1 = adjacent, 2+ = ranged."
-	min_container.add_child(min_range_spin)
-	section.add_child(min_container)
-
-	# Max Range
-	var max_container: HBoxContainer = HBoxContainer.new()
-	var max_label: Label = Label.new()
-	max_label.text = "Max Range:"
-	max_label.custom_minimum_size.x = 150
-	max_container.add_child(max_label)
-
-	max_range_spin = SpinBox.new()
-	max_range_spin.min_value = 0
-	max_range_spin.max_value = 20
-	max_range_spin.value = 1
-	max_range_spin.tooltip_text = "Farthest tile this ability can target. Typical: 1-2 melee skills, 3-5 ranged spells."
-	max_container.add_child(max_range_spin)
-	section.add_child(max_container)
-
-	# Area of Effect
-	var aoe_container: HBoxContainer = HBoxContainer.new()
-	var aoe_label: Label = Label.new()
-	aoe_label.text = "Area of Effect:"
-	aoe_label.custom_minimum_size.x = 150
-	aoe_label.tooltip_text = "0 = single target, 1+ = splash radius"
-	aoe_container.add_child(aoe_label)
-
-	area_of_effect_spin = SpinBox.new()
-	area_of_effect_spin.min_value = 0
-	area_of_effect_spin.max_value = 10
-	area_of_effect_spin.value = 0
-	area_of_effect_spin.tooltip_text = "Radius around target point. 0 = single target. 1 = 3x3 area. 2 = 5x5 area."
-	aoe_container.add_child(area_of_effect_spin)
-	section.add_child(aoe_container)
-
-	detail_panel.add_child(section)
+	area_of_effect_spin = form.add_number_field("Area of Effect:", 0, 10, 0,
+		"Radius around target point. 0 = single target. 1 = 3x3 area. 2 = 5x5 area.")
 
 
 func _add_cost_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Cost")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Cost"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	mp_cost_spin = form.add_number_field("MP Cost:", 0, 999, 0,
+		"Magic points consumed when used. Typical: 2-5 early spells, 10-20 powerful, 30+ ultimate.")
 
-	# MP Cost
-	var mp_container: HBoxContainer = HBoxContainer.new()
-	var mp_label: Label = Label.new()
-	mp_label.text = "MP Cost:"
-	mp_label.custom_minimum_size.x = 150
-	mp_container.add_child(mp_label)
-
-	mp_cost_spin = SpinBox.new()
-	mp_cost_spin.min_value = 0
-	mp_cost_spin.max_value = 999
-	mp_cost_spin.value = 0
-	mp_cost_spin.tooltip_text = "Magic points consumed when used. Typical: 2-5 early spells, 10-20 powerful, 30+ ultimate."
-	mp_container.add_child(mp_cost_spin)
-	section.add_child(mp_container)
-
-	# HP Cost
-	var hp_container: HBoxContainer = HBoxContainer.new()
-	var hp_label: Label = Label.new()
-	hp_label.text = "HP Cost:"
-	hp_label.custom_minimum_size.x = 150
-	hp_container.add_child(hp_label)
-
-	hp_cost_spin = SpinBox.new()
-	hp_cost_spin.min_value = 0
-	hp_cost_spin.max_value = 999
-	hp_cost_spin.value = 0
-	hp_cost_spin.tooltip_text = "HP sacrificed to use ability. For dark magic or desperation attacks. Usually 0."
-	hp_container.add_child(hp_cost_spin)
-	section.add_child(hp_container)
-
-	detail_panel.add_child(section)
+	hp_cost_spin = form.add_number_field("HP Cost:", 0, 999, 0,
+		"HP sacrificed to use ability. For dark magic or desperation attacks. Usually 0.")
 
 
 func _add_potency_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Potency")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Potency"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	potency_spin = form.add_number_field("Potency:", 0, 999, 10,
+		"Base effect strength. For damage/healing, multiplied by caster stats. Typical: 10-30 basic, 50+ powerful.")
 
-	# Potency
-	var potency_container: HBoxContainer = HBoxContainer.new()
-	var potency_label: Label = Label.new()
-	potency_label.text = "Potency:"
-	potency_label.custom_minimum_size.x = 150
-	potency_label.tooltip_text = "Base effectiveness of the ability (damage for attacks, healing amount for heals)"
-	potency_container.add_child(potency_label)
-
-	potency_spin = SpinBox.new()
-	potency_spin.min_value = 0
-	potency_spin.max_value = 999
-	potency_spin.value = 10
-	potency_spin.tooltip_text = "Base effect strength. For damage/healing, multiplied by caster stats. Typical: 10-30 basic, 50+ powerful."
-	potency_container.add_child(potency_spin)
-	section.add_child(potency_container)
-
-	# Accuracy
-	var acc_container: HBoxContainer = HBoxContainer.new()
-	var acc_label: Label = Label.new()
-	acc_label.text = "Accuracy (%):"
-	acc_label.custom_minimum_size.x = 150
-	acc_container.add_child(acc_label)
-
-	accuracy_spin = SpinBox.new()
-	accuracy_spin.min_value = 0
-	accuracy_spin.max_value = 100
-	accuracy_spin.value = 100
-	accuracy_spin.tooltip_text = "Base hit chance percentage. 100% = always hits (most spells). 80-90% = can miss (debuffs)."
-	acc_container.add_child(accuracy_spin)
-	section.add_child(acc_container)
-
-	detail_panel.add_child(section)
+	accuracy_spin = form.add_number_field("Accuracy (%):", 0, 100, 100,
+		"Base hit chance percentage. 100% = always hits (most spells). 80-90% = can miss (debuffs).")
 
 
 func _add_effects_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Status Effects")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Status Effects"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Status Effects picker
-	var effects_header: Label = Label.new()
-	effects_header.text = "Effects:"
-	section.add_child(effects_header)
-
+	# Status Effects picker - custom control with MenuButton + Label
 	status_effects_container = HBoxContainer.new()
 
 	status_effects_button = MenuButton.new()
@@ -489,73 +335,27 @@ func _add_effects_section() -> void:
 	status_effects_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	status_effects_container.add_child(status_effects_label)
 
-	section.add_child(status_effects_container)
+	form.add_labeled_control("Effects:", status_effects_container,
+		"Choose status effects to apply when this ability hits.")
 
 	# Populate the dropdown lazily when opened (registry may not be ready on startup)
 	status_effects_button.get_popup().about_to_popup.connect(_populate_status_effects_menu)
 
-	# Effect Duration
-	var duration_container: HBoxContainer = HBoxContainer.new()
-	var duration_label: Label = Label.new()
-	duration_label.text = "Effect Duration (turns):"
-	duration_label.custom_minimum_size.x = 150
-	duration_container.add_child(duration_label)
+	effect_duration_spin = form.add_number_field("Effect Duration (turns):", 1, 99, 3,
+		"How many turns the status effect lasts. Typical: 2-3 short, 5 medium, 10+ long-lasting.")
 
-	effect_duration_spin = SpinBox.new()
-	effect_duration_spin.min_value = 1
-	effect_duration_spin.max_value = 99
-	effect_duration_spin.value = 3
-	effect_duration_spin.tooltip_text = "How many turns the status effect lasts. Typical: 2-3 short, 5 medium, 10+ long-lasting."
-	duration_container.add_child(effect_duration_spin)
-	section.add_child(duration_container)
-
-	# Effect Chance
-	var chance_container: HBoxContainer = HBoxContainer.new()
-	var chance_label: Label = Label.new()
-	chance_label.text = "Effect Chance (%):"
-	chance_label.custom_minimum_size.x = 150
-	chance_container.add_child(chance_label)
-
-	effect_chance_spin = SpinBox.new()
-	effect_chance_spin.min_value = 0
-	effect_chance_spin.max_value = 100
-	effect_chance_spin.value = 100
-	effect_chance_spin.tooltip_text = "Probability that status effect applies on hit. 100% = guaranteed. 30-50% = unreliable debuff."
-	chance_container.add_child(effect_chance_spin)
-	section.add_child(chance_container)
-
-	detail_panel.add_child(section)
+	effect_chance_spin = form.add_number_field("Effect Chance (%):", 0, 100, 100,
+		"Probability that status effect applies on hit. 100% = guaranteed. 30-50% = unreliable debuff.")
 
 
 func _add_animation_audio_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Animation & Audio")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Animation & Audio"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	animation_edit = form.add_text_field("Animation Name:", "e.g., slash, heal_sparkle",
+		"[NOT YET IMPLEMENTED] Animation key to play when ability is used. Field exists for future spell animation system.")
 
-	# Animation Name
-	var anim_container: HBoxContainer = HBoxContainer.new()
-	var anim_label: Label = Label.new()
-	anim_label.text = "Animation Name:"
-	anim_label.custom_minimum_size.x = 150
-	anim_container.add_child(anim_label)
-
-	animation_edit = LineEdit.new()
-	animation_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	animation_edit.placeholder_text = "e.g., slash, heal_sparkle"
-	animation_edit.tooltip_text = "[NOT YET IMPLEMENTED] Animation key to play when ability is used. Field exists for future spell animation system."
-	anim_container.add_child(animation_edit)
-	section.add_child(anim_container)
-
-	var note_label: Label = Label.new()
-	note_label.text = "[STUB] Animation/audio fields exist but are not yet processed by the spell system"
-	note_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	note_label.add_theme_font_size_override("font_size", 12)
-	section.add_child(note_label)
-
-	detail_panel.add_child(section)
+	form.add_help_text("[STUB] Animation/audio fields exist but are not yet processed by the spell system")
 
 
 # =============================================================================

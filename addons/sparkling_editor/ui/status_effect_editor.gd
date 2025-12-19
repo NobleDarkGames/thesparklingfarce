@@ -269,146 +269,55 @@ func _get_resource_display_name(resource: Resource) -> String:
 # =============================================================================
 
 func _add_identity_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Identity")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	effect_id_edit = form.add_text_field("Effect ID:", "e.g., poison, sleep, attack_up",
+		"Unique identifier for this effect. Use lowercase with underscores.")
 
-	# Effect ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Effect ID:"
-	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	id_label.tooltip_text = "Unique identifier used in code (lowercase, underscores)"
-	id_container.add_child(id_label)
+	display_name_edit = form.add_text_field("Display Name:", "e.g., Poisoned, Asleep, Attack Up",
+		"The name displayed to players in battle UI.")
 
-	effect_id_edit = LineEdit.new()
-	effect_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	effect_id_edit.placeholder_text = "e.g., poison, sleep, attack_up"
-	effect_id_edit.tooltip_text = "Unique identifier for this effect. Use lowercase with underscores."
-	effect_id_edit.text_changed.connect(_on_field_changed)
-	id_container.add_child(effect_id_edit)
-	section.add_child(id_container)
-
-	# Display Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_label.tooltip_text = "Name shown in game UI"
-	name_container.add_child(name_label)
-
-	display_name_edit = LineEdit.new()
-	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display_name_edit.placeholder_text = "e.g., Poisoned, Asleep, Attack Up"
-	display_name_edit.tooltip_text = "The name displayed to players in battle UI."
-	display_name_edit.text_changed.connect(_on_field_changed)
-	name_container.add_child(display_name_edit)
-	section.add_child(name_container)
-
-	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	desc_label.tooltip_text = "Help text explaining the effect"
-	section.add_child(desc_label)
-
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 60
-	description_edit.tooltip_text = "Detailed description shown in help screens and tooltips."
-	description_edit.text_changed.connect(_on_field_changed)
-	section.add_child(description_edit)
-
-	detail_panel.add_child(section)
+	description_edit = form.add_text_area("Description:", 60,
+		"Detailed description shown in help screens and tooltips.")
 
 
 func _add_visual_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Visual Display")
+	form.add_help_text("Configure how the status effect appears in the UI.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Visual Display"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Configure how the status effect appears in the UI."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Icon Color
-	var icon_container: HBoxContainer = HBoxContainer.new()
-	var icon_label: Label = Label.new()
-	icon_label.text = "Icon Color:"
-	icon_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	icon_label.tooltip_text = "Color tint for the status icon in UI"
-	icon_container.add_child(icon_label)
-
+	# Icon Color - custom control
 	icon_color_picker = ColorPickerButton.new()
 	icon_color_picker.custom_minimum_size = Vector2(80, 0)
 	icon_color_picker.color = Color.WHITE
 	icon_color_picker.tooltip_text = "The color used for the status effect icon in the battle UI."
 	icon_color_picker.color_changed.connect(_on_color_changed)
-	icon_container.add_child(icon_color_picker)
-	section.add_child(icon_container)
+	form.add_labeled_control("Icon Color:", icon_color_picker,
+		"The color used for the status effect icon in the battle UI.")
 
-	# Popup Text
-	var popup_container: HBoxContainer = HBoxContainer.new()
-	var popup_label: Label = Label.new()
-	popup_label.text = "Popup Text:"
-	popup_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	popup_label.tooltip_text = "Text shown when effect triggers (optional)"
-	popup_container.add_child(popup_label)
+	popup_text_edit = form.add_text_field("Popup Text:", "(uses display name if empty)",
+		"Custom text to display when the effect triggers. Leave empty to use display name.")
 
-	popup_text_edit = LineEdit.new()
-	popup_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	popup_text_edit.placeholder_text = "(uses display name if empty)"
-	popup_text_edit.tooltip_text = "Custom text to display when the effect triggers. Leave empty to use display name."
-	popup_text_edit.text_changed.connect(_on_field_changed)
-	popup_container.add_child(popup_text_edit)
-	section.add_child(popup_container)
-
-	# Popup Color
-	var popup_color_container: HBoxContainer = HBoxContainer.new()
-	var popup_color_label: Label = Label.new()
-	popup_color_label.text = "Popup Color:"
-	popup_color_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	popup_color_label.tooltip_text = "Color for the popup text"
-	popup_color_container.add_child(popup_color_label)
-
+	# Popup Color - custom control
 	popup_color_picker = ColorPickerButton.new()
 	popup_color_picker.custom_minimum_size = Vector2(80, 0)
 	popup_color_picker.color = Color.WHITE
 	popup_color_picker.tooltip_text = "Color of the floating text when this effect triggers."
 	popup_color_picker.color_changed.connect(_on_color_changed)
-	popup_color_container.add_child(popup_color_picker)
-	section.add_child(popup_color_container)
-
-	detail_panel.add_child(section)
+	form.add_labeled_control("Popup Color:", popup_color_picker,
+		"Color of the floating text when this effect triggers.")
 
 
 func _add_timing_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Trigger Timing")
+	form.add_help_text("When does this effect's behavior activate?")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Trigger Timing"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "When does this effect's behavior activate?"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Trigger Timing
-	var timing_container: HBoxContainer = HBoxContainer.new()
-	var timing_label: Label = Label.new()
-	timing_label.text = "Timing:"
-	timing_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	timing_container.add_child(timing_label)
-
+	# Trigger Timing - custom dropdown with specific IDs
 	trigger_timing_option = OptionButton.new()
 	trigger_timing_option.tooltip_text = "When this effect processes each turn"
 	trigger_timing_option.add_item("Turn Start", StatusEffectData.TriggerTiming.TURN_START)
@@ -417,50 +326,24 @@ func _add_timing_section() -> void:
 	trigger_timing_option.add_item("On Action", StatusEffectData.TriggerTiming.ON_ACTION)
 	trigger_timing_option.add_item("Passive", StatusEffectData.TriggerTiming.PASSIVE)
 	trigger_timing_option.item_selected.connect(_on_option_selected)
-	timing_container.add_child(trigger_timing_option)
-	section.add_child(timing_container)
+	form.add_labeled_control("Timing:", trigger_timing_option,
+		"When this effect processes each turn")
 
-	var timing_help: Label = Label.new()
-	timing_help.text = "Turn Start: Poison damage, paralysis checks\nTurn End: After action processing\nOn Damage: When unit takes damage\nOn Action: When unit tries to act\nPassive: Always active (stat modifiers)"
-	timing_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	timing_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	timing_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(timing_help)
-
-	detail_panel.add_child(section)
+	form.add_help_text("Turn Start: Poison damage, paralysis checks\nTurn End: After action processing\nOn Damage: When unit takes damage\nOn Action: When unit tries to act\nPassive: Always active (stat modifiers)")
 
 
 func _add_skip_turn_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Skip Turn Effects")
+	form.add_help_text("For effects like Sleep, Stun, or Paralysis that prevent action.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Skip Turn Effects"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "For effects like Sleep, Stun, or Paralysis that prevent action."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Skips Turn checkbox
-	var skip_container: HBoxContainer = HBoxContainer.new()
-	skips_turn_check = CheckBox.new()
-	skips_turn_check.text = "Unit Cannot Act"
-	skips_turn_check.tooltip_text = "If checked, the affected unit loses their turn while this effect is active."
+	skips_turn_check = form.add_standalone_checkbox("Unit Cannot Act", false,
+		"If checked, the affected unit loses their turn while this effect is active.")
 	skips_turn_check.toggled.connect(_on_skips_turn_toggled)
-	skip_container.add_child(skips_turn_check)
-	section.add_child(skip_container)
 
-	# Recovery Chance
+	# Recovery Chance - needs visibility control so use wrapper container
 	recovery_chance_container = HBoxContainer.new()
-	var recovery_label: Label = Label.new()
-	recovery_label.text = "Recovery Chance (%):"
-	recovery_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	recovery_label.tooltip_text = "Chance to recover at the start of each turn"
-	recovery_chance_container.add_child(recovery_label)
-
 	recovery_chance_spin = SpinBox.new()
 	recovery_chance_spin.min_value = 0
 	recovery_chance_spin.max_value = 100
@@ -468,69 +351,35 @@ func _add_skip_turn_section() -> void:
 	recovery_chance_spin.suffix = "%"
 	recovery_chance_spin.tooltip_text = "0% = never recover naturally, 25% = paralysis-style, 100% = always recover after 1 turn."
 	recovery_chance_spin.value_changed.connect(_on_spin_changed)
-	recovery_chance_container.add_child(recovery_chance_spin)
-	section.add_child(recovery_chance_container)
 
-	detail_panel.add_child(section)
+	var recovery_label: Label = Label.new()
+	recovery_label.text = "Recovery Chance (%):"
+	recovery_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	recovery_chance_container.add_child(recovery_label)
+	recovery_chance_container.add_child(recovery_chance_spin)
+	form.container.add_child(recovery_chance_container)
 
 
 func _add_damage_over_time_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Damage/Healing Over Time")
+	form.add_help_text("HP change applied when the effect triggers.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Damage/Healing Over Time"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "HP change applied when the effect triggers."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Damage per Turn
-	var damage_container: HBoxContainer = HBoxContainer.new()
-	var damage_label: Label = Label.new()
-	damage_label.text = "HP Change/Turn:"
-	damage_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	damage_label.tooltip_text = "Positive = damage (poison), Negative = healing (regen)"
-	damage_container.add_child(damage_label)
-
-	damage_per_turn_spin = SpinBox.new()
-	damage_per_turn_spin.min_value = -99
-	damage_per_turn_spin.max_value = 99
-	damage_per_turn_spin.value = 0
-	damage_per_turn_spin.tooltip_text = "Positive values deal damage (Poison: 5-10). Negative values restore HP (Regen: -5 to -10)."
-	damage_per_turn_spin.value_changed.connect(_on_spin_changed)
-	damage_container.add_child(damage_per_turn_spin)
-
-	var damage_note: Label = Label.new()
-	damage_note.text = "  (+ = damage, - = heal)"
-	damage_note.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	damage_container.add_child(damage_note)
-	section.add_child(damage_container)
-
-	detail_panel.add_child(section)
+	damage_per_turn_spin = form.add_number_field("HP Change/Turn:", -99, 99, 0,
+		"Positive values deal damage (Poison: 5-10). Negative values restore HP (Regen: -5 to -10).")
+	form.add_help_text("(+ = damage, - = heal)")
 
 
 func _add_stat_modifiers_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Stat Modifiers"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Stat bonuses/penalties applied while the effect is active. Leave at 0 for no change."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Stat Modifiers")
+	form.add_help_text("Stat bonuses/penalties applied while the effect is active. Leave at 0 for no change.")
 
 	stat_modifiers_container = VBoxContainer.new()
 
-	# Create spin boxes for each stat
+	# Create spin boxes for each stat using helper
 	stat_strength_spin = _create_stat_spin("Strength:", "strength")
 	stat_modifiers_container.add_child(stat_strength_spin.get_parent())
 
@@ -552,9 +401,7 @@ func _add_stat_modifiers_section() -> void:
 	stat_max_mp_spin = _create_stat_spin("Max MP:", "max_mp")
 	stat_modifiers_container.add_child(stat_max_mp_spin.get_parent())
 
-	section.add_child(stat_modifiers_container)
-
-	detail_panel.add_child(section)
+	form.container.add_child(stat_modifiers_container)
 
 
 func _create_stat_spin(label_text: String, stat_name: String) -> SpinBox:
@@ -578,36 +425,17 @@ func _create_stat_spin(label_text: String, stat_name: String) -> SpinBox:
 
 
 func _add_removal_conditions_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Removal Conditions")
+	form.add_help_text("When should this effect be removed early?")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Removal Conditions"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "When should this effect be removed early?"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Removed on Damage checkbox
-	var remove_container: HBoxContainer = HBoxContainer.new()
-	removed_on_damage_check = CheckBox.new()
-	removed_on_damage_check.text = "Remove When Damaged"
-	removed_on_damage_check.tooltip_text = "Effect is removed when the unit takes damage (like Sleep waking on hit)."
+	removed_on_damage_check = form.add_standalone_checkbox("Remove When Damaged", false,
+		"Effect is removed when the unit takes damage (like Sleep waking on hit).")
 	removed_on_damage_check.toggled.connect(_on_removed_on_damage_toggled)
-	remove_container.add_child(removed_on_damage_check)
-	section.add_child(remove_container)
 
-	# Removal Chance
+	# Removal Chance - needs visibility control so use wrapper container
 	removal_chance_container = HBoxContainer.new()
-	var removal_label: Label = Label.new()
-	removal_label.text = "Removal Chance (%):"
-	removal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	removal_label.tooltip_text = "Chance to remove when damaged"
-	removal_chance_container.add_child(removal_label)
-
 	removal_on_damage_chance_spin = SpinBox.new()
 	removal_on_damage_chance_spin.min_value = 0
 	removal_on_damage_chance_spin.max_value = 100
@@ -615,33 +443,22 @@ func _add_removal_conditions_section() -> void:
 	removal_on_damage_chance_spin.suffix = "%"
 	removal_on_damage_chance_spin.tooltip_text = "100% = always wake up, 50% = 50% chance to wake."
 	removal_on_damage_chance_spin.value_changed.connect(_on_spin_changed)
-	removal_chance_container.add_child(removal_on_damage_chance_spin)
-	section.add_child(removal_chance_container)
 
-	detail_panel.add_child(section)
+	var removal_label: Label = Label.new()
+	removal_label.text = "Removal Chance (%):"
+	removal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	removal_chance_container.add_child(removal_label)
+	removal_chance_container.add_child(removal_on_damage_chance_spin)
+	form.container.add_child(removal_chance_container)
 
 
 func _add_action_modifiers_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Action Modifiers")
+	form.add_help_text("How does this effect modify the unit's actions?")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Action Modifiers"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "How does this effect modify the unit's actions?"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Action Modifier Type
-	var modifier_container: HBoxContainer = HBoxContainer.new()
-	var modifier_label: Label = Label.new()
-	modifier_label.text = "Modifier Type:"
-	modifier_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	modifier_container.add_child(modifier_label)
-
+	# Action Modifier Type - custom dropdown with specific IDs
 	action_modifier_option = OptionButton.new()
 	action_modifier_option.tooltip_text = "How actions are modified"
 	action_modifier_option.add_item("None", StatusEffectData.ActionModifier.NONE)
@@ -650,17 +467,11 @@ func _add_action_modifiers_section() -> void:
 	action_modifier_option.add_item("Cannot Use Magic", StatusEffectData.ActionModifier.CANNOT_USE_MAGIC)
 	action_modifier_option.add_item("Cannot Use Items", StatusEffectData.ActionModifier.CANNOT_USE_ITEMS)
 	action_modifier_option.item_selected.connect(_on_action_modifier_selected)
-	modifier_container.add_child(action_modifier_option)
-	section.add_child(modifier_container)
+	form.add_labeled_control("Modifier Type:", action_modifier_option,
+		"How actions are modified")
 
-	# Action Modifier Chance
+	# Action Modifier Chance - needs visibility control so use wrapper container
 	action_modifier_chance_container = HBoxContainer.new()
-	var chance_label: Label = Label.new()
-	chance_label.text = "Modifier Chance (%):"
-	chance_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	chance_label.tooltip_text = "Chance the modifier applies each turn"
-	action_modifier_chance_container.add_child(chance_label)
-
 	action_modifier_chance_spin = SpinBox.new()
 	action_modifier_chance_spin.min_value = 0
 	action_modifier_chance_spin.max_value = 100
@@ -668,17 +479,15 @@ func _add_action_modifiers_section() -> void:
 	action_modifier_chance_spin.suffix = "%"
 	action_modifier_chance_spin.tooltip_text = "100% = always confused, 50% = sometimes acts normally."
 	action_modifier_chance_spin.value_changed.connect(_on_spin_changed)
+
+	var chance_label: Label = Label.new()
+	chance_label.text = "Modifier Chance (%):"
+	chance_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	action_modifier_chance_container.add_child(chance_label)
 	action_modifier_chance_container.add_child(action_modifier_chance_spin)
-	section.add_child(action_modifier_chance_container)
+	form.container.add_child(action_modifier_chance_container)
 
-	var modifier_help: Label = Label.new()
-	modifier_help.text = "None: Normal actions\nRandom Target: Confusion - hits random unit\nAttack Allies: Berserk/Charm - forced to attack allies\nCannot Use Magic: Silence effect\nCannot Use Items: Item restriction"
-	modifier_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	modifier_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	modifier_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(modifier_help)
-
-	detail_panel.add_child(section)
+	form.add_help_text("None: Normal actions\nRandom Target: Confusion - hits random unit\nAttack Allies: Berserk/Charm - forced to attack allies\nCannot Use Magic: Silence effect\nCannot Use Items: Item restriction")
 
 
 # =============================================================================

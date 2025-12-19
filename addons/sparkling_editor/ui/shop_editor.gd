@@ -259,50 +259,18 @@ func _get_resource_display_name(resource: Resource) -> String:
 # =============================================================================
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Basic Information")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Shop ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Shop ID:"
-	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	id_container.add_child(id_label)
-
-	id_edit = LineEdit.new()
-	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_edit.placeholder_text = "e.g., my_mod_weapon_shop"
-	id_edit.tooltip_text = "Unique ID for referencing this shop. Use snake_case, e.g., 'my_mod_weapon_shop'."
+	id_edit = form.add_text_field("Shop ID:", "e.g., my_mod_weapon_shop",
+		"Unique ID for referencing this shop. Use snake_case, e.g., 'my_mod_weapon_shop'.")
 	id_edit.text_changed.connect(_mark_dirty)
-	id_container.add_child(id_edit)
-	section.add_child(id_container)
 
-	# Shop Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Shop Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_container.add_child(name_label)
-
-	name_edit = LineEdit.new()
-	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_edit.placeholder_text = "e.g., Granseal Weapon Shop"
-	name_edit.tooltip_text = "Display name shown to the player in menus and when entering the shop."
+	name_edit = form.add_text_field("Shop Name:", "e.g., Granseal Weapon Shop",
+		"Display name shown to the player in menus and when entering the shop.")
 	name_edit.text_changed.connect(_mark_dirty)
-	name_container.add_child(name_edit)
-	section.add_child(name_container)
 
-	# Shop Type
-	var type_container: HBoxContainer = HBoxContainer.new()
-	var type_label: Label = Label.new()
-	type_label.text = "Shop Type:"
-	type_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	type_container.add_child(type_label)
-
+	# Shop Type - custom dropdown with specific IDs
 	shop_type_option = OptionButton.new()
 	shop_type_option.tooltip_text = "Weapon = equipment, Item = consumables, Church = heal/revive, Crafter = forging, Special = unique."
 	shop_type_option.add_item("Weapon", ShopData.ShopType.WEAPON)
@@ -311,48 +279,22 @@ func _add_basic_info_section() -> void:
 	shop_type_option.add_item("Crafter", ShopData.ShopType.CRAFTER)
 	shop_type_option.add_item("Special", ShopData.ShopType.SPECIAL)
 	shop_type_option.item_selected.connect(_on_shop_type_changed)
-	type_container.add_child(shop_type_option)
-	section.add_child(type_container)
-
-	detail_panel.add_child(section)
+	form.add_labeled_control("Shop Type:", shop_type_option,
+		"Weapon = equipment, Item = consumables, Church = heal/revive, Crafter = forging, Special = unique.")
 
 
 func _add_presentation_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Presentation")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Presentation"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Greeting
-	var greeting_label: Label = Label.new()
-	greeting_label.text = "Greeting Text:"
-	section.add_child(greeting_label)
-
-	greeting_edit = TextEdit.new()
-	greeting_edit.custom_minimum_size.y = 60
+	greeting_edit = form.add_text_area("Greeting Text:", 60,
+		"Message displayed when player enters the shop. Multi-line supported.")
 	greeting_edit.placeholder_text = "Welcome to my shop!"
-	greeting_edit.tooltip_text = "Message displayed when player enters the shop. Multi-line supported."
 	greeting_edit.text_changed.connect(_mark_dirty)
-	section.add_child(greeting_edit)
 
-	# Farewell
-	var farewell_container: HBoxContainer = HBoxContainer.new()
-	var farewell_label: Label = Label.new()
-	farewell_label.text = "Farewell Text:"
-	farewell_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	farewell_container.add_child(farewell_label)
-
-	farewell_edit = LineEdit.new()
-	farewell_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	farewell_edit.placeholder_text = "Come again!"
-	farewell_edit.tooltip_text = "Message displayed when player leaves the shop."
+	farewell_edit = form.add_text_field("Farewell Text:", "Come again!",
+		"Message displayed when player leaves the shop.")
 	farewell_edit.text_changed.connect(_mark_dirty)
-	farewell_container.add_child(farewell_edit)
-	section.add_child(farewell_container)
-
-	detail_panel.add_child(section)
 
 
 func _add_inventory_section() -> void:
@@ -464,237 +406,78 @@ func _add_deals_section() -> void:
 
 
 func _add_economy_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Economy")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Economy"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	buy_multiplier_spin = form.add_float_field("Buy Multiplier:", 0.1, 2.0, 0.05, 1.0,
+		"Multiplier on item buy prices. 1.0 = normal, 1.5 = 50% markup, 0.8 = 20% discount.")
 
-	# Buy multiplier
-	var buy_container: HBoxContainer = HBoxContainer.new()
-	var buy_label: Label = Label.new()
-	buy_label.text = "Buy Multiplier:"
-	buy_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	buy_label.tooltip_text = "Multiplier on item buy prices (1.0 = normal)"
-	buy_container.add_child(buy_label)
+	sell_multiplier_spin = form.add_float_field("Sell Multiplier:", 0.1, 2.0, 0.05, 1.0,
+		"Multiplier on item sell prices. 1.0 = normal, 0.5 = pay half value, 1.2 = generous buyer.")
 
-	buy_multiplier_spin = SpinBox.new()
-	buy_multiplier_spin.min_value = 0.1
-	buy_multiplier_spin.max_value = 2.0
-	buy_multiplier_spin.step = 0.05
-	buy_multiplier_spin.value = 1.0
-	buy_multiplier_spin.tooltip_text = "Multiplier on item buy prices. 1.0 = normal, 1.5 = 50% markup, 0.8 = 20% discount."
-	buy_multiplier_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	buy_container.add_child(buy_multiplier_spin)
-	section.add_child(buy_container)
-
-	# Sell multiplier
-	var sell_container: HBoxContainer = HBoxContainer.new()
-	var sell_label: Label = Label.new()
-	sell_label.text = "Sell Multiplier:"
-	sell_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	sell_label.tooltip_text = "Multiplier on item sell prices (1.0 = normal)"
-	sell_container.add_child(sell_label)
-
-	sell_multiplier_spin = SpinBox.new()
-	sell_multiplier_spin.min_value = 0.1
-	sell_multiplier_spin.max_value = 2.0
-	sell_multiplier_spin.step = 0.05
-	sell_multiplier_spin.value = 1.0
-	sell_multiplier_spin.tooltip_text = "Multiplier on item sell prices. 1.0 = normal, 0.5 = pay half value, 1.2 = generous buyer."
-	sell_multiplier_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	sell_container.add_child(sell_multiplier_spin)
-	section.add_child(sell_container)
-
-	# Deals discount
-	var deals_container: HBoxContainer = HBoxContainer.new()
-	var deals_label: Label = Label.new()
-	deals_label.text = "Deals Discount:"
-	deals_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	deals_label.tooltip_text = "Discount on deals items (0.75 = 25% off)"
-	deals_container.add_child(deals_label)
-
-	deals_discount_spin = SpinBox.new()
-	deals_discount_spin.min_value = 0.1
-	deals_discount_spin.max_value = 1.0
-	deals_discount_spin.step = 0.05
-	deals_discount_spin.value = 0.75
-	deals_discount_spin.tooltip_text = "Price multiplier for deal items. 0.75 = 25% off, 0.5 = half price, 1.0 = no discount."
-	deals_discount_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	deals_container.add_child(deals_discount_spin)
-	section.add_child(deals_container)
-
-	detail_panel.add_child(section)
+	deals_discount_spin = form.add_float_field("Deals Discount:", 0.1, 1.0, 0.05, 0.75,
+		"Price multiplier for deal items. 0.75 = 25% off, 0.5 = half price, 1.0 = no discount.")
 
 
 func _add_availability_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Availability (Story Flags)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Availability (Story Flags)"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	required_flags_edit = form.add_text_field("Required Flags:", "e.g., chapter_2_started, rescued_princess",
+		"Comma-separated story flags. ALL must be set for shop to appear. Empty = always available.")
 
-	# Required flags
-	var req_container: HBoxContainer = HBoxContainer.new()
-	var req_label: Label = Label.new()
-	req_label.text = "Required Flags:"
-	req_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	req_label.tooltip_text = "All flags must be set for shop to be available"
-	req_container.add_child(req_label)
-
-	required_flags_edit = LineEdit.new()
-	required_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	required_flags_edit.placeholder_text = "e.g., chapter_2_started, rescued_princess"
-	required_flags_edit.tooltip_text = "Comma-separated story flags. ALL must be set for shop to appear. Empty = always available."
-	required_flags_edit.text_changed.connect(_mark_dirty)
-	req_container.add_child(required_flags_edit)
-	section.add_child(req_container)
-
-	# Forbidden flags
-	var forb_container: HBoxContainer = HBoxContainer.new()
-	var forb_label: Label = Label.new()
-	forb_label.text = "Forbidden Flags:"
-	forb_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	forb_label.tooltip_text = "If any of these flags are set, shop is unavailable"
-	forb_container.add_child(forb_label)
-
-	forbidden_flags_edit = LineEdit.new()
-	forbidden_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	forbidden_flags_edit.placeholder_text = "e.g., shop_destroyed"
-	forbidden_flags_edit.tooltip_text = "Comma-separated story flags. If ANY is set, shop becomes unavailable. Use for destroyed/closed shops."
-	forbidden_flags_edit.text_changed.connect(_mark_dirty)
-	forb_container.add_child(forbidden_flags_edit)
-	section.add_child(forb_container)
-
-	detail_panel.add_child(section)
+	forbidden_flags_edit = form.add_text_field("Forbidden Flags:", "e.g., shop_destroyed",
+		"Comma-separated story flags. If ANY is set, shop becomes unavailable. Use for destroyed/closed shops.")
 
 
 func _add_features_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Features")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Features"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	can_sell_check = form.add_standalone_checkbox("Can Sell Items (shop buys from player)", true,
+		"If enabled, players can sell their items to this shop for gold.")
 
-	can_sell_check = CheckBox.new()
-	can_sell_check.text = "Can Sell Items (shop buys from player)"
-	can_sell_check.button_pressed = true
-	can_sell_check.tooltip_text = "If enabled, players can sell their items to this shop for gold."
-	can_sell_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
-	section.add_child(can_sell_check)
+	can_store_check = form.add_standalone_checkbox("Can Store to Caravan", true,
+		"If enabled, players can transfer items to the Caravan storage from this shop.")
 
-	can_store_check = CheckBox.new()
-	can_store_check.text = "Can Store to Caravan"
-	can_store_check.button_pressed = true
-	can_store_check.tooltip_text = "If enabled, players can transfer items to the Caravan storage from this shop."
-	can_store_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
-	section.add_child(can_store_check)
-
-	can_sell_caravan_check = CheckBox.new()
-	can_sell_caravan_check.text = "Can Sell from Caravan Storage"
-	can_sell_caravan_check.button_pressed = true
-	can_sell_caravan_check.tooltip_text = "If enabled, players can sell items directly from Caravan storage without moving them first."
-	can_sell_caravan_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
-	section.add_child(can_sell_caravan_check)
-
-	detail_panel.add_child(section)
+	can_sell_caravan_check = form.add_standalone_checkbox("Can Sell from Caravan Storage", true,
+		"If enabled, players can sell items directly from Caravan storage without moving them first.")
 
 
 func _add_church_section() -> void:
+	# Church section uses a VBoxContainer directly since it's conditional (visibility toggled)
 	church_section = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Church Services"
-	section_label.add_theme_font_size_override("font_size", 16)
-	church_section.add_child(section_label)
-
-	# Heal cost
-	var heal_container: HBoxContainer = HBoxContainer.new()
-	var heal_label: Label = Label.new()
-	heal_label.text = "Heal Cost:"
-	heal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	heal_label.tooltip_text = "Cost to fully heal a character (0 = free)"
-	heal_container.add_child(heal_label)
-
-	heal_cost_spin = SpinBox.new()
-	heal_cost_spin.min_value = 0
-	heal_cost_spin.max_value = 9999
-	heal_cost_spin.value = 0
-	heal_cost_spin.tooltip_text = "Gold cost to fully heal one character. 0 = free healing (classic Shining Force style)."
-	heal_cost_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	heal_container.add_child(heal_cost_spin)
-	church_section.add_child(heal_container)
-
-	# Revive base cost
-	var revive_container: HBoxContainer = HBoxContainer.new()
-	var revive_label: Label = Label.new()
-	revive_label.text = "Revive Base Cost:"
-	revive_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	revive_container.add_child(revive_label)
-
-	revive_base_spin = SpinBox.new()
-	revive_base_spin.min_value = 0
-	revive_base_spin.max_value = 9999
-	revive_base_spin.value = 200
-	revive_base_spin.tooltip_text = "Base gold cost to revive a fallen character. Final cost = base + (level x multiplier)."
-	revive_base_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	revive_container.add_child(revive_base_spin)
-	church_section.add_child(revive_container)
-
-	# Revive level multiplier
-	var mult_container: HBoxContainer = HBoxContainer.new()
-	var mult_label: Label = Label.new()
-	mult_label.text = "Revive Level Mult:"
-	mult_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	mult_label.tooltip_text = "Cost per character level added to base"
-	mult_container.add_child(mult_label)
-
-	revive_mult_spin = SpinBox.new()
-	revive_mult_spin.min_value = 0.0
-	revive_mult_spin.max_value = 100.0
-	revive_mult_spin.step = 0.5
-	revive_mult_spin.value = 10.0
-	revive_mult_spin.tooltip_text = "Gold per character level added to revival cost. Example: 10 means level 20 adds 200G."
-	revive_mult_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	mult_container.add_child(revive_mult_spin)
-	church_section.add_child(mult_container)
-
-	# Uncurse cost
-	var uncurse_container: HBoxContainer = HBoxContainer.new()
-	var uncurse_label: Label = Label.new()
-	uncurse_label.text = "Uncurse Cost:"
-	uncurse_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	uncurse_container.add_child(uncurse_label)
-
-	uncurse_cost_spin = SpinBox.new()
-	uncurse_cost_spin.min_value = 0
-	uncurse_cost_spin.max_value = 9999
-	uncurse_cost_spin.value = 500
-	uncurse_cost_spin.tooltip_text = "Gold cost to remove a curse from equipped item. Cursed items cannot be unequipped otherwise."
-	uncurse_cost_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	uncurse_container.add_child(uncurse_cost_spin)
-	church_section.add_child(uncurse_container)
-
-	# Preview
-	var preview_label: Label = Label.new()
-	preview_label.text = "Example: Level 10 revival = %d + (10 x 10) = %d G" % [200, 300]
-	preview_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	preview_label.add_theme_font_size_override("font_size", 12)
-	church_section.add_child(preview_label)
-
 	detail_panel.add_child(church_section)
+
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(church_section)
+	form.on_change(_mark_dirty)
+	form.add_section_label("Church Services")
+
+	heal_cost_spin = form.add_number_field("Heal Cost:", 0, 9999, 0,
+		"Gold cost to fully heal one character. 0 = free healing (classic Shining Force style).")
+
+	revive_base_spin = form.add_number_field("Revive Base Cost:", 0, 9999, 200,
+		"Base gold cost to revive a fallen character. Final cost = base + (level x multiplier).")
+
+	revive_mult_spin = form.add_float_field("Revive Level Mult:", 0.0, 100.0, 0.5, 10.0,
+		"Gold per character level added to revival cost. Example: 10 means level 20 adds 200G.")
+
+	uncurse_cost_spin = form.add_number_field("Uncurse Cost:", 0, 9999, 500,
+		"Gold cost to remove a curse from equipped item. Cursed items cannot be unequipped otherwise.")
+
+	form.add_help_text("Example: Level 10 revival = 200 + (10 x 10) = 300 G")
 
 
 func _add_crafter_section() -> void:
+	# Crafter section uses a VBoxContainer directly since it's conditional (visibility toggled)
 	crafter_section = VBoxContainer.new()
+	detail_panel.add_child(crafter_section)
 
-	var section_label: Label = Label.new()
-	section_label.text = "Crafter Integration"
-	section_label.add_theme_font_size_override("font_size", 16)
-	crafter_section.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(crafter_section)
+	form.add_section_label("Crafter Integration")
 
 	crafter_picker = ResourcePicker.new()
 	crafter_picker.resource_type = "crafter"
@@ -704,8 +487,6 @@ func _add_crafter_section() -> void:
 	crafter_picker.tooltip_text = "The CrafterData resource that defines available recipes. Required for Crafter-type shops."
 	crafter_picker.resource_selected.connect(_on_crafter_selected)
 	crafter_section.add_child(crafter_picker)
-
-	detail_panel.add_child(crafter_section)
 
 
 # =============================================================================

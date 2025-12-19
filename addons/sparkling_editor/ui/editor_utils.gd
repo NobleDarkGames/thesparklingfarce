@@ -418,3 +418,282 @@ static func get_resource_display_name_with_mod(resource: Resource, name_property
 ## Get character display name with source mod prefix (convenience wrapper)
 static func get_character_display_name(character: CharacterData) -> String:
 	return get_resource_display_name_with_mod(character, "character_name")
+
+
+# =============================================================================
+# FormBuilder - Fluent API for Building Editor Forms
+# =============================================================================
+
+## Creates a FormBuilder for constructing editor forms with a fluent API.
+## Reduces boilerplate code when building consistent labeled fields.
+##
+## Usage:
+##   var form = SparklingEditorUtils.create_form(detail_panel)
+##   name_edit = form.add_text_field("Name:", "Enter character name...")
+##   level_spin = form.add_number_field("Level:", 1, 99)
+##   form.add_section("Stats")
+##   hp_spin = form.add_number_field("HP:", 1, 999, 20)
+static func create_form(parent: Control, label_width: int = DEFAULT_LABEL_WIDTH) -> FormBuilder:
+	return FormBuilder.new(parent, label_width)
+
+
+## FormBuilder class for fluent form construction
+class FormBuilder extends RefCounted:
+	var _parent: Control
+	var _label_width: int
+	var _current_section: VBoxContainer
+	var _dirty_callback: Callable
+
+	## Public access to the current container (current section or parent)
+	var container: Control:
+		get:
+			return _get_container()
+
+	func _init(parent: Control, label_width: int = DEFAULT_LABEL_WIDTH) -> void:
+		_parent = parent
+		_label_width = label_width
+		_current_section = null
+		_dirty_callback = Callable()
+
+	## Set a callback to invoke when any field value changes (for dirty tracking)
+	func on_change(callback: Callable) -> FormBuilder:
+		_dirty_callback = callback
+		return self
+
+	## Start a new section with a header
+	func add_section(title: String) -> FormBuilder:
+		_current_section = VBoxContainer.new()
+		_current_section.add_theme_constant_override("separation", 8)
+
+		var label: Label = Label.new()
+		label.text = title
+		label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
+		_current_section.add_child(label)
+
+		var sep: HSeparator = HSeparator.new()
+		_current_section.add_child(sep)
+
+		_parent.add_child(_current_section)
+		return self
+
+	## Get the container to add fields to (current section or parent)
+	func _get_container() -> Control:
+		if _current_section:
+			return _current_section
+		return _parent
+
+	## Add a text input field (LineEdit)
+	func add_text_field(label_text: String, placeholder: String = "", tooltip: String = "") -> LineEdit:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		var edit: LineEdit = LineEdit.new()
+		edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		edit.placeholder_text = placeholder
+		if not tooltip.is_empty():
+			edit.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			edit.text_changed.connect(func(_t: String) -> void: _dirty_callback.call())
+		row.add_child(edit)
+
+		container.add_child(row)
+		return edit
+
+	## Add a multi-line text field (TextEdit)
+	func add_text_area(label_text: String, min_height: float = 80, tooltip: String = "") -> TextEdit:
+		var container: Control = _get_container()
+
+		var label: Label = Label.new()
+		label.text = label_text
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		container.add_child(label)
+
+		var edit: TextEdit = TextEdit.new()
+		edit.custom_minimum_size.y = min_height
+		if not tooltip.is_empty():
+			edit.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			edit.text_changed.connect(_dirty_callback)
+		container.add_child(edit)
+
+		return edit
+
+	## Add a number input field (SpinBox)
+	func add_number_field(label_text: String, min_val: float = 0, max_val: float = 100,
+			default_val: float = 0, tooltip: String = "") -> SpinBox:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		var spin: SpinBox = SpinBox.new()
+		spin.min_value = min_val
+		spin.max_value = max_val
+		spin.value = default_val
+		if not tooltip.is_empty():
+			spin.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			spin.value_changed.connect(func(_v: float) -> void: _dirty_callback.call())
+		row.add_child(spin)
+
+		container.add_child(row)
+		return spin
+
+	## Add a float number field with step control
+	func add_float_field(label_text: String, min_val: float = 0.0, max_val: float = 1.0,
+			step: float = 0.1, default_val: float = 0.0, tooltip: String = "") -> SpinBox:
+		var spin: SpinBox = add_number_field(label_text, min_val, max_val, default_val, tooltip)
+		spin.step = step
+		return spin
+
+	## Add a dropdown field (OptionButton)
+	func add_dropdown(label_text: String, options: Array, tooltip: String = "") -> OptionButton:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		var dropdown: OptionButton = OptionButton.new()
+		dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if not tooltip.is_empty():
+			dropdown.tooltip_text = tooltip
+
+		for i in range(options.size()):
+			var opt: Variant = options[i]
+			if opt is Dictionary:
+				dropdown.add_item(opt.get("label", ""), opt.get("id", i))
+			else:
+				dropdown.add_item(str(opt), i)
+
+		if _dirty_callback.is_valid():
+			dropdown.item_selected.connect(func(_idx: int) -> void: _dirty_callback.call())
+		row.add_child(dropdown)
+
+		container.add_child(row)
+		return dropdown
+
+	## Add a checkbox field
+	func add_checkbox(label_text: String, checkbox_text: String = "",
+			default_checked: bool = false, tooltip: String = "") -> CheckBox:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		var check: CheckBox = CheckBox.new()
+		check.text = checkbox_text
+		check.button_pressed = default_checked
+		if not tooltip.is_empty():
+			check.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			check.toggled.connect(func(_pressed: bool) -> void: _dirty_callback.call())
+		row.add_child(check)
+
+		container.add_child(row)
+		return check
+
+	## Add a standalone checkbox (no label column, just the checkbox with its text)
+	func add_standalone_checkbox(checkbox_text: String, default_checked: bool = false,
+			tooltip: String = "") -> CheckBox:
+		var container: Control = _get_container()
+
+		var check: CheckBox = CheckBox.new()
+		check.text = checkbox_text
+		check.button_pressed = default_checked
+		if not tooltip.is_empty():
+			check.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			check.toggled.connect(func(_pressed: bool) -> void: _dirty_callback.call())
+		container.add_child(check)
+
+		return check
+
+	## Add a help/hint label
+	func add_help_text(text: String) -> Label:
+		var container: Control = _get_container()
+
+		var label: Label = Label.new()
+		label.text = text
+		label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+		label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		container.add_child(label)
+
+		return label
+
+	## Add a separator
+	func add_separator(min_height: float = 10.0) -> HSeparator:
+		var container: Control = _get_container()
+
+		var sep: HSeparator = HSeparator.new()
+		sep.custom_minimum_size.y = min_height
+		container.add_child(sep)
+
+		return sep
+
+	## Add a custom control with a label
+	func add_labeled_control(label_text: String, control: Control, tooltip: String = "") -> Control:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if not tooltip.is_empty():
+			control.tooltip_text = tooltip
+		row.add_child(control)
+
+		container.add_child(row)
+		return control
+
+	## Add a section label without creating a new container (inline section header)
+	func add_section_label(text: String) -> Label:
+		var container: Control = _get_container()
+
+		var label: Label = Label.new()
+		label.text = text
+		label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
+		container.add_child(label)
+
+		return label
+
+	## Get the current parent container
+	func get_container() -> Control:
+		return _get_container()
+
+	## Get the form's root parent
+	func get_parent() -> Control:
+		return _parent

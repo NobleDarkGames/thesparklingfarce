@@ -229,47 +229,22 @@ func _hide_errors() -> void:
 
 
 # =============================================================================
-# UI Helpers
+# UI Helpers (delegating to SparklingEditorUtils for consistency)
 # =============================================================================
 
-## Create a collapsible section with title
+## Create a section with title - delegates to SparklingEditorUtils
 func create_section(title: String, parent: Node = null) -> VBoxContainer:
-	var section: VBoxContainer = VBoxContainer.new()
-	section.add_theme_constant_override("separation", 8)
-
-	var header: Label = Label.new()
-	header.text = title
-	header.add_theme_font_size_override("font_size", 16)
-	section.add_child(header)
-
-	var sep: HSeparator = HSeparator.new()
-	section.add_child(sep)
-
-	if parent:
-		parent.add_child(section)
-
-	return section
+	return SparklingEditorUtils.create_section(title, parent as Control)
 
 
-## Create a labeled field row
-func create_field_row(label_text: String, label_width: int = 120, parent: Node = null) -> HBoxContainer:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = label_width
-	row.add_child(label)
-
-	if parent:
-		parent.add_child(row)
-
-	return row
+## Create a labeled field row - delegates to SparklingEditorUtils
+func create_field_row(label_text: String, label_width: int = SparklingEditorUtils.DEFAULT_LABEL_WIDTH, parent: Node = null) -> HBoxContainer:
+	return SparklingEditorUtils.create_field_row(label_text, label_width, parent as Control)
 
 
 ## Create a standard LineEdit field with label
-func create_line_edit_field(label_text: String, parent: VBoxContainer, placeholder: String = "", label_width: int = 150) -> LineEdit:
-	var row: HBoxContainer = create_field_row(label_text, label_width)
+func create_line_edit_field(label_text: String, parent: VBoxContainer, placeholder: String = "", label_width: int = SparklingEditorUtils.DEFAULT_LABEL_WIDTH) -> LineEdit:
+	var row: HBoxContainer = SparklingEditorUtils.create_field_row(label_text, label_width)
 
 	var edit: LineEdit = LineEdit.new()
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -280,12 +255,9 @@ func create_line_edit_field(label_text: String, parent: VBoxContainer, placehold
 	return edit
 
 
-## Add a horizontal separator to a container
+## Add a horizontal separator - delegates to SparklingEditorUtils
 func add_separator(parent: VBoxContainer, min_height: float = 10.0) -> HSeparator:
-	var sep: HSeparator = HSeparator.new()
-	sep.custom_minimum_size.y = min_height
-	parent.add_child(sep)
-	return sep
+	return SparklingEditorUtils.add_separator(parent, min_height)
 
 
 # =============================================================================
