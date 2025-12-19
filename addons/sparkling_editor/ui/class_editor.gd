@@ -205,92 +205,37 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Class Name:"
-	name_label.custom_minimum_size.x = 150
-	name_container.add_child(name_label)
-
-	name_edit = LineEdit.new()
-	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_edit.tooltip_text = "Display name shown for this class. E.g., Warrior, Mage, Knight."
-	name_container.add_child(name_edit)
-	section.add_child(name_container)
-
-	detail_panel.add_child(section)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.add_section("Basic Information")
+	name_edit = form.add_text_field("Class Name:", "", "Display name shown for this class. E.g., Warrior, Mage, Knight.")
 
 
 func _add_movement_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.add_section("Movement")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Movement"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Movement Type
-	var type_container: HBoxContainer = HBoxContainer.new()
-	var type_label: Label = Label.new()
-	type_label.text = "Movement Type:"
-	type_label.custom_minimum_size.x = 150
-	type_container.add_child(type_label)
-
+	# Movement Type - custom dropdown with enum IDs
 	movement_type_option = OptionButton.new()
-	movement_type_option.tooltip_text = "How terrain affects movement. Walking = blocked by water/cliffs. Flying = ignores all terrain. Floating = ignores ground hazards."
 	movement_type_option.add_item("Walking", ClassData.MovementType.WALKING)
 	movement_type_option.add_item("Flying", ClassData.MovementType.FLYING)
 	movement_type_option.add_item("Floating", ClassData.MovementType.FLOATING)
 	movement_type_option.add_item("Swimming", ClassData.MovementType.SWIMMING)
 	movement_type_option.add_item("Custom", ClassData.MovementType.CUSTOM)
-	type_container.add_child(movement_type_option)
-	section.add_child(type_container)
+	form.add_labeled_control("Movement Type:", movement_type_option, "How terrain affects movement. Walking = blocked by water/cliffs. Flying = ignores all terrain. Floating = ignores ground hazards.")
 
-	# Movement Range
-	var range_container: HBoxContainer = HBoxContainer.new()
-	var range_label: Label = Label.new()
-	range_label.text = "Movement Range:"
-	range_label.custom_minimum_size.x = 150
-	range_container.add_child(range_label)
-
-	movement_range_spin = SpinBox.new()
-	movement_range_spin.min_value = 1
-	movement_range_spin.max_value = 20
-	movement_range_spin.value = 4
-	movement_range_spin.tooltip_text = "Tiles this class can move per turn. Typical: 4-5 infantry, 6-7 cavalry, 5-6 flying."
-	range_container.add_child(movement_range_spin)
-	section.add_child(range_container)
-
-	detail_panel.add_child(section)
+	movement_range_spin = form.add_number_field("Movement Range:", 1, 20, 4, "Tiles this class can move per turn. Typical: 4-5 infantry, 6-7 cavalry, 5-6 flying.")
 
 
 func _add_equipment_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.add_section("Equipment Restrictions")
+	form.add_help_text("Which weapon types this class can equip. Check all that apply.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Equipment Restrictions"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Weapon Types - get from registry or use defaults
-	var weapon_label: Label = Label.new()
-	weapon_label.text = "Equippable Weapon Types:"
-	weapon_label.tooltip_text = "Which weapon types this class can equip. Check all that apply."
-	section.add_child(weapon_label)
-
+	# Dynamic checkbox list from registry
 	weapon_types_container = VBoxContainer.new()
 	var weapon_types: Array[String] = _get_weapon_types_from_registry()
 	_add_equipment_type_checkboxes(weapon_types_container, weapon_types)
-	section.add_child(weapon_types_container)
-
-	detail_panel.add_child(section)
+	form.container.add_child(weapon_types_container)
 
 
 ## Get weapon types from ModLoader's equipment registry (with fallback)
@@ -310,49 +255,18 @@ func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String])
 
 
 func _add_promotion_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.add_section("Class Promotion")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Class Promotion"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	promotion_level_spin = form.add_number_field("Promotion Level:", 1, 99, 10, "Minimum level required to promote. Typical: 10-20. Set to 99 if class cannot promote.")
 
-	# Promotion Level (applies to all paths)
-	var level_container: HBoxContainer = HBoxContainer.new()
-	var level_label: Label = Label.new()
-	level_label.text = "Promotion Level:"
-	level_label.custom_minimum_size.x = 150
-	level_container.add_child(level_label)
+	# Standalone checkboxes for promotion settings
+	promotion_resets_level_check = form.add_standalone_checkbox("Reset Level on Promotion (SF2 Style)", false, "If checked, level resets to 1 on promotion. If unchecked, level continues from current value.")
+	consume_promotion_item_check = form.add_standalone_checkbox("Consume Promotion Items", false, "Whether promotion items are consumed when used. Applies to all paths that require items.")
 
-	promotion_level_spin = SpinBox.new()
-	promotion_level_spin.min_value = 1
-	promotion_level_spin.max_value = 99
-	promotion_level_spin.value = 10
-	promotion_level_spin.tooltip_text = "Minimum level required to promote. Typical: 10-20. Set to 99 if class cannot promote."
-	level_container.add_child(promotion_level_spin)
-	section.add_child(level_container)
-
-	# Promotion Settings (apply to all paths)
-	promotion_resets_level_check = CheckBox.new()
-	promotion_resets_level_check.text = "Reset Level on Promotion (SF2 Style)"
-	promotion_resets_level_check.tooltip_text = "If checked, level resets to 1 on promotion. If unchecked, level continues from current value."
-	section.add_child(promotion_resets_level_check)
-
-	consume_promotion_item_check = CheckBox.new()
-	consume_promotion_item_check.text = "Consume Promotion Items"
-	consume_promotion_item_check.tooltip_text = "Whether promotion items are consumed when used. Applies to all paths that require items."
-	section.add_child(consume_promotion_item_check)
-
-	# Promotion Paths subsection
-	var paths_label: Label = Label.new()
-	paths_label.text = "Promotion Paths:"
-	paths_label.add_theme_font_size_override("font_size", 14)
-	section.add_child(paths_label)
-
-	var paths_help: Label = Label.new()
-	paths_help.text = "Each path leads to a different promoted class. Optionally require an item."
-	paths_help.modulate = Color(0.8, 0.8, 0.8, 1.0)
-	section.add_child(paths_help)
+	# Promotion Paths subsection - keep manual construction for dynamic row-based UI
+	form.add_section_label("Promotion Paths:")
+	form.add_help_text("Each path leads to a different promoted class. Optionally require an item.")
 
 	# Scrollable container for promotion paths
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -362,16 +276,14 @@ func _add_promotion_section() -> void:
 	promotion_paths_container = VBoxContainer.new()
 	promotion_paths_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(promotion_paths_container)
-	section.add_child(scroll)
+	form.container.add_child(scroll)
 
 	# Add Path button
 	add_promotion_path_button = Button.new()
 	add_promotion_path_button.text = "Add Promotion Path"
 	add_promotion_path_button.tooltip_text = "Add a new promotion path. Each path can lead to a different class."
 	add_promotion_path_button.pressed.connect(_on_add_promotion_path)
-	section.add_child(add_promotion_path_button)
-
-	detail_panel.add_child(section)
+	form.container.add_child(add_promotion_path_button)
 
 
 ## Load promotion paths from ClassData into UI
@@ -484,19 +396,12 @@ func _on_remove_promotion_path(row: HBoxContainer) -> void:
 
 
 func _add_growth_rates_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 120)
+	form.add_section("Growth Rates (%) - Shining Force Style")
+	form.add_help_text("Growth rates determine stat increases on level up. Set per class, not per character.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Growth Rates (%) - Shining Force Style"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Growth rates determine stat increases on level up. Set per class, not per character."
-	help_label.add_theme_font_size_override("font_size", 16)
-	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
-	section.add_child(help_label)
-
+	# Use custom growth editor for slider+value display (FormBuilder doesn't have this widget)
+	var section: VBoxContainer = form.container as VBoxContainer
 	hp_growth_slider = _create_growth_editor("HP Growth:", section, "Chance to gain +1 HP on level up. 50% = average, 80%+ = tanky class.")
 	mp_growth_slider = _create_growth_editor("MP Growth:", section, "Chance to gain +1 MP on level up. 0% for melee, 60-80% for spellcasters.")
 	str_growth_slider = _create_growth_editor("STR Growth:", section, "Chance to gain +1 Strength on level up. High for fighters, low for mages.")
@@ -504,8 +409,6 @@ func _add_growth_rates_section() -> void:
 	agi_growth_slider = _create_growth_editor("AGI Growth:", section, "Chance to gain +1 Agility on level up. High for scouts and assassins.")
 	int_growth_slider = _create_growth_editor("INT Growth:", section, "Chance to gain +1 Intelligence on level up. High for mages and healers.")
 	luk_growth_slider = _create_growth_editor("LUK Growth:", section, "Chance to gain +1 Luck on level up. Affects crits and rare drops.")
-
-	detail_panel.add_child(section)
 
 
 func _create_growth_editor(label_text: String, parent: VBoxContainer, tooltip: String = "") -> HSlider:
@@ -539,20 +442,11 @@ func _create_growth_editor(label_text: String, parent: VBoxContainer, tooltip: S
 
 
 func _add_learnable_abilities_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.add_section("Learnable Abilities")
+	form.add_help_text("Abilities this class learns at specific levels.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Learnable Abilities"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Abilities this class learns at specific levels."
-	help_label.add_theme_font_size_override("font_size", 16)
-	help_label.modulate = Color(0.8, 0.8, 0.8, 1.0)
-	section.add_child(help_label)
-
-	# Scrollable container for the ability list
+	# Scrollable container for the ability list (dynamic row-based UI)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.custom_minimum_size.y = 120
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -560,16 +454,14 @@ func _add_learnable_abilities_section() -> void:
 	learnable_abilities_container = VBoxContainer.new()
 	learnable_abilities_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(learnable_abilities_container)
-	section.add_child(scroll)
+	form.container.add_child(scroll)
 
 	# Add Ability button
 	add_ability_button = Button.new()
 	add_ability_button.text = "Add Ability"
 	add_ability_button.tooltip_text = "Add a new ability that characters of this class will learn."
 	add_ability_button.pressed.connect(_on_add_learnable_ability)
-	section.add_child(add_ability_button)
-
-	detail_panel.add_child(section)
+	form.container.add_child(add_ability_button)
 
 
 ## Load learnable abilities from NEW system (class_abilities + ability_unlock_levels)

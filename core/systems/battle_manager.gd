@@ -498,21 +498,11 @@ func _check_action_modifiers(unit: Node2D, intended_target: Node2D) -> Node2D:
 			match effect_data.action_modifier:
 				StatusEffectData.ActionModifier.RANDOM_TARGET:
 					var random_target: Node2D = _get_random_unit_except_self(unit)
-					print("[BattleManager] %s is %s and targets %s instead!" % [
-						UnitUtils.get_display_name(unit),
-						effect_data.display_name.to_lower(),
-						UnitUtils.get_display_name(random_target)
-					])
 					return random_target
 
 				StatusEffectData.ActionModifier.ATTACK_ALLIES:
 					var ally_target: Node2D = _get_random_ally(unit)
 					if ally_target:
-						print("[BattleManager] %s is %s and attacks ally %s!" % [
-							UnitUtils.get_display_name(unit),
-							effect_data.display_name.to_lower(),
-							UnitUtils.get_display_name(ally_target)
-						])
 						return ally_target
 
 				StatusEffectData.ActionModifier.CANNOT_USE_MAGIC, StatusEffectData.ActionModifier.CANNOT_USE_ITEMS:
@@ -526,10 +516,6 @@ func _check_action_modifiers(unit: Node2D, intended_target: Node2D) -> Node2D:
 				if confusion_roll <= 50:
 					# Confused! Attack a random unit (friend or foe, including self)
 					var random_target: Node2D = _get_random_confusion_target(unit)
-					print("[BattleManager] %s is confused and attacks %s instead!" % [
-						UnitUtils.get_display_name(unit),
-						UnitUtils.get_display_name(random_target)
-					])
 					return random_target
 
 	return intended_target
@@ -659,10 +645,6 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 
 	# Consume item from inventory BEFORE the animation
 	_consume_item_from_inventory(unit, item_id)
-
-	print("[BattleManager] Item use sequence built with %d phases:" % phases.size())
-	for phase: CombatPhase in phases:
-		print("  - %s" % phase.get_description())
 
 	# Execute the combat session (shows full battle overlay, applies effect)
 	await _execute_combat_session(unit, target, phases)
@@ -952,12 +934,6 @@ func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityD
 					if unit and unit.is_alive() and _is_valid_spell_target(caster, unit, ability):
 						targets.append(unit)
 
-	# Log AoE targeting for debugging
-	if targets.size() > 1:
-		print("[BattleManager] AoE spell '%s' hits %d targets:" % [ability.ability_name, targets.size()])
-		for t: Node2D in targets:
-			print("  - %s at %s" % [UnitUtils.get_display_name(t), t.grid_position])
-
 	return targets
 
 
@@ -1000,14 +976,6 @@ func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> 
 	var heal_phase: CombatPhase = CombatPhase.create_spell_heal(caster, target, heal_amount, ability.ability_name)
 	phases.append(heal_phase)
 
-	# Debug output for spell healing
-	print("[BattleManager] Spell heal: %s casts %s on %s for %d healing" % [
-		UnitUtils.get_display_name(caster),
-		ability.ability_name,
-		UnitUtils.get_display_name(target),
-		heal_amount
-	])
-
 	# Execute combat session (shows combat screen, applies healing)
 	await _execute_combat_session(caster, target, phases)
 
@@ -1027,14 +995,6 @@ func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -
 	var phases: Array[CombatPhase] = []
 	var spell_phase: CombatPhase = CombatPhase.create_spell_attack(caster, target, damage, ability.ability_name)
 	phases.append(spell_phase)
-
-	# Debug output for spell combat
-	print("[BattleManager] Spell combat: %s casts %s on %s for %d damage" % [
-		UnitUtils.get_display_name(caster),
-		ability.ability_name,
-		UnitUtils.get_display_name(target),
-		damage
-	])
 
 	# Execute combat session (shows combat screen, applies damage, handles death)
 	await _execute_combat_session(caster, target, phases)
@@ -1076,16 +1036,6 @@ func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -
 	)
 	phases.append(status_phase)
 
-	# Debug output for spell combat
-	if was_resisted:
-		print("[BattleManager] Status spell '%s' resisted (rolled %d vs %d%% chance) by %s" % [
-			ability.ability_name, roll, chance, UnitUtils.get_display_name(target)
-		])
-	else:
-		print("[BattleManager] Status spell '%s' will apply to %s" % [
-			ability.ability_name, UnitUtils.get_display_name(target)
-		])
-
 	# Execute combat session (shows combat screen with status effect result)
 	await _execute_combat_session(caster, target, phases)
 
@@ -1101,16 +1051,10 @@ func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -
 			var status_to_remove: String = effect.substr(7)  # Strip "remove_" prefix
 			if target.has_status_effect(status_to_remove):
 				target.remove_status_effect(status_to_remove)
-				print("[BattleManager] Removed status '%s' from %s" % [
-					status_to_remove, UnitUtils.get_display_name(target)
-				])
 				any_effect_applied = true
 		else:
 			# Apply the status effect
 			target.add_status_effect(effect, ability.effect_duration, ability.potency)
-			print("[BattleManager] Applied status '%s' (duration: %d, power: %d) to %s" % [
-				effect, ability.effect_duration, ability.potency, UnitUtils.get_display_name(target)
-			])
 			any_effect_applied = true
 
 	return any_effect_applied
@@ -1229,11 +1173,6 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 	# Build the complete combat sequence BEFORE opening the battle screen
 	var phases: Array[CombatPhase] = _build_combat_sequence(attacker, defender)
-
-	# Debug output for combat sequence
-	print("[BattleManager] Combat sequence built with %d phases:" % phases.size())
-	for phase: CombatPhase in phases:
-		print("  - %s" % phase.get_description())
 
 	# Execute the combat session (single fade-in, all phases, single fade-out)
 	await _execute_combat_session(attacker, defender, phases)
@@ -1477,14 +1416,12 @@ func _execute_combat_session(
 
 		# Connect XP handler to feed entries to battle screen
 		var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
-			print("[BattleManager] Session XP handler: %s +%d %s" % [UnitUtils.get_display_name(unit), amount, source])
 			if combat_anim_instance and is_instance_valid(combat_anim_instance):
 				combat_anim_instance.queue_xp_entry(UnitUtils.get_display_name(unit), amount, source)
 		ExperienceManager.unit_gained_xp.connect(xp_handler)
 
 		# Connect damage handler to POOL damage (not award XP yet - SF2-authentic)
 		var damage_handler: Callable = func(def_unit: Node2D, dmg: int, died: bool) -> void:
-			print("[BattleManager] Session damage applied: ", dmg, " died=", died)
 			# Find which phase this corresponds to
 			var current_phase: CombatPhase = _find_current_phase_for_defender(phases, def_unit)
 			if current_phase and dmg > 0:
@@ -1761,7 +1698,6 @@ func _persist_unit_death(unit: Node2D) -> void:
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
 	if save_data:
 		save_data.is_alive = false
-		print("[BattleManager] Unit '%s' died - is_alive set to false" % UnitUtils.get_display_name(unit))
 
 
 ## Handle unit death (direct call - RARELY NEEDED)
@@ -2058,14 +1994,7 @@ func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
 
 	# 8. Transition to safe location ONLY if CampaignManager is NOT handling it
 	# For campaign battles, CampaignManager uses on_defeat target from campaign config
-	if campaign_handles_transition:
-		print("[BattleManager] Exiting battle via %s - CampaignManager handling transition" % [
-			BattleExitReason.keys()[reason]
-		])
-	else:
-		print("[BattleManager] Exiting battle via %s, returning to: %s" % [
-			BattleExitReason.keys()[reason], return_path
-		])
+	if not campaign_handles_transition:
 		await SceneManager.change_scene(return_path)
 
 

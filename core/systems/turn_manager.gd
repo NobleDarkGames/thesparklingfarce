@@ -416,7 +416,6 @@ func _process_status_effects(unit: Node2D) -> Dictionary:
 					if not is_headless:
 						_show_status_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
 						showed_popup = true
-					print("[TurnManager] %s recovered from %s!" % [_get_unit_name(unit), effect_type])
 					continue
 
 			# Still affected - skip turn
@@ -424,7 +423,6 @@ func _process_status_effects(unit: Node2D) -> Dictionary:
 			if not is_headless:
 				_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
 				showed_popup = true
-			print("[TurnManager] %s has %s - skipping turn" % [_get_unit_name(unit), effect_type])
 
 		# Handle damage over time
 		if effect_data.damage_per_turn != 0:
@@ -439,10 +437,6 @@ func _process_status_effects(unit: Node2D) -> Dictionary:
 				else:
 					stats.current_hp -= effect_data.damage_per_turn
 					stats.current_hp = maxi(0, stats.current_hp)
-
-				print("[TurnManager] %s takes %d damage from %s" % [
-					_get_unit_name(unit), effect_data.damage_per_turn, effect_type
-				])
 
 				# Check for death
 				if not unit.is_alive():
@@ -460,15 +454,10 @@ func _process_status_effects(unit: Node2D) -> Dictionary:
 					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
 					showed_popup = true
 
-				print("[TurnManager] %s heals %d from %s" % [
-					_get_unit_name(unit), heal_amount, effect_type
-				])
-
 		# Decrement duration
 		effect_state.duration -= 1
 		if effect_state.duration <= 0:
 			effects_to_remove.append(effect_type)
-			print("[TurnManager] Status effect '%s' expired on %s" % [effect_type, _get_unit_name(unit)])
 
 	# Remove expired effects and recovered effects
 	for effect_type: String in effects_to_remove:
@@ -505,7 +494,6 @@ func _process_legacy_status_effect(
 			if not is_headless:
 				_show_status_popup(unit, "Asleep!", Color(0.4, 0.4, 1.0))
 				result.showed_popup = true
-			print("[TurnManager] %s is asleep - skipping turn" % _get_unit_name(unit))
 
 		"paralysis":
 			# Paralysis: 25% chance to recover each turn, otherwise skip
@@ -516,14 +504,12 @@ func _process_legacy_status_effect(
 				if not is_headless:
 					_show_status_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
 					result.showed_popup = true
-				print("[TurnManager] %s recovered from paralysis!" % _get_unit_name(unit))
 			else:
 				# Still paralyzed
 				result.skip_turn = true
 				if not is_headless:
 					_show_status_popup(unit, "Paralyzed!", Color(1.0, 1.0, 0.2))
 					result.showed_popup = true
-				print("[TurnManager] %s is paralyzed - skipping turn" % _get_unit_name(unit))
 
 		"confusion":
 			# Confusion is handled during action selection, not here
@@ -551,7 +537,6 @@ func _process_legacy_status_effect(
 	effect_state.duration -= 1
 	if effect_state.duration <= 0:
 		effects_to_remove.append(effect_type)
-		print("[TurnManager] Status effect '%s' expired on %s" % [effect_type, _get_unit_name(unit)])
 
 	return result
 
