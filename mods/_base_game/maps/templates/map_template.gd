@@ -476,14 +476,11 @@ func _connect_hero_signals() -> void:
 
 
 ## Called when hero completes movement to a new tile.
-## Override in your map script to add custom behavior (random encounters, etc.)
+## Override in your map script to add custom behavior.
 func _on_hero_moved(tile_pos: Vector2i) -> void:
 	_debug_print("MapTemplate: Hero at tile %s" % tile_pos)
 
-	# TODO: Add your custom logic here:
-	# - Random encounter checks
-	# - Tile-based events
-	# - Step counters
+	# Override to add custom logic (tile-based events, step counters, etc.)
 
 
 ## Called when hero presses the interaction button.

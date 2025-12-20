@@ -16,6 +16,5 @@ hp_cost = 0
 power = 0
 accuracy = 100
 status_effects = Array[String](["remove_poison"])
-effect_duration = 0
 effect_chance = 100
 description = "Cures poison status from one ally."

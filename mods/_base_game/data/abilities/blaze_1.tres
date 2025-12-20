@@ -16,6 +16,5 @@ hp_cost = 0
 power = 12
 accuracy = 95
 status_effects = Array[String]([])
-effect_duration = 0
 effect_chance = 100
 description = "Hurls a small fireball at a single enemy. The basic fire spell taught to novice mages."

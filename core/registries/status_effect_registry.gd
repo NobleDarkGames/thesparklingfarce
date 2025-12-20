@@ -125,14 +125,6 @@ func get_display_name(effect_id: String) -> String:
 	return effect_id.capitalize()
 
 
-## Get the icon color for an effect (with fallback)
-func get_icon_color(effect_id: String) -> Color:
-	var effect: StatusEffectData = get_effect(effect_id)
-	if effect:
-		return effect.icon_color
-	return Color.WHITE
-
-
 # =============================================================================
 # UTILITY API
 # =============================================================================

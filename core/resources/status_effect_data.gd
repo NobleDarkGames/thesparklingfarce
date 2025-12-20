@@ -21,9 +21,6 @@ extends Resource
 ## Description for help text
 @export_multiline var description: String = ""
 
-## Icon color for status display in UI
-@export var icon_color: Color = Color.WHITE
-
 ## Popup text shown when effect triggers (empty = use display_name)
 @export var popup_text: String = ""
 
@@ -34,6 +31,9 @@ extends Resource
 # =============================================================================
 # TIMING
 # =============================================================================
+
+## How many turns this effect lasts (0 = until removed by other means)
+@export_range(0, 99) var duration: int = 3
 
 ## When this effect's behavior triggers
 enum TriggerTiming {

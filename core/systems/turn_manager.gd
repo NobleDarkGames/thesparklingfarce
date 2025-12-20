@@ -332,11 +332,9 @@ func _process_terrain_effects(unit: Node2D) -> bool:
 
 	# Apply terrain damage
 	if terrain.damage_per_turn > 0:
-		# Show damage popup (if available and not headless)
 		if not is_headless:
-			_show_terrain_damage_popup(unit, terrain.damage_per_turn, terrain.display_name)
+			_show_terrain_popup(unit, "-%d (%s)" % [terrain.damage_per_turn, terrain.display_name], Color.RED)
 
-		# Apply the damage
 		if unit.has_method("take_damage"):
 			unit.take_damage(terrain.damage_per_turn)
 		elif unit.stats:
@@ -350,28 +348,29 @@ func _process_terrain_effects(unit: Node2D) -> bool:
 		elif unit.stats and unit.stats.current_hp <= 0:
 			return true
 
-	# NOTE: healing_per_turn is DEFERRED per Commander Claudius's simplifications
-	# The field exists in TerrainData but we don't process it yet
+	# Apply terrain healing
+	if terrain.healing_per_turn > 0 and unit.stats:
+		var max_hp: int = unit.stats.get_effective_max_hp() if unit.stats.has_method("get_effective_max_hp") else unit.stats.max_hp
+		var old_hp: int = unit.stats.current_hp
+		unit.stats.current_hp = mini(unit.stats.current_hp + terrain.healing_per_turn, max_hp)
+		var healed: int = unit.stats.current_hp - old_hp
+		if healed > 0 and not is_headless:
+			_show_terrain_popup(unit, "+%d (%s)" % [healed, terrain.display_name], Color.GREEN)
 
 	return false
 
 
-## Show a damage popup for terrain effects
-func _show_terrain_damage_popup(unit: Node2D, damage: int, terrain_name: String) -> void:
-	# Create a simple damage label at unit position
-	# This is a basic implementation - can be enhanced with GameJuice later
+## Show a popup for terrain effects (damage or healing)
+func _show_terrain_popup(unit: Node2D, message: String, color: Color) -> void:
 	var label: Label = Label.new()
-	label.text = "-%d (%s)" % [damage, terrain_name]
-	label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))  # Red
+	label.text = message
+	label.add_theme_color_override("font_color", color)
 	label.add_theme_font_size_override("font_size", 16)
 	label.position = unit.position + Vector2(0, -20)
 	label.z_index = 100
 
-	# Add to scene tree
 	if unit.get_parent():
 		unit.get_parent().add_child(label)
-
-		# Animate and remove
 		var tween: Tween = label.create_tween()
 		tween.tween_property(label, "position:y", label.position.y - 30, 0.8)
 		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)

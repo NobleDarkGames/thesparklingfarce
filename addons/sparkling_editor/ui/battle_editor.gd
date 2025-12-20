@@ -20,10 +20,6 @@ var map_scene_option: OptionButton
 var player_spawn_x_spin: SpinBox
 var player_spawn_y_spin: SpinBox
 
-# Map Preview Component
-var map_preview: BattleMapPreview
-var place_spawn_button: Button
-var preview_update_pending: bool = false
 
 # Player Forces - now using ResourcePicker for cross-mod support
 var player_party_picker: ResourcePicker
@@ -176,7 +172,6 @@ func _add_map_section() -> void:
 	player_spawn_x_spin.max_value = 100
 	player_spawn_x_spin.value = 2
 	player_spawn_x_spin.tooltip_text = "X coordinate for party formation center. Party arranges in formation around this point."
-	player_spawn_x_spin.value_changed.connect(_on_spawn_position_changed)
 	spawn_hbox.add_child(player_spawn_x_spin)
 
 	player_spawn_y_spin = SpinBox.new()
@@ -184,14 +179,7 @@ func _add_map_section() -> void:
 	player_spawn_y_spin.max_value = 100
 	player_spawn_y_spin.value = 2
 	player_spawn_y_spin.tooltip_text = "Y coordinate for party formation center. Party arranges in formation around this point."
-	player_spawn_y_spin.value_changed.connect(_on_spawn_position_changed)
 	spawn_hbox.add_child(player_spawn_y_spin)
-
-	place_spawn_button = Button.new()
-	place_spawn_button.text = "Place on Map"
-	place_spawn_button.tooltip_text = "Click on the map preview to set spawn point"
-	place_spawn_button.pressed.connect(_on_place_spawn_pressed)
-	spawn_hbox.add_child(place_spawn_button)
 
 	detail_panel.add_child(spawn_hbox)
 
@@ -200,9 +188,6 @@ func _add_map_section() -> void:
 	spawn_note.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	spawn_note.add_theme_font_size_override("font_size", 16)
 	detail_panel.add_child(spawn_note)
-
-	# Map Preview Panel
-	_add_map_preview_panel()
 
 	_add_separator()
 
@@ -438,168 +423,10 @@ func _add_separator() -> void:
 	detail_panel.add_child(separator)
 
 
-## Add the map preview panel with battle map visualization
-func _add_map_preview_panel() -> void:
-	var preview_container: VBoxContainer = VBoxContainer.new()
-
-	var preview_header: HBoxContainer = HBoxContainer.new()
-	preview_header.add_theme_constant_override("separation", 8)
-
-	var preview_label: Label = Label.new()
-	preview_label.text = "Battle Map Preview"
-	preview_label.add_theme_font_size_override("font_size", 16)
-	preview_header.add_child(preview_label)
-
-	var help_icon: Label = Label.new()
-	help_icon.text = "(Click markers for info, use Place buttons to position)"
-	help_icon.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	help_icon.add_theme_font_size_override("font_size", 16)
-	preview_header.add_child(help_icon)
-
-	preview_container.add_child(preview_header)
-
-	# Create the BattleMapPreview component
-	map_preview = BattleMapPreview.new()
-	map_preview.custom_minimum_size = Vector2(350, 250)
-	map_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_preview.position_clicked.connect(_on_preview_position_clicked)
-	preview_container.add_child(map_preview)
-
-	# Legend
-	var legend_hbox: HBoxContainer = HBoxContainer.new()
-	legend_hbox.add_theme_constant_override("separation", 16)
-
-	var spawn_legend: Label = Label.new()
-	spawn_legend.text = "[P] Player Spawn"
-	spawn_legend.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
-	spawn_legend.add_theme_font_size_override("font_size", 16)
-	legend_hbox.add_child(spawn_legend)
-
-	var enemy_legend: Label = Label.new()
-	enemy_legend.text = "[1,2...] Enemies"
-	enemy_legend.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	enemy_legend.add_theme_font_size_override("font_size", 16)
-	legend_hbox.add_child(enemy_legend)
-
-	var neutral_legend: Label = Label.new()
-	neutral_legend.text = "[N1...] Neutrals"
-	neutral_legend.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
-	neutral_legend.add_theme_font_size_override("font_size", 16)
-	legend_hbox.add_child(neutral_legend)
-
-	preview_container.add_child(legend_hbox)
-
-	detail_panel.add_child(preview_container)
-
-
 ## Called when map scene selection changes
-func _on_map_scene_changed(index: int) -> void:
-	if not map_preview:
-		return
-
-	if index <= 0:
-		map_preview.clear_map()
-		return
-
-	var map_path: String = map_scene_option.get_item_metadata(index)
-	if map_path and not map_path.is_empty():
-		map_preview.set_map_scene_path(map_path)
-		_schedule_preview_update()
-
-
-## Called when spawn position spinboxes change
-func _on_spawn_position_changed(_value: float) -> void:
-	_schedule_preview_update()
-
-
-## Called when "Place on Map" button for spawn is pressed
-func _on_place_spawn_pressed() -> void:
-	if map_preview:
-		map_preview.start_placement("player_spawn")
-		place_spawn_button.text = "Click Map..."
-		place_spawn_button.disabled = true
-
-
-## Called when a position is clicked on the map preview
-func _on_preview_position_clicked(mode: String, index: int, grid_position: Vector2i) -> void:
-	match mode:
-		"player_spawn":
-			player_spawn_x_spin.value = grid_position.x
-			player_spawn_y_spin.value = grid_position.y
-			place_spawn_button.text = "Place on Map"
-			place_spawn_button.disabled = false
-
-		"enemy":
-			if index >= 0 and index < enemies_list.size():
-				var enemy_ui: Dictionary = enemies_list[index]
-				enemy_ui.pos_x_spin.value = grid_position.x
-				enemy_ui.pos_y_spin.value = grid_position.y
-				# Reset the place button
-				if "place_button" in enemy_ui:
-					enemy_ui.place_button.text = "Place"
-					enemy_ui.place_button.disabled = false
-
-		"neutral":
-			if index >= 0 and index < neutrals_list.size():
-				var neutral_ui: Dictionary = neutrals_list[index]
-				neutral_ui.pos_x_spin.value = grid_position.x
-				neutral_ui.pos_y_spin.value = grid_position.y
-				# Reset the place button
-				if "place_button" in neutral_ui:
-					neutral_ui.place_button.text = "Place"
-					neutral_ui.place_button.disabled = false
-
-	_schedule_preview_update()
-
-
-## Schedule a preview marker update (debounced)
-func _schedule_preview_update() -> void:
-	if preview_update_pending:
-		return
-
-	preview_update_pending = true
-
-	# Use call_deferred to batch updates
-	call_deferred("_update_preview_markers")
-
-
-## Update all preview markers based on current UI values
-func _update_preview_markers() -> void:
-	preview_update_pending = false
-
-	if not map_preview:
-		return
-
-	# Update player spawn
-	var spawn_pos: Vector2i = Vector2i(
-		int(player_spawn_x_spin.value),
-		int(player_spawn_y_spin.value)
-	)
-	map_preview.set_player_spawn(spawn_pos)
-
-	# Update enemy markers
-	var enemy_positions: Array[Dictionary] = []
-	for i in range(enemies_list.size()):
-		var enemy_ui: Dictionary = enemies_list[i]
-		enemy_positions.append({
-			"position": Vector2i(
-				int(enemy_ui.pos_x_spin.value),
-				int(enemy_ui.pos_y_spin.value)
-			)
-		})
-	map_preview.set_enemy_positions(enemy_positions)
-
-	# Update neutral markers
-	var neutral_positions: Array[Dictionary] = []
-	for i in range(neutrals_list.size()):
-		var neutral_ui: Dictionary = neutrals_list[i]
-		neutral_positions.append({
-			"position": Vector2i(
-				int(neutral_ui.pos_x_spin.value),
-				int(neutral_ui.pos_y_spin.value)
-			)
-		})
-	map_preview.set_neutral_positions(neutral_positions)
+func _on_map_scene_changed(_index: int) -> void:
+	# Map preview removed - coordinates are entered manually
+	pass
 
 
 ## Add enemy UI element
@@ -652,12 +479,6 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	pos_y_spin.value_changed.connect(_on_enemy_position_changed.bind(enemy_index))
 	pos_hbox.add_child(pos_y_spin)
 
-	var place_button: Button = Button.new()
-	place_button.text = "Place"
-	place_button.tooltip_text = "Click on the map preview to position this enemy"
-	place_button.pressed.connect(_on_place_enemy_pressed.bind(enemy_index))
-	pos_hbox.add_child(place_button)
-
 	enemy_vbox.add_child(pos_hbox)
 
 	# AI Behavior
@@ -670,13 +491,12 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	ai_option.tooltip_text = "AI brain controlling this enemy. Aggressive rushes, Cautious holds position, Support heals allies."
 	enemy_vbox.add_child(ai_option)
 
-	# Track UI elements - now stores ResourcePicker and place_button
+	# Track UI elements
 	var enemy_ui: Dictionary = {
 		"panel": enemy_panel,
 		"character_picker": character_picker,
 		"pos_x_spin": pos_x_spin,
 		"pos_y_spin": pos_y_spin,
-		"place_button": place_button,
 		"ai_option": ai_option
 	}
 	enemies_list.append(enemy_ui)
@@ -695,8 +515,6 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 	if 'ai_behavior' in enemy_dict and enemy_dict.ai_behavior:
 		_select_ai_in_dropdown(ai_option, enemy_dict.ai_behavior)
 
-	# Update preview after adding enemy
-	_schedule_preview_update()
 
 
 func _on_remove_enemy(panel: PanelContainer) -> void:
@@ -715,23 +533,12 @@ func _on_remove_enemy(panel: PanelContainer) -> void:
 		var title_label: Label = enemies_list[i].panel.get_child(0).get_child(0).get_child(0)
 		title_label.text = "Enemy #%d" % (i + 1)
 
-	# Update preview after removing enemy
-	_schedule_preview_update()
 
 
 ## Called when enemy position spinboxes change
 func _on_enemy_position_changed(_value: float, _index: int) -> void:
-	_schedule_preview_update()
-
-
-## Called when "Place" button for an enemy is pressed
-func _on_place_enemy_pressed(index: int) -> void:
-	if map_preview and index < enemies_list.size():
-		map_preview.start_placement("enemy", index)
-		var enemy_ui: Dictionary = enemies_list[index]
-		if "place_button" in enemy_ui:
-			enemy_ui.place_button.text = "Click..."
-			enemy_ui.place_button.disabled = true
+	# Map preview removed - no action needed
+	pass
 
 
 ## Add neutral UI element
@@ -785,12 +592,6 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	pos_y_spin.value_changed.connect(_on_neutral_position_changed.bind(neutral_index))
 	pos_hbox.add_child(pos_y_spin)
 
-	var place_button: Button = Button.new()
-	place_button.text = "Place"
-	place_button.tooltip_text = "Click on the map preview to position this neutral"
-	place_button.pressed.connect(_on_place_neutral_pressed.bind(neutral_index))
-	pos_hbox.add_child(place_button)
-
 	neutral_vbox.add_child(pos_hbox)
 
 	# AI Behavior
@@ -803,13 +604,12 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	ai_option.tooltip_text = "AI brain for neutral units. Defensive stays in place, Support heals nearby allies."
 	neutral_vbox.add_child(ai_option)
 
-	# Track UI elements - now stores ResourcePicker and place_button
+	# Track UI elements
 	var neutral_ui: Dictionary = {
 		"panel": neutral_panel,
 		"character_picker": character_picker,
 		"pos_x_spin": pos_x_spin,
 		"pos_y_spin": pos_y_spin,
-		"place_button": place_button,
 		"ai_option": ai_option
 	}
 	neutrals_list.append(neutral_ui)
@@ -828,8 +628,6 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 	if 'ai_behavior' in neutral_dict and neutral_dict.ai_behavior:
 		_select_ai_in_dropdown(ai_option, neutral_dict.ai_behavior)
 
-	# Update preview after adding neutral
-	_schedule_preview_update()
 
 
 func _on_remove_neutral(panel: PanelContainer) -> void:
@@ -848,23 +646,11 @@ func _on_remove_neutral(panel: PanelContainer) -> void:
 		var title_label: Label = neutrals_list[i].panel.get_child(0).get_child(0).get_child(0)
 		title_label.text = "Neutral #%d" % (i + 1)
 
-	# Update preview after removing neutral
-	_schedule_preview_update()
-
 
 ## Called when neutral position spinboxes change
 func _on_neutral_position_changed(_value: float, _index: int) -> void:
-	_schedule_preview_update()
-
-
-## Called when "Place" button for a neutral is pressed
-func _on_place_neutral_pressed(index: int) -> void:
-	if map_preview and index < neutrals_list.size():
-		map_preview.start_placement("neutral", index)
-		var neutral_ui: Dictionary = neutrals_list[index]
-		if "place_button" in neutral_ui:
-			neutral_ui.place_button.text = "Click..."
-			neutral_ui.place_button.disabled = true
+	# Map preview removed - no action needed
+	pass
 
 
 ## Load available AI behaviors from the registry
@@ -1109,13 +895,6 @@ func _load_resource_data() -> void:
 	_update_map_dropdown()
 	_select_map_in_dropdown(battle.map_scene)
 
-	# Update map preview with the selected map
-	if map_preview:
-		if battle.map_scene:
-			map_preview.set_map_scene(battle.map_scene)
-		else:
-			map_preview.clear_map()
-
 	# Player spawn point
 	player_spawn_x_spin.value = battle.player_spawn_point.x
 	player_spawn_y_spin.value = battle.player_spawn_point.y
@@ -1190,9 +969,6 @@ func _load_resource_data() -> void:
 	# Rewards
 	experience_reward_spin.value = battle.experience_reward
 	gold_reward_spin.value = battle.gold_reward
-
-	# Update map preview markers after loading all data
-	_schedule_preview_update()
 
 
 ## Clear enemies UI

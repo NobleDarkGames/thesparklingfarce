@@ -56,8 +56,6 @@ enum TargetType {
 @export_group("Effects")
 ## Status effects to apply (e.g., "poison", "paralysis", "attack_up")
 @export var status_effects: Array[String] = []
-## Duration of status effects in turns
-@export var effect_duration: int = 3
 ## Chance to apply status effect (percentage)
 @export_range(0, 100) var effect_chance: int = 100
 

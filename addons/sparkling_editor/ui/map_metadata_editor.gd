@@ -30,17 +30,9 @@ var scene_picker_button: Button
 var caravan_accessible_check: CheckBox
 var caravan_visible_check: CheckBox
 
-# Camera Settings section
-var camera_zoom_spin: SpinBox
-
 # Audio Settings section
 var music_id_edit: LineEdit
 var ambient_id_edit: LineEdit
-
-# Encounter Settings section
-var random_encounters_check: CheckBox
-var encounter_rate_spin: SpinBox
-var save_anywhere_check: CheckBox
 
 # Edge Connections section
 var edge_north_map_dropdown: OptionButton
@@ -156,9 +148,7 @@ func _setup_ui() -> void:
 	# Create all form sections (scene-as-truth: only runtime config in JSON)
 	_create_scene_reference_section()
 	_create_caravan_settings_section()
-	_create_camera_settings_section()
 	_create_audio_settings_section()
-	_create_encounter_settings_section()
 	_create_edge_connections_section()
 
 	# Error panel from base class
@@ -260,39 +250,6 @@ func _create_caravan_settings_section() -> void:
 	_add_separator()
 
 
-func _create_camera_settings_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Camera Settings"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var zoom_container: HBoxContainer = HBoxContainer.new()
-	var zoom_label: Label = Label.new()
-	zoom_label.text = "Camera Zoom:"
-	zoom_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	zoom_container.add_child(zoom_label)
-
-	camera_zoom_spin = SpinBox.new()
-	camera_zoom_spin.min_value = 0.5
-	camera_zoom_spin.max_value = 2.0
-	camera_zoom_spin.step = 0.05
-	camera_zoom_spin.value = 1.0
-	zoom_container.add_child(camera_zoom_spin)
-
-	var zoom_hint: Label = Label.new()
-	zoom_hint.text = "(1.0 recommended for pixel-perfect rendering)"
-	zoom_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	zoom_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	zoom_container.add_child(zoom_hint)
-
-	section.add_child(zoom_container)
-
-	detail_panel.add_child(section)
-	_add_separator()
-
-
 func _create_audio_settings_section() -> void:
 	var section: VBoxContainer = VBoxContainer.new()
 
@@ -303,48 +260,6 @@ func _create_audio_settings_section() -> void:
 
 	music_id_edit = _create_line_edit_field("Music ID:", section, "Background music track ID")
 	ambient_id_edit = _create_line_edit_field("Ambient ID:", section, "Ambient sound effect ID")
-
-	detail_panel.add_child(section)
-	_add_separator()
-
-
-func _create_encounter_settings_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Encounter Settings"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	random_encounters_check = CheckBox.new()
-	random_encounters_check.text = "Random Encounters Enabled"
-	random_encounters_check.toggled.connect(_on_random_encounters_toggled)
-	section.add_child(random_encounters_check)
-
-	var rate_container: HBoxContainer = HBoxContainer.new()
-	var rate_label: Label = Label.new()
-	rate_label.text = "Base Encounter Rate:"
-	rate_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	rate_container.add_child(rate_label)
-
-	encounter_rate_spin = SpinBox.new()
-	encounter_rate_spin.min_value = 0.0
-	encounter_rate_spin.max_value = 1.0
-	encounter_rate_spin.step = 0.01
-	encounter_rate_spin.value = 0.0
-	rate_container.add_child(encounter_rate_spin)
-
-	var rate_hint: Label = Label.new()
-	rate_hint.text = "(0.0 = never, 1.0 = always)"
-	rate_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	rate_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	rate_container.add_child(rate_hint)
-
-	section.add_child(rate_container)
-
-	save_anywhere_check = CheckBox.new()
-	save_anywhere_check.text = "Save Anywhere (allow saving at any location)"
-	section.add_child(save_anywhere_check)
 
 	detail_panel.add_child(section)
 	_add_separator()
@@ -681,18 +596,9 @@ func _populate_ui_from_data() -> void:
 	caravan_accessible_check.button_pressed = current_map_data.get("caravan_accessible", false)
 	caravan_visible_check.button_pressed = current_map_data.get("caravan_visible", false)
 
-	# Camera settings (runtime config)
-	camera_zoom_spin.value = current_map_data.get("camera_zoom", 1.0)
-
 	# Audio settings (runtime config)
 	music_id_edit.text = current_map_data.get("music_id", "")
 	ambient_id_edit.text = current_map_data.get("ambient_id", "")
-
-	# Encounter settings (runtime config)
-	random_encounters_check.button_pressed = current_map_data.get("random_encounters_enabled", false)
-	encounter_rate_spin.value = current_map_data.get("base_encounter_rate", 0.0)
-	save_anywhere_check.button_pressed = current_map_data.get("save_anywhere", true)
-	_on_random_encounters_toggled(random_encounters_check.button_pressed)
 
 	# Edge connections (overworld only - cannot derive from scene)
 	_populate_edge_connections()
@@ -735,17 +641,9 @@ func _collect_data_from_ui() -> void:
 	current_map_data["caravan_accessible"] = caravan_accessible_check.button_pressed
 	current_map_data["caravan_visible"] = caravan_visible_check.button_pressed
 
-	# Camera settings (runtime config)
-	current_map_data["camera_zoom"] = camera_zoom_spin.value
-
 	# Audio settings (runtime config)
 	current_map_data["music_id"] = music_id_edit.text
 	current_map_data["ambient_id"] = ambient_id_edit.text
-
-	# Encounter settings (runtime config)
-	current_map_data["random_encounters_enabled"] = random_encounters_check.button_pressed
-	current_map_data["base_encounter_rate"] = encounter_rate_spin.value
-	current_map_data["save_anywhere"] = save_anywhere_check.button_pressed
 
 	# Edge connections (overworld only - cannot derive from scene)
 	var edge_connections: Dictionary = {}
@@ -1129,12 +1027,8 @@ func _clear_ui() -> void:
 	scene_path_edit.text = ""
 	caravan_accessible_check.button_pressed = false
 	caravan_visible_check.button_pressed = false
-	camera_zoom_spin.value = 1.0
 	music_id_edit.text = ""
 	ambient_id_edit.text = ""
-	random_encounters_check.button_pressed = false
-	encounter_rate_spin.value = 0.0
-	save_anywhere_check.button_pressed = true
 	edge_north_map_dropdown.select(0)
 	edge_north_spawn_edit.text = ""
 	edge_south_map_dropdown.select(0)
@@ -1173,10 +1067,6 @@ func _validate_map_data() -> Array[String]:
 # =============================================================================
 # Event Handlers
 # =============================================================================
-
-func _on_random_encounters_toggled(enabled: bool) -> void:
-	encounter_rate_spin.editable = enabled
-
 
 func _on_browse_scene() -> void:
 	# In editor context, we cannot easily launch a file dialog

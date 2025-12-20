@@ -14,10 +14,7 @@ extends RefCounted
 ## What comes from JSON (runtime config):
 ##   - scene_path (REQUIRED - links to the scene file)
 ##   - caravan_visible, caravan_accessible
-##   - camera_zoom
 ##   - music_id, ambient_id
-##   - random_encounters_enabled, base_encounter_rate
-##   - save_anywhere
 ##   - edge_connections (overworld only - cannot derive from scene)
 ##
 ## Minimal JSON example:
@@ -30,11 +27,8 @@ extends RefCounted
 ##   "scene_path": "res://mods/my_mod/maps/my_town.tscn",
 ##   "caravan_visible": false,
 ##   "caravan_accessible": false,
-##   "camera_zoom": 1.0,
 ##   "music_id": "town_theme",
 ##   "ambient_id": "",
-##   "random_encounters_enabled": false,
-##   "save_anywhere": true,
 ##   "edge_connections": {}
 ## }
 
@@ -123,26 +117,12 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 	if "caravan_accessible" in data:
 		metadata.caravan_accessible = bool(data["caravan_accessible"])
 
-	# Camera zoom (runtime config)
-	if "camera_zoom" in data:
-		metadata.camera_zoom = clampf(float(data["camera_zoom"]), 0.5, 2.0)
-
 	# Audio settings (runtime config - placeholder for vertical mixing)
 	if "music_id" in data:
 		metadata.music_id = str(data["music_id"])
 
 	if "ambient_id" in data:
 		metadata.ambient_id = str(data["ambient_id"])
-
-	# Encounter settings (runtime config)
-	if "random_encounters_enabled" in data:
-		metadata.random_encounters_enabled = bool(data["random_encounters_enabled"])
-
-	if "base_encounter_rate" in data:
-		metadata.base_encounter_rate = clampf(float(data["base_encounter_rate"]), 0.0, 1.0)
-
-	if "save_anywhere" in data:
-		metadata.save_anywhere = bool(data["save_anywhere"])
 
 	# Spawn points - OPTIONAL in JSON (will be extracted from scene)
 	if "spawn_points" in data and data["spawn_points"] is Dictionary:

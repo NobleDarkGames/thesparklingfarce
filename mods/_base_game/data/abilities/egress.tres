@@ -16,6 +16,5 @@ hp_cost = 0
 power = 0
 accuracy = 100
 status_effects = Array[String]([])
-effect_duration = 0
 effect_chance = 100
 description = "Escape from battle and return to the last town. All party members are revived."

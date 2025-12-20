@@ -11,8 +11,7 @@
 ## What comes from JSON (runtime config):
 ##   - scene_path (REQUIRED - links to the scene file)
 ##   - caravan_visible, caravan_accessible
-##   - camera_zoom, music_id, ambient_id
-##   - random_encounters_enabled, save_anywhere
+##   - music_id, ambient_id
 ##   - edge_connections (overworld only)
 ##
 ## Usage:
@@ -54,11 +53,6 @@ enum MapType {
 ## Typically true only for OVERWORLD maps
 @export var caravan_visible: bool = false
 
-## Camera zoom level (1.0 = default for pixel-perfect rendering)
-## Note: Non-integer zoom causes pixel distortion. Use 1.0 for all map types
-## and achieve visual scale differences through art direction instead.
-@export_range(0.5, 2.0, 0.05) var camera_zoom: float = 1.0
-
 ## Scene path for this map (res://mods/mod_id/maps/scene.tscn)
 @export_file("*.tscn") var scene_path: String = ""
 
@@ -89,16 +83,6 @@ enum MapType {
 
 ## Ambient sound ID (looked up in audio registry)
 @export var ambient_id: String = ""
-
-## Whether random encounters can occur on this map
-@export var random_encounters_enabled: bool = false
-
-## Base encounter rate for random battles (0.0 - 1.0)
-## Only used if random_encounters_enabled is true
-@export_range(0.0, 1.0, 0.01) var base_encounter_rate: float = 0.0
-
-## Whether the player can save anywhere on this map
-@export var save_anywhere: bool = true
 
 
 # =============================================================================
@@ -239,39 +223,22 @@ func apply_type_defaults() -> void:
 		MapType.TOWN:
 			caravan_visible = false
 			caravan_accessible = false
-			camera_zoom = 1.0
-			random_encounters_enabled = false
-			save_anywhere = true
 
 		MapType.OVERWORLD:
 			caravan_visible = true
 			caravan_accessible = true
-			camera_zoom = 1.0  # Keep 1.0 for pixel-perfect rendering
-			random_encounters_enabled = true
-			base_encounter_rate = 0.1
-			save_anywhere = true
 
 		MapType.DUNGEON:
 			caravan_visible = false
 			caravan_accessible = false
-			camera_zoom = 1.0  # Keep 1.0 for pixel-perfect rendering
-			random_encounters_enabled = true
-			base_encounter_rate = 0.15
-			save_anywhere = false  # Dungeons often restrict saving
 
 		MapType.INTERIOR:
 			caravan_visible = false
 			caravan_accessible = false
-			camera_zoom = 1.0
-			random_encounters_enabled = false
-			save_anywhere = true
 
 		MapType.BATTLE:
 			caravan_visible = false
 			caravan_accessible = false
-			camera_zoom = 1.0
-			random_encounters_enabled = false
-			save_anywhere = false
 
 
 # =============================================================================
@@ -355,16 +322,12 @@ func to_dict() -> Dictionary:
 		"map_type": MapType.keys()[map_type],
 		"caravan_accessible": caravan_accessible,
 		"caravan_visible": caravan_visible,
-		"camera_zoom": camera_zoom,
 		"scene_path": scene_path,
 		"spawn_points": spawn_points.duplicate(true),
 		"connections": connections.duplicate(true),
 		"edge_connections": edge_connections.duplicate(true),
 		"music_id": music_id,
-		"ambient_id": ambient_id,
-		"random_encounters_enabled": random_encounters_enabled,
-		"base_encounter_rate": base_encounter_rate,
-		"save_anywhere": save_anywhere
+		"ambient_id": ambient_id
 	}
 
 
@@ -395,16 +358,12 @@ static func from_dict(data: Dictionary) -> Resource:
 
 	metadata.caravan_accessible = data.get("caravan_accessible", false)
 	metadata.caravan_visible = data.get("caravan_visible", false)
-	metadata.camera_zoom = data.get("camera_zoom", 1.0)
 	metadata.scene_path = data.get("scene_path", "")
 	metadata.spawn_points = data.get("spawn_points", {})
 	metadata.connections.assign(data.get("connections", []))
 	metadata.edge_connections = data.get("edge_connections", {})
 	metadata.music_id = data.get("music_id", "")
 	metadata.ambient_id = data.get("ambient_id", "")
-	metadata.random_encounters_enabled = data.get("random_encounters_enabled", false)
-	metadata.base_encounter_rate = data.get("base_encounter_rate", 0.0)
-	metadata.save_anywhere = data.get("save_anywhere", true)
 
 	return metadata
 

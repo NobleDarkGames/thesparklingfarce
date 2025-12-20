@@ -16,6 +16,3 @@ defense_bonus = 1
 evasion_bonus = 5
 damage_per_turn = 0
 healing_per_turn = 0
-status_effect_on_entry = ""
-status_effect_duration = 1
-footstep_sound = ""

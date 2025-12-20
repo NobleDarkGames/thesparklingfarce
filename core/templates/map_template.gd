@@ -97,7 +97,6 @@ func _ready() -> void:
 	_debug_print("MapTemplate: Initializing...")
 
 	# Register safe location for Egress/Angel Wing returns
-	# Town/Interior maps are always safe; Overworld is safe if no random encounters
 	_register_safe_location()
 
 	# Load party from PartyManager
@@ -480,14 +479,11 @@ func _connect_hero_signals() -> void:
 
 
 ## Called when hero completes movement to a new tile.
-## Override in your map script to add custom behavior (random encounters, etc.)
+## Override in your map script to add custom behavior.
 func _on_hero_moved(tile_pos: Vector2i) -> void:
 	_debug_print("MapTemplate: Hero at tile %s" % tile_pos)
 
-	# TODO: Add your custom logic here:
-	# - Random encounter checks
-	# - Tile-based events
-	# - Step counters
+	# Override to add custom logic (tile-based events, step counters, etc.)
 
 
 ## Called when hero presses the interaction button.
@@ -643,9 +639,8 @@ func _get_exploration_ui_controller() -> Node:
 
 ## Registers this map as a safe location for Egress/Angel Wing returns.
 ## Safe locations are:
-## - TOWN and INTERIOR maps (always safe)
-## - OVERWORLD maps without random encounters
-## - Any map with save_anywhere enabled and no random encounters
+## - TOWN, INTERIOR, and OVERWORLD maps (always safe)
+## - DUNGEON and BATTLE maps are NOT safe
 ##
 ## This is called automatically in _ready() - subclasses can override if needed.
 func _register_safe_location() -> void:
@@ -656,12 +651,9 @@ func _register_safe_location() -> void:
 
 	if map_meta:
 		match map_meta.map_type:
-			MapMetadata.MapType.TOWN, MapMetadata.MapType.INTERIOR:
-				# Towns and interiors are always safe
+			MapMetadata.MapType.TOWN, MapMetadata.MapType.INTERIOR, MapMetadata.MapType.OVERWORLD:
+				# Towns, interiors, and overworld are safe
 				is_safe = true
-			MapMetadata.MapType.OVERWORLD:
-				# Overworld is safe if no random encounters
-				is_safe = not map_meta.random_encounters_enabled
 			MapMetadata.MapType.DUNGEON:
 				# Dungeons are NOT safe (would be weird to Egress into a dungeon)
 				is_safe = false

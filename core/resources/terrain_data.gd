@@ -39,18 +39,9 @@ extends Resource
 @export_group("Turn Effects")
 ## Damage dealt at start of turn (0 = none, positive = damage)
 @export var damage_per_turn: int = 0
-## Healing at start of turn (0 = none, positive = heal) - DEFERRED: field exists but not processed
+## Healing at start of turn (0 = none, positive = heal)
 @export var healing_per_turn: int = 0
-## Status effect applied on entry (empty = none) - DEFERRED: field exists but not processed
-@export var status_effect_on_entry: String = ""
-## Duration of applied status effect (turns) - DEFERRED: field exists but not processed
-@export_range(1, 10) var status_effect_duration: int = 1
 
-@export_group("Visual/Audio")
-## Footstep sound override for this terrain - DEFERRED: field exists but not processed
-@export var footstep_sound: String = ""
-## Particle effect when walking on terrain - DEFERRED: field exists but not processed
-@export var walk_particle: PackedScene = null
 
 
 ## Get movement cost for a specific movement type

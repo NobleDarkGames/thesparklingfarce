@@ -26,7 +26,6 @@ var accuracy_spin: SpinBox
 var status_effects_container: HBoxContainer
 var status_effects_button: MenuButton
 var status_effects_label: Label  # Shows current selection
-var effect_duration_spin: SpinBox
 var effect_chance_spin: SpinBox
 
 # Track selected status effects
@@ -102,7 +101,6 @@ func _load_resource_data() -> void:
 		else:
 			push_warning("AbilityEditor: Unknown status effect '%s' in ability '%s' - removing" % [effect_id, ability.ability_name])
 	_update_status_effects_display()
-	effect_duration_spin.value = ability.effect_duration
 	effect_chance_spin.value = ability.effect_chance
 
 	# Animation and audio
@@ -140,7 +138,6 @@ func _save_resource_data() -> void:
 
 	# Effects - use selected effects array directly
 	ability.status_effects = _selected_effects.duplicate()
-	ability.effect_duration = int(effect_duration_spin.value)
 	ability.effect_chance = int(effect_chance_spin.value)
 
 	# Animation and audio
@@ -340,9 +337,6 @@ func _add_effects_section() -> void:
 
 	# Populate the dropdown lazily when opened (registry may not be ready on startup)
 	status_effects_button.get_popup().about_to_popup.connect(_populate_status_effects_menu)
-
-	effect_duration_spin = form.add_number_field("Effect Duration (turns):", 1, 99, 3,
-		"How many turns the status effect lasts. Typical: 2-3 short, 5 medium, 10+ long-lasting.")
 
 	effect_chance_spin = form.add_number_field("Effect Chance (%):", 0, 100, 100,
 		"Probability that status effect applies on hit. 100% = guaranteed. 30-50% = unreliable debuff.")

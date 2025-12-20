@@ -94,9 +94,6 @@ func test_apply_type_defaults_for_town() -> void:
 
 	assert_bool(metadata.caravan_visible).is_false()
 	assert_bool(metadata.caravan_accessible).is_false()
-	assert_float(metadata.camera_zoom).is_equal_approx(1.0, 0.01)
-	assert_bool(metadata.random_encounters_enabled).is_false()
-	assert_bool(metadata.save_anywhere).is_true()
 
 
 func test_apply_type_defaults_for_overworld() -> void:
@@ -106,9 +103,6 @@ func test_apply_type_defaults_for_overworld() -> void:
 
 	assert_bool(metadata.caravan_visible).is_true()
 	assert_bool(metadata.caravan_accessible).is_true()
-	assert_float(metadata.camera_zoom).is_equal_approx(1.0, 0.01)  # 1.0 for pixel-perfect rendering
-	assert_bool(metadata.random_encounters_enabled).is_true()
-	assert_float(metadata.base_encounter_rate).is_equal_approx(0.1, 0.01)
 
 
 func test_apply_type_defaults_for_dungeon() -> void:
@@ -117,8 +111,7 @@ func test_apply_type_defaults_for_dungeon() -> void:
 	metadata.apply_type_defaults()
 
 	assert_bool(metadata.caravan_visible).is_false()
-	assert_bool(metadata.random_encounters_enabled).is_true()
-	assert_bool(metadata.save_anywhere).is_false()
+	assert_bool(metadata.caravan_accessible).is_false()
 
 
 func test_get_type_name_returns_correct_string() -> void:
@@ -292,7 +285,6 @@ func test_get_edge_connection_missing() -> void:
 func test_to_dict_includes_all_fields() -> void:
 	var metadata: Resource = _create_valid_metadata()
 	metadata.music_id = "town_theme"
-	metadata.random_encounters_enabled = true
 
 	var dict: Dictionary = metadata.to_dict()
 
@@ -301,13 +293,11 @@ func test_to_dict_includes_all_fields() -> void:
 	assert_str(dict["map_type"]).is_equal("TOWN")
 	assert_str(dict["scene_path"]).is_equal("res://test/map.tscn")
 	assert_str(dict["music_id"]).is_equal("town_theme")
-	assert_bool(dict["random_encounters_enabled"]).is_true()
 	assert_bool("spawn_points" in dict).is_true()
 
 
 func test_from_dict_roundtrip() -> void:
 	var original: Resource = _create_valid_metadata()
-	original.camera_zoom = 0.85
 	original.music_id = "overworld_theme"
 	original.add_connection("door", "target:map", "spawn")
 
@@ -316,7 +306,6 @@ func test_from_dict_roundtrip() -> void:
 
 	assert_str(restored.map_id).is_equal(original.map_id)
 	assert_str(restored.display_name).is_equal(original.display_name)
-	assert_float(restored.camera_zoom).is_equal_approx(0.85, 0.01)
 	assert_str(restored.music_id).is_equal("overworld_theme")
 
 

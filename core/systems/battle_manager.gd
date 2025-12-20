@@ -1053,8 +1053,10 @@ func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -
 				target.remove_status_effect(status_to_remove)
 				any_effect_applied = true
 		else:
-			# Apply the status effect
-			target.add_status_effect(effect, ability.effect_duration, ability.potency)
+			# Look up effect data to get duration
+			var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect)
+			var duration: int = effect_data.duration if effect_data else 3
+			target.add_status_effect(effect, duration, ability.potency)
 			any_effect_applied = true
 
 	return any_effect_applied
@@ -1730,6 +1732,11 @@ func _on_battle_ended(victory: bool) -> void:
 	# Wait for any pending level-up celebrations to finish before showing result screen
 	await _wait_for_level_ups()
 
+	# Play victory dialogue if configured (skip in headless mode)
+	if not TurnManager.is_headless and current_battle_data and current_battle_data.victory_dialogue:
+		if DialogManager.start_dialog_from_resource(current_battle_data.victory_dialogue):
+			await DialogManager.dialog_ended
+
 	# Show victory screen (skip in headless mode)
 	if not TurnManager.is_headless:
 		await _show_victory_screen()
@@ -2085,6 +2092,11 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 
 ## Handle hero death - show defeat screen then exit battle (called from TurnManager signal)
 func _on_hero_died_in_battle() -> void:
+	# Play defeat dialogue if configured (skip in headless mode)
+	if not TurnManager.is_headless and current_battle_data and current_battle_data.defeat_dialogue:
+		if DialogManager.start_dialog_from_resource(current_battle_data.defeat_dialogue):
+			await DialogManager.dialog_ended
+
 	# Show SF2-authentic defeat screen first (unless headless)
 	if not TurnManager.is_headless:
 		await _show_defeat_screen()

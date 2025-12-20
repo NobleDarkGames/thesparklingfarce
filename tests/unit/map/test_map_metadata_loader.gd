@@ -21,7 +21,6 @@ func _create_valid_json() -> String:
 		"map_type": "TOWN",
 		"caravan_visible": false,
 		"caravan_accessible": false,
-		"camera_zoom": 1.0,
 		"scene_path": "res://test/town.tscn",
 		"music_id": "town_theme",
 		"spawn_points": {
@@ -369,34 +368,11 @@ func test_parse_optional_fields() -> void:
 		"display_name": "Full Options",
 		"scene_path": "res://test.tscn",
 		"spawn_points": {"default": {"grid_position": [0,0], "facing": "down", "is_default": true}},
-		"camera_zoom": 0.85,
 		"music_id": "epic_theme",
-		"ambient_id": "forest_sounds",
-		"random_encounters_enabled": true,
-		"base_encounter_rate": 0.15,
-		"save_anywhere": false
+		"ambient_id": "forest_sounds"
 	}"""
 
 	var metadata: Resource = MapMetadataLoaderScript.load_from_json_string(json)
 
-	assert_float(metadata.camera_zoom).is_equal_approx(0.85, 0.01)
 	assert_str(metadata.music_id).is_equal("epic_theme")
 	assert_str(metadata.ambient_id).is_equal("forest_sounds")
-	assert_bool(metadata.random_encounters_enabled).is_true()
-	assert_float(metadata.base_encounter_rate).is_equal_approx(0.15, 0.01)
-	assert_bool(metadata.save_anywhere).is_false()
-
-
-func test_camera_zoom_clamped() -> void:
-	var json: String = """{
-		"map_id": "test:zoom",
-		"display_name": "Zoom Test",
-		"scene_path": "res://test.tscn",
-		"spawn_points": {"default": {"grid_position": [0,0], "facing": "down", "is_default": true}},
-		"camera_zoom": 5.0
-	}"""
-
-	var metadata: Resource = MapMetadataLoaderScript.load_from_json_string(json)
-
-	# Should be clamped to max 2.0
-	assert_float(metadata.camera_zoom).is_less_equal(2.0)

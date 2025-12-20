@@ -15,7 +15,6 @@ hp_cost = 0
 power = 20
 accuracy = 100
 status_effects = Array[String]([])
-effect_duration = 0
 effect_chance = 100
 animation_name = "heal"
 description = "Restores HP to a single ally."

@@ -26,11 +26,6 @@ var evasion_bonus_spin: SpinBox
 # Turn effects
 var damage_per_turn_spin: SpinBox
 var healing_per_turn_spin: SpinBox
-var status_effect_edit: LineEdit
-var status_effect_duration_spin: SpinBox
-
-# Audio/Visual
-var footstep_sound_edit: LineEdit
 
 
 func _ready() -> void:
@@ -53,9 +48,6 @@ func _create_detail_form() -> void:
 
 	# Turn effects section
 	_add_turn_effects_section()
-
-	# Audio/Visual section
-	_add_audio_visual_section()
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
@@ -88,11 +80,6 @@ func _load_resource_data() -> void:
 	# Turn effects
 	damage_per_turn_spin.value = terrain.damage_per_turn
 	healing_per_turn_spin.value = terrain.healing_per_turn
-	status_effect_edit.text = terrain.status_effect_on_entry
-	status_effect_duration_spin.value = terrain.status_effect_duration
-
-	# Audio/Visual
-	footstep_sound_edit.text = terrain.footstep_sound
 
 	# Update impassable visual feedback
 	_update_impassable_visual_feedback()
@@ -125,11 +112,6 @@ func _save_resource_data() -> void:
 	# Turn effects
 	terrain.damage_per_turn = int(damage_per_turn_spin.value)
 	terrain.healing_per_turn = int(healing_per_turn_spin.value)
-	terrain.status_effect_on_entry = status_effect_edit.text.strip_edges()
-	terrain.status_effect_duration = int(status_effect_duration_spin.value)
-
-	# Audio/Visual
-	terrain.footstep_sound = footstep_sound_edit.text.strip_edges()
 
 
 ## Override: Validate resource before saving
@@ -166,11 +148,6 @@ func _validate_resource() -> Dictionary:
 		errors.append("Defense bonus cannot be negative")
 	if evasion_bonus_spin.value < 0 or evasion_bonus_spin.value > 100:
 		errors.append("Evasion bonus must be between 0 and 100")
-
-	# Validate status effect duration if effect is set
-	if not status_effect_edit.text.strip_edges().is_empty():
-		if status_effect_duration_spin.value < 1:
-			errors.append("Status effect duration must be at least 1 turn")
 
 	return {valid = errors.is_empty(), errors = errors}
 
@@ -324,25 +301,6 @@ func _add_turn_effects_section() -> void:
 
 	healing_per_turn_spin = form.add_number_field("Healing per Turn:", 0, 99, 0,
 		"HP restored at start of turn (for sacred ground, healing tiles)")
-	form.add_help_text("(Deferred) Healing feature exists but may not be fully implemented yet")
-
-	status_effect_edit = form.add_text_field("Status Effect:", "e.g., poison, slow",
-		"Status effect applied when entering this terrain")
-	form.add_help_text("(Deferred) Status effect feature exists but may not be fully implemented yet")
-
-	status_effect_duration_spin = form.add_number_field("Effect Duration:", 1, 10, 1,
-		"How many turns the status effect lasts")
-	status_effect_duration_spin.suffix = " turns"
-
-
-func _add_audio_visual_section() -> void:
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
-	form.add_section("Audio & Visual")
-
-	footstep_sound_edit = form.add_text_field("Footstep Sound:", "e.g., grass_step, metal_clang",
-		"Sound effect ID when walking on this terrain")
-	form.add_help_text("(Deferred) Footstep sound feature exists but may not be fully implemented yet")
-	form.add_help_text("Note: Walk particle and icon can be assigned in the Godot Inspector")
 
 
 ## Update visual feedback when impassable checkboxes are toggled

@@ -66,6 +66,14 @@ var completion_flag_edit: LineEdit
 var completion_npc_label: Label
 var completion_npc_edit: LineEdit
 
+# Branches editor components (choice nodes only)
+var branches_section: VBoxContainer
+var branches_container: VBoxContainer
+var add_branch_button: Button
+
+# Transitions row (hidden for choice nodes)
+var transitions_row: HBoxContainer
+
 # Error panel
 var error_panel: PanelContainer
 var error_label: RichTextLabel
@@ -358,40 +366,40 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 	inspector_panel.add_child(res_row)
 
 	# Transitions row
-	var trans_row: HBoxContainer = HBoxContainer.new()
-	trans_row.add_theme_constant_override("separation", 10)
+	transitions_row = HBoxContainer.new()
+	transitions_row.add_theme_constant_override("separation", 10)
 
 	var vic_label: Label = Label.new()
 	vic_label.text = "On Victory:"
 	vic_label.custom_minimum_size.x = 75
-	trans_row.add_child(vic_label)
+	transitions_row.add_child(vic_label)
 
 	on_victory_option = OptionButton.new()
 	on_victory_option.custom_minimum_size.x = 120
 	on_victory_option.item_selected.connect(_on_victory_target_changed)
-	trans_row.add_child(on_victory_option)
+	transitions_row.add_child(on_victory_option)
 
 	var def_label: Label = Label.new()
 	def_label.text = "On Defeat:"
 	def_label.custom_minimum_size.x = 70
-	trans_row.add_child(def_label)
+	transitions_row.add_child(def_label)
 
 	on_defeat_option = OptionButton.new()
 	on_defeat_option.custom_minimum_size.x = 120
 	on_defeat_option.item_selected.connect(_on_defeat_target_changed)
-	trans_row.add_child(on_defeat_option)
+	transitions_row.add_child(on_defeat_option)
 
 	var comp_label: Label = Label.new()
 	comp_label.text = "On Complete:"
 	comp_label.custom_minimum_size.x = 85
-	trans_row.add_child(comp_label)
+	transitions_row.add_child(comp_label)
 
 	on_complete_option = OptionButton.new()
 	on_complete_option.custom_minimum_size.x = 120
 	on_complete_option.item_selected.connect(_on_complete_target_changed)
-	trans_row.add_child(on_complete_option)
+	transitions_row.add_child(on_complete_option)
 
-	inspector_panel.add_child(trans_row)
+	inspector_panel.add_child(transitions_row)
 
 	# Flags row
 	var flags_row: HBoxContainer = HBoxContainer.new()
@@ -505,7 +513,212 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 
 	inspector_panel.add_child(completion_trigger_row)
 
+	# Branches section (choice nodes only)
+	_setup_branches_section()
+
 	parent.add_child(inspector_scroll)
+
+
+func _setup_branches_section() -> void:
+	branches_section = VBoxContainer.new()
+	branches_section.add_theme_constant_override("separation", 6)
+	branches_section.visible = false  # Hidden by default, shown for choice nodes
+
+	var header_row: HBoxContainer = HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+
+	var branch_header: Label = Label.new()
+	branch_header.text = "Choice Branches"
+	branch_header.add_theme_font_size_override("font_size", 14)
+	header_row.add_child(branch_header)
+
+	add_branch_button = Button.new()
+	add_branch_button.text = "+ Add Branch"
+	add_branch_button.pressed.connect(_on_add_branch)
+	header_row.add_child(add_branch_button)
+
+	branches_section.add_child(header_row)
+
+	branches_container = VBoxContainer.new()
+	branches_container.add_theme_constant_override("separation", 4)
+	branches_section.add_child(branches_container)
+
+	inspector_panel.add_child(branches_section)
+
+
+func _rebuild_branches_ui() -> void:
+	# Clear existing branch rows
+	for child in branches_container.get_children():
+		child.queue_free()
+
+	if selected_node_id.is_empty():
+		return
+
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var branches: Array = node_data.get("branches", [])
+
+	for i in range(branches.size()):
+		var branch: Dictionary = branches[i]
+		_create_branch_row(i, branch)
+
+
+func _create_branch_row(index: int, branch: Dictionary) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.set_meta("branch_index", index)
+
+	# Branch number label
+	var num_label: Label = Label.new()
+	num_label.text = "%d." % (index + 1)
+	num_label.custom_minimum_size.x = 20
+	row.add_child(num_label)
+
+	# Label field
+	var label_label: Label = Label.new()
+	label_label.text = "Label:"
+	label_label.custom_minimum_size.x = 40
+	row.add_child(label_label)
+
+	var label_edit: LineEdit = LineEdit.new()
+	label_edit.text = branch.get("label", "")
+	label_edit.custom_minimum_size.x = 180
+	label_edit.placeholder_text = "Choice text shown to player"
+	label_edit.text_changed.connect(_on_branch_label_changed.bind(index))
+	row.add_child(label_edit)
+
+	# Choice value field
+	var value_label: Label = Label.new()
+	value_label.text = "Value:"
+	value_label.custom_minimum_size.x = 40
+	row.add_child(value_label)
+
+	var value_edit: LineEdit = LineEdit.new()
+	value_edit.text = branch.get("choice_value", "")
+	value_edit.custom_minimum_size.x = 80
+	value_edit.placeholder_text = "Internal ID"
+	value_edit.text_changed.connect(_on_branch_value_changed.bind(index))
+	row.add_child(value_edit)
+
+	# Target dropdown
+	var target_label: Label = Label.new()
+	target_label.text = "Target:"
+	target_label.custom_minimum_size.x = 45
+	row.add_child(target_label)
+
+	var target_option: OptionButton = OptionButton.new()
+	target_option.custom_minimum_size.x = 120
+	_populate_branch_target_dropdown(target_option, branch.get("target", ""))
+	target_option.item_selected.connect(_on_branch_target_changed.bind(index))
+	row.add_child(target_option)
+
+	# Delete button
+	var delete_btn: Button = Button.new()
+	delete_btn.text = "-"
+	delete_btn.custom_minimum_size.x = 30
+	delete_btn.tooltip_text = "Remove this branch"
+	delete_btn.pressed.connect(_on_remove_branch.bind(index))
+	row.add_child(delete_btn)
+
+	branches_container.add_child(row)
+
+
+func _populate_branch_target_dropdown(option: OptionButton, current_target: String) -> void:
+	option.clear()
+	option.add_item("(None)", -1)
+
+	var nodes: Array = current_campaign_data.get("nodes", [])
+	var selected_index: int = 0
+
+	for i in range(nodes.size()):
+		var node: Dictionary = nodes[i]
+		var node_id: String = node.get("node_id", "")
+		var display: String = node.get("display_name", node_id)
+		option.add_item(display, i)
+		option.set_item_metadata(i + 1, node_id)
+
+		if node_id == current_target:
+			selected_index = i + 1
+
+	option.select(selected_index)
+
+
+func _on_add_branch() -> void:
+	if _updating_ui or selected_node_id.is_empty():
+		return
+
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	if "branches" not in node_data:
+		node_data["branches"] = []
+
+	var branches: Array = node_data["branches"]
+	var new_index: int = branches.size()
+
+	var new_branch: Dictionary = {
+		"label": "New Choice",
+		"choice_value": "choice_%d" % new_index,
+		"target": "",
+		"trigger": "choice"
+	}
+
+	branches.append(new_branch)
+	_rebuild_branches_ui()
+	_rebuild_graph()
+
+
+func _on_remove_branch(index: int) -> void:
+	if _updating_ui or selected_node_id.is_empty():
+		return
+
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var branches: Array = node_data.get("branches", [])
+
+	if index >= 0 and index < branches.size():
+		branches.remove_at(index)
+		_rebuild_branches_ui()
+		_rebuild_graph()
+
+
+func _on_branch_label_changed(new_text: String, index: int) -> void:
+	if _updating_ui or selected_node_id.is_empty():
+		return
+
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var branches: Array = node_data.get("branches", [])
+
+	if index >= 0 and index < branches.size():
+		branches[index]["label"] = new_text
+
+
+func _on_branch_value_changed(new_text: String, index: int) -> void:
+	if _updating_ui or selected_node_id.is_empty():
+		return
+
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var branches: Array = node_data.get("branches", [])
+
+	if index >= 0 and index < branches.size():
+		branches[index]["choice_value"] = new_text
+
+
+func _on_branch_target_changed(option_index: int, branch_index: int) -> void:
+	if _updating_ui or selected_node_id.is_empty():
+		return
+
+	var node_data: Dictionary = _get_node_data(selected_node_id)
+	var branches: Array = node_data.get("branches", [])
+
+	if branch_index >= 0 and branch_index < branches.size():
+		# Get the target option button from the row
+		var row: HBoxContainer = branches_container.get_child(branch_index)
+		if row:
+			for child in row.get_children():
+				if child is OptionButton:
+					var metadata: Variant = child.get_item_metadata(option_index)
+					var target: String = "" if (option_index == 0 or metadata == null) else str(metadata)
+					branches[branch_index]["target"] = target
+					branches[branch_index]["trigger"] = "choice"
+					_rebuild_graph()
+					break
 
 
 ## Public refresh method for standard editor interface
@@ -725,6 +938,23 @@ func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) 
 		defeat_slot.text = ""
 		graph_node.add_child(defeat_slot)
 		graph_node.set_slot(2, false, 0, Color.WHITE, true, 1, Color(0.8, 0.3, 0.3))  # Defeat (red)
+	elif node_type == "choice":
+		# Choice nodes have one output per branch
+		var branches: Array = node_data.get("branches", [])
+		if branches.is_empty():
+			# No branches yet - show placeholder
+			graph_node.set_slot(1, false, 0, Color.WHITE, true, 0, NODE_COLORS["choice"])
+		else:
+			# Create output slot for each branch
+			for i in range(branches.size()):
+				var branch: Dictionary = branches[i]
+				var branch_label: Label = Label.new()
+				branch_label.text = branch.get("label", "Choice %d" % (i + 1))
+				branch_label.add_theme_font_size_override("font_size", 14)
+				branch_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+				graph_node.add_child(branch_label)
+				# Slot index is child index (2 + i because we have type_label and id_label first)
+				graph_node.set_slot(2 + i, false, 0, Color.WHITE, true, 0, NODE_COLORS["choice"])
 	else:
 		# Other nodes just have on_complete
 		graph_node.set_slot(1, false, 0, Color.WHITE, true, 0, Color.WHITE)
@@ -751,6 +981,7 @@ func _create_connections() -> void:
 
 		# Port indices are sequential per side (0, 1, 2...), not slot indices
 		# Battle nodes: port 0 = victory, port 1 = defeat
+		# Choice nodes: port 0, 1, 2... for each branch
 		# Other nodes: port 0 = on_complete
 		if node_type == "battle":
 			# Victory connection (right port 0)
@@ -762,6 +993,14 @@ func _create_connections() -> void:
 			var defeat_target: String = node_data.get("on_defeat", "")
 			if not defeat_target.is_empty() and defeat_target in graph_nodes:
 				graph_edit.connect_node(from_id, 1, defeat_target, 0)
+		elif node_type == "choice":
+			# Connect each branch to its target
+			var branches: Array = node_data.get("branches", [])
+			for i in range(branches.size()):
+				var branch: Dictionary = branches[i]
+				var target: String = branch.get("target", "")
+				if not target.is_empty() and target in graph_nodes:
+					graph_edit.connect_node(from_id, i, target, 0)
 		else:
 			# on_complete connection (right port 0)
 			var complete_target: String = node_data.get("on_complete", "")
@@ -869,6 +1108,11 @@ func _clear_node_inspector() -> void:
 	completion_flag_edit.text = ""
 	completion_npc_edit.text = ""
 	completion_trigger_row.visible = false
+	transitions_row.visible = true
+	branches_section.visible = false
+	# Clear branches container
+	for child in branches_container.get_children():
+		child.queue_free()
 	_updating_ui = false
 
 
@@ -1026,6 +1270,8 @@ func _on_completion_npc_changed(new_text: String) -> void:
 
 
 func _update_completion_trigger_visibility(node_type: String, completion_trigger: String) -> void:
+	var is_choice: bool = (node_type == "choice")
+
 	# Only show completion trigger row for scene nodes
 	completion_trigger_row.visible = (node_type == "scene")
 
@@ -1038,6 +1284,14 @@ func _update_completion_trigger_visibility(node_type: String, completion_trigger
 	var show_npc: bool = (completion_trigger == "npc_interaction")
 	completion_npc_label.visible = show_npc
 	completion_npc_edit.visible = show_npc
+
+	# Hide transitions row for choice nodes (they use branches instead)
+	transitions_row.visible = not is_choice
+
+	# Show branches section only for choice nodes
+	branches_section.visible = is_choice
+	if is_choice:
+		_rebuild_branches_ui()
 
 
 func _on_starting_node_changed(index: int) -> void:
@@ -1071,6 +1325,7 @@ func _on_node_position_changed(node_id: String) -> void:
 func _on_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	# Determine which transition type based on from_port (port indices, not slot indices)
 	# Battle nodes: port 0 = victory, port 1 = defeat
+	# Choice nodes: port 0, 1, 2... for each branch
 	# Other nodes: port 0 = on_complete
 	var from_data: Dictionary = _get_node_data(String(from_node))
 	var node_type: String = from_data.get("node_type", "scene")
@@ -1082,6 +1337,11 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 			_update_node_data(String(from_node), "on_victory", target_id)
 		elif from_port == 1:  # Defeat (port 1)
 			_update_node_data(String(from_node), "on_defeat", target_id)
+	elif node_type == "choice":
+		# Update branch target
+		var branches: Array = from_data.get("branches", [])
+		if from_port >= 0 and from_port < branches.size():
+			branches[from_port]["target"] = target_id
 	else:
 		# on_complete (port 0)
 		_update_node_data(String(from_node), "on_complete", target_id)
@@ -1093,6 +1353,7 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 
 func _on_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	# Port indices: Battle nodes use port 0 = victory, port 1 = defeat
+	# Choice nodes: port 0, 1, 2... for each branch
 	# Other nodes use port 0 = on_complete
 	var from_data: Dictionary = _get_node_data(String(from_node))
 	var node_type: String = from_data.get("node_type", "scene")
@@ -1102,6 +1363,11 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 			_update_node_data(String(from_node), "on_victory", "")
 		elif from_port == 1:
 			_update_node_data(String(from_node), "on_defeat", "")
+	elif node_type == "choice":
+		# Clear branch target
+		var branches: Array = from_data.get("branches", [])
+		if from_port >= 0 and from_port < branches.size():
+			branches[from_port]["target"] = ""
 	else:
 		_update_node_data(String(from_node), "on_complete", "")
 
@@ -1149,6 +1415,11 @@ func _on_delete_node() -> void:
 			node["on_defeat"] = ""
 		if node.get("on_complete", "") == selected_node_id:
 			node["on_complete"] = ""
+		# Also clear branch targets pointing to this node
+		var branches: Array = node.get("branches", [])
+		for branch: Dictionary in branches:
+			if branch.get("target", "") == selected_node_id:
+				branch["target"] = ""
 
 	# Clear starting/hub if pointing to deleted node
 	if current_campaign_data.get("starting_node_id", "") == selected_node_id:

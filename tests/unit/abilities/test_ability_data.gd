@@ -384,14 +384,8 @@ func test_accuracy_can_be_reduced() -> void:
 
 
 # =============================================================================
-# EFFECT DURATION AND CHANCE
+# EFFECT CHANCE
 # =============================================================================
-
-func test_effect_duration_default_is_three() -> void:
-	var ability: AbilityData = AbilityData.new()
-
-	assert_int(ability.effect_duration).is_equal(3)
-
 
 func test_effect_chance_default_is_100() -> void:
 	var ability: AbilityData = AbilityData.new()

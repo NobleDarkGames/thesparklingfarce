@@ -17,7 +17,6 @@ var description_edit: TextEdit
 # VISUAL FIELDS
 # =============================================================================
 
-var icon_color_picker: ColorPickerButton
 var popup_text_edit: LineEdit
 var popup_color_picker: ColorPickerButton
 
@@ -25,6 +24,7 @@ var popup_color_picker: ColorPickerButton
 # TIMING FIELDS
 # =============================================================================
 
+var duration_spin: SpinBox
 var trigger_timing_option: OptionButton
 
 # =============================================================================
@@ -120,11 +120,11 @@ func _load_resource_data() -> void:
 	description_edit.text = effect.description
 
 	# Visual
-	icon_color_picker.color = effect.icon_color
 	popup_text_edit.text = effect.popup_text
 	popup_color_picker.color = effect.popup_color
 
 	# Timing
+	duration_spin.value = effect.duration
 	trigger_timing_option.selected = effect.trigger_timing
 
 	# Skip Turn
@@ -161,11 +161,11 @@ func _save_resource_data() -> void:
 	effect.description = description_edit.text
 
 	# Visual
-	effect.icon_color = icon_color_picker.color
 	effect.popup_text = popup_text_edit.text.strip_edges()
 	effect.popup_color = popup_color_picker.color
 
 	# Timing
+	effect.duration = int(duration_spin.value)
 	effect.trigger_timing = trigger_timing_option.selected as StatusEffectData.TriggerTiming
 
 	# Skip Turn
@@ -239,7 +239,6 @@ func _create_new_resource() -> Resource:
 	new_effect.effect_id = "new_effect"
 	new_effect.display_name = "New Status Effect"
 	new_effect.description = "A new status effect."
-	new_effect.icon_color = Color.WHITE
 	new_effect.popup_color = Color.WHITE
 	new_effect.trigger_timing = StatusEffectData.TriggerTiming.TURN_START
 	new_effect.skips_turn = false
@@ -289,15 +288,6 @@ func _add_visual_section() -> void:
 	form.add_section("Visual Display")
 	form.add_help_text("Configure how the status effect appears in the UI.")
 
-	# Icon Color - custom control
-	icon_color_picker = ColorPickerButton.new()
-	icon_color_picker.custom_minimum_size = Vector2(80, 0)
-	icon_color_picker.color = Color.WHITE
-	icon_color_picker.tooltip_text = "The color used for the status effect icon in the battle UI."
-	icon_color_picker.color_changed.connect(_on_color_changed)
-	form.add_labeled_control("Icon Color:", icon_color_picker,
-		"The color used for the status effect icon in the battle UI.")
-
 	popup_text_edit = form.add_text_field("Popup Text:", "(uses display name if empty)",
 		"Custom text to display when the effect triggers. Leave empty to use display name.")
 
@@ -314,8 +304,10 @@ func _add_visual_section() -> void:
 func _add_timing_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.on_change(_mark_dirty)
-	form.add_section("Trigger Timing")
-	form.add_help_text("When does this effect's behavior activate?")
+	form.add_section("Timing")
+
+	duration_spin = form.add_number_field("Duration (turns):", 0, 99, 3,
+		"How many turns this effect lasts. 0 = until removed by other means (damage, cure, etc).")
 
 	# Trigger Timing - custom dropdown with specific IDs
 	trigger_timing_option = OptionButton.new()

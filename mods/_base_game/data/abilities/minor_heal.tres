@@ -16,6 +16,5 @@ hp_cost = 0
 power = 20
 accuracy = 100
 status_effects = Array[String]([])
-effect_duration = 0
 effect_chance = 100
 description = "Restores a small amount of HP to one ally."

@@ -30,6 +30,8 @@ const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 const ItemMenuScene: PackedScene = preload("res://scenes/ui/item_menu.tscn")
 const SpellMenuScene: PackedScene = preload("res://scenes/ui/spell_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
+const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
+const ChoiceSelectorScene: PackedScene = preload("res://scenes/ui/choice_selector.tscn")
 
 ## Battle data - set via TriggerManager or Inspector for testing
 @export var battle_data: BattleData
@@ -48,6 +50,8 @@ var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
 var _combat_forecast_panel: CombatForecastPanel = null  # Combat forecast panel
 var _turn_order_panel: TurnOrderPanel = null  # Turn order preview panel
 var _camera: CameraController = null  # Camera controller
+var _dialog_box: Control = null  # Dialog box for pre/post battle dialogue
+var _choice_selector: Control = null  # Choice selector for dialogue choices
 var _debug_visible: bool = false  # Debug display toggle (F3)
 var _map_instance: Node2D = null  # Instanced map scene
 var _map_node: Node2D = null  # The active Map node (from loaded map scene)
@@ -213,6 +217,17 @@ func _ready() -> void:
 	$UI.add_child(_spell_menu)
 	InputManager.set_spell_menu(_spell_menu)
 
+	# Setup dialog box for pre/post battle dialogue
+	_dialog_box = DialogBoxScene.instantiate()
+	_dialog_box.hide()
+	$UI.add_child(_dialog_box)
+	DialogManager.dialog_box = _dialog_box
+
+	# Setup choice selector for dialogue choices
+	_choice_selector = ChoiceSelectorScene.instantiate()
+	_choice_selector.hide()
+	$UI.add_child(_choice_selector)
+
 	# Setup grid cursor
 	_grid_cursor = GridCursorScene.instantiate()
 	_map_node.add_child(_grid_cursor)
@@ -270,6 +285,11 @@ func _ready() -> void:
 
 	# Register camera with all game systems (TurnManager, CinematicsManager)
 	_camera.register_with_systems()
+
+	# Play pre-battle dialogue if configured
+	if battle_data.pre_battle_dialogue:
+		if DialogManager.start_dialog_from_resource(battle_data.pre_battle_dialogue):
+			await DialogManager.dialog_ended
 
 	# Start turn-based battle (this will emit signals immediately)
 	var all_units: Array[Node2D] = _player_units + _enemy_units + _neutral_units
@@ -466,3 +486,9 @@ func _update_turn_order_display(active_unit: Node2D) -> void:
 func _on_combat_resolved(_attacker: Node2D, _defender: Node2D, _damage: int, _hit: bool, _crit: bool) -> void:
 	# TODO: Show damage numbers (Phase 3)
 	pass
+
+
+func _exit_tree() -> void:
+	# Clear DialogManager reference to avoid dangling pointer
+	if DialogManager.dialog_box == _dialog_box:
+		DialogManager.dialog_box = null
