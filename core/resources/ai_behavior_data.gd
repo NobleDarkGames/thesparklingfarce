@@ -13,7 +13,7 @@ extends Resource
 ## - Base behavior inheritance reduces duplication
 ## - Behavior phases enable boss phase changes without custom scripts
 ##
-## See also: AIRoleRegistry, AIModeRegistry, ConfigurableAIBrain
+## See also: AIModeRegistry, ConfigurableAIBrain
 
 # =============================================================================
 # IDENTITY
@@ -42,9 +42,8 @@ extends Resource
 # ROLE & MODE (Registry-Based, NOT Hardcoded Enums)
 # =============================================================================
 
-## The unit's tactical role - validated against AIRoleRegistry
-## Default roles: "support", "aggressive", "defensive", "tactical"
-## Mods can add: "hacking", "psionic", "berserker", etc.
+## The unit's tactical role - determines primary combat behavior
+## Built-in roles: "support", "aggressive", "defensive", "tactical"
 ## Empty string = inherit from base_behavior or use default "aggressive"
 @export var role: String = ""
 

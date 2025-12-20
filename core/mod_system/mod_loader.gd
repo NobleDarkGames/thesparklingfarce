@@ -61,7 +61,6 @@ const EquipmentTypeRegistryClass: GDScript = preload("res://core/registries/equi
 const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_config.gd")
 const AIBrainRegistryClass: GDScript = preload("res://core/registries/ai_brain_registry.gd")
 const TilesetRegistryClass: GDScript = preload("res://core/registries/tileset_registry.gd")
-const AIRoleRegistryClass: GDScript = preload("res://core/registries/ai_role_registry.gd")
 const AIModeRegistryClass: GDScript = preload("res://core/registries/ai_mode_registry.gd")
 const StatusEffectRegistryClass: GDScript = preload("res://core/registries/status_effect_registry.gd")
 
@@ -94,8 +93,7 @@ var ai_brain_registry: RefCounted = AIBrainRegistryClass.new()
 # Tileset registry (declared in mod.json with metadata, also auto-discovered)
 var tileset_registry: RefCounted = TilesetRegistryClass.new()
 
-# AI role and mode registries (for configurable AI behaviors)
-var ai_role_registry: RefCounted = AIRoleRegistryClass.new()
+# AI mode registry (for configurable AI behaviors)
 var ai_mode_registry: RefCounted = AIModeRegistryClass.new()
 
 # Status effect registry (data-driven status effects)
@@ -511,10 +509,6 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 	# Tileset declarations (from mod.json)
 	if not manifest.tilesets.is_empty():
 		tileset_registry.register_from_config(manifest.mod_id, manifest.tilesets, manifest.mod_directory)
-
-	# AI role declarations (from mod.json)
-	if not manifest.ai_roles.is_empty():
-		ai_role_registry.register_from_config(manifest.mod_id, manifest.ai_roles, manifest.mod_directory)
 
 	# AI mode declarations (from mod.json)
 	if not manifest.ai_modes.is_empty():
@@ -983,8 +977,7 @@ func reload_mods() -> void:
 	# Clear AI brain and tileset registries
 	ai_brain_registry.clear_mod_registrations()
 	tileset_registry.clear_mod_registrations()
-	# Clear AI role and mode registries
-	ai_role_registry.clear_mod_registrations()
+	# Clear AI mode registry
 	ai_mode_registry.clear_mod_registrations()
 	# Clear status effect registry
 	status_effect_registry.clear_mod_registrations()
@@ -1013,8 +1006,7 @@ func reload_mods_async() -> void:
 	# Clear AI brain and tileset registries
 	ai_brain_registry.clear_mod_registrations()
 	tileset_registry.clear_mod_registrations()
-	# Clear AI role and mode registries
-	ai_role_registry.clear_mod_registrations()
+	# Clear AI mode registry
 	ai_mode_registry.clear_mod_registrations()
 	# Clear status effect registry
 	status_effect_registry.clear_mod_registrations()

@@ -662,15 +662,19 @@ func _populate_role_options() -> void:
 	role_option.add_item("(Inherit from base)", 0)
 	role_option.set_item_metadata(0, "")
 
-	# Get roles from registry
-	if ModLoader and ModLoader.ai_role_registry:
-		var roles: Array[Dictionary] = ModLoader.ai_role_registry.get_all_roles()
-		for i: int in range(roles.size()):
-			var role: Dictionary = roles[i]
-			var display: String = role.get("display_name", role.get("id", "unknown"))
-			role_option.add_item(display, i + 1)
-			role_option.set_item_metadata(i + 1, role.get("id", ""))
-			role_option.set_item_tooltip(i + 1, role.get("description", ""))
+	# Built-in roles (hardcoded - ConfigurableAIBrain implements these directly)
+	var roles: Array[Dictionary] = [
+		{"id": "aggressive", "display_name": "Aggressive", "description": "Standard attack priority - pursue and attack enemies"},
+		{"id": "support", "display_name": "Support", "description": "Prioritize healing allies before attacking"},
+		{"id": "defensive", "display_name": "Defensive", "description": "Protect high-value allies (bodyguard behavior)"},
+		{"id": "tactical", "display_name": "Tactical", "description": "Prioritize debuffs and status effects"}
+	]
+	for i: int in range(roles.size()):
+		var role: Dictionary = roles[i]
+		var display: String = role.get("display_name", role.get("id", "unknown"))
+		role_option.add_item(display, i + 1)
+		role_option.set_item_metadata(i + 1, role.get("id", ""))
+		role_option.set_item_tooltip(i + 1, role.get("description", ""))
 
 
 func _populate_mode_options() -> void:
