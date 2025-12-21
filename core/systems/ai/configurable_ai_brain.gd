@@ -29,8 +29,8 @@ func execute_with_behavior(unit: Node2D, context: Dictionary, behavior: AIBehavi
 		await execute_async(unit, context)
 		return
 
-	var role: String = behavior.get_effective_role()
-	var mode: String = behavior.get_effective_mode()
+	var role: String = behavior.role
+	var mode: String = behavior.behavior_mode
 
 	# Add HP percent to context for phase evaluation
 	if unit.stats:
@@ -276,8 +276,8 @@ func _find_best_target(unit: Node2D, targets: Array[Node2D], behavior: AIBehavio
 	var best_target: Node2D = null
 	var best_score: float = -999.0
 
-	var wounded_weight: float = behavior.get_effective_threat_weight("wounded_target", 1.0) if behavior else 1.0
-	var proximity_weight: float = behavior.get_effective_threat_weight("proximity", 1.0) if behavior else 1.0
+	var wounded_weight: float = behavior.get_threat_weight("wounded_target", 1.0) if behavior else 1.0
+	var proximity_weight: float = behavior.get_threat_weight("proximity", 1.0) if behavior else 1.0
 
 	for target: Node2D in targets:
 		if not target.is_alive():
@@ -345,25 +345,25 @@ func _calculate_unit_threat(unit: Node2D, behavior: AIBehaviorData) -> float:
 			AbilityData.AbilityType.HEAL:
 				# Healers are high-value targets
 				var base_threat: float = 30.0 + ability.potency * 0.5
-				var weight: float = behavior.get_effective_threat_weight("healer", 1.0)
+				var weight: float = behavior.get_threat_weight("healer", 1.0)
 				threat += base_threat * contribution * weight
 
 			AbilityData.AbilityType.ATTACK:
 				# Damage dealers based on spell power
 				var base_threat: float = ability.potency * 0.5
-				var weight: float = behavior.get_effective_threat_weight("damage_dealer", 1.0)
+				var weight: float = behavior.get_threat_weight("damage_dealer", 1.0)
 				threat += base_threat * contribution * weight
 
 			AbilityData.AbilityType.DEBUFF, AbilityData.AbilityType.STATUS:
 				# Debuffers can swing battles
 				var base_threat: float = 20.0
-				var weight: float = behavior.get_effective_threat_weight("debuffer", 1.0)
+				var weight: float = behavior.get_threat_weight("debuffer", 1.0)
 				threat += base_threat * contribution * weight
 
 			AbilityData.AbilityType.SUPPORT:
 				# Buffers help their team
 				var base_threat: float = 15.0
-				var weight: float = behavior.get_effective_threat_weight("support", 1.0)
+				var weight: float = behavior.get_threat_weight("support", 1.0)
 				threat += base_threat * contribution * weight
 
 			_:
@@ -372,12 +372,12 @@ func _calculate_unit_threat(unit: Node2D, behavior: AIBehaviorData) -> float:
 
 	# Add stat-based threat (high attack = dangerous)
 	var attack_stat: int = unit.stats.strength if unit.stats else 0
-	var attack_weight: float = behavior.get_effective_threat_weight("high_attack", 1.0)
+	var attack_weight: float = behavior.get_threat_weight("high_attack", 1.0)
 	threat += attack_stat * 0.3 * attack_weight
 
 	# Low defense = vulnerable = good target
 	var defense_stat: int = unit.stats.defense if unit.stats else 0
-	var defense_weight: float = behavior.get_effective_threat_weight("low_defense", 1.0)
+	var defense_weight: float = behavior.get_threat_weight("low_defense", 1.0)
 	if defense_stat < 10:
 		threat += (10 - defense_stat) * 2.0 * defense_weight
 

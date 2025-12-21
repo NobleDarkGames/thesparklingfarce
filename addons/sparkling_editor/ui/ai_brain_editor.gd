@@ -17,7 +17,6 @@ var description_edit: TextEdit
 # =============================================================================
 var role_option: OptionButton
 var mode_option: OptionButton
-var base_behavior_picker: ResourcePicker
 
 # =============================================================================
 # UI Components - Threat Assessment Section
@@ -106,7 +105,6 @@ func _load_resource_data() -> void:
 	# Role & Mode
 	_select_option_by_value(role_option, behavior.role)
 	_select_option_by_value(mode_option, behavior.behavior_mode)
-	_select_base_behavior(behavior.base_behavior)
 
 	# Threat Assessment
 	ignore_protagonist_check.button_pressed = behavior.ignore_protagonist_priority
@@ -154,7 +152,6 @@ func _save_resource_data() -> void:
 	# Role & Mode
 	behavior.role = _get_selected_role()
 	behavior.behavior_mode = _get_selected_mode()
-	behavior.base_behavior = _get_selected_base_behavior()
 
 	# Threat Assessment
 	behavior.ignore_protagonist_priority = ignore_protagonist_check.button_pressed
@@ -216,13 +213,6 @@ func _validate_resource() -> Dictionary:
 	if int(engagement_range_spin.value) > int(alert_range_spin.value):
 		errors.append("Engagement range cannot exceed alert range")
 
-	# Check for circular inheritance
-	var base: AIBehaviorData = _get_selected_base_behavior()
-	if base == behavior:
-		errors.append("Behavior cannot inherit from itself")
-	elif base and _would_create_circular_inheritance(behavior, base):
-		errors.append("This would create circular inheritance")
-
 	return {valid = errors.is_empty(), errors = errors}
 
 
@@ -250,8 +240,7 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 ## Override: Called when dependent resources change
 func _on_dependencies_changed(_changed_type: String) -> void:
-	if base_behavior_picker:
-		base_behavior_picker.refresh()
+	pass  # No dependencies to refresh
 
 
 # =============================================================================
@@ -355,17 +344,6 @@ func _add_role_mode_section() -> void:
 	mode_option.item_selected.connect(_on_mode_selected)
 	mode_container.add_child(mode_option)
 	section.add_child(mode_container)
-
-	# Base Behavior (Inheritance)
-	# Base behavior picker - uses ResourcePicker for proper cross-mod support
-	base_behavior_picker = ResourcePicker.new()
-	base_behavior_picker.resource_type = "ai_behavior"
-	base_behavior_picker.label_text = "Inherits From:"
-	base_behavior_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	base_behavior_picker.allow_none = true
-	base_behavior_picker.tooltip_text = "Inherit settings from another behavior. Unset values use the base. Good for variants."
-	base_behavior_picker.resource_selected.connect(_on_base_behavior_selected)
-	section.add_child(base_behavior_picker)
 
 	# Populate dropdowns
 	_populate_role_options()
@@ -659,8 +637,6 @@ func _add_preview_section() -> void:
 
 func _populate_role_options() -> void:
 	role_option.clear()
-	role_option.add_item("(Inherit from base)", 0)
-	role_option.set_item_metadata(0, "")
 
 	# Built-in roles (hardcoded - ConfigurableAIBrain implements these directly)
 	var roles: Array[Dictionary] = [
@@ -672,15 +648,13 @@ func _populate_role_options() -> void:
 	for i: int in range(roles.size()):
 		var role: Dictionary = roles[i]
 		var display: String = role.get("display_name", role.get("id", "unknown"))
-		role_option.add_item(display, i + 1)
-		role_option.set_item_metadata(i + 1, role.get("id", ""))
-		role_option.set_item_tooltip(i + 1, role.get("description", ""))
+		role_option.add_item(display, i)
+		role_option.set_item_metadata(i, role.get("id", ""))
+		role_option.set_item_tooltip(i, role.get("description", ""))
 
 
 func _populate_mode_options() -> void:
 	mode_option.clear()
-	mode_option.add_item("(Inherit from base)", 0)
-	mode_option.set_item_metadata(0, "")
 
 	# Get modes from registry
 	if ModLoader and ModLoader.ai_mode_registry:
@@ -688,9 +662,9 @@ func _populate_mode_options() -> void:
 		for i: int in range(modes.size()):
 			var mode: Dictionary = modes[i]
 			var display: String = mode.get("display_name", mode.get("id", "unknown"))
-			mode_option.add_item(display, i + 1)
-			mode_option.set_item_metadata(i + 1, mode.get("id", ""))
-			mode_option.set_item_tooltip(i + 1, mode.get("description", ""))
+			mode_option.add_item(display, i)
+			mode_option.set_item_metadata(i, mode.get("id", ""))
+			mode_option.set_item_tooltip(i, mode.get("description", ""))
 
 
 # =============================================================================
@@ -702,15 +676,8 @@ func _select_option_by_value(option_button: OptionButton, value: String) -> void
 		if option_button.get_item_metadata(i) == value:
 			option_button.select(i)
 			return
-	# Default to first item (inherit) if not found
+	# Default to first item if not found
 	option_button.select(0)
-
-
-func _select_base_behavior(base: AIBehaviorData) -> void:
-	if base:
-		base_behavior_picker.select_resource(base)
-	else:
-		base_behavior_picker.select_none()
 
 
 func _get_selected_role() -> String:
@@ -725,10 +692,6 @@ func _get_selected_mode() -> String:
 	if idx >= 0:
 		return str(mode_option.get_item_metadata(idx))
 	return ""
-
-
-func _get_selected_base_behavior() -> AIBehaviorData:
-	return base_behavior_picker.get_selected_resource() as AIBehaviorData
 
 
 # =============================================================================
@@ -848,11 +811,6 @@ func _on_mode_selected(_index: int) -> void:
 	_update_preview()
 
 
-func _on_base_behavior_selected(_metadata: Dictionary) -> void:
-	_mark_dirty()
-	_update_preview()
-
-
 # =============================================================================
 # Preview Generation
 # =============================================================================
@@ -866,12 +824,12 @@ func _update_preview() -> void:
 	# Role and Mode
 	var role: String = _get_selected_role()
 	var mode: String = _get_selected_mode()
-	var base: AIBehaviorData = _get_selected_base_behavior()
 
-	var effective_role: String = role if not role.is_empty() else (base.get_effective_role() if base else "aggressive")
-	var effective_mode: String = mode if not mode.is_empty() else (base.get_effective_mode() if base else "aggressive")
+	# Use defaults if not selected
+	var display_role: String = role if not role.is_empty() else "aggressive"
+	var display_mode: String = mode if not mode.is_empty() else "aggressive"
 
-	lines.append("[b]Role:[/b] %s | [b]Mode:[/b] %s" % [effective_role.capitalize(), effective_mode.capitalize()])
+	lines.append("[b]Role:[/b] %s | [b]Mode:[/b] %s" % [display_role.capitalize(), display_mode.capitalize()])
 
 	# Retreat behavior
 	if retreat_enabled_check.button_pressed:
@@ -893,28 +851,4 @@ func _update_preview() -> void:
 	if not behaviors.is_empty():
 		lines.append("[b]Traits:[/b] " + ", ".join(behaviors))
 
-	# Inheritance
-	if base:
-		lines.append("[b]Inherits from:[/b] " + (base.display_name if not base.display_name.is_empty() else base.behavior_id))
-
 	preview_label.text = "\n".join(lines)
-
-
-# =============================================================================
-# Validation Helpers
-# =============================================================================
-
-func _would_create_circular_inheritance(behavior: AIBehaviorData, new_base: AIBehaviorData) -> bool:
-	# Check if new_base eventually points back to behavior
-	var visited: Array[AIBehaviorData] = []
-	var current: AIBehaviorData = new_base
-
-	while current != null:
-		if current == behavior:
-			return true
-		if current in visited:
-			return true  # Already a cycle in the base chain
-		visited.append(current)
-		current = current.base_behavior
-
-	return false

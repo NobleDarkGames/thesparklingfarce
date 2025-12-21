@@ -29,29 +29,16 @@ extends Resource
 @export_multiline var description: String = ""
 
 # =============================================================================
-# INHERITANCE
-# =============================================================================
-
-## Base behavior to inherit from. Properties with empty/default values
-## will fall through to the base behavior's values. This reduces duplication
-## when creating behavior variants (e.g., "aggressive_melee_cautious" inherits
-## from "aggressive_melee" but overrides behavior_mode).
-@export var base_behavior: AIBehaviorData = null
-
-# =============================================================================
-# ROLE & MODE (Registry-Based, NOT Hardcoded Enums)
+# ROLE & MODE
 # =============================================================================
 
 ## The unit's tactical role - determines primary combat behavior
 ## Built-in roles: "support", "aggressive", "defensive", "tactical"
-## Empty string = inherit from base_behavior or use default "aggressive"
-@export var role: String = ""
+@export var role: String = "aggressive"
 
-## Behavior mode - validated against AIModeRegistry
-## Default modes: "aggressive", "cautious", "opportunistic"
-## Mods can add: "berserk", "protective", "evasive", etc.
-## Empty string = inherit from base_behavior or use default "aggressive"
-@export var behavior_mode: String = ""
+## Behavior mode - how the AI executes its role
+## Built-in modes: "aggressive", "cautious", "opportunistic"
+@export var behavior_mode: String = "aggressive"
 
 # =============================================================================
 # THREAT ASSESSMENT WEIGHTS (Extensible Dictionary)
@@ -61,7 +48,6 @@ extends Resource
 ## Default keys: "wounded_target", "damage_dealer", "healer", "proximity"
 ## Mods can add custom keys like "psionic_power", "hacking_vulnerability"
 ## Values typically range 0.0-2.0 where 1.0 is normal priority.
-## Empty dictionary = inherit from base_behavior or use defaults.
 @export var threat_weights: Dictionary = {}
 
 ## If true, avoids disproportionately targeting the hero/protagonist
@@ -155,70 +141,12 @@ extends Resource
 @export var behavior_phases: Array[Dictionary] = []
 
 # =============================================================================
-# EFFECTIVE VALUE RESOLUTION (Inheritance Support)
+# ACCESSORS
 # =============================================================================
 
-## Get the effective role, resolving inheritance chain
-func get_effective_role() -> String:
-	if not role.is_empty():
-		return role
-	if base_behavior:
-		return base_behavior.get_effective_role()
-	return "aggressive"
-
-
-## Get the effective mode, resolving inheritance chain
-func get_effective_mode() -> String:
-	if not behavior_mode.is_empty():
-		return behavior_mode
-	if base_behavior:
-		return base_behavior.get_effective_mode()
-	return "aggressive"
-
-
-## Get a threat weight value, resolving inheritance chain
-func get_effective_threat_weight(key: String, default: float = 1.0) -> float:
-	if key in threat_weights:
-		return threat_weights[key]
-	if base_behavior:
-		return base_behavior.get_effective_threat_weight(key, default)
-	return default
-
-
-## Get all threat weights merged with inheritance chain
-func get_all_effective_threat_weights() -> Dictionary:
-	var result: Dictionary = {}
-
-	# Start with base behavior's weights (if any)
-	if base_behavior:
-		result = base_behavior.get_all_effective_threat_weights()
-
-	# Override with our weights
-	for key: String in threat_weights.keys():
-		result[key] = threat_weights[key]
-
-	return result
-
-
-## Get the effective retreat threshold, resolving inheritance chain
-func get_effective_retreat_threshold() -> int:
-	# Note: Since we can't distinguish "not set" from "set to 0",
-	# we only inherit if this behavior has base_behavior AND retreat_hp_threshold == 30 (default)
-	# In practice, most inheritance will be explicit via base_behavior reference
-	if retreat_hp_threshold != 30:
-		return retreat_hp_threshold
-	if base_behavior:
-		return base_behavior.get_effective_retreat_threshold()
-	return retreat_hp_threshold
-
-
-## Check if retreat is enabled, resolving inheritance chain
-func is_retreat_enabled() -> bool:
-	if not retreat_enabled:
-		return false
-	if base_behavior:
-		return base_behavior.is_retreat_enabled()
-	return retreat_enabled
+## Get a threat weight value with fallback to default
+func get_threat_weight(key: String, default: float = 1.0) -> float:
+	return threat_weights.get(key, default)
 
 
 # =============================================================================
@@ -296,13 +224,6 @@ func validate() -> Dictionary:
 	if behavior_id.strip_edges().is_empty():
 		errors.append("Behavior ID cannot be empty")
 
-	# Check for circular inheritance
-	if _has_circular_inheritance():
-		errors.append("Circular inheritance detected in base_behavior chain")
-
-	# Validate role if set (can't validate against registry here without autoload access)
-	# Runtime validation will catch invalid roles
-
 	# Validate phase triggers
 	for i: int in range(behavior_phases.size()):
 		var phase: Dictionary = behavior_phases[i]
@@ -317,20 +238,6 @@ func validate() -> Dictionary:
 	}
 
 
-## Check for circular inheritance
-func _has_circular_inheritance() -> bool:
-	var visited: Array[AIBehaviorData] = []
-	var current: AIBehaviorData = self
-
-	while current != null:
-		if current in visited:
-			return true
-		visited.append(current)
-		current = current.base_behavior
-
-	return false
-
-
 # =============================================================================
 # UTILITY
 # =============================================================================
@@ -339,12 +246,10 @@ func _has_circular_inheritance() -> bool:
 func get_behavior_summary() -> String:
 	var parts: Array[String] = []
 
-	var eff_role: String = get_effective_role()
-	var eff_mode: String = get_effective_mode()
-	parts.append("%s (%s)" % [eff_role.capitalize(), eff_mode.capitalize()])
+	parts.append("%s (%s)" % [role.capitalize(), behavior_mode.capitalize()])
 
-	if is_retreat_enabled():
-		parts.append("Retreats at %d%% HP" % get_effective_retreat_threshold())
+	if retreat_enabled:
+		parts.append("Retreats at %d%% HP" % retreat_hp_threshold)
 	else:
 		parts.append("No retreat")
 
