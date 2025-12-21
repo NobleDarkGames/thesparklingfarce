@@ -1,7 +1,7 @@
 # The Sparkling Farce - Development Status
 
-**Last Updated:** December 18, 2025
-**Current Phase:** Phase 5.2 Complete — Editor & Tooling Feature-Complete
+**Last Updated:** December 20, 2025
+**Current Phase:** Phase 5.3 — Code Consolidation & Polish
 
 ---
 
@@ -209,10 +209,10 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 ## Technical Overview
 
 **Codebase:**
-- 703 GDScript files
-- ~154,500 lines of code (excluding GUT framework)
-- 1,155 automated tests
+- 285 GDScript files (~103,000 lines of code, excluding gdUnit4)
+- 1,102 automated tests
 - Godot 4.5.1 stable
+- ~5,500 LOC removed in recent consolidation effort
 
 **Autoload Singletons (31):**
 ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager, PartyManager, ExperienceManager, PromotionManager, EquipmentManager, ShopManager, CraftingManager, AudioManager, DialogManager, CinematicsManager, GridManager, TurnManager, InputManager, BattleManager, ExplorationUIManager, AIController, CampaignManager, GameJuice, CaravanController, EditorEventBus, DebugConsole, ShopController, RandomManager, SettingsManager, GameEventBus, LocalizationManager
@@ -231,7 +231,30 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 ---
 
-## Recent Session (December 18, 2025)
+## Recent Session (December 20, 2025)
+
+**Code Consolidation (~5,500 LOC removed over 5 days):**
+- Removed unused AI plugin system (AIRoleRegistry, AIRoleBehavior): -1,400 lines
+- Removed AI behavior inheritance system (base_behavior, get_effective_*): -160 lines
+- Removed BattleMapPreview component: -676 lines
+- Removed dead code, debug files, legacy migration: -1,210 lines
+- FormBuilder pattern reduces editor boilerplate: -585 lines
+- Editor streamlining for SF2 authenticity: -1,300 lines
+
+**Battle Dialogue System:**
+- Pre-battle, victory, and defeat dialogues now properly trigger
+- DialogBox and ChoiceSelector added to battle_loader.gd
+- Defensive guards for async race conditions
+
+**AI System Simplification:**
+- ConfigurableAIBrain uses direct field access (no more inheritance chain)
+- Data-driven AIBehaviorData covers 95%+ of modder needs
+- 4 built-in roles: aggressive, support, defensive, tactical
+- 3 built-in modes: aggressive, cautious, opportunistic
+
+---
+
+## Session (December 18, 2025)
 
 **Sparkling Editor 100% Coverage:**
 - Three new visual editors (Status Effect, Experience Config, Caravan)

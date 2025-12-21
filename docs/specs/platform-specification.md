@@ -1,6 +1,6 @@
 # The Sparkling Farce Platform Specification
 
-**For AI Agents** | Godot 4.5.1 | v4.4.0
+**For AI Agents** | Godot 4.5.1 | v4.5.0
 
 ---
 
@@ -171,7 +171,6 @@ Accessed via `ModLoader.<registry_name>`:
 | equipment_slot_registry | Data-driven equipment slots |
 | terrain_registry | Terrain data by type |
 | ai_brain_registry | AI brain scripts |
-| ai_role_registry | Configurable AI roles |
 | ai_mode_registry | AI behavior modes |
 | status_effect_registry | Status effect definitions |
 | tileset_registry | TileSet resources |
