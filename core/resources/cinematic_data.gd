@@ -36,6 +36,12 @@ enum CommandType {
 @export var cinematic_name: String = ""
 @export_multiline var description: String = ""
 
+@export_group("Actors")
+## Actors to spawn before cinematic commands execute
+## Each actor: {actor_id: String, character_id: String, position: Array[int], facing: String}
+## Actors are automatically cleaned up when cinematic ends
+@export var actors: Array[Dictionary] = []
+
 @export_group("Commands")
 ## Array of command dictionaries to execute in sequence
 ## Each command has: type (String), target (String, optional), params (Dictionary)
@@ -212,7 +218,34 @@ func add_fade_screen(fade_type: String, duration: float = 1.0) -> void:
 	commands.append(command)
 
 
-## Add a spawn entity command
+## Add an actor to be spawned before commands execute
+## Use this instead of spawn_entity when you want actors ready at cinematic start
+## @param actor_id: Unique ID to reference this actor in commands
+## @param position: Grid position [x, y] or Vector2i
+## @param facing: Initial facing direction
+## @param character_id: Optional CharacterData ID for sprite/appearance
+func add_actor(actor_id: String, position: Variant, facing: String = "down", character_id: String = "") -> void:
+	var pos_array: Array = [0, 0]
+	if position is Array and position.size() >= 2:
+		pos_array = [position[0], position[1]]
+	elif position is Vector2i:
+		pos_array = [position.x, position.y]
+	elif position is Vector2:
+		pos_array = [int(position.x), int(position.y)]
+
+	var actor_def: Dictionary = {
+		"actor_id": actor_id,
+		"position": pos_array,
+		"facing": facing
+	}
+	if not character_id.is_empty():
+		actor_def["character_id"] = character_id
+
+	actors.append(actor_def)
+
+
+## Add a spawn entity command (spawns during command execution)
+## For actors that should exist from the start, use add_actor() instead
 func add_spawn_entity(actor_id: String, position: Vector2, facing: String = "down") -> void:
 	var command: Dictionary = {
 		"type": "spawn_entity",

@@ -277,6 +277,20 @@ var can_skip_check: CheckBox
 var disable_input_check: CheckBox
 var save_button: Button
 
+# UI Components - Actors panel
+var actors_container: VBoxContainer
+var actors_list: ItemList
+var add_actor_button: Button
+var delete_actor_button: Button
+var selected_actor_index: int = -1
+
+# Actor inspector fields
+var actor_id_edit: LineEdit
+var actor_character_picker: OptionButton
+var actor_pos_x_spin: SpinBox
+var actor_pos_y_spin: SpinBox
+var actor_facing_picker: OptionButton
+
 # Quick Add Dialog popup
 var dialog_line_popup: Window
 
@@ -414,6 +428,9 @@ func _setup_command_list_panel(parent: HSplitContainer) -> void:
 
 	# Metadata section
 	_setup_metadata_section(center_panel)
+
+	# Actors section (collapsible)
+	_setup_actors_section(center_panel)
 
 	# Command list header
 	var cmd_header: HBoxContainer = HBoxContainer.new()
@@ -555,6 +572,143 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	# Separator
 	var sep: HSeparator = HSeparator.new()
 	section.add_child(sep)
+
+
+func _setup_actors_section(parent: VBoxContainer) -> void:
+	# Collapsible actors section
+	actors_container = VBoxContainer.new()
+	actors_container.add_theme_constant_override("separation", 4)
+	parent.add_child(actors_container)
+
+	# Header with toggle
+	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", 4)
+	actors_container.add_child(header)
+
+	var actors_label: Label = Label.new()
+	actors_label.text = "Actors"
+	actors_label.add_theme_font_size_override("font_size", 14)
+	actors_label.tooltip_text = "Actors spawn before commands execute. Use for characters that need to exist at cinematic start."
+	header.add_child(actors_label)
+
+	header.add_spacer(false)
+
+	add_actor_button = Button.new()
+	add_actor_button.text = "+ Add"
+	add_actor_button.tooltip_text = "Add a new actor"
+	add_actor_button.pressed.connect(_on_add_actor)
+	header.add_child(add_actor_button)
+
+	delete_actor_button = Button.new()
+	delete_actor_button.text = "Del"
+	delete_actor_button.tooltip_text = "Delete selected actor"
+	delete_actor_button.disabled = true
+	delete_actor_button.pressed.connect(_on_delete_actor)
+	header.add_child(delete_actor_button)
+
+	# Actor list (compact)
+	actors_list = ItemList.new()
+	actors_list.custom_minimum_size.y = 60
+	actors_list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	actors_list.item_selected.connect(_on_actor_selected)
+	actors_list.allow_reselect = true
+	actors_container.add_child(actors_list)
+
+	# Actor inline editor (shown when actor is selected)
+	var actor_editor: VBoxContainer = VBoxContainer.new()
+	actor_editor.name = "ActorEditor"
+	actor_editor.add_theme_constant_override("separation", 4)
+	actors_container.add_child(actor_editor)
+
+	# Actor ID row
+	var id_row: HBoxContainer = HBoxContainer.new()
+	actor_editor.add_child(id_row)
+
+	var id_label: Label = Label.new()
+	id_label.text = "ID:"
+	id_label.custom_minimum_size.x = 70
+	id_row.add_child(id_label)
+
+	actor_id_edit = LineEdit.new()
+	actor_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_id_edit.placeholder_text = "unique_actor_id"
+	actor_id_edit.tooltip_text = "Unique ID to reference this actor in commands"
+	actor_id_edit.text_changed.connect(_on_actor_id_changed)
+	id_row.add_child(actor_id_edit)
+
+	# Character picker row
+	var char_row: HBoxContainer = HBoxContainer.new()
+	actor_editor.add_child(char_row)
+
+	var char_label: Label = Label.new()
+	char_label.text = "Character:"
+	char_label.custom_minimum_size.x = 70
+	char_row.add_child(char_label)
+
+	actor_character_picker = OptionButton.new()
+	actor_character_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_character_picker.tooltip_text = "Character to spawn (provides sprite)"
+	actor_character_picker.item_selected.connect(_on_actor_character_changed)
+	char_row.add_child(actor_character_picker)
+
+	# Position row
+	var pos_row: HBoxContainer = HBoxContainer.new()
+	actor_editor.add_child(pos_row)
+
+	var pos_label: Label = Label.new()
+	pos_label.text = "Position:"
+	pos_label.custom_minimum_size.x = 70
+	pos_row.add_child(pos_label)
+
+	var x_label: Label = Label.new()
+	x_label.text = "X:"
+	pos_row.add_child(x_label)
+
+	actor_pos_x_spin = SpinBox.new()
+	actor_pos_x_spin.min_value = -1000
+	actor_pos_x_spin.max_value = 1000
+	actor_pos_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_pos_x_spin.tooltip_text = "Grid X coordinate"
+	actor_pos_x_spin.value_changed.connect(_on_actor_position_changed)
+	pos_row.add_child(actor_pos_x_spin)
+
+	var y_label: Label = Label.new()
+	y_label.text = "Y:"
+	pos_row.add_child(y_label)
+
+	actor_pos_y_spin = SpinBox.new()
+	actor_pos_y_spin.min_value = -1000
+	actor_pos_y_spin.max_value = 1000
+	actor_pos_y_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_pos_y_spin.tooltip_text = "Grid Y coordinate"
+	actor_pos_y_spin.value_changed.connect(_on_actor_position_changed)
+	pos_row.add_child(actor_pos_y_spin)
+
+	# Facing row
+	var facing_row: HBoxContainer = HBoxContainer.new()
+	actor_editor.add_child(facing_row)
+
+	var facing_label: Label = Label.new()
+	facing_label.text = "Facing:"
+	facing_label.custom_minimum_size.x = 70
+	facing_row.add_child(facing_label)
+
+	actor_facing_picker = OptionButton.new()
+	actor_facing_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_facing_picker.add_item("down", 0)
+	actor_facing_picker.add_item("up", 1)
+	actor_facing_picker.add_item("left", 2)
+	actor_facing_picker.add_item("right", 3)
+	actor_facing_picker.tooltip_text = "Initial facing direction"
+	actor_facing_picker.item_selected.connect(_on_actor_facing_changed)
+	facing_row.add_child(actor_facing_picker)
+
+	# Separator
+	var sep: HSeparator = HSeparator.new()
+	actors_container.add_child(sep)
+
+	# Initially hide editor until actor is selected
+	actor_editor.visible = false
 
 
 func _setup_inspector_panel(parent: HSplitContainer) -> void:
@@ -728,12 +882,23 @@ func _load_cinematic(path: String) -> void:
 	current_cinematic_path = path
 	current_cinematic_data = data
 	selected_command_index = -1
+	selected_actor_index = -1
 	is_dirty = false
 
 	_populate_metadata()
+	_rebuild_actors_list()
 	_rebuild_command_list()
 	_clear_inspector()
+	_clear_actor_editor()
 	_hide_errors()
+
+
+## Clear actor editor when loading new cinematic
+func _clear_actor_editor() -> void:
+	var actor_editor: VBoxContainer = _get_actor_editor()
+	if actor_editor:
+		actor_editor.visible = false
+	delete_actor_button.disabled = true
 
 
 func _populate_metadata() -> void:
@@ -1394,13 +1559,17 @@ func _on_create_new() -> void:
 		"description": "",
 		"can_skip": true,
 		"disable_player_input": true,
+		"actors": [],
 		"commands": []
 	}
 
 	current_cinematic_path = new_path
+	selected_actor_index = -1
 	_populate_metadata()
+	_rebuild_actors_list()
 	_rebuild_command_list()
 	_clear_inspector()
+	_clear_actor_editor()
 	_hide_errors()
 	is_dirty = true
 
@@ -1562,3 +1731,236 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
 		_refresh_characters()
 		_refresh_cinematic_list()
+
+
+# =============================================================================
+# ACTORS SECTION HANDLERS
+# =============================================================================
+
+## Rebuild the actors list from current data
+func _rebuild_actors_list() -> void:
+	actors_list.clear()
+	var actors: Array = current_cinematic_data.get("actors", [])
+
+	for i: int in range(actors.size()):
+		var actor: Dictionary = actors[i]
+		var actor_id: String = actor.get("actor_id", "unnamed")
+		var character_id: String = actor.get("character_id", "")
+		var display: String = actor_id
+		if not character_id.is_empty():
+			display += " (%s)" % character_id
+		actors_list.add_item(display)
+
+	# Update button states
+	delete_actor_button.disabled = selected_actor_index < 0
+
+
+## Populate the actor character picker dropdown
+func _populate_actor_character_picker() -> void:
+	actor_character_picker.clear()
+	actor_character_picker.add_item("(None)", 0)
+	actor_character_picker.set_item_metadata(0, "")
+
+	var idx: int = 1
+	for char_res: Resource in _characters:
+		if char_res:
+			var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
+			var char_id: String = ""
+
+			# Get resource ID (filename without extension)
+			if char_res.resource_path:
+				char_id = char_res.resource_path.get_file().get_basename()
+
+			actor_character_picker.add_item(display_name, idx)
+			actor_character_picker.set_item_metadata(idx, char_id)
+			idx += 1
+
+
+## Get actor editor container
+func _get_actor_editor() -> VBoxContainer:
+	return actors_container.get_node_or_null("ActorEditor") as VBoxContainer
+
+
+## Add a new actor
+func _on_add_actor() -> void:
+	if "actors" not in current_cinematic_data:
+		current_cinematic_data["actors"] = []
+
+	var actors: Array = current_cinematic_data["actors"]
+
+	# Generate unique actor ID
+	var base_id: String = "actor"
+	var counter: int = 1
+	var new_id: String = base_id + "_" + str(counter)
+	while _actor_id_exists(new_id, actors):
+		counter += 1
+		new_id = base_id + "_" + str(counter)
+
+	var new_actor: Dictionary = {
+		"actor_id": new_id,
+		"character_id": "",
+		"position": [0, 0],
+		"facing": "down"
+	}
+
+	actors.append(new_actor)
+	_rebuild_actors_list()
+
+	# Select the new actor
+	selected_actor_index = actors.size() - 1
+	actors_list.select(selected_actor_index)
+	_on_actor_selected(selected_actor_index)
+
+	is_dirty = true
+
+
+## Check if an actor ID already exists
+func _actor_id_exists(actor_id: String, actors: Array) -> bool:
+	for actor: Variant in actors:
+		if actor is Dictionary and actor.get("actor_id", "") == actor_id:
+			return true
+	return false
+
+
+## Delete the selected actor
+func _on_delete_actor() -> void:
+	if selected_actor_index < 0:
+		return
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if selected_actor_index >= actors.size():
+		return
+
+	actors.remove_at(selected_actor_index)
+
+	# Clear selection and hide editor
+	selected_actor_index = -1
+	var actor_editor: VBoxContainer = _get_actor_editor()
+	if actor_editor:
+		actor_editor.visible = false
+
+	_rebuild_actors_list()
+	is_dirty = true
+
+
+## Handle actor selection
+func _on_actor_selected(index: int) -> void:
+	selected_actor_index = index
+	delete_actor_button.disabled = false
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if index < 0 or index >= actors.size():
+		var actor_editor: VBoxContainer = _get_actor_editor()
+		if actor_editor:
+			actor_editor.visible = false
+		return
+
+	var actor: Dictionary = actors[index]
+
+	# Populate character picker if needed
+	if actor_character_picker.item_count <= 1:
+		_populate_actor_character_picker()
+
+	# Show and populate editor
+	var actor_editor: VBoxContainer = _get_actor_editor()
+	if actor_editor:
+		actor_editor.visible = true
+
+	_updating_ui = true
+
+	# Set actor ID
+	actor_id_edit.text = actor.get("actor_id", "")
+
+	# Set character
+	var character_id: String = actor.get("character_id", "")
+	var char_idx: int = 0
+	for i: int in range(actor_character_picker.item_count):
+		if actor_character_picker.get_item_metadata(i) == character_id:
+			char_idx = i
+			break
+	actor_character_picker.select(char_idx)
+
+	# Set position
+	var pos: Variant = actor.get("position", [0, 0])
+	if pos is Array and pos.size() >= 2:
+		actor_pos_x_spin.value = pos[0]
+		actor_pos_y_spin.value = pos[1]
+	else:
+		actor_pos_x_spin.value = 0
+		actor_pos_y_spin.value = 0
+
+	# Set facing
+	var facing: String = actor.get("facing", "down")
+	var facing_idx: int = 0
+	match facing:
+		"down": facing_idx = 0
+		"up": facing_idx = 1
+		"left": facing_idx = 2
+		"right": facing_idx = 3
+	actor_facing_picker.select(facing_idx)
+
+	_updating_ui = false
+
+
+## Handle actor ID change
+func _on_actor_id_changed(new_id: String) -> void:
+	if _updating_ui or selected_actor_index < 0:
+		return
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if selected_actor_index >= actors.size():
+		return
+
+	actors[selected_actor_index]["actor_id"] = new_id
+	_rebuild_actors_list()
+	actors_list.select(selected_actor_index)
+	is_dirty = true
+
+
+## Handle actor character change
+func _on_actor_character_changed(index: int) -> void:
+	if _updating_ui or selected_actor_index < 0:
+		return
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if selected_actor_index >= actors.size():
+		return
+
+	var character_id: Variant = actor_character_picker.get_item_metadata(index)
+	actors[selected_actor_index]["character_id"] = character_id if character_id else ""
+	_rebuild_actors_list()
+	actors_list.select(selected_actor_index)
+	is_dirty = true
+
+
+## Handle actor position change
+func _on_actor_position_changed(_value: float) -> void:
+	if _updating_ui or selected_actor_index < 0:
+		return
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if selected_actor_index >= actors.size():
+		return
+
+	actors[selected_actor_index]["position"] = [int(actor_pos_x_spin.value), int(actor_pos_y_spin.value)]
+	is_dirty = true
+
+
+## Handle actor facing change
+func _on_actor_facing_changed(index: int) -> void:
+	if _updating_ui or selected_actor_index < 0:
+		return
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if selected_actor_index >= actors.size():
+		return
+
+	var facing: String = "down"
+	match index:
+		0: facing = "down"
+		1: facing = "up"
+		2: facing = "left"
+		3: facing = "right"
+
+	actors[selected_actor_index]["facing"] = facing
+	is_dirty = true

@@ -69,6 +69,10 @@ var _command_completed: bool = false
 var _active_camera: Camera2D = null
 var _camera_original_position: Vector2 = Vector2.ZERO
 
+## Spawned actor nodes tracking for cleanup
+## Stores references to nodes spawned via actors array or spawn_entity command
+var _spawned_actor_nodes: Array[Node] = []
+
 
 func _ready() -> void:
 	# Disable per-frame processing when idle (optimization)
@@ -349,6 +353,10 @@ func play_cinematic_from_resource(cinematic: CinematicData) -> bool:
 	# Enable per-frame processing while cinematic is active
 	set_process(true)
 
+	# Spawn actors from actors array before executing commands
+	# This allows data-driven cinematics without pre-placed scene actors
+	_spawn_actors_from_data(cinematic)
+
 	# Start executing commands
 	current_state = State.PLAYING
 	_command_completed = true  # Start first command
@@ -444,6 +452,9 @@ func _end_cinematic() -> void:
 		camera.stop_follow()
 		camera.offset = Vector2.ZERO  # Reset any active shake
 		camera.set_tactical_mode()  # Restore fast camera for gameplay
+
+	# Clean up spawned actors
+	_cleanup_spawned_actors()
 
 	# Clear current data
 	current_cinematic = null
@@ -647,3 +658,115 @@ func _enable_player_input() -> void:
 		InputManager.set_input_enabled(_previous_input_state)
 
 	_player_input_disabled = false
+
+
+# =============================================================================
+# SPAWNED ACTOR MANAGEMENT
+# =============================================================================
+
+## Spawn actors from cinematic data's actors array
+## Called before commands execute to set up the scene
+func _spawn_actors_from_data(cinematic: CinematicData) -> void:
+	# Check if cinematic has actors property (for CinematicData resources)
+	# Also check commands for embedded actors array (for JSON cinematics)
+	var actors: Array = []
+
+	# CinematicData may have actors property (if we add it later)
+	if "actors" in cinematic and cinematic.actors is Array:
+		actors = cinematic.actors
+
+	if actors.is_empty():
+		return
+
+	# Spawn each actor
+	for actor_def: Variant in actors:
+		if not actor_def is Dictionary:
+			push_warning("CinematicsManager: Invalid actor definition (not a dictionary)")
+			continue
+
+		var actor_dict: Dictionary = actor_def as Dictionary
+		_spawn_single_actor(actor_dict)
+
+
+## Spawn a single actor from a definition dictionary
+## Format: {actor_id, character_id, position: [x, y], facing}
+func _spawn_single_actor(actor_def: Dictionary) -> void:
+	var actor_id: String = actor_def.get("actor_id", "")
+	if actor_id.is_empty():
+		push_warning("CinematicsManager: Actor definition missing actor_id")
+		return
+
+	# Check for existing actor with this ID
+	if get_actor(actor_id) != null:
+		push_warning("CinematicsManager: Actor '%s' already exists from actors array" % actor_id)
+
+	# Parse position (grid coordinates)
+	var grid_pos: Vector2i = Vector2i.ZERO
+	var pos_param: Variant = actor_def.get("position", [0, 0])
+	if pos_param is Array and pos_param.size() >= 2:
+		grid_pos = Vector2i(int(pos_param[0]), int(pos_param[1]))
+	elif pos_param is Vector2:
+		grid_pos = Vector2i(pos_param)
+	elif pos_param is Vector2i:
+		grid_pos = pos_param
+
+	# Get facing direction
+	var facing: String = str(actor_def.get("facing", "down")).to_lower()
+	if facing not in ["up", "down", "left", "right"]:
+		facing = "down"
+
+	# Get optional character_id for sprite
+	var character_id: String = actor_def.get("character_id", "")
+
+	# Create the spawned entity structure
+	var entity: CharacterBody2D = CharacterBody2D.new()
+	entity.name = "SpawnedActor_%s" % actor_id
+
+	# Position at grid coordinates
+	entity.global_position = GridManager.cell_to_world(grid_pos)
+
+	# Create AnimatedSprite2D
+	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	sprite.name = "AnimatedSprite2D"
+
+	if not character_id.is_empty():
+		var char_data: CharacterData = ModLoader.registry.get_resource("character", character_id) as CharacterData
+		if char_data != null and char_data.sprite_frames != null:
+			sprite.sprite_frames = char_data.sprite_frames
+			var initial_anim: String = "walk_" + facing
+			if sprite.sprite_frames.has_animation(initial_anim):
+				sprite.play(initial_anim)
+
+	entity.add_child(sprite)
+
+	# Create CinematicActor component
+	var cinematic_actor: CinematicActor = CinematicActor.new()
+	cinematic_actor.name = "CinematicActor"
+	cinematic_actor.actor_id = actor_id
+	cinematic_actor.sprite_node = sprite
+	entity.add_child(cinematic_actor)
+
+	# Add to scene tree
+	var scene_root: Node = get_tree().current_scene
+	if scene_root:
+		scene_root.add_child(entity)
+		_track_spawned_actor(entity)
+	else:
+		push_error("CinematicsManager: No current scene to add actor to")
+		entity.queue_free()
+
+
+## Track a spawned actor node for cleanup
+## Called by SpawnEntityExecutor and _spawn_single_actor
+func _track_spawned_actor(node: Node) -> void:
+	if node and node not in _spawned_actor_nodes:
+		_spawned_actor_nodes.append(node)
+
+
+## Clean up all spawned actors
+## Called when cinematic ends or is skipped
+func _cleanup_spawned_actors() -> void:
+	for node: Node in _spawned_actor_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_spawned_actor_nodes.clear()

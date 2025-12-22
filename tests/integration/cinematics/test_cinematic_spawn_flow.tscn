@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bq8v6m3r5xhj7"]
+
+[ext_resource type="Script" path="res://tests/integration/cinematics/test_cinematic_spawn_flow.gd" id="1_test"]
+
+[node name="TestCinematicSpawnFlow" type="Node2D"]
+script = ExtResource("1_test")
