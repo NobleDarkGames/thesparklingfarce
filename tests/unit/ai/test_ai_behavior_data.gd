@@ -1,10 +1,12 @@
 ## Unit Tests for AIBehaviorData
 ##
 ## Tests the data-driven AI behavior configuration resource.
-## Validates inheritance, phase evaluation, threat weights, and validation.
+## Validates phase evaluation, threat weights, and validation.
 ##
 ## The AI Behavior system is critical for the "Dark Priest Problem" fix -
 ## ensuring support units heal allies before attacking.
+##
+## Note: Inheritance system was removed in refactor (commit 286a40d).
 class_name TestAIBehaviorData
 extends GdUnitTestSuite
 
@@ -22,20 +24,10 @@ func _create_test_behavior(
 	var behavior: AIBehaviorData = AIBehaviorData.new()
 	behavior.behavior_id = p_behavior_id
 	behavior.display_name = p_behavior_id.capitalize()
-	behavior.role = p_role
-	behavior.behavior_mode = p_mode
-	return behavior
-
-
-## Create an AIBehaviorData with base behavior for inheritance testing
-func _create_inherited_behavior(
-	base: AIBehaviorData,
-	p_behavior_id: String = "child_behavior",
-	p_role: String = "",
-	p_mode: String = ""
-) -> AIBehaviorData:
-	var behavior: AIBehaviorData = _create_test_behavior(p_behavior_id, p_role, p_mode)
-	behavior.base_behavior = base
+	if not p_role.is_empty():
+		behavior.role = p_role
+	if not p_mode.is_empty():
+		behavior.behavior_mode = p_mode
 	return behavior
 
 
@@ -61,172 +53,85 @@ func test_description_stored_correctly() -> void:
 
 
 # =============================================================================
-# EFFECTIVE ROLE TESTS (Inheritance Resolution)
+# ROLE & MODE TESTS
 # =============================================================================
 
-func test_get_effective_role_returns_own_role() -> void:
+func test_role_stored_correctly() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test", "support")
-	assert_str(behavior.get_effective_role()).is_equal("support")
+	assert_str(behavior.role).is_equal("support")
 
 
-func test_get_effective_role_falls_back_to_aggressive() -> void:
-	var behavior: AIBehaviorData = _create_test_behavior("test", "")
-	assert_str(behavior.get_effective_role()).is_equal("aggressive")
+func test_role_defaults_to_aggressive() -> void:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	assert_str(behavior.role).is_equal("aggressive")
 
 
-func test_get_effective_role_inherits_from_base() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base", "defensive")
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child", "")
-	assert_str(child.get_effective_role()).is_equal("defensive")
-
-
-func test_get_effective_role_child_overrides_base() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base", "defensive")
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child", "tactical")
-	assert_str(child.get_effective_role()).is_equal("tactical")
-
-
-func test_get_effective_role_multi_level_inheritance() -> void:
-	var grandparent: AIBehaviorData = _create_test_behavior("grandparent", "support")
-	var parent: AIBehaviorData = _create_inherited_behavior(grandparent, "parent", "")
-	var child: AIBehaviorData = _create_inherited_behavior(parent, "child", "")
-	assert_str(child.get_effective_role()).is_equal("support")
-
-
-# =============================================================================
-# EFFECTIVE MODE TESTS (Inheritance Resolution)
-# =============================================================================
-
-func test_get_effective_mode_returns_own_mode() -> void:
+func test_behavior_mode_stored_correctly() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test", "", "cautious")
-	assert_str(behavior.get_effective_mode()).is_equal("cautious")
+	assert_str(behavior.behavior_mode).is_equal("cautious")
 
 
-func test_get_effective_mode_falls_back_to_aggressive() -> void:
-	var behavior: AIBehaviorData = _create_test_behavior("test", "", "")
-	assert_str(behavior.get_effective_mode()).is_equal("aggressive")
-
-
-func test_get_effective_mode_inherits_from_base() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base", "", "opportunistic")
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child", "", "")
-	assert_str(child.get_effective_mode()).is_equal("opportunistic")
-
-
-func test_get_effective_mode_child_overrides_base() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base", "", "cautious")
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child", "", "aggressive")
-	assert_str(child.get_effective_mode()).is_equal("aggressive")
+func test_behavior_mode_defaults_to_aggressive() -> void:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	assert_str(behavior.behavior_mode).is_equal("aggressive")
 
 
 # =============================================================================
-# THREAT WEIGHT TESTS (Inheritance Resolution)
+# THREAT WEIGHT TESTS
 # =============================================================================
 
-func test_get_effective_threat_weight_returns_own_value() -> void:
+func test_get_threat_weight_returns_own_value() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
 	behavior.threat_weights = {"wounded_target": 2.0}
-	var weight: float = behavior.get_effective_threat_weight("wounded_target", 1.0)
+	var weight: float = behavior.get_threat_weight("wounded_target", 1.0)
 	assert_float(weight).is_equal(2.0)
 
 
-func test_get_effective_threat_weight_returns_default_when_missing() -> void:
+func test_get_threat_weight_returns_default_when_missing() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
-	var weight: float = behavior.get_effective_threat_weight("nonexistent_key", 1.5)
+	var weight: float = behavior.get_threat_weight("nonexistent_key", 1.5)
 	assert_float(weight).is_equal(1.5)
 
 
-func test_get_effective_threat_weight_inherits_from_base() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base")
-	base.threat_weights = {"healer": 1.8}
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child")
-	var weight: float = child.get_effective_threat_weight("healer", 1.0)
-	assert_float(weight).is_equal(1.8)
-
-
-func test_get_effective_threat_weight_child_overrides_base() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base")
-	base.threat_weights = {"proximity": 0.5}
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child")
-	child.threat_weights = {"proximity": 1.5}
-	var weight: float = child.get_effective_threat_weight("proximity", 1.0)
-	assert_float(weight).is_equal(1.5)
-
-
-func test_get_all_effective_threat_weights_merges_dictionaries() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base")
-	base.threat_weights = {"healer": 1.8, "proximity": 0.5}
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child")
-	child.threat_weights = {"wounded_target": 2.0, "proximity": 1.2}
-
-	var merged: Dictionary = child.get_all_effective_threat_weights()
-
-	assert_float(merged.get("healer", 0.0)).is_equal(1.8)  # From base
-	assert_float(merged.get("wounded_target", 0.0)).is_equal(2.0)  # From child
-	assert_float(merged.get("proximity", 0.0)).is_equal(1.2)  # Child overrides base
-
-
-func test_get_all_effective_threat_weights_empty_returns_empty() -> void:
+func test_threat_weights_dictionary_can_store_multiple() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
-	var weights: Dictionary = behavior.get_all_effective_threat_weights()
-	assert_bool(weights.is_empty()).is_true()
+	behavior.threat_weights = {"healer": 1.8, "wounded_target": 2.0, "proximity": 1.2}
+
+	assert_float(behavior.get_threat_weight("healer", 0.0)).is_equal(1.8)
+	assert_float(behavior.get_threat_weight("wounded_target", 0.0)).is_equal(2.0)
+	assert_float(behavior.get_threat_weight("proximity", 0.0)).is_equal(1.2)
+
+
+func test_threat_weights_empty_returns_default() -> void:
+	var behavior: AIBehaviorData = _create_test_behavior("test")
+	var weight: float = behavior.get_threat_weight("any_key", 1.0)
+	assert_float(weight).is_equal(1.0)
 
 
 # =============================================================================
-# RETREAT THRESHOLD TESTS (Inheritance Resolution)
+# RETREAT TESTS
 # =============================================================================
 
-func test_get_effective_retreat_threshold_returns_non_default() -> void:
+func test_retreat_hp_threshold_stored_correctly() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
 	behavior.retreat_hp_threshold = 50
-	var threshold: int = behavior.get_effective_retreat_threshold()
-	assert_int(threshold).is_equal(50)
+	assert_int(behavior.retreat_hp_threshold).is_equal(50)
 
 
-func test_get_effective_retreat_threshold_inherits_from_base_when_default() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base")
-	base.retreat_hp_threshold = 25
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child")
-	# Child has default value (30), should inherit from base
-	var threshold: int = child.get_effective_retreat_threshold()
-	assert_int(threshold).is_equal(25)
+func test_retreat_hp_threshold_defaults_to_30() -> void:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	assert_int(behavior.retreat_hp_threshold).is_equal(30)
 
 
-func test_get_effective_retreat_threshold_returns_default_30() -> void:
-	var behavior: AIBehaviorData = _create_test_behavior("test")
-	var threshold: int = behavior.get_effective_retreat_threshold()
-	assert_int(threshold).is_equal(30)
+func test_retreat_enabled_defaults_to_true() -> void:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	assert_bool(behavior.retreat_enabled).is_true()
 
 
-# =============================================================================
-# RETREAT ENABLED TESTS (Inheritance Resolution)
-# =============================================================================
-
-func test_is_retreat_enabled_returns_true_by_default() -> void:
-	var behavior: AIBehaviorData = _create_test_behavior("test")
-	assert_bool(behavior.is_retreat_enabled()).is_true()
-
-
-func test_is_retreat_enabled_returns_false_when_disabled() -> void:
+func test_retreat_enabled_can_be_disabled() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
 	behavior.retreat_enabled = false
-	assert_bool(behavior.is_retreat_enabled()).is_false()
-
-
-func test_is_retreat_enabled_inherits_from_base_when_enabled() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base")
-	base.retreat_enabled = false
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child")
-	# Child defaults to enabled, but base is disabled - should inherit disabled
-	assert_bool(child.is_retreat_enabled()).is_false()
-
-
-func test_is_retreat_enabled_child_false_overrides_base_true() -> void:
-	var base: AIBehaviorData = _create_test_behavior("base")
-	base.retreat_enabled = true
-	var child: AIBehaviorData = _create_inherited_behavior(base, "child")
-	child.retreat_enabled = false
-	assert_bool(child.is_retreat_enabled()).is_false()
+	assert_bool(behavior.retreat_enabled).is_false()
 
 
 # =============================================================================
@@ -416,27 +321,6 @@ func test_validate_fails_with_whitespace_only_id() -> void:
 	assert_bool(result.valid).is_false()
 
 
-func test_validate_fails_with_circular_inheritance() -> void:
-	var behavior_a: AIBehaviorData = _create_test_behavior("behavior_a")
-	var behavior_b: AIBehaviorData = _create_test_behavior("behavior_b")
-
-	# Create circular reference
-	behavior_a.base_behavior = behavior_b
-	behavior_b.base_behavior = behavior_a
-
-	var result: Dictionary = behavior_a.validate()
-	assert_bool(result.valid).is_false()
-	assert_bool("Circular inheritance" in result.errors[0]).is_true()
-
-
-func test_validate_fails_with_self_reference_inheritance() -> void:
-	var behavior: AIBehaviorData = _create_test_behavior("self_ref")
-	behavior.base_behavior = behavior  # Points to self
-
-	var result: Dictionary = behavior.validate()
-	assert_bool(result.valid).is_false()
-
-
 func test_validate_fails_with_phase_missing_trigger() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
 	behavior.behavior_phases = [
@@ -557,7 +441,7 @@ func test_default_ignore_protagonist_priority() -> void:
 func test_empty_threat_weights_dictionary_access() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("test")
 	# Should not crash and return default
-	var weight: float = behavior.get_effective_threat_weight("any_key", 1.0)
+	var weight: float = behavior.get_threat_weight("any_key", 1.0)
 	assert_float(weight).is_equal(1.0)
 
 
@@ -581,17 +465,3 @@ func test_phase_with_non_dictionary_changes_ignored() -> void:
 	var changes: Dictionary = behavior.evaluate_phase_changes(context)
 	# Should not crash
 	assert_bool(changes.is_empty()).is_true()
-
-
-func test_very_deep_inheritance_chain() -> void:
-	var root: AIBehaviorData = _create_test_behavior("root", "support")
-	var current: AIBehaviorData = root
-
-	# Create 10-level deep inheritance chain
-	for i in range(10):
-		var next: AIBehaviorData = _create_test_behavior("level_%d" % i, "")
-		next.base_behavior = current
-		current = next
-
-	# Should still resolve correctly
-	assert_str(current.get_effective_role()).is_equal("support")

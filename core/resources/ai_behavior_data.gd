@@ -149,6 +149,25 @@ func get_threat_weight(key: String, default: float = 1.0) -> float:
 	return threat_weights.get(key, default)
 
 
+## Get the effective role, defaulting to "aggressive" if empty
+func get_effective_role() -> String:
+	if role.strip_edges().is_empty():
+		return "aggressive"
+	return role
+
+
+## Get the effective behavior mode, defaulting to "aggressive" if empty
+func get_effective_mode() -> String:
+	if behavior_mode.strip_edges().is_empty():
+		return "aggressive"
+	return behavior_mode
+
+
+## Check if retreat behavior is enabled
+func is_retreat_enabled() -> bool:
+	return retreat_enabled
+
+
 # =============================================================================
 # PHASE SYSTEM
 # =============================================================================

@@ -146,47 +146,6 @@ func _get_combat_results_scene() -> PackedScene:
 	return _combat_results_scene
 
 
-## Start a battle from BattleData resource (loaded from mods/)
-## NOTE: This method is currently UNUSED. The production battle flow uses
-## battle_loader.gd which calls setup() + _connect_signals() directly for
-## more control over scene structure. This method remains for potential
-## future use or alternative battle entry points.
-func start_battle(battle_data: Resource) -> void:
-	if not battle_data:
-		push_error("BattleManager: Cannot start battle with null BattleData")
-		return
-
-	# Validate BattleData has required properties
-	if not _validate_battle_data(battle_data):
-		push_error("BattleManager: BattleData validation failed")
-		return
-
-	current_battle_data = battle_data
-	# Note: battle_active is now a proxy to TurnManager.battle_active
-
-	# 0. Set active mod for audio system
-	_initialize_audio()
-
-	# 1. Load map scene (content from mods/)
-	_load_map_scene()
-
-	# 2. Initialize GridManager with map
-	_initialize_grid()
-
-	# 3. Spawn units from BattleData
-	_spawn_all_units()
-
-	# 4. Initialize TurnManager with all units
-	TurnManager.start_battle(all_units)
-
-	# 5. Connect signals for battle flow
-	_connect_signals()
-
-	# TODO: Phase 4 - Show pre-battle dialogue
-
-	battle_started.emit(battle_data)
-
-
 ## Validate BattleData has required properties
 func _validate_battle_data(data: Resource) -> bool:
 	# Use BattleData's built-in validation if available
@@ -657,112 +616,6 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 
 	# End unit's turn
 	TurnManager.end_unit_turn(unit)
-
-
-## Build display message for item use
-func _build_item_use_message(user: Node2D, target: Node2D, item: ItemData, result: Dictionary) -> String:
-	var user_name: String = UnitUtils.get_display_name(user, "???")
-	var target_name: String = UnitUtils.get_display_name(target, "???")
-	var item_name: String = item.item_name if item else "item"
-
-	var amount: int = result.get("amount", 0)
-	var effect_type: String = result.get("effect_type", "unknown")
-
-	# Build message based on effect type
-	match effect_type:
-		"heal":
-			if user == target:
-				return "%s used %s - Recovered %d HP!" % [user_name, item_name, amount]
-			else:
-				return "%s used %s on %s - Recovered %d HP!" % [user_name, item_name, target_name, amount]
-		"damage":
-			return "%s used %s on %s - %d damage!" % [user_name, item_name, target_name, amount]
-		_:
-			return "%s used %s!" % [user_name, item_name]
-
-
-## Apply item effect to target
-## Returns Dictionary with: { success: bool, effect_type: String, amount: int }
-func _apply_item_effect(user: Node2D, target: Node2D, item: ItemData, ability: AbilityData) -> Dictionary:
-	match ability.ability_type:
-		AbilityData.AbilityType.HEAL:
-			return await _apply_healing_effect(user, target, ability)
-		AbilityData.AbilityType.ATTACK:
-			return await _apply_damage_effect(user, target, ability)
-		AbilityData.AbilityType.SUPPORT:
-			# TODO: Implement buff effects
-			push_warning("BattleManager: Support effects not yet implemented")
-			return {"success": false, "effect_type": "support", "amount": 0}
-		AbilityData.AbilityType.DEBUFF:
-			# TODO: Implement debuff effects
-			push_warning("BattleManager: Debuff effects not yet implemented")
-			return {"success": false, "effect_type": "debuff", "amount": 0}
-		AbilityData.AbilityType.SPECIAL:
-			# TODO: Implement special effects
-			push_warning("BattleManager: Special effects not yet implemented")
-			return {"success": false, "effect_type": "special", "amount": 0}
-		_:
-			push_warning("BattleManager: Unknown ability type")
-			return {"success": false, "effect_type": "unknown", "amount": 0}
-
-
-## Apply healing effect to target
-## Returns Dictionary with: { success: bool, effect_type: "heal", amount: int }
-func _apply_healing_effect(user: Node2D, target: Node2D, ability: AbilityData) -> Dictionary:
-	if not target or not target.stats:
-		push_warning("BattleManager: Invalid target for healing")
-		return {"success": false, "effect_type": "heal", "amount": 0}
-
-	var stats: UnitStats = target.stats
-	var max_hp: int = stats.max_hp
-
-	# Calculate healing amount
-	var heal_amount: int = ability.potency
-
-	# Track actual healing (may be less if near max HP)
-	var old_hp: int = stats.current_hp
-	stats.current_hp = mini(stats.current_hp + heal_amount, max_hp)
-	var actual_heal: int = stats.current_hp - old_hp
-
-	# Play healing sound
-	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
-
-	# Visual feedback - flash the target green briefly
-	if not TurnManager.is_headless and target.has_method("flash_color"):
-		target.flash_color(Color.GREEN, 0.3)
-
-	# Brief pause for player feedback
-	if not TurnManager.is_headless:
-		await get_tree().create_timer(0.5).timeout
-
-	return {"success": true, "effect_type": "heal", "amount": actual_heal}
-
-
-## Apply damage effect to target (for offensive items)
-## Returns Dictionary with: { success: bool, effect_type: "damage", amount: int }
-func _apply_damage_effect(user: Node2D, target: Node2D, ability: AbilityData) -> Dictionary:
-	if not target or not target.stats:
-		push_warning("BattleManager: Invalid target for damage")
-		return {"success": false, "effect_type": "damage", "amount": 0}
-
-	# Calculate damage (simplified - no defense calculation for items)
-	var damage: int = ability.potency
-
-	# Apply damage
-	if target.has_method("take_damage"):
-		target.take_damage(damage)
-	else:
-		target.stats.current_hp -= damage
-		target.stats.current_hp = maxi(0, target.stats.current_hp)
-
-	# Play attack sound
-	AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
-
-	# Brief pause for player feedback
-	if not TurnManager.is_headless:
-		await get_tree().create_timer(0.5).timeout
-
-	return {"success": true, "effect_type": "damage", "amount": damage}
 
 
 ## Consume item from unit's inventory
@@ -1639,12 +1492,6 @@ func _check_double_attack(attacker: Node2D) -> bool:
 	return roll <= double_attack_rate
 
 
-## Get weapon range for a unit (default 1 for melee)
-## DEPRECATED: Use _get_unit_weapon_min_range() and _get_unit_weapon_max_range()
-func _get_unit_weapon_range(unit: Node2D) -> int:
-	return _get_unit_weapon_max_range(unit)
-
-
 ## Get weapon minimum attack range for a unit (1 for melee, 2+ for ranged with dead zone)
 func _get_unit_weapon_min_range(unit: Node2D) -> int:
 	if unit.stats and unit.stats.cached_weapon:
@@ -1700,18 +1547,6 @@ func _persist_unit_death(unit: Node2D) -> void:
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
 	if save_data:
 		save_data.is_alive = false
-
-
-## Handle unit death (direct call - RARELY NEEDED)
-## In most cases, Unit.take_damage() will automatically emit the died signal.
-## This is only needed for special cases like instant death effects.
-func _handle_unit_death(unit: Node2D) -> void:
-	# Check if unit is actually dead
-	if unit.has_method("is_dead") and not unit.is_dead():
-		return
-
-	# Call our death handler directly (Unit.take_damage already emits died signal)
-	_on_unit_died(unit)
 
 
 ## Handle battle end (victory only - defeat goes through hero_died_in_battle)

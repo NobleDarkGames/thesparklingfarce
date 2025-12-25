@@ -160,8 +160,8 @@ func test_find_best_target_prefers_wounded_targets_with_high_weight() -> void:
 	# through public interfaces or by examining the scoring logic
 
 	# Test the threat weight retrieval works correctly
-	var wounded_weight: float = behavior.get_effective_threat_weight("wounded_target", 1.0)
-	var proximity_weight: float = behavior.get_effective_threat_weight("proximity", 1.0)
+	var wounded_weight: float = behavior.get_threat_weight("wounded_target", 1.0)
+	var proximity_weight: float = behavior.get_threat_weight("proximity", 1.0)
 
 	assert_float(wounded_weight).is_equal(2.0)
 	assert_float(proximity_weight).is_equal(0.1)
@@ -171,8 +171,8 @@ func test_find_best_target_prefers_proximity_with_high_weight() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior()
 	behavior.threat_weights = {"wounded_target": 0.1, "proximity": 2.0}
 
-	var proximity_weight: float = behavior.get_effective_threat_weight("proximity", 1.0)
-	var wounded_weight: float = behavior.get_effective_threat_weight("wounded_target", 1.0)
+	var proximity_weight: float = behavior.get_threat_weight("proximity", 1.0)
+	var wounded_weight: float = behavior.get_threat_weight("wounded_target", 1.0)
 
 	assert_float(proximity_weight).is_equal(2.0)
 	assert_float(wounded_weight).is_equal(0.1)
@@ -182,9 +182,9 @@ func test_threat_weight_defaults_when_not_specified() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior()
 	# Empty threat_weights - should use defaults
 
-	var wounded_weight: float = behavior.get_effective_threat_weight("wounded_target", 1.0)
-	var proximity_weight: float = behavior.get_effective_threat_weight("proximity", 1.0)
-	var healer_weight: float = behavior.get_effective_threat_weight("healer", 1.0)
+	var wounded_weight: float = behavior.get_threat_weight("wounded_target", 1.0)
+	var proximity_weight: float = behavior.get_threat_weight("proximity", 1.0)
+	var healer_weight: float = behavior.get_threat_weight("healer", 1.0)
 
 	# All should return default of 1.0
 	assert_float(wounded_weight).is_equal(1.0)
@@ -416,7 +416,7 @@ func test_tactical_mage_behavior_loads() -> void:
 		assert_str(behavior.get_effective_mode()).is_equal("opportunistic")
 		assert_bool(behavior.use_status_effects).is_true()
 		# Tactical mages prioritize damage dealers as threats
-		var threat_weight: float = behavior.get_effective_threat_weight("damage_dealer", 1.0)
+		var threat_weight: float = behavior.get_threat_weight("damage_dealer", 1.0)
 		assert_float(threat_weight).is_equal(1.5)
 
 
