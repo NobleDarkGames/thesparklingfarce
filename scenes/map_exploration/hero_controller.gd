@@ -275,6 +275,10 @@ func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 	if _is_npc_at_tile(tile_pos):
 		return false
 
+	# Check if an interactable occupies this tile (chests, etc. are impassable)
+	if _is_interactable_at_tile(tile_pos):
+		return false
+
 	return true
 
 
@@ -284,6 +288,16 @@ func _is_npc_at_tile(tile_pos: Vector2i) -> bool:
 	for npc: Node in npcs:
 		if npc.has_method("is_at_grid_position"):
 			if npc.is_at_grid_position(tile_pos):
+				return true
+	return false
+
+
+## Check if any interactable (chest, barrel, etc.) occupies the given tile position.
+func _is_interactable_at_tile(tile_pos: Vector2i) -> bool:
+	var interactables: Array[Node] = get_tree().get_nodes_in_group("interactables")
+	for obj: Node in interactables:
+		if obj.has_method("is_at_grid_position"):
+			if obj.is_at_grid_position(tile_pos):
 				return true
 	return false
 

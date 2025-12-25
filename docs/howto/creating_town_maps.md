@@ -322,22 +322,77 @@ Connect NPC interaction to your map script's `_on_hero_interaction` callback.
 
 Shops use NPCs with special dialog branches that invoke shop UI. Shop data references ItemData resources from `mods/*/data/items/`.
 
-### Treasure Chests
+### Interactive Objects (Chests, Signs, Bookshelves)
 
-Use MapTrigger with `trigger_type = CHEST`:
+The InteractableNode system provides SF2-authentic searchable objects. These work like NPCs but grant items, show messages, or trigger events when searched.
 
-```gdscript
-trigger_type = CHEST
-trigger_id = "granseal_chest_01"
-one_shot = true
-trigger_data = {
-    "item_id": "healing_herb",
-    "quantity": 3,
-    "gold": 100
-}
+**Using the Sparkling Editor:**
+
+1. Open Sparkling Editor → Story → Interactables
+2. Click "New" and select a template (Treasure Chest, Bookshelf, Sign Post, etc.)
+3. Configure rewards (items, gold) and/or dialog text
+4. Save to `mods/your_mod/data/interactables/`
+
+**Manual Placement in Scene:**
+
+1. Add an InteractableNode to your scene
+2. Create or assign an InteractableData resource
+3. Position on the grid (auto-snaps to 32px tiles)
+
+```
+Interactables (Node2D)
+  TownChest01 (InteractableNode)
+    interactable_data = preload("res://mods/your_mod/data/interactables/town_chest_01.tres")
 ```
 
-The trigger_id tracks collection state via GameState (`core/systems/game_state.gd`).
+**InteractableData Properties:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| interactable_id | String | Unique ID (used for state tracking) |
+| interactable_type | Enum | CHEST, BOOKSHELF, BARREL, SIGN, LEVER, CUSTOM |
+| display_name | String | Shown in editor (e.g., "Town Chest") |
+| sprite_closed | Texture2D | Visual when not yet opened |
+| sprite_opened | Texture2D | Visual after opening (optional) |
+| item_rewards | Array | Items to grant: `[{item_id, quantity}]` |
+| gold_reward | int | Gold to grant |
+| dialog_text | String | Message to show (for signs, bookshelves) |
+| one_shot | bool | If true, can only be searched once |
+| required_flags | Array | Flags that must be set to interact |
+| forbidden_flags | Array | Flags that block interaction |
+
+**Example InteractableData (.tres):**
+
+```gdscript
+[resource]
+script = ExtResource("res://core/resources/interactable_data.gd")
+interactable_id = "granseal_chest_01"
+display_name = "Treasure Chest"
+interactable_type = 0  # CHEST
+item_rewards = [{"item_id": "healing_herb", "quantity": 2}]
+gold_reward = 50
+one_shot = true
+```
+
+**SF2-Authentic Behavior:**
+
+- Player must face the object and press the interact button
+- Immediate feedback: "Found Healing Herb!" (no pre-dialog)
+- Opened state persists via GameState flags (`{id}_opened`)
+- Objects block movement like NPCs
+
+**Conditional Content:**
+
+Like NPCs, interactables support conditional cinematics for story-reactive behavior:
+
+```gdscript
+conditional_cinematics = [
+    {"flag": "rescued_princess", "cinematic_id": "chest_special_reward"}
+]
+fallback_cinematic_id = "chest_normal_reward"
+```
+
+The collection state is tracked via `GameState.has_flag("{interactable_id}_opened")`.
 
 ### Material Spawn Points (Rare Materials System)
 

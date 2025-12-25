@@ -36,7 +36,8 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"ai_behaviors": "ai_behavior",  # AIBehaviorData resources for configurable enemy AI
 	"status_effects": "status_effect",  # StatusEffectData resources for data-driven status effects
 	"crafting_recipes": "crafting_recipe",  # CraftingRecipeData resources for crafting system
-	"crafters": "crafter"  # CrafterData resources for crafter NPCs and locations
+	"crafters": "crafter",  # CrafterData resources for crafter NPCs and locations
+	"interactables": "interactable"  # InteractableData resources for chests, bookshelves, etc.
 }
 
 # Resource types that support JSON loading (in addition to .tres)

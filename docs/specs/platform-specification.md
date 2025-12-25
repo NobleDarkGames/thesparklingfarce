@@ -147,6 +147,7 @@ ModLoader auto-discovers from `mods/*/data/<directory>/`:
 | campaigns/ | campaign | CampaignData |
 | terrain/ | terrain | TerrainData |
 | npcs/ | npc | NPCData |
+| interactables/ | interactable | InteractableData |
 | shops/ | shop | ShopData |
 | caravans/ | caravan | CaravanData |
 | experience_configs/ | experience_config | ExperienceConfig |

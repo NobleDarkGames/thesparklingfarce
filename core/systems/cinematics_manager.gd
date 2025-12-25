@@ -211,6 +211,7 @@ func _register_built_in_commands() -> void:
 	const RemovePartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/remove_party_member_executor.gd")
 	const RejoinPartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/rejoin_party_member_executor.gd")
 	const SetCharacterStatusExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_character_status_executor.gd")
+	const GrantItemsExecutor: GDScript = preload("res://core/systems/cinematic_commands/grant_items_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -233,6 +234,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("remove_party_member", RemovePartyMemberExecutor.new())
 	register_command_executor("rejoin_party_member", RejoinPartyMemberExecutor.new())
 	register_command_executor("set_character_status", SetCharacterStatusExecutor.new())
+	register_command_executor("grant_items", GrantItemsExecutor.new())
 
 
 ## Register a camera for cinematic control
@@ -280,12 +282,21 @@ func _find_camera_recursive(node: Node) -> Camera2D:
 
 ## Play a cinematic by ID (looks up in ModRegistry)
 ## Supports auto-generated cinematics for Quick Setup NPCs (ID starts with "__auto__")
+## and interactables (ID starts with "__auto_interactable__")
 func play_cinematic(cinematic_id: String) -> bool:
 	if current_state != State.IDLE:
 		push_warning("CinematicsManager: Cannot play cinematic '%s' - cinematic already active" % cinematic_id)
 		return false
 
-	# Check for auto-generated cinematic (Quick Setup NPC system)
+	# Check for auto-generated interactable cinematic
+	if cinematic_id.begins_with("__auto_interactable__"):
+		var auto_cinematic: CinematicData = _generate_interactable_auto_cinematic(cinematic_id)
+		if auto_cinematic:
+			return play_cinematic_from_resource(auto_cinematic)
+		push_error("CinematicsManager: Failed to generate auto-interactable cinematic for '%s'" % cinematic_id)
+		return false
+
+	# Check for auto-generated NPC cinematic (Quick Setup NPC system)
 	if cinematic_id.begins_with("__auto__"):
 		var auto_cinematic: CinematicData = _generate_auto_cinematic(cinematic_id)
 		if auto_cinematic:
@@ -770,3 +781,107 @@ func _cleanup_spawned_actors() -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	_spawned_actor_nodes.clear()
+
+
+# =============================================================================
+# INLINE CINEMATICS
+# =============================================================================
+
+## Play an inline cinematic from an array of command dictionaries
+## Useful for simple sequences that don't need a full CinematicData resource
+## @param commands: Array of command dictionaries [{type: String, params: Dictionary}]
+## @param cinematic_id: Optional ID for tracking (auto-generated if empty)
+## @return: true if started successfully
+func play_inline_cinematic(commands: Array, cinematic_id: String = "") -> bool:
+	if current_state != State.IDLE:
+		push_warning("CinematicsManager: Cannot play inline cinematic - cinematic already active")
+		return false
+
+	if commands.is_empty():
+		push_warning("CinematicsManager: Cannot play empty inline cinematic")
+		return false
+
+	# Create temporary CinematicData
+	var cinematic: CinematicData = CinematicData.new()
+	cinematic.cinematic_id = cinematic_id if not cinematic_id.is_empty() else "_inline_%d" % Time.get_ticks_msec()
+	cinematic.cinematic_name = "Inline Cinematic"
+	cinematic.disable_player_input = true
+	cinematic.can_skip = true
+
+	# Add commands
+	for cmd: Variant in commands:
+		if cmd is Dictionary:
+			cinematic.commands.append(cmd)
+
+	return play_cinematic_from_resource(cinematic)
+
+
+# =============================================================================
+# INTERACTABLE AUTO-CINEMATICS
+# =============================================================================
+
+## Preload InteractableData for type access
+const InteractableDataScript: GDScript = preload("res://core/resources/interactable_data.gd")
+
+## Generate auto-cinematic for interactable objects (chests, bookshelves, etc.)
+## Format: __auto_interactable__{interactable_id}
+func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicData:
+	# Parse the interactable ID (format: __auto_interactable__{id})
+	var interactable_id: String = cinematic_id.substr(21)  # Skip "__auto_interactable__"
+
+	if interactable_id.is_empty():
+		push_error("CinematicsManager: Invalid auto-interactable cinematic ID: %s" % cinematic_id)
+		return null
+
+	# Look up the interactable data
+	var interactable: Resource = ModLoader.registry.get_resource("interactable", interactable_id)
+	if not interactable:
+		push_error("CinematicsManager: Interactable '%s' not found for auto-cinematic" % interactable_id)
+		return null
+
+	# Cast to InteractableData (can't use class_name in type hint due to load order)
+	if not interactable.has_method("has_rewards"):
+		push_error("CinematicsManager: Invalid interactable resource for '%s'" % interactable_id)
+		return null
+
+	# Build the cinematic
+	var cinematic: CinematicData = CinematicData.new()
+	cinematic.cinematic_id = cinematic_id
+	cinematic.cinematic_name = "Auto: %s" % interactable_id
+	cinematic.disable_player_input = true
+	cinematic.can_skip = true
+
+	# Grant items/gold if present
+	if interactable.has_rewards():
+		cinematic.commands.append({
+			"type": "grant_items",
+			"params": {
+				"items": interactable.item_rewards,
+				"gold": interactable.gold_reward,
+				"show_message": true
+			}
+		})
+
+	# Show dialog text if present
+	var dialog_text: String = interactable.dialog_text if "dialog_text" in interactable else ""
+	if not dialog_text.is_empty():
+		cinematic.commands.append({
+			"type": "dialog",
+			"params": {
+				"text": dialog_text
+			}
+		})
+
+	# If no commands at all, add type-specific default message
+	if cinematic.commands.is_empty():
+		var default_msg: String = InteractableDataScript.FALLBACK_EMPTY_MESSAGE
+		if "interactable_type" in interactable:
+			default_msg = InteractableDataScript.get_default_empty_message(interactable.interactable_type)
+		cinematic.commands.append({
+			"type": "dialog",
+			"params": {
+				"text": default_msg
+			}
+		})
+
+	return cinematic
