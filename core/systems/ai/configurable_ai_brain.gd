@@ -22,6 +22,22 @@ static func get_instance() -> AIBrain:
 	return _instance
 
 
+# =============================================================================
+# HELPER UTILITIES
+# =============================================================================
+
+## Apply AI delay if conditions are met (unit in tree, delay > 0)
+func _apply_delay(unit: Node2D, delay: float) -> void:
+	if delay > 0 and unit.get_tree():
+		await unit.get_tree().create_timer(delay).timeout
+
+
+## Get delay value from context
+func _get_delay(context: Dictionary, delay_key: String, default: float = 0.3) -> float:
+	var delays: Dictionary = context.get("ai_delays", {})
+	return delays.get(delay_key, default)
+
+
 ## Execute AI behavior based on AIBehaviorData configuration
 func execute_with_behavior(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
 	if not behavior:
@@ -97,29 +113,21 @@ func _execute_aggressive(unit: Node2D, context: Dictionary, behavior: AIBehavior
 	if not target:
 		return
 
-	var delays: Dictionary = context.get("ai_delays", {})
-	var delay_after_movement: float = delays.get("after_movement", 0.5)
-	var delay_before_attack: float = delays.get("before_attack", 0.3)
-
 	# If already in attack range, attack immediately
 	if is_in_attack_range(unit, target):
-		if delay_before_attack > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_before_attack).timeout
+		await _apply_delay(unit, _get_delay(context, "before_attack"))
 		await attack_target(unit, target)
 		return
 
 	# Move toward target
 	var moved: bool = move_toward_target(unit, target.grid_position)
-
 	if moved:
 		await unit.await_movement_completion()
-		if delay_after_movement > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_after_movement).timeout
+		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
 
 	# Attack if now in range (verify target still alive after movement)
 	if target.is_alive() and is_in_attack_range(unit, target):
-		if delay_before_attack > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_before_attack).timeout
+		await _apply_delay(unit, _get_delay(context, "before_attack"))
 		await attack_target(unit, target)
 
 
@@ -131,17 +139,12 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 	if player_units.is_empty():
 		return
 
-	var delays: Dictionary = context.get("ai_delays", {})
-	var delay_before_attack: float = delays.get("before_attack", 0.3)
-	var delay_after_movement: float = delays.get("after_movement", 0.5)
-
 	# Check for targets in attack range first - attack immediately if found
 	for target: Node2D in player_units:
 		if not target.is_alive():
 			continue
 		if is_in_attack_range(unit, target):
-			if delay_before_attack > 0 and unit.get_tree():
-				await unit.get_tree().create_timer(delay_before_attack).timeout
+			await _apply_delay(unit, _get_delay(context, "before_attack"))
 			await attack_target(unit, target)
 			return
 
@@ -162,8 +165,7 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 	var moved: bool = move_toward_target(unit, nearest.grid_position)
 	if moved:
 		await unit.await_movement_completion()
-		if delay_after_movement > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_after_movement).timeout
+		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
 
 	# Recalculate distance after movement to decide whether to attack
 	# - Only attack if enemy is now within engagement_range (committed engagement)
@@ -173,8 +175,7 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 
 	# Attack if we're in engagement range and now in attack range (verify target still alive)
 	if should_attack and nearest.is_alive() and is_in_attack_range(unit, nearest):
-		if delay_before_attack > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_before_attack).timeout
+		await _apply_delay(unit, _get_delay(context, "before_attack"))
 		await attack_target(unit, nearest)
 
 
@@ -440,10 +441,7 @@ func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehavi
 		var moved: bool = _move_into_spell_range(unit, heal_target.grid_position, ability_range)
 		if moved:
 			await unit.await_movement_completion()
-			var delays: Dictionary = context.get("ai_delays", {})
-			var delay_after_movement: float = delays.get("after_movement", 0.5)
-			if delay_after_movement > 0 and unit.get_tree():
-				await unit.get_tree().create_timer(delay_after_movement).timeout
+			await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
 
 		# Recalculate distance after moving
 		distance = GridManager.grid.get_manhattan_distance(unit.grid_position, heal_target.grid_position)
@@ -451,11 +449,7 @@ func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehavi
 			return false  # Still out of range
 
 	# Cast the healing spell
-	var delays: Dictionary = context.get("ai_delays", {})
-	var delay_before_spell: float = delays.get("before_attack", 0.3)
-	if delay_before_spell > 0 and unit.get_tree():
-		await unit.get_tree().create_timer(delay_before_spell).timeout
-
+	await _apply_delay(unit, _get_delay(context, "before_attack"))
 	var success: bool = await BattleManager.execute_ai_spell(unit, ability_id, heal_target)
 	return success
 
@@ -754,31 +748,45 @@ func _find_best_aoe_target(caster: Node2D, ability: AbilityData, behavior: AIBeh
 # ITEM USAGE (Phase 2)
 # =============================================================================
 
-## Attempt to use a healing item from inventory
+## Attempt to use an item with a specific ability type
 ## @param unit: The AI unit
 ## @param context: Battle context
 ## @param behavior: AI behavior settings
+## @param ability_type: The ability type to look for (HEAL or ATTACK)
+## @param target: Target for the item (defaults to self for healing)
 ## @return: true if item was used, false otherwise
-func _try_use_healing_item(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
-	if not behavior or not behavior.use_healing_items:
+func _try_use_item(unit: Node2D, context: Dictionary, behavior: AIBehaviorData,
+		ability_type: AbilityData.AbilityType, target: Node2D = null) -> bool:
+	# Check behavior flags based on ability type
+	if not behavior:
+		return false
+	if ability_type == AbilityData.AbilityType.HEAL and not behavior.use_healing_items:
+		return false
+	if ability_type == AbilityData.AbilityType.ATTACK and not behavior.use_attack_items:
 		return false
 
 	if not "character_data" in unit or unit.character_data == null:
 		return false
 
+	# For attack items, target is required
+	if ability_type == AbilityData.AbilityType.ATTACK and not target:
+		return false
+
+	# For healing items, default to self
+	if ability_type == AbilityData.AbilityType.HEAL and not target:
+		target = unit
+
 	# Get unit's inventory from save data
 	var char_uid: String = unit.character_data.character_uid
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
 	if not save_data:
 		return false
 
-	# Find a healing consumable
+	# Find a matching consumable
 	for item_id: String in save_data.inventory:
 		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
 		if not item:
 			continue
-
-		# Check if it's a usable healing item
 		if item.item_type != ItemData.ItemType.CONSUMABLE:
 			continue
 		if not item.usable_in_battle:
@@ -787,69 +795,25 @@ func _try_use_healing_item(unit: Node2D, context: Dictionary, behavior: AIBehavi
 			continue
 
 		var ability: AbilityData = item.effect as AbilityData
-		if ability.ability_type != AbilityData.AbilityType.HEAL:
+		if ability.ability_type != ability_type:
 			continue
 
-		# Found a healing item - use it on self
-		var delays: Dictionary = context.get("ai_delays", {})
-		var delay_before: float = delays.get("before_attack", 0.3)
-		if delay_before > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_before).timeout
-
-		# Use BattleManager's item use system
-		await BattleManager._on_item_use_requested(unit, item_id, unit)
-		return true
-
-	return false
-
-
-## Attempt to use an attack item on a target
-## @param unit: The AI unit
-## @param target: The target unit
-## @param context: Battle context
-## @param behavior: AI behavior settings
-## @return: true if item was used, false otherwise
-func _try_use_attack_item(unit: Node2D, target: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
-	if not behavior or not behavior.use_attack_items:
-		return false
-
-	if not "character_data" in unit or unit.character_data == null or not target:
-		return false
-
-	# Get unit's inventory from save data
-	var char_uid: String = unit.character_data.character_uid
-	var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
-	if not save_data:
-		return false
-
-	# Find an attack consumable
-	for item_id: String in save_data.inventory:
-		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
-		if not item:
-			continue
-
-		# Check if it's a usable attack item
-		if item.item_type != ItemData.ItemType.CONSUMABLE:
-			continue
-		if not item.usable_in_battle:
-			continue
-		if not item.effect or not item.effect is AbilityData:
-			continue
-
-		var ability: AbilityData = item.effect as AbilityData
-		if ability.ability_type != AbilityData.AbilityType.ATTACK:
-			continue
-
-		# Found an attack item - use it
-		var delays: Dictionary = context.get("ai_delays", {})
-		var delay_before: float = delays.get("before_attack", 0.3)
-		if delay_before > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_before).timeout
-
+		# Found a matching item - use it
+		await _apply_delay(unit, _get_delay(context, "before_attack"))
 		await BattleManager._on_item_use_requested(unit, item_id, target)
 		return true
 
 	return false
+
+
+## Convenience wrapper for healing items (uses self as target)
+func _try_use_healing_item(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
+	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.HEAL)
+
+
+## Convenience wrapper for attack items
+func _try_use_attack_item(unit: Node2D, target: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
+	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.ATTACK, target)
 
 
 # =============================================================================
@@ -990,21 +954,14 @@ func _execute_tactical_role(unit: Node2D, context: Dictionary, behavior: AIBehav
 		var moved: bool = _move_into_spell_range(unit, best_target.grid_position, ability_range)
 		if moved:
 			await unit.await_movement_completion()
-			var delays: Dictionary = context.get("ai_delays", {})
-			var delay_after: float = delays.get("after_movement", 0.5)
-			if delay_after > 0 and unit.get_tree():
-				await unit.get_tree().create_timer(delay_after).timeout
+			await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
 
 		distance = GridManager.grid.get_manhattan_distance(unit.grid_position, best_target.grid_position)
 		if distance > ability_range:
 			return false  # Still out of range
 
 	# Cast the debuff
-	var delays: Dictionary = context.get("ai_delays", {})
-	var delay_before: float = delays.get("before_attack", 0.3)
-	if delay_before > 0 and unit.get_tree():
-		await unit.get_tree().create_timer(delay_before).timeout
-
+	await _apply_delay(unit, _get_delay(context, "before_attack"))
 	var success: bool = await BattleManager.execute_ai_spell(unit, ability_id, best_target)
 	return success
 
@@ -1116,16 +1073,12 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 		await _execute_cautious(unit, context, behavior)
 		return
 
-	var delays: Dictionary = context.get("ai_delays", {})
-
 	# Check if we should attack first (enemy adjacent to us)
 	for opponent: Node2D in opponents:
 		if not opponent.is_alive():
 			continue
 		if is_in_attack_range(unit, opponent):
-			var delay_before: float = delays.get("before_attack", 0.3)
-			if delay_before > 0 and unit.get_tree():
-				await unit.get_tree().create_timer(delay_before).timeout
+			await _apply_delay(unit, _get_delay(context, "before_attack"))
 			await attack_target(unit, opponent)
 			return
 
@@ -1141,9 +1094,7 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 			if not opponent.is_alive():
 				continue
 			if is_in_attack_range(unit, opponent):
-				var delay_before: float = delays.get("before_attack", 0.3)
-				if delay_before > 0 and unit.get_tree():
-					await unit.get_tree().create_timer(delay_before).timeout
+				await _apply_delay(unit, _get_delay(context, "before_attack"))
 				await attack_target(unit, opponent)
 				return
 		return  # No attack possible, stay in position
@@ -1152,18 +1103,14 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 	var moved: bool = move_toward_target(unit, best_target)
 	if moved:
 		await unit.await_movement_completion()
-		var delay_after: float = delays.get("after_movement", 0.5)
-		if delay_after > 0 and unit.get_tree():
-			await unit.get_tree().create_timer(delay_after).timeout
+		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
 
 	# Attack if now in range of any opponent
 	for opponent: Node2D in opponents:
 		if not opponent.is_alive():
 			continue
 		if is_in_attack_range(unit, opponent):
-			var delay_before: float = delays.get("before_attack", 0.3)
-			if delay_before > 0 and unit.get_tree():
-				await unit.get_tree().create_timer(delay_before).timeout
+			await _apply_delay(unit, _get_delay(context, "before_attack"))
 			await attack_target(unit, opponent)
 			return
 

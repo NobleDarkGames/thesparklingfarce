@@ -20,6 +20,100 @@
 class_name CinematicCommandExecutor
 extends RefCounted
 
+# Preload for type access
+const DialogueDataScript: GDScript = preload("res://core/resources/dialogue_data.gd")
+
+## Counter for generating unique inline dialog IDs (shared across all executors)
+static var _inline_dialog_counter: int = 0
+
+
+# =============================================================================
+# SHARED UTILITIES
+# =============================================================================
+
+## Show a system message dialog and wait for player input
+## @param message: The message to display (supports {char:id} interpolation)
+## @param manager: Reference to the CinematicsManager
+## @return: true if completed immediately, false if async (waiting for dialog)
+static func show_system_message(message: String, manager: Node) -> bool:
+	var DialogueData: GDScript = DialogueDataScript
+	var dialogue: Resource = DialogueData.new()
+
+	# Generate unique ID
+	_inline_dialog_counter += 1
+	dialogue.dialogue_id = "_system_msg_%d_%d" % [Time.get_ticks_msec(), _inline_dialog_counter]
+
+	# Add the message line (will be interpolated by DialogBox)
+	dialogue.lines.append({
+		"text": message,
+		"speaker_name": ""  # No speaker for system messages
+	})
+
+	# Start dialog via DialogManager
+	if DialogManager.start_dialog_from_resource(dialogue):
+		manager.current_state = manager.State.WAITING_FOR_DIALOG
+		manager._is_waiting = true
+		return false  # Async - wait for dialog to complete
+	else:
+		push_warning("CinematicCommandExecutor: Failed to show system message")
+		return true  # Complete anyway
+
+
+## Resolve character from ID (supports both resource ID and character_uid)
+## @param character_id: Either a resource ID like "max" or character_uid like "hk7wm4np"
+## @return: CharacterData if found, null otherwise
+static func resolve_character(character_id: String) -> Resource:
+	# First try by character_uid (what the editor stores)
+	var character: Resource = ModLoader.registry.get_character_by_uid(character_id)
+	if character:
+		return character
+
+	# Fallback to resource ID lookup
+	return ModLoader.registry.get_resource("character", character_id)
+
+
+## Resolve a character_id to display data (name and portrait)
+## Supports both characters (by UID) and NPCs (prefixed with "npc:")
+## @param character_id: Character UID or "npc:id" for NPCs
+## @return: Dictionary with "name" (String) and "portrait" (Texture2D or null)
+static func resolve_character_data(character_id: String) -> Dictionary:
+	var result: Dictionary = {"name": "", "portrait": null}
+
+	if character_id.is_empty():
+		return result
+
+	# Check if this is an NPC reference (prefixed with "npc:")
+	if character_id.begins_with("npc:"):
+		var npc_id: String = character_id.substr(4)  # Remove "npc:" prefix
+		if ModLoader and ModLoader.registry:
+			var npc: Resource = ModLoader.registry.get_npc_by_id(npc_id)
+			if npc:
+				result["name"] = npc.get_display_name()
+				var portrait: Texture2D = npc.get_portrait()
+				if portrait:
+					result["portrait"] = portrait
+				return result
+		push_warning("CinematicCommandExecutor: Could not resolve NPC '%s'" % npc_id)
+		result["name"] = "[%s]" % npc_id
+		return result
+
+	# Try to look up character in ModRegistry
+	if ModLoader and ModLoader.registry:
+		var character: Resource = ModLoader.registry.get_character_by_uid(character_id)
+		if character:
+			result["name"] = character.character_name
+			if character.portrait:
+				result["portrait"] = character.portrait
+			return result
+
+	push_warning("CinematicCommandExecutor: Could not resolve character '%s'" % character_id)
+	result["name"] = "[%s]" % character_id
+	return result
+
+
+# =============================================================================
+# VIRTUAL METHODS
+# =============================================================================
 
 ## Execute a cinematic command
 ##

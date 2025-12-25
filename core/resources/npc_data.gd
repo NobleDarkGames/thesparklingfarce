@@ -1,6 +1,8 @@
 class_name NPCData
 extends Resource
 
+const SpriteUtils: GDScript = preload("res://core/utils/sprite_utils.gd")
+
 ## Represents an NPC that can be interacted with on maps.
 ## NPCs trigger cinematics when the player interacts with them.
 ##
@@ -247,21 +249,7 @@ func get_map_sprite() -> Texture2D:
 	if character_data:
 		return character_data.get_display_texture()
 	# Extract first frame from sprite_frames if available
-	if sprite_frames:
-		return _extract_texture_from_sprite_frames(sprite_frames)
-	return null
-
-
-## Extract a static texture from SpriteFrames (first frame of walk_down)
-func _extract_texture_from_sprite_frames(frames: SpriteFrames) -> Texture2D:
-	# SF2-authentic: walk_down is the primary animation
-	if frames.has_animation("walk_down") and frames.get_frame_count("walk_down") > 0:
-		return frames.get_frame_texture("walk_down", 0)
-	# Fallback: any animation's first frame
-	for anim_name: String in frames.get_animation_names():
-		if frames.get_frame_count(anim_name) > 0:
-			return frames.get_frame_texture(anim_name, 0)
-	return null
+	return SpriteUtils.extract_texture_from_sprite_frames(sprite_frames)
 
 
 ## Validate that required fields are set

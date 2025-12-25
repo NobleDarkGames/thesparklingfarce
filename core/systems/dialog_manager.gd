@@ -56,13 +56,6 @@ var text_speed_multiplier: float = 1.0  ## User preference (0.5 = slow, 1.0 = no
 var dialog_box: Control = null
 
 
-func _ready() -> void:
-	# This is an autoload singleton
-	# DialogBox will be instantiated by scenes that need it
-	# (e.g., battle scenes, world scenes)
-	pass
-
-
 ## Start a dialog by ID (looks up in ModRegistry)
 func start_dialog(dialogue_id: String) -> bool:
 	if current_state != State.IDLE:

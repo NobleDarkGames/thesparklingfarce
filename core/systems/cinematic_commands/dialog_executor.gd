@@ -6,9 +6,6 @@
 class_name DialogExecutor
 extends CinematicCommandExecutor
 
-## Counter for generating unique inline dialog IDs
-static var _inline_dialog_counter: int = 0
-
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
@@ -56,7 +53,7 @@ func _execute_single_line(params: Dictionary, manager: Node) -> bool:
 	# Resolve character_id to speaker_name and portrait if present
 	var character_id: String = params.get("character_id", "")
 	if not character_id.is_empty():
-		var char_data: Dictionary = _resolve_character_data(character_id)
+		var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(character_id)
 		line_dict["speaker_name"] = char_data["name"]
 		if char_data["portrait"] != null:
 			line_dict["portrait"] = char_data["portrait"]
@@ -105,8 +102,8 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 
 			# Resolve character_id to speaker_name and portrait if present
 			if "character_id" in line_dict and not "speaker_name" in line_dict:
-				var character_id: String = str(line_dict["character_id"])
-				var char_data: Dictionary = _resolve_character_data(character_id)
+				var char_id: String = str(line_dict["character_id"])
+				var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(char_id)
 				line_dict["speaker_name"] = char_data["name"]
 				if char_data["portrait"] != null:
 					line_dict["portrait"] = char_data["portrait"]
@@ -124,43 +121,3 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 	else:
 		push_error("DialogExecutor: Failed to start inline dialog")
 		return true
-
-
-## Resolve a character_id to character data (name and portrait)
-## Supports both characters (by UID) and NPCs (prefixed with "npc:")
-## Returns Dictionary with "name" and optionally "portrait"
-func _resolve_character_data(character_id: String) -> Dictionary:
-	var result: Dictionary = {"name": "", "portrait": null}
-
-	if character_id.is_empty():
-		return result
-
-	# Check if this is an NPC reference (prefixed with "npc:")
-	if character_id.begins_with("npc:"):
-		var npc_id: String = character_id.substr(4)  # Remove "npc:" prefix
-		if ModLoader and ModLoader.registry:
-			var npc: NPCData = ModLoader.registry.get_npc_by_id(npc_id)
-			if npc:
-				result["name"] = npc.get_display_name()
-				var portrait: Texture2D = npc.get_portrait()
-				if portrait:
-					result["portrait"] = portrait
-				return result
-		# Fallback for NPC
-		push_warning("DialogExecutor: Could not resolve NPC '%s' - NPC not found" % npc_id)
-		result["name"] = "[%s]" % npc_id
-		return result
-
-	# Try to look up character in ModRegistry
-	if ModLoader and ModLoader.registry:
-		var character: CharacterData = ModLoader.registry.get_character_by_uid(character_id)
-		if character:
-			result["name"] = character.character_name
-			if character.portrait:
-				result["portrait"] = character.portrait
-			return result
-
-	# Fallback: return the ID in brackets with a warning
-	push_warning("DialogExecutor: Could not resolve character_id '%s' - character not found" % character_id)
-	result["name"] = "[%s]" % character_id
-	return result

@@ -1,6 +1,8 @@
 class_name CharacterData
 extends Resource
 
+const SpriteUtils: GDScript = preload("res://core/utils/sprite_utils.gd")
+
 ## Represents a single character/unit in the game.
 ## Contains all stats, appearance, and equipment information.
 ##
@@ -195,14 +197,10 @@ func get_portrait_safe() -> Texture2D:
 ## Extracts first frame of walk_down animation, with fallbacks
 ## Safe to call without null checks - always returns a valid Texture2D
 func get_display_texture() -> Texture2D:
-	if sprite_frames != null:
-		# SF2-authentic: walk_down is the primary animation (no separate idle)
-		if sprite_frames.has_animation("walk_down") and sprite_frames.get_frame_count("walk_down") > 0:
-			return sprite_frames.get_frame_texture("walk_down", 0)
-		# Last resort: any animation's first frame
-		for anim_name: String in sprite_frames.get_animation_names():
-			if sprite_frames.get_frame_count(anim_name) > 0:
-				return sprite_frames.get_frame_texture(anim_name, 0)
+	# Try sprite_frames first
+	var sprite_texture: Texture2D = SpriteUtils.extract_texture_from_sprite_frames(sprite_frames)
+	if sprite_texture:
+		return sprite_texture
 
 	# Fallback to portrait
 	if portrait != null:

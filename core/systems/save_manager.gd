@@ -27,6 +27,63 @@ const METADATA_FILE: String = "slots.meta"
 const MAX_SLOTS: int = 3
 
 # ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+## Atomic file write - prevents corruption on crash
+## Writes to temp file, backs up existing, then atomic rename
+## @param file_path: Target file path
+## @param content: String content to write
+## @return: true on success, false on failure
+func _atomic_write_file(file_path: String, content: String) -> bool:
+	var temp_path: String = file_path + ".tmp"
+	var backup_path: String = file_path + ".bak"
+
+	# Step 1: Write to temp file
+	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
+	if not file:
+		push_error("SaveManager: Failed to open temp file: %s" % temp_path)
+		return false
+
+	file.store_string(content)
+	file.close()
+
+	# Verify temp file was written
+	if not FileAccess.file_exists(temp_path):
+		push_error("SaveManager: Temp file not created: %s" % temp_path)
+		return false
+
+	# Step 2: Open directory for rename operations
+	var dir: DirAccess = DirAccess.open(file_path.get_base_dir())
+	if not dir:
+		push_error("SaveManager: Cannot open directory for atomic write")
+		return false
+
+	# Step 3: Backup existing file (if exists)
+	if FileAccess.file_exists(file_path):
+		if FileAccess.file_exists(backup_path):
+			dir.remove(backup_path)
+		var backup_err: Error = dir.rename(file_path, backup_path)
+		if backup_err != OK:
+			push_warning("SaveManager: Failed to create backup: %d (continuing)" % backup_err)
+
+	# Step 4: Atomic rename - temp to final
+	var rename_err: Error = dir.rename(temp_path, file_path)
+	if rename_err != OK:
+		push_error("SaveManager: Failed atomic rename: %d" % rename_err)
+		# Try to restore backup
+		if FileAccess.file_exists(backup_path):
+			dir.rename(backup_path, file_path)
+		return false
+
+	# Step 5: Remove backup on success
+	if FileAccess.file_exists(backup_path):
+		dir.remove(backup_path)
+
+	return true
+
+
+# ============================================================================
 # RUNTIME STATE
 # ============================================================================
 
@@ -112,56 +169,11 @@ func save_to_slot(slot_number: int, save_data: SaveData) -> bool:
 	var save_dict: Dictionary = save_data.serialize_to_dict()
 	var json_string: String = JSON.stringify(save_dict, "\t")
 
-	# Write to file using atomic write pattern (prevents corruption on crash)
+	# Write to file using atomic write pattern
 	var file_path: String = _get_slot_file_path(slot_number)
-	var temp_path: String = file_path + ".tmp"
-	var backup_path: String = file_path + ".bak"
-
-	# Step 1: Write to temp file
-	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if not file:
-		push_error("SaveManager: Failed to open temp file for writing: %s" % temp_path)
+	if not _atomic_write_file(file_path, json_string):
 		save_completed.emit(slot_number, false)
 		return false
-
-	file.store_string(json_string)
-	file.close()
-
-	# Verify temp file was written correctly
-	if not FileAccess.file_exists(temp_path):
-		push_error("SaveManager: Temp file not created: %s" % temp_path)
-		save_completed.emit(slot_number, false)
-		return false
-
-	# Step 2: Create backup of existing save (if exists)
-	var dir: DirAccess = DirAccess.open(SAVE_DIRECTORY)
-	if not dir:
-		push_error("SaveManager: Cannot open save directory for atomic write")
-		save_completed.emit(slot_number, false)
-		return false
-
-	if FileAccess.file_exists(file_path):
-		# Remove old backup if exists
-		if FileAccess.file_exists(backup_path):
-			dir.remove(backup_path)
-		# Rename current save to backup
-		var rename_err: Error = dir.rename(file_path, backup_path)
-		if rename_err != OK:
-			push_warning("SaveManager: Failed to create backup: %d (continuing anyway)" % rename_err)
-
-	# Step 3: Atomic rename - temp to final
-	var final_err: Error = dir.rename(temp_path, file_path)
-	if final_err != OK:
-		push_error("SaveManager: Failed atomic rename: %d" % final_err)
-		# Try to restore backup
-		if FileAccess.file_exists(backup_path):
-			dir.rename(backup_path, file_path)
-		save_completed.emit(slot_number, false)
-		return false
-
-	# Step 4: Remove backup (success)
-	if FileAccess.file_exists(backup_path):
-		dir.remove(backup_path)
 
 	# Update metadata
 	_update_metadata_for_slot(slot_number, save_data)
@@ -379,8 +391,6 @@ func _load_metadata_file() -> Array[SlotMetadata]:
 ## @param metadata_array: Array of SlotMetadata to save
 func _save_metadata_file(metadata_array: Array[SlotMetadata]) -> void:
 	var metadata_path: String = SAVE_DIRECTORY.path_join(METADATA_FILE)
-	var temp_path: String = metadata_path + ".tmp"
-	var backup_path: String = metadata_path + ".bak"
 
 	# Serialize to array of dictionaries
 	var dict_array: Array = []
@@ -388,40 +398,7 @@ func _save_metadata_file(metadata_array: Array[SlotMetadata]) -> void:
 		dict_array.append(meta.serialize_to_dict())
 
 	var json_string: String = JSON.stringify(dict_array, "\t")
-
-	# Step 1: Write to temp file
-	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if not file:
-		push_error("SaveManager: Failed to open metadata temp file for writing")
-		return
-
-	file.store_string(json_string)
-	file.close()
-
-	# Step 2: Atomic rename
-	var dir: DirAccess = DirAccess.open(SAVE_DIRECTORY)
-	if not dir:
-		push_error("SaveManager: Cannot open save directory for metadata write")
-		return
-
-	# Backup existing metadata
-	if FileAccess.file_exists(metadata_path):
-		if FileAccess.file_exists(backup_path):
-			dir.remove(backup_path)
-		dir.rename(metadata_path, backup_path)
-
-	# Rename temp to final
-	var err: Error = dir.rename(temp_path, metadata_path)
-	if err != OK:
-		push_error("SaveManager: Failed atomic rename of metadata: %d" % err)
-		# Restore backup
-		if FileAccess.file_exists(backup_path):
-			dir.rename(backup_path, metadata_path)
-		return
-
-	# Remove backup on success
-	if FileAccess.file_exists(backup_path):
-		dir.remove(backup_path)
+	_atomic_write_file(metadata_path, json_string)
 
 
 ## Update metadata for a specific slot

@@ -87,32 +87,26 @@ enum DefeatCondition {
 
 ## Validate enemy dictionary structure
 func validate_enemies() -> bool:
-	for i: int in range(enemies.size()):
-		var enemy: Dictionary = enemies[i]
-		if "character" not in enemy or enemy.character == null:
-			push_error("BattleData: Enemy %d missing character" % i)
-			return false
-		if "position" not in enemy:
-			push_error("BattleData: Enemy %d missing position" % i)
-			return false
-		if "ai_behavior" not in enemy or enemy.ai_behavior == null:
-			push_error("BattleData: Enemy %d missing ai_behavior" % i)
-			return false
-	return true
+	return _validate_unit_array(enemies, "Enemy")
 
 
 ## Validate neutral dictionary structure
 func validate_neutrals() -> bool:
-	for i in range(neutrals.size()):
-		var neutral: Dictionary = neutrals[i]
-		if not 'character' in neutral or neutral.character == null:
-			push_error("BattleData: Neutral %d missing character" % i)
+	return _validate_unit_array(neutrals, "Neutral")
+
+
+## Generic validation for unit arrays (enemies, neutrals)
+func _validate_unit_array(units: Array[Dictionary], unit_type: String) -> bool:
+	for i: int in range(units.size()):
+		var unit: Dictionary = units[i]
+		if "character" not in unit or unit.character == null:
+			push_error("BattleData: %s %d missing character" % [unit_type, i])
 			return false
-		if not 'position' in neutral:
-			push_error("BattleData: Neutral %d missing position" % i)
+		if "position" not in unit:
+			push_error("BattleData: %s %d missing position" % [unit_type, i])
 			return false
-		if not 'ai_behavior' in neutral or neutral.ai_behavior == null:
-			push_error("BattleData: Neutral %d missing ai_behavior" % i)
+		if "ai_behavior" not in unit or unit.ai_behavior == null:
+			push_error("BattleData: %s %d missing ai_behavior" % [unit_type, i])
 			return false
 	return true
 

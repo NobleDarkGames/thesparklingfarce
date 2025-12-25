@@ -17,8 +17,6 @@ extends RefCounted
 # Combat balance constants
 const DAMAGE_VARIANCE_MIN: float = 0.9
 const DAMAGE_VARIANCE_MAX: float = 1.1
-const BASE_HIT_CHANCE: int = 80
-const BASE_CRIT_CHANCE: int = 5
 const COUNTER_DAMAGE_MULTIPLIER: float = 0.75
 const XP_LEVEL_BONUS_PERCENT: float = 0.2
 const XP_LEVEL_PENALTY_PERCENT: float = 0.1

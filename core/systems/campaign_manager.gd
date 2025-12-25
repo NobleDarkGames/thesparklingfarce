@@ -73,11 +73,6 @@ var _return_context: Dictionary = {}
 ## Callable signature: func(node: Resource) -> void
 var _node_processors: Dictionary = {}
 
-# ---- Registry Pattern: Transition Trigger Evaluators ----
-## Registered trigger evaluators: trigger_type -> Callable
-## Callable signature: func(branch: Dictionary, outcome: Dictionary) -> bool
-var _trigger_evaluators: Dictionary = {}
-
 # ---- Registry Pattern: Custom Node Handlers ----
 ## For "custom:*" node types, modders register handlers here
 ## custom_type (without "custom:" prefix) -> Callable
@@ -101,7 +96,6 @@ var _completion_flag: String = ""
 func _ready() -> void:
 	_spawn_chapter_ui()
 	_register_built_in_processors()
-	_register_built_in_evaluators()
 
 	# Wait for ModLoader to finish loading mods
 	if ModLoader.is_loading():
@@ -271,25 +265,12 @@ func _register_built_in_processors() -> void:
 	register_node_processor("choice", _process_choice_node)
 
 
-## Register built-in trigger evaluators
-func _register_built_in_evaluators() -> void:
-	register_trigger_evaluator("choice", _evaluate_choice_trigger)
-	register_trigger_evaluator("flag", _evaluate_flag_trigger)
-	register_trigger_evaluator("always", _evaluate_always_trigger)
-
-
 # ==== Registry API ====
 
 ## Register a processor for a node type
 ## Callable signature: func(node: Resource) -> void
 func register_node_processor(node_type: String, processor: Callable) -> void:
 	_node_processors[node_type] = processor
-
-
-## Register an evaluator for a transition trigger type
-## Callable signature: func(branch: Dictionary, outcome: Dictionary) -> bool
-func register_trigger_evaluator(trigger_type: String, evaluator: Callable) -> void:
-	_trigger_evaluators[trigger_type] = evaluator
 
 
 ## Register a handler for custom node types (modders use this)
@@ -865,22 +846,6 @@ func _check_chapter_transition(node: Resource) -> void:
 	if chapter_id != current_chapter_id:
 		GameState.set_campaign_data("current_chapter_id", chapter_id)
 		chapter_started.emit(chapter)
-
-
-# ==== Built-in Trigger Evaluators ====
-
-func _evaluate_choice_trigger(branch: Dictionary, outcome: Dictionary) -> bool:
-	var choice_value: String = branch.get("choice_value", "")
-	return outcome.get("choice", "") == choice_value
-
-
-func _evaluate_flag_trigger(branch: Dictionary, _outcome: Dictionary) -> bool:
-	var required_flag: String = branch.get("required_flag", "")
-	return required_flag.is_empty() or GameState.has_flag(required_flag)
-
-
-func _evaluate_always_trigger(_branch: Dictionary, _outcome: Dictionary) -> bool:
-	return true
 
 
 # ==== Save/Load Support ====

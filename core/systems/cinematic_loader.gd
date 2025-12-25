@@ -171,50 +171,9 @@ static func _convert_params(params: Dictionary, cmd_type: String) -> Dictionary:
 	return converted
 
 
-## Resolve a character_id to character data (name and portrait)
-## Supports both characters (by UID) and NPCs (prefixed with "npc:")
-## Returns Dictionary with "name" and optionally "portrait"
-## Falls back to showing the ID itself if character not found
-static func _resolve_character_data(character_id: String) -> Dictionary:
-	var result: Dictionary = {"name": "", "portrait": null}
-
-	if character_id.is_empty():
-		return result
-
-	# Check if this is an NPC reference (prefixed with "npc:")
-	if character_id.begins_with("npc:"):
-		var npc_id: String = character_id.substr(4)  # Remove "npc:" prefix
-		if ModLoader and ModLoader.registry:
-			var npc: NPCData = ModLoader.registry.get_npc_by_id(npc_id)
-			if npc:
-				result["name"] = npc.get_display_name()
-				var portrait: Texture2D = npc.get_portrait()
-				if portrait:
-					result["portrait"] = portrait
-				return result
-		# Fallback for NPC
-		push_warning("CinematicLoader: Could not resolve NPC '%s' - NPC not found" % npc_id)
-		result["name"] = "[%s]" % npc_id
-		return result
-
-	# Try to look up character in ModRegistry
-	if ModLoader and ModLoader.registry:
-		var character: CharacterData = ModLoader.registry.get_character_by_uid(character_id)
-		if character:
-			result["name"] = character.character_name
-			if character.portrait:
-				result["portrait"] = character.portrait
-			return result
-
-	# Fallback: return the ID itself with a warning
-	push_warning("CinematicLoader: Could not resolve character_id '%s' - character not found" % character_id)
-	result["name"] = "[%s]" % character_id
-	return result
-
-
 ## Resolve a character_id to a display name (convenience wrapper)
 static func _resolve_character_id(character_id: String) -> String:
-	return _resolve_character_data(character_id).get("name", "")
+	return CinematicCommandExecutor.resolve_character_data(character_id).get("name", "")
 
 
 ## Convert a single value to appropriate GDScript type
@@ -256,7 +215,7 @@ static func _convert_value(value: Variant, key: String, cmd_type: String) -> Var
 
 				# Support character_id lookup (preferred) or direct speaker name
 				if "character_id" in line_dict:
-					var char_data: Dictionary = _resolve_character_data(str(line_dict["character_id"]))
+					var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(str(line_dict["character_id"]))
 					if not char_data["name"].is_empty():
 						converted_line["speaker_name"] = char_data["name"]
 					if char_data["portrait"] != null:

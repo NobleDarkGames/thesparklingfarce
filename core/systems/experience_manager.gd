@@ -1,7 +1,5 @@
 extends Node
 
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
-
 ## ExperienceManager - Central system for XP awards and level-up mechanics.
 ##
 ## Autoload singleton responsible for:

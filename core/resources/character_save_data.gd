@@ -257,79 +257,59 @@ func serialize_to_dict() -> Dictionary:
 	}
 
 
+## Simple fields that can be deserialized with direct assignment
+const _SIMPLE_FIELDS: Array[String] = [
+	"character_mod_id", "character_resource_id", "fallback_character_name",
+	"fallback_class_name", "level", "current_xp", "current_hp", "max_hp",
+	"current_mp", "max_mp", "strength", "defense", "agility", "intelligence",
+	"luck", "is_alive", "is_available", "is_hero", "recruitment_chapter",
+	"cumulative_level", "promotion_count", "is_promoted",
+	"current_class_mod_id", "current_class_resource_id"
+]
+
+
 ## Deserialize character save data from Dictionary (loaded from JSON)
 ## @param data: Dictionary loaded from JSON file
 func deserialize_from_dict(data: Dictionary) -> void:
-	if "character_mod_id" in data:
-		character_mod_id = data.character_mod_id
-	if "character_resource_id" in data:
-		character_resource_id = data.character_resource_id
-	if "fallback_character_name" in data:
-		fallback_character_name = data.fallback_character_name
-	if "fallback_class_name" in data:
-		fallback_class_name = data.fallback_class_name
-	if "level" in data:
-		level = data.level
-	if "current_xp" in data:
-		current_xp = data.current_xp
-	if "current_hp" in data:
-		current_hp = data.current_hp
-	if "max_hp" in data:
-		max_hp = data.max_hp
-	if "current_mp" in data:
-		current_mp = data.current_mp
-	if "max_mp" in data:
-		max_mp = data.max_mp
-	if "strength" in data:
-		strength = data.strength
-	if "defense" in data:
-		defense = data.defense
-	if "agility" in data:
-		agility = data.agility
-	if "intelligence" in data:
-		intelligence = data.intelligence
-	if "luck" in data:
-		luck = data.luck
-	if "equipped_items" in data:
-		equipped_items.clear()
-		var items_array: Array = data.equipped_items
-		for i: int in range(items_array.size()):
-			var item_dict: Dictionary = items_array[i]
-			# Ensure curse_broken field exists (backward compatibility)
-			if "curse_broken" not in item_dict:
-				item_dict["curse_broken"] = false
-			equipped_items.append(item_dict)
-	if "inventory" in data:
-		inventory.clear()
-		var inv_array: Array = data.inventory
-		for i: int in range(inv_array.size()):
-			var item_id: Variant = inv_array[i]
-			if item_id is String:
-				inventory.append(item_id)
-	if "learned_abilities" in data:
-		learned_abilities.clear()
-		var abilities_array: Array = data.learned_abilities
-		for i: int in range(abilities_array.size()):
-			var ability_dict: Dictionary = abilities_array[i]
-			learned_abilities.append(ability_dict)
-	if "is_alive" in data:
-		is_alive = data.is_alive
-	if "is_available" in data:
-		is_available = data.is_available
-	if "is_hero" in data:
-		is_hero = data.is_hero
-	if "recruitment_chapter" in data:
-		recruitment_chapter = data.recruitment_chapter
-	if "cumulative_level" in data:
-		cumulative_level = data.cumulative_level
-	if "promotion_count" in data:
-		promotion_count = data.promotion_count
-	if "is_promoted" in data:
-		is_promoted = data.is_promoted
-	if "current_class_mod_id" in data:
-		current_class_mod_id = data.current_class_mod_id
-	if "current_class_resource_id" in data:
-		current_class_resource_id = data.current_class_resource_id
+	# Deserialize simple fields via reflection
+	for field: String in _SIMPLE_FIELDS:
+		if field in data:
+			set(field, data[field])
+
+	# Handle complex array fields with special processing
+	_deserialize_equipped_items(data)
+	_deserialize_inventory(data)
+	_deserialize_learned_abilities(data)
+
+
+## Deserialize equipped_items with backward compatibility for curse_broken
+func _deserialize_equipped_items(data: Dictionary) -> void:
+	if "equipped_items" not in data:
+		return
+	equipped_items.clear()
+	for item_dict: Dictionary in data.equipped_items:
+		if "curse_broken" not in item_dict:
+			item_dict["curse_broken"] = false
+		equipped_items.append(item_dict)
+
+
+## Deserialize inventory with type checking
+func _deserialize_inventory(data: Dictionary) -> void:
+	if "inventory" not in data:
+		return
+	inventory.clear()
+	for item_id: Variant in data.inventory:
+		if item_id is String:
+			inventory.append(item_id)
+
+
+## Deserialize learned_abilities array
+func _deserialize_learned_abilities(data: Dictionary) -> void:
+	if "learned_abilities" not in data:
+		return
+	learned_abilities.clear()
+	for ability_dict: Dictionary in data.learned_abilities:
+		learned_abilities.append(ability_dict)
 
 
 # ============================================================================
