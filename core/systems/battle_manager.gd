@@ -47,23 +47,19 @@ var battle_scene_root: Node = null
 var map_instance: Node2D = null
 var units_parent: Node2D = null
 
-## Default scene paths (fallbacks if no mod override exists)
-## Total conversion mods can override these via mod.json "scenes" section
-const DEFAULT_UNIT_SCENE: String = "res://scenes/unit.tscn"
-const DEFAULT_COMBAT_ANIM_SCENE: String = "res://scenes/ui/combat_animation_scene.tscn"
-const DEFAULT_LEVEL_UP_SCENE: String = "res://scenes/ui/level_up_celebration.tscn"
-const DEFAULT_VICTORY_SCREEN_SCENE: String = "res://scenes/ui/victory_screen.tscn"
-const DEFAULT_DEFEAT_SCREEN_SCENE: String = "res://scenes/ui/defeat_screen.tscn"
-const DEFAULT_COMBAT_RESULTS_SCENE: String = "res://scenes/ui/combat_results_panel.tscn"
+## Scene configuration: {mod_key: default_path}
+## Keys match ModLoader's scene override system (e.g., "unit_scene" in mod.json "scenes" section)
+const SCENE_DEFAULTS: Dictionary = {
+	"unit_scene": "res://scenes/unit.tscn",
+	"combat_anim_scene": "res://scenes/ui/combat_animation_scene.tscn",
+	"level_up_scene": "res://scenes/ui/level_up_celebration.tscn",
+	"victory_screen_scene": "res://scenes/ui/victory_screen.tscn",
+	"defeat_screen_scene": "res://scenes/ui/defeat_screen.tscn",
+	"combat_results_scene": "res://scenes/ui/combat_results_panel.tscn"
+}
 
-## Cached scene references (loaded lazily with mod override support)
-## Cleared when mods reload to pick up new overrides
-var _unit_scene: PackedScene = null
-var _combat_anim_scene: PackedScene = null
-var _level_up_scene: PackedScene = null
-var _victory_screen_scene: PackedScene = null
-var _defeat_screen_scene: PackedScene = null
-var _combat_results_scene: PackedScene = null
+## Cached scene references - cleared when mods reload to pick up new overrides
+var _scene_cache: Dictionary = {}
 
 ## Timing constants for battle pacing (Shining Force-style)
 const BATTLEFIELD_SETTLE_DELAY: float = 1.2  ## Pause after combat to let player read results
@@ -92,58 +88,16 @@ func setup(battle_scene: Node, units_container: Node2D) -> void:
 
 ## Clear cached scenes (called when mods reload to pick up new overrides)
 func clear_scene_cache() -> void:
-	_unit_scene = null
-	_combat_anim_scene = null
-	_level_up_scene = null
-	_victory_screen_scene = null
-	_defeat_screen_scene = null
-	_combat_results_scene = null
+	_scene_cache.clear()
 
 
-# =============================================================================
-# Scene Getters (Lazy Loading with Mod Override Support)
-# =============================================================================
-
-## Get the unit scene (allows mods to provide custom unit visuals)
-func _get_unit_scene() -> PackedScene:
-	if _unit_scene == null:
-		_unit_scene = ModLoader.get_scene_or_fallback("unit_scene", DEFAULT_UNIT_SCENE)
-	return _unit_scene
-
-
-## Get the combat animation scene (allows mods to provide custom combat UI)
-func _get_combat_anim_scene() -> PackedScene:
-	if _combat_anim_scene == null:
-		_combat_anim_scene = ModLoader.get_scene_or_fallback("combat_anim_scene", DEFAULT_COMBAT_ANIM_SCENE)
-	return _combat_anim_scene
-
-
-## Get the level-up celebration scene
-func _get_level_up_scene() -> PackedScene:
-	if _level_up_scene == null:
-		_level_up_scene = ModLoader.get_scene_or_fallback("level_up_scene", DEFAULT_LEVEL_UP_SCENE)
-	return _level_up_scene
-
-
-## Get the victory screen scene
-func _get_victory_screen_scene() -> PackedScene:
-	if _victory_screen_scene == null:
-		_victory_screen_scene = ModLoader.get_scene_or_fallback("victory_screen_scene", DEFAULT_VICTORY_SCREEN_SCENE)
-	return _victory_screen_scene
-
-
-## Get the defeat screen scene
-func _get_defeat_screen_scene() -> PackedScene:
-	if _defeat_screen_scene == null:
-		_defeat_screen_scene = ModLoader.get_scene_or_fallback("defeat_screen_scene", DEFAULT_DEFEAT_SCREEN_SCENE)
-	return _defeat_screen_scene
-
-
-## Get the combat results panel scene
-func _get_combat_results_scene() -> PackedScene:
-	if _combat_results_scene == null:
-		_combat_results_scene = ModLoader.get_scene_or_fallback("combat_results_scene", DEFAULT_COMBAT_RESULTS_SCENE)
-	return _combat_results_scene
+## Get a cached scene with lazy loading and mod override support
+## @param key: Scene key matching SCENE_DEFAULTS (e.g., "unit_scene")
+func _get_cached_scene(key: String) -> PackedScene:
+	if key not in _scene_cache:
+		var default_path: String = SCENE_DEFAULTS.get(key, "")
+		_scene_cache[key] = ModLoader.get_scene_or_fallback(key, default_path)
+	return _scene_cache[key]
 
 
 ## Validate BattleData has required properties
@@ -328,7 +282,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 		var ai_brain: Resource = data.get("ai_brain", null)
 
 		# Instantiate unit
-		var unit: Node2D = _get_unit_scene().instantiate()
+		var unit: Node2D = _get_cached_scene("unit_scene").instantiate()
 
 		# Initialize unit with character data, faction, and AI brain
 		if unit.has_method("initialize"):
@@ -1265,7 +1219,7 @@ func _execute_combat_session(
 		_hide_battlefield()
 
 		# Create and setup the combat animation scene
-		combat_anim_instance = _get_combat_anim_scene().instantiate()
+		combat_anim_instance = _get_cached_scene("combat_anim_scene").instantiate()
 		battle_scene_root.add_child(combat_anim_instance)
 		combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
 
@@ -1598,7 +1552,7 @@ func _show_victory_screen() -> bool:
 	# Distribute rewards before showing victory screen
 	var rewards: Dictionary = _distribute_battle_rewards()
 
-	var victory_screen: CanvasLayer = _get_victory_screen_scene().instantiate()
+	var victory_screen: CanvasLayer = _get_cached_scene("victory_screen_scene").instantiate()
 	battle_scene_root.add_child(victory_screen)
 
 	victory_screen.show_victory(rewards.gold)
@@ -1646,7 +1600,7 @@ func _distribute_battle_rewards() -> Dictionary:
 ## Show defeat screen (SF2-authentic automatic flow) and wait for player input
 ## Returns false always (no retry option in SF2-authentic flow)
 func _show_defeat_screen() -> bool:
-	var defeat_screen: CanvasLayer = _get_defeat_screen_scene().instantiate()
+	var defeat_screen: CanvasLayer = _get_cached_scene("defeat_screen_scene").instantiate()
 	battle_scene_root.add_child(defeat_screen)
 
 	var player_choice: String = ""  # "continue" or "quit"
@@ -1714,7 +1668,7 @@ func _process_level_up_queue() -> void:
 		return
 
 	# Instantiate and show level-up celebration
-	var celebration: CanvasLayer = _get_level_up_scene().instantiate()
+	var celebration: CanvasLayer = _get_cached_scene("level_up_scene").instantiate()
 	battle_scene_root.add_child(celebration)
 
 	celebration.show_level_up(data.unit, data.old_level, data.new_level, data.stat_increases)
@@ -1751,7 +1705,7 @@ func _show_combat_results() -> void:
 		return
 
 	# Create and populate the results panel
-	var results_panel: CanvasLayer = _get_combat_results_scene().instantiate()
+	var results_panel: CanvasLayer = _get_cached_scene("combat_results_scene").instantiate()
 	battle_scene_root.add_child(results_panel)
 
 	# Add all queued combat actions first

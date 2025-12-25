@@ -12,6 +12,11 @@ const COLOR_PLAYER: Color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
 const COLOR_ENEMY: Color = Color(1.0, 0.2, 0.2, 1.0)  # Bright red
 const COLOR_NEUTRAL: Color = Color(1.0, 1.0, 0.2, 1.0)  # Bright yellow
 
+# Faction tint colors for character sprites
+const TINT_PLAYER: Color = Color(1.0, 1.0, 1.0, 1.0)  # No tint
+const TINT_ENEMY: Color = Color(1.0, 0.7, 0.7, 1.0)  # Slight red tint
+const TINT_NEUTRAL: Color = Color(1.0, 1.0, 0.8, 1.0)  # Slight yellow tint
+
 ## Signals for battle events
 signal moved(from: Vector2i, to: Vector2i)
 signal cell_entered(cell: Vector2i)  ## Emitted when unit reaches each cell during path movement
@@ -127,26 +132,13 @@ func _update_visual() -> void:
 		if character_data.sprite_frames.has_animation("walk_down"):
 			sprite.animation = "walk_down"
 			sprite.play()
-		# Apply faction-based modulation for visual faction identification
-		match faction:
-			"player":
-				sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)  # White (no tint)
-			"enemy":
-				sprite.modulate = Color(1.0, 0.7, 0.7, 1.0)  # Slight red tint
-			"neutral":
-				sprite.modulate = Color(1.0, 1.0, 0.8, 1.0)  # Slight yellow tint
+		sprite.modulate = _get_faction_modulate(true)
 	else:
 		# Fallback: Create placeholder sprite_frames with colored square
 		sprite.sprite_frames = _create_placeholder_sprite_frames()
 		sprite.animation = "walk_down"
 		sprite.play()
-		match faction:
-			"player":
-				sprite.modulate = COLOR_PLAYER
-			"enemy":
-				sprite.modulate = COLOR_ENEMY
-			"neutral":
-				sprite.modulate = COLOR_NEUTRAL
+		sprite.modulate = _get_faction_modulate(false)
 
 
 ## Path to default character spritesheet in core assets
@@ -345,7 +337,7 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 	_update_facing_from_movement(grid_position, target_cell)
 
 	# Play walk animation
-	_play_walk_animation()
+	_play_directional_animation()
 
 	# Create tween for smooth movement
 	_movement_tween = create_tween()
@@ -356,7 +348,7 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 	_movement_tween.tween_property(self, "position", target_position, duration)
 
 	# Return to idle when movement completes
-	_movement_tween.tween_callback(_play_idle_animation)
+	_movement_tween.tween_callback(_play_directional_animation)
 
 	return _movement_tween
 
@@ -390,7 +382,7 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 			var new_dir: String = step_direction  # Capture for lambda
 			_movement_tween.tween_callback(func() -> void:
 				facing_direction = new_dir
-				_play_walk_animation()
+				_play_directional_animation()
 			)
 			prev_direction = step_direction
 
@@ -407,7 +399,7 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 		_movement_tween.tween_callback(func() -> void: cell_entered.emit(entered_cell))
 
 	# Return to idle when movement completes
-	_movement_tween.tween_callback(_play_idle_animation)
+	_movement_tween.tween_callback(_play_directional_animation)
 
 	return _movement_tween
 
@@ -595,32 +587,32 @@ func _set_acted_visual(dimmed: bool) -> void:
 	if not sprite:
 		return
 
+	var has_sprite_frames: bool = character_data and character_data.sprite_frames
 	if dimmed:
 		# Dim to ~60% brightness to show unit has acted
-		sprite.modulate = sprite.modulate * Color(0.6, 0.6, 0.6, 1.0)
+		sprite.modulate = _get_faction_modulate(has_sprite_frames) * Color(0.6, 0.6, 0.6, 1.0)
 	else:
-		# Restore based on faction (from _update_visual logic)
-		if character_data and character_data.sprite_frames:
-			match faction:
-				"player":
-					sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
-				"enemy":
-					sprite.modulate = Color(1.0, 0.7, 0.7, 1.0)
-				"neutral":
-					sprite.modulate = Color(1.0, 1.0, 0.8, 1.0)
-		else:
-			match faction:
-				"player":
-					sprite.modulate = COLOR_PLAYER
-				"enemy":
-					sprite.modulate = COLOR_ENEMY
-				"neutral":
-					sprite.modulate = COLOR_NEUTRAL
+		sprite.modulate = _get_faction_modulate(has_sprite_frames)
 
 
 ## Reset all units to undimmed state (call at round start)
 func reset_acted_visual() -> void:
 	_set_acted_visual(false)
+
+
+## Get faction-appropriate modulate color
+## has_character_sprite: true if using character sprite_frames, false if using placeholder
+func _get_faction_modulate(has_character_sprite: bool) -> Color:
+	if has_character_sprite:
+		match faction:
+			"player": return TINT_PLAYER
+			"enemy": return TINT_ENEMY
+			_: return TINT_NEUTRAL
+	else:
+		match faction:
+			"player": return COLOR_PLAYER
+			"enemy": return COLOR_ENEMY
+			_: return COLOR_NEUTRAL
 
 
 ## Get unit display name (for UI)
@@ -689,7 +681,7 @@ func is_moving() -> bool:
 ## direction: "up", "down", "left", "right"
 func set_facing(direction: String) -> void:
 	facing_direction = direction.to_lower()
-	_play_idle_animation()
+	_play_directional_animation()
 
 
 ## Face toward a target position (for attacks, spells, etc.)
@@ -704,34 +696,16 @@ func _direction_to_string(direction: Vector2i) -> String:
 	return FacingUtils.direction_to_string(direction)
 
 
-## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary)
-func _play_idle_animation() -> void:
-	if not sprite or not sprite.sprite_frames:
-		return
-
-	# SF2-authentic: walk animation loops continuously, even when "idle"
-	var anim_name: String = "walk_" + facing_direction
-
-	if sprite.sprite_frames.has_animation(anim_name):
-		if sprite.animation != anim_name:
-			sprite.play(anim_name)
-	elif sprite.sprite_frames.has_animation("walk_down"):
-		# Fallback for sprites without all directional animations
-		sprite.play("walk_down")
-
-
-## Play walk animation for current facing direction
-func _play_walk_animation() -> void:
+## Play directional walk animation (SF2-authentic: walk plays continuously, even when stationary)
+func _play_directional_animation() -> void:
 	if not sprite or not sprite.sprite_frames:
 		return
 
 	var anim_name: String = "walk_" + facing_direction
-
 	if sprite.sprite_frames.has_animation(anim_name):
 		if sprite.animation != anim_name:
 			sprite.play(anim_name)
 	elif sprite.sprite_frames.has_animation("walk_down"):
-		# Fallback for sprites without all directional animations
 		sprite.play("walk_down")
 
 

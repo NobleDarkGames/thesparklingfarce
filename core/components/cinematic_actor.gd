@@ -110,17 +110,7 @@ func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0)
 	# Delegate directly to parent entity's move_along_path
 	if parent_entity.has_method("move_along_path"):
 		parent_entity.move_along_path(complete_path)
-
-		# Connect to parent's movement signal if available
-		if parent_entity.has_signal("moved"):
-			if not parent_entity.moved.is_connected(_on_parent_moved):
-				parent_entity.moved.connect(_on_parent_moved, CONNECT_ONE_SHOT)
-		else:
-			# No signal available, estimate completion time
-			var path_length: float = complete_path.size() * GridManager.get_tile_size()
-			var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())
-			await get_tree().create_timer(estimated_duration).timeout
-			_stop_movement()
+		_await_parent_movement(complete_path)
 	else:
 		# Fallback for simple test entities without Unit component
 		_use_simple_movement_direct(complete_path, speed if speed > 0 else default_speed)
@@ -183,17 +173,7 @@ func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 
 	# Call parent's move_along_path (reusing battle/exploration movement code)
 	parent_entity.move_along_path(complete_path)
-
-	# Connect to parent's movement signal if available
-	if parent_entity.has_signal("moved"):
-		if not parent_entity.moved.is_connected(_on_parent_moved):
-			parent_entity.moved.connect(_on_parent_moved, CONNECT_ONE_SHOT)
-	else:
-		# No signal available, estimate completion time
-		var path_length: float = complete_path.size() * GridManager.get_tile_size()
-		var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())
-		await get_tree().create_timer(estimated_duration).timeout
-		_stop_movement()
+	_await_parent_movement(complete_path)
 
 
 ## Simple movement for basic entities without Unit component
@@ -243,31 +223,15 @@ func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -
 	is_moving = true
 	movement_speed = speed
 
-	# Convert complete path to world positions
 	var world_path: Array[Vector2] = []
 	for cell: Vector2i in complete_path:
 		world_path.append(GridManager.cell_to_world(cell))
 
-	# Simple tween movement
-	var move_tween: Tween = create_tween()
-	move_tween.set_trans(Tween.TRANS_LINEAR)
-	move_tween.set_ease(Tween.EASE_IN_OUT)
-
-	var total_duration: float = 0.0
-	for i: int in range(world_path.size()):
-		var target_pos: Vector2 = world_path[i]
-		var start_pos: Vector2 = world_path[i - 1] if i > 0 else parent_entity.global_position
-		var distance: float = start_pos.distance_to(target_pos)
-		var duration: float = distance / (movement_speed * GridManager.get_tile_size())
-		total_duration += duration
-		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
-
-	move_tween.tween_callback(func() -> void: _stop_movement())
+	_tween_through_world_path(world_path, speed)
 
 
 ## Called when parent entity's movement completes
 func _on_parent_moved(_old_pos: Vector2i, _new_pos: Vector2i) -> void:
-	# Parent has finished moving
 	_stop_movement()
 
 
@@ -275,6 +239,34 @@ func _on_parent_moved(_old_pos: Vector2i, _new_pos: Vector2i) -> void:
 func _stop_movement() -> void:
 	is_moving = false
 	movement_completed.emit()
+
+
+## Connect to parent's moved signal or estimate completion time
+func _await_parent_movement(complete_path: Array[Vector2i]) -> void:
+	if parent_entity.has_signal("moved"):
+		if not parent_entity.moved.is_connected(_on_parent_moved):
+			parent_entity.moved.connect(_on_parent_moved, CONNECT_ONE_SHOT)
+	else:
+		var path_length: float = complete_path.size() * GridManager.get_tile_size()
+		var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())
+		await get_tree().create_timer(estimated_duration).timeout
+		_stop_movement()
+
+
+## Tween through a world path with given speed (tiles per second)
+func _tween_through_world_path(world_path: Array[Vector2], tiles_per_second: float) -> void:
+	var move_tween: Tween = create_tween()
+	move_tween.set_trans(Tween.TRANS_LINEAR)
+	move_tween.set_ease(Tween.EASE_IN_OUT)
+
+	for i: int in range(world_path.size()):
+		var target_pos: Vector2 = world_path[i]
+		var start_pos: Vector2 = world_path[i - 1] if i > 0 else parent_entity.global_position
+		var distance: float = start_pos.distance_to(target_pos)
+		var duration: float = distance / (tiles_per_second * GridManager.get_tile_size())
+		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
+
+	move_tween.tween_callback(_stop_movement)
 
 
 ## Update sprite facing based on movement direction

@@ -115,84 +115,74 @@ func _ready() -> void:
 	set_process(false)
 
 
+# =============================================================================
+# MENU SIGNAL MANAGEMENT HELPERS
+# =============================================================================
+
+## Safely disconnect a signal from handler (removes ALL connections for stale signal safety)
+func _safe_disconnect_signal(sig: Signal, handler: Callable) -> void:
+	while sig.is_connected(handler):
+		sig.disconnect(handler)
+
+
+## Safely connect a signal to handler (only if not already connected)
+func _safe_connect_signal(sig: Signal, handler: Callable) -> void:
+	if not sig.is_connected(handler):
+		sig.connect(handler)
+
+
 ## Set action menu reference and connect signals
 func set_action_menu(menu: Control) -> void:
 	action_menu = menu
-
-	# Connect signals (we'll manage connection lifecycle per turn)
-	if not action_menu.action_selected.is_connected(_on_action_menu_selected):
-		action_menu.action_selected.connect(_on_action_menu_selected)
-	if not action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
-		action_menu.menu_cancelled.connect(_on_action_menu_cancelled)
-
-
-## Disconnect action menu signals (called when turn ends)
-## Forces complete disconnection - removes ALL connections, not just the first one
-func _disconnect_action_menu_signals() -> void:
-	if action_menu:
-		# Use while loop to ensure ALL connections are removed (fixes stale signal bug)
-		while action_menu.action_selected.is_connected(_on_action_menu_selected):
-			action_menu.action_selected.disconnect(_on_action_menu_selected)
-		while action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
-			action_menu.menu_cancelled.disconnect(_on_action_menu_cancelled)
+	_safe_connect_signal(action_menu.action_selected, _on_action_menu_selected)
+	_safe_connect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
 
 
 ## Set item menu reference and connect signals
 func set_item_menu(menu: Control) -> void:
 	item_menu = menu
-
-	# Connect signals (we'll manage connection lifecycle per turn)
-	if not item_menu.item_selected.is_connected(_on_item_menu_selected):
-		item_menu.item_selected.connect(_on_item_menu_selected)
-	if not item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
-		item_menu.menu_cancelled.connect(_on_item_menu_cancelled)
-
-
-## Disconnect item menu signals (called when turn ends)
-func _disconnect_item_menu_signals() -> void:
-	if item_menu:
-		while item_menu.item_selected.is_connected(_on_item_menu_selected):
-			item_menu.item_selected.disconnect(_on_item_menu_selected)
-		while item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
-			item_menu.menu_cancelled.disconnect(_on_item_menu_cancelled)
-
-
-## Reconnect item menu signals (called when player turn starts)
-func _reconnect_item_menu_signals() -> void:
-	if item_menu:
-		if not item_menu.item_selected.is_connected(_on_item_menu_selected):
-			item_menu.item_selected.connect(_on_item_menu_selected)
-		if not item_menu.menu_cancelled.is_connected(_on_item_menu_cancelled):
-			item_menu.menu_cancelled.connect(_on_item_menu_cancelled)
+	_safe_connect_signal(item_menu.item_selected, _on_item_menu_selected)
+	_safe_connect_signal(item_menu.menu_cancelled, _on_item_menu_cancelled)
 
 
 ## Set spell menu reference and connect signals
 func set_spell_menu(menu: Control) -> void:
 	spell_menu = menu
-
-	# Connect signals (we'll manage connection lifecycle per turn)
-	if not spell_menu.spell_selected.is_connected(_on_spell_menu_selected):
-		spell_menu.spell_selected.connect(_on_spell_menu_selected)
-	if not spell_menu.menu_cancelled.is_connected(_on_spell_menu_cancelled):
-		spell_menu.menu_cancelled.connect(_on_spell_menu_cancelled)
+	_safe_connect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
+	_safe_connect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
 
 
-## Disconnect spell menu signals (called when turn ends)
-func _disconnect_spell_menu_signals() -> void:
+## Disconnect action menu signals only (used during turn start reset)
+func _disconnect_action_menu_signals() -> void:
+	if action_menu:
+		_safe_disconnect_signal(action_menu.action_selected, _on_action_menu_selected)
+		_safe_disconnect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
+
+
+## Disconnect all menu signals (called when turn ends)
+func _disconnect_all_menu_signals() -> void:
+	if action_menu:
+		_safe_disconnect_signal(action_menu.action_selected, _on_action_menu_selected)
+		_safe_disconnect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
+	if item_menu:
+		_safe_disconnect_signal(item_menu.item_selected, _on_item_menu_selected)
+		_safe_disconnect_signal(item_menu.menu_cancelled, _on_item_menu_cancelled)
 	if spell_menu:
-		while spell_menu.spell_selected.is_connected(_on_spell_menu_selected):
-			spell_menu.spell_selected.disconnect(_on_spell_menu_selected)
-		while spell_menu.menu_cancelled.is_connected(_on_spell_menu_cancelled):
-			spell_menu.menu_cancelled.disconnect(_on_spell_menu_cancelled)
+		_safe_disconnect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
+		_safe_disconnect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
 
 
-## Reconnect spell menu signals (called when player turn starts)
-func _reconnect_spell_menu_signals() -> void:
+## Reconnect all menu signals (called when player turn starts)
+func _reconnect_all_menu_signals() -> void:
+	if action_menu:
+		_safe_connect_signal(action_menu.action_selected, _on_action_menu_selected)
+		_safe_connect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
+	if item_menu:
+		_safe_connect_signal(item_menu.item_selected, _on_item_menu_selected)
+		_safe_connect_signal(item_menu.menu_cancelled, _on_item_menu_cancelled)
 	if spell_menu:
-		if not spell_menu.spell_selected.is_connected(_on_spell_menu_selected):
-			spell_menu.spell_selected.connect(_on_spell_menu_selected)
-		if not spell_menu.menu_cancelled.is_connected(_on_spell_menu_cancelled):
-			spell_menu.menu_cancelled.connect(_on_spell_menu_cancelled)
+		_safe_connect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
+		_safe_connect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
 
 
 ## Handle spell menu selection signal
@@ -376,15 +366,6 @@ func _on_item_menu_cancelled(signal_session_id: int) -> void:
 	set_state(InputState.SELECTING_ACTION)
 
 
-## Reconnect action menu signals (called when player turn starts)
-func _reconnect_action_menu_signals() -> void:
-	if action_menu:
-		if not action_menu.action_selected.is_connected(_on_action_menu_selected):
-			action_menu.action_selected.connect(_on_action_menu_selected)
-		if not action_menu.menu_cancelled.is_connected(_on_action_menu_cancelled):
-			action_menu.menu_cancelled.connect(_on_action_menu_cancelled)
-
-
 ## Handle action menu selection signal
 ## signal_session_id: The session ID captured when menu was shown (not when signal arrives)
 func _on_action_menu_selected(action: String, signal_session_id: int) -> void:
@@ -461,9 +442,7 @@ func start_player_turn(unit: Node2D) -> void:
 		set_state(InputState.DIRECT_MOVEMENT)
 
 	# NOW reconnect signals after state is correct (eliminates timing window)
-	_reconnect_action_menu_signals()
-	_reconnect_item_menu_signals()
-	_reconnect_spell_menu_signals()
+	_reconnect_all_menu_signals()
 
 
 ## Change input state
@@ -1546,9 +1525,7 @@ func reset_to_waiting() -> void:
 		spell_menu.reset_menu()
 
 	# Disconnect menus to prevent stale signals
-	_disconnect_action_menu_signals()
-	_disconnect_item_menu_signals()
-	_disconnect_spell_menu_signals()
+	_disconnect_all_menu_signals()
 
 	# Hide stats panel
 	if stats_panel:
@@ -1706,8 +1683,8 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	active_unit.grid_position = target_cell
 
 	# Play walk animation during movement (facing was already set)
-	if active_unit.has_method("_play_walk_animation"):
-		active_unit._play_walk_animation()
+	if active_unit.has_method("_play_directional_animation"):
+		active_unit._play_directional_animation()
 
 	# Quick tween to new position (SF2-style: nearly instant)
 	var target_world: Vector2 = GridManager.cell_to_world(target_cell)
@@ -1724,9 +1701,9 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	if active_unit.has_signal("cell_entered"):
 		active_unit.cell_entered.emit(target_cell)
 
-	# Return to idle animation after movement
-	if active_unit.has_method("_play_idle_animation"):
-		active_unit._play_idle_animation()
+	# SF2-authentic: Walk animation plays continuously (no separate idle)
+	if active_unit.has_method("_play_directional_animation"):
+		active_unit._play_directional_animation()
 
 	# Guard: Validate state after async operation
 	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
@@ -1771,8 +1748,8 @@ func _undo_last_step() -> void:
 	active_unit.grid_position = previous_cell
 
 	# Play walk animation during movement
-	if active_unit.has_method("_play_walk_animation"):
-		active_unit._play_walk_animation()
+	if active_unit.has_method("_play_directional_animation"):
+		active_unit._play_directional_animation()
 
 	# Animate back
 	var target_world: Vector2 = GridManager.cell_to_world(previous_cell)
@@ -1789,9 +1766,9 @@ func _undo_last_step() -> void:
 	if active_unit.has_signal("cell_entered"):
 		active_unit.cell_entered.emit(previous_cell)
 
-	# Return to idle animation after movement
-	if active_unit.has_method("_play_idle_animation"):
-		active_unit._play_idle_animation()
+	# SF2-authentic: Walk animation plays continuously (no separate idle)
+	if active_unit.has_method("_play_directional_animation"):
+		active_unit._play_directional_animation()
 
 	# Guard: Validate state after async operation
 	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
