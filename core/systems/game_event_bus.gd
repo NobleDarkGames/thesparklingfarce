@@ -153,6 +153,16 @@ signal post_item_use(user: Node, item: Resource, target: Node, result: Dictionar
 ## @param stats: Dictionary with battle statistics
 signal post_battle_end(battle_data: Resource, victory: bool, stats: Dictionary)
 
+## Before battle rewards are distributed (mods can modify rewards)
+## @param battle_data: The completed battle
+## @param rewards: Dictionary with {gold: int, items: Array[String]} - can be modified
+signal pre_battle_rewards(battle_data: Resource, rewards: Dictionary)
+
+## After battle rewards are distributed
+## @param battle_data: The completed battle
+## @param rewards: Dictionary with {gold: int, items: Array[String]} - final values
+signal post_battle_rewards(battle_data: Resource, rewards: Dictionary)
+
 ## After a unit's turn ends
 ## @param unit: The unit whose turn ended
 signal post_turn_end(unit: Node)

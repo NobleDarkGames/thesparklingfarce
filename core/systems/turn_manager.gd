@@ -22,6 +22,11 @@ signal unit_turn_ended(unit: Node2D)
 signal battle_ended(victory: bool)
 signal hero_died_in_battle()  ## SF2: Hero death triggers immediate battle exit
 
+## Signals for mod hooks - allow mods to override victory/defeat conditions
+## Mods can set context.result = "victory" or "defeat" to force outcome
+signal victory_condition_check(battle_data: Resource, context: Dictionary)
+signal defeat_condition_check(battle_data: Resource, context: Dictionary)
+
 ## All units participating in battle (player + enemy + neutral)
 var all_units: Array[Node2D] = []
 
@@ -246,10 +251,14 @@ func _check_battle_end() -> bool:
 	if not battle_active:
 		return true
 
-	# Count living units by faction and track hero status
+	# Get battle data from BattleManager for condition checks
+	var battle_data: Resource = BattleManager.current_battle_data
+
+	# Count living units by faction and track hero/boss status
 	var player_count: int = 0
 	var enemy_count: int = 0
 	var hero_alive: bool = false
+	var boss_alive: bool = true
 
 	for unit: Node2D in all_units:
 		if not unit.is_alive():
@@ -257,23 +266,116 @@ func _check_battle_end() -> bool:
 
 		if unit.is_player_unit():
 			player_count += 1
-			# Check if this unit is the hero
 			if unit.character_data and unit.character_data.is_hero:
 				hero_alive = true
 		elif unit.is_enemy_unit():
 			enemy_count += 1
 
-	# SF2-authentic: Hero death = immediate defeat (regardless of party composition)
-	if not hero_alive:
+	# Check if boss is dead (for DEFEAT_BOSS condition)
+	if battle_data and battle_data.victory_condition == BattleData.VictoryCondition.DEFEAT_BOSS:
+		boss_alive = _is_boss_alive(battle_data)
+
+	# Check defeat conditions first (defeat takes priority)
+	var defeat_result: String = _check_defeat_condition(battle_data, player_count, hero_alive)
+	if defeat_result == "defeat":
 		active_unit = null
 		turn_queue.clear()
 		hero_died_in_battle.emit()
 		return true
 
-	# Victory: all enemies dead
-	if enemy_count == 0:
+	# Check victory conditions
+	var victory_result: String = _check_victory_condition(battle_data, enemy_count, boss_alive)
+	if victory_result == "victory":
 		_end_battle(true)
 		return true
+
+	return false
+
+
+## Check victory condition based on BattleData configuration
+## Returns "victory" if condition met, "" otherwise
+func _check_victory_condition(battle_data: Resource, enemy_count: int, boss_alive: bool) -> String:
+	# Allow mods to override victory condition
+	var context: Dictionary = {"result": "", "enemy_count": enemy_count, "turn_number": turn_number}
+	victory_condition_check.emit(battle_data, context)
+	if context.result == "victory":
+		return "victory"
+
+	# No battle data = use default (defeat all enemies)
+	if not battle_data:
+		return "victory" if enemy_count == 0 else ""
+
+	match battle_data.victory_condition:
+		BattleData.VictoryCondition.DEFEAT_ALL_ENEMIES:
+			if enemy_count == 0:
+				return "victory"
+		BattleData.VictoryCondition.DEFEAT_BOSS:
+			if not boss_alive:
+				return "victory"
+		BattleData.VictoryCondition.SURVIVE_TURNS:
+			if turn_number >= battle_data.victory_turn_count:
+				return "victory"
+		# REACH_LOCATION, PROTECT_UNIT, CUSTOM - not yet implemented
+		_:
+			# Default fallback: all enemies dead
+			if enemy_count == 0:
+				return "victory"
+
+	return ""
+
+
+## Check defeat condition based on BattleData configuration
+## Returns "defeat" if condition met, "" otherwise
+func _check_defeat_condition(battle_data: Resource, player_count: int, hero_alive: bool) -> String:
+	# Allow mods to override defeat condition
+	var context: Dictionary = {"result": "", "player_count": player_count, "turn_number": turn_number}
+	defeat_condition_check.emit(battle_data, context)
+	if context.result == "defeat":
+		return "defeat"
+
+	# SF2-authentic: Hero death = immediate defeat (always checked, regardless of condition)
+	if not hero_alive:
+		return "defeat"
+
+	# No battle data = use defaults only
+	if not battle_data:
+		return ""
+
+	match battle_data.defeat_condition:
+		BattleData.DefeatCondition.ALL_UNITS_DEFEATED:
+			if player_count == 0:
+				return "defeat"
+		BattleData.DefeatCondition.LEADER_DEFEATED:
+			# Already handled above (hero_alive check)
+			pass
+		BattleData.DefeatCondition.TURN_LIMIT:
+			if battle_data.defeat_turn_limit > 0 and turn_number > battle_data.defeat_turn_limit:
+				return "defeat"
+		# UNIT_DIES, CUSTOM - not yet implemented
+		_:
+			pass
+
+	return ""
+
+
+## Check if the boss enemy is still alive
+func _is_boss_alive(battle_data: Resource) -> bool:
+	if not battle_data or battle_data.victory_boss_index < 0:
+		# Fallback: check any enemy with is_boss flag
+		for unit: Node2D in all_units:
+			if unit.is_enemy_unit() and unit.is_alive():
+				if unit.character_data and unit.character_data.is_boss:
+					return true
+		return false
+
+	# Check specific boss by index
+	var boss_index: int = battle_data.victory_boss_index
+	var enemy_index: int = 0
+	for unit: Node2D in all_units:
+		if unit.is_enemy_unit():
+			if enemy_index == boss_index:
+				return unit.is_alive()
+			enemy_index += 1
 
 	return false
 
