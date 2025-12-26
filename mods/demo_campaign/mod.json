@@ -1,0 +1,10 @@
+{
+	"author": "The Sparkling Farce Tean",
+	"dependencies": [],
+	"description": "A sandbox style mod meant to test all engine and campaign features.  Feel free to modify it as you like.",
+	"godot_version": "4.5",
+	"id": "demo_campaign",
+	"load_priority": 100,
+	"name": "Demo Campaign",
+	"version": "1.0.0"
+}

@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="NewGameConfigData" load_steps=2 format=3 uid="uid://crn12bam62thb"]
-
-[ext_resource type="Script" uid="uid://beybtbcw12oks" path="res://core/resources/new_game_config_data.gd" id="1_script"]
-
-[resource]
-script = ExtResource("1_script")
-config_id = "standard"
-config_description = "Begin a new adventure with the default starting conditions. Authentic Shining Force 2 experience."
-starting_party_id = "default_party"

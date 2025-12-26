@@ -1,0 +1,51 @@
+{
+	"actors": [
+		{
+			"actor_id": "actor_1",
+			"character_id": "demo_campaign_character_1766710548",
+			"facing": "down",
+			"position": [
+				0.0,
+				0.0
+			]
+		}
+	],
+	"can_skip": true,
+	"cinematic_id": "opening_cinematic",
+	"cinematic_name": "Opening Cinematic",
+	"commands": [
+		{
+			"params": {
+				"fade_duration": 2.5,
+				"map_id": "opening_cinematic_map",
+				"scene_id": "",
+				"scene_path": "",
+				"transition": "instant"
+			},
+			"type": "set_backdrop"
+		},
+		{
+			"params": {
+				"color": [
+					0.0,
+					0.0,
+					0.0,
+					1.0
+				],
+				"duration": 1.0,
+				"fade_type": "in"
+			},
+			"type": "fade_screen"
+		},
+		{
+			"params": {
+				"character_id": "vt5pq759",
+				"emotion": "neutral",
+				"text": "What an amazing opening cinematic!"
+			},
+			"type": "dialog_line"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}

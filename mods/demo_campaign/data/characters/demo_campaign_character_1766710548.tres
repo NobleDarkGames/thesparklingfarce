@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://m8qknisfhg2e"]
+
+[ext_resource type="Resource" uid="uid://ef7kbncgttip" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766710207.tres" id="1_7yb8e"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_dg75y"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_2437m"]
+[ext_resource type="Texture2D" uid="uid://bp1atikhx7p0v" path="res://mods/demo_campaign/assets/portraits/Spade.png" id="2_w86nt"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_7lx4y"]
+[ext_resource type="SpriteFrames" uid="uid://dmbgejb41ve4g" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1766710548_map_sprites.tres" id="4_mqyne"]
+
+[resource]
+script = ExtResource("1_dg75y")
+character_uid = "vt5pq759"
+character_name = "Spade"
+character_class = ExtResource("1_7yb8e")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_w86nt")
+sprite_frames = ExtResource("4_mqyne")

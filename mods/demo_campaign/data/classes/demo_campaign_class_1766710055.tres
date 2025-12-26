@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=6 format=3 uid="uid://8xplcps5clbx"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_b7cin"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_lmbkw"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_e3iu3"]
+[ext_resource type="Resource" uid="uid://c3udt81owov6l" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766710128.tres" id="3_lmbkw"]
+
+[sub_resource type="Resource" id="Resource_lmbkw"]
+script = ExtResource("2_lmbkw")
+target_class = ExtResource("3_lmbkw")
+
+[resource]
+script = ExtResource("3_e3iu3")
+display_name = "Hero"
+movement_range = 5
+equippable_weapon_types = Array[String](["sword"])
+promotion_paths = Array[ExtResource("2_lmbkw")]([SubResource("Resource_lmbkw")])

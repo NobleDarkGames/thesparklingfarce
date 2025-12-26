@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3 uid="uid://cu5mlkannxgko"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_uamkc"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_wbenk"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_tvx16"]
+
+[resource]
+script = ExtResource("3_tvx16")
+display_name = "Henchman"
+hp_growth = 65
+mp_growth = 45
+strength_growth = 65
+defense_growth = 65
+intelligence_growth = 0
+equippable_weapon_types = Array[String](["sword", "axe", "lance"])
