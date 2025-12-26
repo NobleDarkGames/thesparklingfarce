@@ -1,6 +1,6 @@
 # The Sparkling Farce - Development Status
 
-**Last Updated:** December 20, 2025
+**Last Updated:** December 25, 2025
 **Current Phase:** Phase 5.3 — Code Consolidation & Polish
 
 ---
@@ -199,7 +199,7 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 | Caravan | Complete | SF2-authentic mobile HQ |
 | Campaign | Complete | Node-graph, chapter UI |
 | Status Effects | Complete | 11 effects, data-driven, combat overlay |
-| Cinematic System | Complete | 19 command types, party management, text interpolation |
+| Cinematic System | Complete | 23 command types, spawnable entity registry, party management, text interpolation |
 | NPC System | Complete | Conditional dialogs with AND/OR logic, Quick Setup roles |
 | Crafting System | Complete | Crafter NPCs, recipe browser, material transformation |
 | Sparkling Editor | Complete | 20/20 editors, 100% resource coverage, two-tier navigation |
@@ -231,7 +231,30 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 ---
 
-## Recent Session (December 20, 2025)
+## Recent Session (December 25, 2025)
+
+**Spawnable Entity Registry:**
+- New extensible handler pattern for cinematic entity spawning
+- Built-in handlers: CharacterSpawnHandler, NPCSpawnHandler, InteractableSpawnHandler
+- Mods can register custom spawnable types via `CinematicsManager.register_spawnable_type()`
+- `spawn_entity` command now uses `entity_type` + `entity_id` parameters
+- Backward compatible with legacy `character_id` parameter
+
+**New Cinematic Commands:**
+- `set_backdrop`: Load maps as visual-only backdrops (skips gameplay initialization)
+- `actors` array: Pre-spawn entities before commands execute
+
+**Battle System Completion:**
+- Victory conditions: DEFEAT_ALL_ENEMIES, DEFEAT_BOSS, SURVIVE_TURNS, REACH_LOCATION, PROTECT_UNIT, CUSTOM
+- Defeat conditions: ALL_UNITS_DEFEATED, LEADER_DEFEATED, TURN_LIMIT, UNIT_DIES, CUSTOM
+- Battle rewards: experience, gold, items
+
+**Mod Restructure:**
+- Replaced `_base_game` and `_sandbox` with `demo_campaign`
+
+---
+
+## Session (December 20, 2025)
 
 **Code Consolidation (~5,500 LOC removed over 5 days):**
 - Removed unused AI plugin system (AIRoleRegistry, AIRoleBehavior): -1,400 lines

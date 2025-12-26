@@ -1,17 +1,25 @@
 # Cinematic Spawn Entity & Actors Array Implementation Plan
 
+**STATUS: COMPLETE** (December 25, 2025)
+
 ## Overview
 
 Enable data-driven cinematics by implementing `spawn_entity` and adding an `actors` array to cinematic JSON. This allows modders to create cinematics without Godot scene expertise.
 
-## Current State
+## Implementation Summary
 
-- `spawn_entity_executor.gd` is a stub (lines 8-12 just log warning and return)
-- Cinematics require pre-placed actors in a stage scene with CinematicActor components
-- CinematicActor auto-registers with CinematicsManager on `_ready()`
-- CharacterData has `sprite_frames: SpriteFrames` for animated sprites
+All phases implemented with additional features:
 
-## Implementation Tasks
+- **Spawnable Entity Registry** - Extensible handler pattern in `core/systems/cinematic_spawners/`
+- **Built-in handlers**: CharacterSpawnHandler, NPCSpawnHandler, InteractableSpawnHandler
+- **actors array** - Pre-spawn entities before commands execute
+- **spawn_entity command** - Runtime spawning with `entity_type` + `entity_id` parameters
+- **Backward compatibility** - `character_id` maps to `entity_type: "character"`
+- **set_backdrop command** - Load maps as visual-only backdrops
+
+## Original Plan (for reference)
+
+### Implementation Tasks
 
 ### Phase 1: Implement spawn_entity Executor
 
@@ -109,17 +117,17 @@ SpawnedActor_{actor_id} (CharacterBody2D)
 
 ## Testing Checklist
 
-- [ ] spawn_entity with character_id spawns visible character
-- [ ] spawn_entity with no character_id spawns minimal actor
-- [ ] Spawned actors respond to move_entity commands
-- [ ] Spawned actors respond to set_facing commands
-- [ ] despawn_entity works on spawned actors
-- [ ] actors array spawns before fade_in
-- [ ] Spawned actors cleaned up on cinematic end
-- [ ] Spawned actors cleaned up on cinematic skip
-- [ ] Editor displays actors in list
-- [ ] Editor can add/remove actors
-- [ ] Editor saves/loads actors array
+- [x] spawn_entity with character_id spawns visible character
+- [x] spawn_entity with no character_id spawns minimal actor
+- [x] Spawned actors respond to move_entity commands
+- [x] Spawned actors respond to set_facing commands
+- [x] despawn_entity works on spawned actors
+- [x] actors array spawns before fade_in
+- [x] Spawned actors cleaned up on cinematic end
+- [x] Spawned actors cleaned up on cinematic skip
+- [x] Editor displays actors in list
+- [x] Editor can add/remove actors
+- [x] Editor saves/loads actors array
 
 ## Success Criteria
 

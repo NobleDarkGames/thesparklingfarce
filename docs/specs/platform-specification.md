@@ -10,7 +10,7 @@
 
 - All game content lives in `mods/` — never in `core/`
 - `core/` contains only platform infrastructure
-- The base game (`mods/_base_game/`) uses the same systems as third-party mods
+- The demo campaign (`mods/demo_campaign/`) uses the same systems as third-party mods
 - Higher-priority mods override same-ID resources from lower-priority mods
 
 ---
@@ -29,14 +29,13 @@ core/                    # Platform code ONLY
     tilesets/            # terrain_default.tres
 
 mods/                    # ALL game content
-  _base_game/            # Official content (priority 0)
+  demo_campaign/         # Demo content (priority 0)
     mod.json             # Manifest
     data/                # Resources by type (see Resource Types)
     ai_brains/           # AI behavior scripts
     assets/              # Art, icons, portraits
     audio/sfx/, music/   # Sound
     tilesets/            # TileSet resources
-  _sandbox/              # Dev testing (priority 100)
 
 scenes/                  # Engine scenes
   startup.tscn           # Main entry point (coordinator)
@@ -184,13 +183,69 @@ Accessed via `ModLoader.<registry_name>`:
 
 ---
 
+## Spawnable Entity System
+
+The cinematic system supports spawning entities at runtime via a registry of handlers. Mods can register custom entity types.
+
+### Built-in Spawnable Types
+
+| Type | Handler | Description |
+|------|---------|-------------|
+| character | CharacterSpawnHandler | Characters with animated sprites |
+| npc | NPCSpawnHandler | NPCs (uses character_data or own sprite_frames) |
+| interactable | InteractableSpawnHandler | Static objects (chests, signs, etc.) |
+
+### Registration (for mods)
+
+```gdscript
+# Extend SpawnableEntityHandler for custom types
+class_name MyEntityHandler extends SpawnableEntityHandler
+
+func get_type_id() -> String:
+    return "my_entity"
+
+func get_available_entities() -> Array[Dictionary]:
+    # Return [{id, name, resource}, ...] for editor dropdowns
+    return []
+
+func create_sprite_node(entity_id: String, facing: String) -> Node2D:
+    # Create and return the visual node
+    return Sprite2D.new()
+
+# Register in mod _ready()
+CinematicsManager.register_spawnable_type(MyEntityHandler.new())
+```
+
+### Usage in Cinematics
+
+Cinematics can spawn entities two ways:
+
+1. **actors array** - Pre-spawn before commands execute:
+```json
+{
+  "actors": [
+    {"actor_id": "hero", "entity_type": "character", "entity_id": "max", "position": [5, 3], "facing": "down"}
+  ],
+  "commands": [...]
+}
+```
+
+2. **spawn_entity command** - Spawn during execution:
+```json
+{"type": "spawn_entity", "params": {"actor_id": "chest", "entity_type": "interactable", "entity_id": "treasure_chest", "position": [7, 4]}}
+```
+
+Backward compatibility: `character_id` maps to `entity_type: "character"`.
+
+---
+
 ## Mod System
 
 ### Load Priority
 | Range | Purpose |
 |-------|---------|
-| 0-99 | Official core (`_base_game` = 0) |
-| 100-8999 | User mods (`_sandbox` = 100) |
+| 0-99 | Official core (`demo_campaign` = 0) |
+| 100-8999 | User mods |
 | 9000-9999 | Total conversions |
 
 ### Registry Access (REQUIRED PATTERN)
@@ -202,7 +257,7 @@ if ModLoader.registry.has_resource("item", "healing_herb"):
     pass
 
 # WRONG - breaks mod override system
-var char = load("res://mods/_base_game/data/characters/max.tres")
+var char = load("res://mods/demo_campaign/data/characters/max.tres")
 ```
 
 ---
@@ -249,6 +304,67 @@ Transition to main_menu:
 | DUNGEON | Mixed | Optional | Yes |
 | INTERIOR | 1:1 | Hidden | No |
 | BATTLE | Grid | No | N/A |
+
+---
+
+## Interactable Objects
+
+`InteractableData` defines searchable map objects (chests, bookshelves, signs, levers).
+
+### Types
+
+| Type | Behavior | State |
+|------|----------|-------|
+| CHEST | Contains items, opens when searched | One-shot |
+| BOOKSHELF | Read-only text | Repeatable |
+| BARREL | Searchable container | One-shot |
+| SIGN | Read-only text (outdoor) | Repeatable |
+| LEVER | Toggle state, triggers events | Stateful |
+| CUSTOM | Mod-defined behavior | Varies |
+
+### Key Properties
+
+- `item_rewards`: Array of `{item_id, quantity}` dictionaries
+- `gold_reward`: Gold amount
+- `dialog_text`: Simple text (auto-generates cinematic)
+- `interaction_cinematic_id`: Explicit cinematic to play
+- `conditional_cinematics`: Flag-based branching (same format as NPCData)
+- `completion_flag`: Auto-generated as `{interactable_id}_opened` if empty
+
+---
+
+## Battle Victory/Defeat Conditions
+
+`BattleData` defines win/loss conditions for battles.
+
+### Victory Conditions
+
+| Condition | Parameters | Description |
+|-----------|------------|-------------|
+| DEFEAT_ALL_ENEMIES | — | All enemies defeated (default) |
+| DEFEAT_BOSS | `victory_boss_index` | Kill specific enemy |
+| SURVIVE_TURNS | `victory_turn_count` | Survive N turns |
+| REACH_LOCATION | `victory_target_position` | Unit reaches tile |
+| PROTECT_UNIT | `victory_protect_index` | Neutral survives |
+| CUSTOM | `custom_victory_script` | GDScript evaluator |
+
+### Defeat Conditions
+
+| Condition | Parameters | Description |
+|-----------|------------|-------------|
+| ALL_UNITS_DEFEATED | — | Party wiped |
+| LEADER_DEFEATED | — | Hero dies (default) |
+| TURN_LIMIT | `defeat_turn_limit` | Exceeded N turns |
+| UNIT_DIES | `defeat_protect_index` | Neutral dies |
+| CUSTOM | `custom_defeat_script` | GDScript evaluator |
+
+### Rewards
+
+```gdscript
+@export var experience_reward: int = 0
+@export var gold_reward: int = 0
+@export var item_rewards: Array[ItemData] = []
+```
 
 ---
 
@@ -334,7 +450,7 @@ Key patterns to use instead of writing from scratch:
 
 | Mistake | Correct Approach |
 |---------|------------------|
-| Content in `core/` | Put in `mods/_base_game/data/` |
+| Content in `core/` | Put in `mods/demo_campaign/data/` or your mod |
 | Hardcoded resource paths | Use `ModLoader.registry.get_resource()` |
 | `dict.has("key")` | `if "key" in dict:` |
 | `not "key" in dict` | `if "key" not in dict:` |
@@ -438,6 +554,21 @@ Default messages by reason:
 - `died`: "{char:id} has fallen..."
 - `captured`: "{char:id} was captured!"
 - `betrayed`: "{char:id} has betrayed the force!"
+
+### set_backdrop Cinematic Command
+
+Load a map as a visual-only backdrop (no party loading, camera setup, or gameplay initialization):
+
+```json
+{"type": "set_backdrop", "params": {"map_id": "town_square", "transition": "fade", "fade_duration": 0.5}}
+```
+
+Parameters (priority order):
+- `scene_path`: Direct path to scene file
+- `scene_id`: Registered scene ID from mod.json
+- `map_id`: Map ID to use as backdrop
+- `transition`: "instant" (default) or "fade"
+- `fade_duration`: Seconds (default 0.5)
 
 ### NPC Conditional Cinematics
 
