@@ -286,10 +286,18 @@ var selected_actor_index: int = -1
 
 # Actor inspector fields
 var actor_id_edit: LineEdit
-var actor_character_picker: OptionButton
+var actor_entity_type_picker: OptionButton  # character, interactable, npc
+var actor_entity_picker: OptionButton  # Entity ID based on selected type
 var actor_pos_x_spin: SpinBox
 var actor_pos_y_spin: SpinBox
 var actor_facing_picker: OptionButton
+
+# Legacy alias for backward compatibility
+var actor_character_picker: OptionButton:
+	get:
+		return actor_entity_picker
+	set(value):
+		actor_entity_picker = value
 
 # Quick Add Dialog popup
 var dialog_line_popup: Window
@@ -304,11 +312,12 @@ var _updating_ui: bool = false
 # Track if ID should auto-generate from name (unlocked = auto-generate)
 var _id_is_locked: bool = false
 
-# Character, NPC, Shop, and Map caches for pickers
+# Character, NPC, Shop, Map, and Interactable caches for pickers
 var _characters: Array[Resource] = []
 var _npcs: Array[Resource] = []
 var _shops: Array[Resource] = []
 var _maps: Array[Resource] = []
+var _interactables: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -348,15 +357,17 @@ func _refresh_characters() -> void:
 	_npcs.clear()
 	_shops.clear()
 	_maps.clear()
+	_interactables.clear()
 	if ModLoader and ModLoader.registry:
 		_characters = ModLoader.registry.get_all_resources("character")
 		_npcs = ModLoader.registry.get_all_resources("npc")
 		_shops = ModLoader.registry.get_all_resources("shop")
 		_maps = ModLoader.registry.get_all_resources("map")
+		_interactables = ModLoader.registry.get_all_resources("interactable")
 
 	# Update actor picker dropdown if it exists
-	if actor_character_picker:
-		_populate_actor_character_picker()
+	if actor_entity_picker:
+		_populate_actor_entity_picker()
 
 
 func _setup_ui() -> void:
@@ -643,20 +654,41 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 	actor_id_edit.text_changed.connect(_on_actor_id_changed)
 	id_row.add_child(actor_id_edit)
 
-	# Character picker row
-	var char_row: HBoxContainer = HBoxContainer.new()
-	actor_editor.add_child(char_row)
+	# Entity type picker row
+	var type_row: HBoxContainer = HBoxContainer.new()
+	actor_editor.add_child(type_row)
 
-	var char_label: Label = Label.new()
-	char_label.text = "Character:"
-	char_label.custom_minimum_size.x = 70
-	char_row.add_child(char_label)
+	var type_label: Label = Label.new()
+	type_label.text = "Type:"
+	type_label.custom_minimum_size.x = 70
+	type_row.add_child(type_label)
 
-	actor_character_picker = OptionButton.new()
-	actor_character_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actor_character_picker.tooltip_text = "Character to spawn (provides sprite)"
-	actor_character_picker.item_selected.connect(_on_actor_character_changed)
-	char_row.add_child(actor_character_picker)
+	actor_entity_type_picker = OptionButton.new()
+	actor_entity_type_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_entity_type_picker.tooltip_text = "Type of entity to spawn"
+	actor_entity_type_picker.add_item("Character", 0)
+	actor_entity_type_picker.add_item("Interactable", 1)
+	actor_entity_type_picker.add_item("NPC", 2)
+	actor_entity_type_picker.set_item_metadata(0, "character")
+	actor_entity_type_picker.set_item_metadata(1, "interactable")
+	actor_entity_type_picker.set_item_metadata(2, "npc")
+	actor_entity_type_picker.item_selected.connect(_on_actor_entity_type_changed)
+	type_row.add_child(actor_entity_type_picker)
+
+	# Entity picker row (changes based on type)
+	var entity_row: HBoxContainer = HBoxContainer.new()
+	actor_editor.add_child(entity_row)
+
+	var entity_label: Label = Label.new()
+	entity_label.text = "Entity:"
+	entity_label.custom_minimum_size.x = 70
+	entity_row.add_child(entity_label)
+
+	actor_entity_picker = OptionButton.new()
+	actor_entity_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actor_entity_picker.tooltip_text = "Entity to spawn (provides sprite)"
+	actor_entity_picker.item_selected.connect(_on_actor_entity_changed)
+	entity_row.add_child(actor_entity_picker)
 
 	# Position row
 	var pos_row: HBoxContainer = HBoxContainer.new()
@@ -1833,35 +1865,72 @@ func _rebuild_actors_list() -> void:
 	for i: int in range(actors.size()):
 		var actor: Dictionary = actors[i]
 		var actor_id: String = actor.get("actor_id", "unnamed")
-		var character_id: String = actor.get("character_id", "")
+
+		# Get entity info (with backward compatibility for character_id)
+		var entity_type: String = actor.get("entity_type", "")
+		var entity_id: String = actor.get("entity_id", "")
+		if entity_type.is_empty() and entity_id.is_empty():
+			entity_id = actor.get("character_id", "")
+			if not entity_id.is_empty():
+				entity_type = "character"
+
 		var display: String = actor_id
-		if not character_id.is_empty():
-			display += " (%s)" % character_id
+		if not entity_id.is_empty():
+			var type_abbrev: String = ""
+			match entity_type:
+				"character": type_abbrev = "char"
+				"interactable": type_abbrev = "obj"
+				"npc": type_abbrev = "npc"
+				_: type_abbrev = entity_type
+			display += " [%s: %s]" % [type_abbrev, entity_id]
 		actors_list.add_item(display)
 
 	# Update button states
 	delete_actor_button.disabled = selected_actor_index < 0
 
 
-## Populate the actor character picker dropdown
-func _populate_actor_character_picker() -> void:
-	actor_character_picker.clear()
-	actor_character_picker.add_item("(None)", 0)
-	actor_character_picker.set_item_metadata(0, "")
+## Populate the actor entity picker dropdown based on selected entity type
+func _populate_actor_entity_picker() -> void:
+	actor_entity_picker.clear()
+	actor_entity_picker.add_item("(None)", 0)
+	actor_entity_picker.set_item_metadata(0, "")
+
+	var entity_type: String = "character"
+	if actor_entity_type_picker and actor_entity_type_picker.selected >= 0:
+		entity_type = actor_entity_type_picker.get_item_metadata(actor_entity_type_picker.selected)
 
 	var idx: int = 1
-	for char_res: Resource in _characters:
-		if char_res:
-			var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
-			var char_id: String = ""
-
-			# Get resource ID (filename without extension)
-			if char_res.resource_path:
-				char_id = char_res.resource_path.get_file().get_basename()
-
-			actor_character_picker.add_item(display_name, idx)
-			actor_character_picker.set_item_metadata(idx, char_id)
-			idx += 1
+	match entity_type:
+		"character":
+			for char_res: Resource in _characters:
+				if char_res:
+					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
+					var char_id: String = ""
+					if char_res.resource_path:
+						char_id = char_res.resource_path.get_file().get_basename()
+					actor_entity_picker.add_item(display_name, idx)
+					actor_entity_picker.set_item_metadata(idx, char_id)
+					idx += 1
+		"interactable":
+			for inter_res: Resource in _interactables:
+				if inter_res:
+					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(inter_res, "display_name")
+					var inter_id: String = ""
+					if inter_res.resource_path:
+						inter_id = inter_res.resource_path.get_file().get_basename()
+					actor_entity_picker.add_item(display_name, idx)
+					actor_entity_picker.set_item_metadata(idx, inter_id)
+					idx += 1
+		"npc":
+			for npc_res: Resource in _npcs:
+				if npc_res:
+					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(npc_res, "npc_name")
+					var npc_id: String = ""
+					if npc_res.resource_path:
+						npc_id = npc_res.resource_path.get_file().get_basename()
+					actor_entity_picker.add_item(display_name, idx)
+					actor_entity_picker.set_item_metadata(idx, npc_id)
+					idx += 1
 
 
 ## Get actor editor container
@@ -1886,7 +1955,8 @@ func _on_add_actor() -> void:
 
 	var new_actor: Dictionary = {
 		"actor_id": new_id,
-		"character_id": "",
+		"entity_type": "character",
+		"entity_id": "",
 		"position": [0, 0],
 		"facing": "down"
 	}
@@ -1945,10 +2015,6 @@ func _on_actor_selected(index: int) -> void:
 
 	var actor: Dictionary = actors[index]
 
-	# Populate character picker if needed
-	if actor_character_picker.item_count <= 1:
-		_populate_actor_character_picker()
-
 	# Show and populate editor
 	var actor_editor: VBoxContainer = _get_actor_editor()
 	if actor_editor:
@@ -1959,14 +2025,38 @@ func _on_actor_selected(index: int) -> void:
 	# Set actor ID
 	actor_id_edit.text = actor.get("actor_id", "")
 
-	# Set character
-	var character_id: String = actor.get("character_id", "")
-	var char_idx: int = 0
-	for i: int in range(actor_character_picker.item_count):
-		if actor_character_picker.get_item_metadata(i) == character_id:
-			char_idx = i
+	# Determine entity type (with backward compatibility for character_id)
+	var entity_type: String = actor.get("entity_type", "")
+	var entity_id: String = actor.get("entity_id", "")
+
+	# Backward compatibility: character_id -> entity_type="character"
+	if entity_type.is_empty() and entity_id.is_empty():
+		var character_id: String = actor.get("character_id", "")
+		if not character_id.is_empty():
+			entity_type = "character"
+			entity_id = character_id
+
+	if entity_type.is_empty():
+		entity_type = "character"
+
+	# Set entity type picker
+	var type_idx: int = 0
+	match entity_type:
+		"character": type_idx = 0
+		"interactable": type_idx = 1
+		"npc": type_idx = 2
+	actor_entity_type_picker.select(type_idx)
+
+	# Populate entity picker for this type
+	_populate_actor_entity_picker()
+
+	# Set entity
+	var entity_idx: int = 0
+	for i: int in range(actor_entity_picker.item_count):
+		if actor_entity_picker.get_item_metadata(i) == entity_id:
+			entity_idx = i
 			break
-	actor_character_picker.select(char_idx)
+	actor_entity_picker.select(entity_idx)
 
 	# Set position
 	var pos: Variant = actor.get("position", [0, 0])
@@ -2005,8 +2095,8 @@ func _on_actor_id_changed(new_id: String) -> void:
 	is_dirty = true
 
 
-## Handle actor character change
-func _on_actor_character_changed(index: int) -> void:
+## Handle actor entity type change
+func _on_actor_entity_type_changed(index: int) -> void:
 	if _updating_ui or selected_actor_index < 0:
 		return
 
@@ -2014,8 +2104,39 @@ func _on_actor_character_changed(index: int) -> void:
 	if selected_actor_index >= actors.size():
 		return
 
-	var character_id: Variant = actor_character_picker.get_item_metadata(index)
-	actors[selected_actor_index]["character_id"] = character_id if character_id else ""
+	var entity_type: String = actor_entity_type_picker.get_item_metadata(index)
+	actors[selected_actor_index]["entity_type"] = entity_type
+	# Clear entity_id when type changes
+	actors[selected_actor_index]["entity_id"] = ""
+	# Remove legacy character_id if present
+	actors[selected_actor_index].erase("character_id")
+
+	# Repopulate entity picker for new type
+	_populate_actor_entity_picker()
+	actor_entity_picker.select(0)  # Select "(None)"
+
+	_rebuild_actors_list()
+	actors_list.select(selected_actor_index)
+	is_dirty = true
+
+
+## Handle actor entity change
+func _on_actor_entity_changed(index: int) -> void:
+	if _updating_ui or selected_actor_index < 0:
+		return
+
+	var actors: Array = current_cinematic_data.get("actors", [])
+	if selected_actor_index >= actors.size():
+		return
+
+	var entity_id: Variant = actor_entity_picker.get_item_metadata(index)
+	var entity_type: String = actor_entity_type_picker.get_item_metadata(actor_entity_type_picker.selected)
+
+	actors[selected_actor_index]["entity_type"] = entity_type
+	actors[selected_actor_index]["entity_id"] = entity_id if entity_id else ""
+	# Remove legacy character_id if present
+	actors[selected_actor_index].erase("character_id")
+
 	_rebuild_actors_list()
 	actors_list.select(selected_actor_index)
 	is_dirty = true

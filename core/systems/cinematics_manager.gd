@@ -9,6 +9,7 @@ extends Node
 const CinematicData: GDScript = preload("res://core/resources/cinematic_data.gd")
 const CinematicActor: GDScript = preload("res://core/components/cinematic_actor.gd")
 const CinematicCommandExecutor: GDScript = preload("res://core/systems/cinematic_command_executor.gd")
+const SpawnableEntityHandler: GDScript = preload("res://core/systems/cinematic_spawners/spawnable_entity_handler.gd")
 
 ## Cinematic execution states
 enum State {
@@ -45,6 +46,10 @@ const MAX_CINEMATIC_CHAIN_DEPTH: int = 5
 ## Command executor registry (command_type -> CinematicCommandExecutor)
 ## Mods can register custom executors via register_command_executor()
 var _command_executors: Dictionary = {}
+
+## Spawnable entity handler registry (entity_type -> SpawnableEntityHandler)
+## Mods can register custom spawnable types via register_spawnable_type()
+var _spawnable_handlers: Dictionary = {}
 
 ## Currently executing command executor (for async operations)
 var _current_executor: CinematicCommandExecutor = null
@@ -91,6 +96,9 @@ func _ready() -> void:
 
 	# Register all built-in command executors
 	_register_built_in_commands()
+
+	# Register all built-in spawnable entity types
+	_register_built_in_spawnable_types()
 
 	# Connect to DialogManager signals
 	if DialogManager:
@@ -250,6 +258,61 @@ func _register_built_in_commands() -> void:
 	register_command_executor("grant_items", GrantItemsExecutor.new())
 	register_command_executor("change_scene", ChangeSceneExecutor.new())
 	register_command_executor("set_backdrop", SetBackdropExecutor.new())
+
+
+## Register all built-in spawnable entity types
+## Called during _ready() to set up the spawnable registry
+func _register_built_in_spawnable_types() -> void:
+	const CharacterSpawnHandler: GDScript = preload("res://core/systems/cinematic_spawners/character_spawn_handler.gd")
+	const InteractableSpawnHandler: GDScript = preload("res://core/systems/cinematic_spawners/interactable_spawn_handler.gd")
+	const NPCSpawnHandler: GDScript = preload("res://core/systems/cinematic_spawners/npc_spawn_handler.gd")
+
+	register_spawnable_type(CharacterSpawnHandler.new())
+	register_spawnable_type(InteractableSpawnHandler.new())
+	register_spawnable_type(NPCSpawnHandler.new())
+
+
+## Register a spawnable entity handler
+## Mods can use this to add custom entity types that can be spawned in cinematics
+## @param handler: SpawnableEntityHandler instance with get_type_id() defined
+func register_spawnable_type(handler: SpawnableEntityHandler) -> void:
+	var type_id: String = handler.get_type_id()
+	if type_id.is_empty():
+		push_error("CinematicsManager: Cannot register spawnable handler with empty type_id")
+		return
+
+	if type_id in _spawnable_handlers:
+		push_warning("CinematicsManager: Overwriting spawnable handler for type '%s'" % type_id)
+
+	_spawnable_handlers[type_id] = handler
+
+
+## Get a spawnable entity handler by type ID
+## @param type_id: The entity type (e.g., "character", "interactable", "npc")
+## @return: SpawnableEntityHandler or null if not found
+func get_spawnable_handler(type_id: String) -> SpawnableEntityHandler:
+	return _spawnable_handlers.get(type_id) as SpawnableEntityHandler
+
+
+## Get all registered spawnable type IDs
+## Useful for editor dropdowns
+func get_spawnable_types() -> Array[String]:
+	var types: Array[String] = []
+	for key: String in _spawnable_handlers.keys():
+		types.append(key)
+	return types
+
+
+## Get all registered spawnable handlers
+## Returns array of {type_id: String, handler: SpawnableEntityHandler}
+func get_all_spawnable_handlers() -> Array[Dictionary]:
+	var handlers: Array[Dictionary] = []
+	for type_id: String in _spawnable_handlers.keys():
+		handlers.append({
+			"type_id": type_id,
+			"handler": _spawnable_handlers[type_id]
+		})
+	return handlers
 
 
 ## Register a camera for cinematic control
@@ -736,7 +799,8 @@ func _spawn_actors_from_data(cinematic: CinematicData) -> void:
 
 
 ## Spawn a single actor from a definition dictionary
-## Format: {actor_id, character_id, position: [x, y], facing}
+## Format: {actor_id, entity_type, entity_id, position: [x, y], facing}
+## Legacy format also supported: {actor_id, character_id, ...} maps to entity_type="character"
 func _spawn_single_actor(actor_def: Dictionary) -> void:
 	var actor_id: String = actor_def.get("actor_id", "")
 	if actor_id.is_empty():
@@ -762,8 +826,20 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	if facing not in ["up", "down", "left", "right"]:
 		facing = "down"
 
-	# Get optional character_id for sprite
-	var character_id: String = actor_def.get("character_id", "")
+	# Determine entity type and ID (with backward compatibility for character_id)
+	var entity_type: String = actor_def.get("entity_type", "")
+	var entity_id: String = actor_def.get("entity_id", "")
+
+	# Backward compatibility: character_id maps to entity_type="character"
+	if entity_type.is_empty() and entity_id.is_empty():
+		var character_id: String = actor_def.get("character_id", "")
+		if not character_id.is_empty():
+			entity_type = "character"
+			entity_id = character_id
+
+	# Default to "character" if still empty
+	if entity_type.is_empty():
+		entity_type = "character"
 
 	# Create the spawned entity structure
 	var entity: CharacterBody2D = CharacterBody2D.new()
@@ -775,25 +851,27 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	# Ensure spawned actors render above backdrop tilemaps
 	entity.z_index = 10
 
-	# Create AnimatedSprite2D
-	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-	sprite.name = "AnimatedSprite2D"
+	# Create sprite using the registry handler
+	var sprite_node: Node2D = null
+	var handler: SpawnableEntityHandler = get_spawnable_handler(entity_type)
+	if handler and not entity_id.is_empty():
+		sprite_node = handler.create_sprite_node(entity_id, facing)
 
-	if not character_id.is_empty():
-		var char_data: CharacterData = ModLoader.registry.get_resource("character", character_id) as CharacterData
-		if char_data != null and char_data.sprite_frames != null:
-			sprite.sprite_frames = char_data.sprite_frames
-			var initial_anim: String = "walk_" + facing
-			if sprite.sprite_frames.has_animation(initial_anim):
-				sprite.play(initial_anim)
+	# Fallback to empty placeholder if no handler or entity_id
+	if sprite_node == null:
+		var placeholder: AnimatedSprite2D = AnimatedSprite2D.new()
+		placeholder.name = "AnimatedSprite2D"
+		sprite_node = placeholder
+		if not entity_id.is_empty():
+			push_warning("CinematicsManager: No handler for entity_type '%s' or entity '%s' not found" % [entity_type, entity_id])
 
-	entity.add_child(sprite)
+	entity.add_child(sprite_node)
 
 	# Create CinematicActor component
 	var cinematic_actor: CinematicActor = CinematicActor.new()
 	cinematic_actor.name = "CinematicActor"
 	cinematic_actor.actor_id = actor_id
-	cinematic_actor.sprite_node = sprite
+	cinematic_actor.sprite_node = sprite_node
 	entity.add_child(cinematic_actor)
 
 	# Add to scene tree

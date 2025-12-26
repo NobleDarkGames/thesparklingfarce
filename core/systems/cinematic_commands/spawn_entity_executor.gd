@@ -1,6 +1,7 @@
 ## Spawn entity command executor
 ## Creates an entity at runtime with CinematicActor component
 ## Spawned entities can be controlled by move_entity, set_facing, etc.
+## Supports any registered spawnable type (character, interactable, npc, mod-defined types)
 class_name SpawnEntityExecutor
 extends CinematicCommandExecutor
 
@@ -35,12 +36,31 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		push_warning("SpawnEntityExecutor: Invalid facing '%s', defaulting to 'down'" % facing)
 		facing = "down"
 
-	# Get optional character_id for sprite
-	var character_id: String = params.get("character_id", "")
+	# Determine entity type and ID (with backward compatibility)
+	var entity_type: String = params.get("entity_type", "")
+	var entity_id: String = params.get("entity_id", "")
+
+	# Backward compatibility: character_id -> entity_type="character"
+	if entity_type.is_empty() and entity_id.is_empty():
+		var character_id: String = params.get("character_id", "")
+		if not character_id.is_empty():
+			entity_type = "character"
+			entity_id = character_id
+
+	# Backward compatibility: interactable_id -> entity_type="interactable"
+	if entity_type.is_empty() and entity_id.is_empty():
+		var interactable_id: String = params.get("interactable_id", "")
+		if not interactable_id.is_empty():
+			entity_type = "interactable"
+			entity_id = interactable_id
+
+	# Default to character if no type specified
+	if entity_type.is_empty():
+		entity_type = "character"
 
 	# Create the spawned entity structure:
 	# SpawnedActor_{actor_id} (CharacterBody2D)
-	# +-- AnimatedSprite2D (sprite_frames from CharacterData)
+	# +-- Sprite node (from handler)
 	# +-- CinematicActor (actor_id, auto-registers)
 
 	var entity: CharacterBody2D = CharacterBody2D.new()
@@ -52,35 +72,31 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	# Ensure spawned entities render above backdrop tilemaps
 	entity.z_index = 10
 
-	# Create AnimatedSprite2D if we have character data
-	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-	sprite.name = "AnimatedSprite2D"
+	# Create sprite using the registry handler
+	var sprite_node: Node2D = null
+	var handler: SpawnableEntityHandler = CinematicsManager.get_spawnable_handler(entity_type)
 
-	if not character_id.is_empty():
-		var char_data: CharacterData = ModLoader.registry.get_resource("character", character_id) as CharacterData
-		if char_data != null:
-			if char_data.sprite_frames != null:
-				sprite.sprite_frames = char_data.sprite_frames
-				# Play initial facing animation (SF2-authentic: walk animation even when stationary)
-				var initial_anim: String = "walk_" + facing
-				if sprite.sprite_frames.has_animation(initial_anim):
-					sprite.play(initial_anim)
-			else:
-				push_warning("SpawnEntityExecutor: CharacterData '%s' has no sprite_frames" % character_id)
-		else:
-			push_warning("SpawnEntityExecutor: CharacterData '%s' not found in registry" % character_id)
+	if handler and not entity_id.is_empty():
+		sprite_node = handler.create_sprite_node(entity_id, facing)
 
-	entity.add_child(sprite)
+	# Fallback to empty placeholder if no handler or entity_id
+	if sprite_node == null:
+		var placeholder: AnimatedSprite2D = AnimatedSprite2D.new()
+		placeholder.name = "AnimatedSprite2D"
+		sprite_node = placeholder
+		if not entity_id.is_empty():
+			push_warning("SpawnEntityExecutor: No handler for entity_type '%s' or entity '%s' not found" % [entity_type, entity_id])
+
+	entity.add_child(sprite_node)
 
 	# Create CinematicActor component
 	var cinematic_actor: CinematicActor = CinematicActor.new()
 	cinematic_actor.name = "CinematicActor"
 	cinematic_actor.actor_id = actor_id
-	cinematic_actor.sprite_node = sprite  # Pre-set the sprite reference
+	cinematic_actor.sprite_node = sprite_node
 	entity.add_child(cinematic_actor)
 
 	# Add to scene tree
-	# Find a good parent - use current scene root
 	var scene_root: Node = manager.get_tree().current_scene
 	if scene_root:
 		scene_root.add_child(entity)
@@ -89,7 +105,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		entity.queue_free()
 		return true
 
-	# Track spawned node for cleanup (Phase 3)
+	# Track spawned node for cleanup
 	if manager.has_method("_track_spawned_actor"):
 		manager._track_spawned_actor(entity)
 
@@ -105,6 +121,7 @@ func get_editor_metadata() -> Dictionary:
 			"actor_id": {"type": "string", "default": "", "hint": "Actor ID to assign (must be unique)"},
 			"position": {"type": "vector2", "default": [0, 0], "hint": "Spawn position (grid coordinates)"},
 			"facing": {"type": "enum", "default": "down", "options": ["up", "down", "left", "right"], "hint": "Initial facing direction"},
-			"character_id": {"type": "character", "default": "", "hint": "CharacterData to spawn (optional)"}
+			"entity_type": {"type": "spawnable_type", "default": "character", "hint": "Type of entity to spawn"},
+			"entity_id": {"type": "spawnable_entity", "default": "", "hint": "ID of entity to spawn (depends on entity_type)"}
 		}
 	}

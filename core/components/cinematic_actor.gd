@@ -25,7 +25,8 @@ const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
 @export var default_speed: float = 3.0
 
 ## Sprite node for animation control (auto-detected if not set)
-@export var sprite_node: AnimatedSprite2D
+## Can be AnimatedSprite2D (characters, NPCs) or Sprite2D (interactables)
+@export var sprite_node: Node2D
 
 ## Collision shape node (auto-detected if not set)
 @export var collision_shape: CollisionShape2D
@@ -302,16 +303,22 @@ func play_animation(animation_name: String, wait_for_finish: bool = false) -> vo
 		animation_completed.emit()
 		return
 
-	if not sprite_node.sprite_frames.has_animation(animation_name):
+	# Only AnimatedSprite2D supports animations
+	if not sprite_node is AnimatedSprite2D:
+		animation_completed.emit()
+		return
+
+	var anim_sprite: AnimatedSprite2D = sprite_node as AnimatedSprite2D
+	if not anim_sprite.sprite_frames.has_animation(animation_name):
 		push_warning("CinematicActor: Animation '%s' not found for %s" % [animation_name, actor_id])
 		animation_completed.emit()
 		return
 
-	sprite_node.play(animation_name)
+	anim_sprite.play(animation_name)
 
 	if wait_for_finish:
 		# Connect to animation_finished signal with ONE_SHOT to avoid accumulation
-		sprite_node.animation_finished.connect(_on_animation_finished, CONNECT_ONE_SHOT)
+		anim_sprite.animation_finished.connect(_on_animation_finished, CONNECT_ONE_SHOT)
 	else:
 		# Emit immediately if not waiting
 		animation_completed.emit()
@@ -319,11 +326,12 @@ func play_animation(animation_name: String, wait_for_finish: bool = false) -> vo
 
 ## Internal helper to play animation
 func _play_animation(animation_name: String) -> void:
-	if sprite_node == null:
+	if sprite_node == null or not sprite_node is AnimatedSprite2D:
 		return
 
-	if sprite_node.sprite_frames.has_animation(animation_name):
-		sprite_node.play(animation_name)
+	var anim_sprite: AnimatedSprite2D = sprite_node as AnimatedSprite2D
+	if anim_sprite.sprite_frames.has_animation(animation_name):
+		anim_sprite.play(animation_name)
 
 
 ## Called when animation finishes
@@ -334,8 +342,8 @@ func _on_animation_finished() -> void:
 ## Stop current actions
 func stop() -> void:
 	_stop_movement()
-	if sprite_node != null:
-		sprite_node.stop()
+	if sprite_node != null and sprite_node is AnimatedSprite2D:
+		(sprite_node as AnimatedSprite2D).stop()
 
 
 ## Check if actor is currently performing an action
