@@ -5,8 +5,27 @@
 			"character_id": "demo_campaign_character_1766710548",
 			"facing": "down",
 			"position": [
-				0.0,
-				0.0
+				2.0,
+				5.0
+			]
+		},
+		{
+			"actor_id": "actor_2",
+			"character_id": "demo_campaign_character_1766715408",
+			"facing": "down",
+			"position": [
+				5.0,
+				5.0
+			]
+		},
+		{
+			"actor_id": "actor_3",
+			"entity_id": "demo_campaign_interactable_1766718325",
+			"entity_type": "interactable",
+			"facing": "down",
+			"position": [
+				10.0,
+				10.0
 			]
 		}
 	],
@@ -26,6 +45,16 @@
 		},
 		{
 			"params": {
+				"continuous": true,
+				"duration": 0.5,
+				"speed": 8.0,
+				"wait": false
+			},
+			"target": "actor_1",
+			"type": "camera_follow"
+		},
+		{
+			"params": {
 				"color": [
 					0.0,
 					0.0,
@@ -39,11 +68,31 @@
 		},
 		{
 			"params": {
+				"duration": 1.0
+			},
+			"type": "wait"
+		},
+		{
+			"params": {
 				"character_id": "vt5pq759",
 				"emotion": "neutral",
 				"text": "What an amazing opening cinematic!"
 			},
 			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						10.0,
+						9.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "actor_1",
+			"type": "move_entity"
 		}
 	],
 	"description": "",

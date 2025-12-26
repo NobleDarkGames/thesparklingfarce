@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="InteractableData" load_steps=3 format=3 uid="uid://be1hxdo6tvi28"]
+
+[ext_resource type="Script" uid="uid://w4s80hyvsnx0" path="res://core/resources/interactable_data.gd" id="1_pja36"]
+[ext_resource type="Texture2D" uid="uid://djutpe8k0pmk3" path="res://mods/demo_campaign/assets/icons/items/plaht.png" id="2_jndgj"]
+
+[resource]
+script = ExtResource("1_pja36")
+interactable_id = "plaht_device"
+display_name = "Plaht Device"
+sprite_closed = ExtResource("2_jndgj")
+sprite_opened = ExtResource("2_jndgj")
