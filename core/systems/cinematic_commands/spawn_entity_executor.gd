@@ -49,6 +49,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	# Position at grid coordinates
 	entity.global_position = GridManager.cell_to_world(grid_pos)
 
+	# Ensure spawned entities render above backdrop tilemaps
+	entity.z_index = 10
+
 	# Create AnimatedSprite2D if we have character data
 	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
 	sprite.name = "AnimatedSprite2D"

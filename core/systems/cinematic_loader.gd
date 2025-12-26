@@ -89,6 +89,16 @@ static func _build_cinematic_from_dict(data: Dictionary, source_path: String) ->
 	if "fade_out_duration" in data:
 		cinematic.fade_out_duration = float(data["fade_out_duration"])
 
+	# Actors array (spawned before commands execute)
+	if "actors" in data:
+		var actors_data: Variant = data["actors"]
+		if actors_data is Array:
+			for actor_data: Variant in actors_data:
+				if actor_data is Dictionary:
+					cinematic.actors.append(actor_data as Dictionary)
+		else:
+			push_warning("CinematicLoader: 'actors' should be an array in %s" % source_path)
+
 	# Commands array
 	if "commands" in data:
 		var commands_data: Variant = data["commands"]

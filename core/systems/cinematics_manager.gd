@@ -772,6 +772,9 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	# Position at grid coordinates
 	entity.global_position = GridManager.cell_to_world(grid_pos)
 
+	# Ensure spawned actors render above backdrop tilemaps
+	entity.z_index = 10
+
 	# Create AnimatedSprite2D
 	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
 	sprite.name = "AnimatedSprite2D"

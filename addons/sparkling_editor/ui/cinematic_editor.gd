@@ -354,6 +354,10 @@ func _refresh_characters() -> void:
 		_shops = ModLoader.registry.get_all_resources("shop")
 		_maps = ModLoader.registry.get_all_resources("map")
 
+	# Update actor picker dropdown if it exists
+	if actor_character_picker:
+		_populate_actor_character_picker()
+
 
 func _setup_ui() -> void:
 	var main_hsplit: HSplitContainer = HSplitContainer.new()
