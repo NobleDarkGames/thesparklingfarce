@@ -1,0 +1,60 @@
+{
+  "cinematic_id": "no_campaign_error",
+  "cinematic_name": "No Campaign Found",
+  "description": "Core fallback cinematic shown when no campaign is available to start a new game.",
+  "can_skip": true,
+  "disable_player_input": true,
+
+  "commands": [
+    {
+      "type": "fade_screen",
+      "params": {
+        "fade_type": "in",
+        "duration": 1.0
+      }
+    },
+    {
+      "type": "wait",
+      "params": {
+        "duration": 0.3
+      }
+    },
+    {
+      "type": "dialog_line",
+      "params": {
+        "speaker_name": "System",
+        "text": "No campaign found! A campaign is required to start a new game.",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "type": "dialog_line",
+      "params": {
+        "speaker_name": "System",
+        "text": "To create a campaign, use the Campaign Editor in the Sparkling Editor dock.",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "type": "dialog_line",
+      "params": {
+        "speaker_name": "System",
+        "text": "Save it to your mod's data/campaigns/ folder, then reload the game.",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "type": "wait",
+      "params": {
+        "duration": 0.5
+      }
+    },
+    {
+      "type": "fade_screen",
+      "params": {
+        "fade_type": "out",
+        "duration": 1.0
+      }
+    }
+  ]
+}
