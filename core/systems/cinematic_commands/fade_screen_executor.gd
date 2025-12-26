@@ -13,7 +13,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
 	var fade_type: String = params.get("fade_type", "out")  # "in" or "out"
 	var duration: float = params.get("duration", 1.0)
-	var color: Color = params.get("color", Color.BLACK)
+	var color: Color = _parse_color(params.get("color", null))
 
 	# Use SceneManager's centralized fade system
 	if not SceneManager:
@@ -35,6 +35,15 @@ func execute(command: Dictionary, manager: Node) -> bool:
 func interrupt() -> void:
 	_interrupted = true
 	_active_manager = null
+
+
+## Parse color from various formats (Color, Array [r,g,b,a], or null)
+func _parse_color(value: Variant) -> Color:
+	if value is Color:
+		return value
+	if value is Array and value.size() >= 3:
+		return Color(value[0], value[1], value[2], value[3] if value.size() > 3 else 1.0)
+	return Color.BLACK
 
 
 ## Perform the fade using SceneManager

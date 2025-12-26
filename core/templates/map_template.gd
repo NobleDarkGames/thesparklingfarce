@@ -96,6 +96,13 @@ var party_followers: Array[CharacterBody2D] = []
 func _ready() -> void:
 	_debug_print("MapTemplate: Initializing...")
 
+	# Check if we're being loaded as a cinematic backdrop
+	# In backdrop mode, we skip all gameplay initialization and just show visuals
+	if _is_backdrop_mode():
+		_debug_print("MapTemplate: Loaded as cinematic backdrop - skipping gameplay init")
+		_setup_backdrop_mode()
+		return
+
 	# Register safe location for Egress/Angel Wing returns
 	_register_safe_location()
 
@@ -735,6 +742,41 @@ func _create_default_sprite_frames() -> SpriteFrames:
 			frames.add_frame(anim_name, atlas)
 
 	return frames
+
+
+# =============================================================================
+# BACKDROP MODE (Cinematic Visual-Only Loading)
+# =============================================================================
+
+## Check if this map is being loaded as a cinematic backdrop
+## Returns true if CinematicsManager._loading_backdrop flag is set
+func _is_backdrop_mode() -> bool:
+	if CinematicsManager and CinematicsManager._loading_backdrop:
+		return true
+	return false
+
+
+## Setup map for backdrop mode (visual-only, no gameplay)
+## Disables cameras, hides spawn points, and stops any gameplay processing
+func _setup_backdrop_mode() -> void:
+	# Disable the map's camera (cinematic stage has its own)
+	if camera:
+		camera.enabled = false
+
+	# Hide spawn point markers (they're just for editor visibility)
+	var spawn_points: Node = get_node_or_null("SpawnPoints")
+	if spawn_points:
+		spawn_points.hide()
+
+	# Hide followers container (no party in backdrop mode)
+	if followers_container:
+		followers_container.hide()
+
+	# Disable input processing (cinematic handles input)
+	set_process_input(false)
+	set_process_unhandled_input(false)
+
+	_debug_print("MapTemplate: Backdrop mode configured - visuals only")
 
 
 # =============================================================================

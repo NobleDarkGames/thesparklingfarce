@@ -236,7 +236,7 @@ static func _build_categories_from_definitions(definitions: Dictionary) -> Dicti
 
 	# Sort categories in a sensible order
 	var ordered: Dictionary = {}
-	var preferred_order: Array = ["Dialog", "Entity", "Camera", "Screen", "Audio", "Game State", "Interaction", "Party"]
+	var preferred_order: Array = ["Dialog", "Entity", "Camera", "Screen", "Scene", "Audio", "Game State", "Interaction", "Party"]
 	for cat: String in preferred_order:
 		if cat in categories:
 			ordered[cat] = categories[cat]
@@ -304,10 +304,11 @@ var _updating_ui: bool = false
 # Track if ID should auto-generate from name (unlocked = auto-generate)
 var _id_is_locked: bool = false
 
-# Character, NPC, and Shop caches for pickers
+# Character, NPC, Shop, and Map caches for pickers
 var _characters: Array[Resource] = []
 var _npcs: Array[Resource] = []
 var _shops: Array[Resource] = []
+var _maps: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -346,10 +347,12 @@ func _refresh_characters() -> void:
 	_characters.clear()
 	_npcs.clear()
 	_shops.clear()
+	_maps.clear()
 	if ModLoader and ModLoader.registry:
 		_characters = ModLoader.registry.get_all_resources("character")
 		_npcs = ModLoader.registry.get_all_resources("npc")
 		_shops = ModLoader.registry.get_all_resources("shop")
+		_maps = ModLoader.registry.get_all_resources("map")
 
 
 func _setup_ui() -> void:
@@ -1348,6 +1351,77 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			shop_btn.item_selected.connect(_on_shop_selected.bind(param_name, shop_btn))
 			control = shop_btn
 
+		"scene_id":
+			# Scene ID picker dropdown (from registered scenes in mod.json)
+			var scene_btn: OptionButton = OptionButton.new()
+			scene_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			scene_btn.add_item("(None)", 0)
+			scene_btn.set_item_metadata(0, "")
+			var selected_idx: int = 0
+			var item_idx: int = 1
+
+			if ModLoader and ModLoader.registry:
+				var scene_ids: Array[String] = ModLoader.registry.get_scene_ids()
+				for scene_id: String in scene_ids:
+					var scene_path: String = ModLoader.registry.get_scene_path(scene_id)
+					var mod_id: String = ModLoader.registry.get_scene_source(scene_id)
+					var display_name: String = "[%s] %s" % [mod_id, scene_id] if not mod_id.is_empty() else scene_id
+					scene_btn.add_item(display_name, item_idx)
+					scene_btn.set_item_metadata(item_idx, scene_id)
+
+					if scene_id == str(current_value):
+						selected_idx = item_idx
+					item_idx += 1
+
+			scene_btn.select(selected_idx)
+			scene_btn.item_selected.connect(_on_scene_selected.bind(param_name, scene_btn))
+			control = scene_btn
+
+		"map_id":
+			# Map ID picker dropdown - iterate by resource ID since JSON-loaded maps lack resource_path
+			var map_btn: OptionButton = OptionButton.new()
+			map_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			map_btn.add_item("(None)", 0)
+			map_btn.set_item_metadata(0, "")
+			var selected_idx: int = 0
+			var item_idx: int = 1
+
+			if ModLoader and ModLoader.registry:
+				var map_ids: Array[String] = ModLoader.registry.get_resource_ids("map")
+				for resource_id: String in map_ids:
+					var map_res: Resource = ModLoader.registry.get_resource("map", resource_id)
+					if not map_res:
+						continue
+
+					# Get map_id from resource, fall back to resource_id (filename)
+					var map_id: String = ""
+					var map_name: String = ""
+
+					if "map_id" in map_res and not str(map_res.get("map_id")).is_empty():
+						map_id = str(map_res.get("map_id"))
+					else:
+						map_id = resource_id
+
+					if "display_name" in map_res and not str(map_res.get("display_name")).is_empty():
+						map_name = str(map_res.get("display_name"))
+					else:
+						map_name = map_id
+
+					# Get source mod
+					var mod_id: String = ModLoader.registry.get_resource_source(resource_id)
+
+					var display_text: String = "[%s] %s" % [mod_id, map_name] if not mod_id.is_empty() else map_name
+					map_btn.add_item(display_text, item_idx)
+					map_btn.set_item_metadata(item_idx, map_id)
+
+					if map_id == str(current_value):
+						selected_idx = item_idx
+					item_idx += 1
+
+			map_btn.select(selected_idx)
+			map_btn.item_selected.connect(_on_map_selected.bind(param_name, map_btn))
+			control = map_btn
+
 		_:  # string and unknown types
 			var line_edit: LineEdit = LineEdit.new()
 			line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1410,6 +1484,16 @@ func _on_character_or_npc_selected(index: int, param_name: String, option_btn: O
 func _on_shop_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
 	var shop_id: Variant = option_btn.get_item_metadata(index)
 	_on_param_changed(shop_id if shop_id else "", param_name)
+
+
+func _on_scene_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var scene_id: Variant = option_btn.get_item_metadata(index)
+	_on_param_changed(scene_id if scene_id else "", param_name)
+
+
+func _on_map_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var map_id: Variant = option_btn.get_item_metadata(index)
+	_on_param_changed(map_id if map_id else "", param_name)
 
 
 func _on_text_changed(param_name: String, text_edit: TextEdit) -> void:

@@ -73,6 +73,17 @@ var _camera_original_position: Vector2 = Vector2.ZERO
 ## Stores references to nodes spawned via actors array or spawn_entity command
 var _spawned_actor_nodes: Array[Node] = []
 
+## Next destination for scene change after cinematic ends
+## Used by change_scene command to defer scene transition until after cinematic_ended signal
+var _next_destination: String = ""
+var _next_destination_fade: bool = true
+var _next_destination_fade_duration: float = 0.5
+
+## Flag indicating a backdrop scene is being loaded
+## When true, map_template and other gameplay scenes should skip gameplay initialization
+## (party loading, camera setup, hero creation, etc.) and only set up visuals
+var _loading_backdrop: bool = false
+
 
 func _ready() -> void:
 	# Disable per-frame processing when idle (optimization)
@@ -212,6 +223,8 @@ func _register_built_in_commands() -> void:
 	const RejoinPartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/rejoin_party_member_executor.gd")
 	const SetCharacterStatusExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_character_status_executor.gd")
 	const GrantItemsExecutor: GDScript = preload("res://core/systems/cinematic_commands/grant_items_executor.gd")
+	const ChangeSceneExecutor: GDScript = preload("res://core/systems/cinematic_commands/change_scene_executor.gd")
+	const SetBackdropExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_backdrop_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -235,6 +248,8 @@ func _register_built_in_commands() -> void:
 	register_command_executor("rejoin_party_member", RejoinPartyMemberExecutor.new())
 	register_command_executor("set_character_status", SetCharacterStatusExecutor.new())
 	register_command_executor("grant_items", GrantItemsExecutor.new())
+	register_command_executor("change_scene", ChangeSceneExecutor.new())
+	register_command_executor("set_backdrop", SetBackdropExecutor.new())
 
 
 ## Register a camera for cinematic control
@@ -482,6 +497,15 @@ func _end_cinematic() -> void:
 	# Note: Will be re-enabled if chaining to next cinematic
 	set_process(false)
 
+	# Handle pending scene destination (from change_scene command)
+	# This happens AFTER cinematic_ended signal so listeners can handle it
+	if not _next_destination.is_empty():
+		var dest: String = _next_destination
+		var use_fade: bool = _next_destination_fade
+		_next_destination = ""  # Clear to prevent re-entry
+		SceneManager.change_scene(dest, use_fade)
+		return  # Don't chain to next cinematic - we're changing scenes
+
 	# Chain to next cinematic if exists
 	if finished_cinematic and finished_cinematic.has_next():
 		play_cinematic_from_resource(finished_cinematic.next_cinematic)
@@ -501,8 +525,20 @@ func skip_cinematic() -> void:
 		_current_executor.interrupt()
 		_current_executor = null
 
+	# Clear any pending destination to prevent orphaned scene transitions
+	_next_destination = ""
+
 	cinematic_skipped.emit()
 	_end_cinematic()
+
+
+## Set the next destination for scene change after cinematic ends
+## Used by change_scene command to defer transition until cinematic_ended signal fires
+## This ensures listeners (like startup.gd) can handle the signal before scene changes
+func set_next_destination(scene_path: String, use_fade: bool = true, fade_duration: float = 0.5) -> void:
+	_next_destination = scene_path
+	_next_destination_fade = use_fade
+	_next_destination_fade_duration = fade_duration
 
 
 ## Resume the paused cinematic

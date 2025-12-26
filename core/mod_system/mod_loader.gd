@@ -428,9 +428,12 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 				resource_id = original_name.get_basename()
 
 			elif original_name.ends_with(".json") and supports_json:
-				# JSON resource (currently only cinematics)
+				# JSON resource (cinematics, campaigns, maps)
 				resource = _load_json_resource(full_path, resource_type)
 				resource_id = original_name.get_basename()
+				# Set resource_path so JSON-loaded resources can be identified like .tres resources
+				if resource:
+					resource.resource_path = full_path
 
 			if resource:
 				registry.register_resource(resource, resource_type, resource_id, mod_id)
