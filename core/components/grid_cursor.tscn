@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://b8x2m4qan5q7r"]
 
-[ext_resource type="Script" path="res://scenes/ui/grid_cursor.gd" id="1_cursor"]
+[ext_resource type="Script" path="res://core/components/grid_cursor.gd" id="1_cursor"]
 [ext_resource type="Texture2D" uid="uid://grid_cursor_sprite" path="res://assets/ui/grid_cursor.png" id="2_texture"]
 
 [node name="GridCursor" type="Node2D"]

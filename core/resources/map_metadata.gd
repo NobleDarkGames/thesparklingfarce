@@ -354,10 +354,8 @@ func to_dict() -> Dictionary:
 
 
 ## Import from dictionary (for JSON loading)
-## Note: Returns Resource (actually MapMetadata) - use type casting if needed
-static func from_dict(data: Dictionary) -> Resource:
-	var script: GDScript = load("res://core/resources/map_metadata.gd")
-	var metadata: Resource = script.new()
+static func from_dict(data: Dictionary) -> MapMetadata:
+	var metadata: MapMetadata = MapMetadata.new()
 
 	metadata.map_id = DictUtils.get_string(data, "map_id", "")
 	metadata.display_name = DictUtils.get_string(data, "display_name", "")

@@ -3,6 +3,7 @@
 ## Shows where the player is currently targeting on the grid.
 ## Features idle bob animation and pulse feedback on selection.
 ## Supports multiple cursor modes for different battle states (SF2-authentic).
+class_name GridCursor
 extends Node2D
 
 ## Cursor mode determines visual style and animation

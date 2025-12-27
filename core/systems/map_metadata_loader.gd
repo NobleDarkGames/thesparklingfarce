@@ -32,12 +32,12 @@ extends RefCounted
 ##   "edge_connections": {}
 ## }
 
-const MapMetadataScript: GDScript = preload("res://core/resources/map_metadata.gd")
+# Note: MapMetadata has class_name so it's globally available
 
 
 ## Load a MapMetadata resource from a JSON file
 ## Returns null if loading fails
-static func load_from_json(json_path: String) -> Resource:
+static func load_from_json(json_path: String) -> MapMetadata:
 	# Don't use FileAccess.file_exists() - it fails in exports where files are in PCK
 	# Just try to open the file directly
 	var file: FileAccess = FileAccess.open(json_path, FileAccess.READ)
@@ -74,8 +74,8 @@ static func load_from_json_string(json_text: String, source_path: String = "<str
 ## Build MapMetadata from a parsed JSON dictionary
 ## Scene-as-truth: map_id, display_name, map_type, spawn_points, connections are OPTIONAL
 ## They will be populated from the scene via populate_from_scene() after loading
-static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> Resource:
-	var metadata: Resource = MapMetadataScript.new()
+static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> MapMetadata:
+	var metadata: MapMetadata = MapMetadata.new()
 
 	# Scene path is REQUIRED - it's how we link to the scene
 	if "scene_path" in data:
@@ -97,18 +97,18 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 		var type_str: String = str(data["map_type"]).to_upper()
 		match type_str:
 			"TOWN":
-				metadata.map_type = MapMetadataScript.MapType.TOWN
+				metadata.map_type = MapMetadata.MapType.TOWN
 			"OVERWORLD":
-				metadata.map_type = MapMetadataScript.MapType.OVERWORLD
+				metadata.map_type = MapMetadata.MapType.OVERWORLD
 			"DUNGEON":
-				metadata.map_type = MapMetadataScript.MapType.DUNGEON
+				metadata.map_type = MapMetadata.MapType.DUNGEON
 			"BATTLE":
-				metadata.map_type = MapMetadataScript.MapType.BATTLE
+				metadata.map_type = MapMetadata.MapType.BATTLE
 			"INTERIOR":
-				metadata.map_type = MapMetadataScript.MapType.INTERIOR
+				metadata.map_type = MapMetadata.MapType.INTERIOR
 			_:
 				push_warning("MapMetadataLoader: Unknown map_type '%s' in %s, defaulting to TOWN" % [type_str, source_path])
-				metadata.map_type = MapMetadataScript.MapType.TOWN
+				metadata.map_type = MapMetadata.MapType.TOWN
 
 	# Caravan settings (runtime config)
 	if "caravan_visible" in data:
@@ -313,5 +313,6 @@ static func _variant_to_int(value: Variant) -> int:
 	if value is int:
 		return value
 	elif value is float:
-		return int(value)
+		var float_val: float = value
+		return int(float_val)
 	return 0

@@ -20,8 +20,7 @@
 class_name CinematicCommandExecutor
 extends RefCounted
 
-# Preload for type access
-const DialogueDataScript: GDScript = preload("res://core/resources/dialogue_data.gd")
+# Note: DialogueData has class_name so it's globally available
 
 ## Counter for generating unique inline dialog IDs (shared across all executors)
 static var _inline_dialog_counter: int = 0
@@ -36,8 +35,7 @@ static var _inline_dialog_counter: int = 0
 ## @param manager: Reference to the CinematicsManager
 ## @return: true if completed immediately, false if async (waiting for dialog)
 static func show_system_message(message: String, manager: Node) -> bool:
-	var DialogueData: GDScript = DialogueDataScript
-	var dialogue: Resource = DialogueData.new()
+	var dialogue: DialogueData = DialogueData.new()
 
 	# Generate unique ID
 	_inline_dialog_counter += 1
@@ -69,7 +67,7 @@ static func resolve_character(character_id: String) -> CharacterData:
 		return character
 
 	# Fallback to resource ID lookup
-	return ModLoader.registry.get_resource("character", character_id) as CharacterData
+	return ModLoader.registry.get_character(character_id)
 
 
 ## Resolve a character_id to display data (name and portrait)

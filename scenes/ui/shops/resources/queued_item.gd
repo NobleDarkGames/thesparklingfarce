@@ -40,4 +40,4 @@ static func create(p_item_id: String, p_quantity: int, p_unit_price: int, p_is_d
 
 ## Create a copy of this queued item
 func duplicate_item() -> RefCounted:
-	return _SelfScript.call("create", item_id, quantity, unit_price, is_deal)
+	return create(item_id, quantity, unit_price, is_deal)
