@@ -223,7 +223,8 @@ func _ensure_actors_visible(stage: Node) -> void:
 		# Check for spawned actor nodes (named "SpawnedActor_*")
 		if child.name.begins_with("SpawnedActor_") and child is Node2D:
 			var actor_node: Node2D = child as Node2D
-			# Ensure z_index is above backdrop (which is at 0, with TileMapLayer at -1)
+
+			# Ensure z_index is above backdrop (which is at 0)
 			if actor_node.z_index < 10:
 				actor_node.z_index = 10
 			# Ensure visibility on actor root
@@ -244,16 +245,22 @@ func _ensure_actors_visible(stage: Node) -> void:
 
 
 ## Find the cinematic stage node
+## Searches for a node containing "CinematicStage" in its name, checking both
+## the current scene and its children (for Startup coordinator pattern)
 func _find_cinematic_stage() -> Node:
 	var scene_root: Node = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
+	if not scene_root:
+		return null
 
 	# Check if current scene IS the cinematic stage
-	if scene_root and scene_root.name.contains("CinematicStage"):
+	if scene_root.name.contains("CinematicStage") or scene_root.name == "OpeningCinematicStage":
 		return scene_root
 
-	# Check if current scene is OpeningCinematicStage specifically
-	if scene_root and scene_root.name == "OpeningCinematicStage":
-		return scene_root
+	# Check children for cinematic stage (Startup coordinator pattern)
+	# The Startup scene loads OpeningCinematicStage as a child
+	for child: Node in scene_root.get_children():
+		if child.name.contains("CinematicStage") or child.name == "OpeningCinematicStage":
+			return child
 
 	# Fallback: just use current scene
 	return scene_root

@@ -780,6 +780,28 @@ func _enable_player_input() -> void:
 # SPAWNED ACTOR MANAGEMENT
 # =============================================================================
 
+## Find the appropriate node to add spawned actors to
+## Returns the cinematic stage if one exists, otherwise current_scene
+## This handles the Startup coordinator pattern where OpeningCinematicStage
+## is a child of Startup, not the current_scene itself
+func _find_actor_parent() -> Node:
+	var scene_root: Node = get_tree().current_scene
+	if not scene_root:
+		return null
+
+	# Check if current scene IS the cinematic stage
+	if scene_root.name.contains("CinematicStage"):
+		return scene_root
+
+	# Check children for cinematic stage (Startup coordinator pattern)
+	for child: Node in scene_root.get_children():
+		if child.name.contains("CinematicStage"):
+			return child
+
+	# Fallback: use current scene (map-based cinematics like NPC interactions)
+	return scene_root
+
+
 ## Spawn actors from cinematic data's actors array
 ## Called before commands execute to set up the scene
 func _spawn_actors_from_data(cinematic: CinematicData) -> void:
@@ -880,13 +902,13 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	cinematic_actor.sprite_node = sprite_node
 	entity.add_child(cinematic_actor)
 
-	# Add to scene tree
-	var scene_root: Node = get_tree().current_scene
-	if scene_root:
-		scene_root.add_child(entity)
+	# Add to scene tree (use cinematic stage if available, otherwise current scene)
+	var actor_parent: Node = _find_actor_parent()
+	if actor_parent:
+		actor_parent.add_child(entity)
 		_track_spawned_actor(entity)
 	else:
-		push_error("CinematicsManager: No current scene to add actor to")
+		push_error("CinematicsManager: No scene to add actor to")
 		entity.queue_free()
 
 

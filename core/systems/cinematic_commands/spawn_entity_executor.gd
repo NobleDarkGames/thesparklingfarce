@@ -97,12 +97,12 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	cinematic_actor.sprite_node = sprite_node
 	entity.add_child(cinematic_actor)
 
-	# Add to scene tree
-	var scene_root: Node = manager.get_tree().current_scene
-	if scene_root:
-		scene_root.add_child(entity)
+	# Add to scene tree (use cinematic stage if available, otherwise current scene)
+	var actor_parent: Node = CinematicsManager._find_actor_parent() if CinematicsManager else null
+	if actor_parent:
+		actor_parent.add_child(entity)
 	else:
-		push_error("SpawnEntityExecutor: No current scene to add entity to")
+		push_error("SpawnEntityExecutor: No scene to add entity to")
 		entity.queue_free()
 		return true
 
