@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://d0jh0rreneus2"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_iecgb"]
+[ext_resource type="Resource" uid="uid://nivncn7dj42l" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766861870.tres" id="1_rdoq6"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_0ac43"]
+[ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="2_e80f5"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_pc324"]
+[ext_resource type="SpriteFrames" uid="uid://1a3od87sak3m" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1766861905_map_sprites.tres" id="4_aw74r"]
+
+[resource]
+script = ExtResource("1_iecgb")
+character_uid = "wnc45s25"
+character_name = "Mud Farmer"
+character_class = ExtResource("1_rdoq6")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_e80f5")
+sprite_frames = ExtResource("4_aw74r")
+unit_category = "neutral"

@@ -64,7 +64,7 @@ var available_tilesets: Array[String] = []
 func _init() -> void:
 	# Configure base class settings
 	resource_type_name = "Map"
-	resource_dir_name = "maps"
+	resource_dir_name = "map"
 	file_extension = ".json"
 
 	call_deferred("_setup_ui")
@@ -924,6 +924,18 @@ func _on_confirm_create_map() -> void:
 			break
 
 	_hide_errors()
+
+	# Dynamically register the new map with ModLoader.registry so it's immediately available
+	# (without requiring a full mod reload)
+	if ModLoader and ModLoader.registry:
+		var MapMetadataLoader: GDScript = load("res://core/systems/map_metadata_loader.gd")
+		if MapMetadataLoader:
+			var map_res: Resource = MapMetadataLoader.load_from_json(json_path)
+			if map_res:
+				ModLoader.registry.register_resource(map_res, "map", map_id, active_mod_id)
+
+	# Notify EditorEventBus so other panels (like CinematicEditor) refresh their dropdowns
+	notify_resource_created(map_id)
 
 	# Notify user and offer to open the scene
 	print("MapMetadataEditor: Created new map '%s' with files:" % map_name)

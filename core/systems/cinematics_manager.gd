@@ -216,6 +216,7 @@ func _register_built_in_commands() -> void:
 	const DialogExecutor = preload("res://core/systems/cinematic_commands/dialog_executor.gd")
 	const MoveEntityExecutor = preload("res://core/systems/cinematic_commands/move_entity_executor.gd")
 	const SetFacingExecutor = preload("res://core/systems/cinematic_commands/set_facing_executor.gd")
+	const SetPositionExecutor = preload("res://core/systems/cinematic_commands/set_position_executor.gd")
 	const PlayAnimationExecutor = preload("res://core/systems/cinematic_commands/play_animation_executor.gd")
 	const CameraMoveExecutor = preload("res://core/systems/cinematic_commands/camera_move_executor.gd")
 	const CameraFollowExecutor = preload("res://core/systems/cinematic_commands/camera_follow_executor.gd")
@@ -241,6 +242,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("dialog_line", DialogExecutor.new())  # Single-line dialog from Cinematic Editor
 	register_command_executor("move_entity", MoveEntityExecutor.new())
 	register_command_executor("set_facing", SetFacingExecutor.new())
+	register_command_executor("set_position", SetPositionExecutor.new())
 	register_command_executor("play_animation", PlayAnimationExecutor.new())
 	register_command_executor("camera_move", CameraMoveExecutor.new())
 	register_command_executor("camera_follow", CameraFollowExecutor.new())

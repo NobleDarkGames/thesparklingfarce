@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3 uid="uid://nivncn7dj42l"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_pe40n"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_ac1qj"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_gq07b"]
+
+[resource]
+script = ExtResource("3_gq07b")
+display_name = "Townsfolk"
+promotion_resets_level = false
+consume_promotion_item = false

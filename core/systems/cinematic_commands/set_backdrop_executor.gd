@@ -109,12 +109,16 @@ func _load_backdrop_with_fade(scene_path: String, fade_duration: float) -> void:
 		await SceneManager.fade_to_black(fade_duration)
 
 		if _interrupted:
+			_complete()
 			return
 
 	# Load and instantiate
 	var scene: PackedScene = load(scene_path)
 	if not scene:
 		push_error("SetBackdropExecutor: Failed to load scene: %s" % scene_path)
+		# Ensure loading flag is cleared on error
+		if CinematicsManager:
+			CinematicsManager._loading_backdrop = false
 		_complete()
 		return
 
@@ -125,6 +129,7 @@ func _load_backdrop_with_fade(scene_path: String, fade_duration: float) -> void:
 		await SceneManager.fade_from_black(fade_duration)
 
 		if _interrupted:
+			_complete()
 			return
 
 	_complete()
@@ -136,22 +141,24 @@ func _instantiate_backdrop(scene: PackedScene) -> void:
 	if CinematicsManager:
 		CinematicsManager._loading_backdrop = true
 
+	# Find the cinematic stage first (needed for cleanup)
+	var stage: Node = _find_cinematic_stage()
+	if not stage:
+		push_error("SetBackdropExecutor: Could not find cinematic stage to add backdrop to")
+		if CinematicsManager:
+			CinematicsManager._loading_backdrop = false
+		return
+
+	# Clean up any existing backdrop before adding new one
+	# Check both the tracked instance AND by name (belt and suspenders)
+	_cleanup_existing_backdrop(stage)
+
 	# Instantiate the scene
 	_backdrop_instance = scene.instantiate()
 
 	# Clear the flag after instantiation (before _ready runs on children)
 	# Note: _ready runs during add_child, so flag must be set before that
 	# The flag is checked in map_template._ready()
-
-	# Find the cinematic stage (current scene or parent with cinematic stage script)
-	var stage: Node = _find_cinematic_stage()
-	if not stage:
-		push_error("SetBackdropExecutor: Could not find cinematic stage to add backdrop to")
-		_backdrop_instance.queue_free()
-		_backdrop_instance = null
-		if CinematicsManager:
-			CinematicsManager._loading_backdrop = false
-		return
 
 	# Add backdrop as child, positioned behind UI elements
 	# Most cinematic stages have: Background, CinematicCamera, UILayer
@@ -163,8 +170,13 @@ func _instantiate_backdrop(scene: PackedScene) -> void:
 	if background:
 		insert_index = background.get_index() + 1
 
-	# Name the backdrop for debugging
+	# Name the backdrop for debugging and future cleanup
 	_backdrop_instance.name = "CinematicBackdrop"
+
+	# Ensure backdrop renders behind cinematic actors (z_index 10)
+	# Backdrops should be at z_index 0 or below
+	if _backdrop_instance is Node2D:
+		(_backdrop_instance as Node2D).z_index = 0
 
 	# Add to stage
 	stage.add_child(_backdrop_instance)
@@ -177,6 +189,27 @@ func _instantiate_backdrop(scene: PackedScene) -> void:
 	# Hide the original Background ColorRect since we have a real backdrop now
 	if background and background is ColorRect:
 		background.hide()
+
+
+## Clean up existing backdrop before loading a new one
+## Handles both the tracked _backdrop_instance and any node named "CinematicBackdrop"
+func _cleanup_existing_backdrop(stage: Node) -> void:
+	# First, clean up by name (most reliable - the node is named when added)
+	var existing_by_name: Node = stage.get_node_or_null("CinematicBackdrop")
+	if existing_by_name and is_instance_valid(existing_by_name):
+		stage.remove_child(existing_by_name)
+		existing_by_name.queue_free()
+
+	# Also clean up tracked instance if it differs (safety net for edge cases)
+	if _backdrop_instance and is_instance_valid(_backdrop_instance):
+		if _backdrop_instance != existing_by_name:
+			# Different node - clean it up too
+			if _backdrop_instance.get_parent():
+				_backdrop_instance.get_parent().remove_child(_backdrop_instance)
+			_backdrop_instance.queue_free()
+
+	# Clear the reference so we don't hold onto freed memory
+	_backdrop_instance = null
 
 
 ## Find the cinematic stage node

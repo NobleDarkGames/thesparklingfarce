@@ -1,0 +1,10 @@
+{
+	"ambient_id": "",
+	"caravan_accessible": false,
+	"caravan_visible": false,
+	"edge_connections": {
+
+	},
+	"music_id": "",
+	"scene_path": "res://mods/demo_campaign/maps/mudford.tscn"
+}

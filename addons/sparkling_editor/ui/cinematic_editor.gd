@@ -54,6 +54,15 @@ const COMMAND_DEFINITIONS: Dictionary = {
 			"direction": {"type": "enum", "default": "down", "options": ["up", "down", "left", "right"], "hint": "Facing direction"}
 		}
 	},
+	"set_position": {
+		"description": "Instantly teleport entity to position (no animation)",
+		"icon": "Transform2D",
+		"has_target": true,
+		"params": {
+			"position": {"type": "vector2", "default": [0, 0], "hint": "Target position (grid)"},
+			"facing": {"type": "enum", "default": "", "options": ["", "up", "down", "left", "right"], "hint": "Facing after teleport (optional)"}
+		}
+	},
 	"play_animation": {
 		"description": "Play an animation on an entity",
 		"icon": "Animation",
@@ -122,7 +131,7 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"description": "Spawn an entity at a position",
 		"icon": "Node2D",
 		"params": {
-			"actor_id": {"type": "string", "default": "", "hint": "Actor ID to assign"},
+			"actor_id": {"type": "actor", "default": "", "hint": "Actor ID to assign"},
 			"position": {"type": "vector2", "default": [0, 0], "hint": "Spawn position (grid)"},
 			"facing": {"type": "enum", "default": "down", "options": ["up", "down", "left", "right"], "hint": "Initial facing"},
 			"character_id": {"type": "character", "default": "", "hint": "CharacterData to spawn"}
@@ -159,6 +168,7 @@ const DEFAULT_CATEGORIES: Dictionary = {
 	"show_dialog": "Dialog",
 	"move_entity": "Entity",
 	"set_facing": "Entity",
+	"set_position": "Entity",
 	"play_animation": "Entity",
 	"spawn_entity": "Entity",
 	"despawn_entity": "Entity",
@@ -267,7 +277,7 @@ var duplicate_button: Button
 var inspector_scroll: ScrollContainer
 var inspector_panel: VBoxContainer
 var inspector_fields: Dictionary = {}  # param_name -> Control
-var target_field: LineEdit  # For commands with target (actor_id)
+var target_field: OptionButton  # For commands with target (actor_id)
 
 # UI Components - Metadata
 var cinematic_id_edit: LineEdit
@@ -351,6 +361,12 @@ func _on_resource_changed(resource_type: String, _resource_id: String, _resource
 	# Refresh characters/NPCs if either was modified
 	if resource_type in ["character", "characters", "npc", "npcs"]:
 		_refresh_characters()
+	# Refresh maps and rebuild inspector to update map dropdowns
+	elif resource_type == "map":
+		_refresh_characters()  # This already refreshes _maps cache
+		# Rebuild inspector if a command is selected (to refresh map dropdown)
+		if selected_command_index >= 0:
+			_build_inspector_for_command(selected_command_index)
 
 
 func _refresh_characters() -> void:
@@ -789,9 +805,9 @@ func _setup_add_command_menu() -> void:
 	var popup: PopupMenu = add_command_button.get_popup()
 	popup.clear()
 
-	# Disconnect previous signal connection if any (menu rebuilds dynamically)
-	if popup.id_pressed.is_connected(_on_add_command_menu_selected):
-		popup.id_pressed.disconnect(_on_add_command_menu_selected)
+	# Clean up old submenus
+	for child: Node in popup.get_children():
+		child.queue_free()
 
 	# Get merged definitions (hardcoded + dynamic from executors)
 	var definitions: Dictionary = _get_merged_command_definitions()
@@ -799,20 +815,29 @@ func _setup_add_command_menu() -> void:
 	# Build categories dynamically from definitions
 	var categories: Dictionary = _build_categories_from_definitions(definitions)
 
-	var idx: int = 0
+	# Create submenus for each category
 	for category: String in categories.keys():
-		if idx > 0:
-			popup.add_separator()
-		popup.add_separator(category)
+		var submenu: PopupMenu = PopupMenu.new()
+		submenu.name = category + "_submenu"
+
+		var idx: int = 0
 		for cmd_type: String in categories[category]:
 			if cmd_type in definitions:
 				var def: Dictionary = definitions[cmd_type]
 				var desc: String = def.get("description", cmd_type)
-				popup.add_item(cmd_type + " - " + desc.substr(0, 30), idx)
-				popup.set_item_metadata(idx, cmd_type)
+				submenu.add_item(cmd_type + " - " + desc.substr(0, 35), idx)
+				submenu.set_item_metadata(idx, cmd_type)
 				idx += 1
 
-	popup.id_pressed.connect(_on_add_command_menu_selected)
+		submenu.id_pressed.connect(_on_submenu_command_selected.bind(submenu))
+		popup.add_child(submenu)
+		popup.add_submenu_item(category, submenu.name)
+
+
+func _on_submenu_command_selected(id: int, submenu: PopupMenu) -> void:
+	var cmd_type: String = submenu.get_item_metadata(id)
+	if not cmd_type.is_empty():
+		_add_new_command(cmd_type)
 
 
 func _on_add_command_menu_selected(id: int) -> void:
@@ -999,6 +1024,9 @@ func _format_command_display(cmd: Dictionary, index: int) -> String:
 			summary = target if not target.is_empty() else "(no target)"
 		"set_facing":
 			summary = "%s -> %s" % [target, params.get("direction", "?")]
+		"set_position":
+			var pos: Array = params.get("position", [0, 0])
+			summary = "%s -> (%s, %s)" % [target, pos[0] if pos.size() > 0 else 0, pos[1] if pos.size() > 1 else 0]
 		"play_sound", "play_music":
 			var id_key: String = "sound_id" if cmd_type == "play_sound" else "music_id"
 			summary = params.get(id_key, "(none)")
@@ -1131,15 +1159,25 @@ func _build_inspector_for_command(index: int) -> void:
 		inspector_panel.add_child(target_row)
 
 		var target_label: Label = Label.new()
-		target_label.text = "Target (Actor ID):"
+		target_label.text = "Target (Actor):"
 		target_label.custom_minimum_size.x = 130
 		target_row.add_child(target_label)
 
-		target_field = LineEdit.new()
+		target_field = OptionButton.new()
 		target_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		target_field.text = cmd.get("target", "")
-		target_field.placeholder_text = "actor_id"
-		target_field.text_changed.connect(_on_target_changed)
+		target_field.add_item("(None)", 0)
+		target_field.set_item_metadata(0, "")
+		var current_target: String = cmd.get("target", "")
+		var selected_idx: int = 0
+		var item_idx: int = 1
+		for actor_id: String in _get_current_actor_ids():
+			target_field.add_item(actor_id, item_idx)
+			target_field.set_item_metadata(item_idx, actor_id)
+			if actor_id == current_target:
+				selected_idx = item_idx
+			item_idx += 1
+		target_field.select(selected_idx)
+		target_field.item_selected.connect(_on_target_selected)
 		target_row.add_child(target_field)
 
 	# Build parameter fields based on definition (using merged definitions)
@@ -1464,6 +1502,24 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			map_btn.item_selected.connect(_on_map_selected.bind(param_name, map_btn))
 			control = map_btn
 
+		"actor":
+			# Actor ID picker dropdown - shows actors from current cinematic
+			var actor_btn: OptionButton = OptionButton.new()
+			actor_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			actor_btn.add_item("(None)", 0)
+			actor_btn.set_item_metadata(0, "")
+			var selected_idx: int = 0
+			var item_idx: int = 1
+			for actor_id: String in _get_current_actor_ids():
+				actor_btn.add_item(actor_id, item_idx)
+				actor_btn.set_item_metadata(item_idx, actor_id)
+				if actor_id == str(current_value):
+					selected_idx = item_idx
+				item_idx += 1
+			actor_btn.select(selected_idx)
+			actor_btn.item_selected.connect(_on_actor_param_selected.bind(param_name, actor_btn))
+			control = actor_btn
+
 		_:  # string and unknown types
 			var line_edit: LineEdit = LineEdit.new()
 			line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1477,11 +1533,12 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 
 
 # Parameter change handlers
-func _on_target_changed(new_text: String) -> void:
+func _on_target_selected(item_index: int) -> void:
 	if _updating_ui or selected_command_index < 0:
 		return
 	var commands: Array = current_cinematic_data.get("commands", [])
-	commands[selected_command_index]["target"] = new_text
+	var actor_id: String = target_field.get_item_metadata(item_index)
+	commands[selected_command_index]["target"] = actor_id
 	is_dirty = true
 	_rebuild_command_list()
 	command_list.select(selected_command_index)
@@ -1536,6 +1593,11 @@ func _on_scene_selected(index: int, param_name: String, option_btn: OptionButton
 func _on_map_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
 	var map_id: Variant = option_btn.get_item_metadata(index)
 	_on_param_changed(map_id if map_id else "", param_name)
+
+
+func _on_actor_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var actor_id: Variant = option_btn.get_item_metadata(index)
+	_on_param_changed(actor_id if actor_id else "", param_name)
 
 
 func _on_text_changed(param_name: String, text_edit: TextEdit) -> void:
@@ -1977,6 +2039,21 @@ func _on_add_actor() -> void:
 	_on_actor_selected(selected_actor_index)
 
 	is_dirty = true
+
+
+## Get all actor IDs from the current cinematic
+func _get_current_actor_ids() -> Array[String]:
+	var result: Array[String] = []
+	if not current_cinematic_data:
+		return result
+	var actors: Array = current_cinematic_data.get("actors", [])
+	for actor_item: Variant in actors:
+		if actor_item is Dictionary:
+			var actor_dict: Dictionary = actor_item
+			var actor_id: String = actor_dict.get("actor_id", "")
+			if not actor_id.is_empty():
+				result.append(actor_id)
+	return result
 
 
 ## Check if an actor ID already exists

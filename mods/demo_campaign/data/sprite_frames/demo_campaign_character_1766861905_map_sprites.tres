@@ -1,0 +1,82 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://1a3od87sak3m"]
+
+[ext_resource type="Texture2D" uid="uid://8lckb5kyjky7" path="res://mods/demo_campaign/assets/sprites/map/henchman_spritesheet.png" id="1_agtu1"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pp6i6"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ce03r"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iuclo"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rw7ct"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_76cqj"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ijhqs"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_feuwn"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ukkp7"]
+atlas = ExtResource("1_agtu1")
+region = Rect2(32, 96, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pp6i6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ce03r")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iuclo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rw7ct")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_76cqj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ijhqs")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_feuwn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ukkp7")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]

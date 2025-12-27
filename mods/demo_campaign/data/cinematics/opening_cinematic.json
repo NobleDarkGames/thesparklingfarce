@@ -1,17 +1,9 @@
 {
 	"actors": [
 		{
-			"actor_id": "actor_1",
-			"character_id": "demo_campaign_character_1766710548",
-			"facing": "down",
-			"position": [
-				2.0,
-				5.0
-			]
-		},
-		{
-			"actor_id": "actor_2",
-			"character_id": "demo_campaign_character_1766715408",
+			"actor_id": "intro_hero",
+			"entity_id": "demo_campaign_character_1766766677",
+			"entity_type": "character",
 			"facing": "down",
 			"position": [
 				5.0,
@@ -19,13 +11,13 @@
 			]
 		},
 		{
-			"actor_id": "actor_3",
-			"entity_id": "demo_campaign_interactable_1766718325",
-			"entity_type": "interactable",
-			"facing": "down",
+			"actor_id": "mud_farmer",
+			"entity_id": "demo_campaign_character_1766861905",
+			"entity_type": "character",
+			"facing": "left",
 			"position": [
-				10.0,
-				10.0
+				17.0,
+				3.0
 			]
 		}
 	],
@@ -33,6 +25,29 @@
 	"cinematic_id": "opening_cinematic",
 	"cinematic_name": "Opening Cinematic",
 	"commands": [
+		{
+			"params": {
+				"color": [
+					0.0,
+					0.0,
+					0.0,
+					1.0
+				],
+				"duration": 2.0,
+				"fade_type": "in"
+			},
+			"type": "fade_screen"
+		},
+		{
+			"params": {
+				"continuous": false,
+				"duration": 0.0,
+				"speed": 8.0,
+				"wait": false
+			},
+			"target": "intro_hero",
+			"type": "camera_follow"
+		},
 		{
 			"params": {
 				"fade_duration": 2.5,
@@ -45,13 +60,76 @@
 		},
 		{
 			"params": {
-				"continuous": true,
-				"duration": 0.5,
-				"speed": 8.0,
-				"wait": false
+				"path": [
+					[
+						12.0,
+						3.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
 			},
-			"target": "actor_1",
-			"type": "camera_follow"
+			"target": "mud_farmer",
+			"type": "move_entity"
+		},
+		{
+			"params": {
+				"character_id": "wnc45s25",
+				"emotion": "neutral",
+				"text": "𝅘𝅥𝅮 Oh the mud farmin life is the life for me! A mud farmer's life is a life of glee! 𝅘𝅥𝅮 "
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						5.0,
+						3.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "mud_farmer",
+			"type": "move_entity"
+		},
+		{
+			"params": {
+				"character_id": "wnc45s25",
+				"emotion": "neutral",
+				"text": "𝅘𝅥𝅮 The days are long and the work is hard, but my mud brings all the boys to the - 𝅘𝅥𝅮 Oh what's this?"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"direction": "down"
+			},
+			"target": "mud_farmer",
+			"type": "set_facing"
+		},
+		{
+			"params": {
+				"character_id": "wnc45s25",
+				"emotion": "neutral",
+				"text": "Another stranger washed up on the beach, eh?  Better get you to the Mayor!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						5.0,
+						4.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "mud_farmer",
+			"type": "move_entity"
 		},
 		{
 			"params": {
@@ -61,38 +139,60 @@
 					0.0,
 					1.0
 				],
-				"duration": 1.0,
-				"fade_type": "in"
+				"duration": 2.0,
+				"fade_type": "out"
 			},
 			"type": "fade_screen"
 		},
 		{
 			"params": {
-				"duration": 1.0
+				"duration": 2.0
 			},
 			"type": "wait"
 		},
 		{
 			"params": {
-				"character_id": "vt5pq759",
-				"emotion": "neutral",
-				"text": "What an amazing opening cinematic!"
+				"facing": "down",
+				"position": [
+					5.0,
+					5.0
+				]
 			},
-			"type": "dialog_line"
+			"target": "intro_hero",
+			"type": "set_position"
 		},
 		{
 			"params": {
-				"path": [
-					[
-						10.0,
-						9.0
-					]
-				],
-				"speed": 3.0,
-				"wait": true
+				"continuous": true,
+				"duration": 0.5,
+				"speed": 8.0,
+				"wait": false
 			},
-			"target": "actor_1",
-			"type": "move_entity"
+			"target": "intro_hero",
+			"type": "camera_follow"
+		},
+		{
+			"params": {
+				"fade_duration": 0.5,
+				"map_id": "mudford",
+				"scene_id": "",
+				"scene_path": "",
+				"transition": "instant"
+			},
+			"type": "set_backdrop"
+		},
+		{
+			"params": {
+				"color": [
+					0.0,
+					0.0,
+					0.0,
+					1.0
+				],
+				"duration": 2.0,
+				"fade_type": "in"
+			},
+			"type": "fade_screen"
 		}
 	],
 	"description": "",
