@@ -289,6 +289,9 @@ func _update_text_reveal(delta: float) -> void:
 		var current_char: String = full_text[new_visible - 1]
 		if current_char in [".", "!", "?"]:
 			await get_tree().create_timer(PUNCTUATION_PAUSE).timeout
+			# Guard: if reveal was skipped/cancelled during await, don't continue
+			if not is_revealing_text:
+				return
 
 	text_label.visible_characters = new_visible
 
@@ -301,7 +304,7 @@ func _update_text_reveal(delta: float) -> void:
 func _finish_text_reveal() -> void:
 	is_revealing_text = false
 	visible_characters = float(full_text.length())
-	text_label.visible_characters = -1  ## Show all text
+	text_label.visible_characters = full_text.length()  ## Show all text (avoid -1 for Unicode compatibility)
 
 	# Subtle text completion feedback - brief glow effect
 	var glow_tween: Tween = create_tween()

@@ -29,6 +29,14 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		push_error("CameraFollowExecutor: Actor '%s' has no valid parent entity to follow" % target)
 		return true
 
+	# Instant snap if duration <= 0 (useful for opening cinematics)
+	if duration <= 0.0:
+		camera.position = entity.global_position
+		if continuous:
+			var follow_speed: float = params.get("speed", 8.0)
+			camera.follow_actor(entity, follow_speed, 0.0)
+		return true  # Instant - no waiting needed
+
 	if continuous:
 		# Enable continuous follow
 		var follow_speed: float = params.get("speed", 8.0)
