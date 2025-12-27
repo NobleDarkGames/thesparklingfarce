@@ -64,7 +64,7 @@ var available_tilesets: Array[String] = []
 func _init() -> void:
 	# Configure base class settings
 	resource_type_name = "Map"
-	resource_dir_name = "map"
+	resource_dir_name = "maps"
 	file_extension = ".json"
 
 	call_deferred("_setup_ui")

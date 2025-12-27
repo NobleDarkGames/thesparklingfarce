@@ -190,6 +190,10 @@ func _instantiate_backdrop(scene: PackedScene) -> void:
 	if background and background is ColorRect:
 		background.hide()
 
+	# DEFENSIVE: Re-assert z_index on all spawned actors to ensure they render above backdrop
+	# This guards against any edge cases where node reordering might affect rendering
+	_ensure_actors_visible(stage)
+
 
 ## Clean up existing backdrop before loading a new one
 ## Handles both the tracked _backdrop_instance and any node named "CinematicBackdrop"
@@ -210,6 +214,33 @@ func _cleanup_existing_backdrop(stage: Node) -> void:
 
 	# Clear the reference so we don't hold onto freed memory
 	_backdrop_instance = null
+
+
+## Ensure all spawned actors remain visible after backdrop change
+## Re-asserts z_index and visibility as a defensive measure
+func _ensure_actors_visible(stage: Node) -> void:
+	for child: Node in stage.get_children():
+		# Check for spawned actor nodes (named "SpawnedActor_*")
+		if child.name.begins_with("SpawnedActor_") and child is Node2D:
+			var actor_node: Node2D = child as Node2D
+			# Ensure z_index is above backdrop (which is at 0, with TileMapLayer at -1)
+			if actor_node.z_index < 10:
+				actor_node.z_index = 10
+			# Ensure visibility on actor root
+			if not actor_node.visible:
+				actor_node.visible = true
+				push_warning("SetBackdropExecutor: Actor '%s' was hidden, re-showing" % child.name)
+			# Also check sprite child visibility
+			var sprite: Node = actor_node.get_node_or_null("AnimatedSprite2D")
+			if sprite and sprite is CanvasItem:
+				var canvas_sprite: CanvasItem = sprite as CanvasItem
+				if not canvas_sprite.visible:
+					canvas_sprite.visible = true
+					push_warning("SetBackdropExecutor: Actor '%s' sprite was hidden, re-showing" % child.name)
+				# Ensure sprite modulate alpha is not zero
+				if canvas_sprite.modulate.a < 0.01:
+					canvas_sprite.modulate.a = 1.0
+					push_warning("SetBackdropExecutor: Actor '%s' sprite was transparent, restoring" % child.name)
 
 
 ## Find the cinematic stage node
