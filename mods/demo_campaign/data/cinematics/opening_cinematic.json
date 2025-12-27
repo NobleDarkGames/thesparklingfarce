@@ -133,20 +133,7 @@
 		},
 		{
 			"params": {
-				"color": [
-					0.0,
-					0.0,
-					0.0,
-					1.0
-				],
-				"duration": 2.0,
-				"fade_type": "out"
-			},
-			"type": "fade_screen"
-		},
-		{
-			"params": {
-				"duration": 2.0
+				"duration": 1.0
 			},
 			"type": "wait"
 		},
@@ -164,12 +151,31 @@
 		{
 			"params": {
 				"continuous": true,
-				"duration": 0.5,
+				"duration": 0.0,
 				"speed": 8.0,
 				"wait": false
 			},
 			"target": "intro_hero",
 			"type": "camera_follow"
+		},
+		{
+			"params": {
+				"color": [
+					0,
+					0,
+					0,
+					1
+				],
+				"duration": 1.0,
+				"fade_type": "out"
+			},
+			"type": "fade_screen"
+		},
+		{
+			"params": {
+				"duration": 1.0
+			},
+			"type": "wait"
 		},
 		{
 			"params": {
@@ -183,16 +189,36 @@
 		},
 		{
 			"params": {
+				"duration": 1.0
+			},
+			"type": "wait"
+		},
+		{
+			"params": {
 				"color": [
-					0.0,
-					0.0,
-					0.0,
-					1.0
+					0,
+					0,
+					0,
+					1
 				],
-				"duration": 2.0,
+				"duration": 1.0,
 				"fade_type": "in"
 			},
 			"type": "fade_screen"
+		},
+		{
+			"params": {
+				"duration": 1.0
+			},
+			"type": "wait"
+		},
+		{
+			"params": {
+				"character_id": "wnc45s25",
+				"emotion": "neutral",
+				"text": "..and so I dragged him here to see you!"
+			},
+			"type": "dialog_line"
 		}
 	],
 	"description": "",
