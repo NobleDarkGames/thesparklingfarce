@@ -36,7 +36,7 @@ func _run_test() -> void:
 	CampaignManager.current_campaign = campaign
 
 	# Find the battle node
-	var battle_node: Resource = campaign.get_node("battle_of_noobs")
+	var battle_node: CampaignNode = campaign.get_node("battle_of_noobs")
 	if not battle_node:
 		print("[FAIL] Could not find battle_of_noobs node")
 		get_tree().quit(1)
@@ -77,7 +77,7 @@ func _run_test() -> void:
 
 	# Step 5: Verify the target node exists
 	print("\n[TEST] Step 5: Verifying target node exists...")
-	var target_node: Resource = campaign.get_node(target_id)
+	var target_node: CampaignNode = campaign.get_node(target_id)
 	if not target_node:
 		print("[FAIL] Target node '%s' not found in campaign!" % target_id)
 		get_tree().quit(1)

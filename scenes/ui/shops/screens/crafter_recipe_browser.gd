@@ -67,8 +67,7 @@ func _populate_recipe_list() -> void:
 	var all_recipes: Array[Resource] = ModLoader.registry.get_all_resources("crafting_recipe")
 
 	# Filter to recipes this crafter can make
-	for resource: Resource in all_recipes:
-		var recipe: CraftingRecipeData = resource as CraftingRecipeData
+	for recipe: CraftingRecipeData in all_recipes:
 		if not recipe:
 			continue
 

@@ -170,11 +170,11 @@ func serialize_to_dict() -> Dictionary:
 ## @param data: Dictionary loaded from JSON file
 func deserialize_from_dict(data: Dictionary) -> void:
 	# Metadata - with type safety using .get() to avoid Variant warnings
-	save_version = _safe_int(data.get("save_version"), 1)
-	created_timestamp = _safe_int(data.get("created_timestamp"), 0)
-	last_played_timestamp = _safe_int(data.get("last_played_timestamp"), 0)
-	playtime_seconds = maxi(0, _safe_int(data.get("playtime_seconds"), 0))
-	slot_number = clampi(_safe_int(data.get("slot_number"), 1), 1, 3)
+	save_version = DictUtils.get_int(data, "save_version", 1)
+	created_timestamp = DictUtils.get_int(data, "created_timestamp", 0)
+	last_played_timestamp = DictUtils.get_int(data, "last_played_timestamp", 0)
+	playtime_seconds = maxi(0, DictUtils.get_int(data, "playtime_seconds", 0))
+	slot_number = clampi(DictUtils.get_int(data, "slot_number", 1), 1, 3)
 	if "active_mods" in data:
 		active_mods.clear()
 		var mods_data: Variant = data.get("active_mods")
@@ -183,11 +183,11 @@ func deserialize_from_dict(data: Dictionary) -> void:
 			for mod_entry: Variant in mods_array:
 				if mod_entry is Dictionary:
 					active_mods.append(mod_entry)
-	game_version = _safe_string(data.get("game_version"), "0.1.0")
+	game_version = DictUtils.get_string(data, "game_version", "0.1.0")
 
 	# Campaign progress - with type safety
-	current_campaign_id = _safe_string(data.get("current_campaign_id"), "")
-	current_node_id = _safe_string(data.get("current_node_id"), "")
+	current_campaign_id = DictUtils.get_string(data, "current_campaign_id", "")
+	current_node_id = DictUtils.get_string(data, "current_node_id", "")
 	if "campaign_node_history" in data:
 		campaign_node_history.clear()
 		var history_data: Variant = data.get("campaign_node_history")
@@ -196,8 +196,8 @@ func deserialize_from_dict(data: Dictionary) -> void:
 			for node_entry: Variant in history_array:
 				if node_entry is String:
 					campaign_node_history.append(node_entry)
-	last_hub_id = _safe_string(data.get("last_hub_id"), "")
-	current_location = _safe_string(data.get("current_location"), "headquarters")
+	last_hub_id = DictUtils.get_string(data, "last_hub_id", "")
+	current_location = DictUtils.get_string(data, "current_location", "headquarters")
 	if "story_flags" in data:
 		var flags_data: Variant = data.get("story_flags")
 		if flags_data is Dictionary:
@@ -224,8 +224,8 @@ func deserialize_from_dict(data: Dictionary) -> void:
 					available_battles.append(battle_entry)
 
 	# Party/Inventory - with type safety and bounds checking
-	max_party_size = clampi(_safe_int(data.get("max_party_size"), 8), 1, 30)
-	gold = maxi(0, _safe_int(data.get("gold"), 0))
+	max_party_size = clampi(DictUtils.get_int(data, "max_party_size", 8), 1, 30)
+	gold = maxi(0, DictUtils.get_int(data, "gold", 0))
 	if "inventory" in data:
 		inventory.clear()
 		var inventory_data: Variant = data.get("inventory")
@@ -244,11 +244,11 @@ func deserialize_from_dict(data: Dictionary) -> void:
 					depot_items.append(item_entry)
 
 	# Statistics - with type safety and non-negative enforcement
-	total_battles = maxi(0, _safe_int(data.get("total_battles"), 0))
-	battles_won = maxi(0, _safe_int(data.get("battles_won"), 0))
-	total_enemies_defeated = maxi(0, _safe_int(data.get("total_enemies_defeated"), 0))
-	total_damage_dealt = maxi(0, _safe_int(data.get("total_damage_dealt"), 0))
-	total_healing_done = maxi(0, _safe_int(data.get("total_healing_done"), 0))
+	total_battles = maxi(0, DictUtils.get_int(data, "total_battles", 0))
+	battles_won = maxi(0, DictUtils.get_int(data, "battles_won", 0))
+	total_enemies_defeated = maxi(0, DictUtils.get_int(data, "total_enemies_defeated", 0))
+	total_damage_dealt = maxi(0, DictUtils.get_int(data, "total_damage_dealt", 0))
+	total_healing_done = maxi(0, DictUtils.get_int(data, "total_healing_done", 0))
 
 	# Deserialize party members
 	party_members.clear()
@@ -353,44 +353,6 @@ func _format_playtime() -> String:
 
 
 # ============================================================================
-# TYPE COERCION HELPERS (2B.3)
-# ============================================================================
-
-## Safe integer extraction from JSON (handles float conversion)
-static func _safe_int(value: Variant, default_val: int = 0) -> int:
-	if value is int:
-		return value
-	if value is float:
-		return int(value)
-	if value is String:
-		var str_value: String = value
-		if str_value.is_valid_int():
-			return str_value.to_int()
-	return default_val
-
-
-## Safe string extraction from JSON
-static func _safe_string(value: Variant, default_val: String = "") -> String:
-	if value is String:
-		return value
-	if value != null:
-		return str(value)
-	return default_val
-
-
-## Safe bool extraction from JSON
-static func _safe_bool(value: Variant, default_val: bool = false) -> bool:
-	if value is bool:
-		return value
-	if value is int:
-		return value != 0
-	if value is String:
-		var str_value: String = value
-		return str_value.to_lower() in ["true", "1", "yes"]
-	return default_val
-
-
-# ============================================================================
 # MOD DEPENDENCY VALIDATION (2B.2)
 # ============================================================================
 
@@ -415,16 +377,16 @@ func validate_mod_dependencies() -> Dictionary:
 
 	# Check active_mods against loaded mods
 	for mod_info: Dictionary in active_mods:
-		var mod_id: String = _safe_string(mod_info.get("mod_id", ""))
+		var mod_id: String = DictUtils.get_string(mod_info, "mod_id", "")
 		if not mod_id.is_empty() and mod_id not in loaded_mods:
 			missing_mods.append(mod_id)
 			is_valid = false
 
 	# Check inventory items
 	for item_dict: Dictionary in inventory:
-		var item_mod_id: String = _safe_string(item_dict.get("mod_id", "_base_game"))
+		var item_mod_id: String = DictUtils.get_string(item_dict, "mod_id", "_base_game")
 		if item_mod_id not in loaded_mods and item_mod_id != "_base_game":
-			var item_id: String = _safe_string(item_dict.get("item_id", "unknown"))
+			var item_id: String = DictUtils.get_string(item_dict, "item_id", "unknown")
 			orphaned_items.append(item_id)
 			if item_mod_id not in missing_mods:
 				missing_mods.append(item_mod_id)
@@ -474,7 +436,7 @@ func remove_orphaned_content(mod_check: Dictionary) -> void:
 	# Remove orphaned inventory items
 	var valid_inventory: Array[Dictionary] = []
 	for item_dict: Dictionary in inventory:
-		var item_id: String = _safe_string(item_dict.get("item_id", ""))
+		var item_id: String = DictUtils.get_string(item_dict, "item_id", "")
 		if item_id not in orphaned_items_list:
 			valid_inventory.append(item_dict)
 	inventory = valid_inventory

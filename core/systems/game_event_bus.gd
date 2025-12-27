@@ -49,7 +49,7 @@ var cancellation_reason: String = ""
 ## @param attacker: The attacking unit node
 ## @param defender: The defending unit node
 ## @param weapon: The weapon resource being used (may be null for unarmed)
-signal pre_attack(attacker: Node, defender: Node, weapon: Resource)
+signal pre_attack(attacker: Node, defender: Node, weapon: ItemData)
 
 ## Before damage is applied to a unit
 ## @param target: The unit receiving damage
@@ -69,17 +69,17 @@ signal pre_move(unit: Node, from_pos: Vector2i, to_pos: Vector2i, path: Array)
 ## @param caster: The unit casting the ability
 ## @param ability: The AbilityData resource
 ## @param targets: Array of target nodes
-signal pre_ability_cast(caster: Node, ability: Resource, targets: Array)
+signal pre_ability_cast(caster: Node, ability: AbilityData, targets: Array)
 
 ## Before an item is used
 ## @param user: The unit using the item
 ## @param item: The ItemData resource
 ## @param target: The target of the item (may be self or another unit)
-signal pre_item_use(user: Node, item: Resource, target: Node)
+signal pre_item_use(user: Node, item: ItemData, target: Node)
 
 ## Before a battle begins
 ## @param battle_data: The BattleData resource for the upcoming battle
-signal pre_battle_start(battle_data: Resource)
+signal pre_battle_start(battle_data: BattleData)
 
 ## Before a unit's turn begins
 ## @param unit: The unit whose turn is starting
@@ -97,12 +97,12 @@ signal pre_level_up(unit: Node, new_level: int, stat_gains: Dictionary)
 ## @param price: The price in gold
 ## @param buyer: Who is buying (player unit or shop) - may be null
 ## @param seller: Who is selling (shop or player unit) - may be null
-signal pre_shop_transaction(transaction_type: String, item: Resource, price: int, buyer: Object, seller: Object)
+signal pre_shop_transaction(transaction_type: String, item: ItemData, price: int, buyer: Object, seller: Object)
 
 ## Before saving the game
 ## @param save_data: The SaveData about to be written (can be modified)
 ## @param slot_number: The save slot
-signal pre_save(save_data: Resource, slot_number: int)
+signal pre_save(save_data: SaveData, slot_number: int)
 
 
 # ============================================================================
@@ -138,30 +138,30 @@ signal post_move(unit: Node, from_pos: Vector2i, to_pos: Vector2i)
 ## @param ability: The ability used
 ## @param targets: Array of targets
 ## @param results: Array of result dictionaries
-signal post_ability_cast(caster: Node, ability: Resource, targets: Array, results: Array)
+signal post_ability_cast(caster: Node, ability: AbilityData, targets: Array, results: Array)
 
 ## After an item is used
 ## @param user: The unit that used the item
 ## @param item: The item used
 ## @param target: The target
 ## @param result: Dictionary with usage outcome
-signal post_item_use(user: Node, item: Resource, target: Node, result: Dictionary)
+signal post_item_use(user: Node, item: ItemData, target: Node, result: Dictionary)
 
 ## After a battle ends
 ## @param battle_data: The battle that ended
 ## @param victory: Whether the player won
 ## @param stats: Dictionary with battle statistics
-signal post_battle_end(battle_data: Resource, victory: bool, stats: Dictionary)
+signal post_battle_end(battle_data: BattleData, victory: bool, stats: Dictionary)
 
 ## Before battle rewards are distributed (mods can modify rewards)
 ## @param battle_data: The completed battle
 ## @param rewards: Dictionary with {gold: int, items: Array[String]} - can be modified
-signal pre_battle_rewards(battle_data: Resource, rewards: Dictionary)
+signal pre_battle_rewards(battle_data: BattleData, rewards: Dictionary)
 
 ## After battle rewards are distributed
 ## @param battle_data: The completed battle
 ## @param rewards: Dictionary with {gold: int, items: Array[String]} - final values
-signal post_battle_rewards(battle_data: Resource, rewards: Dictionary)
+signal post_battle_rewards(battle_data: BattleData, rewards: Dictionary)
 
 ## After a unit's turn ends
 ## @param unit: The unit whose turn ended
@@ -177,12 +177,12 @@ signal post_level_up(unit: Node, new_level: int, stat_gains: Dictionary)
 ## @param transaction_type: "buy" or "sell"
 ## @param item: The item traded
 ## @param price: The price paid
-signal post_shop_transaction(transaction_type: String, item: Resource, price: int)
+signal post_shop_transaction(transaction_type: String, item: ItemData, price: int)
 
 ## After loading a save
 ## @param save_data: The loaded SaveData
 ## @param slot_number: The save slot
-signal post_load(save_data: Resource, slot_number: int)
+signal post_load(save_data: SaveData, slot_number: int)
 
 
 # ============================================================================
@@ -218,7 +218,7 @@ func reset_cancellation() -> void:
 
 ## Emit pre-attack and check for cancellation
 ## @return: true if attack should proceed, false if cancelled
-func emit_pre_attack(attacker: Node, defender: Node, weapon: Resource) -> bool:
+func emit_pre_attack(attacker: Node, defender: Node, weapon: ItemData) -> bool:
 	reset_cancellation()
 	pre_attack.emit(attacker, defender, weapon)
 	return not check_and_reset_cancellation()
@@ -245,7 +245,7 @@ func emit_pre_move(unit: Node, from_pos: Vector2i, to_pos: Vector2i, path: Array
 
 ## Emit pre-ability-cast and check for cancellation
 ## @return: true if cast should proceed, false if cancelled
-func emit_pre_ability_cast(caster: Node, ability: Resource, targets: Array) -> bool:
+func emit_pre_ability_cast(caster: Node, ability: AbilityData, targets: Array) -> bool:
 	reset_cancellation()
 	pre_ability_cast.emit(caster, ability, targets)
 	return not check_and_reset_cancellation()

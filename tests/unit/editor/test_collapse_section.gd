@@ -10,7 +10,7 @@ extends GdUnitTestSuite
 # TEST FIXTURES
 # =============================================================================
 
-const CollapseSectionScript: GDScript = preload("res://addons/sparkling_editor/ui/components/collapse_section.gd")
+const CollapseSectionScript = preload("res://addons/sparkling_editor/ui/components/collapse_section.gd")
 
 var _section: CollapseSection
 

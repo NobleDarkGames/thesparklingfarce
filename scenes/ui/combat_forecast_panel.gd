@@ -5,7 +5,7 @@
 class_name CombatForecastPanel
 extends PanelContainer
 
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 @onready var target_name_label: Label = %TargetNameLabel
 @onready var hit_label: Label = %HitLabel

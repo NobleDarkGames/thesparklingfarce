@@ -4,7 +4,7 @@ extends EditorPlugin
 ## Main plugin for The Sparkling Farce content editor
 
 const MainPanelScene: PackedScene = preload("res://addons/sparkling_editor/ui/main_panel.tscn")
-const EditorEventBus: GDScript = preload("res://addons/sparkling_editor/editor_event_bus.gd")
+const EditorEventBus = preload("res://addons/sparkling_editor/editor_event_bus.gd")
 
 var main_panel: Control
 

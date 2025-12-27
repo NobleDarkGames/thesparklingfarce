@@ -16,7 +16,7 @@ extends RefCounted
 ## Note: class_name removed to avoid load order issues when used as autoload dependency
 
 # Preload QueuedItem script
-const QueuedItemScript: GDScript = preload("res://scenes/ui/shops/resources/queued_item.gd")
+const QueuedItemScript = preload("res://scenes/ui/shops/resources/queued_item.gd")
 
 ## Signal emitted when queue contents change
 signal queue_changed()

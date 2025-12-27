@@ -710,7 +710,7 @@ func _add_item_reward_entry(item_id: String = "", quantity: int = 1) -> void:
 
 	# Select item if provided
 	if not item_id.is_empty() and ModLoader and ModLoader.registry:
-		var item_res: Resource = ModLoader.registry.get_resource("item", item_id)
+		var item_res: ItemData = ModLoader.registry.get_item(item_id)
 		if item_res:
 			item_picker.select_resource(item_res)
 
@@ -1287,7 +1287,7 @@ func _cinematic_exists(cinematics_dir: String, cinematic_id: String) -> bool:
 
 	# Check all loaded mods via registry
 	if ModLoader and ModLoader.registry:
-		var cinematic: Resource = ModLoader.registry.get_resource("cinematic", cinematic_id)
+		var cinematic: CinematicData = ModLoader.registry.get_cinematic(cinematic_id)
 		if cinematic:
 			return true
 

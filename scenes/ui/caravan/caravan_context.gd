@@ -208,7 +208,7 @@ func get_filtered_depot_items() -> Array[String]:
 		result = all_items.duplicate()
 	else:
 		for item_id: String in all_items:
-			var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+			var item_data: ItemData = ModLoader.registry.get_item(item_id)
 			if item_data:
 				var type_name: String = ItemData.ItemType.keys()[item_data.item_type].to_lower()
 				if type_name == depot_filter:
@@ -223,8 +223,8 @@ func get_filtered_depot_items() -> Array[String]:
 
 ## Comparison function for sorting items
 func _sort_items(a_id: String, b_id: String) -> bool:
-	var a_data: ItemData = ModLoader.registry.get_resource("item", a_id) as ItemData
-	var b_data: ItemData = ModLoader.registry.get_resource("item", b_id) as ItemData
+	var a_data: ItemData = ModLoader.registry.get_item(a_id)
+	var b_data: ItemData = ModLoader.registry.get_item(b_id)
 
 	if not a_data:
 		return false
@@ -252,7 +252,7 @@ func _sort_items(a_id: String, b_id: String) -> bool:
 func get_item_data(item_id: String) -> ItemData:
 	if item_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("item", item_id) as ItemData
+	return ModLoader.registry.get_item(item_id)
 
 
 ## Get character inventory

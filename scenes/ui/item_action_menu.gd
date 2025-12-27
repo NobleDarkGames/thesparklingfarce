@@ -196,7 +196,7 @@ func show_menu(item_id: String, context: Context = Context.EXPLORATION, screen_p
 	_hover_index = -1
 
 	# Load item data
-	_current_item_data = ModLoader.registry.get_resource("item", item_id) as ItemData
+	_current_item_data = ModLoader.registry.get_item(item_id)
 	if not _current_item_data:
 		push_error("ItemActionMenu: Could not load item '%s'" % item_id)
 		return
@@ -343,7 +343,8 @@ func _input(event: InputEvent) -> void:
 
 	# Mouse click
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
 			for i: int in range(_action_labels.size()):
 				var label: Label = _action_labels[i]

@@ -1,6 +1,6 @@
 extends Node
 
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 ## PromotionManager - Central system for class promotion mechanics
 ##
@@ -28,14 +28,14 @@ signal promotion_available(unit: Unit)
 ## @param unit: Unit being promoted
 ## @param old_class: Previous ClassData
 ## @param new_class: Target ClassData
-signal promotion_started(unit: Unit, old_class: Resource, new_class: Resource)
+signal promotion_started(unit: Unit, old_class: ClassData, new_class: ClassData)
 
 ## Emitted when promotion completes successfully.
 ## @param unit: Unit that was promoted
 ## @param old_class: Previous ClassData
 ## @param new_class: New ClassData
 ## @param stat_changes: Dictionary of changes {stat_name: bonus_amount}
-signal promotion_completed(unit: Unit, old_class: Resource, new_class: Resource, stat_changes: Dictionary)
+signal promotion_completed(unit: Unit, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary)
 
 ## Emitted when promotion is cancelled (user backed out).
 ## @param unit: Unit that was going to promote

@@ -69,14 +69,12 @@ func calculate_physical_damage_with_terrain(
 func calculate_magic_damage(
 	attacker_stats: UnitStats,
 	defender_stats: UnitStats,
-	ability: Resource
+	ability: AbilityData
 ) -> int:
 	if not attacker_stats or not defender_stats or not ability:
 		return 0
 
-	var ability_power: int = 0
-	if "potency" in ability:
-		ability_power = ability.potency
+	var ability_power: int = ability.potency
 
 	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
@@ -123,13 +121,11 @@ func calculate_crit_chance(attacker_stats: UnitStats, defender_stats: UnitStats)
 ## Calculate healing amount
 ## Override to implement custom healing mechanics
 ## Default: (Ability Power + INT/2) * variance, min 1
-func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int:
+func calculate_healing(caster_stats: UnitStats, ability: AbilityData) -> int:
 	if not caster_stats or not ability:
 		return 0
 
-	var ability_power: int = 0
-	if "potency" in ability:
-		ability_power = ability.potency
+	var ability_power: int = ability.potency
 
 	@warning_ignore("integer_division")
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)

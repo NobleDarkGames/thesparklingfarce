@@ -26,10 +26,10 @@ extends Node2D
 
 # Preload scenes
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 const ItemMenuScene: PackedScene = preload("res://scenes/ui/item_menu.tscn")
 const SpellMenuScene: PackedScene = preload("res://scenes/ui/spell_menu.tscn")
-const GridCursorScene: PackedScene = preload("res://scenes/ui/grid_cursor.tscn")
+const GridCursorScene: PackedScene = preload("res://core/components/grid_cursor.tscn")
 const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
 const ChoiceSelectorScene: PackedScene = preload("res://scenes/ui/choice_selector.tscn")
 
@@ -41,17 +41,17 @@ var _highlight_layer: TileMapLayer = null
 var _player_units: Array[Unit] = []  # All player units
 var _enemy_units: Array[Unit] = []  # All enemy units
 var _neutral_units: Array[Unit] = []  # All neutral units
-var _action_menu: Control = null  # Action menu UI
-var _item_menu: Control = null  # Item menu UI
-var _spell_menu: Control = null  # Spell menu UI
+var _action_menu: ActionMenu = null
+var _item_menu: ItemMenu = null
+var _spell_menu: SpellMenu = null
 var _grid_cursor: Node2D = null  # Grid cursor visual
 var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
 var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
 var _combat_forecast_panel: CombatForecastPanel = null  # Combat forecast panel
 var _turn_order_panel: TurnOrderPanel = null  # Turn order preview panel
 var _camera: CameraController = null  # Camera controller
-var _dialog_box: Control = null  # Dialog box for pre/post battle dialogue
-var _choice_selector: Control = null  # Choice selector for dialogue choices
+var _dialog_box: DialogBox = null
+var _choice_selector: ChoiceSelector = null
 var _debug_visible: bool = false  # Debug display toggle (F3)
 var _map_instance: Node2D = null  # Instanced map scene
 var _map_node: Node2D = null  # The active Map node (from loaded map scene)
@@ -342,8 +342,9 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 
 ## Handle debug toggle input (F3 key)
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_F3:
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_F3:
 			_debug_visible = not _debug_visible
 			var debug_label: Label = $UI/HUD/DebugLabel
 			if debug_label:

@@ -17,7 +17,7 @@ class_name CameraController
 extends Camera2D
 
 ## Reference to the Grid resource for this battle
-@export var grid: Resource  # Grid resource
+@export var grid: Grid
 
 ## Camera follow mode
 enum FollowMode {

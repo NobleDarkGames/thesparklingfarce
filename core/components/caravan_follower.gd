@@ -12,7 +12,7 @@
 class_name CaravanFollower
 extends CharacterBody2D
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+const FacingUtils = preload("res://core/utils/facing_utils.gd")
 const DEBUG_MODE: bool = false
 
 # =============================================================================
@@ -35,8 +35,7 @@ const DEBUG_MODE: bool = false
 var _follow_target: Node2D = null
 
 ## The caravan configuration
-## CaravanData configuration resource
-var _config: Resource = null
+var _config: CaravanData = null
 
 ## Grid position tracking
 var grid_position: Vector2i = Vector2i.ZERO
@@ -111,7 +110,7 @@ func _on_arrived_at_target() -> void:
 ## @param target: Node2D to follow (last party follower or hero)
 ## @param distance: Number of tiles to trail behind
 ## @param config: CaravanData resource for appearance and behavior
-func initialize(target: Node2D, distance: int, config: Resource = null) -> void:
+func initialize(target: Node2D, distance: int, config: CaravanData = null) -> void:
 	_follow_target = target
 	follow_distance = distance
 	_config = config

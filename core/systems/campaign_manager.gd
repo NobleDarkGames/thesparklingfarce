@@ -10,26 +10,26 @@ extends Node
 ## - Implement Shining Force authentic mechanics (XP persist, gold penalty, egress)
 
 # Preload resource scripts for type access
-const CampaignDataScript: GDScript = preload("res://core/resources/campaign_data.gd")
-const CampaignNodeScript: GDScript = preload("res://core/resources/campaign_node.gd")
-const DialogueData: GDScript = preload("res://core/resources/dialogue_data.gd")
+const CampaignDataScript = preload("res://core/resources/campaign_data.gd")
+const CampaignNodeScript = preload("res://core/resources/campaign_node.gd")
+const DialogueData = preload("res://core/resources/dialogue_data.gd")
 
 # ---- Signals ----
 
 ## Emitted when a campaign is started
-signal campaign_started(campaign: Resource)
+signal campaign_started(campaign: CampaignData)
 
 ## Emitted when a campaign ends (completed or abandoned)
-signal campaign_ended(campaign: Resource, completed: bool)
+signal campaign_ended(campaign: CampaignData, completed: bool)
 
 ## Emitted when entering a new node
-signal node_entered(node: Resource)
+signal node_entered(node: CampaignNode)
 
 ## Emitted when a node is completed
-signal node_completed(node: Resource, outcome: Dictionary)
+signal node_completed(node: CampaignNode, outcome: Dictionary)
 
 ## Emitted when transitioning between nodes
-signal transition_started(from_node: Resource, to_node: Resource)
+signal transition_started(from_node: CampaignNode, to_node: CampaignNode)
 
 ## Emitted when a new chapter begins
 signal chapter_started(chapter: Dictionary)
@@ -224,22 +224,22 @@ func _on_dialog_choice_selected(choice_index: int, _next_dialogue: DialogueData)
 
 
 ## Set up completion trigger monitoring for a scene node
-func _setup_completion_trigger(node: Resource) -> void:
+func _setup_completion_trigger(node: CampaignNode) -> void:
 	_clear_completion_trigger()
 
-	var trigger: String = node.completion_trigger if "completion_trigger" in node else "manual"
+	var trigger: String = node.completion_trigger
 
 	match trigger:
 		"exit_trigger":
 			_active_completion_trigger = "exit_trigger"
 		"flag_set":
 			_active_completion_trigger = "flag_set"
-			_completion_flag = node.completion_flag if "completion_flag" in node else ""
+			_completion_flag = node.completion_flag
 			if _completion_flag.is_empty():
 				push_warning("CampaignManager: Scene node '%s' has flag_set trigger but no completion_flag" % node.node_id)
 		"npc_interaction":
 			_active_completion_trigger = "npc_interaction"
-			_completion_npc_id = node.completion_npc_id if "completion_npc_id" in node else ""
+			_completion_npc_id = node.completion_npc_id
 			if _completion_npc_id.is_empty():
 				push_warning("CampaignManager: Scene node '%s' has npc_interaction trigger but no completion_npc_id" % node.node_id)
 		"manual":
@@ -268,13 +268,13 @@ func _register_built_in_processors() -> void:
 # ==== Registry API ====
 
 ## Register a processor for a node type
-## Callable signature: func(node: Resource) -> void
+## Callable signature: func(node: CampaignNode) -> void
 func register_node_processor(node_type: String, processor: Callable) -> void:
 	_node_processors[node_type] = processor
 
 
 ## Register a handler for custom node types (modders use this)
-## Handler signature: func(node: Resource, manager: Node) -> void
+## Handler signature: func(node: CampaignNode, manager: Node) -> void
 func register_custom_handler(custom_type: String, handler: Callable) -> void:
 	_custom_handlers[custom_type] = handler
 
@@ -283,9 +283,8 @@ func register_custom_handler(custom_type: String, handler: Callable) -> void:
 
 ## Discover all campaigns from loaded mods
 func _discover_campaigns() -> void:
-	var campaigns: Array[Resource] = ModLoader.registry.get_all_resources("campaign")
-	for campaign_resource: Resource in campaigns:
-		var campaign: CampaignData = campaign_resource as CampaignData
+	var campaigns: Array = ModLoader.registry.get_all_resources("campaign")
+	for campaign: CampaignData in campaigns:
 		if campaign:
 			var errors: Array[String] = campaign.validate()
 			if errors.is_empty():
@@ -299,12 +298,12 @@ func _discover_campaigns() -> void:
 
 
 ## Get all available campaigns (respecting hidden_campaigns from mods)
-func get_available_campaigns() -> Array[Resource]:
-	var result: Array[Resource] = []
+func get_available_campaigns() -> Array[CampaignData]:
+	var result: Array[CampaignData] = []
 	var hidden_patterns: Array[String] = _get_hidden_campaign_patterns()
 
 	for campaign_id: String in _campaigns:
-		var campaign: CampaignData = _campaigns[campaign_id] as CampaignData
+		var campaign: CampaignData = _campaigns[campaign_id]
 		if not _is_campaign_hidden(campaign_id, hidden_patterns):
 			result.append(campaign)
 	return result
@@ -483,7 +482,7 @@ func _handle_missing_node_error(node_id: String) -> void:
 
 ## Process a node based on its type using registry
 ## Note: Cutscene nodes use await internally - this function handles that transparently
-func _process_node(node: Resource) -> void:
+func _process_node(node: CampaignNode) -> void:
 	var node_type: String = node.node_type
 
 	# Handle custom:* types
@@ -514,9 +513,9 @@ func _process_node(node: Resource) -> void:
 # ==== Built-in Node Processors ====
 
 ## Process a battle node
-func _process_battle_node(node: Resource) -> void:
+func _process_battle_node(node: CampaignNode) -> void:
 	# Look up battle data from registry
-	var battle_data: BattleData = ModLoader.registry.get_resource("battle", node.resource_id) as BattleData
+	var battle_data: BattleData = ModLoader.registry.get_battle(node.resource_id)
 	if not battle_data:
 		push_error("CampaignManager: Battle '%s' not found" % node.resource_id)
 		_handle_missing_node_error(node.node_id)
@@ -534,7 +533,7 @@ func _process_battle_node(node: Resource) -> void:
 
 
 ## Process a scene node (town, hub, exploration, dungeon)
-func _process_scene_node(node: Resource) -> void:
+func _process_scene_node(node: CampaignNode) -> void:
 	var target_scene_path: String = node.scene_path
 
 	if target_scene_path.is_empty() and not node.resource_id.is_empty():
@@ -560,7 +559,7 @@ func _process_scene_node(node: Resource) -> void:
 
 
 ## Process a cutscene node
-func _process_cutscene_node(node: Resource) -> void:
+func _process_cutscene_node(node: CampaignNode) -> void:
 	if not _has_cinematics_manager():
 		push_warning("CampaignManager: CinematicsManager not available, skipping cutscene")
 		complete_current_node({})
@@ -572,7 +571,7 @@ func _process_cutscene_node(node: Resource) -> void:
 
 
 ## Process a choice node
-func _process_choice_node(node: Resource) -> void:
+func _process_choice_node(node: CampaignNode) -> void:
 	# Extract choices from branches for UI
 	var choices: Array[Dictionary] = []
 	for branch: Dictionary in node.branches:
@@ -845,7 +844,7 @@ func _play_cinematic(cinematic_id: String) -> void:
 
 
 ## Check for chapter transitions
-func _check_chapter_transition(node: Resource) -> void:
+func _check_chapter_transition(node: CampaignNode) -> void:
 	var chapter: Dictionary = current_campaign.get_chapter_for_node(node.node_id)
 	if chapter.is_empty():
 		return

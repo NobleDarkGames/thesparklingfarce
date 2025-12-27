@@ -71,8 +71,7 @@ var party_equipment_menu: PartyEquipmentMenu = null
 var caravan_interface: Node = null
 
 ## Exploration field menu (must be set via setup() or setup_field_menu())
-## Type is Control because ExplorationFieldMenu is in scenes/, not core/
-var exploration_field_menu: Control = null
+var exploration_field_menu: ExplorationFieldMenu = null
 
 ## Members interface (new screen-based party management)
 ## Type is Node because MembersInterfaceController is a CanvasLayer in scenes/
@@ -96,7 +95,7 @@ func _exit_tree() -> void:
 ## @param depot_interface: CaravanInterfaceController instance (CanvasLayer)
 ## @param field_menu: ExplorationFieldMenu instance (optional, can be set later)
 ## @param members_interface_node: MembersInterfaceController instance (optional)
-func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu: Control = null, members_interface_node: Node = null) -> void:
+func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu: ExplorationFieldMenu = null, members_interface_node: Node = null) -> void:
 	party_equipment_menu = equipment_menu
 	caravan_interface = depot_interface
 	exploration_field_menu = field_menu
@@ -115,7 +114,7 @@ func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu
 
 ## Set up the exploration field menu (can be called after initial setup)
 ## @param field_menu: ExplorationFieldMenu instance
-func setup_field_menu(field_menu: Control) -> void:
+func setup_field_menu(field_menu: ExplorationFieldMenu) -> void:
 	exploration_field_menu = field_menu
 	_connect_field_menu_signals()
 	if exploration_field_menu:

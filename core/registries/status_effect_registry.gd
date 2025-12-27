@@ -171,7 +171,8 @@ func get_buff_effects() -> Array[StatusEffectData]:
 			if value is int:
 				int_value = value
 			elif value is float:
-				int_value = int(value)
+				var float_val: float = value
+				int_value = int(float_val)
 			if int_value > 0:
 				is_buff = true
 				break
@@ -191,7 +192,8 @@ func get_debuff_effects() -> Array[StatusEffectData]:
 				if value is int:
 					int_value = value
 				elif value is float:
-					int_value = int(value)
+					var float_val: float = value
+					int_value = int(float_val)
 				if int_value < 0:
 					is_debuff = true
 					break

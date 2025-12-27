@@ -10,7 +10,7 @@ extends GdUnitTestSuite
 # PRELOADS AND CONSTANTS
 # =============================================================================
 
-const SpawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
+const SpawnEntityExecutor = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
 # CinematicActor has class_name, so it's globally available
 
 const DEFAULT_TILE_SIZE: int = 32

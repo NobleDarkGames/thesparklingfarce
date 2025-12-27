@@ -36,7 +36,7 @@ const ITEMS_PER_ROW: int = 5  # 5*32 + 4*4 = 176px fits in 180px scroll width
 # PRELOADS
 # =============================================================================
 
-const ItemSlotScript: GDScript = preload("res://scenes/ui/components/item_slot.gd")
+const ItemSlotScript = preload("res://scenes/ui/components/item_slot.gd")
 const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
 # =============================================================================
@@ -440,7 +440,7 @@ func _get_filtered_items() -> Array[String]:
 		result = all_items.duplicate()
 	else:
 		for item_id: String in all_items:
-			var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+			var item_data: ItemData = ModLoader.registry.get_item(item_id)
 			if item_data:
 				var type_name: String = ItemData.ItemType.keys()[item_data.item_type].to_lower()
 				if type_name == _filter_type:
@@ -455,8 +455,8 @@ func _get_filtered_items() -> Array[String]:
 
 ## Comparison function for sorting items
 func _sort_items(a_id: String, b_id: String) -> bool:
-	var a_data: ItemData = ModLoader.registry.get_resource("item", a_id) as ItemData
-	var b_data: ItemData = ModLoader.registry.get_resource("item", b_id) as ItemData
+	var a_data: ItemData = ModLoader.registry.get_item(a_id)
+	var b_data: ItemData = ModLoader.registry.get_item(b_id)
 
 	# Handle missing data
 	if not a_data:
@@ -670,7 +670,7 @@ func _on_slot_hovered(item_id: String) -> void:
 		_description_label.text = "Empty"
 		return
 
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	if item_data:
 		var desc: String = item_data.item_name
 		if not item_data.description.is_empty():
@@ -773,7 +773,7 @@ func _on_store_all_pressed() -> void:
 
 	# Find all consumables in inventory
 	for item_id: String in save_data.inventory:
-		var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item_data: ItemData = ModLoader.registry.get_item(item_id)
 		if item_data and item_data.item_type == ItemData.ItemType.CONSUMABLE:
 			items_to_store.append(item_id)
 

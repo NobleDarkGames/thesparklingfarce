@@ -28,7 +28,7 @@ signal door_transition_completed(spawn_point_id: String)
 signal campaign_node_completion_requested
 
 ## Preload TransitionContext for door transitions
-const TransitionContext: GDScript = preload("res://core/resources/transition_context.gd")
+const TransitionContext = preload("res://core/resources/transition_context.gd")
 
 ## Track connected triggers to avoid duplicate connections
 var connected_triggers: Array[Node] = []
@@ -199,7 +199,7 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 		return
 
 	# Look up BattleData resource from ModLoader
-	var battle_data: BattleData = ModLoader.registry.get_resource("battle", battle_id) as BattleData
+	var battle_data: BattleData = ModLoader.registry.get_battle(battle_id)
 
 	if not battle_data:
 		push_error("TriggerManager: Failed to find BattleData for ID: %s" % battle_id)
@@ -207,7 +207,7 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 		return
 
 	# Store return data in GameState using TransitionContext
-	var context: RefCounted = TransitionContext.new()
+	var context: TransitionContext = TransitionContext.new()
 	var current_scene: Node = get_tree().current_scene
 	if current_scene:
 		context.return_scene_path = current_scene.scene_file_path
@@ -251,7 +251,7 @@ func clear_current_battle_data() -> void:
 ## Start a battle programmatically (from menus, save loading, etc.)
 ## @param battle_id: The registry ID of the battle to start
 func start_battle(battle_id: String) -> void:
-	var battle_data: BattleData = ModLoader.registry.get_resource("battle", battle_id) as BattleData
+	var battle_data: BattleData = ModLoader.registry.get_battle(battle_id)
 	if not battle_data:
 		push_error("TriggerManager: Battle '%s' not found in registry" % battle_id)
 		var available: Array[String] = ModLoader.registry.get_resource_ids("battle")
@@ -268,7 +268,7 @@ func start_battle(battle_id: String) -> void:
 
 ## Start a battle with direct BattleData reference
 ## @param battle_data: The BattleData resource to use
-func start_battle_with_data(battle_data: Resource) -> void:
+func start_battle_with_data(battle_data: BattleData) -> void:
 	if not battle_data:
 		push_error("TriggerManager: Cannot start battle with null data")
 		return
@@ -279,7 +279,7 @@ func start_battle_with_data(battle_data: Resource) -> void:
 
 ## Return to map after battle ends
 func return_to_map() -> void:
-	var context: RefCounted = GameState.get_transition_context()
+	var context: TransitionContext = GameState.get_transition_context()
 	if not context or not context.is_valid():
 		push_warning("TriggerManager: No transition context available")
 		return
@@ -318,7 +318,7 @@ func _handle_dialog_trigger(trigger: Node, _player: Node2D) -> void:
 
 
 	# Look up DialogueData resource
-	var dialogue_data: DialogueData = ModLoader.registry.get_resource("dialogue", dialog_id) as DialogueData
+	var dialogue_data: DialogueData = ModLoader.registry.get_dialogue(dialog_id)
 
 	if not dialogue_data:
 		push_error("TriggerManager: Failed to find DialogueData for ID: %s" % dialog_id)
@@ -354,7 +354,7 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 
 	if not target_map_id.is_empty():
 		# New style: Look up MapMetadata from registry
-		var map_metadata: MapMetadata = ModLoader.registry.get_resource("map", target_map_id) as MapMetadata
+		var map_metadata: MapMetadata = ModLoader.registry.get_map(target_map_id)
 		if map_metadata:
 			destination_scene = map_metadata.scene_path
 		else:
@@ -380,7 +380,7 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 		pass
 
 	# Create transition context with spawn point info
-	var context: RefCounted = TransitionContext.from_current_scene(player)
+	var context: TransitionContext = TransitionContext.from_current_scene(player)
 	context.spawn_point_id = spawn_point_id
 
 	# Store any extra transition data

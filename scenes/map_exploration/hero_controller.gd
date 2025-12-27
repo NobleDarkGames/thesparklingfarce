@@ -5,13 +5,10 @@
 class_name HeroController
 extends CharacterBody2D
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+# Note: FacingUtils and CinematicActor have class_name declarations - use directly
 
 ## Debug mode - set to true for verbose logging
 const DEBUG_MODE: bool = false
-
-## Preload CinematicActor for hero control during cinematics
-const CinematicActorScript: GDScript = preload("res://core/components/cinematic_actor.gd")
 
 ## Emitted when hero completes movement to a new tile
 signal moved_to_tile(tile_position: Vector2i)
@@ -485,7 +482,7 @@ func _create_cinematic_actor() -> void:
 		return
 
 	cinematic_actor = Node.new()
-	cinematic_actor.set_script(CinematicActorScript)
+	cinematic_actor.set_script(CinematicActor)
 	cinematic_actor.name = "CinematicActor"
 	cinematic_actor.set("actor_id", "hero")
 

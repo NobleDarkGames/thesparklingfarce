@@ -1,7 +1,7 @@
-extends Control
-
 ## DialogBox - Displays dialogue lines with portraits and text reveal
 ## Communicates with DialogManager via signals
+class_name DialogBox
+extends Control
 
 ## Text reveal settings
 const BASE_TEXT_SPEED: float = 30.0  ## Characters per second

@@ -830,7 +830,7 @@ func _create_default_new_game_config(mod_path: String, mod_name: String) -> void
 	var config_path: String = mod_path + "data/new_game_configs/default_config.tres"
 
 	# Use preload to get the script reference
-	var config_script: GDScript = preload("res://core/resources/new_game_config_data.gd")
+	var config_script = preload("res://core/resources/new_game_config_data.gd")
 	var config: Resource = config_script.new()
 
 	# Set default values

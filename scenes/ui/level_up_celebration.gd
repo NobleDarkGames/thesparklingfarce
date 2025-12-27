@@ -79,9 +79,9 @@ func show_level_up(unit: Unit, old_level: int, new_level: int, stat_increases: D
 		var abilities_val: Variant = stat_increases.get("abilities", [])
 		var abilities_array: Array = abilities_val if abilities_val is Array else []
 		if not abilities_array.is_empty():
-			var typed_abilities: Array[Resource] = []
+			var typed_abilities: Array[AbilityData] = []
 			for ability: Variant in abilities_array:
-				if ability is Resource:
+				if ability is AbilityData:
 					typed_abilities.append(ability)
 			await _reveal_abilities(typed_abilities)
 
@@ -178,14 +178,14 @@ func _format_stat_name(stat_name: String) -> String:
 		_: return stat_name.to_upper()
 
 
-func _reveal_abilities(abilities: Array[Resource]) -> void:
+func _reveal_abilities(abilities: Array[AbilityData]) -> void:
 	# Clear existing
 	for child: Node in abilities_container.get_children():
 		child.queue_free()
 
-	for ability: Resource in abilities:
+	for ability: AbilityData in abilities:
 		var ability_name: String = "Unknown Ability"
-		if ability and "ability_name" in ability:
+		if ability:
 			ability_name = ability.ability_name
 
 		var lbl: Label = Label.new()

@@ -86,4 +86,4 @@ func _resolve_character(character_id: String) -> CharacterData:
 		return character
 
 	# Fallback to resource ID lookup
-	return ModLoader.registry.get_resource("character", character_id) as CharacterData
+	return ModLoader.registry.get_character(character_id)

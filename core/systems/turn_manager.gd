@@ -24,8 +24,8 @@ signal hero_died_in_battle()  ## SF2: Hero death triggers immediate battle exit
 
 ## Signals for mod hooks - allow mods to override victory/defeat conditions
 ## Mods can set context.result = "victory" or "defeat" to force outcome
-signal victory_condition_check(battle_data: Resource, context: Dictionary)
-signal defeat_condition_check(battle_data: Resource, context: Dictionary)
+signal victory_condition_check(battle_data: BattleData, context: Dictionary)
+signal defeat_condition_check(battle_data: BattleData, context: Dictionary)
 
 ## All units participating in battle (player + enemy + neutral)
 var all_units: Array[Unit] = []
@@ -294,7 +294,7 @@ func _check_battle_end() -> bool:
 
 ## Check victory condition based on BattleData configuration
 ## Returns "victory" if condition met, "" otherwise
-func _check_victory_condition(battle_data: Resource, enemy_count: int, boss_alive: bool) -> String:
+func _check_victory_condition(battle_data: BattleData, enemy_count: int, boss_alive: bool) -> String:
 	# Allow mods to override victory condition
 	var context: Dictionary = {"result": "", "enemy_count": enemy_count, "turn_number": turn_number}
 	victory_condition_check.emit(battle_data, context)
@@ -326,7 +326,7 @@ func _check_victory_condition(battle_data: Resource, enemy_count: int, boss_aliv
 
 ## Check defeat condition based on BattleData configuration
 ## Returns "defeat" if condition met, "" otherwise
-func _check_defeat_condition(battle_data: Resource, player_count: int, hero_alive: bool) -> String:
+func _check_defeat_condition(battle_data: BattleData, player_count: int, hero_alive: bool) -> String:
 	# Allow mods to override defeat condition
 	var context: Dictionary = {"result": "", "player_count": player_count, "turn_number": turn_number}
 	defeat_condition_check.emit(battle_data, context)
@@ -359,7 +359,7 @@ func _check_defeat_condition(battle_data: Resource, player_count: int, hero_aliv
 
 
 ## Check if the boss enemy is still alive
-func _is_boss_alive(battle_data: Resource) -> bool:
+func _is_boss_alive(battle_data: BattleData) -> bool:
 	if not battle_data or battle_data.victory_boss_index < 0:
 		# Fallback: check any enemy with is_boss flag
 		for unit: Unit in all_units:
@@ -491,7 +491,7 @@ func _process_status_effects(unit: Unit) -> Dictionary:
 	if not unit or not unit.is_alive() or not unit.stats:
 		return result
 
-	var stats: RefCounted = unit.stats
+	var stats: UnitStats = unit.stats
 	var effects_to_remove: Array[String] = []
 	var showed_popup: bool = false
 

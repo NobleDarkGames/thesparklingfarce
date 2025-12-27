@@ -28,7 +28,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		return true  # Complete immediately on error
 
 	# Look up the shop in ModRegistry
-	var shop_data: ShopData = ModLoader.registry.get_resource("shop", shop_id) as ShopData
+	var shop_data: ShopData = ModLoader.registry.get_shop(shop_id)
 	if not shop_data:
 		push_error("OpenShopExecutor: Shop '%s' not found in ModRegistry" % shop_id)
 		return true  # Complete immediately on error

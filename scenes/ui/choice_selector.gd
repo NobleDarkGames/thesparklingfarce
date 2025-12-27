@@ -1,7 +1,7 @@
-extends Control
-
 ## ChoiceSelector - Displays dialog choices for player selection
 ## Matches action_menu ColorRect border style
+class_name ChoiceSelector
+extends Control
 
 ## Animation settings
 const SLIDE_IN_DURATION: float = 0.2  ## Choice box slide-in duration

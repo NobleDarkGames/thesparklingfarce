@@ -660,8 +660,7 @@ func _load_available_ai_behaviors() -> void:
 	# Use ModLoader registry to get all ai_behavior resources
 	if ModLoader and ModLoader.registry:
 		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
-		for behavior: Resource in behaviors:
-			var ai_behavior: AIBehaviorData = behavior as AIBehaviorData
+		for ai_behavior: AIBehaviorData in behaviors:
 			if ai_behavior:
 				available_ai_behaviors.append(ai_behavior)
 

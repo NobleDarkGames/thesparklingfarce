@@ -6,8 +6,8 @@ class_name TestPromotionManager
 extends GdUnitTestSuite
 
 # Preload resources that may not be indexed yet during test runs
-const PromotionPathScript: GDScript = preload("res://core/resources/promotion_path.gd")
-const ClassDataScript: GDScript = preload("res://core/resources/class_data.gd")
+const PromotionPathScript = preload("res://core/resources/promotion_path.gd")
+const ClassDataScript = preload("res://core/resources/class_data.gd")
 
 
 # =============================================================================

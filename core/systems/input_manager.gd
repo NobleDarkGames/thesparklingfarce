@@ -23,9 +23,8 @@
 ##   EXECUTING -> WAITING (turn ends via BattleManager)
 extends Node
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
-const InputHelpers: GDScript = preload("res://core/systems/input_manager_helpers.gd")
+# Note: FacingUtils, UnitUtils, InputManagerHelpers, GridCursor all have class_name
+# declarations so they're globally available without preload
 
 ## Input state machine
 enum InputState {
@@ -80,20 +79,20 @@ var _spell_valid_targets: Array[Vector2i] = []  # Valid target cells for spell t
 var _attack_valid_targets: Array[Vector2i] = []  # Valid enemy target cells for attack targeting
 
 ## Unified targeting context (used for attack/item/spell targeting)
-var _targeting_context: InputHelpers.TargetingContext = null
+var _targeting_context: InputManagerHelpers.TargetingContext = null
 var _unified_valid_targets: Array[Vector2i] = []  # Valid targets for current targeting mode
 
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
-var action_menu: Control = null  # Will be set by battle scene
-var item_menu: Control = null  # Will be set by battle scene
-var spell_menu: Control = null  # Will be set by battle scene
+var action_menu: ActionMenu = null
+var item_menu: ItemMenu = null
+var spell_menu: SpellMenu = null
 var battle_scene: Node = null  # Reference to battle scene for UI access
-var grid_cursor: Node2D = null  # Visual cursor for grid movement
+var grid_cursor: Node2D = null  # Visual cursor for grid movement (GridCursor scene)
 var path_preview_parent: Node2D = null  # Parent node for path visuals
-var stats_panel: Control = null  # ActiveUnitStatsPanel for both active unit and inspection
-var terrain_panel: Control = null  # TerrainInfoPanel for cursor position
-var combat_forecast_panel: Control = null  # CombatForecastPanel for attack preview
+var stats_panel: ActiveUnitStatsPanel = null
+var terrain_panel: TerrainInfoPanel = null
+var combat_forecast_panel: CombatForecastPanel = null
 
 ## Path preview
 var current_path: Array[Vector2i] = []
@@ -120,33 +119,41 @@ func _ready() -> void:
 # =============================================================================
 
 ## Safely disconnect a signal from handler (removes ALL connections for stale signal safety)
-func _safe_disconnect_signal(sig: Signal, handler: Callable) -> void:
-	while sig.is_connected(handler):
-		sig.disconnect(handler)
+## Note: Accepts Variant to handle signals from dynamically-typed Control references
+func _safe_disconnect_signal(sig: Variant, handler: Callable) -> void:
+	if typeof(sig) != TYPE_SIGNAL:
+		return
+	var s: Signal = sig
+	while s.is_connected(handler):
+		s.disconnect(handler)
 
 
 ## Safely connect a signal to handler (only if not already connected)
-func _safe_connect_signal(sig: Signal, handler: Callable) -> void:
-	if not sig.is_connected(handler):
-		sig.connect(handler)
+## Note: Accepts Variant to handle signals from dynamically-typed Control references
+func _safe_connect_signal(sig: Variant, handler: Callable) -> void:
+	if typeof(sig) != TYPE_SIGNAL:
+		return
+	var s: Signal = sig
+	if not s.is_connected(handler):
+		s.connect(handler)
 
 
 ## Set action menu reference and connect signals
-func set_action_menu(menu: Control) -> void:
+func set_action_menu(menu: ActionMenu) -> void:
 	action_menu = menu
 	_safe_connect_signal(action_menu.action_selected, _on_action_menu_selected)
 	_safe_connect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
 
 
 ## Set item menu reference and connect signals
-func set_item_menu(menu: Control) -> void:
+func set_item_menu(menu: ItemMenu) -> void:
 	item_menu = menu
 	_safe_connect_signal(item_menu.item_selected, _on_item_menu_selected)
 	_safe_connect_signal(item_menu.menu_cancelled, _on_item_menu_cancelled)
 
 
 ## Set spell menu reference and connect signals
-func set_spell_menu(menu: Control) -> void:
+func set_spell_menu(menu: SpellMenu) -> void:
 	spell_menu = menu
 	_safe_connect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
 	_safe_connect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
@@ -297,7 +304,7 @@ func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
 
 	# Store selected item for target selection
 	selected_item_id = item_id
-	selected_item_data = ModLoader.registry.get_resource("item", item_id) as ItemData
+	selected_item_data = ModLoader.registry.get_item(item_id)
 
 	if not selected_item_data:
 		push_warning("InputManager: Item '%s' not found in registry" % item_id)
@@ -574,7 +581,7 @@ func _on_enter_selecting_action() -> void:
 	# Keep cursor on unit's current position - switch to READY_TO_ACT mode (white bounce)
 	if grid_cursor and active_unit:
 		grid_cursor.set_grid_position(active_unit.grid_position)
-		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.READY_TO_ACT)
+		grid_cursor.set_cursor_mode(GridCursor.CursorMode.READY_TO_ACT)
 		grid_cursor.show_cursor()
 
 	# Ensure camera is centered on unit for action menu
@@ -634,7 +641,7 @@ func _on_enter_selecting_item_target() -> void:
 	# Show cursor at target position - item targeting is typically ally-targeted (green)
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
-		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.TARGETING, true)  # true = ally (green)
+		grid_cursor.set_cursor_mode(GridCursor.CursorMode.TARGETING, true)  # true = ally (green)
 		grid_cursor.show_cursor()
 
 	# Update stats panel to show target info
@@ -701,7 +708,7 @@ func _on_enter_selecting_spell_target() -> void:
 	# Show cursor at target position with appropriate color (green for allies, red for enemies)
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
-		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.TARGETING, is_ally_target)
+		grid_cursor.set_cursor_mode(GridCursor.CursorMode.TARGETING, is_ally_target)
 		grid_cursor.show_cursor()
 
 	# Update stats panel to show target info
@@ -730,7 +737,7 @@ func _on_enter_targeting() -> void:
 	# Show cursor at target position - switch to TARGETING mode (red for enemies)
 	if grid_cursor:
 		grid_cursor.set_grid_position(current_cursor_position)
-		grid_cursor.set_cursor_mode(grid_cursor.CursorMode.TARGETING, false)  # false = enemy (red)
+		grid_cursor.set_cursor_mode(GridCursor.CursorMode.TARGETING, false)  # false = enemy (red)
 		grid_cursor.show_cursor()
 
 	# Show combat forecast for initial target
@@ -767,7 +774,7 @@ func _process(delta: float) -> void:
 		return
 
 	# Check if any directional key is held
-	var direction: Vector2i = InputHelpers.get_held_direction()
+	var direction: Vector2i = InputManagerHelpers.get_held_direction()
 
 	# If a direction is held, handle with delay
 	if direction != Vector2i.ZERO:
@@ -819,7 +826,7 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 	var handled: bool = false
 
 	# Arrow keys move cursor freely (no restrictions)
-	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	var direction: Vector2i = InputManagerHelpers.get_pressed_direction(event)
 	if direction != Vector2i.ZERO:
 		_move_free_cursor(direction)
 		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
@@ -860,7 +867,8 @@ func _handle_movement_input(event: InputEvent) -> void:
 
 	# Mouse click to select destination
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			# Get global mouse position (works with camera)
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
@@ -868,7 +876,7 @@ func _handle_movement_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move cursor
-	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	var direction: Vector2i = InputManagerHelpers.get_pressed_direction(event)
 	if direction != Vector2i.ZERO:
 		_move_cursor(direction)
 		_input_delay = INPUT_DELAY_INITIAL  # Set delay for continuous movement
@@ -1384,18 +1392,18 @@ func _get_best_initial_target() -> Vector2i:
 
 ## Get the closest cell to a position from a list of cells
 func _get_closest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
-	return InputHelpers.get_closest_cell(from, cells)
+	return InputManagerHelpers.get_closest_cell(from, cells)
 
 
 ## Calculate Manhattan distance between two cells
 func _manhattan_distance(a: Vector2i, b: Vector2i) -> int:
-	return InputHelpers.manhattan_distance(a, b)
+	return InputManagerHelpers.manhattan_distance(a, b)
 
 
 ## Get the next valid target in the given direction from current cursor position
 ## Returns current position if no valid target found in that direction
 func _get_next_target_in_direction(direction: Vector2i) -> Vector2i:
-	return InputHelpers.get_next_target_in_direction(
+	return InputManagerHelpers.get_next_target_in_direction(
 		current_cursor_position,
 		direction,
 		_attack_valid_targets
@@ -1404,7 +1412,7 @@ func _get_next_target_in_direction(direction: Vector2i) -> Vector2i:
 
 ## Get the farthest cell from a position (for wrap-around behavior)
 func _get_farthest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
-	return InputHelpers.get_farthest_cell(from, cells)
+	return InputManagerHelpers.get_farthest_cell(from, cells)
 
 
 ## Show targeting range and valid targets (respects min/max range for dead zones)
@@ -1435,7 +1443,8 @@ func _handle_targeting_input(event: InputEvent) -> void:
 
 	# Mouse click to select target
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
@@ -1445,7 +1454,7 @@ func _handle_targeting_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
-	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	var direction: Vector2i = InputManagerHelpers.get_pressed_direction(event)
 	if direction != Vector2i.ZERO:
 		_move_targeting_cursor(direction)
 		handled = true
@@ -1796,7 +1805,7 @@ func _handle_direct_movement_input(event: InputEvent) -> void:
 		return
 
 	# Arrow keys directly move the unit
-	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	var direction: Vector2i = InputManagerHelpers.get_pressed_direction(event)
 	if direction != Vector2i.ZERO:
 		_try_direct_step(direction)
 		_input_delay = INPUT_DELAY_INITIAL
@@ -1846,7 +1855,8 @@ func _handle_item_target_input(event: InputEvent) -> void:
 
 	# Mouse click to select target
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
@@ -1856,7 +1866,7 @@ func _handle_item_target_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
-	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	var direction: Vector2i = InputManagerHelpers.get_pressed_direction(event)
 	if direction != Vector2i.ZERO:
 		_move_item_target_cursor(direction)
 		handled = true
@@ -2001,7 +2011,7 @@ func _show_item_targeting_range(valid_targets: Array[Vector2i]) -> void:
 func _move_item_target_cursor(offset: Vector2i) -> void:
 	# SF-authentic: Snap between valid targets (up/left = previous, down/right = next)
 	var direction_sign: int = -1 if (offset.y < 0 or offset.x < 0) else 1
-	current_cursor_position = InputHelpers.cycle_target(
+	current_cursor_position = InputManagerHelpers.cycle_target(
 		current_cursor_position,
 		direction_sign,
 		_item_valid_targets
@@ -2090,7 +2100,8 @@ func _handle_spell_target_input(event: InputEvent) -> void:
 
 	# Mouse click to select target
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
@@ -2100,7 +2111,7 @@ func _handle_spell_target_input(event: InputEvent) -> void:
 			handled = true
 
 	# Keyboard: Arrow keys to move targeting cursor
-	var direction: Vector2i = InputHelpers.get_pressed_direction(event)
+	var direction: Vector2i = InputManagerHelpers.get_pressed_direction(event)
 	if direction != Vector2i.ZERO:
 		_move_spell_target_cursor(direction)
 		handled = true
@@ -2177,7 +2188,7 @@ func _show_spell_targeting_range(valid_targets: Array[Vector2i]) -> void:
 func _move_spell_target_cursor(offset: Vector2i) -> void:
 	# SF-authentic: Snap between valid targets (up/left = previous, down/right = next)
 	var direction_sign: int = -1 if (offset.y < 0 or offset.x < 0) else 1
-	current_cursor_position = InputHelpers.cycle_target(
+	current_cursor_position = InputManagerHelpers.cycle_target(
 		current_cursor_position,
 		direction_sign,
 		_spell_valid_targets

@@ -406,14 +406,14 @@ func _get_equipped_entry(save_data: CharacterSaveData, slot_id: String) -> Dicti
 func _get_item_data(item_id: String) -> ItemData:
 	if item_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("item", item_id) as ItemData
+	return ModLoader.registry.get_item(item_id)
 
 
 ## Get current class data for a character
 func _get_current_class(save_data: CharacterSaveData) -> ClassData:
 	# Try to get from current_class fields (post-promotion)
 	if not save_data.current_class_resource_id.is_empty():
-		return ModLoader.registry.get_resource("class", save_data.current_class_resource_id) as ClassData
+		return ModLoader.registry.get_class_data(save_data.current_class_resource_id)
 
 	# Fall back to base character's class
 	var character: CharacterData = ModLoader.registry.get_resource(

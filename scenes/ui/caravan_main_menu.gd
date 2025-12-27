@@ -329,7 +329,8 @@ func _update_selection_visual() -> void:
 
 		# Get cursor from row
 		var row: Node = _options_container.get_child(i)
-		var cursor: Label = row.get_child(0) as Label if row.get_child_count() > 0 else null
+		var cursor_node: Node = row.get_child(0) if row.get_child_count() > 0 else null
+		var cursor: Label = cursor_node as Label if cursor_node is Label else null
 
 		if not is_enabled:
 			label.add_theme_color_override("font_color", COLOR_OPTION_DISABLED)

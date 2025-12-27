@@ -5,7 +5,7 @@
 class_name Unit
 extends Node2D
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+const FacingUtils = preload("res://core/utils/facing_utils.gd")
 
 # Faction visual colors (placeholder until sprites are implemented)
 const COLOR_PLAYER: Color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan

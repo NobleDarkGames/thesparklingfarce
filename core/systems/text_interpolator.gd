@@ -142,7 +142,7 @@ static func _lookup_character_name(char_id: String) -> String:
 			return char_data.character_name
 
 		# Fall back to resource ID lookup
-		char_data = ModLoader.registry.get_resource("character", char_id) as CharacterData
+		char_data = ModLoader.registry.get_character(char_id)
 		if char_data:
 			return char_data.character_name
 

@@ -15,7 +15,7 @@ var _original_gold: int = 0
 
 func before_test() -> void:
 	# Load the executor
-	var GrantItemsExecutor: GDScript = preload("res://core/systems/cinematic_commands/grant_items_executor.gd")
+	var GrantItemsExecutor = preload("res://core/systems/cinematic_commands/grant_items_executor.gd")
 	_executor = GrantItemsExecutor.new()
 	# Store original gold to restore later
 	if SaveManager and SaveManager.current_save:

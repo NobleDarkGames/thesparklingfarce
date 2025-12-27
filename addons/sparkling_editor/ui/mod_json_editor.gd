@@ -1689,7 +1689,9 @@ func _refresh_campaign_suggestions() -> void:
 
 	# Group campaigns by mod
 	var campaigns_by_mod: Dictionary = {}
-	for campaign: Resource in campaigns:
+	for campaign: CampaignData in campaigns:
+		if not campaign:
+			continue
 		var campaign_path: String = campaign.resource_path
 		if campaign_path.is_empty():
 			continue

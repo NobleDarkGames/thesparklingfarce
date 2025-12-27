@@ -290,8 +290,7 @@ func _load_available_characters() -> void:
 
 	if ModLoader and ModLoader.registry:
 		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
-		for resource: Resource in all_characters:
-			var char_data: CharacterData = resource as CharacterData
+		for char_data: CharacterData in all_characters:
 			if char_data:
 				available_characters.append(char_data)
 	else:

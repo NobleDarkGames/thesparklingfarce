@@ -35,7 +35,7 @@ var character_uid: String = ""
 var character_name: String = ""
 
 ## Equipment button references keyed by slot_id
-var equipment_buttons: Dictionary = {}
+var equipment_buttons: Dictionary[String, Button] = {}
 
 ## Inventory button references
 var inventory_buttons: Array[Button] = []
@@ -263,7 +263,7 @@ func _focus_first_button() -> void:
 
 	# Try equipment buttons first
 	for slot_id: String in equipment_buttons.keys():
-		var button: Button = equipment_buttons.get(slot_id) as Button
+		var button: Button = equipment_buttons.get(slot_id)
 		if is_instance_valid(button):
 			button.grab_focus()
 			return

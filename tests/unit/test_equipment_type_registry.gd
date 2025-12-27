@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## Unit tests for EquipmentTypeRegistry
 ## Tests subtype-to-category mapping and wildcard matching
 
-const EquipmentTypeRegistryClass: GDScript = preload("res://core/registries/equipment_type_registry.gd")
+const EquipmentTypeRegistryClass = preload("res://core/registries/equipment_type_registry.gd")
 
 var _registry: RefCounted
 

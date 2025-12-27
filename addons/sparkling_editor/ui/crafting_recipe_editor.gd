@@ -127,7 +127,7 @@ func _load_resource_data() -> void:
 
 	# SINGLE output
 	if not recipe.output_item_id.is_empty():
-		var item_res: Resource = ModLoader.registry.get_resource("item", recipe.output_item_id) if ModLoader and ModLoader.registry else null
+		var item_res: ItemData = ModLoader.registry.get_item(recipe.output_item_id) if ModLoader and ModLoader.registry else null
 		if item_res:
 			output_item_picker.select_resource(item_res)
 		else:
@@ -141,7 +141,7 @@ func _load_resource_data() -> void:
 
 	# UPGRADE output
 	if not recipe.upgrade_base_item_id.is_empty():
-		var base_res: Resource = ModLoader.registry.get_resource("item", recipe.upgrade_base_item_id) if ModLoader and ModLoader.registry else null
+		var base_res: ItemData = ModLoader.registry.get_item(recipe.upgrade_base_item_id) if ModLoader and ModLoader.registry else null
 		if base_res:
 			upgrade_base_picker.select_resource(base_res)
 		else:
@@ -150,7 +150,7 @@ func _load_resource_data() -> void:
 		upgrade_base_picker.select_none()
 
 	if not recipe.upgrade_result_item_id.is_empty():
-		var result_res: Resource = ModLoader.registry.get_resource("item", recipe.upgrade_result_item_id) if ModLoader and ModLoader.registry else null
+		var result_res: ItemData = ModLoader.registry.get_item(recipe.upgrade_result_item_id) if ModLoader and ModLoader.registry else null
 		if result_res:
 			upgrade_result_picker.select_resource(result_res)
 		else:
@@ -751,8 +751,7 @@ func _refresh_inputs_list() -> void:
 
 
 func _get_item_name(item_id: String) -> String:
-	for item: Resource in _items_cache:
-		var item_data: ItemData = item as ItemData
+	for item_data: ItemData in _items_cache:
 		if item_data:
 			var res_id: String = item_data.resource_path.get_file().get_basename()
 			if res_id == item_id:
@@ -761,8 +760,7 @@ func _get_item_name(item_id: String) -> String:
 
 
 func _item_exists(item_id: String) -> bool:
-	for item: Resource in _items_cache:
-		var item_data: ItemData = item as ItemData
+	for item_data: ItemData in _items_cache:
 		if item_data:
 			var res_id: String = item_data.resource_path.get_file().get_basename()
 			if res_id == item_id:

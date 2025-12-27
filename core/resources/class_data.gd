@@ -99,7 +99,10 @@ func get_unlocked_class_abilities(level: int) -> Array[AbilityData]:
 		var unlock_level: int = 1
 		if ability.ability_id in ability_unlock_levels:
 			var level_value: Variant = ability_unlock_levels[ability.ability_id]
-			unlock_level = int(level_value) if level_value != null else 1
+			if level_value is int:
+				unlock_level = level_value
+			elif level_value is float:
+				unlock_level = int(level_value)
 		if level >= unlock_level:
 			unlocked.append(ability)
 	return unlocked
@@ -110,7 +113,10 @@ func is_ability_unlocked(ability_id: String, level: int) -> bool:
 	var unlock_level: int = 1
 	if ability_id in ability_unlock_levels:
 		var level_value: Variant = ability_unlock_levels[ability_id]
-		unlock_level = int(level_value) if level_value != null else 1
+		if level_value is int:
+			unlock_level = level_value
+		elif level_value is float:
+			unlock_level = int(level_value)
 	return level >= unlock_level
 
 
@@ -129,7 +135,11 @@ func get_ability_unlock_level(ability_id: String) -> int:
 
 	if ability_id in ability_unlock_levels:
 		var level_value: Variant = ability_unlock_levels[ability_id]
-		return int(level_value) if level_value != null else 1
+		if level_value is int:
+			return level_value
+		elif level_value is float:
+			var float_val: float = level_value
+			return int(float_val)
 	return 1
 
 
@@ -138,7 +148,11 @@ func get_growth_rate(stat_name: String) -> int:
 	var growth_key: String = stat_name + "_growth"
 	if growth_key in self:
 		var value: Variant = get(growth_key)
-		return int(value) if value != null else 0
+		if value is int:
+			return value
+		elif value is float:
+			var float_val: float = value
+			return int(float_val)
 	return 0
 
 

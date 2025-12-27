@@ -17,10 +17,10 @@
 ## jarring fade transitions between phases.
 extends Node
 
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 ## Signals for battle events
-signal battle_started(battle_data: Resource)
+signal battle_started(battle_data: BattleData)
 signal battle_ended(victory: bool)
 signal unit_spawned(unit: Unit)
 signal combat_resolved(attacker: Unit, defender: Unit, damage: int, hit: bool, crit: bool)
@@ -101,17 +101,17 @@ func _get_cached_scene(key: String) -> PackedScene:
 
 
 ## Validate BattleData has required properties
-func _validate_battle_data(data: Resource) -> bool:
+func _validate_battle_data(data: BattleData) -> bool:
 	# Use BattleData's built-in validation if available
 	if data.has_method("validate"):
 		return data.validate()
 
 	# Fallback: basic validation
-	if data.get("battle_name") == null or data.battle_name.is_empty():
+	if data.battle_name.is_empty():
 		push_error("BattleManager: BattleData missing battle_name")
 		return false
 
-	if data.get("map_scene") == null or data.map_scene == null:
+	if data.map_scene == null:
 		push_error("BattleManager: BattleData missing map_scene")
 		return false
 
@@ -172,7 +172,7 @@ func _initialize_grid() -> void:
 		push_warning("BattleManager: No TileMapLayer found in map scene")
 
 	# Look for Grid resource in map scene (should be exported on map script or node)
-	var grid: Resource = _find_grid_in_scene(map_instance)
+	var grid: Grid = _find_grid_in_scene(map_instance)
 
 	if not grid:
 		push_error("BattleManager: Map scene must provide a Grid resource")
@@ -197,7 +197,7 @@ func _find_tilemap_in_scene(node: Node) -> TileMapLayer:
 
 ## Find Grid resource in map scene
 ## Map scenes should export a Grid resource (e.g., on root node script)
-func _find_grid_in_scene(node: Node) -> Resource:
+func _find_grid_in_scene(node: Node) -> Grid:
 	# Check if the root node has a "grid" property
 	if node.get("grid") != null:
 		return node.grid
@@ -218,7 +218,7 @@ func _find_grid_in_scene(node: Node) -> Resource:
 
 
 ## Create a Grid resource from TileMapLayer dimensions (fallback)
-func _create_grid_from_tilemap(tilemap: TileMapLayer) -> Resource:
+func _create_grid_from_tilemap(tilemap: TileMapLayer) -> Grid:
 	var grid: Grid = Grid.new()
 
 	# Get used rectangle of tilemap
@@ -391,7 +391,7 @@ func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 	if not unit or not unit.stats:
 		return intended_target
 
-	var stats: RefCounted = unit.stats
+	var stats: UnitStats = unit.stats
 
 	for effect_state: Dictionary in stats.status_effects:
 		var effect_type: String = effect_state.get("type", "")
@@ -494,7 +494,7 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 		unit.face_toward(target.grid_position)
 
 	# Get the item data
-	var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item: ItemData = ModLoader.registry.get_item(item_id)
 
 	if not item:
 		push_warning("BattleManager: Item '%s' not found in registry" % item_id)
@@ -601,8 +601,8 @@ func _award_item_use_xp(user: Unit, target: Unit, item: ItemData) -> void:
 		# Check if class has any heal-type abilities
 		if class_data.has_method("get_abilities"):
 			var abilities: Array = class_data.get_abilities()
-			for ability_res: Resource in abilities:
-				if ability_res is AbilityData and (ability_res as AbilityData).ability_type == AbilityData.AbilityType.HEAL:
+			for ability_res: AbilityData in abilities:
+				if ability_res and ability_res.ability_type == AbilityData.AbilityType.HEAL:
 					is_healer = true
 					break
 
@@ -919,7 +919,7 @@ func execute_ai_spell(caster: Unit, ability_id: String, target: Unit) -> bool:
 		caster.face_toward(target.grid_position)
 
 	# Get the ability data from registry
-	var ability: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
+	var ability: AbilityData = ModLoader.registry.get_ability(ability_id)
 
 	if not ability:
 		push_warning("BattleManager: AI spell '%s' not found in registry" % ability_id)
@@ -1535,10 +1535,9 @@ func _on_battle_ended(victory: bool) -> void:
 	battle_ended.emit(true)
 
 	# Return to map after battle (if we came from a map trigger)
-	var context: RefCounted = GameState.get_transition_context()
+	var context: TransitionContext = GameState.get_transition_context()
 	if context and context.is_valid():
-		var TransitionContextScript: GDScript = context.get_script()
-		context.battle_outcome = TransitionContextScript.BattleOutcome.VICTORY
+		context.battle_outcome = TransitionContext.BattleOutcome.VICTORY
 
 		# Store completed battle ID for one-shot tracking
 		if current_battle_data and current_battle_data.get("battle_id"):
@@ -1689,7 +1688,7 @@ func _wait_for_level_ups() -> void:
 
 
 ## Handle unit learning ability
-func _on_unit_learned_ability(unit: Unit, ability: Resource) -> void:
+func _on_unit_learned_ability(unit: Unit, ability: AbilityData) -> void:
 	pass  # Future: Show ability learned notification
 
 
@@ -1789,12 +1788,9 @@ func _execute_battle_exit(initiator: Unit, reason: BattleExitReason) -> void:
 	_revive_all_party_members(is_defeat)
 
 	# 2. Set battle outcome to RETREAT in transition context
-	var context: RefCounted = GameState.get_transition_context()
+	var context: TransitionContext = GameState.get_transition_context()
 	if context:
-		# Access the BattleOutcome enum from the TransitionContext script
-		var TransitionContextScript: GDScript = context.get_script()
-		if TransitionContextScript and "BattleOutcome" in TransitionContextScript:
-			context.battle_outcome = TransitionContextScript.BattleOutcome.RETREAT
+		context.battle_outcome = TransitionContext.BattleOutcome.RETREAT
 
 	# 3. Determine return location
 	var return_path: String = GameState.get_last_safe_location()

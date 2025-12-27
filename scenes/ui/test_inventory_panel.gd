@@ -41,7 +41,7 @@ func _create_test_data() -> void:
 	var characters_to_load: Array[String] = ["max", "maggie", "warrioso"]
 
 	for char_id: String in characters_to_load:
-		var char_data: CharacterData = ModLoader.registry.get_resource("character", char_id) as CharacterData
+		var char_data: CharacterData = ModLoader.registry.get_character(char_id)
 		if char_data:
 			var save_data: CharacterSaveData = CharacterSaveData.new()
 			save_data.populate_from_character_data(char_data)
@@ -99,10 +99,9 @@ func _add_test_items() -> void:
 		third_char.inventory.clear()
 		var all_items: Array[Resource] = ModLoader.registry.get_all_resources("item")
 		var items_added: int = 0
-		for item_res: Resource in all_items:
+		for item: ItemData in all_items:
 			if items_added >= 3:
 				break
-			var item: ItemData = item_res as ItemData
 			if item and item.is_equippable():
 				third_char.inventory.append(_get_item_id_from_path(item.resource_path))
 				items_added += 1
@@ -192,9 +191,9 @@ func _update_status(text: String) -> void:
 
 func _input(event: InputEvent) -> void:
 	# Quick character switching with number keys
-	if event is InputEventKey and event.pressed:
-		var key_event: InputEventKey = event as InputEventKey
-		if key_event.keycode >= KEY_1 and key_event.keycode <= KEY_9:
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if key_event.pressed and key_event.keycode >= KEY_1 and key_event.keycode <= KEY_9:
 			var index: int = key_event.keycode - KEY_1
 			if index < _test_characters.size():
 				_show_character(index)

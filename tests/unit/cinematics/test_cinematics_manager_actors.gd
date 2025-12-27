@@ -10,8 +10,8 @@ extends GdUnitTestSuite
 # PRELOADS
 # =============================================================================
 
-const CinematicData: GDScript = preload("res://core/resources/cinematic_data.gd")
-const CinematicActor: GDScript = preload("res://core/components/cinematic_actor.gd")
+const CinematicData = preload("res://core/resources/cinematic_data.gd")
+const CinematicActor = preload("res://core/components/cinematic_actor.gd")
 
 
 # =============================================================================

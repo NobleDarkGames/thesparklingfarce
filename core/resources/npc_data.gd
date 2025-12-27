@@ -1,7 +1,7 @@
 class_name NPCData
 extends Resource
 
-const SpriteUtils: GDScript = preload("res://core/utils/sprite_utils.gd")
+const SpriteUtils = preload("res://core/utils/sprite_utils.gd")
 
 ## Represents an NPC that can be interacted with on maps.
 ## NPCs trigger cinematics when the player interacts with them.

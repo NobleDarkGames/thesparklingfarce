@@ -8,7 +8,7 @@
 class_name PartyFollower
 extends CharacterBody2D
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+const FacingUtils = preload("res://core/utils/facing_utils.gd")
 const DEBUG_MODE: bool = false
 
 @export var tile_size: int = 32

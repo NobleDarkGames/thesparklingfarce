@@ -5,8 +5,8 @@ class_name TestMapMetadataLoader
 extends GdUnitTestSuite
 
 
-const MapMetadataLoaderScript: GDScript = preload("res://core/systems/map_metadata_loader.gd")
-const MapMetadataScript: GDScript = preload("res://core/resources/map_metadata.gd")
+const MapMetadataLoaderScript = preload("res://core/systems/map_metadata_loader.gd")
+const MapMetadataScript = preload("res://core/resources/map_metadata.gd")
 
 
 # =============================================================================

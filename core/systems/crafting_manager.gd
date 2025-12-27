@@ -111,10 +111,9 @@ func can_afford_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null) 
 ## @return: Array of CraftingRecipeData the player can craft
 func get_available_recipes(crafter: CrafterData = null) -> Array[CraftingRecipeData]:
 	var available: Array[CraftingRecipeData] = []
-	var all_recipes: Array[Resource] = ModLoader.registry.get_all_resources("crafting_recipe")
+	var all_recipes: Array = ModLoader.registry.get_all_resources("crafting_recipe")
 
-	for resource: Resource in all_recipes:
-		var recipe: CraftingRecipeData = resource as CraftingRecipeData
+	for recipe: CraftingRecipeData in all_recipes:
 		if not recipe:
 			continue
 
@@ -221,7 +220,7 @@ func craft_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null, choic
 	result.destination = "caravan"
 
 	# Get item name for display
-	var item_data: ItemData = ModLoader.registry.get_resource("item", output_item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(output_item_id)
 	result.output_item_name = item_data.item_name if item_data else output_item_id
 
 	craft_completed.emit(recipe, output_item_id)

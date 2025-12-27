@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://berta5cnrmjni"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_uqnny"]
+[ext_resource type="Resource" uid="uid://8xplcps5clbx" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766710055.tres" id="1_wvnj5"]
+[ext_resource type="Texture2D" uid="uid://5cq65rehlltr" path="res://mods/demo_campaign/assets/portraits/hero.png" id="2_0acks"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_bc4b8"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_fu4ir"]
+[ext_resource type="SpriteFrames" uid="uid://c2lrsjid5512h" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1766766677_map_sprites.tres" id="4_g8uwx"]
+
+[resource]
+script = ExtResource("1_uqnny")
+character_uid = "rfcd4dp9"
+character_name = "Hero"
+character_class = ExtResource("1_wvnj5")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_0acks")
+sprite_frames = ExtResource("4_g8uwx")
+is_hero = true

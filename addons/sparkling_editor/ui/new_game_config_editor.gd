@@ -638,23 +638,13 @@ func _populate_campaign_dropdown() -> void:
 	campaign_option.set_item_metadata(0, "")
 
 	var idx: int = 1
-	for resource: Resource in available_campaigns:
-		var display_name: String = _get_campaign_display_name(resource)
+	for campaign: CampaignData in available_campaigns:
+		if not campaign:
+			continue
+		var display_name: String = campaign.campaign_name if not campaign.campaign_name.is_empty() else campaign.resource_path.get_file().get_basename()
 		campaign_option.add_item(display_name)
-		campaign_option.set_item_metadata(idx, _get_campaign_id(resource))
+		campaign_option.set_item_metadata(idx, campaign.campaign_id if not campaign.campaign_id.is_empty() else campaign.resource_path.get_file().get_basename())
 		idx += 1
-
-
-func _get_campaign_display_name(resource: Resource) -> String:
-	if "campaign_name" in resource:
-		return resource.campaign_name
-	return resource.resource_path.get_file().get_basename()
-
-
-func _get_campaign_id(resource: Resource) -> String:
-	if "campaign_id" in resource:
-		return resource.campaign_id
-	return resource.resource_path.get_file().get_basename()
 
 
 func _select_campaign(campaign_id: String) -> void:
@@ -691,26 +681,15 @@ func _populate_party_dropdown() -> void:
 	party_option.set_item_metadata(0, "")
 
 	var idx: int = 1
-	for resource: Resource in available_parties:
-		var display_name: String = _get_party_display_name(resource)
+	for party: PartyData in available_parties:
+		if not party:
+			continue
+		var display_name: String = party.party_name if not party.party_name.is_empty() else party.resource_path.get_file().get_basename()
+		if party.has_method("get_member_count"):
+			display_name = "%s (%d members)" % [display_name, party.get_member_count()]
 		party_option.add_item(display_name)
-		party_option.set_item_metadata(idx, _get_party_id(resource))
+		party_option.set_item_metadata(idx, party.resource_path.get_file().get_basename())
 		idx += 1
-
-
-func _get_party_display_name(resource: Resource) -> String:
-	if "party_name" in resource:
-		var party_name: String = resource.party_name
-		# Show member count if available
-		if resource.has_method("get_member_count"):
-			return "%s (%d members)" % [party_name, resource.get_member_count()]
-		return party_name
-	return resource.resource_path.get_file().get_basename()
-
-
-func _get_party_id(resource: Resource) -> String:
-	# PartyData uses the filename as the ID
-	return resource.resource_path.get_file().get_basename()
 
 
 func _select_party(party_id: String) -> void:
@@ -779,9 +758,9 @@ func _update_party_preview(is_auto: bool) -> void:
 					# PartyData has member_ids array
 					if "member_ids" in resource:
 						for member_id: String in resource.member_ids:
-							var char_data: Resource = null
+							var char_data: CharacterData = null
 							if ModLoader and ModLoader.registry:
-								char_data = ModLoader.registry.get_resource("character", member_id)
+								char_data = ModLoader.registry.get_character(member_id)
 							if char_data and "character_name" in char_data:
 								var is_hero: bool = char_data.is_hero if "is_hero" in char_data else false
 								members.append({
@@ -1121,11 +1100,10 @@ func _load_active_default_info() -> void:
 	# Track the highest priority default config
 	var highest_priority: int = -1
 
-	for config: Resource in all_configs:
-		if not config is NewGameConfigData:
+	for ngc: NewGameConfigData in all_configs:
+		if not ngc:
 			continue
 
-		var ngc: NewGameConfigData = config as NewGameConfigData
 		if not ngc.is_default:
 			continue
 
@@ -1281,8 +1259,7 @@ func _get_active_default_config() -> NewGameConfigData:
 	if not ModLoader or not ModLoader.registry:
 		return null
 
-	var config: Resource = ModLoader.registry.get_resource("new_game_config", active_default_config_id)
-	return config as NewGameConfigData
+	return ModLoader.registry.get_new_game_config(active_default_config_id)
 
 
 ## Get auto-detected party member names
@@ -1310,11 +1287,9 @@ func _get_party_template_members(party_id: String) -> Array:
 	if not ModLoader or not ModLoader.registry:
 		return members
 
-	var party: Resource = ModLoader.registry.get_resource("party", party_id)
-	if not party or not party is PartyData:
+	var party_data: PartyData = ModLoader.registry.get_party(party_id)
+	if not party_data:
 		return members
-
-	var party_data: PartyData = party as PartyData
 	for member_dict: Dictionary in party_data.members:
 		if "character" in member_dict and member_dict.character:
 			var char_data: CharacterData = member_dict.character as CharacterData

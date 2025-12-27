@@ -36,7 +36,7 @@ func get_available_entities() -> Array[Dictionary]:
 
 
 func create_sprite_node(entity_id: String, facing: String) -> Node2D:
-	var inter_data: InteractableData = ModLoader.registry.get_resource("interactable", entity_id) as InteractableData
+	var inter_data: InteractableData = ModLoader.registry.get_interactable(entity_id)
 	if inter_data == null:
 		push_warning("InteractableSpawnHandler: InteractableData '%s' not found in registry" % entity_id)
 		return _create_placeholder_sprite()

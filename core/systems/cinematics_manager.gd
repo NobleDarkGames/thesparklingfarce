@@ -6,10 +6,10 @@ extends Node
 ## Accessed globally as CinematicsManager (autoload name)
 
 # Preload custom types to ensure they're available
-const CinematicData: GDScript = preload("res://core/resources/cinematic_data.gd")
-const CinematicActor: GDScript = preload("res://core/components/cinematic_actor.gd")
-const CinematicCommandExecutor: GDScript = preload("res://core/systems/cinematic_command_executor.gd")
-const SpawnableEntityHandler: GDScript = preload("res://core/systems/cinematic_spawners/spawnable_entity_handler.gd")
+const CinematicData = preload("res://core/resources/cinematic_data.gd")
+const CinematicActor = preload("res://core/components/cinematic_actor.gd")
+const CinematicCommandExecutor = preload("res://core/systems/cinematic_command_executor.gd")
+const SpawnableEntityHandler = preload("res://core/systems/cinematic_spawners/spawnable_entity_handler.gd")
 
 ## Cinematic execution states
 enum State {
@@ -211,28 +211,28 @@ func get_all_command_metadata() -> Dictionary:
 ## Called during _ready() to set up the command registry
 func _register_built_in_commands() -> void:
 	# Load all executor scripts
-	const WaitExecutor: GDScript = preload("res://core/systems/cinematic_commands/wait_executor.gd")
-	const SetVariableExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_variable_executor.gd")
-	const DialogExecutor: GDScript = preload("res://core/systems/cinematic_commands/dialog_executor.gd")
-	const MoveEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/move_entity_executor.gd")
-	const SetFacingExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_facing_executor.gd")
-	const PlayAnimationExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_animation_executor.gd")
-	const CameraMoveExecutor: GDScript = preload("res://core/systems/cinematic_commands/camera_move_executor.gd")
-	const CameraFollowExecutor: GDScript = preload("res://core/systems/cinematic_commands/camera_follow_executor.gd")
-	const CameraShakeExecutor: GDScript = preload("res://core/systems/cinematic_commands/camera_shake_executor.gd")
-	const FadeScreenExecutor: GDScript = preload("res://core/systems/cinematic_commands/fade_screen_executor.gd")
-	const PlaySoundExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_sound_executor.gd")
-	const PlayMusicExecutor: GDScript = preload("res://core/systems/cinematic_commands/play_music_executor.gd")
-	const SpawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
-	const DespawnEntityExecutor: GDScript = preload("res://core/systems/cinematic_commands/despawn_entity_executor.gd")
-	const OpenShopExecutor: GDScript = preload("res://core/systems/cinematic_commands/open_shop_executor.gd")
-	const AddPartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/add_party_member_executor.gd")
-	const RemovePartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/remove_party_member_executor.gd")
-	const RejoinPartyMemberExecutor: GDScript = preload("res://core/systems/cinematic_commands/rejoin_party_member_executor.gd")
-	const SetCharacterStatusExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_character_status_executor.gd")
-	const GrantItemsExecutor: GDScript = preload("res://core/systems/cinematic_commands/grant_items_executor.gd")
-	const ChangeSceneExecutor: GDScript = preload("res://core/systems/cinematic_commands/change_scene_executor.gd")
-	const SetBackdropExecutor: GDScript = preload("res://core/systems/cinematic_commands/set_backdrop_executor.gd")
+	const WaitExecutor = preload("res://core/systems/cinematic_commands/wait_executor.gd")
+	const SetVariableExecutor = preload("res://core/systems/cinematic_commands/set_variable_executor.gd")
+	const DialogExecutor = preload("res://core/systems/cinematic_commands/dialog_executor.gd")
+	const MoveEntityExecutor = preload("res://core/systems/cinematic_commands/move_entity_executor.gd")
+	const SetFacingExecutor = preload("res://core/systems/cinematic_commands/set_facing_executor.gd")
+	const PlayAnimationExecutor = preload("res://core/systems/cinematic_commands/play_animation_executor.gd")
+	const CameraMoveExecutor = preload("res://core/systems/cinematic_commands/camera_move_executor.gd")
+	const CameraFollowExecutor = preload("res://core/systems/cinematic_commands/camera_follow_executor.gd")
+	const CameraShakeExecutor = preload("res://core/systems/cinematic_commands/camera_shake_executor.gd")
+	const FadeScreenExecutor = preload("res://core/systems/cinematic_commands/fade_screen_executor.gd")
+	const PlaySoundExecutor = preload("res://core/systems/cinematic_commands/play_sound_executor.gd")
+	const PlayMusicExecutor = preload("res://core/systems/cinematic_commands/play_music_executor.gd")
+	const SpawnEntityExecutor = preload("res://core/systems/cinematic_commands/spawn_entity_executor.gd")
+	const DespawnEntityExecutor = preload("res://core/systems/cinematic_commands/despawn_entity_executor.gd")
+	const OpenShopExecutor = preload("res://core/systems/cinematic_commands/open_shop_executor.gd")
+	const AddPartyMemberExecutor = preload("res://core/systems/cinematic_commands/add_party_member_executor.gd")
+	const RemovePartyMemberExecutor = preload("res://core/systems/cinematic_commands/remove_party_member_executor.gd")
+	const RejoinPartyMemberExecutor = preload("res://core/systems/cinematic_commands/rejoin_party_member_executor.gd")
+	const SetCharacterStatusExecutor = preload("res://core/systems/cinematic_commands/set_character_status_executor.gd")
+	const GrantItemsExecutor = preload("res://core/systems/cinematic_commands/grant_items_executor.gd")
+	const ChangeSceneExecutor = preload("res://core/systems/cinematic_commands/change_scene_executor.gd")
+	const SetBackdropExecutor = preload("res://core/systems/cinematic_commands/set_backdrop_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -263,9 +263,9 @@ func _register_built_in_commands() -> void:
 ## Register all built-in spawnable entity types
 ## Called during _ready() to set up the spawnable registry
 func _register_built_in_spawnable_types() -> void:
-	const CharacterSpawnHandler: GDScript = preload("res://core/systems/cinematic_spawners/character_spawn_handler.gd")
-	const InteractableSpawnHandler: GDScript = preload("res://core/systems/cinematic_spawners/interactable_spawn_handler.gd")
-	const NPCSpawnHandler: GDScript = preload("res://core/systems/cinematic_spawners/npc_spawn_handler.gd")
+	const CharacterSpawnHandler = preload("res://core/systems/cinematic_spawners/character_spawn_handler.gd")
+	const InteractableSpawnHandler = preload("res://core/systems/cinematic_spawners/interactable_spawn_handler.gd")
+	const NPCSpawnHandler = preload("res://core/systems/cinematic_spawners/npc_spawn_handler.gd")
 
 	register_spawnable_type(CharacterSpawnHandler.new())
 	register_spawnable_type(InteractableSpawnHandler.new())
@@ -384,7 +384,7 @@ func play_cinematic(cinematic_id: String) -> bool:
 		return false
 
 	# Look up cinematic in ModRegistry
-	var cinematic: CinematicData = ModLoader.registry.get_resource("cinematic", cinematic_id) as CinematicData
+	var cinematic: CinematicData = ModLoader.registry.get_cinematic(cinematic_id)
 	if not cinematic:
 		push_error("CinematicsManager: Cinematic '%s' not found in ModRegistry" % cinematic_id)
 		return false
@@ -688,7 +688,7 @@ func _generate_auto_cinematic(cinematic_id: String) -> CinematicData:
 	var shop_id: String = content.substr(delimiter_pos + 2)  # Skip "::"
 
 	# Look up the NPC data
-	var npc_data: NPCData = ModLoader.registry.get_resource("npc", npc_id) as NPCData
+	var npc_data: NPCData = ModLoader.registry.get_npc(npc_id)
 	if not npc_data:
 		push_error("CinematicsManager: NPC '%s' not found for auto-cinematic" % npc_id)
 		return null
@@ -943,7 +943,7 @@ func play_inline_cinematic(commands: Array, cinematic_id: String = "") -> bool:
 # =============================================================================
 
 ## Preload InteractableData for type access
-const InteractableDataScript: GDScript = preload("res://core/resources/interactable_data.gd")
+const InteractableDataScript = preload("res://core/resources/interactable_data.gd")
 
 ## Generate auto-cinematic for interactable objects (chests, bookshelves, etc.)
 ## Format: __auto_interactable__{interactable_id}
@@ -956,7 +956,7 @@ func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicDat
 		return null
 
 	# Look up the interactable data
-	var interactable_resource: InteractableData = ModLoader.registry.get_resource("interactable", interactable_id) as InteractableData
+	var interactable_resource: InteractableData = ModLoader.registry.get_interactable(interactable_id)
 	if not interactable_resource:
 		push_error("CinematicsManager: Interactable '%s' not found for auto-cinematic" % interactable_id)
 		return null

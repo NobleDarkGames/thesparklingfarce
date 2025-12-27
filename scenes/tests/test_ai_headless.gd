@@ -7,8 +7,8 @@
 ## Note: For manual interactive testing, use mods/_sandbox/scenes/test_xp_system.tscn
 extends Node2D
 
-const UnitScript: GDScript = preload("res://core/components/unit.gd")
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitScript = preload("res://core/components/unit.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 var _test_complete: bool = false
 var _turn_count: int = 0

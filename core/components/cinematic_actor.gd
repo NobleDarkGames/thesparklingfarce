@@ -1,7 +1,7 @@
 class_name CinematicActor
 extends Node
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+const FacingUtils = preload("res://core/utils/facing_utils.gd")
 
 ## Component that makes an entity controllable during cinematics.
 ## Attach this to any CharacterBody2D, Unit, or NPC to allow scripted control.

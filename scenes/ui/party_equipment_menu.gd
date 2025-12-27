@@ -439,7 +439,7 @@ func _on_close_pressed() -> void:
 
 func _on_item_use_requested(item_id: String, _inventory_index: int) -> void:
 	# Handle USE action - apply consumable effect to target
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	if not item_data:
 		_footer_label.text = "Unknown item!"
 		return
@@ -516,7 +516,7 @@ func _on_item_give_requested(item_id: String, _inventory_index: int) -> void:
 
 func _on_item_dropped(item_id: String) -> void:
 	# Handle item dropped notification
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	var item_name: String = item_data.item_name if item_data else item_id
 	_footer_label.text = "Dropped %s" % item_name
 	# Disable action buttons since no item is selected

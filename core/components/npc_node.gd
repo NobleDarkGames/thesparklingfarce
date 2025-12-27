@@ -2,7 +2,7 @@
 class_name NPCNode
 extends Area2D
 
-const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
+const FacingUtils = preload("res://core/utils/facing_utils.gd")
 
 ## NPCNode - A map entity that players can interact with.
 ## When the player presses the interact button facing this NPC,
@@ -22,7 +22,7 @@ const FacingUtils: GDScript = preload("res://core/utils/facing_utils.gd")
 ## Cinematics can still move it via its CinematicActor child.
 
 ## Preload CinematicActor script for child creation
-const CinematicActorScript: GDScript = preload("res://core/components/cinematic_actor.gd")
+const CinematicActorScript = preload("res://core/components/cinematic_actor.gd")
 
 ## The NPC data resource defining this NPC's behavior
 @export var npc_data: NPCData:

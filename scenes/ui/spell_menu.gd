@@ -385,7 +385,8 @@ func _input(event: InputEvent) -> void:
 
 	# Mouse click on menu items
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
 			for i: int in range(_spell_labels.size()):
 				var label: Label = _spell_labels[i]

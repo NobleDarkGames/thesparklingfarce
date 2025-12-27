@@ -136,7 +136,7 @@ func _load_resource_data() -> void:
 
 	# Crafter
 	if crafter_picker and not shop.crafter_id.is_empty():
-		var crafter_res: Resource = ModLoader.registry.get_resource("crafter", shop.crafter_id) if ModLoader and ModLoader.registry else null
+		var crafter_res: CrafterData = ModLoader.registry.get_crafter(shop.crafter_id) if ModLoader and ModLoader.registry else null
 		if crafter_res:
 			crafter_picker.select_resource(crafter_res)
 		else:
@@ -679,8 +679,7 @@ func _refresh_deals_list() -> void:
 
 
 func _get_item_name(item_id: String) -> String:
-	for item: Resource in _items_cache:
-		var item_data: ItemData = item as ItemData
+	for item_data: ItemData in _items_cache:
 		if item_data:
 			var res_id: String = _get_item_id(item_data)
 			if res_id == item_id:
@@ -696,8 +695,7 @@ func _get_item_id(item: ItemData) -> String:
 
 
 func _item_exists(item_id: String) -> bool:
-	for item: Resource in _items_cache:
-		var item_data: ItemData = item as ItemData
+	for item_data: ItemData in _items_cache:
 		if item_data:
 			var res_id: String = _get_item_id(item_data)
 			if res_id == item_id:

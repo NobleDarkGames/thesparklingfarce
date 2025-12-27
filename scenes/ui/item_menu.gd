@@ -240,7 +240,7 @@ func _load_inventory_from_unit(unit: Unit) -> void:
 		if item_id.is_empty():
 			_item_data_cache.append(null)
 		else:
-			var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+			var item: ItemData = ModLoader.registry.get_item(item_id)
 			_item_data_cache.append(item)
 
 
@@ -426,7 +426,8 @@ func _input(event: InputEvent) -> void:
 
 	# Mouse click on menu items
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
 			for i: int in range(_item_labels.size()):
 				var label: Label = _item_labels[i]

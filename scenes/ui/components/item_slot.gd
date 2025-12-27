@@ -149,7 +149,7 @@ func set_item(new_item_id: String, is_cursed: bool = false) -> void:
 	_item_data = null
 
 	if not item_id.is_empty():
-		_item_data = ModLoader.registry.get_resource("item", item_id) as ItemData
+		_item_data = ModLoader.registry.get_item(item_id)
 
 	_update_visuals()
 

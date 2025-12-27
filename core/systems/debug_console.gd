@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 ## DebugConsole - Quake-style dropdown debug console for developer testing
 ##
@@ -102,19 +102,24 @@ func _input(event: InputEvent) -> void:
 	# Toggle console with multiple key options (must check in _input to catch before game)
 	# Debug console is a developer tool - it should ALWAYS be accessible,
 	# regardless of modal UI state (shop, dialog, etc.)
-	if event is InputEventKey and event.pressed:
-		var key: int = event.keycode if event.keycode != 0 else event.physical_keycode
-		if key in [KEY_F12, KEY_QUOTELEFT]:
-			_toggle_console()
-			get_viewport().set_input_as_handled()
-			return
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if key_event.pressed:
+			var key: int = key_event.keycode if key_event.keycode != 0 else key_event.physical_keycode
+			if key in [KEY_F12, KEY_QUOTELEFT]:
+				_toggle_console()
+				get_viewport().set_input_as_handled()
+				return
 
 	# When console is open, block ALL input from reaching game systems
 	# The LineEdit handles its own input via _gui_input which we don't interfere with
 	if is_open:
-		if event is InputEventKey and event.pressed:
+		if event is InputEventKey:
+			var key_event: InputEventKey = event
+			if not key_event.pressed:
+				return
 			# ESC closes console (takes priority over LineEdit)
-			if event.keycode == KEY_ESCAPE:
+			if key_event.keycode == KEY_ESCAPE:
 				_close_console()
 				get_viewport().set_input_as_handled()
 				return
@@ -122,11 +127,11 @@ func _input(event: InputEvent) -> void:
 			# Command history navigation (Up/Down arrows)
 			# Only intercept if LineEdit has focus (otherwise let normal navigation work)
 			if input_line and input_line.has_focus():
-				if event.keycode == KEY_UP:
+				if key_event.keycode == KEY_UP:
 					_navigate_history(-1)
 					get_viewport().set_input_as_handled()
 					return
-				elif event.keycode == KEY_DOWN:
+				elif key_event.keycode == KEY_DOWN:
 					_navigate_history(1)
 					get_viewport().set_input_as_handled()
 					return
@@ -576,7 +581,7 @@ func _cmd_party_add(args: Array) -> void:
 	var char_id: String = str(args[0])
 
 	# Look up character in registry
-	var character: CharacterData = ModLoader.registry.get_resource("character", char_id) as CharacterData
+	var character: CharacterData = ModLoader.registry.get_character(char_id)
 	if not character:
 		_print_error("Character not found in registry: %s" % char_id)
 		return
@@ -999,7 +1004,7 @@ func _cmd_debug_shop(args: Array) -> void:
 	var shop_id: String = str(args[0])
 
 	# Look up shop in registry
-	var shop_data: ShopData = ModLoader.registry.get_resource("shop", shop_id) as ShopData
+	var shop_data: ShopData = ModLoader.registry.get_shop(shop_id)
 	if not shop_data:
 		_print_error("Shop not found: %s" % shop_id)
 		_print_info("Use debug.list_shops to see available shops")
@@ -1018,15 +1023,17 @@ func _cmd_debug_shop(args: Array) -> void:
 	_print_success("Opened shop: %s" % shop_data.shop_name)
 
 
-func _cmd_debug_list_shops(args: Array) -> void:
-	var shops: Array[Resource] = ModLoader.registry.get_all_resources("shop")
+func _cmd_debug_list_shops(_args: Array) -> void:
+	var shops: Array[ShopData] = []
+	for res: ShopData in ModLoader.registry.get_all_resources("shop"):
+		if res:
+			shops.append(res)
 	if shops.is_empty():
 		_print_info("No shops registered")
 		return
 
 	_print_info("=== Available Shops (%d) ===" % shops.size())
-	for res: Resource in shops:
-		var shop: ShopData = res as ShopData
+	for shop: ShopData in shops:
 		if shop:
 			var type_str: String = ShopData.ShopType.keys()[shop.shop_type]
 			_print_line("  %s - %s [%s]" % [shop.shop_id, shop.shop_name, type_str])

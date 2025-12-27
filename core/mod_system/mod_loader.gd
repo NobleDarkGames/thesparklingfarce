@@ -44,26 +44,26 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "campaign", "map"]
 
 # Preload loaders for JSON resources
-const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
-const CampaignLoader: GDScript = preload("res://core/systems/campaign_loader.gd")
-const MapMetadataLoader: GDScript = preload("res://core/systems/map_metadata_loader.gd")
+const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
+const CampaignLoader = preload("res://core/systems/campaign_loader.gd")
+const MapMetadataLoader = preload("res://core/systems/map_metadata_loader.gd")
 
 # Preload resource classes needed before class_name is available
-const NewGameConfigDataClass: GDScript = preload("res://core/resources/new_game_config_data.gd")
+const NewGameConfigDataClass = preload("res://core/resources/new_game_config_data.gd")
 
 # Preload type registry classes
-const EquipmentRegistryClass: GDScript = preload("res://core/registries/equipment_registry.gd")
-const UnitCategoryRegistryClass: GDScript = preload("res://core/registries/unit_category_registry.gd")
-const AnimationOffsetRegistryClass: GDScript = preload("res://core/registries/animation_offset_registry.gd")
-const TriggerTypeRegistryClass: GDScript = preload("res://core/registries/trigger_type_registry.gd")
-const TerrainRegistryClass: GDScript = preload("res://core/registries/terrain_registry.gd")
-const EquipmentSlotRegistryClass: GDScript = preload("res://core/registries/equipment_slot_registry.gd")
-const EquipmentTypeRegistryClass: GDScript = preload("res://core/registries/equipment_type_registry.gd")
-const InventoryConfigClass: GDScript = preload("res://core/systems/inventory_config.gd")
-const AIBrainRegistryClass: GDScript = preload("res://core/registries/ai_brain_registry.gd")
-const TilesetRegistryClass: GDScript = preload("res://core/registries/tileset_registry.gd")
-const AIModeRegistryClass: GDScript = preload("res://core/registries/ai_mode_registry.gd")
-const StatusEffectRegistryClass: GDScript = preload("res://core/registries/status_effect_registry.gd")
+const EquipmentRegistryClass = preload("res://core/registries/equipment_registry.gd")
+const UnitCategoryRegistryClass = preload("res://core/registries/unit_category_registry.gd")
+const AnimationOffsetRegistryClass = preload("res://core/registries/animation_offset_registry.gd")
+const TriggerTypeRegistryClass = preload("res://core/registries/trigger_type_registry.gd")
+const TerrainRegistryClass = preload("res://core/registries/terrain_registry.gd")
+const EquipmentSlotRegistryClass = preload("res://core/registries/equipment_slot_registry.gd")
+const EquipmentTypeRegistryClass = preload("res://core/registries/equipment_type_registry.gd")
+const InventoryConfigClass = preload("res://core/systems/inventory_config.gd")
+const AIBrainRegistryClass = preload("res://core/registries/ai_brain_registry.gd")
+const TilesetRegistryClass = preload("res://core/registries/tileset_registry.gd")
+const AIModeRegistryClass = preload("res://core/registries/ai_mode_registry.gd")
+const StatusEffectRegistryClass = preload("res://core/registries/status_effect_registry.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -1213,10 +1213,9 @@ func _find_hero_character() -> CharacterData:
 
 	# Build a lookup of character resource_id -> CharacterData for heroes
 	var hero_candidates: Array[Dictionary] = []
-	for resource: Resource in all_characters:
-		if not resource is CharacterData:
+	for character: CharacterData in all_characters:
+		if not character:
 			continue
-		var character: CharacterData = resource
 		if character.is_hero and character.unit_category == "player":
 			# Get the resource ID from the resource path
 			var resource_id: String = character.resource_path.get_file().get_basename()
@@ -1266,10 +1265,9 @@ func _find_default_party_members() -> Array[CharacterData]:
 	var all_characters: Array[Resource] = registry.get_all_resources("character")
 	var cutoff_priority: int = _get_party_cutoff_priority()
 
-	for resource: Resource in all_characters:
-		if not resource is CharacterData:
+	for character: CharacterData in all_characters:
+		if not character:
 			continue
-		var character: CharacterData = resource
 		if character.is_default_party_member and character.unit_category == "player":
 			# If there's a cutoff, check the source mod's priority
 			if cutoff_priority >= 0:
@@ -1312,7 +1310,7 @@ func get_hidden_campaign_patterns() -> Array[String]:
 ##
 ## Override semantics: Higher-priority mods completely replace lower-priority configs.
 ## No merging - if you want specific starting conditions, define them all in your config.
-func get_new_game_config() -> Resource:  # Returns NewGameConfigData
+func get_new_game_config() -> NewGameConfigData:
 	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
 	if all_configs.is_empty():
 		print("[DEBUG] get_new_game_config: No configs found in registry")
@@ -1322,17 +1320,17 @@ func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 
 	# Build list of default configs with their source mod priorities
 	var default_configs: Array[Dictionary] = []
-	for resource: Resource in all_configs:
-		if resource.get_script() == NewGameConfigDataClass and resource.is_default:
-			var resource_id: String = resource.resource_path.get_file().get_basename()
+	for config: NewGameConfigData in all_configs:
+		if config and config.is_default:
+			var resource_id: String = config.resource_path.get_file().get_basename()
 			var source_mod_id: String = registry.get_resource_source(resource_id)
 			var source_mod: ModManifest = get_mod(source_mod_id)
 			var priority: int = source_mod.load_priority if source_mod else 0
 			print("[DEBUG]   Config '%s': resource_id='%s', source_mod='%s', priority=%d" % [
-				resource.config_id, resource_id, source_mod_id, priority
+				config.config_id, resource_id, source_mod_id, priority
 			])
 			default_configs.append({
-				"config": resource,
+				"config": config,
 				"mod_id": source_mod_id,
 				"priority": priority
 			})
@@ -1341,23 +1339,23 @@ func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 		# No default configs found, try returning any config from highest-priority mod
 		for i: int in range(loaded_mods.size() - 1, -1, -1):
 			var manifest: ModManifest = loaded_mods[i]
-			for resource: Resource in all_configs:
-				if resource.get_script() == NewGameConfigDataClass:
-					var resource_id: String = resource.resource_path.get_file().get_basename()
+			for config: NewGameConfigData in all_configs:
+				if config:
+					var resource_id: String = config.resource_path.get_file().get_basename()
 					var source_mod_id: String = registry.get_resource_source(resource_id)
 					if source_mod_id == manifest.mod_id:
-						return resource
+						return config
 		return null
 
 	# Find the default config from the highest-priority mod
-	var best_config: Resource = null
+	var best_config: NewGameConfigData = null
 	var best_priority: int = -1
 	for entry: Dictionary in default_configs:
 		var entry_priority: int = DictUtils.get_int(entry, "priority", 0)
 		if entry_priority > best_priority:
 			best_priority = entry_priority
 			var config_value: Variant = entry.get("config")
-			best_config = config_value if config_value is Resource else null
+			best_config = config_value if config_value is NewGameConfigData else null
 
 	print("[DEBUG] get_new_game_config: Selected config with priority %d: %s" % [
 		best_priority,
@@ -1369,18 +1367,18 @@ func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 ## Get a specific NewGameConfigData by config_id
 ## Searches all loaded mods, returning the config from the highest-priority mod
 ## that has a matching config_id
-func get_new_game_config_by_id(config_id: String) -> Resource:  # Returns NewGameConfigData
+func get_new_game_config_by_id(config_id: String) -> NewGameConfigData:
 	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
 
 	var matching_configs: Array[Dictionary] = []
-	for resource: Resource in all_configs:
-		if resource.get_script() == NewGameConfigDataClass and resource.config_id == config_id:
-			var resource_id: String = resource.resource_path.get_file().get_basename()
+	for config: NewGameConfigData in all_configs:
+		if config and config.config_id == config_id:
+			var resource_id: String = config.resource_path.get_file().get_basename()
 			var source_mod_id: String = registry.get_resource_source(resource_id)
 			var source_mod: ModManifest = get_mod(source_mod_id)
 			var priority: int = source_mod.load_priority if source_mod else 0
 			matching_configs.append({
-				"config": resource,
+				"config": config,
 				"priority": priority
 			})
 
@@ -1388,26 +1386,26 @@ func get_new_game_config_by_id(config_id: String) -> Resource:  # Returns NewGam
 		return null
 
 	# Return the config from the highest-priority mod
-	var best_config: Resource = null
+	var best_config: NewGameConfigData = null
 	var best_priority: int = -1
 	for entry: Dictionary in matching_configs:
 		var entry_priority: int = DictUtils.get_int(entry, "priority", 0)
 		if entry_priority > best_priority:
 			best_priority = entry_priority
 			var config_value: Variant = entry.get("config")
-			best_config = config_value if config_value is Resource else null
+			best_config = config_value if config_value is NewGameConfigData else null
 
 	return best_config
 
 
 ## Get all available NewGameConfigData resources
 ## Returns configs from all mods, useful for a "game mode" selection UI
-func get_all_new_game_configs() -> Array[Resource]:  # Returns Array of NewGameConfigData
+func get_all_new_game_configs() -> Array[NewGameConfigData]:
 	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
-	var result: Array[Resource] = []
+	var result: Array[NewGameConfigData] = []
 
-	for resource: Resource in all_configs:
-		if resource.get_script() == NewGameConfigDataClass:
-			result.append(resource)
+	for config: NewGameConfigData in all_configs:
+		if config:
+			result.append(config)
 
 	return result

@@ -11,7 +11,7 @@
 ## - All relevant signals firing correctly
 extends Node2D
 
-const UnitScript: GDScript = preload("res://core/components/unit.gd")
+const UnitScript = preload("res://core/components/unit.gd")
 
 # Test state tracking
 var _test_complete: bool = false

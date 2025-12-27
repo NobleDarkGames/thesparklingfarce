@@ -123,33 +123,36 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 
-	if event is InputEventKey and event.pressed:
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if not key_event.pressed:
+			return
 		# Ctrl+S: Save
-		if event.ctrl_pressed and event.keycode == KEY_S:
+		if key_event.ctrl_pressed and key_event.keycode == KEY_S:
 			get_viewport().set_input_as_handled()
 			_on_save()
 		# Ctrl+N: Create new
-		elif event.ctrl_pressed and event.keycode == KEY_N:
+		elif key_event.ctrl_pressed and key_event.keycode == KEY_N:
 			get_viewport().set_input_as_handled()
 			_on_create_new()
 		# Ctrl+F: Focus search filter
-		elif event.ctrl_pressed and event.keycode == KEY_F:
+		elif key_event.ctrl_pressed and key_event.keycode == KEY_F:
 			get_viewport().set_input_as_handled()
 			if search_filter:
 				search_filter.grab_focus()
 				search_filter.select_all()
 		# Ctrl+D: Duplicate selected resource
-		elif event.ctrl_pressed and event.keycode == KEY_D:
+		elif key_event.ctrl_pressed and key_event.keycode == KEY_D:
 			get_viewport().set_input_as_handled()
 			_on_duplicate_resource()
 		# Delete: Delete selected resource (with confirmation)
-		elif event.keycode == KEY_DELETE and not event.ctrl_pressed:
+		elif key_event.keycode == KEY_DELETE and not key_event.ctrl_pressed:
 			# Only if list has focus and not editing text
 			if resource_list and resource_list.has_focus():
 				get_viewport().set_input_as_handled()
 				_on_delete()
 		# Escape: Clear search filter
-		elif event.keycode == KEY_ESCAPE:
+		elif key_event.keycode == KEY_ESCAPE:
 			if search_filter and not search_filter.text.is_empty():
 				get_viewport().set_input_as_handled()
 				search_filter.text = ""

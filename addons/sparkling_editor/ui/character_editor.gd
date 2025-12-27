@@ -1194,7 +1194,7 @@ func _refresh_inventory_list_display() -> void:
 		var display_name: String = item_id
 		var item: ItemData = null
 		if ModLoader and ModLoader.registry:
-			item = ModLoader.registry.get_resource("item", item_id) as ItemData
+			item = ModLoader.registry.get_item(item_id)
 			if item:
 				display_name = item.item_name if not item.item_name.is_empty() else item_id
 

@@ -150,7 +150,8 @@ func get_threat_weight(key: String, default: float = 1.0) -> float:
 	if value is float:
 		return value
 	if value is int:
-		return float(value)
+		var int_val: int = value
+		return float(int_val)
 	return default
 
 
@@ -204,7 +205,8 @@ func _is_phase_active(phase: Dictionary, context: Dictionary) -> bool:
 	if value is float:
 		value_float = value
 	elif value is int:
-		value_float = float(value)
+		var int_val: int = value
+		value_float = float(int_val)
 	elif value != null:
 		value_float = 0.0
 	var value_int: int = int(value_float)

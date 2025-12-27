@@ -107,7 +107,7 @@ func _grant_single_item(item_id: String, recipient_uid: String) -> Dictionary:
 ## Get display name for an item
 func _get_item_display_name(item_id: String) -> String:
 	if ModLoader and ModLoader.registry:
-		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item: ItemData = ModLoader.registry.get_item(item_id)
 		if item and "item_name" in item:
 			return item.item_name
 	return item_id

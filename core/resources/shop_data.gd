@@ -331,6 +331,6 @@ func _get_item_data(item_id: String) -> ItemData:
 		var scene_tree: SceneTree = main_loop as SceneTree
 		mod_loader = scene_tree.root.get_node_or_null("/root/ModLoader")
 	if mod_loader and "registry" in mod_loader:
-		return mod_loader.registry.get_resource("item", item_id) as ItemData
+		return mod_loader.registry.get_item(item_id)
 	# Fallback for editor preview
 	return null

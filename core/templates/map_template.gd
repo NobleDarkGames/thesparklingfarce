@@ -43,10 +43,9 @@ const MAX_VISIBLE_FOLLOWERS: int = 3
 # PRELOADED SCRIPTS
 # =============================================================================
 
-const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
-const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
-const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
-const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd")
+const MapCameraScript = preload("res://scenes/map_exploration/map_camera.gd")
+const PartyFollowerScript = preload("res://scenes/map_exploration/party_follower.gd")
+const SpawnPointScript = preload("res://core/components/spawn_point.gd")
 const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
 const ChoiceSelectorScene: PackedScene = preload("res://scenes/ui/choice_selector.tscn")
 
@@ -60,7 +59,7 @@ const DEFAULT_FRAME_SIZE: Vector2i = Vector2i(32, 32)
 # =============================================================================
 
 ## The player character - dynamically created from PartyManager
-var hero: CharacterBody2D = null
+var hero: HeroController = null
 
 ## Camera that follows the hero
 @onready var camera: Camera2D = $MapCamera
@@ -75,7 +74,7 @@ var hero: CharacterBody2D = null
 var ui_layer: CanvasLayer = null
 
 ## Dialog box for NPC conversations
-var dialog_box: Control = null
+var dialog_box: DialogBox = null
 
 ## Party data loaded from PartyManager
 var party_characters: Array[CharacterData] = []
@@ -117,7 +116,7 @@ func _ready() -> void:
 	_setup_party_followers()
 
 	# CRITICAL: Handle transitions (restores hero position after battle/door)
-	var context: RefCounted = GameState.get_transition_context()
+	var context: TransitionContext = GameState.get_transition_context()
 	if context:
 		await _handle_transition_context(context)
 	else:
@@ -142,7 +141,7 @@ func _ready() -> void:
 
 ## Handles all transition types: battle returns and door transitions
 ## Uses spawn_point_id if provided, otherwise falls back to position restoration
-func _handle_transition_context(context: RefCounted) -> void:
+func _handle_transition_context(context: TransitionContext) -> void:
 	_debug_print("MapTemplate: Handling transition context...")
 
 	# Wait one frame for hero to be fully initialized
@@ -194,7 +193,7 @@ func _handle_transition_context(context: RefCounted) -> void:
 ## Returns true if spawn point was found and hero was teleported
 func _spawn_at_point(spawn_id: String) -> bool:
 	# Find spawn point in scene tree
-	var spawn_point: Node = SpawnPointScript.find_by_id(self, spawn_id)
+	var spawn_point: SpawnPoint = SpawnPointScript.find_by_id(self, spawn_id)
 
 	if spawn_point:
 		if hero and hero.has_method("teleport_to_grid"):
@@ -211,7 +210,7 @@ func _spawn_at_point(spawn_id: String) -> bool:
 
 ## Spawns hero at the default spawn point (if one exists)
 func _spawn_at_default() -> void:
-	var default_spawn: Node = SpawnPointScript.find_default(self)
+	var default_spawn: SpawnPoint = SpawnPointScript.find_default(self)
 
 	if default_spawn:
 		if hero and hero.has_method("teleport_to_grid"):
@@ -236,7 +235,7 @@ func _spawn_at_default() -> void:
 ## @deprecated Subclasses should use _handle_transition_context() directly.
 ## This function is kept for backwards compatibility with existing map subclasses.
 func _restore_from_battle() -> void:
-	var context: RefCounted = GameState.get_transition_context()
+	var context: TransitionContext = GameState.get_transition_context()
 	if context:
 		await _handle_transition_context(context)
 	else:
@@ -266,7 +265,7 @@ func _load_party() -> void:
 	else:
 		push_warning("MapTemplate: PartyManager is empty! Loading fallback test party...")
 		# Fallback: try to load a character from ModRegistry
-		var hero_char: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+		var hero_char: CharacterData = ModLoader.registry.get_character("character_1763762722")
 		if hero_char:
 			party_characters.append(hero_char)
 			_debug_print("  Loaded fallback hero: %s" % hero_char.character_name)
@@ -285,8 +284,7 @@ func _create_hero() -> void:
 
 	var hero_data: CharacterData = party_characters[0]
 
-	hero = CharacterBody2D.new()
-	hero.set_script(HeroControllerScript)
+	hero = HeroController.new()
 	hero.name = "Hero"
 	hero.z_index = 100  # Hero on top of all party members
 	hero.add_to_group("hero")  # Required for MapTrigger detection
@@ -362,12 +360,12 @@ func _setup_dialog_box() -> void:
 	add_child(ui_layer)
 
 	# Instantiate dialog box
-	dialog_box = DialogBoxScene.instantiate()
+	dialog_box = DialogBoxScene.instantiate() as DialogBox
 	dialog_box.hide()  # Start hidden
 	ui_layer.add_child(dialog_box)
 
 	# Instantiate choice selector (for campaign choices, dialog choices, etc.)
-	var choice_selector: Control = ChoiceSelectorScene.instantiate()
+	var choice_selector: ChoiceSelector = ChoiceSelectorScene.instantiate() as ChoiceSelector
 	choice_selector.hide()  # Start hidden - will show when choices_ready emits
 	ui_layer.add_child(choice_selector)
 
@@ -689,8 +687,7 @@ func _get_current_map_metadata() -> MapMetadata:
 
 	# Get all map metadata and find one matching this scene
 	var all_maps: Array[Resource] = ModLoader.registry.get_all_resources("map")
-	for map_resource: Resource in all_maps:
-		var map_meta: MapMetadata = map_resource as MapMetadata
+	for map_meta: MapMetadata in all_maps:
 		if map_meta and map_meta.scene_path == scene_file_path:
 			return map_meta
 
@@ -802,6 +799,7 @@ func _input(event: InputEvent) -> void:
 
 	# Debug teleport (T key)
 	if DEBUG_VERBOSE and event is InputEventKey:
-		if event.pressed and event.keycode == KEY_T and hero:
+		var key_event: InputEventKey = event
+		if key_event.pressed and key_event.keycode == KEY_T and hero:
 			hero.teleport_to_grid(Vector2i(5, 5))
 			_debug_print("MapTemplate: Debug teleported to (5, 5)")

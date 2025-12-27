@@ -178,7 +178,7 @@ func get_depot_contents_grouped() -> Dictionary:
 	var grouped: Dictionary = {}
 
 	for item_id: String in _depot_items:
-		var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item_data: ItemData = ModLoader.registry.get_item(item_id)
 		var item_type_name: String = "unknown"
 
 		if item_data:
@@ -362,8 +362,11 @@ func reset() -> void:
 func load_config_from_manifest(mod_id: String, config: Dictionary) -> void:
 	if "capacity" in config:
 		var cap: Variant = config.capacity
-		if cap is int or cap is float:
-			capacity_limit = int(cap)
+		if cap is int:
+			capacity_limit = cap
+		elif cap is float:
+			var float_cap: float = cap
+			capacity_limit = int(float_cap)
 
 	# Future: Add more caravan config options here
 	# - accessible_in_battle: bool

@@ -24,14 +24,12 @@ const XP_MINIMUM_MULTIPLIER: float = 0.5
 
 # Active custom formula (set by BattleManager when battle starts)
 # If null, default formulas are used
-# Note: Uses RefCounted to avoid circular dependency with CombatFormulaBase
-static var _active_formula: RefCounted = null
+static var _active_formula: CombatFormulaBase = null
 
 
 ## Set the active combat formula (called by BattleManager on battle start)
 ## Pass null to use default formulas
-## The formula should extend CombatFormulaBase
-static func set_active_formula(formula: RefCounted) -> void:
+static func set_active_formula(formula: CombatFormulaBase) -> void:
 	_active_formula = formula
 
 
@@ -87,7 +85,7 @@ static func _calculate_physical_damage_default(attacker_stats: UnitStats, defend
 static func calculate_magic_damage(
 	attacker_stats: UnitStats,
 	defender_stats: UnitStats,
-	ability: Resource
+	ability: AbilityData
 ) -> int:
 	if _active_formula:
 		return _active_formula.calculate_magic_damage(attacker_stats, defender_stats, ability)
@@ -98,18 +96,13 @@ static func calculate_magic_damage(
 static func _calculate_magic_damage_default(
 	attacker_stats: UnitStats,
 	defender_stats: UnitStats,
-	ability: Resource
+	ability: AbilityData
 ) -> int:
 	if not attacker_stats or not defender_stats or not ability:
 		push_error("CombatCalculator: Cannot calculate magic damage with null parameters")
 		return 0
 
-	# Get ability potency (AbilityData uses 'potency' field)
-	var ability_power: int = 0
-	if "potency" in ability:
-		ability_power = ability.potency
-	else:
-		push_warning("CombatCalculator: Ability missing potency property")
+	var ability_power: int = ability.potency
 
 	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
@@ -190,24 +183,19 @@ static func roll_crit(crit_chance: int) -> bool:
 ## Formula: (Ability Power + Caster INT/2) * variance
 ## Returns: Minimum of 1 healing
 ## Note: Delegates to custom formula if one is active
-static func calculate_healing(caster_stats: UnitStats, ability: Resource) -> int:
+static func calculate_healing(caster_stats: UnitStats, ability: AbilityData) -> int:
 	if _active_formula:
 		return _active_formula.calculate_healing(caster_stats, ability)
 	return _calculate_healing_default(caster_stats, ability)
 
 
 ## Default healing formula
-static func _calculate_healing_default(caster_stats: UnitStats, ability: Resource) -> int:
+static func _calculate_healing_default(caster_stats: UnitStats, ability: AbilityData) -> int:
 	if not caster_stats or not ability:
 		push_error("CombatCalculator: Cannot calculate healing with null parameters")
 		return 0
 
-	# Get ability power (AbilityData uses 'power' field)
-	var ability_power: int = 0
-	if "power" in ability:
-		ability_power = ability.power
-	else:
-		push_warning("CombatCalculator: Healing ability missing power property")
+	var ability_power: int = ability.potency
 
 	@warning_ignore("integer_division")
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)

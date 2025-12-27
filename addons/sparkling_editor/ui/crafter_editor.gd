@@ -98,7 +98,7 @@ func _load_resource_data() -> void:
 
 	# Location
 	if not crafter.location_map_id.is_empty():
-		var map_res: Resource = ModLoader.registry.get_resource("map", crafter.location_map_id) if ModLoader and ModLoader.registry else null
+		var map_res: MapMetadata = ModLoader.registry.get_map(crafter.location_map_id) if ModLoader and ModLoader.registry else null
 		if map_res:
 			location_map_picker.select_resource(map_res)
 		else:
@@ -110,7 +110,7 @@ func _load_resource_data() -> void:
 
 	# NPC Link
 	if not crafter.character_id.is_empty():
-		var char_res: Resource = ModLoader.registry.get_resource("character", crafter.character_id) if ModLoader and ModLoader.registry else null
+		var char_res: CharacterData = ModLoader.registry.get_character(crafter.character_id) if ModLoader and ModLoader.registry else null
 		if char_res:
 			character_picker.select_resource(char_res)
 		else:

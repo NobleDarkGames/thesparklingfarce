@@ -107,7 +107,7 @@ func _setup_test_party() -> void:
 	var loaded_characters: Array[CharacterData] = []
 
 	for char_id: String in characters_to_load:
-		var char_data: CharacterData = ModLoader.registry.get_resource("character", char_id) as CharacterData
+		var char_data: CharacterData = ModLoader.registry.get_character(char_id)
 		if char_data:
 			loaded_characters.append(char_data)
 			print("Loaded character: ", char_data.character_name)
@@ -158,8 +158,7 @@ func _setup_test_items() -> void:
 	# Try to add any other available items from registry
 	var all_items: Array[Resource] = ModLoader.registry.get_all_resources("item")
 	var added_count: int = 0
-	for item_res: Resource in all_items:
-		var item: ItemData = item_res as ItemData
+	for item: ItemData in all_items:
 		if item and added_count < 5:
 			var item_id: String = item.resource_path.get_file().get_basename()
 			if item_id != "example_sword" and item_id != "power_ring" and item_id != "cursed_blade":
@@ -175,8 +174,10 @@ func _update_status(text: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		var key_event: InputEventKey = event as InputEventKey
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if not key_event.pressed or key_event.echo:
+			return
 
 		# Only process if no menu is open
 		if _party_menu.visible or _depot_panel.visible:

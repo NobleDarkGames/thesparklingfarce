@@ -58,25 +58,19 @@ func _refresh_character_cache() -> void:
 
 ## Get character by UID from cache
 func _get_character_by_uid(uid: String) -> CharacterData:
-	for char_res: Resource in _cached_characters:
-		# Use get() for safe property access in editor context
-		var res_uid: String = ""
-		if "character_uid" in char_res:
-			res_uid = str(char_res.get("character_uid"))
-		if res_uid == uid:
-			return char_res as CharacterData
+	for char_data: CharacterData in _cached_characters:
+		if not char_data:
+			continue
+		if char_data.character_uid == uid:
+			return char_data
 	return null
 
 
 ## Find character index in cache by UID (for dropdown selection)
 func _get_character_index_by_uid(uid: String) -> int:
-	for i in range(_cached_characters.size()):
-		var char_res: Resource = _cached_characters[i]
-		# Use get() for safe property access in editor context
-		var res_uid: String = ""
-		if "character_uid" in char_res:
-			res_uid = str(char_res.get("character_uid"))
-		if res_uid == uid:
+	for i: int in range(_cached_characters.size()):
+		var char_data: CharacterData = _cached_characters[i] as CharacterData
+		if char_data and char_data.character_uid == uid:
 			return i
 	return -1
 

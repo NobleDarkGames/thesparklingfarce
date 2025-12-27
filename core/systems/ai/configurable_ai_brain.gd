@@ -784,7 +784,7 @@ func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
 
 	# Find a matching consumable
 	for item_id: String in save_data.inventory:
-		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item: ItemData = ModLoader.registry.get_item(item_id)
 		if not item:
 			continue
 		if item.item_type != ItemData.ItemType.CONSUMABLE:

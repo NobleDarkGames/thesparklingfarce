@@ -31,13 +31,13 @@ signal unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increa
 ## Emitted when a unit learns a new ability.
 ## @param unit: The Unit that learned the ability
 ## @param ability: The AbilityData learned
-signal unit_learned_ability(unit: Node2D, ability: Resource)
+signal unit_learned_ability(unit: Node2D, ability: AbilityData)
 
 ## Emitted when a unit is promoted to a new class.
 ## @param unit: The Unit that was promoted
 ## @param old_class: Previous ClassData
 ## @param new_class: New ClassData
-signal unit_promoted(unit: Node2D, old_class: Resource, new_class: Resource)
+signal unit_promoted(unit: Node2D, old_class: ClassData, new_class: ClassData)
 
 
 # ============================================================================
@@ -82,9 +82,9 @@ func _load_config_from_registry() -> void:
 
 	# Try to load from mod registry
 	if ModLoader and ModLoader.registry:
-		var loaded_config: ExperienceConfig = ModLoader.registry.get_resource("experience_config", "default") as ExperienceConfig
-		if loaded_config is ExperienceConfig:
-			config = loaded_config
+		var resource: Resource = ModLoader.registry.get_resource("experience_config", "default")
+		if resource is ExperienceConfig:
+			config = resource
 			return
 
 	# Fallback: create default config if no mod provides one
@@ -400,7 +400,7 @@ func apply_level_up(unit: Unit) -> Dictionary:
 					unit.stats.luck += increase
 
 	# Check for ability learning (pass old_level to detect newly unlocked abilities)
-	var learned_abilities: Array[Resource] = _check_learned_abilities(unit, old_level, new_level, class_data)
+	var learned_abilities: Array[AbilityData] = _check_learned_abilities(unit, old_level, new_level, class_data)
 	if not learned_abilities.is_empty():
 		stat_increases["abilities"] = learned_abilities
 
@@ -433,8 +433,8 @@ func _calculate_stat_increase(growth_rate: int) -> int:
 ## @param new_level: New level reached
 ## @param class_data: ClassData with learnable abilities
 ## @return: Array of learned AbilityData
-func _check_learned_abilities(unit: Unit, old_level: int, new_level: int, class_data: ClassData) -> Array[Resource]:
-	var learned: Array[Resource] = []
+func _check_learned_abilities(unit: Unit, old_level: int, new_level: int, class_data: ClassData) -> Array[AbilityData]:
+	var learned: Array[AbilityData] = []
 
 	# ==========================================================================
 	# NEW SYSTEM: Check ability_unlock_levels (preferred)

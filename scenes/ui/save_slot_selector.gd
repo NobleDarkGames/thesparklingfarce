@@ -8,7 +8,7 @@ extends Control
 
 const HeroNameEntryScene: PackedScene = preload("res://scenes/ui/hero_name_entry.tscn")
 const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
-const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
+const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
 const NO_CAMPAIGN_ERROR_CINEMATIC: String = "res://core/defaults/cinematics/no_campaign_error.json"
 
 # Node references
@@ -193,7 +193,7 @@ func _start_new_game(hero_name: String) -> void:
 		var campaign_id: String = config.starting_campaign_id
 		if campaign_id.is_empty():
 			# Get first available campaign
-			var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
+			var campaigns: Array[CampaignData] = CampaignManager.get_available_campaigns()
 			if not campaigns.is_empty():
 				campaign_id = campaigns[0].campaign_id
 
@@ -205,7 +205,7 @@ func _start_new_game(hero_name: String) -> void:
 	else:
 		push_warning("SaveSlotSelector: No new game config found, using defaults")
 		# Just start with whatever campaign is available
-		var campaigns: Array[Resource] = CampaignManager.get_available_campaigns()
+		var campaigns: Array[CampaignData] = CampaignManager.get_available_campaigns()
 		if not campaigns.is_empty():
 			CampaignManager.start_campaign(campaigns[0].campaign_id)
 		else:

@@ -50,10 +50,8 @@ signal access_denied(reason: String)
 # PRELOADS
 # =============================================================================
 
-const CaravanDataScript: GDScript = preload("res://core/resources/caravan_data.gd")
-const CaravanFollowerScript: GDScript = preload("res://core/components/caravan_follower.gd")
-const CaravanMainMenuScript: GDScript = preload("res://scenes/ui/caravan_main_menu.gd")
-const PartyManagementPanelScript: GDScript = preload("res://scenes/ui/party_management_panel.gd")
+const CaravanDataScript = preload("res://core/resources/caravan_data.gd")
+const CaravanFollowerScript = preload("res://core/components/caravan_follower.gd")
 
 # =============================================================================
 # CONFIGURATION
@@ -110,10 +108,10 @@ var _custom_services: Dictionary = {}
 var _ui_layer: CanvasLayer = null
 
 ## The main caravan menu instance
-var _main_menu: Control = null
+var _main_menu: CaravanMainMenu = null
 
 ## The party management panel instance
-var _party_panel: Control = null
+var _party_panel: PartyManagementPanel = null
 
 # =============================================================================
 # LIFECYCLE
@@ -239,8 +237,7 @@ func _setup_ui() -> void:
 	get_tree().root.call_deferred("add_child", _ui_layer)
 
 	# Create main menu
-	_main_menu = Control.new()
-	_main_menu.set_script(CaravanMainMenuScript)
+	_main_menu = CaravanMainMenu.new()
 	_main_menu.name = "CaravanMainMenu"
 	_main_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_main_menu.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while paused
@@ -248,8 +245,7 @@ func _setup_ui() -> void:
 	_ui_layer.call_deferred("add_child", _main_menu)
 
 	# Create party management panel
-	_party_panel = Control.new()
-	_party_panel.set_script(PartyManagementPanelScript)
+	_party_panel = PartyManagementPanel.new()
 	_party_panel.name = "PartyManagementPanel"
 	_party_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_party_panel.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while paused
@@ -426,7 +422,7 @@ func _on_scene_changed(scene_path: String) -> void:
 		_despawn_caravan()
 
 
-func _on_battle_started(_battle_data: Resource) -> void:
+func _on_battle_started(_battle_data: BattleData) -> void:
 	# Save position before battle
 	if _caravan_instance:
 		_save_caravan_position()
@@ -569,8 +565,7 @@ func _get_current_map_metadata() -> MapMetadata:
 
 	# Look for a MapMetadata resource that matches this scene
 	var all_maps: Array[Resource] = ModLoader.registry.get_all_resources("map")
-	for map_resource: Resource in all_maps:
-		var map_meta: MapMetadata = map_resource as MapMetadata
+	for map_meta: MapMetadata in all_maps:
 		if map_meta and map_meta.scene_path == current_scene.scene_file_path:
 			return map_meta
 

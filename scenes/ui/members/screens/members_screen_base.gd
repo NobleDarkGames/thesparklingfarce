@@ -23,7 +23,7 @@ func close_interface() -> void:
 func get_item_data(item_id: String) -> ItemData:
 	if item_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("item", item_id) as ItemData
+	return ModLoader.registry.get_item(item_id)
 
 
 ## Get character inventory from context

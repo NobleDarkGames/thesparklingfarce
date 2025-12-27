@@ -402,8 +402,11 @@ static func _sanitize_mod_id(raw_id: String, json_path: String) -> String:
 static func _sanitize_load_priority(raw_priority: Variant, json_path: String) -> int:
 	var priority: int = 0
 
-	if raw_priority is int or raw_priority is float:
-		priority = int(raw_priority)
+	if raw_priority is int:
+		priority = raw_priority
+	elif raw_priority is float:
+		var float_priority: float = raw_priority
+		priority = int(float_priority)
 	else:
 		push_warning("mod.json: 'load_priority' must be a number, using default 0 at: %s" % json_path)
 		return 0

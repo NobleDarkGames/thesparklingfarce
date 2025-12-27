@@ -245,8 +245,7 @@ func _load_available_characters() -> void:
 		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
 
 		# Convert to typed array
-		for resource: Resource in all_characters:
-			var char_data: CharacterData = resource as CharacterData
+		for char_data: CharacterData in all_characters:
 			if char_data:
 				available_characters.append(char_data)
 	else:
@@ -408,11 +407,10 @@ func _load_default_party_info() -> void:
 	var highest_priority: int = -1
 	var highest_priority_party_id: String = ""
 
-	for config: Resource in all_configs:
-		if not config is NewGameConfigData:
+	for ngc: NewGameConfigData in all_configs:
+		if not ngc:
 			continue
 
-		var ngc: NewGameConfigData = config as NewGameConfigData
 		if ngc.starting_party_id.is_empty():
 			continue
 

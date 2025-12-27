@@ -35,7 +35,7 @@ func get_available_entities() -> Array[Dictionary]:
 
 
 func create_sprite_node(entity_id: String, facing: String) -> Node2D:
-	var char_data: CharacterData = ModLoader.registry.get_resource("character", entity_id) as CharacterData
+	var char_data: CharacterData = ModLoader.registry.get_character(entity_id)
 	if char_data == null:
 		push_warning("CharacterSpawnHandler: CharacterData '%s' not found in registry" % entity_id)
 		return _create_placeholder_sprite()

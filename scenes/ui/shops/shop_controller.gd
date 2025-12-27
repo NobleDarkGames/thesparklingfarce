@@ -12,7 +12,7 @@ extends CanvasLayer
 ## - Gold display (real-time updates)
 
 # Preload dependencies to avoid load order issues with autoloads
-const ShopContextClass: GDScript = preload("res://scenes/ui/shops/shop_context.gd")
+const ShopContextClass = preload("res://scenes/ui/shops/shop_context.gd")
 
 signal shop_closed()
 

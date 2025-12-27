@@ -8,7 +8,7 @@ extends JsonEditorBase
 ## - Validation before save
 ## - Character picker for dialog commands
 
-const DialogLinePopupScript: GDScript = preload("res://addons/sparkling_editor/ui/components/dialog_line_popup.gd")
+const DialogLinePopupScript = preload("res://addons/sparkling_editor/ui/components/dialog_line_popup.gd")
 
 # Command type definitions with parameter schemas
 # Each command type defines its parameters and their types for the inspector
@@ -1183,15 +1183,15 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			spin.min_value = param_def.get("min", 0.0)
 			spin.max_value = param_def.get("max", 100.0)
 			spin.step = 0.1
-			var float_default: float = float(param_def.get("default", 0.0))
-			spin.value = float(current_value) if current_value != null else float_default
+			var float_default: float = DictUtils.get_float(param_def, "default", 0.0)
+			spin.value = _variant_to_float(current_value, float_default)
 			spin.value_changed.connect(_on_param_changed.bind(param_name))
 			control = spin
 
 		"bool":
 			var check: CheckBox = CheckBox.new()
-			var bool_default: bool = bool(param_def.get("default", false))
-			check.button_pressed = bool(current_value) if current_value != null else bool_default
+			var bool_default: bool = DictUtils.get_bool(param_def, "default", false)
+			check.button_pressed = _variant_to_bool(current_value, bool_default)
 			check.toggled.connect(_on_param_changed.bind(param_name))
 			control = check
 
@@ -1431,7 +1431,7 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			if ModLoader and ModLoader.registry:
 				var map_ids: Array[String] = ModLoader.registry.get_resource_ids("map")
 				for resource_id: String in map_ids:
-					var map_res: Resource = ModLoader.registry.get_resource("map", resource_id)
+					var map_res: MapMetadata = ModLoader.registry.get_map(resource_id)
 					if not map_res:
 						continue
 
@@ -2189,3 +2189,20 @@ func _on_actor_facing_changed(index: int) -> void:
 
 	actors[selected_actor_index]["facing"] = facing
 	is_dirty = true
+
+
+## Convert Variant to float with type safety
+func _variant_to_float(value: Variant, default: float = 0.0) -> float:
+	if value is float:
+		return value
+	if value is int:
+		var int_val: int = value
+		return float(int_val)
+	return default
+
+
+## Convert Variant to bool with type safety
+func _variant_to_bool(value: Variant, default: bool = false) -> bool:
+	if value is bool:
+		return value
+	return default

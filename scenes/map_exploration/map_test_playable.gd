@@ -13,9 +13,9 @@ func _debug_print(msg: String) -> void:
 		print(msg)
 
 
-const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
-const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
-const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
+const HeroControllerScript = preload("res://scenes/map_exploration/hero_controller.gd")
+const MapCameraScript = preload("res://scenes/map_exploration/map_camera.gd")
+const PartyFollowerScript = preload("res://scenes/map_exploration/party_follower.gd")
 
 ## Default sprite assets from core
 const DEFAULT_SPRITESHEET_PATH: String = "res://core/assets/defaults/sprites/default_character_spritesheet.png"
@@ -96,7 +96,7 @@ func _load_party() -> void:
 		_debug_print("⚠️  PartyManager empty, loading test party from ModRegistry...")
 
 		# Load hero from sandbox mod (Mr Big Hero Face)
-		var hero_char: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+		var hero_char: CharacterData = ModLoader.registry.get_character("character_1763762722")
 		if hero_char:
 			party_characters.append(hero_char)
 			PartyManager.add_member(hero_char)
@@ -374,8 +374,7 @@ func _get_current_map_metadata() -> MapMetadata:
 
 	# Get all map metadata and find one matching this scene
 	var all_maps: Array[Resource] = ModLoader.registry.get_all_resources("map")
-	for map_resource: Resource in all_maps:
-		var map_meta: MapMetadata = map_resource as MapMetadata
+	for map_meta: MapMetadata in all_maps:
 		if map_meta and map_meta.scene_path == scene_file_path:
 			return map_meta
 
@@ -384,11 +383,14 @@ func _get_current_map_metadata() -> MapMetadata:
 
 ## Handle test scene controls.
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_ESCAPE:
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if not key_event.pressed:
+			return
+		if key_event.keycode == KEY_ESCAPE:
 			_debug_print("\n[ESC] Exiting map exploration test...")
 			get_tree().quit()
-		elif event.keycode == KEY_F1:
+		elif key_event.keycode == KEY_F1:
 			# Debug: Show positions (always print these - explicit debug request)
 			print("\n--- Debug Info ---")
 			if hero:
@@ -398,7 +400,7 @@ func _input(event: InputEvent) -> void:
 				if i < followers.size():
 					print("Follower %d position: %s" % [i + 1, followers[i].position])
 			print("------------------\n")
-		elif event.keycode == KEY_F2:
+		elif key_event.keycode == KEY_F2:
 			# Debug: Teleport hero
 			if hero and hero.has_method("teleport_to_grid"):
 				hero.call("teleport_to_grid", Vector2i(15, 10))

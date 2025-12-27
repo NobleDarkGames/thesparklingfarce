@@ -20,7 +20,7 @@ const CINEMATIC_ID: String = "opening_cinematic"
 const CORE_FALLBACK_CINEMATIC: String = "res://core/defaults/cinematics/opening_cinematic.json"
 
 ## Preload CinematicLoader for fallback loading
-const CinematicLoader: GDScript = preload("res://core/systems/cinematic_loader.gd")
+const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
 
 @onready var camera: Camera2D = $CinematicCamera
 @onready var dialog_box: Control = $UILayer/DialogBox
@@ -47,7 +47,7 @@ func _start_cinematic() -> void:
 	# Check if ModLoader is available and has loaded mods
 	if ModLoader and ModLoader.registry:
 		# Try to get the cinematic from the registry (respects mod priority)
-		var cinematic: CinematicData = ModLoader.registry.get_resource("cinematic", CINEMATIC_ID) as CinematicData
+		var cinematic: CinematicData = ModLoader.registry.get_cinematic(CINEMATIC_ID)
 		if cinematic:
 			success = CinematicsManager.play_cinematic(CINEMATIC_ID)
 

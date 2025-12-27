@@ -163,7 +163,7 @@ func load_equipment_from_save(save_data: CharacterSaveData) -> void:
 			continue
 
 		# Get item from registry
-		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item: ItemData = ModLoader.registry.get_item(item_id)
 		if not item:
 			push_warning("UnitStats: Failed to load item '%s' for slot '%s'" % [item_id, slot_id])
 			continue

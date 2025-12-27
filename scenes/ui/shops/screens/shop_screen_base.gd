@@ -10,7 +10,7 @@ extends "res://scenes/ui/components/modal_screen_base.gd"
 ## Shares navigation, input blocking, and lifecycle with CaravanScreenBase.
 
 # Preload ShopContext for Mode enum access
-const ShopContextScript: GDScript = preload("res://scenes/ui/shops/shop_context.gd")
+const ShopContextScript = preload("res://scenes/ui/shops/shop_context.gd")
 
 # =============================================================================
 # SHOP-SPECIFIC HELPERS

@@ -30,3 +30,4 @@ mono_crash.*.json
 # Mod development backups
 mods-bak/
 docs/announcements/
+docs/plans/ignored/

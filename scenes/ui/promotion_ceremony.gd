@@ -308,7 +308,7 @@ func _dismiss() -> void:
 
 ## Called when PromotionManager completes a promotion
 ## Use this to get the stat changes
-func _on_promotion_completed(unit: Unit, old_class: Resource, new_class: Resource, stat_changes: Dictionary) -> void:
+func _on_promotion_completed(unit: Unit, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
 	_stat_changes = stat_changes
 
 

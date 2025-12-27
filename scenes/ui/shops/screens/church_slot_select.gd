@@ -70,7 +70,7 @@ func _populate_slot_grid() -> void:
 			continue
 
 		var item_id: String = DictUtils.get_string(entry, "item_id", "")
-		var item: ItemData = ModLoader.registry.get_resource("item", item_id)
+		var item: ItemData = ModLoader.registry.get_item(item_id)
 		var item_name: String = item.item_name if item else item_id
 
 		var button: Button = Button.new()
@@ -104,7 +104,7 @@ func _on_slot_selected(slot_id: String) -> void:
 	if result.get("success", false):
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
 		var item_id: String = EquipmentManager.get_equipped_item_id(save_data, slot_id) if save_data else ""
-		var item: ItemData = ModLoader.registry.get_resource("item", item_id) if item_id else null
+		var item: ItemData = ModLoader.registry.get_item(item_id) if item_id else null
 		var item_name: String = item.item_name if item else "the item"
 
 		context.last_result = {

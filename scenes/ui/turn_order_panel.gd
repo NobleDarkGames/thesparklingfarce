@@ -7,7 +7,7 @@
 class_name TurnOrderPanel
 extends PanelContainer
 
-const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
+const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 ## Faction colors for the indicator bars
 const COLOR_ALLY: Color = Color(0.3, 0.6, 1.0, 1.0)  # Blue

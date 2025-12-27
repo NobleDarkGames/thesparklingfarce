@@ -14,9 +14,9 @@ func _debug_print(msg: String) -> void:
 
 
 ## Preload scripts
-const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
-const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
-const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
+const HeroControllerScript = preload("res://scenes/map_exploration/hero_controller.gd")
+const MapCameraScript = preload("res://scenes/map_exploration/map_camera.gd")
+const PartyFollowerScript = preload("res://scenes/map_exploration/party_follower.gd")
 
 ## References to scene nodes
 @onready var hero: Node2D = $Hero
@@ -152,7 +152,9 @@ func _input(event: InputEvent) -> void:
 		_debug_print("MapTest: ESC pressed - would return to main menu")
 
 	# Debug: Press 'T' to teleport hero to center
-	if event is InputEventKey and event.pressed and event.keycode == KEY_T:
-		if hero:
-			_debug_print("MapTest: Teleporting hero to center")
-			hero.teleport_to_grid(Vector2i(5, 5))
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if key_event.pressed and key_event.keycode == KEY_T:
+			if hero:
+				_debug_print("MapTest: Teleporting hero to center")
+				hero.teleport_to_grid(Vector2i(5, 5))

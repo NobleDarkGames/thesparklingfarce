@@ -11,9 +11,9 @@ extends GdUnitTestSuite
 # =============================================================================
 
 var _campaign: CampaignData
-var _mock_battle_node: Resource
-var _mock_cutscene_node: Resource
-var _mock_town_node: Resource
+var _mock_battle_node: CampaignNode
+var _mock_cutscene_node: CampaignNode
+var _mock_town_node: CampaignNode
 
 
 func before_test() -> void:
@@ -22,32 +22,18 @@ func before_test() -> void:
 	_campaign.campaign_name = "Test Campaign"
 	_campaign.starting_node_id = "start"
 
-	# Create mock nodes using dictionaries converted to resources
+	# Create mock nodes using actual CampaignNode instances
 	_mock_battle_node = _create_mock_node("battle_1", "battle", "test_battle_001")
 	_mock_cutscene_node = _create_mock_node("cutscene_1", "cutscene", "")
 	_mock_town_node = _create_mock_node("start", "town", "noobington")
 
 
 ## Create a mock campaign node for testing
-func _create_mock_node(node_id: String, node_type: String, resource_id: String) -> Resource:
-	# CampaignNode is a Resource, so we can use RefCounted with dynamic properties
-	var node: Resource = Resource.new()
-	node.set_meta("node_id", node_id)
-	node.set_meta("node_type", node_type)
-	node.set_meta("resource_id", resource_id)
-	# Add script to provide property access
-	var script: GDScript = GDScript.new()
-	script.source_code = """
-extends Resource
-var node_id: String = ""
-var node_type: String = ""
-var resource_id: String = ""
-"""
-	script.reload()
-	node.set_script(script)
-	node.set("node_id", node_id)
-	node.set("node_type", node_type)
-	node.set("resource_id", resource_id)
+func _create_mock_node(node_id: String, node_type: String, resource_id: String) -> CampaignNode:
+	var node: CampaignNode = CampaignNode.new()
+	node.node_id = node_id
+	node.node_type = node_type
+	node.resource_id = resource_id
 	return node
 
 
@@ -76,7 +62,7 @@ func test_campaign_starts_with_empty_nodes() -> void:
 # =============================================================================
 
 func test_get_node_returns_null_for_empty_campaign() -> void:
-	var node: Resource = _campaign.get_node("nonexistent")
+	var node: CampaignNode = _campaign.get_node("nonexistent")
 	assert_object(node).is_null()
 
 
@@ -88,9 +74,9 @@ func test_get_node_finds_existing_node() -> void:
 	_campaign.nodes.append(_mock_town_node)
 	_campaign.invalidate_cache()
 
-	var found: Resource = _campaign.get_node("start")
+	var found: CampaignNode = _campaign.get_node("start")
 	assert_object(found).is_not_null()
-	assert_str(found.get("node_id")).is_equal("start")
+	assert_str(found.node_id).is_equal("start")
 
 
 func test_has_node_returns_true_for_existing_node() -> void:

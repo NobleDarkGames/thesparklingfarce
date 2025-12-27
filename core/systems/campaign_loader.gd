@@ -40,8 +40,8 @@ extends RefCounted
 ##   ]
 ## }
 
-const CampaignDataScript: GDScript = preload("res://core/resources/campaign_data.gd")
-const CampaignNodeScript: GDScript = preload("res://core/resources/campaign_node.gd")
+const CampaignDataScript = preload("res://core/resources/campaign_data.gd")
+const CampaignNodeScript = preload("res://core/resources/campaign_node.gd")
 
 
 ## Load a CampaignData resource from a JSON file

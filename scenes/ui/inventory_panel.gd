@@ -681,7 +681,7 @@ func _handle_use_action(item_id: String) -> void:
 
 func _handle_equip_action(item_id: String) -> void:
 	# Load item data and start equip selection
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	if item_data and item_data.is_equippable():
 		_start_equip_selection(_pending_inventory_index, item_id, item_data)
 	else:
@@ -697,7 +697,7 @@ func _handle_give_action(item_id: String) -> void:
 
 
 func _handle_drop_action(item_id: String) -> void:
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	if not item_data:
 		_update_instruction("Cannot drop unknown item")
 		return
@@ -739,7 +739,7 @@ func _execute_drop(item_id: String) -> void:
 
 	# Remove item from inventory
 	if _save_data.remove_item_from_inventory(item_id):
-		var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+		var item_data: ItemData = ModLoader.registry.get_item(item_id)
 		var item_name: String = item_data.item_name if item_data else item_id
 		_update_instruction("Dropped %s" % item_name)
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
@@ -752,7 +752,7 @@ func _execute_drop(item_id: String) -> void:
 
 func _handle_info_action(item_id: String) -> void:
 	# Show detailed item info in description panel
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	if item_data:
 		_update_description(_format_item_info(item_data, "inventory", ""))
 		_update_instruction("Press any key to continue")
@@ -780,7 +780,7 @@ func _on_slot_hovered(item_id: String, slot_type: String, slot_key: String) -> v
 		return
 
 	# Get item data and show formatted description
-	var item_data: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
 	if item_data:
 		_update_description(_format_item_info(item_data, slot_type, slot_key))
 	else:

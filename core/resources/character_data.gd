@@ -1,7 +1,7 @@
 class_name CharacterData
 extends Resource
 
-const SpriteUtils: GDScript = preload("res://core/utils/sprite_utils.gd")
+const SpriteUtils = preload("res://core/utils/sprite_utils.gd")
 
 ## Represents a single character/unit in the game.
 ## Contains all stats, appearance, and equipment information.

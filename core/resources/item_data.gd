@@ -61,8 +61,8 @@ enum ItemType {
 @export_group("Consumable Properties")
 @export var usable_in_battle: bool = false
 @export var usable_on_field: bool = false
-## Effect when used (if consumable) - assign an AbilityData resource
-@export var effect: Resource
+## Effect when used (if consumable) - AbilityData defining the ability triggered on use
+@export var effect: AbilityData
 
 @export_group("Economy")
 @export var buy_price: int = 0
@@ -92,7 +92,9 @@ func get_stat_modifier(stat_name: String) -> int:
 		var value: Variant = get(modifier_key)
 		if value is int:
 			return value
-		return int(value)
+		elif value is float:
+			var float_val: float = value
+			return int(float_val)
 	return 0
 
 

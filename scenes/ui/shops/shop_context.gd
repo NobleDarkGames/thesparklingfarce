@@ -12,7 +12,7 @@ extends RefCounted
 ## Note: class_name removed to avoid load order issues when used as autoload dependency
 
 # Preload OrderQueue script
-const OrderQueueScript: GDScript = preload("res://scenes/ui/shops/order_queue.gd")
+const OrderQueueScript = preload("res://scenes/ui/shops/order_queue.gd")
 
 ## Shopping modes
 enum Mode { BUY, SELL, DEALS, HEAL, REVIVE, UNCURSE, CRAFT }
@@ -149,7 +149,7 @@ func clear_history() -> void:
 func get_item_data(item_id: String) -> ItemData:
 	if item_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("item", item_id) as ItemData
+	return ModLoader.registry.get_item(item_id)
 
 
 ## Get effective buy price for an item
@@ -196,14 +196,14 @@ func is_craft_mode() -> bool:
 func get_crafter_data() -> CrafterData:
 	if not shop or shop.crafter_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("crafter", shop.crafter_id) as CrafterData
+	return ModLoader.registry.get_crafter(shop.crafter_id)
 
 
 ## Get CraftingRecipeData by ID
 func get_recipe_data(recipe_id: String) -> CraftingRecipeData:
 	if recipe_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("crafting_recipe", recipe_id) as CraftingRecipeData
+	return ModLoader.registry.get_crafting_recipe(recipe_id)
 
 
 ## Get the currently selected recipe

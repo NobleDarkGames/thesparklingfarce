@@ -19,7 +19,7 @@ extends RefCounted
 ##   ]
 ## }
 
-const CinematicData: GDScript = preload("res://core/resources/cinematic_data.gd")
+const CinematicData = preload("res://core/resources/cinematic_data.gd")
 
 
 ## Load a CinematicData resource from a JSON file
@@ -276,7 +276,8 @@ static func _variant_to_float(value: Variant) -> float:
 	if value is float:
 		return value
 	elif value is int:
-		return float(value)
+		var int_val: int = value
+		return float(int_val)
 	return 0.0
 
 

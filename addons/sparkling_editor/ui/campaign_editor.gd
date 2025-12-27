@@ -897,9 +897,19 @@ func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) 
 
 	# Position from stored data or auto-layout
 	var pos_x_variant: Variant = node_data.get("_editor_pos_x", index % 4 * 200)
-	var pos_x: float = float(pos_x_variant) if pos_x_variant is float or pos_x_variant is int else 0.0
+	var pos_x: float = 0.0
+	if pos_x_variant is float:
+		pos_x = pos_x_variant
+	elif pos_x_variant is int:
+		var int_val: int = pos_x_variant
+		pos_x = float(int_val)
 	var pos_y_variant: Variant = node_data.get("_editor_pos_y", int(index / 4) * 150)
-	var pos_y: float = float(pos_y_variant) if pos_y_variant is float or pos_y_variant is int else 0.0
+	var pos_y: float = 0.0
+	if pos_y_variant is float:
+		pos_y = pos_y_variant
+	elif pos_y_variant is int:
+		var int_val: int = pos_y_variant
+		pos_y = float(int_val)
 	graph_node.position_offset = Vector2(pos_x, pos_y)
 
 	# Color based on type

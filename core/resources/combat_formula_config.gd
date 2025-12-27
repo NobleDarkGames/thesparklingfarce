@@ -53,12 +53,12 @@ func get_formula_calculator() -> CombatFormulaBase:
 		return null
 
 	# Instantiate and validate type
-	var instance: RefCounted = script.new()
+	var instance: Variant = script.new()
 	if not instance is CombatFormulaBase:
 		push_error("CombatFormulaConfig: Script must extend CombatFormulaBase: %s" % formula_script_path)
 		return null
 
-	_formula_instance = instance as CombatFormulaBase
+	_formula_instance = instance
 	return _formula_instance
 
 
@@ -84,7 +84,7 @@ func validate() -> Array[String]:
 				errors.append("Failed to load formula script: %s" % formula_script_path)
 			else:
 				# Try to instantiate to validate it extends CombatFormulaBase
-				var instance: RefCounted = script.new()
+				var instance: Variant = script.new()
 				if not instance is CombatFormulaBase:
 					errors.append("Formula script must extend CombatFormulaBase: %s" % formula_script_path)
 

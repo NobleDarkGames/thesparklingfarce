@@ -1173,23 +1173,22 @@ func _test_items_discovered() -> void:
 	_start_test("items_discovered_by_mod_loader")
 
 	# Check if healing_herb exists
-	var healing_herb: Resource = ModLoader.registry.get_resource("item", "healing_herb")
+	var healing_herb: ItemData = ModLoader.registry.get_item("healing_herb")
 	if not _assert_not_null(healing_herb, "healing_herb should be found"):
 		return
 
 	# Check if medical_herb exists
-	var medical_herb: Resource = ModLoader.registry.get_resource("item", "medical_herb")
+	var medical_herb: ItemData = ModLoader.registry.get_item("medical_herb")
 	if not _assert_not_null(medical_herb, "medical_herb should be found"):
 		return
 
 	# Check if antidote exists
-	var antidote: Resource = ModLoader.registry.get_resource("item", "antidote")
+	var antidote: ItemData = ModLoader.registry.get_item("antidote")
 	if not _assert_not_null(antidote, "antidote should be found"):
 		return
 
 	# Check usable_in_battle flag
-	var herb: ItemData = healing_herb as ItemData
-	if _assert_true(herb.usable_in_battle, "healing_herb should be usable_in_battle"):
+	if _assert_true(healing_herb.usable_in_battle, "healing_herb should be usable_in_battle"):
 		_pass()
 
 
@@ -1197,7 +1196,7 @@ func _test_starting_inventory_copy() -> void:
 	_start_test("starting_inventory_copied_to_save_data")
 
 	# Load the hero character
-	var hero: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+	var hero: CharacterData = ModLoader.registry.get_character("character_1763762722")
 	if not _assert_not_null(hero, "Hero character should exist"):
 		return
 
@@ -1219,7 +1218,7 @@ func _test_party_manager_save_data() -> void:
 	_start_test("party_manager_get_member_save_data")
 
 	# Load the hero character
-	var hero: CharacterData = ModLoader.registry.get_resource("character", "character_1763762722")
+	var hero: CharacterData = ModLoader.registry.get_character("character_1763762722")
 	if not _assert_not_null(hero, "Hero character should exist"):
 		return
 

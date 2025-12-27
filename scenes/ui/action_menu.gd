@@ -2,6 +2,7 @@
 ##
 ## Displays available actions (Attack, Magic, Item, Stay) with context-aware highlighting.
 ## Features keyboard/mouse navigation, hover states, and sound feedback.
+class_name ActionMenu
 extends Control
 
 ## Signals - session_id prevents stale signals from previous turns
@@ -20,7 +21,10 @@ var available_actions: Array[String] = []
 
 ## Current selection
 var selected_index: int = 0
-var menu_items: Array[Dictionary] = []
+
+## Menu item data (typed parallel arrays instead of Dictionary to avoid Variant casts)
+var _item_labels: Array[Label] = []
+var _item_actions: Array[String] = []
 
 ## Session ID - stored when menu opens, emitted with signals to prevent stale signals
 var _menu_session_id: int = -1
@@ -51,14 +55,9 @@ func _ready() -> void:
 	set_process_input(false)  # Disable input processing when hidden
 	set_process(false)  # Disable _process when hidden
 
-	# Build menu item array
-	menu_items = [
-		{"label": move_label, "action": "Move"},
-		{"label": attack_label, "action": "Attack"},
-		{"label": magic_label, "action": "Magic"},
-		{"label": item_label, "action": "Item"},
-		{"label": stay_label, "action": "Stay"},
-	]
+	# Build typed menu item arrays
+	_item_labels = [move_label, attack_label, magic_label, item_label, stay_label]
+	_item_actions = ["Move", "Attack", "Magic", "Item", "Stay"]
 
 
 func _process(_delta: float) -> void:
@@ -69,10 +68,9 @@ func _process(_delta: float) -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var new_hover: int = -1
 
-	for i: int in range(menu_items.size()):
-		var item: Dictionary = menu_items[i]
-		var label: Label = item["label"] as Label
-		var action: String = DictUtils.get_string(item, "action", "")
+	for i: int in range(_item_labels.size()):
+		var label: Label = _item_labels[i]
+		var action: String = _item_actions[i]
 
 		if action not in available_actions:
 			continue
@@ -107,9 +105,9 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 		_slide_tween = null
 
 	# Update menu item visibility/colors
-	for item: Dictionary in menu_items:
-		var label: Label = item["label"] as Label
-		var action: String = DictUtils.get_string(item, "action", "")
+	for i: int in range(_item_labels.size()):
+		var label: Label = _item_labels[i]
+		var action: String = _item_actions[i]
 
 		if action in available_actions:
 			label.modulate = COLOR_NORMAL
@@ -188,8 +186,7 @@ func reset_menu() -> void:
 	visible = false
 
 	# Reset all labels to default state
-	for item: Dictionary in menu_items:
-		var label: Label = item["label"] as Label
+	for label: Label in _item_labels:
 		label.modulate = COLOR_DISABLED
 		label.remove_theme_color_override("font_color")
 
@@ -201,13 +198,13 @@ func _input(event: InputEvent) -> void:
 
 	# Mouse click on menu items
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			# Check which label was clicked
 			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i: int in range(menu_items.size()):
-				var item: Dictionary = menu_items[i]
-				var label: Label = item["label"] as Label
-				var action: String = DictUtils.get_string(item, "action", "")
+			for i: int in range(_item_labels.size()):
+				var label: Label = _item_labels[i]
+				var action: String = _item_actions[i]
 
 				# Check if mouse is over this label
 				var label_rect: Rect2 = label.get_global_rect()
@@ -239,8 +236,11 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 	# Number key shortcuts
-	elif event is InputEventKey and event.pressed:
-		match event.keycode:
+	elif event is InputEventKey:
+		var key_event: InputEventKey = event
+		if not key_event.pressed:
+			return
+		match key_event.keycode:
 			KEY_1:
 				if "Attack" in available_actions:
 					_select_action_by_name("Attack")
@@ -272,11 +272,10 @@ func _move_selection(direction: int) -> void:
 	var start_index: int = selected_index
 
 	# Loop until we find an available action
-	for i: int in range(menu_items.size()):
-		selected_index = wrapi(selected_index + direction, 0, menu_items.size())
+	for i: int in range(_item_actions.size()):
+		selected_index = wrapi(selected_index + direction, 0, _item_actions.size())
 
-		var item: Dictionary = menu_items[selected_index]
-		var item_action: String = DictUtils.get_string(item, "action", "")
+		var item_action: String = _item_actions[selected_index]
 		if item_action in available_actions:
 			# Only play sound and update if we actually moved
 			if selected_index != start_index:
@@ -292,19 +291,17 @@ func _move_selection(direction: int) -> void:
 
 ## Select action by name
 func _select_action_by_name(action: String) -> void:
-	for i: int in range(menu_items.size()):
-		var item_action: String = DictUtils.get_string(menu_items[i], "action", "")
-		if item_action == action:
+	for i: int in range(_item_actions.size()):
+		if _item_actions[i] == action:
 			selected_index = i
 			break
 
 
 ## Update visual highlighting
 func _update_selection_visual() -> void:
-	for i: int in range(menu_items.size()):
-		var item: Dictionary = menu_items[i]
-		var label: Label = item["label"] as Label
-		var action: String = DictUtils.get_string(item, "action", "")
+	for i: int in range(_item_labels.size()):
+		var label: Label = _item_labels[i]
+		var action: String = _item_actions[i]
 
 		if i == selected_index and action in available_actions:
 			# Selected item - bright yellow
@@ -326,10 +323,10 @@ func _update_selection_visual() -> void:
 
 ## Play a quick brightness pulse on the selected item (pixel-perfect, no scaling)
 func _pulse_selected_item() -> void:
-	if selected_index < 0 or selected_index >= menu_items.size():
+	if selected_index < 0 or selected_index >= _item_labels.size():
 		return
 
-	var label: Label = menu_items[selected_index]["label"] as Label
+	var label: Label = _item_labels[selected_index]
 
 	# Kill existing pulse
 	if _pulse_tween:
@@ -361,7 +358,7 @@ func _confirm_selection() -> void:
 		print("[ACTION_MENU DEBUG] BLOCKED: No actions available")
 		return
 
-	var selected_action: String = DictUtils.get_string(menu_items[selected_index], "action", "")
+	var selected_action: String = _item_actions[selected_index]
 	print("[ACTION_MENU DEBUG] Selected action: '%s', session: %d" % [selected_action, _menu_session_id])
 
 	# Safety check 4: Don't emit if selected action is not in available list

@@ -408,7 +408,7 @@ func _find_registered_equivalent(resource: Resource) -> Resource:
 		if "character_uid" in resource:
 			char_uid = str(resource.get("character_uid"))
 		if not char_uid.is_empty():
-			var registered: Resource = ModLoader.registry.get_resource("character", char_uid)
+			var registered: CharacterData = ModLoader.registry.get_character(char_uid)
 			if registered:
 				return registered
 
@@ -419,7 +419,7 @@ func _find_registered_equivalent(resource: Resource) -> Resource:
 		if "behavior_id" in resource:
 			behavior_id = str(resource.get("behavior_id"))
 		if not behavior_id.is_empty():
-			var registered: Resource = ModLoader.registry.get_resource("ai_behavior", behavior_id)
+			var registered: AIBehaviorData = ModLoader.registry.get_ai_behavior(behavior_id)
 			if registered:
 				return registered
 

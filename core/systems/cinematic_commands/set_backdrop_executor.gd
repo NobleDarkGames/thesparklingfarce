@@ -85,7 +85,7 @@ func _resolve_scene_path(params: Dictionary) -> String:
 	# Try map_id (get scene from map metadata)
 	var map_id: String = params.get("map_id", "")
 	if not map_id.is_empty() and ModLoader and ModLoader.registry:
-		var map_data: MapMetadata = ModLoader.registry.get_resource("map", map_id) as MapMetadata
+		var map_data: MapMetadata = ModLoader.registry.get_map(map_id)
 		if map_data and "scene_path" in map_data:
 			return map_data.scene_path
 

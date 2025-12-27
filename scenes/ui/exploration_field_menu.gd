@@ -351,7 +351,7 @@ func _party_has_field_magic() -> bool:
 				return true
 
 			# Also check if the ability has usable_on_field flag (Phase 2)
-			var ability_data: AbilityData = ModLoader.registry.get_resource("ability", ability_id) as AbilityData
+			var ability_data: AbilityData = ModLoader.registry.get_ability(ability_id)
 			if ability_data and "usable_on_field" in ability_data and ability_data.usable_on_field:
 				return true
 
@@ -426,7 +426,8 @@ func _input(event: InputEvent) -> void:
 
 	# Mouse click
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
 			for i: int in range(_option_labels.size()):
 				var label: Label = _option_labels[i]

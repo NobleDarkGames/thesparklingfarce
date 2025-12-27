@@ -21,17 +21,28 @@ extends RefCounted
 
 
 ## Get a String value from a dictionary with type checking
-## Returns default if key is missing or value is not a String
+## Returns default if key is missing, converts non-null values to String
 static func get_string(dict: Dictionary, key: String, default: String = "") -> String:
 	var value: Variant = dict.get(key, default)
-	return value if value is String else default
+	if value is String:
+		return value
+	if value != null:
+		return str(value)
+	return default
 
 
 ## Get an int value from a dictionary with type checking
-## Returns default if key is missing or value is not an int
+## Returns default if key is missing or value is not convertible to int
+## Note: Handles float→int conversion and valid int strings for JSON compatibility
 static func get_int(dict: Dictionary, key: String, default: int = 0) -> int:
 	var value: Variant = dict.get(key, default)
-	return value if value is int else default
+	if value is int:
+		return value
+	if value is float:
+		return int(value)
+	if value is String and value.is_valid_int():
+		return value.to_int()
+	return default
 
 
 ## Get a float value from a dictionary with type checking
@@ -42,15 +53,23 @@ static func get_float(dict: Dictionary, key: String, default: float = 0.0) -> fl
 	if value is float:
 		return value
 	if value is int:
-		return float(value)
+		var int_val: int = value
+		return float(int_val)
 	return default
 
 
 ## Get a bool value from a dictionary with type checking
-## Returns default if key is missing or value is not a bool
+## Returns default if key is missing or value is not convertible to bool
+## Note: Handles int→bool and truthy strings for JSON compatibility
 static func get_bool(dict: Dictionary, key: String, default: bool = false) -> bool:
 	var value: Variant = dict.get(key, default)
-	return value if value is bool else default
+	if value is bool:
+		return value
+	if value is int:
+		return value != 0
+	if value is String:
+		return value.to_lower() in ["true", "1", "yes"]
+	return default
 
 
 ## Get an Array value from a dictionary with type checking

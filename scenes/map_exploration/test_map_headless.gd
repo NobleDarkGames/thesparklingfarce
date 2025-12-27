@@ -2,9 +2,9 @@
 ## Runs automated tests and quits
 extends Node2D
 
-const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/hero_controller.gd")
-const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
-const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
+const HeroControllerScript = preload("res://scenes/map_exploration/hero_controller.gd")
+const MapCameraScript = preload("res://scenes/map_exploration/map_camera.gd")
+const PartyFollowerScript = preload("res://scenes/map_exploration/party_follower.gd")
 
 var hero: CharacterBody2D = null
 var camera: Camera2D = null

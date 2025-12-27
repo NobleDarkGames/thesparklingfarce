@@ -2,7 +2,7 @@ extends Node
 ## GameState singleton - Manages story flags, trigger completion, and campaign state
 
 ## Preload TransitionContext to ensure it's available before autoload init
-const TransitionContextScript: GDScript = preload("res://core/resources/transition_context.gd")
+const TransitionContextScript = preload("res://core/resources/transition_context.gd")
 ##
 ## This autoload manages persistent game state including:
 ## - Story flags (boolean flags for quest/narrative progression)
@@ -110,8 +110,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Debug convenience: Q key quits game (development only)
 	if OS.has_feature("debug"):
-		if event is InputEventKey and event.pressed and not event.echo:
-			if event.keycode == KEY_Q:
+		if event is InputEventKey:
+			var key_event: InputEventKey = event
+			if key_event.pressed and not key_event.echo and key_event.keycode == KEY_Q:
 				get_tree().quit()
 
 
@@ -502,12 +503,12 @@ func _warn_deprecated_return_data_api(method_name: String) -> void:
 
 
 ## NEW API: Set full transition context
-func set_transition_context(context: RefCounted) -> void:
+func set_transition_context(context: TransitionContext) -> void:
 	_transition_context = context
 
 
-## NEW API: Get current transition context (returns TransitionContext or null)
-func get_transition_context() -> RefCounted:
+## NEW API: Get current transition context
+func get_transition_context() -> TransitionContext:
 	return _transition_context
 
 

@@ -6,8 +6,8 @@ extends PanelContainer
 ## Updates automatically when queue changes.
 
 # Preload dependencies to avoid load order issues
-const OrderQueueClass: GDScript = preload("res://scenes/ui/shops/order_queue.gd")
-const QueuedItemClass: GDScript = preload("res://scenes/ui/shops/resources/queued_item.gd")
+const OrderQueueClass = preload("res://scenes/ui/shops/order_queue.gd")
+const QueuedItemClass = preload("res://scenes/ui/shops/resources/queued_item.gd")
 
 @onready var queue_items: VBoxContainer = %QueueItems
 @onready var queue_total_label: Label = %QueueTotalLabel
@@ -79,4 +79,4 @@ func _update_totals(queue: RefCounted, current_gold: int) -> void:
 func _get_item_data(item_id: String) -> ItemData:
 	if item_id.is_empty():
 		return null
-	return ModLoader.registry.get_resource("item", item_id) as ItemData
+	return ModLoader.registry.get_item(item_id)

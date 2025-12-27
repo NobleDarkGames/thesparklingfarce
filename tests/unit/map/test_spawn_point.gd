@@ -6,7 +6,7 @@ class_name TestSpawnPoint
 extends GdUnitTestSuite
 
 
-const SpawnPointScript: GDScript = preload("res://core/components/spawn_point.gd")
+const SpawnPointScript = preload("res://core/components/spawn_point.gd")
 
 
 # =============================================================================

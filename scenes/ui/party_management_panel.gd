@@ -321,7 +321,10 @@ func _refresh_slots() -> void:
 	# Update active slots
 	for i: int in range(_active_slots.size()):
 		var slot: PanelContainer = _active_slots[i]
-		var label: Label = slot.get_node("NameLabel") as Label
+		var label_node: Node = slot.get_node("NameLabel")
+		var label: Label = label_node as Label if label_node is Label else null
+		if label == null:
+			continue
 
 		if i < active_party.size():
 			var character: CharacterData = active_party[i]

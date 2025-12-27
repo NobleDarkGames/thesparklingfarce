@@ -192,7 +192,7 @@ func _load_resource_data() -> void:
 		npc_role_option.select(int(npc.npc_role))
 	if shop_id_picker and not npc.shop_id.is_empty():
 		# Try to find and select the shop resource
-		var shop_res: Resource = ModLoader.registry.get_resource("shop", npc.shop_id) if ModLoader and ModLoader.registry else null
+		var shop_res: ShopData = ModLoader.registry.get_shop(npc.shop_id) if ModLoader and ModLoader.registry else null
 		if shop_res:
 			shop_id_picker.select_resource(shop_res)
 		else:

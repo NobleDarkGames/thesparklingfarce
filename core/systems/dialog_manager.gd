@@ -53,7 +53,7 @@ const MAX_DIALOG_CHAIN_DEPTH: int = 10
 var text_speed_multiplier: float = 1.0  ## User preference (0.5 = slow, 1.0 = normal, 2.0 = fast)
 
 ## References (will be set when DialogBox is created)
-var dialog_box: Control = null
+var dialog_box: DialogBox = null
 
 
 ## Start a dialog by ID (looks up in ModRegistry)
@@ -63,7 +63,7 @@ func start_dialog(dialogue_id: String) -> bool:
 		return false
 
 	# Look up dialogue in ModRegistry
-	var dialogue: DialogueData = ModLoader.registry.get_resource("dialogue", dialogue_id) as DialogueData
+	var dialogue: DialogueData = ModLoader.registry.get_dialogue(dialogue_id)
 	if not dialogue:
 		push_error("DialogManager: Dialogue '%s' not found in ModRegistry" % dialogue_id)
 		return false
@@ -200,8 +200,9 @@ func select_choice(choice_index: int) -> void:
 		push_error("DialogManager: Invalid choice index %d" % choice_index)
 		return
 
-	var next_dialogue_variant: Variant = choice["next_dialogue"] if "next_dialogue" in choice else null
-	var next_dialogue: DialogueData = next_dialogue_variant as DialogueData
+	var next_dialogue: DialogueData = null
+	if "next_dialogue" in choice and choice["next_dialogue"] is DialogueData:
+		next_dialogue = choice["next_dialogue"]
 	choice_selected.emit(choice_index, next_dialogue)
 
 	# End current dialog
@@ -379,7 +380,7 @@ func import_state(state: Dictionary) -> bool:
 		return false
 
 	# Look up dialogue resource
-	var dialogue: DialogueData = ModLoader.registry.get_resource("dialogue", dialogue_id) as DialogueData
+	var dialogue: DialogueData = ModLoader.registry.get_dialogue(dialogue_id)
 	if not dialogue:
 		push_warning("DialogManager: Cannot restore dialog - dialogue '%s' not found" % dialogue_id)
 		return false

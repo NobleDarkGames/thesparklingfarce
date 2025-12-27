@@ -9,7 +9,7 @@ extends Node2D
 ##
 ## This test runs as a scene with the full autoload environment.
 
-const CinematicData: GDScript = preload("res://core/resources/cinematic_data.gd")
+const CinematicData = preload("res://core/resources/cinematic_data.gd")
 
 # Test state tracking
 var _test_complete: bool = false

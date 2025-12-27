@@ -16,7 +16,7 @@ extends CanvasLayer
 ##                     -> depot_browser (for Depot access, reuses Caravan screen)
 
 # Preload CaravanContext (reused with GIVE mode extensions)
-const CaravanContextClass: GDScript = preload("res://scenes/ui/caravan/caravan_context.gd")
+const CaravanContextClass = preload("res://scenes/ui/caravan/caravan_context.gd")
 
 signal members_closed()
 

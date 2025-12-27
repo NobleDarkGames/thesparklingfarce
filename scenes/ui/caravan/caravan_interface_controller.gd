@@ -15,7 +15,7 @@ extends CanvasLayer
 ## NOT as an autoload. It provides the multi-screen UI experience for the depot.
 
 # Preload dependencies to avoid load order issues
-const CaravanContextClass: GDScript = preload("res://scenes/ui/caravan/caravan_context.gd")
+const CaravanContextClass = preload("res://scenes/ui/caravan/caravan_context.gd")
 
 signal depot_closed()
 

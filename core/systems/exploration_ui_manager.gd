@@ -30,7 +30,6 @@ signal menu_closed()
 # PRELOADS
 # =============================================================================
 
-const ExplorationUIControllerScript: GDScript = preload("res://core/components/exploration_ui_controller.gd")
 const PartyEquipmentMenuScene: PackedScene = preload("res://scenes/ui/party_equipment_menu.tscn")
 const CaravanInterfaceScene: PackedScene = preload("res://scenes/ui/caravan/caravan_interface.tscn")
 const ExplorationFieldMenuScene: PackedScene = preload("res://scenes/ui/exploration_field_menu.tscn")
@@ -44,12 +43,12 @@ const MembersInterfaceScene: PackedScene = preload("res://scenes/ui/members/memb
 var _ui_layer: CanvasLayer = null
 
 ## The controller that manages menu state
-var _controller: Node = null  # ExplorationUIController
+var _controller: ExplorationUIController = null
 
 ## UI panel instances
-var _party_menu: Control = null  # PartyEquipmentMenu
+var _party_menu: PartyEquipmentMenu = null
 var _caravan_interface: CanvasLayer = null  # CaravanInterfaceController (is a CanvasLayer)
-var _field_menu: Control = null  # ExplorationFieldMenu
+var _field_menu: ExplorationFieldMenu = null
 var _members_interface: CanvasLayer = null  # MembersInterfaceController (is a CanvasLayer)
 
 ## Currently connected hero (if any)
@@ -105,8 +104,7 @@ func _initialize() -> void:
 	get_tree().root.call_deferred("add_child", _members_interface)
 
 	# Create the controller
-	_controller = Node.new()
-	_controller.set_script(ExplorationUIControllerScript)
+	_controller = ExplorationUIController.new()
 	_controller.name = "ExplorationUIController"
 	add_child(_controller)
 
@@ -171,7 +169,7 @@ func _on_scene_changed(_scene_path: String) -> void:
 	# If still no hero after retries, that's ok - might be a non-exploration scene
 
 
-func _on_battle_started(_battle_data: Resource) -> void:
+func _on_battle_started(_battle_data: BattleData) -> void:
 	_deactivate()
 
 
