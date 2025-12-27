@@ -161,8 +161,8 @@ func _rebuild_equipment_list() -> void:
 	var slot_layout: Array[Dictionary] = ModLoader.equipment_slot_registry.get_slots()
 
 	for slot_def: Dictionary in slot_layout:
-		var slot_id: String = slot_def.get("id", "")
-		var display_name: String = slot_def.get("display_name", slot_id.capitalize())
+		var slot_id: String = DictUtils.get_string(slot_def, "id", "")
+		var display_name: String = DictUtils.get_string(slot_def, "display_name", slot_id.capitalize())
 		if slot_id.is_empty():
 			continue
 
@@ -262,8 +262,8 @@ func _focus_first_button() -> void:
 		return
 
 	# Try equipment buttons first
-	for slot_id: String in equipment_buttons:
-		var button: Button = equipment_buttons[slot_id]
+	for slot_id: String in equipment_buttons.keys():
+		var button: Button = equipment_buttons.get(slot_id) as Button
 		if is_instance_valid(button):
 			button.grab_focus()
 			return
@@ -339,14 +339,15 @@ func _try_unequip(slot_id: String) -> void:
 	# Unequip
 	var result: Dictionary = EquipmentManager.unequip_item(save_data, slot_id)
 
-	if result.success:
+	if DictUtils.get_bool(result, "success", false):
 		# Add to inventory
-		if not result.unequipped_item_id.is_empty():
-			save_data.add_item_to_inventory(result.unequipped_item_id)
+		var unequipped_id: String = DictUtils.get_string(result, "unequipped_item_id", "")
+		if not unequipped_id.is_empty():
+			save_data.add_item_to_inventory(unequipped_id)
 		_show_result("Unequipped %s" % item_name, true)
 		_refresh_for_current_member()
 	else:
-		_show_result(result.error, false)
+		_show_result(DictUtils.get_string(result, "error", "Unknown error"), false)
 
 
 # =============================================================================
@@ -429,12 +430,12 @@ func _handle_use_action(item_id: String) -> void:
 	var save_data: CharacterSaveData = get_character_save_data(character_uid)
 	var result: Dictionary = _apply_item_effect(item_data, save_data)
 
-	if result.success:
+	if DictUtils.get_bool(result, "success", false):
 		save_data.remove_item_from_inventory(item_id)
-		_show_result(result.message, true)
+		_show_result(DictUtils.get_string(result, "message", ""), true)
 		_refresh_for_current_member()
 	else:
-		_show_result(result.message, false)
+		_show_result(DictUtils.get_string(result, "message", "Unknown error"), false)
 
 
 func _handle_equip_action(item_id: String) -> void:
@@ -471,15 +472,16 @@ func _handle_equip_action(item_id: String) -> void:
 	# Equip the new item
 	var result: Dictionary = EquipmentManager.equip_item(save_data, target_slot, item_id)
 
-	if result.success:
+	if DictUtils.get_bool(result, "success", false):
 		# Remove from inventory and add old item if swapped
 		save_data.remove_item_from_inventory(item_id)
-		if not result.unequipped_item_id.is_empty():
-			save_data.add_item_to_inventory(result.unequipped_item_id)
+		var unequipped_id: String = DictUtils.get_string(result, "unequipped_item_id", "")
+		if not unequipped_id.is_empty():
+			save_data.add_item_to_inventory(unequipped_id)
 		_show_result("Equipped %s!" % item_data.item_name, true)
 		_refresh_for_current_member()
 	else:
-		_show_result(result.error, false)
+		_show_result(DictUtils.get_string(result, "error", "Unknown error"), false)
 
 
 func _handle_give_action(item_id: String) -> void:

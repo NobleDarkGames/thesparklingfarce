@@ -206,8 +206,14 @@ func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 	var tile_id: int = atlas_coords.y * 1000 + atlas_coords.x  # Simple ID from coords
 
 	# Look up terrain cost from legacy system
-	if tile_id in _terrain_costs and movement_type in _terrain_costs[tile_id]:
-		return _terrain_costs[tile_id][movement_type]
+	if tile_id in _terrain_costs:
+		var costs_val: Variant = _terrain_costs.get(tile_id)
+		if not costs_val is Dictionary:
+			return DEFAULT_TERRAIN_COST
+		var tile_costs: Dictionary = costs_val
+		if movement_type in tile_costs:
+			var cost: int = int(tile_costs[movement_type])
+			return cost
 
 	return DEFAULT_TERRAIN_COST
 
@@ -329,7 +335,7 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 		for neighbor: Vector2i in neighbors:
 			# Check occupancy - can pass through allies, blocked by enemies
 			if is_cell_occupied(neighbor) and neighbor != from:
-				var occupant: Node = get_unit_at_cell(neighbor)
+				var occupant: Unit = get_unit_at_cell(neighbor)
 				# Block if occupant is an enemy (different faction)
 				# Allow pass-through if same faction (ally)
 				if occupant and mover_faction != "" and occupant.faction != mover_faction:
@@ -381,7 +387,7 @@ func _update_astar_weights(movement_type: int, mover_faction: String = "") -> vo
 				_astar.set_point_solid(cell, true)
 			# Check occupation - allies are passable, enemies are solid
 			elif is_cell_occupied(cell):
-				var occupant: Node = get_unit_at_cell(cell)
+				var occupant: Unit = get_unit_at_cell(cell)
 				# If we have faction info, allow passing through allies
 				if occupant and mover_faction != "" and occupant.faction == mover_faction:
 					# Ally - can pass through
@@ -396,7 +402,7 @@ func _update_astar_weights(movement_type: int, mover_faction: String = "") -> vo
 
 
 ## Mark a cell as occupied by a unit
-func set_cell_occupied(cell: Vector2i, unit: Node) -> void:
+func set_cell_occupied(cell: Vector2i, unit: Unit) -> void:
 	if not grid.is_within_bounds(cell):
 		push_warning("GridManager: Cannot occupy cell %s (out of bounds)" % cell)
 		return
@@ -415,14 +421,14 @@ func is_cell_occupied(cell: Vector2i) -> bool:
 
 
 ## Get the unit occupying a cell (or null if empty)
-func get_unit_at_cell(cell: Vector2i) -> Node:
+func get_unit_at_cell(cell: Vector2i) -> Unit:
 	if cell in _occupied_cells:
 		return _occupied_cells[cell]
 	return null
 
 
 ## Move a unit from one cell to another (updates occupation tracking)
-func move_unit(unit: Node, from: Vector2i, to: Vector2i) -> void:
+func move_unit(unit: Unit, from: Vector2i, to: Vector2i) -> void:
 	if not grid.is_within_bounds(to):
 		push_error("GridManager: Cannot move unit to %s (out of bounds)" % to)
 		return

@@ -53,9 +53,10 @@ func can_afford(inventory_checker: Callable, gold_available: int) -> bool:
 		return false
 
 	for input: Dictionary in inputs:
-		var material_id: String = input.get("material_id", "")
-		var required_qty: int = input.get("quantity", 1)
-		var owned_qty: int = inventory_checker.call(material_id)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var required_qty: int = DictUtils.get_int(input, "quantity", 1)
+		var owned_qty_value: Variant = inventory_checker.call(material_id)
+		var owned_qty: int = owned_qty_value if owned_qty_value is int else 0
 		if owned_qty < required_qty:
 			return false
 
@@ -68,9 +69,10 @@ func get_missing_materials(inventory_checker: Callable) -> Array[Dictionary]:
 	var missing: Array[Dictionary] = []
 
 	for input: Dictionary in inputs:
-		var material_id: String = input.get("material_id", "")
-		var required_qty: int = input.get("quantity", 1)
-		var owned_qty: int = inventory_checker.call(material_id)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var required_qty: int = DictUtils.get_int(input, "quantity", 1)
+		var owned_qty_value: Variant = inventory_checker.call(material_id)
+		var owned_qty: int = owned_qty_value if owned_qty_value is int else 0
 
 		if owned_qty < required_qty:
 			missing.append({
@@ -126,10 +128,12 @@ func validate() -> bool:
 	# Validate input entries
 	for i: int in inputs.size():
 		var input: Dictionary = inputs[i]
-		if "material_id" not in input or input["material_id"].is_empty():
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var quantity: int = DictUtils.get_int(input, "quantity", 0)
+		if material_id.is_empty():
 			push_error("CraftingRecipeData: input[%d] missing material_id" % i)
 			return false
-		if "quantity" not in input or input["quantity"] < 1:
+		if quantity < 1:
 			push_error("CraftingRecipeData: input[%d] quantity must be at least 1" % i)
 			return false
 

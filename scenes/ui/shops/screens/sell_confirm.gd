@@ -23,7 +23,7 @@ func _on_initialized() -> void:
 
 
 func _populate_items_list() -> void:
-	for child in items_list.get_children():
+	for child: Node in items_list.get_children():
 		child.queue_free()
 
 	for queued: RefCounted in context.queue.get_all_items():
@@ -53,7 +53,7 @@ func _on_confirm() -> void:
 				1
 			)
 
-			if result.success:
+			if result.get("success", false):
 				total_earned += queued.unit_price
 				items_sold += 1
 

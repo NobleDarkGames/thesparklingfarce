@@ -68,7 +68,7 @@ static func load_from_json_string(json_text: String, source_path: String = "<str
 		push_error("MapMetadataLoader: Root element must be a dictionary in %s" % source_path)
 		return null
 
-	return _build_metadata_from_dict(data as Dictionary, source_path)
+	return _build_metadata_from_dict(data, source_path)
 
 
 ## Build MapMetadata from a parsed JSON dictionary
@@ -125,21 +125,32 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 		metadata.ambient_id = str(data["ambient_id"])
 
 	# Spawn points - OPTIONAL in JSON (will be extracted from scene)
-	if "spawn_points" in data and data["spawn_points"] is Dictionary:
-		metadata.spawn_points = _parse_spawn_points(data["spawn_points"] as Dictionary, source_path)
+	if "spawn_points" in data:
+		var spawn_points_raw: Variant = data["spawn_points"]
+		if spawn_points_raw is Dictionary:
+			var spawn_points_dict: Dictionary = spawn_points_raw
+			metadata.spawn_points = _parse_spawn_points(spawn_points_dict, source_path)
 
 	# Connections - OPTIONAL in JSON (will be extracted from scene)
-	if "connections" in data and data["connections"] is Array:
-		metadata.connections.clear()
-		for conn_data: Variant in data["connections"]:
-			if conn_data is Dictionary:
-				var connection: Dictionary = _parse_connection(conn_data as Dictionary, source_path)
-				if not connection.is_empty():
-					metadata.connections.append(connection)
+	if "connections" in data:
+		var connections_raw: Variant = data["connections"]
+		if connections_raw is Array:
+			var connections_arr: Array = connections_raw
+			metadata.connections.clear()
+			for i: int in range(connections_arr.size()):
+				var conn_raw: Variant = connections_arr[i]
+				if conn_raw is Dictionary:
+					var conn_dict: Dictionary = conn_raw
+					var connection: Dictionary = _parse_connection(conn_dict, source_path)
+					if not connection.is_empty():
+						metadata.connections.append(connection)
 
 	# Edge connections - must be in JSON (cannot derive from scene geometry)
-	if "edge_connections" in data and data["edge_connections"] is Dictionary:
-		metadata.edge_connections = _parse_edge_connections(data["edge_connections"] as Dictionary, source_path)
+	if "edge_connections" in data:
+		var edge_connections_raw: Variant = data["edge_connections"]
+		if edge_connections_raw is Dictionary:
+			var edge_connections_dict: Dictionary = edge_connections_raw
+			metadata.edge_connections = _parse_edge_connections(edge_connections_dict, source_path)
 
 	# Mark as needing scene population if identity fields are missing
 	metadata.set_meta("needs_scene_population", metadata.map_id.is_empty())
@@ -152,22 +163,44 @@ static func _build_metadata_from_dict(data: Dictionary, source_path: String) -> 
 static func _parse_spawn_points(data: Dictionary, source_path: String) -> Dictionary:
 	var spawn_points: Dictionary = {}
 
-	for spawn_id: String in data.keys():
-		var spawn_data: Variant = data[spawn_id]
-		if not spawn_data is Dictionary:
+	var data_keys: Array = data.keys()
+	for i: int in range(data_keys.size()):
+		var spawn_id_raw: Variant = data_keys[i]
+		var spawn_id: String = str(spawn_id_raw)
+		var spawn_data_raw: Variant = data[spawn_id]
+		if not spawn_data_raw is Dictionary:
 			push_warning("MapMetadataLoader: Invalid spawn point '%s' in %s" % [spawn_id, source_path])
 			continue
 
-		var spawn_dict: Dictionary = spawn_data as Dictionary
+		var spawn_dict: Dictionary = spawn_data_raw
 		var parsed: Dictionary = {}
 
 		# Grid position (required for JSON-defined spawn points)
 		if "grid_position" in spawn_dict:
-			var pos: Variant = spawn_dict["grid_position"]
-			if pos is Array and pos.size() >= 2:
-				parsed["grid_position"] = Vector2i(int(pos[0]), int(pos[1]))
-			elif pos is Dictionary and "x" in pos and "y" in pos:
-				parsed["grid_position"] = Vector2i(int(pos["x"]), int(pos["y"]))
+			var pos_raw: Variant = spawn_dict["grid_position"]
+			if pos_raw is Array:
+				var pos_arr: Array = pos_raw
+				var pos_size: int = pos_arr.size()
+				if pos_size >= 2:
+					var x_raw: Variant = pos_arr[0]
+					var y_raw: Variant = pos_arr[1]
+					var x_val: int = _variant_to_int(x_raw)
+					var y_val: int = _variant_to_int(y_raw)
+					parsed["grid_position"] = Vector2i(x_val, y_val)
+				else:
+					push_warning("MapMetadataLoader: Invalid grid_position for spawn '%s' in %s" % [spawn_id, source_path])
+					continue
+			elif pos_raw is Dictionary:
+				var pos_dict: Dictionary = pos_raw
+				if "x" in pos_dict and "y" in pos_dict:
+					var x_raw: Variant = pos_dict["x"]
+					var y_raw: Variant = pos_dict["y"]
+					var x_val: int = _variant_to_int(x_raw)
+					var y_val: int = _variant_to_int(y_raw)
+					parsed["grid_position"] = Vector2i(x_val, y_val)
+				else:
+					push_warning("MapMetadataLoader: Invalid grid_position for spawn '%s' in %s" % [spawn_id, source_path])
+					continue
 			else:
 				push_warning("MapMetadataLoader: Invalid grid_position for spawn '%s' in %s" % [spawn_id, source_path])
 				continue
@@ -176,11 +209,14 @@ static func _parse_spawn_points(data: Dictionary, source_path: String) -> Dictio
 			continue
 
 		# Facing direction (optional, default "down")
-		parsed["facing"] = str(spawn_dict.get("facing", "down"))
+		var facing_raw: Variant = spawn_dict.get("facing", "down")
+		parsed["facing"] = str(facing_raw)
 
 		# Flags (optional, default false)
-		parsed["is_default"] = bool(spawn_dict.get("is_default", false))
-		parsed["is_caravan_spawn"] = bool(spawn_dict.get("is_caravan_spawn", false))
+		var is_default_raw: Variant = spawn_dict.get("is_default", false)
+		var is_caravan_raw: Variant = spawn_dict.get("is_caravan_spawn", false)
+		parsed["is_default"] = bool(is_default_raw)
+		parsed["is_caravan_spawn"] = bool(is_caravan_raw)
 
 		spawn_points[spawn_id] = parsed
 
@@ -193,27 +229,33 @@ static func _parse_connection(data: Dictionary, source_path: String) -> Dictiona
 
 	# Required fields
 	if "trigger_id" in data:
-		connection["trigger_id"] = str(data["trigger_id"])
+		var trigger_id_raw: Variant = data["trigger_id"]
+		connection["trigger_id"] = str(trigger_id_raw)
 	else:
 		push_warning("MapMetadataLoader: Connection missing 'trigger_id' in %s" % source_path)
 		return {}
 
 	if "target_map_id" in data:
-		connection["target_map_id"] = str(data["target_map_id"])
+		var target_map_id_raw: Variant = data["target_map_id"]
+		connection["target_map_id"] = str(target_map_id_raw)
 	else:
 		push_warning("MapMetadataLoader: Connection missing 'target_map_id' in %s" % source_path)
 		return {}
 
 	if "target_spawn_id" in data:
-		connection["target_spawn_id"] = str(data["target_spawn_id"])
+		var target_spawn_id_raw: Variant = data["target_spawn_id"]
+		connection["target_spawn_id"] = str(target_spawn_id_raw)
 	else:
 		push_warning("MapMetadataLoader: Connection missing 'target_spawn_id' in %s" % source_path)
 		return {}
 
 	# Optional fields
-	connection["transition_type"] = str(data.get("transition_type", "fade"))
-	connection["requires_key"] = str(data.get("requires_key", ""))
-	connection["one_way"] = bool(data.get("one_way", false))
+	var transition_raw: Variant = data.get("transition_type", "fade")
+	var requires_key_raw: Variant = data.get("requires_key", "")
+	var one_way_raw: Variant = data.get("one_way", false)
+	connection["transition_type"] = str(transition_raw)
+	connection["requires_key"] = str(requires_key_raw)
+	connection["one_way"] = bool(one_way_raw)
 
 	return connection
 
@@ -223,33 +265,53 @@ static func _parse_edge_connections(data: Dictionary, source_path: String) -> Di
 	var edge_connections: Dictionary = {}
 	var valid_edges: Array[String] = ["north", "south", "east", "west"]
 
-	for edge: String in data.keys():
+	var data_keys: Array = data.keys()
+	for i: int in range(data_keys.size()):
+		var edge_raw: Variant = data_keys[i]
+		var edge: String = str(edge_raw)
 		if edge not in valid_edges:
 			push_warning("MapMetadataLoader: Invalid edge '%s' in %s (must be north/south/east/west)" % [edge, source_path])
 			continue
 
-		var edge_data: Variant = data[edge]
-		if not edge_data is Dictionary:
+		var edge_data_raw: Variant = data[edge]
+		if not edge_data_raw is Dictionary:
 			push_warning("MapMetadataLoader: Invalid edge connection data for '%s' in %s" % [edge, source_path])
 			continue
 
-		var edge_dict: Dictionary = edge_data as Dictionary
+		var edge_dict: Dictionary = edge_data_raw
 		var parsed: Dictionary = {}
 
 		if "target_map_id" in edge_dict:
-			parsed["target_map_id"] = str(edge_dict["target_map_id"])
+			var target_map_id_raw: Variant = edge_dict["target_map_id"]
+			parsed["target_map_id"] = str(target_map_id_raw)
 		else:
 			push_warning("MapMetadataLoader: Edge '%s' missing 'target_map_id' in %s" % [edge, source_path])
 			continue
 
 		if "target_spawn_id" in edge_dict:
-			parsed["target_spawn_id"] = str(edge_dict["target_spawn_id"])
+			var target_spawn_id_raw: Variant = edge_dict["target_spawn_id"]
+			parsed["target_spawn_id"] = str(target_spawn_id_raw)
 		else:
 			push_warning("MapMetadataLoader: Edge '%s' missing 'target_spawn_id' in %s" % [edge, source_path])
 			continue
 
-		parsed["overlap_tiles"] = int(edge_dict.get("overlap_tiles", 1))
+		var overlap_raw: Variant = edge_dict.get("overlap_tiles", 1)
+		var overlap_tiles: int = 1
+		if overlap_raw is int:
+			overlap_tiles = overlap_raw
+		elif overlap_raw is float:
+			overlap_tiles = int(overlap_raw)
+		parsed["overlap_tiles"] = overlap_tiles
 
 		edge_connections[edge] = parsed
 
 	return edge_connections
+
+
+## Safely convert a Variant to int with type checking
+static func _variant_to_int(value: Variant) -> int:
+	if value is int:
+		return value
+	elif value is float:
+		return int(value)
+	return 0

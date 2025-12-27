@@ -173,7 +173,7 @@ func _handle_transition_context(context: RefCounted) -> void:
 		_debug_print("  Hero spawned at default position")
 
 	# Reposition all followers relative to hero's new position
-	for follower in party_followers:
+	for follower: CharacterBody2D in party_followers:
 		if follower and follower.has_method("reposition_to_hero"):
 			follower.reposition_to_hero()
 	_debug_print("  Followers repositioned around hero")
@@ -221,7 +221,7 @@ func _spawn_at_default() -> void:
 			_debug_print("MapTemplate: Hero spawned at default spawn point")
 
 			# SF2-AUTHENTIC: Reposition followers at hero's new location
-			for follower in party_followers:
+			for follower: CharacterBody2D in party_followers:
 				if follower and follower.has_method("reposition_to_hero"):
 					follower.reposition_to_hero()
 			_debug_print("MapTemplate: Followers repositioned to hero")

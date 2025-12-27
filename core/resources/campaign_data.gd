@@ -52,8 +52,8 @@ func _build_cache() -> void:
 	for node_resource: Resource in nodes:
 		if node_resource == null:
 			continue
-		# Access node_id property
-		if not node_resource.get("node_id"):
+		# Access node_id property - check existence before accessing
+		if not "node_id" in node_resource:
 			push_warning("CampaignData: Node missing node_id property")
 			continue
 		var node_id: String = node_resource.node_id
@@ -93,14 +93,14 @@ func validate() -> Array[String]:
 		# Validate node if it has validate method
 		if node_resource.has_method("validate"):
 			var node_errors: Array[String] = node_resource.validate()
-			var node_id: String = node_resource.get("node_id") if node_resource.get("node_id") else "unknown"
+			var node_id: String = node_resource.node_id if "node_id" in node_resource else "unknown"
 			for error: String in node_errors:
 				errors.append("Node '%s': %s" % [node_id, error])
 
 		# Check transition targets exist
 		for target_id: String in _get_all_transition_targets(node_resource):
 			if not target_id.is_empty() and target_id not in _node_cache:
-				var node_id: String = node_resource.get("node_id") if node_resource.get("node_id") else "unknown"
+				var node_id: String = node_resource.node_id if "node_id" in node_resource else "unknown"
 				errors.append("Node '%s': transition target '%s' not found" % [node_id, target_id])
 
 	# Circular transition detection
@@ -114,17 +114,29 @@ func validate() -> Array[String]:
 func _get_all_transition_targets(node: Resource) -> Array[String]:
 	var targets: Array[String] = []
 
-	if node.get("on_victory") and not node.on_victory.is_empty():
-		targets.append(node.on_victory)
-	if node.get("on_defeat") and not node.on_defeat.is_empty():
-		targets.append(node.on_defeat)
-	if node.get("on_complete") and not node.on_complete.is_empty():
-		targets.append(node.on_complete)
+	if "on_victory" in node:
+		var on_victory_value: Variant = node.get("on_victory")
+		var on_victory: String = on_victory_value if on_victory_value is String else ""
+		if not on_victory.is_empty():
+			targets.append(on_victory)
+	if "on_defeat" in node:
+		var on_defeat_value: Variant = node.get("on_defeat")
+		var on_defeat: String = on_defeat_value if on_defeat_value is String else ""
+		if not on_defeat.is_empty():
+			targets.append(on_defeat)
+	if "on_complete" in node:
+		var on_complete_value: Variant = node.get("on_complete")
+		var on_complete: String = on_complete_value if on_complete_value is String else ""
+		if not on_complete.is_empty():
+			targets.append(on_complete)
 
-	if node.get("branches"):
-		for branch: Dictionary in node.branches:
-			if "target" in branch and not branch["target"].is_empty():
-				targets.append(branch["target"])
+	if "branches" in node:
+		var branches_value: Variant = node.get("branches")
+		var branches_array: Array = branches_value if branches_value is Array else []
+		for branch: Dictionary in branches_array:
+			var branch_target: String = DictUtils.get_string(branch, "target", "")
+			if not branch_target.is_empty():
+				targets.append(branch_target)
 
 	return targets
 
@@ -137,12 +149,14 @@ func _detect_circular_transitions() -> Array[String]:
 	for node_resource: Resource in nodes:
 		if node_resource == null:
 			continue
-		if not node_resource.get("node_type"):
+		if not "node_type" in node_resource:
 			continue
 
-		if node_resource.node_type == "cutscene":
-			var visited: Array[String] = [node_resource.node_id]
-			var current_target: String = node_resource.get("on_complete") if node_resource.get("on_complete") else ""
+		var node_type: String = node_resource.node_type
+		if node_type == "cutscene":
+			var node_id: String = node_resource.node_id
+			var visited: Array[String] = [node_id]
+			var current_target: String = node_resource.on_complete if "on_complete" in node_resource else ""
 			var depth: int = 0
 
 			while not current_target.is_empty() and depth < MAX_TRANSITION_CHAIN_DEPTH:
@@ -153,9 +167,10 @@ func _detect_circular_transitions() -> Array[String]:
 				visited.append(current_target)
 
 				if current_target in _node_cache:
-					var target_node: Resource = _node_cache[current_target]
-					if target_node.get("node_type") == "cutscene":
-						current_target = target_node.get("on_complete") if target_node.get("on_complete") else ""
+					var target_node: CampaignNode = _node_cache[current_target]
+					var target_node_type: String = target_node.node_type if target_node else ""
+					if target_node_type == "cutscene":
+						current_target = target_node.on_complete if target_node else ""
 					else:
 						break  # Non-cutscene nodes require player action
 				else:
@@ -186,7 +201,13 @@ func find_battle_node_by_resource_id(battle_resource_id: String) -> Resource:
 	if not _cache_built:
 		_build_cache()
 	for node: Resource in nodes:
-		if node and node.get("node_type") == "battle" and node.get("resource_id") == battle_resource_id:
+		if node == null:
+			continue
+		if not "node_type" in node or not "resource_id" in node:
+			continue
+		var node_type: String = node.node_type
+		var resource_id: String = node.resource_id
+		if node_type == "battle" and resource_id == battle_resource_id:
 			return node
 	return null
 
@@ -195,7 +216,11 @@ func find_battle_node_by_resource_id(battle_resource_id: String) -> Resource:
 func get_chapter_for_node(node_id: String) -> Dictionary:
 	for chapter: Dictionary in chapters:
 		if "node_ids" in chapter:
-			var node_ids: Array = chapter["node_ids"]
+			var node_ids: Array[String] = []
+			var raw_node_ids: Array = DictUtils.get_array(chapter, "node_ids", [])
+			for raw_id: Variant in raw_node_ids:
+				if raw_id is String:
+					node_ids.append(raw_id)
 			if node_id in node_ids:
 				return chapter
 	return {}

@@ -81,7 +81,8 @@ func get_category_source(category: String) -> String:
 	if lower_cat in DEFAULT_CATEGORIES:
 		return "base"
 	for mod_id: String in _mod_categories:
-		if lower_cat in _mod_categories[mod_id]:
+		var categories: Array = _mod_categories[mod_id]
+		if lower_cat in categories:
 			return mod_id
 	return ""
 
@@ -96,7 +97,8 @@ func _rebuild_cache_if_dirty() -> void:
 
 	# Add mod categories (avoiding duplicates)
 	for mod_id: String in _mod_categories:
-		for category: String in _mod_categories[mod_id]:
+		var mod_cats: Array = _mod_categories[mod_id]
+		for category: String in mod_cats:
 			if category not in _all_categories:
 				_all_categories.append(category)
 

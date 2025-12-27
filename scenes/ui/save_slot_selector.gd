@@ -139,7 +139,7 @@ func _show_name_entry() -> void:
 	# Hide the selector UI
 	for child: Node in get_children():
 		if child is Control:
-			(child as Control).visible = false
+			child.visible = false
 
 	# Instantiate and add name entry
 	_name_entry = HeroNameEntryScene.instantiate()
@@ -184,8 +184,10 @@ func _start_new_game(hero_name: String) -> void:
 		SaveManager.current_save.current_location = config.starting_location_label
 
 		# Set starting story flags
-		for flag_name: String in config.starting_story_flags:
-			GameState.set_flag(flag_name, config.starting_story_flags[flag_name])
+		var starting_flags: Dictionary = config.starting_story_flags
+		for flag_name: String in starting_flags:
+			var flag_value: bool = starting_flags[flag_name]
+			GameState.set_flag(flag_name, flag_value)
 
 		# Start the campaign
 		var campaign_id: String = config.starting_campaign_id
@@ -214,7 +216,7 @@ func _show_no_campaign_error() -> void:
 	# Hide current UI
 	for child: Node in get_children():
 		if child is Control:
-			(child as Control).visible = false
+			child.visible = false
 
 	# Create and register dialog box for the cinematic
 	_dialog_box = DialogBoxScene.instantiate()
@@ -223,7 +225,7 @@ func _show_no_campaign_error() -> void:
 	_dialog_box.hide()
 
 	# Load and play the error cinematic, then return to main menu
-	var error_cinematic: Resource = CinematicLoader.load_from_json(NO_CAMPAIGN_ERROR_CINEMATIC)
+	var error_cinematic: CinematicData = CinematicLoader.load_from_json(NO_CAMPAIGN_ERROR_CINEMATIC) as CinematicData
 	if error_cinematic:
 		# Connect to cinematic_ended to return to main menu after
 		if not CinematicsManager.cinematic_ended.is_connected(_on_error_cinematic_ended):
@@ -254,8 +256,10 @@ func _load_game() -> void:
 	# Note: PartyManager import handles party restoration
 
 	# Restore story flags
-	for flag_name: String in save_data.story_flags:
-		GameState.set_flag(flag_name, save_data.story_flags[flag_name])
+	var saved_flags: Dictionary = save_data.story_flags
+	for flag_name: String in saved_flags:
+		var flag_value: bool = saved_flags[flag_name]
+		GameState.set_flag(flag_name, flag_value)
 
 	# Restore party from save
 	PartyManager.import_from_save(save_data.party_members)

@@ -146,7 +146,12 @@ extends Resource
 
 ## Get a threat weight value with fallback to default
 func get_threat_weight(key: String, default: float = 1.0) -> float:
-	return threat_weights.get(key, default)
+	var value: Variant = threat_weights.get(key, default)
+	if value is float:
+		return value
+	if value is int:
+		return float(value)
+	return default
 
 
 ## Get the effective role, defaulting to "aggressive" if empty
@@ -183,45 +188,56 @@ func evaluate_phase_changes(context: Dictionary) -> Dictionary:
 			# Merge changes from this phase
 			var phase_changes: Variant = phase.get("changes", {})
 			if phase_changes is Dictionary:
-				for key: String in phase_changes.keys():
-					changes[key] = phase_changes[key]
+				var phase_changes_dict: Dictionary = phase_changes
+				for key: String in phase_changes_dict.keys():
+					changes[key] = phase_changes_dict[key]
 
 	return changes
 
 
 ## Check if a single phase trigger is active
 func _is_phase_active(phase: Dictionary, context: Dictionary) -> bool:
-	var trigger: String = str(phase.get("trigger", ""))
+	var trigger: String = DictUtils.get_string(phase, "trigger", "")
 	var value: Variant = phase.get("value")
+	# Pre-convert value to numeric types for type safety
+	var value_float: float = 0.0
+	if value is float:
+		value_float = value
+	elif value is int:
+		value_float = float(value)
+	elif value != null:
+		value_float = 0.0
+	var value_int: int = int(value_float)
+	var value_str: String = str(value) if value != null else ""
 
 	match trigger:
 		"hp_below":
-			var hp_percent: float = context.get("unit_hp_percent", 100.0)
-			return hp_percent < float(value)
+			var hp_percent: float = DictUtils.get_float(context, "unit_hp_percent", 100.0)
+			return hp_percent < value_float
 
 		"hp_above":
-			var hp_percent: float = context.get("unit_hp_percent", 100.0)
-			return hp_percent > float(value)
+			var hp_percent: float = DictUtils.get_float(context, "unit_hp_percent", 100.0)
+			return hp_percent > value_float
 
 		"turn_count":
-			var turn: int = context.get("turn_number", 0)
-			return turn >= int(value)
+			var turn: int = DictUtils.get_int(context, "turn_number", 0)
+			return turn >= value_int
 
 		"ally_died":
-			var dead_allies: Array = context.get("dead_ally_ids", [])
-			return str(value) in dead_allies
+			var dead_allies: Array = DictUtils.get_array(context, "dead_ally_ids", [])
+			return value_str in dead_allies
 
 		"ally_count_below":
-			var ally_count: int = context.get("ally_count", 0)
-			return ally_count < int(value)
+			var ally_count: int = DictUtils.get_int(context, "ally_count", 0)
+			return ally_count < value_int
 
 		"enemy_count_below":
-			var enemy_count: int = context.get("enemy_count", 0)
-			return enemy_count < int(value)
+			var enemy_count: int = DictUtils.get_int(context, "enemy_count", 0)
+			return enemy_count < value_int
 
 		"flag_set":
-			var flags: Dictionary = context.get("story_flags", {})
-			return str(value) in flags
+			var flags: Dictionary = DictUtils.get_dict(context, "story_flags", {})
+			return value_str in flags
 
 		_:
 			# Unknown trigger - log warning and skip

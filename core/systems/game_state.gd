@@ -54,12 +54,14 @@ var last_safe_location: String = ""
 
 ## Battle transition context - encapsulates all transition data
 ## Use TransitionContext for type safety and extensibility
-var _transition_context: RefCounted = null  # Actually TransitionContext
+var _transition_context: TransitionContext = null
 
 ## Legacy accessors (maintained for backwards compatibility)
 var return_scene_path: String:
 	get:
-		return _transition_context.return_scene_path if _transition_context else ""
+		if _transition_context:
+			return _transition_context.return_scene_path
+		return ""
 	set(value):
 		if not _transition_context:
 			_transition_context = TransitionContextScript.new()
@@ -67,7 +69,9 @@ var return_scene_path: String:
 
 var return_hero_position: Vector2:
 	get:
-		return _transition_context.hero_world_position if _transition_context else Vector2.ZERO
+		if _transition_context:
+			return _transition_context.hero_world_position
+		return Vector2.ZERO
 	set(value):
 		if not _transition_context:
 			_transition_context = TransitionContextScript.new()
@@ -75,7 +79,9 @@ var return_hero_position: Vector2:
 
 var return_hero_grid_position: Vector2i:
 	get:
-		return _transition_context.hero_grid_position if _transition_context else Vector2i.ZERO
+		if _transition_context:
+			return _transition_context.hero_grid_position
+		return Vector2i.ZERO
 	set(value):
 		if not _transition_context:
 			_transition_context = TransitionContextScript.new()
@@ -124,9 +130,9 @@ func set_flag(flag_name: String, value: bool = true, source_mod_id: String = "")
 		var is_namespaced: bool = ":" in flag_name
 
 		# Detect potential conflicts
-		if flag_name in _flag_sources and _flag_sources[flag_name] != source_mod_id:
-			var original_source: String = _flag_sources[flag_name]
-			if not source_mod_id.is_empty() or not original_source.is_empty():
+		if flag_name in _flag_sources:
+			var original_source: String = DictUtils.get_string(_flag_sources, flag_name, "")
+			if original_source != source_mod_id and (not source_mod_id.is_empty() or not original_source.is_empty()):
 				push_warning("GameState: Flag '%s' being set by '%s' was originally set by '%s'" % [
 					flag_name,
 					source_mod_id if not source_mod_id.is_empty() else "unknown",
@@ -271,7 +277,7 @@ func disable_strict_namespacing() -> void:
 ## Get all flags that appear to have conflicts (for debugging/editor)
 func get_potential_flag_conflicts() -> Array[String]:
 	var conflicts: Array[String] = []
-	var seen_short_names: Dictionary = {}  # short_name -> [full_names]
+	var seen_short_names: Dictionary = {}  # short_name -> Array[String]
 
 	for flag_name: String in story_flags:
 		var short_name: String = flag_name
@@ -279,12 +285,19 @@ func get_potential_flag_conflicts() -> Array[String]:
 			short_name = flag_name.split(":")[1]
 
 		if short_name not in seen_short_names:
-			seen_short_names[short_name] = []
-		seen_short_names[short_name].append(flag_name)
+			var new_list: Array[String] = []
+			seen_short_names[short_name] = new_list
+		var list_val: Variant = seen_short_names.get(short_name)
+		if list_val is Array:
+			var short_name_list: Array = list_val
+			short_name_list.append(flag_name)
 
 	# Find short names used by multiple full names
 	for short_name: String in seen_short_names:
-		var full_names: Array = seen_short_names[short_name]
+		var names_val: Variant = seen_short_names.get(short_name)
+		if not names_val is Array:
+			continue
+		var full_names: Array = names_val
 		if full_names.size() > 1:
 			for full_name: String in full_names:
 				if full_name not in conflicts:
@@ -330,7 +343,8 @@ func set_campaign_data(key: String, value: Variant) -> void:
 
 ## Increment a numeric campaign value
 func increment_campaign_data(key: String, amount: int = 1) -> void:
-	var current_value: int = campaign_data.get(key, 0)
+	var current_value_variant: Variant = campaign_data.get(key, 0)
+	var current_value: int = current_value_variant if current_value_variant is int else 0
 	set_campaign_data(key, current_value + amount)
 
 
@@ -371,11 +385,12 @@ func import_state(state: Dictionary) -> bool:
 	# Validate story_flags structure
 	var raw_flags: Variant = state.get("story_flags", {})
 	if raw_flags is Dictionary:
+		var flags_dict: Dictionary = raw_flags
 		# Validate flag values are booleans
 		var valid_flags: Dictionary = {}
-		for flag_name: Variant in raw_flags:
+		for flag_name: Variant in flags_dict:
 			if flag_name is String:
-				var flag_value: Variant = raw_flags[flag_name]
+				var flag_value: Variant = flags_dict[flag_name]
 				if flag_value is bool:
 					valid_flags[flag_name] = flag_value
 				else:
@@ -392,8 +407,9 @@ func import_state(state: Dictionary) -> bool:
 	# Validate completed_triggers structure
 	var raw_triggers: Variant = state.get("completed_triggers", {})
 	if raw_triggers is Dictionary:
+		var triggers_dict: Dictionary = raw_triggers
 		var valid_triggers: Dictionary = {}
-		for trigger_id: Variant in raw_triggers:
+		for trigger_id: Variant in triggers_dict:
 			if trigger_id is String:
 				valid_triggers[trigger_id] = true  # Always true for completed
 			else:
@@ -406,7 +422,8 @@ func import_state(state: Dictionary) -> bool:
 	# Validate campaign_data structure
 	var raw_campaign: Variant = state.get("campaign_data", {})
 	if raw_campaign is Dictionary:
-		campaign_data = raw_campaign.duplicate()
+		var campaign_dict: Dictionary = raw_campaign
+		campaign_data = campaign_dict.duplicate()
 	else:
 		push_warning("GameState: campaign_data is not a Dictionary, using defaults")
 		campaign_data = {
@@ -457,7 +474,9 @@ func set_return_data(scene_path: String, hero_pos: Vector2, hero_grid_pos: Vecto
 ## This legacy API is maintained for backwards compatibility but will emit a warning.
 func has_return_data() -> bool:
 	_warn_deprecated_return_data_api("has_return_data")
-	return _transition_context != null and _transition_context.is_valid()
+	if _transition_context == null:
+		return false
+	return _transition_context.is_valid()
 
 
 ## Clear return data after using it.

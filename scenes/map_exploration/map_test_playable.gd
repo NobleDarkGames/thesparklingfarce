@@ -87,7 +87,7 @@ func _load_party() -> void:
 	if PartyManager and PartyManager.party_members.size() > 0:
 		party_characters = PartyManager.party_members.duplicate()
 		_debug_print("✅ Loaded %d characters from PartyManager" % party_characters.size())
-		for character in party_characters:
+		for character: CharacterData in party_characters:
 			if character:
 				var class_name_str: String = character.character_class.display_name if character.character_class else "Unknown"
 				_debug_print("  - %s (%s)" % [character.character_name, class_name_str])
@@ -206,7 +206,7 @@ func _create_followers() -> void:
 		return
 
 	# Skip first member (that's the hero)
-	for i in range(1, party_characters.size()):
+	for i: int in range(1, party_characters.size()):
 		var char_data: CharacterData = party_characters[i]
 
 		var follower: CharacterBody2D = CharacterBody2D.new()
@@ -302,7 +302,7 @@ func _restore_from_battle(saved_position: Vector2) -> void:
 	_debug_print("✅ Hero restored to position: %s (grid: %s)" % [saved_position, grid_pos])
 
 	# Reposition all followers relative to hero's new position
-	for follower in followers:
+	for follower: CharacterBody2D in followers:
 		if follower and follower.has_method("reposition_to_hero"):
 			follower.call("reposition_to_hero")
 	_debug_print("✅ Followers repositioned around hero")
@@ -394,7 +394,7 @@ func _input(event: InputEvent) -> void:
 			if hero:
 				print("Hero position: %s" % hero.position)
 				print("Hero grid position: %s" % hero.get("grid_position"))
-			for i in range(followers.size()):
+			for i: int in range(followers.size()):
 				if i < followers.size():
 					print("Follower %d position: %s" % [i + 1, followers[i].position])
 			print("------------------\n")
@@ -412,11 +412,11 @@ func _draw() -> void:
 	var tile_size: int = 32
 
 	# Draw vertical lines
-	for x in range(0, 640, tile_size):
+	for x: int in range(0, 640, tile_size):
 		draw_line(Vector2(x, 0), Vector2(x, 360), grid_color, 1.0)
 
 	# Draw horizontal lines
-	for y in range(0, 360, tile_size):
+	for y: int in range(0, 360, tile_size):
 		draw_line(Vector2(0, y), Vector2(640, y), grid_color, 1.0)
 
 
@@ -443,13 +443,13 @@ func _create_default_sprite_frames() -> SpriteFrames:
 	# SF2-authentic: only walk animations (no separate idle)
 	var directions: Array[String] = ["walk_down", "walk_left", "walk_right", "walk_up"]
 
-	for row in range(4):
+	for row: int in range(4):
 		var anim_name: String = directions[row]
 		frames.add_animation(anim_name)
 		frames.set_animation_loop(anim_name, true)
 		frames.set_animation_speed(anim_name, 4.0)
 
-		for col in range(2):
+		for col: int in range(2):
 			var atlas: AtlasTexture = AtlasTexture.new()
 			atlas.atlas = spritesheet
 			atlas.region = Rect2(

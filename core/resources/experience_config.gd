@@ -117,11 +117,14 @@ extends Resource
 func get_base_xp_from_level_diff(level_diff: int) -> int:
 	# Clamp to table bounds
 	if level_diff <= -7:
-		return level_diff_xp_table[-7]
+		var min_value: Variant = level_diff_xp_table[-7]
+		return min_value if min_value is int else 50
 	elif level_diff >= 2:
-		return level_diff_xp_table[2]
+		var max_value: Variant = level_diff_xp_table[2]
+		return max_value if max_value is int else 50
 	else:
-		return level_diff_xp_table.get(level_diff, 50)
+		var diff_value: Variant = level_diff_xp_table.get(level_diff, 50)
+		return diff_value if diff_value is int else 50
 
 
 ## Calculate anti-spam XP multiplier based on usage count.

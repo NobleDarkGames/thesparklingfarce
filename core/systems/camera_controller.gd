@@ -138,7 +138,7 @@ func _find_tilemap() -> void:
 	# Look for TileMapLayer in parent or siblings
 	var parent: Node = get_parent()
 	if parent:
-		for child in parent.get_children():
+		for child: Node in parent.get_children():
 			if child is TileMapLayer:
 				_tilemap = child
 				break

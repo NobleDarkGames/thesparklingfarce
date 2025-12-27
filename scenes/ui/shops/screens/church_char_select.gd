@@ -49,7 +49,7 @@ func _update_header() -> void:
 
 func _populate_character_grid() -> void:
 	# Clear existing
-	for child in character_grid.get_children():
+	for child: Node in character_grid.get_children():
 		child.queue_free()
 	character_buttons.clear()
 
@@ -106,7 +106,7 @@ func _should_show_character(save_data: CharacterSaveData) -> bool:
 
 func _has_cursed_equipment(save_data: CharacterSaveData) -> bool:
 	for entry: Dictionary in save_data.equipped_items:
-		var slot: String = entry.get("slot", "")
+		var slot: String = DictUtils.get_string(entry, "slot", "")
 		if not slot.is_empty() and EquipmentManager.is_slot_cursed(save_data, slot):
 			return true
 	return false
@@ -115,7 +115,7 @@ func _has_cursed_equipment(save_data: CharacterSaveData) -> bool:
 func _get_cursed_slots(save_data: CharacterSaveData) -> Array[String]:
 	var cursed: Array[String] = []
 	for entry: Dictionary in save_data.equipped_items:
-		var slot: String = entry.get("slot", "")
+		var slot: String = DictUtils.get_string(entry, "slot", "")
 		if not slot.is_empty() and EquipmentManager.is_slot_cursed(save_data, slot):
 			cursed.append(slot)
 	return cursed
@@ -178,31 +178,31 @@ func _on_character_selected(character_uid: String) -> void:
 
 func _perform_heal(character_uid: String) -> void:
 	var result: Dictionary = ShopManager.church_heal(character_uid)
-	if result.success:
+	if result.get("success", false):
 		context.last_result = {
 			"success": true,
 			"message": "HP and MP fully restored!",
-			"gold_spent": result.cost
+			"gold_spent": result.get("cost", 0)
 		}
 		push_screen("transaction_result")
 	else:
 		# Show error (could push to a result screen or just print)
-		print("[ChurchCharSelect] Heal failed: %s" % result.error)
+		print("[ChurchCharSelect] Heal failed: %s" % result.get("error", "Unknown error"))
 
 
 func _perform_revive(character_uid: String) -> void:
 	var result: Dictionary = ShopManager.church_revive(character_uid)
-	if result.success:
+	if result.get("success", false):
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
 		var hp_msg: String = "HP: %d" % save_data.current_hp if save_data else "HP restored"
 		context.last_result = {
 			"success": true,
 			"message": "Character has been revived!\n%s" % hp_msg,
-			"gold_spent": result.cost
+			"gold_spent": result.get("cost", 0)
 		}
 		push_screen("transaction_result")
 	else:
-		print("[ChurchCharSelect] Revive failed: %s" % result.error)
+		print("[ChurchCharSelect] Revive failed: %s" % result.get("error", "Unknown error"))
 
 
 func _start_uncurse(character_uid: String) -> void:

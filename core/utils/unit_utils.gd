@@ -10,9 +10,11 @@ extends RefCounted
 static func get_display_name(unit: Variant, fallback: String = "Unknown") -> String:
 	if unit == null:
 		return fallback
-	if unit is Object and unit.has_method("get_display_name"):
-		var result: Variant = unit.call("get_display_name")
-		return str(result) if result != null else fallback
+	if unit is Object:
+		var obj: Object = unit
+		if obj.has_method("get_display_name"):
+			var result: Variant = obj.call("get_display_name")
+			return str(result) if result != null else fallback
 	return fallback
 
 
@@ -20,10 +22,12 @@ static func get_display_name(unit: Variant, fallback: String = "Unknown") -> Str
 static func get_grid_position(unit: Variant, fallback: Vector2i = Vector2i.ZERO) -> Vector2i:
 	if unit == null:
 		return fallback
-	if unit is Object and "grid_position" in unit:
-		var pos: Variant = unit.get("grid_position")
-		if pos is Vector2i:
-			return pos
+	if unit is Object:
+		var obj: Object = unit
+		if "grid_position" in obj:
+			var pos: Variant = obj.get("grid_position")
+			if pos is Vector2i:
+				return pos
 	return fallback
 
 
@@ -31,10 +35,12 @@ static func get_grid_position(unit: Variant, fallback: Vector2i = Vector2i.ZERO)
 static func is_alive(unit: Variant) -> bool:
 	if unit == null:
 		return false
-	if unit is Object and "is_alive" in unit:
-		var alive: Variant = unit.get("is_alive")
-		if alive is bool:
-			return alive
+	if unit is Object:
+		var obj: Object = unit
+		if "is_alive" in obj:
+			var alive: Variant = obj.get("is_alive")
+			if alive is bool:
+				return alive
 	return false
 
 
@@ -42,6 +48,8 @@ static func is_alive(unit: Variant) -> bool:
 static func get_character_data(unit: Variant) -> Variant:
 	if unit == null:
 		return null
-	if unit is Object and "character_data" in unit:
-		return unit.get("character_data")
+	if unit is Object:
+		var obj: Object = unit
+		if "character_data" in obj:
+			return obj.get("character_data")
 	return null

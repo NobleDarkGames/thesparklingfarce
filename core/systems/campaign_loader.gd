@@ -77,12 +77,12 @@ static func load_from_json_string(json_text: String, source_path: String = "<str
 		push_error("CampaignLoader: Root element must be a dictionary in %s" % source_path)
 		return null
 
-	return _build_campaign_from_dict(data as Dictionary, source_path)
+	return _build_campaign_from_dict(data, source_path)
 
 
 ## Build CampaignData from a parsed JSON dictionary
 static func _build_campaign_from_dict(data: Dictionary, source_path: String) -> Resource:
-	var campaign: Resource = CampaignDataScript.new()
+	var campaign: CampaignData = CampaignDataScript.new()
 
 	# Required fields
 	if "campaign_id" in data:
@@ -114,26 +114,35 @@ static func _build_campaign_from_dict(data: Dictionary, source_path: String) -> 
 		campaign.default_hub_id = str(data["default_hub_id"])
 
 	# Initial flags
-	if "initial_flags" in data and data["initial_flags"] is Dictionary:
-		campaign.initial_flags = data["initial_flags"].duplicate()
+	if "initial_flags" in data:
+		var initial_flags_val: Variant = data["initial_flags"]
+		if initial_flags_val is Dictionary:
+			var initial_flags_dict: Dictionary = initial_flags_val
+			campaign.initial_flags = initial_flags_dict.duplicate()
 
 	# Chapters (Array of Dictionary) - use clear() to preserve typed array
-	if "chapters" in data and data["chapters"] is Array:
-		campaign.chapters.clear()
-		for chapter_data: Variant in data["chapters"]:
-			if chapter_data is Dictionary:
-				var chapter: Dictionary = _parse_chapter(chapter_data as Dictionary, source_path)
-				if not chapter.is_empty():
-					campaign.chapters.append(chapter)
+	if "chapters" in data:
+		var chapters_val: Variant = data["chapters"]
+		if chapters_val is Array:
+			var chapters_arr: Array = chapters_val
+			campaign.chapters.clear()
+			for chapter_data: Variant in chapters_arr:
+				if chapter_data is Dictionary:
+					var chapter: Dictionary = _parse_chapter(chapter_data, source_path)
+					if not chapter.is_empty():
+						campaign.chapters.append(chapter)
 
 	# Nodes (Array of CampaignNode resources) - use clear() to preserve typed array
-	if "nodes" in data and data["nodes"] is Array:
-		campaign.nodes.clear()
-		for node_data: Variant in data["nodes"]:
-			if node_data is Dictionary:
-				var node: Resource = _build_node_from_dict(node_data as Dictionary, source_path)
-				if node:
-					campaign.nodes.append(node)
+	if "nodes" in data:
+		var nodes_val: Variant = data["nodes"]
+		if nodes_val is Array:
+			var nodes_arr: Array = nodes_val
+			campaign.nodes.clear()
+			for node_data: Variant in nodes_arr:
+				if node_data is Dictionary:
+					var node: Resource = _build_node_from_dict(node_data, source_path)
+					if node:
+						campaign.nodes.append(node)
 	else:
 		push_error("CampaignLoader: Missing required 'nodes' array in %s" % source_path)
 		return null
@@ -168,18 +177,21 @@ static func _parse_chapter(data: Dictionary, source_path: String) -> Dictionary:
 	if "number" in data:
 		chapter["number"] = int(data["number"])
 
-	if "node_ids" in data and data["node_ids"] is Array:
-		var node_ids: Array[String] = []
-		for node_id: Variant in data["node_ids"]:
-			node_ids.append(str(node_id))
-		chapter["node_ids"] = node_ids
+	if "node_ids" in data:
+		var node_ids_val: Variant = data["node_ids"]
+		if node_ids_val is Array:
+			var node_ids_arr: Array = node_ids_val
+			var node_ids: Array[String] = []
+			for node_id: Variant in node_ids_arr:
+				node_ids.append(str(node_id))
+			chapter["node_ids"] = node_ids
 
 	return chapter
 
 
 ## Build a CampaignNode from a parsed JSON dictionary
 static func _build_node_from_dict(data: Dictionary, source_path: String) -> Resource:
-	var node: Resource = CampaignNodeScript.new()
+	var node: CampaignNode = CampaignNodeScript.new()
 
 	# Required fields
 	if "node_id" in data:
@@ -214,13 +226,16 @@ static func _build_node_from_dict(data: Dictionary, source_path: String) -> Reso
 		node.on_complete = str(data["on_complete"])
 
 	# Complex branching - use clear() to preserve typed array
-	if "branches" in data and data["branches"] is Array:
-		node.branches.clear()
-		for branch_data: Variant in data["branches"]:
-			if branch_data is Dictionary:
-				var branch: Dictionary = _parse_branch(branch_data as Dictionary)
-				if not branch.is_empty():
-					node.branches.append(branch)
+	if "branches" in data:
+		var branches_val: Variant = data["branches"]
+		if branches_val is Array:
+			var branches_arr: Array = branches_val
+			node.branches.clear()
+			for branch_data: Variant in branches_arr:
+				if branch_data is Dictionary:
+					var branch: Dictionary = _parse_branch(branch_data)
+					if not branch.is_empty():
+						node.branches.append(branch)
 
 	# Shining Force mechanics
 	if "retain_xp_on_defeat" in data:
@@ -252,21 +267,33 @@ static func _build_node_from_dict(data: Dictionary, source_path: String) -> Reso
 		node.post_cinematic_id = str(data["post_cinematic_id"])
 
 	# Flags
-	if "on_enter_flags" in data and data["on_enter_flags"] is Dictionary:
-		node.on_enter_flags = data["on_enter_flags"].duplicate()
+	if "on_enter_flags" in data:
+		var enter_flags_val: Variant = data["on_enter_flags"]
+		if enter_flags_val is Dictionary:
+			var enter_flags_dict: Dictionary = enter_flags_val
+			node.on_enter_flags = enter_flags_dict.duplicate()
 
-	if "on_complete_flags" in data and data["on_complete_flags"] is Dictionary:
-		node.on_complete_flags = data["on_complete_flags"].duplicate()
+	if "on_complete_flags" in data:
+		var complete_flags_val: Variant = data["on_complete_flags"]
+		if complete_flags_val is Dictionary:
+			var complete_flags_dict: Dictionary = complete_flags_val
+			node.on_complete_flags = complete_flags_dict.duplicate()
 
-	if "required_flags" in data and data["required_flags"] is Array:
-		node.required_flags.clear()
-		for flag: Variant in data["required_flags"]:
-			node.required_flags.append(str(flag))
+	if "required_flags" in data:
+		var req_flags_val: Variant = data["required_flags"]
+		if req_flags_val is Array:
+			var req_flags_arr: Array = req_flags_val
+			node.required_flags.clear()
+			for flag: Variant in req_flags_arr:
+				node.required_flags.append(str(flag))
 
-	if "forbidden_flags" in data and data["forbidden_flags"] is Array:
-		node.forbidden_flags.clear()
-		for flag: Variant in data["forbidden_flags"]:
-			node.forbidden_flags.append(str(flag))
+	if "forbidden_flags" in data:
+		var forb_flags_val: Variant = data["forbidden_flags"]
+		if forb_flags_val is Array:
+			var forb_flags_arr: Array = forb_flags_val
+			node.forbidden_flags.clear()
+			for flag: Variant in forb_flags_arr:
+				node.forbidden_flags.append(str(flag))
 
 	# Completion triggers (for scene nodes)
 	if "completion_trigger" in data:
@@ -306,17 +333,23 @@ static func _parse_branch(data: Dictionary) -> Dictionary:
 	if "required_flag" in data:
 		branch["required_flag"] = str(data["required_flag"])
 
-	if "required_flags" in data and data["required_flags"] is Array:
-		var flags: Array[String] = []
-		for flag: Variant in data["required_flags"]:
-			flags.append(str(flag))
-		branch["required_flags"] = flags
+	if "required_flags" in data:
+		var req_flags_val: Variant = data["required_flags"]
+		if req_flags_val is Array:
+			var req_flags_arr: Array = req_flags_val
+			var flags: Array[String] = []
+			for flag: Variant in req_flags_arr:
+				flags.append(str(flag))
+			branch["required_flags"] = flags
 
-	if "forbidden_flags" in data and data["forbidden_flags"] is Array:
-		var flags: Array[String] = []
-		for flag: Variant in data["forbidden_flags"]:
-			flags.append(str(flag))
-		branch["forbidden_flags"] = flags
+	if "forbidden_flags" in data:
+		var forb_flags_val: Variant = data["forbidden_flags"]
+		if forb_flags_val is Array:
+			var forb_flags_arr: Array = forb_flags_val
+			var flags: Array[String] = []
+			for flag: Variant in forb_flags_arr:
+				flags.append(str(flag))
+			branch["forbidden_flags"] = flags
 
 	if "label" in data:
 		branch["label"] = str(data["label"])
@@ -332,12 +365,17 @@ static func validate_campaign(campaign: Resource) -> bool:
 	if campaign == null:
 		return false
 
-	if campaign.campaign_id.is_empty():
+	if not campaign is CampaignData:
+		push_error("CampaignLoader: Campaign is not a CampaignData resource")
+		return false
+	var typed_campaign: CampaignData = campaign
+
+	if typed_campaign.campaign_id.is_empty():
 		push_error("CampaignLoader: Campaign has empty campaign_id")
 		return false
 
-	if campaign.nodes.is_empty():
-		push_error("CampaignLoader: Campaign '%s' has no nodes" % campaign.campaign_id)
+	if typed_campaign.nodes.is_empty():
+		push_error("CampaignLoader: Campaign '%s' has no nodes" % typed_campaign.campaign_id)
 		return false
 
 	return true

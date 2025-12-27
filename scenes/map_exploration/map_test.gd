@@ -59,7 +59,7 @@ func _ready() -> void:
 			_debug_print("  Hero restored to grid position: %s" % return_pos)
 
 		# Reposition followers after hero teleport
-		for follower in party_followers:
+		for follower: Node2D in party_followers:
 			if follower and follower.has_method("reposition_to_hero"):
 				follower.reposition_to_hero()
 		_debug_print("  Followers repositioned around hero")
@@ -84,7 +84,7 @@ func _setup_party_followers() -> void:
 	# For now, create 3 test followers
 	var num_followers: int = 3
 
-	for i in range(num_followers):
+	for i: int in range(num_followers):
 		var follower: CharacterBody2D = CharacterBody2D.new()
 		follower.set_script(PartyFollowerScript)
 		follower.name = "Follower%d" % (i + 1)

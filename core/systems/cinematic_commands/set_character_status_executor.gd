@@ -65,13 +65,15 @@ func execute(command: Dictionary, _manager: Node) -> bool:
 
 	# Apply status changes if provided
 	if "is_alive" in params:
-		save_data.is_alive = params.is_alive
+		var alive_value: bool = params["is_alive"]
+		save_data.is_alive = alive_value
 		# If marked dead, also mark unavailable
-		if not params.is_alive:
+		if not alive_value:
 			save_data.is_available = false
 
 	if "is_available" in params:
-		save_data.is_available = params.is_available
+		var available_value: bool = params["is_available"]
+		save_data.is_available = available_value
 
 	return true  # Synchronous, completes immediately
 

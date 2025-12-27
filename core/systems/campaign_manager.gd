@@ -49,10 +49,10 @@ signal choice_requested(choices: Array[Dictionary])
 # ---- State ----
 
 ## Currently active campaign (CampaignData resource)
-var current_campaign: Resource = null
+var current_campaign: CampaignData = null
 
 ## Current campaign node (CampaignNode resource)
-var current_node: Resource = null
+var current_node: CampaignNode = null
 
 ## History of visited nodes (for back-tracking if needed)
 var node_history: Array[String] = []
@@ -202,7 +202,7 @@ func _on_cinematic_ended_for_completion(_cinematic_id: String) -> void:
 
 	# Check if this cinematic was triggered by the NPC we're waiting for
 	var context: Dictionary = CinematicsManager.get_interaction_context()
-	var npc_id: String = context.get("npc_id", "")
+	var npc_id: String = DictUtils.get_string(context, "npc_id", "")
 
 	if npc_id == _completion_npc_id:
 		_clear_completion_trigger()
@@ -285,7 +285,7 @@ func register_custom_handler(custom_type: String, handler: Callable) -> void:
 func _discover_campaigns() -> void:
 	var campaigns: Array[Resource] = ModLoader.registry.get_all_resources("campaign")
 	for campaign_resource: Resource in campaigns:
-		var campaign: Resource = campaign_resource
+		var campaign: CampaignData = campaign_resource as CampaignData
 		if campaign:
 			var errors: Array[String] = campaign.validate()
 			if errors.is_empty():
@@ -304,7 +304,7 @@ func get_available_campaigns() -> Array[Resource]:
 	var hidden_patterns: Array[String] = _get_hidden_campaign_patterns()
 
 	for campaign_id: String in _campaigns:
-		var campaign: Resource = _campaigns[campaign_id]
+		var campaign: CampaignData = _campaigns[campaign_id] as CampaignData
 		if not _is_campaign_hidden(campaign_id, hidden_patterns):
 			result.append(campaign)
 	return result
@@ -328,9 +328,10 @@ func _is_campaign_hidden(campaign_id: String, patterns: Array[String]) -> bool:
 
 
 ## Get a specific campaign by ID
-func get_campaign(campaign_id: String) -> Resource:
+func get_campaign(campaign_id: String) -> CampaignData:
 	if campaign_id in _campaigns:
-		return _campaigns[campaign_id]
+		var campaign: CampaignData = _campaigns[campaign_id] as CampaignData
+		return campaign
 	return null
 
 
@@ -338,7 +339,7 @@ func get_campaign(campaign_id: String) -> Resource:
 
 ## Start a new campaign
 func start_campaign(campaign_id: String) -> bool:
-	var campaign: Resource = get_campaign(campaign_id)
+	var campaign: CampaignData = get_campaign(campaign_id)
 	if not campaign:
 		push_error("CampaignManager: Campaign '%s' not found" % campaign_id)
 		return false
@@ -363,7 +364,7 @@ func start_campaign(campaign_id: String) -> bool:
 
 ## Resume a campaign from save data
 func resume_campaign(campaign_id: String, node_id: String) -> bool:
-	var campaign: Resource = get_campaign(campaign_id)
+	var campaign: CampaignData = get_campaign(campaign_id)
 	if not campaign:
 		push_error("CampaignManager: Campaign '%s' not found for resume" % campaign_id)
 		return false
@@ -383,13 +384,13 @@ func enter_node(node_id: String) -> bool:
 		push_error("CampaignManager: No active campaign")
 		return false
 
-	var node_resource: Resource = current_campaign.get_node(node_id)
+	var node_resource: CampaignNode = current_campaign.get_node(node_id)
 	if not node_resource:
 		push_error("CampaignManager: Node '%s' not found in campaign" % node_id)
 		_handle_missing_node_error(node_id)
 		return false
 
-	var node: Resource = node_resource
+	var node: CampaignNode = node_resource
 	if not node:
 		push_error("CampaignManager: Node '%s' is not a valid CampaignNode" % node_id)
 		return false
@@ -489,7 +490,8 @@ func _process_node(node: Resource) -> void:
 	if node_type.begins_with("custom:"):
 		var custom_type: String = node_type.substr(7)  # Remove "custom:" prefix
 		if custom_type in _custom_handlers:
-			_custom_handlers[custom_type].call(node, self)
+			var handler: Callable = _custom_handlers[custom_type]
+			handler.call(node, self)
 		else:
 			push_error("CampaignManager: No handler registered for '%s'" % node_type)
 			push_error("  Register with: CampaignManager.register_custom_handler('%s', handler)" % custom_type)
@@ -503,7 +505,8 @@ func _process_node(node: Resource) -> void:
 			# Direct call to preserve await semantics
 			await _process_cutscene_node(node)
 		else:
-			_node_processors[node_type].call(node)
+			var processor: Callable = _node_processors[node_type]
+			processor.call(node)
 	else:
 		push_error("CampaignManager: No processor registered for node type '%s'" % node_type)
 
@@ -513,7 +516,7 @@ func _process_node(node: Resource) -> void:
 ## Process a battle node
 func _process_battle_node(node: Resource) -> void:
 	# Look up battle data from registry
-	var battle_data: Resource = ModLoader.registry.get_resource("battle", node.resource_id)
+	var battle_data: BattleData = ModLoader.registry.get_resource("battle", node.resource_id) as BattleData
 	if not battle_data:
 		push_error("CampaignManager: Battle '%s' not found" % node.resource_id)
 		_handle_missing_node_error(node.node_id)
@@ -573,11 +576,17 @@ func _process_choice_node(node: Resource) -> void:
 	# Extract choices from branches for UI
 	var choices: Array[Dictionary] = []
 	for branch: Dictionary in node.branches:
-		if branch.get("trigger") == "choice":
+		var branch_trigger: String = DictUtils.get_string(branch, "trigger", "")
+		if branch_trigger == "choice":
+			var choice_value: String = DictUtils.get_string(branch, "choice_value", "")
+			var choice_label: String = DictUtils.get_string(branch, "label", choice_value)
+			if choice_label.is_empty():
+				choice_label = "Option"
+			var choice_desc: String = DictUtils.get_string(branch, "description", "")
 			choices.append({
-				"value": branch.get("choice_value", ""),
-				"label": branch.get("label", branch.get("choice_value", "Option")),
-				"description": branch.get("description", "")
+				"value": choice_value,
+				"label": choice_label,
+				"description": choice_desc
 			})
 
 	if choices.is_empty():
@@ -629,7 +638,7 @@ func notify_battle_started(battle_resource_id: String) -> void:
 		return
 
 	# Find the campaign node that uses this battle resource
-	var battle_node: Resource = current_campaign.find_battle_node_by_resource_id(battle_resource_id)
+	var battle_node: CampaignNode = current_campaign.find_battle_node_by_resource_id(battle_resource_id)
 	if battle_node:
 		# Set current_node so flags are properly set when battle ends
 		current_node = battle_node
@@ -658,7 +667,8 @@ func on_battle_completed(victory: bool) -> void:
 		# Apply gold penalty if configured
 		var gold_penalty: float = current_node.defeat_gold_penalty
 		if gold_penalty > 0.0:
-			var current_gold: int = GameState.get_campaign_data("gold", 0)
+			var current_gold_value: Variant = GameState.get_campaign_data("gold", 0)
+			var current_gold: int = current_gold_value if current_gold_value is int else 0
 			var penalty_amount: int = int(float(current_gold) * gold_penalty)
 			GameState.set_campaign_data("gold", current_gold - penalty_amount)
 
@@ -731,7 +741,8 @@ func trigger_encounter(battle_id: String, return_position: Vector2, return_facin
 
 ## Check if we have a pending encounter return
 func has_encounter_return() -> bool:
-	return not _return_context.is_empty() and _return_context.get("is_encounter", false)
+	var is_encounter: bool = DictUtils.get_bool(_return_context, "is_encounter", false)
+	return not _return_context.is_empty() and is_encounter
 
 
 ## Check if CampaignManager is currently managing a campaign battle
@@ -742,12 +753,12 @@ func is_managing_campaign_battle() -> bool:
 
 ## Get the stored return position (for scenes to query on load)
 func get_encounter_return_position() -> Vector2:
-	return _return_context.get("position", Vector2.ZERO)
+	return DictUtils.get_vector2(_return_context, "position", Vector2.ZERO)
 
 
 ## Get the stored return facing direction
 func get_encounter_return_facing() -> String:
-	return _return_context.get("facing", "")
+	return DictUtils.get_string(_return_context, "facing", "")
 
 
 ## Clear the return context (called after position is restored)
@@ -761,10 +772,10 @@ func _handle_encounter_return(victory: bool) -> void:
 	if not has_encounter_return():
 		return
 
-	var scene_path: String = _return_context.get("scene_path", "")
-	var position: Vector2 = _return_context.get("position", Vector2.ZERO)
-	var facing: String = _return_context.get("facing", "")
-	var original_node_id: String = _return_context.get("node_id", "")
+	var scene_path: String = DictUtils.get_string(_return_context, "scene_path", "")
+	var position: Vector2 = DictUtils.get_vector2(_return_context, "position", Vector2.ZERO)
+	var facing: String = DictUtils.get_string(_return_context, "facing", "")
+	var original_node_id: String = DictUtils.get_string(_return_context, "node_id", "")
 
 	# Emit signal so scenes can prepare for position restoration
 	encounter_return.emit(scene_path, position, facing)
@@ -800,13 +811,12 @@ func _execute_transition(outcome: Dictionary) -> void:
 		push_warning("CampaignManager: No valid transition from node '%s'" % current_node.node_id)
 		return
 
-	var to_node_resource: Resource = current_campaign.get_node(target_id)
-	if not to_node_resource:
+	var to_node: CampaignNode = current_campaign.get_node(target_id)
+	if not to_node:
 		push_error("CampaignManager: Transition target '%s' not found" % target_id)
 		_handle_missing_node_error(target_id)
 		return
 
-	var to_node: Resource = to_node_resource
 	transition_started.emit(current_node, to_node)
 	await enter_node(target_id)
 
@@ -840,8 +850,9 @@ func _check_chapter_transition(node: Resource) -> void:
 	if chapter.is_empty():
 		return
 
-	var chapter_id: String = chapter.get("id", "")
-	var current_chapter_id: String = GameState.get_campaign_data("current_chapter_id", "")
+	var chapter_id: String = DictUtils.get_string(chapter, "id", "")
+	var current_chapter_id_value: Variant = GameState.get_campaign_data("current_chapter_id", "")
+	var current_chapter_id: String = current_chapter_id_value if current_chapter_id_value is String else ""
 
 	if chapter_id != current_chapter_id:
 		GameState.set_campaign_data("current_chapter_id", chapter_id)
@@ -863,14 +874,14 @@ func export_state() -> Dictionary:
 ## Import campaign state from saves
 func import_state(state: Dictionary) -> void:
 	node_history.clear()
-	var raw_history: Array = state.get("node_history", [])
+	var raw_history: Array = DictUtils.get_array(state, "node_history", [])
 	for history_node_id: Variant in raw_history:
 		if history_node_id is String:
 			node_history.append(history_node_id)
 
-	last_hub_id = state.get("last_hub_id", "")
-	var campaign_id: String = state.get("current_campaign_id", "")
-	var node_id: String = state.get("current_node_id", "")
+	last_hub_id = DictUtils.get_string(state, "last_hub_id", "")
+	var campaign_id: String = DictUtils.get_string(state, "current_campaign_id", "")
+	var node_id: String = DictUtils.get_string(state, "current_node_id", "")
 
 	if not campaign_id.is_empty() and not node_id.is_empty():
 		resume_campaign(campaign_id, node_id)

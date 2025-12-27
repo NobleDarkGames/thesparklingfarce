@@ -73,13 +73,13 @@ var current_config: CaravanData = null
 # =============================================================================
 
 ## The spawned caravan node (if any)
-var _caravan_instance: Node2D = null
+var _caravan_instance: CaravanFollower = null
 
 ## Reference to hero for following
-var _hero: Node2D = null
+var _hero: HeroController = null
 
 ## Reference to last party follower (caravan follows this)
-var _last_follower: Node2D = null
+var _last_follower: PartyFollower = null
 
 ## Current map metadata
 var _current_map: MapMetadata = null
@@ -172,20 +172,23 @@ func _load_caravan_config() -> void:
 
 		# Check if mod disables caravan entirely
 		if "enabled" in manifest.caravan_config:
-			caravan_enabled = manifest.caravan_config.get("enabled", true)
+			caravan_enabled = DictUtils.get_bool(manifest.caravan_config, "enabled", true)
 			if not caravan_enabled:
 				break  # Highest priority mod disabled it
 
 		# Check for caravan_data_id override
 		if "caravan_data_id" in manifest.caravan_config:
-			caravan_data_id = manifest.caravan_config.get("caravan_data_id", DEFAULT_CARAVAN_ID)
+			caravan_data_id = DictUtils.get_string(manifest.caravan_config, "caravan_data_id", "")
 
 		# Register custom services
 		if "custom_services" in manifest.caravan_config:
-			var services: Dictionary = manifest.caravan_config.custom_services
-			for service_id: String in services.keys():
-				var service_data: Dictionary = services[service_id]
-				_register_custom_service(service_id, service_data, manifest.mod_directory)
+			var services_val: Variant = manifest.caravan_config.get("custom_services")
+			if services_val is Dictionary:
+				var services: Dictionary = services_val
+				for service_id: String in services.keys():
+					var service_val: Variant = services.get(service_id)
+					if service_val is Dictionary:
+						_register_custom_service(service_id, service_val, manifest.mod_directory)
 
 	# Apply enabled state
 	enabled = caravan_enabled
@@ -193,12 +196,14 @@ func _load_caravan_config() -> void:
 		return
 
 	# Load the caravan data resource
-	var caravan: Resource = ModLoader.registry.get_resource("caravan", caravan_data_id)
+	var caravan_res: Resource = ModLoader.registry.get_resource("caravan", caravan_data_id)
+	var caravan: CaravanData = caravan_res if caravan_res is CaravanData else null
 	if caravan and caravan.get_script() == CaravanDataScript:
 		current_config = caravan
 	else:
 		# Fallback to default if specified ID not found
-		caravan = ModLoader.registry.get_resource("caravan", DEFAULT_CARAVAN_ID)
+		var fallback_res: Resource = ModLoader.registry.get_resource("caravan", DEFAULT_CARAVAN_ID)
+		caravan = fallback_res if fallback_res is CaravanData else null
 		if caravan and caravan.get_script() == CaravanDataScript:
 			current_config = caravan
 		else:
@@ -216,8 +221,8 @@ func _register_custom_service(service_id: String, service_data: Dictionary, mod_
 		push_warning("CaravanController: Custom service '%s' missing scene_path" % service_id)
 		return
 
-	var scene_path: String = mod_dir.path_join(service_data.scene_path)
-	var display_name: String = service_data.get("display_name", service_id.capitalize())
+	var scene_path: String = mod_dir.path_join(DictUtils.get_string(service_data, "scene_path", ""))
+	var display_name: String = DictUtils.get_string(service_data, "display_name", service_id.capitalize())
 
 	_custom_services[service_id] = {
 		"scene_path": scene_path,
@@ -327,12 +332,14 @@ func _on_custom_service_requested(service_id: String, scene_path: String) -> voi
 		return
 
 	# Load and instantiate the custom service scene
-	var scene: PackedScene = load(scene_path) as PackedScene
+	var loaded: Resource = load(scene_path)
+	var scene: PackedScene = loaded if loaded is PackedScene else null
 	if not scene:
 		push_error("CaravanController: Failed to load custom service scene: %s" % scene_path)
 		return
 
-	var instance: Control = scene.instantiate() as Control
+	var instantiated: Node = scene.instantiate()
+	var instance: Control = instantiated if instantiated is Control else null
 	if not instance:
 		push_error("CaravanController: Custom service scene is not a Control: %s" % scene_path)
 		return
@@ -480,13 +487,11 @@ func _spawn_caravan() -> void:
 	var follow_target: Node2D = _last_follower if _last_follower else _hero
 	var follow_distance: int = current_config.follow_distance_tiles if current_config else 3
 
-	if _caravan_instance.has_method("initialize"):
-		_caravan_instance.initialize(follow_target, follow_distance, current_config)
+	_caravan_instance.initialize(follow_target, follow_distance, current_config)
 
 	# Restore saved position if available
 	if _has_saved_position:
-		if _caravan_instance.has_method("set_grid_position"):
-			_caravan_instance.set_grid_position(_saved_grid_position)
+		_caravan_instance.set_grid_position(_saved_grid_position)
 		_has_saved_position = false
 
 	# Setup interaction area (for visual feedback/prompt display)
@@ -516,7 +521,7 @@ func _despawn_caravan() -> void:
 
 
 func _save_caravan_position() -> void:
-	if _caravan_instance and _caravan_instance.has_method("get_grid_position"):
+	if _caravan_instance:
 		_saved_grid_position = _caravan_instance.get_grid_position()
 		_has_saved_position = true
 
@@ -525,29 +530,29 @@ func _save_caravan_position() -> void:
 # HELPER FUNCTIONS
 # =============================================================================
 
-func _find_hero() -> Node2D:
+func _find_hero() -> HeroController:
 	var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
 	if heroes.is_empty():
 		return null
-	return heroes[0] as Node2D
+	return heroes[0] as HeroController
 
 
-func _find_last_follower() -> Node2D:
+func _find_last_follower() -> PartyFollower:
 	# Find party followers in scene
 	var followers: Array[Node] = get_tree().get_nodes_in_group("party_follower")
 	if followers.is_empty():
 		return null
 
 	# Find the one with highest formation_index
-	var last: Node2D = null
+	var last: PartyFollower = null
 	var max_index: int = -1
 
 	for follower: Node in followers:
-		if "formation_index" in follower:
-			var idx: int = follower.formation_index
-			if idx > max_index:
-				max_index = idx
-				last = follower as Node2D
+		var party_follower: PartyFollower = follower as PartyFollower
+		if party_follower:
+			if party_follower.formation_index > max_index:
+				max_index = party_follower.formation_index
+				last = party_follower
 
 	return last
 
@@ -633,7 +638,7 @@ func _on_hero_interaction_requested(interaction_position: Vector2i) -> void:
 	# Also get hero's current position - they may be standing ON the caravan
 	# (this happens because caravan follows hero, so walking toward it causes overlap)
 	var hero_grid_pos: Vector2i = Vector2i.ZERO
-	if _hero and "grid_position" in _hero:
+	if _hero:
 		hero_grid_pos = _hero.grid_position
 
 	# Allow interaction if:
@@ -669,7 +674,7 @@ func is_menu_open() -> bool:
 
 
 ## Get the caravan instance (for direct access if needed)
-func get_caravan_instance() -> Node2D:
+func get_caravan_instance() -> CaravanFollower:
 	return _caravan_instance
 
 
@@ -682,7 +687,7 @@ func get_position() -> Vector2:
 
 ## Get caravan grid position
 func get_grid_position() -> Vector2i:
-	if _caravan_instance and _caravan_instance.has_method("get_grid_position"):
+	if _caravan_instance:
 		return _caravan_instance.get_grid_position()
 	return _saved_grid_position
 
@@ -873,14 +878,18 @@ func export_state() -> Dictionary:
 ## Import caravan state from save system
 func import_state(state: Dictionary) -> void:
 	if "enabled" in state:
-		enabled = state.enabled
+		enabled = DictUtils.get_bool(state, "enabled", true)
 
 	if "grid_position" in state:
-		var pos: Dictionary = state.grid_position
-		_saved_grid_position = Vector2i(pos.get("x", 0), pos.get("y", 0))
+		var pos_val: Variant = state.get("grid_position")
+		if pos_val is Dictionary:
+			var pos: Dictionary = pos_val
+			var x: int = DictUtils.get_int(pos, "x", 0)
+			var y: int = DictUtils.get_int(pos, "y", 0)
+			_saved_grid_position = Vector2i(x, y)
 
 	if "has_saved_position" in state:
-		_has_saved_position = state.has_saved_position
+		_has_saved_position = DictUtils.get_bool(state, "has_saved_position", false)
 
 
 ## Reset to default state (for new game)
@@ -912,7 +921,7 @@ func reload_config() -> void:
 
 ## Set custom caravan configuration (for testing or special cases)
 ## @param config: CaravanData resource
-func set_config(config: Resource) -> void:
+func set_config(config: CaravanData) -> void:
 	current_config = config
 	reload_config()
 

@@ -94,7 +94,7 @@ func calculate_from_character(character: CharacterData) -> void:
 	luck = character.base_luck
 
 	# Apply equipment bonuses and cache weapon
-	for item in character.starting_equipment:
+	for item: ItemData in character.starting_equipment:
 		if item != null:
 			apply_equipment_bonus(item)
 			# Cache weapon for combat calculations (attack power, range, hit rate, crit rate)
@@ -245,10 +245,12 @@ func get_effective_strength() -> int:
 
 	# Add strength buffs
 	for effect: Dictionary in status_effects:
-		if effect.type == "attack_up":
-			total += effect.potency
-		elif effect.type == "attack_down":
-			total -= effect.potency
+		var effect_type: String = effect.get("type", "")
+		var effect_potency: int = effect.get("potency", 0)
+		if effect_type == "attack_up":
+			total += effect_potency
+		elif effect_type == "attack_down":
+			total -= effect_potency
 
 	return maxi(0, total)
 
@@ -259,10 +261,12 @@ func get_effective_defense() -> int:
 
 	# Add defense buffs
 	for effect: Dictionary in status_effects:
-		if effect.type == "defense_up":
-			total += effect.potency
-		elif effect.type == "defense_down":
-			total -= effect.potency
+		var effect_type: String = effect.get("type", "")
+		var effect_potency: int = effect.get("potency", 0)
+		if effect_type == "defense_up":
+			total += effect_potency
+		elif effect_type == "defense_down":
+			total -= effect_potency
 
 	return maxi(0, total)
 
@@ -273,10 +277,12 @@ func get_effective_agility() -> int:
 
 	# Add agility buffs
 	for effect: Dictionary in status_effects:
-		if effect.type == "speed_up":
-			total += effect.potency
-		elif effect.type == "speed_down":
-			total -= effect.potency
+		var effect_type: String = effect.get("type", "")
+		var effect_potency: int = effect.get("potency", 0)
+		if effect_type == "speed_up":
+			total += effect_potency
+		elif effect_type == "speed_down":
+			total -= effect_potency
 
 	return maxi(0, total)
 
@@ -305,11 +311,14 @@ func get_effective_max_mp() -> int:
 ## Add a status effect
 func add_status_effect(effect_type: String, duration: int, potency: int = 0) -> void:
 	# Check if effect already exists
-	for effect in status_effects:
-		if effect.type == effect_type:
+	for effect: Dictionary in status_effects:
+		var existing_type: String = effect.get("type", "")
+		if existing_type == effect_type:
 			# Refresh duration and potency
-			effect.duration = maxi(effect.duration, duration)
-			effect.potency = maxi(effect.potency, potency)
+			var existing_duration: int = effect.get("duration", 0)
+			var existing_potency: int = effect.get("potency", 0)
+			effect["duration"] = maxi(existing_duration, duration)
+			effect["potency"] = maxi(existing_potency, potency)
 			return
 
 	# Add new effect
@@ -322,15 +331,18 @@ func add_status_effect(effect_type: String, duration: int, potency: int = 0) -> 
 
 ## Remove a status effect by type
 func remove_status_effect(effect_type: String) -> void:
-	for i in range(status_effects.size() - 1, -1, -1):
-		if status_effects[i].type == effect_type:
+	for i: int in range(status_effects.size() - 1, -1, -1):
+		var effect: Dictionary = status_effects[i]
+		var existing_type: String = effect.get("type", "")
+		if existing_type == effect_type:
 			status_effects.remove_at(i)
 
 
 ## Check if unit has a specific status effect
 func has_status_effect(effect_type: String) -> bool:
-	for effect in status_effects:
-		if effect.type == effect_type:
+	for effect: Dictionary in status_effects:
+		var existing_type: String = effect.get("type", "")
+		if existing_type == effect_type:
 			return true
 	return false
 
@@ -338,26 +350,30 @@ func has_status_effect(effect_type: String) -> bool:
 ## Process status effects at end of turn
 ## Returns true if unit is still alive
 func process_status_effects() -> bool:
-	for i in range(status_effects.size() - 1, -1, -1):
+	for i: int in range(status_effects.size() - 1, -1, -1):
 		var effect: Dictionary = status_effects[i]
+		var effect_type: String = effect.get("type", "")
+		var effect_potency: int = effect.get("potency", 0)
+		var effect_duration: int = effect.get("duration", 0)
 
 		# Process effect
-		match effect.type:
+		match effect_type:
 			"poison":
 				# Take damage based on power
-				var damage: int = maxi(1, effect.potency)
+				var damage: int = maxi(1, effect_potency)
 				current_hp -= damage
 
 			"regen":
 				# Heal based on power
-				var heal: int = maxi(1, effect.potency)
+				var heal: int = maxi(1, effect_potency)
 				current_hp = mini(current_hp + heal, get_effective_max_hp())
 
 		# Decrement duration
-		effect.duration -= 1
+		effect_duration -= 1
+		effect["duration"] = effect_duration
 
 		# Remove if expired
-		if effect.duration <= 0:
+		if effect_duration <= 0:
 			status_effects.remove_at(i)
 
 	# Check if still alive

@@ -66,7 +66,8 @@ func populate_from_save_data(save_data: SaveData) -> void:
 
 	# Get party leader name
 	if not save_data.party_members.is_empty():
-		party_leader_name = save_data.party_members[0].fallback_character_name
+		var leader: CharacterSaveData = save_data.party_members[0]
+		party_leader_name = leader.fallback_character_name
 	else:
 		party_leader_name = "Unknown"
 
@@ -92,7 +93,7 @@ func _check_mod_compatibility(saved_mods: Array[Dictionary]) -> bool:
 		if "mod_id" not in mod_dict:
 			continue
 
-		var mod_id: String = mod_dict.mod_id
+		var mod_id: String = DictUtils.get_string(mod_dict, "mod_id", "")
 
 		# Check if mod is loaded
 		var is_loaded: bool = false
@@ -102,7 +103,7 @@ func _check_mod_compatibility(saved_mods: Array[Dictionary]) -> bool:
 
 				# Check version mismatch (optional - may be too strict)
 				if "version" in mod_dict:
-					var saved_version: String = mod_dict.version
+					var saved_version: String = DictUtils.get_string(mod_dict, "version", "")
 					if manifest.version != saved_version:
 						return true  # Version mismatch
 
@@ -141,21 +142,21 @@ func serialize_to_dict() -> Dictionary:
 ## @param data: Dictionary from JSON
 func deserialize_from_dict(data: Dictionary) -> void:
 	if "slot_number" in data:
-		slot_number = data.slot_number
+		slot_number = DictUtils.get_int(data, "slot_number", 1)
 	if "is_occupied" in data:
-		is_occupied = data.is_occupied
+		is_occupied = DictUtils.get_bool(data, "is_occupied", false)
 	if "party_leader_name" in data:
-		party_leader_name = data.party_leader_name
+		party_leader_name = DictUtils.get_string(data, "party_leader_name", "")
 	if "current_location" in data:
-		current_location = data.current_location
+		current_location = DictUtils.get_string(data, "current_location", "")
 	if "average_level" in data:
-		average_level = data.average_level
+		average_level = DictUtils.get_int(data, "average_level", 1)
 	if "playtime_seconds" in data:
-		playtime_seconds = data.playtime_seconds
+		playtime_seconds = DictUtils.get_int(data, "playtime_seconds", 0)
 	if "last_played_timestamp" in data:
-		last_played_timestamp = data.last_played_timestamp
+		last_played_timestamp = DictUtils.get_int(data, "last_played_timestamp", 0)
 	if "has_mod_mismatch" in data:
-		has_mod_mismatch = data.has_mod_mismatch
+		has_mod_mismatch = DictUtils.get_bool(data, "has_mod_mismatch", false)
 
 
 # ============================================================================

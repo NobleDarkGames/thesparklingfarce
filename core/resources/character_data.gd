@@ -151,6 +151,13 @@ func has_valid_uid() -> bool:
 	return not character_uid.is_empty() and character_uid.length() >= 6
 
 
+## Get the character's unique identifier
+## Ensures UID exists before returning (auto-generates if needed)
+func get_uid() -> String:
+	ensure_uid()
+	return character_uid
+
+
 ## Get all available spells/abilities for this character at a given level
 ## Combines: ClassData.class_abilities (filtered by level) + unique_abilities
 ## This is the PRIMARY method to get a character's spell list

@@ -76,10 +76,14 @@ static func from_current_scene(hero: Node2D) -> RefCounted:
 	# Get hero position
 	if hero:
 		context.hero_world_position = hero.global_position
-		if hero.get("grid_position"):
-			context.hero_grid_position = hero.grid_position
-		if hero.get("facing"):
-			context.hero_facing = hero.facing
+		if "grid_position" in hero:
+			var grid_pos: Variant = hero.get("grid_position")
+			if grid_pos is Vector2i:
+				context.hero_grid_position = grid_pos
+		if "facing_direction" in hero:
+			var facing_val: Variant = hero.get("facing_direction")
+			if facing_val is String:
+				context.hero_facing = facing_val
 
 	# Get caravan position if available
 	if CaravanController and CaravanController.is_spawned():
@@ -128,23 +132,23 @@ static func from_dict(data: Dictionary) -> RefCounted:
 	var script: GDScript = load("res://core/resources/transition_context.gd")
 	var context: RefCounted = script.new()
 
-	context.return_scene_path = data.get("return_scene_path", "")
+	context.return_scene_path = DictUtils.get_string(data, "return_scene_path", "")
 
-	var world_pos: Dictionary = data.get("hero_world_position", {})
-	context.hero_world_position = Vector2(world_pos.get("x", 0), world_pos.get("y", 0))
+	var world_pos: Dictionary = DictUtils.get_dict(data, "hero_world_position", {})
+	context.hero_world_position = Vector2(DictUtils.get_float(world_pos, "x", 0.0), DictUtils.get_float(world_pos, "y", 0.0))
 
-	var grid_pos: Dictionary = data.get("hero_grid_position", {})
-	context.hero_grid_position = Vector2i(grid_pos.get("x", 0), grid_pos.get("y", 0))
+	var grid_pos: Dictionary = DictUtils.get_dict(data, "hero_grid_position", {})
+	context.hero_grid_position = Vector2i(DictUtils.get_int(grid_pos, "x", 0), DictUtils.get_int(grid_pos, "y", 0))
 
-	context.spawn_point_id = data.get("spawn_point_id", "")
-	context.hero_facing = data.get("hero_facing", "down")
+	context.spawn_point_id = DictUtils.get_string(data, "spawn_point_id", "")
+	context.hero_facing = DictUtils.get_string(data, "hero_facing", "down")
 
-	var caravan_pos: Dictionary = data.get("caravan_grid_position", {})
-	context.caravan_grid_position = Vector2i(caravan_pos.get("x", 0), caravan_pos.get("y", 0))
-	context.has_caravan_position = data.get("has_caravan_position", false)
+	var caravan_pos: Dictionary = DictUtils.get_dict(data, "caravan_grid_position", {})
+	context.caravan_grid_position = Vector2i(DictUtils.get_int(caravan_pos, "x", 0), DictUtils.get_int(caravan_pos, "y", 0))
+	context.has_caravan_position = DictUtils.get_bool(data, "has_caravan_position", false)
 
-	context.extra_data = data.get("extra_data", {})
-	context.battle_outcome = data.get("battle_outcome", BattleOutcome.NONE)
-	context.completed_battle_id = data.get("completed_battle_id", "")
+	context.extra_data = DictUtils.get_dict(data, "extra_data", {})
+	context.battle_outcome = DictUtils.get_int(data, "battle_outcome", BattleOutcome.NONE)
+	context.completed_battle_id = DictUtils.get_string(data, "completed_battle_id", "")
 
 	return context

@@ -136,9 +136,9 @@ static func load_dialog_text_from_cinematic(cinematics_dir: String, cinematic_id
 	if parse_result != OK:
 		return ""
 
-	var data: Dictionary = json.data as Dictionary
-	if not data:
+	if not json.data is Dictionary:
 		return ""
+	var data: Dictionary = json.data
 
 	# Extract dialog text from commands
 	var dialog_lines: PackedStringArray = []
@@ -146,7 +146,7 @@ static func load_dialog_text_from_cinematic(cinematics_dir: String, cinematic_id
 
 	for command: Variant in commands:
 		if command is Dictionary:
-			var cmd: Dictionary = command as Dictionary
+			var cmd: Dictionary = command
 			if cmd.get("type") == "dialog_line":
 				var params: Dictionary = cmd.get("params", {})
 				var text: String = params.get("text", "")

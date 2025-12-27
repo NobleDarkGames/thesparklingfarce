@@ -67,7 +67,7 @@ func _connect_to_scene_triggers() -> void:
 	# Recursively find all MapTrigger nodes
 	var triggers: Array[Node] = _find_all_triggers(current_scene)
 
-	for trigger in triggers:
+	for trigger: Node in triggers:
 		_connect_trigger(trigger)
 
 
@@ -80,7 +80,7 @@ func _find_all_triggers(node: Node) -> Array[Node]:
 		triggers.append(node)
 
 	# Recursively check children
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		triggers.append_array(_find_all_triggers(child))
 
 	return triggers
@@ -99,7 +99,7 @@ func _connect_trigger(trigger: Node) -> void:
 
 ## Disconnect from all triggers
 func _disconnect_all_triggers() -> void:
-	for trigger in connected_triggers:
+	for trigger: Node in connected_triggers:
 		if is_instance_valid(trigger) and trigger.triggered.is_connected(_on_trigger_activated):
 			trigger.triggered.disconnect(_on_trigger_activated)
 
@@ -192,14 +192,14 @@ func _handle_modded_trigger(trigger: Node, player: Node2D, type_name: String) ->
 ## Handle BATTLE trigger - transition to battle scene
 func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var battle_id: String = trigger_data.get("battle_id", "")
+	var battle_id: String = trigger_data["battle_id"] if "battle_id" in trigger_data else ""
 
 	if battle_id.is_empty():
 		push_error("TriggerManager: Battle trigger missing battle_id")
 		return
 
 	# Look up BattleData resource from ModLoader
-	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
+	var battle_data: BattleData = ModLoader.registry.get_resource("battle", battle_id) as BattleData
 
 	if not battle_data:
 		push_error("TriggerManager: Failed to find BattleData for ID: %s" % battle_id)
@@ -216,8 +216,8 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 		context.return_scene_path = ""
 	context.hero_world_position = player.global_position
 	context.hero_grid_position = player.get("grid_position") if player.get("grid_position") != null else Vector2i.ZERO
-	if player.get("facing"):
-		context.hero_facing = player.facing
+	if player.get("facing_direction"):
+		context.hero_facing = player.facing_direction
 
 	GameState.set_transition_context(context)
 
@@ -235,11 +235,11 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 
 
 ## Temporary storage for battle data (will be picked up by battle scene)
-var _current_battle_data: Resource = null
+var _current_battle_data: BattleData = null
 
 
 ## Get the current battle data (called by battle scenes)
-func get_current_battle_data() -> Resource:
+func get_current_battle_data() -> BattleData:
 	return _current_battle_data
 
 
@@ -251,7 +251,7 @@ func clear_current_battle_data() -> void:
 ## Start a battle programmatically (from menus, save loading, etc.)
 ## @param battle_id: The registry ID of the battle to start
 func start_battle(battle_id: String) -> void:
-	var battle_data: Resource = ModLoader.registry.get_resource("battle", battle_id)
+	var battle_data: BattleData = ModLoader.registry.get_resource("battle", battle_id) as BattleData
 	if not battle_data:
 		push_error("TriggerManager: Battle '%s' not found in registry" % battle_id)
 		var available: Array[String] = ModLoader.registry.get_resource_ids("battle")
@@ -308,9 +308,9 @@ func return_to_map() -> void:
 
 
 ## Handle DIALOG trigger - show dialogue
-func _handle_dialog_trigger(trigger: Node, player: Node2D) -> void:
+func _handle_dialog_trigger(trigger: Node, _player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var dialog_id: String = trigger_data.get("dialog_id", "")
+	var dialog_id: String = trigger_data["dialog_id"] if "dialog_id" in trigger_data else ""
 
 	if dialog_id.is_empty():
 		push_warning("TriggerManager: Dialog trigger missing dialog_id")
@@ -318,7 +318,7 @@ func _handle_dialog_trigger(trigger: Node, player: Node2D) -> void:
 
 
 	# Look up DialogueData resource
-	var dialogue_data: Resource = ModLoader.registry.get_resource("dialogue", dialog_id)
+	var dialogue_data: DialogueData = ModLoader.registry.get_resource("dialogue", dialog_id) as DialogueData
 
 	if not dialogue_data:
 		push_error("TriggerManager: Failed to find DialogueData for ID: %s" % dialog_id)
@@ -350,11 +350,11 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 
 	# Determine destination scene path
 	var destination_scene: String = ""
-	var target_map_id: String = trigger_data.get("target_map_id", "")
+	var target_map_id: String = trigger_data["target_map_id"] if "target_map_id" in trigger_data else ""
 
 	if not target_map_id.is_empty():
 		# New style: Look up MapMetadata from registry
-		var map_metadata: Resource = ModLoader.registry.get_resource("map", target_map_id)
+		var map_metadata: MapMetadata = ModLoader.registry.get_resource("map", target_map_id) as MapMetadata
 		if map_metadata:
 			destination_scene = map_metadata.scene_path
 		else:
@@ -362,19 +362,19 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 			return
 	else:
 		# Legacy style: Direct scene path
-		destination_scene = trigger_data.get("destination_scene", "")
+		destination_scene = trigger_data["destination_scene"] if "destination_scene" in trigger_data else ""
 
 	if destination_scene.is_empty():
 		push_warning("TriggerManager: Door trigger missing destination_scene or target_map_id")
 		return
 
 	# Get spawn point ID (support both old and new field names)
-	var spawn_point_id: String = trigger_data.get("target_spawn_id", "")
+	var spawn_point_id: String = trigger_data["target_spawn_id"] if "target_spawn_id" in trigger_data else ""
 	if spawn_point_id.is_empty():
-		spawn_point_id = trigger_data.get("spawn_point", "")
+		spawn_point_id = trigger_data["spawn_point"] if "spawn_point" in trigger_data else ""
 
 	# Check for locked door (requires key item)
-	var requires_key: String = trigger_data.get("requires_key", "")
+	var requires_key: String = trigger_data["requires_key"] if "requires_key" in trigger_data else ""
 	if not requires_key.is_empty():
 		# TODO: Check if player has key item in inventory
 		pass
@@ -384,7 +384,7 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	context.spawn_point_id = spawn_point_id
 
 	# Store any extra transition data
-	var transition_type: String = trigger_data.get("transition_type", "fade")
+	var transition_type: String = trigger_data["transition_type"] if "transition_type" in trigger_data else "fade"
 	context.set_extra("transition_type", transition_type)
 	context.set_extra("source_trigger_id", trigger_id)
 
@@ -395,7 +395,8 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	door_transition_started.emit(context.return_scene_path, destination_scene)
 
 	# Check if this door explicitly completes a campaign node
-	if trigger_data.get("completes_campaign_node", false):
+	var completes_node: bool = trigger_data["completes_campaign_node"] if "completes_campaign_node" in trigger_data else false
+	if completes_node:
 		campaign_node_completion_requested.emit()
 
 	# Transition to new scene
@@ -419,7 +420,7 @@ func _handle_cutscene_trigger(trigger: Node, _player: Node2D) -> void:
 ## Handle TRANSITION trigger - teleport within same scene
 func _handle_transition_trigger(trigger: Node, player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var target_position: Vector2i = trigger_data.get("target_position", Vector2i.ZERO)
+	var target_position: Vector2i = trigger_data["target_position"] if "target_position" in trigger_data else Vector2i.ZERO
 
 	if target_position == Vector2i.ZERO:
 		push_warning("TriggerManager: Transition trigger missing target_position")

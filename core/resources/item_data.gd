@@ -89,7 +89,10 @@ enum ItemType {
 func get_stat_modifier(stat_name: String) -> int:
 	var modifier_key: String = stat_name + "_modifier"
 	if modifier_key in self:
-		return get(modifier_key)
+		var value: Variant = get(modifier_key)
+		if value is int:
+			return value
+		return int(value)
 	return 0
 
 
@@ -174,14 +177,18 @@ func get_valid_slots() -> Array[String]:
 	if Engine.has_singleton("ModLoader") or ClassDB.class_exists("ModLoader"):
 		var mod_loader: Node = Engine.get_singleton("ModLoader") if Engine.has_singleton("ModLoader") else null
 		if mod_loader == null:
-			mod_loader = Engine.get_main_loop().root.get_node_or_null("ModLoader") if Engine.get_main_loop() else null
+			var main_loop: MainLoop = Engine.get_main_loop()
+			if main_loop is SceneTree:
+				var scene_tree: SceneTree = main_loop as SceneTree
+				mod_loader = scene_tree.root.get_node_or_null("ModLoader")
 		if mod_loader and "equipment_slot_registry" in mod_loader:
-			var registry: Variant = mod_loader.get("equipment_slot_registry")
+			var registry: Object = mod_loader.get("equipment_slot_registry")
 			if registry and registry.has_method("get_slots_for_type"):
 				var result: Variant = registry.call("get_slots_for_type", equipment_type)
 				if result is Array:
+					var result_array: Array = result
 					var typed_result: Array[String] = []
-					for slot: Variant in result:
+					for slot: Variant in result_array:
 						if slot is String:
 							typed_result.append(slot)
 					return typed_result

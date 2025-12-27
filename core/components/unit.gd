@@ -33,7 +33,7 @@ signal status_effect_cleared(effect_type: String)
 @export var character_data: CharacterData = null
 
 ## Runtime stats
-var stats: RefCounted = null  # UnitStats instance
+var stats: UnitStats = null
 
 ## Movement animation settings
 var movement_speed: float = 200.0  # Pixels per second
@@ -168,13 +168,13 @@ func _create_placeholder_sprite_frames() -> SpriteFrames:
 	# SF2-authentic: only walk animations (no separate idle)
 	var directions: Array[String] = ["walk_down", "walk_left", "walk_right", "walk_up"]
 
-	for row in range(4):
+	for row: int in range(4):
 		var anim_name: String = directions[row]
 		frames.add_animation(anim_name)
 		frames.set_animation_loop(anim_name, true)
 		frames.set_animation_speed(anim_name, 4.0)
 
-		for col in range(2):
+		for col: int in range(2):
 			var atlas: AtlasTexture = AtlasTexture.new()
 			atlas.atlas = spritesheet
 			atlas.region = Rect2(
@@ -369,7 +369,7 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 	var prev_direction: String = ""
 
 	# Animate through each cell in the path (skip first cell as it's the current position)
-	for i in range(1, path.size()):
+	for i: int in range(1, path.size()):
 		var prev_cell: Vector2i = path[i - 1]
 		var cell: Vector2i = path[i]
 		var target_position: Vector2 = GridManager.cell_to_world(cell)

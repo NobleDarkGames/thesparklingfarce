@@ -68,7 +68,7 @@ func _create_styles() -> void:
 
 func _populate_character_grid() -> void:
 	# Clear existing
-	for child in character_grid.get_children():
+	for child: Node in character_grid.get_children():
 		child.queue_free()
 	character_buttons.clear()
 
@@ -83,7 +83,7 @@ func _populate_character_grid() -> void:
 		character_grid.add_child(button)
 		character_buttons.append(button)
 
-		var uid: String = entry.character_uid
+		var uid: String = DictUtils.get_string(entry, "character_uid", "")
 		button.pressed.connect(_on_character_selected.bind(uid, button))
 
 	# If no characters eligible, show a message
@@ -103,11 +103,12 @@ func _create_character_button(entry: Dictionary) -> Button:
 	button.custom_minimum_size = Vector2(120, 40)
 	button.focus_mode = Control.FOCUS_ALL
 
-	var character: CharacterData = entry.character_data as CharacterData
+	var character_value: Variant = entry.get("character_data")
+	var character: CharacterData = character_value as CharacterData if character_value is CharacterData else null
 	if character:
 		button.text = character.character_name
 	else:
-		button.text = entry.character_name
+		button.text = DictUtils.get_string(entry, "character_name", "")
 
 	return button
 
@@ -160,8 +161,8 @@ func _update_stat_comparison(character_uid: String) -> void:
 	stat_comparison_panel.show()
 
 	var lines: Array[String] = []
-	for stat: String in comparison:
-		var diff: int = comparison[stat]
+	for stat: String in comparison.keys():
+		var diff: int = DictUtils.get_int(comparison, stat, 0)
 		var prefix: String = "+" if diff > 0 else ""
 		var color: String = "green" if diff > 0 else ("red" if diff < 0 else "white")
 		lines.append("[color=%s]%s: %s%d[/color]" % [color, stat.to_upper(), prefix, diff])

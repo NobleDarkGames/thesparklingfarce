@@ -655,7 +655,8 @@ func _on_inventory_slot_clicked_at_index(item_id: String, slot_index: int) -> vo
 	for slot: Control in _depot_grid.get_children():
 		slot.set_selected(false)
 	for i: int in range(_inventory_grid.get_child_count()):
-		var slot: Control = _inventory_grid.get_child(i) as Control
+		var child: Node = _inventory_grid.get_child(i)
+		var slot: Control = child if child is Control else null
 		if slot:
 			slot.set_selected(i == slot_index)
 

@@ -54,9 +54,9 @@ signal pre_attack(attacker: Node, defender: Node, weapon: Resource)
 ## Before damage is applied to a unit
 ## @param target: The unit receiving damage
 ## @param damage: The calculated damage amount (can be modified via context)
-## @param source: What caused the damage (attacker node, ability, trap, etc.)
+## @param source: What caused the damage (attacker node, ability, trap, etc.) - may be null
 ## @param context: Dictionary with additional info (can modify "final_damage")
-signal pre_damage(target: Node, damage: int, source: Variant, context: Dictionary)
+signal pre_damage(target: Node, damage: int, source: Object, context: Dictionary)
 
 ## Before a unit moves to a new position
 ## @param unit: The unit attempting to move
@@ -95,9 +95,9 @@ signal pre_level_up(unit: Node, new_level: int, stat_gains: Dictionary)
 ## @param transaction_type: "buy" or "sell"
 ## @param item: The ItemData being traded
 ## @param price: The price in gold
-## @param buyer: Who is buying (player unit or shop)
-## @param seller: Who is selling (shop or player unit)
-signal pre_shop_transaction(transaction_type: String, item: Resource, price: int, buyer: Variant, seller: Variant)
+## @param buyer: Who is buying (player unit or shop) - may be null
+## @param seller: Who is selling (shop or player unit) - may be null
+signal pre_shop_transaction(transaction_type: String, item: Resource, price: int, buyer: Object, seller: Object)
 
 ## Before saving the game
 ## @param save_data: The SaveData about to be written (can be modified)
@@ -118,14 +118,14 @@ signal post_attack(attacker: Node, defender: Node, result: Dictionary)
 ## After damage is applied
 ## @param target: The unit that received damage
 ## @param damage: The actual damage dealt
-## @param source: What caused the damage
+## @param source: What caused the damage - may be null
 ## @param remaining_hp: Target's HP after damage
-signal post_damage(target: Node, damage: int, source: Variant, remaining_hp: int)
+signal post_damage(target: Node, damage: int, source: Object, remaining_hp: int)
 
 ## After a unit dies
 ## @param unit: The unit that died
 ## @param killer: What killed them (may be null for environmental)
-signal post_death(unit: Node, killer: Variant)
+signal post_death(unit: Node, killer: Object)
 
 ## After a unit moves
 ## @param unit: The unit that moved
@@ -226,7 +226,7 @@ func emit_pre_attack(attacker: Node, defender: Node, weapon: Resource) -> bool:
 
 ## Emit pre-damage with modifiable context
 ## @return: The final damage after mod modifications (or -1 if cancelled)
-func emit_pre_damage(target: Node, damage: int, source: Variant) -> int:
+func emit_pre_damage(target: Node, damage: int, source: Object) -> int:
 	reset_cancellation()
 	var context: Dictionary = {"final_damage": damage}
 	pre_damage.emit(target, damage, source, context)

@@ -166,7 +166,8 @@ func get_all_tileset_ids() -> Array[String]:
 func get_all_tilesets() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for tileset_id: String in _tilesets.keys():
-		var data: Dictionary = _tilesets[tileset_id].duplicate()
+		var entry: Dictionary = _tilesets[tileset_id]
+		var data: Dictionary = entry.duplicate()
 		data.erase("resource")  # Don't include the cached resource
 		result.append(data)
 	# Sort by display name for consistent UI ordering
@@ -181,7 +182,8 @@ func get_all_tilesets() -> Array[Dictionary]:
 func get_tileset_info(tileset_id: String) -> Dictionary:
 	var lower: String = tileset_id.to_lower()
 	if lower in _tilesets:
-		var data: Dictionary = _tilesets[lower].duplicate()
+		var entry: Dictionary = _tilesets[lower]
+		var data: Dictionary = entry.duplicate()
 		data.erase("resource")
 		return data
 	return {}
@@ -191,7 +193,8 @@ func get_tileset_info(tileset_id: String) -> Dictionary:
 func get_display_name(tileset_id: String) -> String:
 	var lower: String = tileset_id.to_lower()
 	if lower in _tilesets:
-		return _tilesets[lower].get("display_name", tileset_id.capitalize())
+		var entry: Dictionary = _tilesets[lower]
+		return entry.get("display_name", tileset_id.capitalize())
 	return tileset_id.capitalize()
 
 
@@ -199,7 +202,8 @@ func get_display_name(tileset_id: String) -> String:
 func get_description(tileset_id: String) -> String:
 	var lower: String = tileset_id.to_lower()
 	if lower in _tilesets:
-		return _tilesets[lower].get("description", "")
+		var entry: Dictionary = _tilesets[lower]
+		return entry.get("description", "")
 	return ""
 
 
@@ -207,7 +211,8 @@ func get_description(tileset_id: String) -> String:
 func get_tileset_path(tileset_id: String) -> String:
 	var lower: String = tileset_id.to_lower()
 	if lower in _tilesets:
-		return _tilesets[lower].get("path", "")
+		var entry: Dictionary = _tilesets[lower]
+		return entry.get("path", "")
 	return ""
 
 
@@ -220,7 +225,8 @@ func has_tileset(tileset_id: String) -> bool:
 func get_source_mod(tileset_id: String) -> String:
 	var lower: String = tileset_id.to_lower()
 	if lower in _tilesets:
-		return _tilesets[lower].get("source_mod", "")
+		var entry: Dictionary = _tilesets[lower]
+		return entry.get("source_mod", "")
 	return ""
 
 
@@ -248,7 +254,8 @@ func get_tileset(tileset_id: String) -> TileSet:
 func get_all_tileset_paths() -> Array[String]:
 	var result: Array[String] = []
 	for tileset_id: String in _tilesets.keys():
-		result.append(_tilesets[tileset_id].get("path", ""))
+		var entry: Dictionary = _tilesets[tileset_id]
+		result.append(entry.get("path", ""))
 	return result
 
 

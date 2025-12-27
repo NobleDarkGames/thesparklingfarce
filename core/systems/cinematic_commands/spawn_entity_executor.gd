@@ -31,7 +31,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		push_warning("SpawnEntityExecutor: Invalid position format, defaulting to (0, 0)")
 
 	# Get facing direction
-	var facing: String = params.get("facing", "down").to_lower()
+	var facing_raw: String = str(params.get("facing", "down"))
+	var facing: String = facing_raw.to_lower()
 	if facing not in ["up", "down", "left", "right"]:
 		push_warning("SpawnEntityExecutor: Invalid facing '%s', defaulting to 'down'" % facing)
 		facing = "down"

@@ -119,10 +119,10 @@ func _create_tabs_from_registry() -> void:
 
 func _create_tab_from_info(tab_info: Dictionary) -> void:
 	## Create a single tab from registry info
-	var tab_id: String = tab_info.get("id", "")
-	var display_name: String = tab_info.get("display_name", tab_id.capitalize())
-	var scene_path: String = tab_info.get("scene_path", "")
-	var is_static: bool = tab_info.get("is_static", false)
+	var tab_id: String = DictUtils.get_string(tab_info, "id", "")
+	var display_name: String = DictUtils.get_string(tab_info, "display_name", tab_id.capitalize())
+	var scene_path: String = DictUtils.get_string(tab_info, "scene_path", "")
+	var is_static: bool = DictUtils.get_bool(tab_info, "is_static", false)
 
 	var tab_control: Control
 
@@ -311,7 +311,7 @@ func _apply_category_filter() -> void:
 	var first_visible_index: int = -1
 	var tab_count: int = tab_container.get_tab_count()
 
-	for i in range(tab_count):
+	for i: int in range(tab_count):
 		var tab_control: Control = tab_container.get_tab_control(i)
 		if not tab_control:
 			continue
@@ -338,7 +338,7 @@ func _get_tab_category_by_control(tab_control: Control) -> String:
 		var instance: Control = tab_registry.get_instance(tab_id)
 		if instance == tab_control:
 			var tab_info: Dictionary = tab_registry.get_tab(tab_id)
-			return tab_info.get("category", "content")
+			return DictUtils.get_string(tab_info, "category", "content")
 	return "content"
 
 
@@ -350,7 +350,7 @@ func _save_last_selected_category(category: String) -> void:
 
 func _load_last_selected_category() -> String:
 	var settings: Dictionary = _load_editor_settings()
-	return settings.get("last_selected_category", "content")
+	return DictUtils.get_string(settings, "last_selected_category", "content")
 
 
 func _reload_mod_tabs() -> void:
@@ -379,7 +379,7 @@ func _reload_mod_tabs() -> void:
 	# Create newly registered mod tabs
 	var tabs: Array[Dictionary] = tab_registry.get_all_tabs_sorted()
 	for tab_info: Dictionary in tabs:
-		var tab_id: String = tab_info.get("id", "")
+		var tab_id: String = DictUtils.get_string(tab_info, "id", "")
 		if not tab_registry.get_source_mod(tab_id).is_empty():
 			if not tab_registry.has_instance(tab_id):
 				_create_tab_from_info(tab_info)
@@ -461,7 +461,7 @@ func _refresh_mod_list() -> void:
 		if active_mod:
 			target_mod_id = active_mod.mod_id
 
-	for i in range(mods.size()):
+	for i: int in range(mods.size()):
 		var mod: ModManifest = mods[i]
 		mod_selector.add_item(mod.mod_name, i)
 		mod_selector.set_item_metadata(i, mod.mod_id)
@@ -540,7 +540,7 @@ func _save_last_selected_mod(mod_id: String) -> void:
 
 func _load_last_selected_mod() -> String:
 	var settings: Dictionary = _load_editor_settings()
-	return settings.get("last_selected_mod", "")
+	return DictUtils.get_string(settings, "last_selected_mod", "")
 
 
 func _load_editor_settings() -> Dictionary:
@@ -688,7 +688,8 @@ func _on_create_mod_confirmed() -> void:
 	var mod_name: String = wizard_mod_name_edit.text.strip_edges()
 	var author: String = wizard_author_edit.text.strip_edges()
 	var description: String = wizard_description_edit.text.strip_edges()
-	var type_data: Dictionary = wizard_type_dropdown.get_item_metadata(wizard_type_dropdown.selected)
+	var type_data_value: Variant = wizard_type_dropdown.get_item_metadata(wizard_type_dropdown.selected)
+	var type_data: Dictionary = DictUtils.get_dict({"data": type_data_value}, "data", {})
 
 	if mod_id.is_empty():
 		_show_wizard_error("Mod ID is required")
@@ -713,7 +714,7 @@ func _on_create_mod_confirmed() -> void:
 			_refresh_mod_list()
 
 			ModLoader.set_active_mod(mod_id)
-			for i in range(mod_selector.item_count):
+			for i: int in range(mod_selector.item_count):
 				if mod_selector.get_item_metadata(i) == mod_id:
 					mod_selector.select(i)
 					_on_mod_selected(i)
@@ -797,14 +798,15 @@ func _create_mod_structure(mod_id: String, mod_name: String, author: String, des
 		"author": author if not author.is_empty() else "Unknown",
 		"description": description if not description.is_empty() else "A new mod for The Sparkling Farce",
 		"godot_version": "4.5",
-		"load_priority": type_data.priority,
+		"load_priority": DictUtils.get_int(type_data, "priority", 100),
 		"dependencies": []
 	}
 
-	if type_data.type == "total_conversion":
+	var type_str: String = DictUtils.get_string(type_data, "type", "")
+	if type_str == "total_conversion":
 		mod_json["hidden_campaigns"] = ["_base_game:*"]
 		mod_json["party_config"] = {"replaces_lower_priority": true}
-	elif type_data.type == "override":
+	elif type_str == "override":
 		mod_json["party_config"] = {"replaces_lower_priority": false}
 
 	var json_path: String = mod_path + "mod.json"

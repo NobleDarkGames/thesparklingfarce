@@ -827,7 +827,7 @@ func _cmd_battle_win(args: Array) -> void:
 		return
 
 	# Force victory by killing all enemies
-	for enemy: Node2D in BattleManager.enemy_units:
+	for enemy: Unit in BattleManager.enemy_units:
 		if is_instance_valid(enemy) and enemy.has_method("take_damage"):
 			var hp: int = enemy.stats.current_hp if enemy.stats else 9999
 			enemy.take_damage(hp)
@@ -841,7 +841,7 @@ func _cmd_battle_lose(args: Array) -> void:
 		return
 
 	# Force defeat by killing all player units
-	for unit: Node2D in BattleManager.player_units:
+	for unit: Unit in BattleManager.player_units:
 		if is_instance_valid(unit) and unit.has_method("take_damage"):
 			var hp: int = unit.stats.current_hp if unit.stats else 9999
 			unit.take_damage(hp)
@@ -873,7 +873,7 @@ func _cmd_battle_kill(args: Array) -> void:
 	var name_arg: String = str(args[0]).to_lower()
 
 	# Search all units for matching name
-	for unit: Node2D in BattleManager.all_units:
+	for unit: Unit in BattleManager.all_units:
 		if not is_instance_valid(unit):
 			continue
 		var unit_name: String = ""
@@ -1131,7 +1131,8 @@ func register_command(command_name: String, callback: Callable, help_text: Strin
 func unregister_mod_commands(mod_id: String) -> void:
 	var to_remove: Array[String] = []
 	for cmd: String in mod_commands:
-		if mod_commands[cmd].get("mod_id", "") == mod_id:
+		var cmd_entry: Dictionary = mod_commands[cmd]
+		if cmd_entry.get("mod_id", "") == mod_id:
 			to_remove.append(cmd)
 	for cmd: String in to_remove:
 		mod_commands.erase(cmd)

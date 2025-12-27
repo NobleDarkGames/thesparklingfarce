@@ -102,7 +102,7 @@ static func get_closest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i
 	var closest: Vector2i = cells[0]
 	var closest_dist: int = manhattan_distance(from, closest)
 
-	for cell in cells:
+	for cell: Vector2i in cells:
 		var dist: int = manhattan_distance(from, cell)
 		if dist < closest_dist:
 			closest = cell
@@ -120,7 +120,7 @@ static func get_farthest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2
 	var farthest: Vector2i = cells[0]
 	var farthest_dist: int = manhattan_distance(from, farthest)
 
-	for cell in cells:
+	for cell: Vector2i in cells:
 		var dist: int = manhattan_distance(from, cell)
 		if dist > farthest_dist:
 			farthest = cell
@@ -142,7 +142,7 @@ static func get_next_target_in_direction(
 
 	# Filter targets that are in the general direction of the input
 	var candidates: Array[Vector2i] = []
-	for target_cell in valid_targets:
+	for target_cell: Vector2i in valid_targets:
 		if target_cell == current_pos:
 			continue  # Skip current target
 
@@ -170,7 +170,7 @@ static func get_next_target_in_direction(
 	var opposite: Vector2i = -direction
 	var wrap_candidates: Array[Vector2i] = []
 
-	for target_cell in valid_targets:
+	for target_cell: Vector2i in valid_targets:
 		if target_cell == current_pos:
 			continue
 
@@ -195,7 +195,7 @@ static func get_next_target_in_direction(
 		return get_farthest_cell(current_pos, wrap_candidates)
 
 	# Fallback: return first other target
-	for target_cell in valid_targets:
+	for target_cell: Vector2i in valid_targets:
 		if target_cell != current_pos:
 			return target_cell
 

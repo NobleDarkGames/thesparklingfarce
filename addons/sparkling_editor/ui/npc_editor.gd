@@ -164,9 +164,9 @@ func _create_detail_form() -> void:
 
 ## Override: Load NPC data from resource into UI
 func _load_resource_data() -> void:
-	var npc: NPCData = current_resource as NPCData
-	if not npc:
+	if not current_resource is NPCData:
 		return
+	var npc: NPCData = current_resource
 
 	_updating_ui = true
 
@@ -189,7 +189,7 @@ func _load_resource_data() -> void:
 
 	# Load Quick Setup fields
 	if npc_role_option:
-		npc_role_option.select(npc.npc_role as int)
+		npc_role_option.select(int(npc.npc_role))
 	if shop_id_picker and not npc.shop_id.is_empty():
 		# Try to find and select the shop resource
 		var shop_res: Resource = ModLoader.registry.get_resource("shop", npc.shop_id) if ModLoader and ModLoader.registry else null
@@ -240,13 +240,14 @@ func _load_resource_data() -> void:
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
-	var npc: NPCData = current_resource as NPCData
-	if not npc:
+	if not current_resource is NPCData:
 		return
+	var npc: NPCData = current_resource
 
 	npc.npc_id = npc_id_edit.text.strip_edges()
 	npc.npc_name = npc_name_edit.text.strip_edges()
-	npc.character_data = character_picker.get_selected_resource() as CharacterData
+	var char_res: Resource = character_picker.get_selected_resource()
+	npc.character_data = char_res if char_res is CharacterData else null
 
 	# Save Quick Setup fields
 	if npc_role_option:
@@ -263,7 +264,7 @@ func _save_resource_data() -> void:
 		npc.farewell_text = farewell_text_edit.text.strip_edges()
 
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
-	npc.portrait = load(portrait_path) as Texture2D if not portrait_path.is_empty() and ResourceLoader.exists(portrait_path) else null
+	npc.portrait = _load_texture(portrait_path)
 
 	# Save sprite_frames from MapSpritesheetPicker
 	# IMPORTANT: SpriteFrames must have a valid resource_path to be saved as ExtResource.
@@ -322,11 +323,14 @@ func _validate_resource() -> Dictionary:
 	if has_fallback and not QuickDialogGenerator.cinematic_exists(cinematics_dir, fallback_id):
 		warnings.append("Fallback cinematic '%s' not found in loaded mods" % fallback_id)
 
-	for i in range(conditional_entries.size()):
+	for i: int in range(conditional_entries.size()):
 		var entry: Dictionary = conditional_entries[i]
-		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
-		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
-		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
+		var and_val: Variant = entry.get("and_flags_edit")
+		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var or_val: Variant = entry.get("or_flags_edit")
+		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var cine_val: Variant = entry.get("cinematic_edit")
+		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
 
 		if not cinematic_edit:
 			continue
@@ -372,7 +376,7 @@ func _create_new_resource() -> Resource:
 
 	# Set default placeholder portrait (from core, always available)
 	if ResourceLoader.exists(DEFAULT_NPC_PORTRAIT):
-		new_npc.portrait = load(DEFAULT_NPC_PORTRAIT) as Texture2D
+		new_npc.portrait = _load_texture(DEFAULT_NPC_PORTRAIT)
 
 	# Note: sprite_frames will be set by MapSpritesheetPicker when user selects a spritesheet
 	# Default NPC spritesheet is applied at runtime by NPCNode if no sprite_frames set
@@ -382,8 +386,8 @@ func _create_new_resource() -> Resource:
 
 ## Override: Get the display name from an NPC resource
 func _get_resource_display_name(resource: Resource) -> String:
-	var npc: NPCData = resource as NPCData
-	if npc:
+	if resource is NPCData:
+		var npc: NPCData = resource
 		if not npc.npc_name.is_empty():
 			return npc.npc_name
 		if not npc.npc_id.is_empty():
@@ -405,7 +409,8 @@ func _add_basic_info_section() -> void:
 	var idx: int = 0
 	for key: String in NPC_TEMPLATES.keys():
 		var template: Dictionary = NPC_TEMPLATES[key]
-		template_option.add_item(template.get("label", key), idx)
+		var template_label: String = DictUtils.get_string(template, "label", key)
+		template_option.add_item(template_label, idx)
 		template_option.set_item_metadata(idx, key)
 		idx += 1
 	template_option.item_selected.connect(_on_template_selected)
@@ -793,20 +798,20 @@ func _load_conditional_cinematics(conditionals: Array[Dictionary]) -> void:
 		# Build the AND flags array
 		var flags_and: Array = []
 		# Legacy single "flag" key gets converted to AND array
-		var single_flag: String = cond.get("flag", "")
+		var single_flag: String = DictUtils.get_string(cond, "flag", "")
 		if not single_flag.is_empty():
 			flags_and.append(single_flag)
 		# Add any flags from "flags" array
-		var explicit_flags: Array = cond.get("flags", [])
+		var explicit_flags: Array = DictUtils.get_array(cond, "flags", [])
 		for flag: String in explicit_flags:
 			if not flag.is_empty() and flag not in flags_and:
 				flags_and.append(flag)
 
 		# OR flags from "any_flags" array
-		var flags_or: Array = cond.get("any_flags", [])
+		var flags_or: Array = DictUtils.get_array(cond, "any_flags", [])
 
-		var negate: bool = cond.get("negate", false)
-		var cinematic_id: String = cond.get("cinematic_id", "")
+		var negate: bool = DictUtils.get_bool(cond, "negate", false)
+		var cinematic_id: String = DictUtils.get_string(cond, "cinematic_id", "")
 
 		_add_conditional_entry(flags_and, flags_or, negate, cinematic_id)
 
@@ -918,7 +923,8 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 
 func _clear_conditional_entries() -> void:
 	for entry: Dictionary in conditional_entries:
-		var container: Control = entry.get("container") as Control
+		var container_val: Variant = entry.get("container")
+		var container: Control = container_val if container_val is Control else null
 		if container and is_instance_valid(container):
 			container.queue_free()
 	conditional_entries.clear()
@@ -927,10 +933,14 @@ func _clear_conditional_entries() -> void:
 func _collect_conditional_cinematics() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in conditional_entries:
-		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
-		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
-		var negate_check: CheckBox = entry.get("negate_check") as CheckBox
-		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
+		var and_val: Variant = entry.get("and_flags_edit")
+		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var or_val: Variant = entry.get("or_flags_edit")
+		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var negate_val: Variant = entry.get("negate_check")
+		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
+		var cine_val: Variant = entry.get("cinematic_edit")
+		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
 
 		if not cinematic_edit:
 			continue
@@ -981,9 +991,12 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 
 func _has_valid_conditional() -> bool:
 	for entry: Dictionary in conditional_entries:
-		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
-		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
-		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
+		var and_val: Variant = entry.get("and_flags_edit")
+		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var or_val: Variant = entry.get("or_flags_edit")
+		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var cine_val: Variant = entry.get("cinematic_edit")
+		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
 
 		if not cinematic_edit:
 			continue
@@ -1119,7 +1132,7 @@ func _on_add_conditional() -> void:
 
 
 func _on_remove_conditional(entry_container: HBoxContainer) -> void:
-	for i in range(conditional_entries.size()):
+	for i: int in range(conditional_entries.size()):
 		if conditional_entries[i].get("container") == entry_container:
 			conditional_entries.remove_at(i)
 			break
@@ -1197,21 +1210,24 @@ func _on_template_selected(index: int) -> void:
 		return
 
 	_updating_ui = true
-	var template_name: String = template.get("name", "")
+	var template_name: String = DictUtils.get_string(template, "name", "")
 	if not template_name.is_empty():
 		npc_name_edit.text = template_name
 		if not _id_is_locked:
 			npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(template_name)
-	var template_dialog: String = template.get("dialog", "")
+	var template_dialog: String = DictUtils.get_string(template, "dialog", "")
 	if not template_dialog.is_empty() and quick_dialog_text:
 		quick_dialog_text.text = template_dialog
-	if template.has("face_player") and face_player_check:
-		face_player_check.button_pressed = template.get("face_player", true)
-	if template.has("facing") and facing_override_option:
-		_set_facing_dropdown(template.get("facing", ""))
+	if "face_player" in template and face_player_check:
+		var face_player: bool = DictUtils.get_bool(template, "face_player", true)
+		face_player_check.button_pressed = face_player
+	if "facing" in template and facing_override_option:
+		var facing: String = DictUtils.get_string(template, "facing", "")
+		_set_facing_dropdown(facing)
 	_updating_ui = false
 
-	_show_quick_dialog_status("Applied '%s' template - customize as needed!" % template.get("label", template_key), Color(0.5, 0.8, 1.0))
+	var template_label: String = DictUtils.get_string(template, "label", template_key)
+	_show_quick_dialog_status("Applied '%s' template - customize as needed!" % template_label, Color(0.5, 0.8, 1.0))
 
 
 func _on_cinematic_field_changed(text: String, field_type: String) -> void:
@@ -1267,8 +1283,9 @@ func _on_create_dialog_cinematic() -> void:
 		return
 
 	interaction_cinematic_edit.text = cinematic_id
-	if current_resource and current_resource is NPCData:
-		(current_resource as NPCData).interaction_cinematic_id = cinematic_id
+	if current_resource is NPCData:
+		var npc_res: NPCData = current_resource
+		npc_res.interaction_cinematic_id = cinematic_id
 
 	_show_quick_dialog_status("Created '%s' - Dialog is now attached!" % cinematic_id, Color(0.4, 0.9, 0.4))
 	call_deferred("_update_cinematic_warnings")
@@ -1326,8 +1343,10 @@ func _populate_map_list() -> void:
 		map_list.add_item("(No maps found)")
 		return
 	for map_info: Dictionary in maps:
-		map_list.add_item(map_info.get("display_name", "Unknown"))
-		map_list.set_item_metadata(map_list.item_count - 1, map_info.get("path", ""))
+		var display_name: String = DictUtils.get_string(map_info, "display_name", "Unknown")
+		var map_path: String = DictUtils.get_string(map_info, "path", "")
+		map_list.add_item(display_name)
+		map_list.set_item_metadata(map_list.item_count - 1, map_path)
 
 
 func _on_map_double_clicked(index: int) -> void:
@@ -1463,7 +1482,8 @@ func _load_portrait_preview(path: String) -> void:
 		return
 
 	if ResourceLoader.exists(clean_path):
-		var texture: Texture2D = load(clean_path) as Texture2D
+		var loaded: Resource = load(clean_path)
+		var texture: Texture2D = loaded if loaded is Texture2D else null
 		portrait_preview.texture = texture
 		portrait_preview.tooltip_text = clean_path
 	else:
@@ -1506,3 +1526,11 @@ func _get_default_asset_path(asset_type: String) -> String:
 		return generic_assets_dir
 
 	return mod_path
+
+
+## Helper to safely load a texture from path
+func _load_texture(path: String) -> Texture2D:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	var loaded: Resource = load(path)
+	return loaded if loaded is Texture2D else null

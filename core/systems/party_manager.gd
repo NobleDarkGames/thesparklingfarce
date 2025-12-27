@@ -23,6 +23,7 @@ extends Node
 signal item_transferred(from_uid: String, to_uid: String, item_id: String)
 
 ## Emitted when a party member's inventory changes
+@warning_ignore("unused_signal")
 signal member_inventory_changed(character_uid: String)
 
 ## Emitted when a party member departs (removed with preserved data)
@@ -42,12 +43,12 @@ var party_members: Array[CharacterData] = []
 ## Runtime save data for each party member, keyed by character_uid
 ## This stores mutable state (inventory, equipment changes, stat gains)
 ## Initialized when characters are added to the party
-var _member_save_data: Dictionary = {}
+var _member_save_data: Dictionary[String, CharacterSaveData] = {}
 
 ## Save data for characters who have departed (died, left, captured, etc.)
 ## Preserved so they can potentially rejoin or for save game persistence
 ## Keyed by character_uid
-var _departed_save_data: Dictionary = {}
+var _departed_save_data: Dictionary[String, CharacterSaveData] = {}
 
 ## Maximum ACTIVE party size (goes into battle) - SF2 allows 12
 ## Can be modified by mods at runtime, but bounds checked
@@ -135,7 +136,7 @@ func set_party(characters: Array[CharacterData]) -> void:
 	_ensure_hero_is_leader()
 
 	# Create save data for all party members
-	for character in party_members:
+	for character: CharacterData in party_members:
 		_ensure_save_data(character)
 
 
@@ -288,7 +289,7 @@ func load_from_party_data(party_data: PartyData) -> void:
 	party_members.clear()
 	_member_save_data.clear()
 
-	for member_dict in party_data.members:
+	for member_dict: Dictionary in party_data.members:
 		if "character" in member_dict and member_dict.character:
 			var character: CharacterData = member_dict.character
 			party_members.append(character)
@@ -499,8 +500,9 @@ func _ensure_hero_is_leader() -> void:
 
 	# Find the hero in the party
 	var hero_index: int = -1
-	for i in range(party_members.size()):
-		if party_members[i].is_hero:
+	for i: int in range(party_members.size()):
+		var member: CharacterData = party_members[i]
+		if member.is_hero:
 			hero_index = i
 			break
 
@@ -516,7 +518,7 @@ func _ensure_hero_is_leader() -> void:
 ## Check if the party has a hero
 ## @return: true if hero is present in party
 func has_hero() -> bool:
-	for character in party_members:
+	for character: CharacterData in party_members:
 		if character.is_hero:
 			return true
 	return false
@@ -525,7 +527,7 @@ func has_hero() -> bool:
 ## Get the hero character from the party
 ## @return: Hero CharacterData or null if not present
 func get_hero() -> CharacterData:
-	for character in party_members:
+	for character: CharacterData in party_members:
 		if character.is_hero:
 			return character
 	return null
@@ -544,7 +546,7 @@ func get_hero() -> CharacterData:
 func get_battle_spawn_data(spawn_point: Vector2i = Vector2i(2, 2)) -> Array[Dictionary]:
 	var spawn_data: Array[Dictionary] = []
 
-	for i in range(party_members.size()):
+	for i: int in range(party_members.size()):
 		var character: CharacterData = party_members[i]
 
 		# Calculate position using formation offset
@@ -574,10 +576,12 @@ func get_custom_spawn_data(spawn_positions: Array[Vector2i]) -> Array[Dictionary
 
 	var spawn_data: Array[Dictionary] = []
 
-	for i in range(party_members.size()):
+	for i: int in range(party_members.size()):
+		var character: CharacterData = party_members[i]
+		var spawn_pos: Vector2i = spawn_positions[i]
 		spawn_data.append({
-			"character": party_members[i],
-			"position": spawn_positions[i]
+			"character": character,
+			"position": spawn_pos
 		})
 
 	return spawn_data
@@ -771,12 +775,13 @@ func import_from_save(saved_characters: Array[CharacterSaveData]) -> void:
 ## @return: CharacterData if found, null if mod missing
 func _resolve_character_from_save(char_save: CharacterSaveData) -> CharacterData:
 	# Try to get from ModRegistry (note: ModRegistry doesn't filter by mod_id in get_resource)
-	var character_data: Resource = ModLoader.registry.get_resource(
+	var resource: Resource = ModLoader.registry.get_resource(
 		"character",
 		char_save.character_resource_id
 	)
+	var character_data: CharacterData = resource as CharacterData if resource is CharacterData else null
 
-	if character_data and character_data is CharacterData:
+	if character_data:
 		return character_data
 
 	# Character not found - mod might be missing
@@ -802,7 +807,8 @@ func export_departed_to_save() -> Array[CharacterSaveData]:
 	var save_array: Array[CharacterSaveData] = []
 
 	for uid: String in _departed_save_data:
-		save_array.append(_departed_save_data[uid])
+		var departed_data: CharacterSaveData = _departed_save_data[uid]
+		save_array.append(departed_data)
 
 	return save_array
 

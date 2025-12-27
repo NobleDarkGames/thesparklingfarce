@@ -139,7 +139,7 @@ func roll_counter(counter_chance: int) -> bool:
 ## @param count: Number of dice to roll (default 1)
 func roll_dice(sides: int, count: int = 1) -> int:
 	var total: int = 0
-	for _i in range(count):
+	for _i: int in range(count):
 		total += combat_rng.randi_range(1, sides)
 	return total
 
@@ -164,10 +164,10 @@ func export_seeds() -> Dictionary:
 
 ## Import seed state from save
 func import_seeds(data: Dictionary) -> void:
-	_combat_seed = data.get("combat_seed", randi())
-	_ai_seed = data.get("ai_seed", randi())
-	_world_seed = data.get("world_seed", randi())
-	_seeds_are_deterministic = data.get("deterministic", false)
+	_combat_seed = data["combat_seed"] if "combat_seed" in data else randi()
+	_ai_seed = data["ai_seed"] if "ai_seed" in data else randi()
+	_world_seed = data["world_seed"] if "world_seed" in data else randi()
+	_seeds_are_deterministic = data["deterministic"] if "deterministic" in data else false
 
 	# Restore RNG state if available (mid-game saves)
 	if "combat_state" in data:

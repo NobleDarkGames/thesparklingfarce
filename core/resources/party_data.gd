@@ -44,7 +44,8 @@ func validate() -> bool:
 			push_error("PartyData '%s': Member %d missing 'character' field" % [party_name, i])
 			return false
 
-		if not member.character is CharacterData:
+		var character_value: Variant = member.get("character")
+		if not character_value is CharacterData:
 			push_error("PartyData '%s': Member %d 'character' is not CharacterData" % [party_name, i])
 			return false
 
@@ -111,8 +112,12 @@ func clear_members() -> void:
 func get_member_names() -> Array[String]:
 	var names: Array[String] = []
 	for member: Dictionary in members:
-		if "character" in member and member.character:
-			names.append(member.character.character_name)
+		if "character" in member:
+			var character: CharacterData = member.get("character") as CharacterData
+			if character:
+				names.append(character.character_name)
+			else:
+				names.append("(Invalid)")
 		else:
 			names.append("(Invalid)")
 	return names

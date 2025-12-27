@@ -55,7 +55,7 @@ static func load_from_json_string(json_text: String, source_path: String = "<str
 		push_error("CinematicLoader: Root element must be a dictionary in %s" % source_path)
 		return null
 
-	return _build_cinematic_from_dict(data as Dictionary, source_path)
+	return _build_cinematic_from_dict(data, source_path)
 
 
 ## Build CinematicData from a parsed JSON dictionary
@@ -93,9 +93,10 @@ static func _build_cinematic_from_dict(data: Dictionary, source_path: String) ->
 	if "actors" in data:
 		var actors_data: Variant = data["actors"]
 		if actors_data is Array:
-			for actor_data: Variant in actors_data:
+			var actors_array: Array = actors_data
+			for actor_data: Variant in actors_array:
 				if actor_data is Dictionary:
-					cinematic.actors.append(actor_data as Dictionary)
+					cinematic.actors.append(actor_data)
 		else:
 			push_warning("CinematicLoader: 'actors' should be an array in %s" % source_path)
 
@@ -103,9 +104,10 @@ static func _build_cinematic_from_dict(data: Dictionary, source_path: String) ->
 	if "commands" in data:
 		var commands_data: Variant = data["commands"]
 		if commands_data is Array:
-			for cmd_data: Variant in commands_data:
+			var commands_array: Array = commands_data
+			for cmd_data: Variant in commands_array:
 				if cmd_data is Dictionary:
-					var command: Dictionary = _parse_command(cmd_data as Dictionary, source_path)
+					var command: Dictionary = _parse_command(cmd_data, source_path)
 					if not command.is_empty():
 						cinematic.commands.append(command)
 		else:
@@ -129,7 +131,8 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 	if "params" in cmd_data:
 		var params_data: Variant = cmd_data["params"]
 		if params_data is Dictionary:
-			params = _convert_params(params_data as Dictionary, cmd_type)
+			var params_dict: Dictionary = params_data
+			params = _convert_params(params_dict, cmd_type)
 	else:
 		# Shorthand: params at root level (excluding 'type' and 'target')
 		for key: String in cmd_data.keys():
@@ -183,31 +186,48 @@ static func _convert_params(params: Dictionary, cmd_type: String) -> Dictionary:
 
 ## Resolve a character_id to a display name (convenience wrapper)
 static func _resolve_character_id(character_id: String) -> String:
-	return CinematicCommandExecutor.resolve_character_data(character_id).get("name", "")
+	var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(character_id)
+	var name_variant: Variant = char_data.get("name", "")
+	return str(name_variant)
 
 
 ## Convert a single value to appropriate GDScript type
 static func _convert_value(value: Variant, key: String, cmd_type: String) -> Variant:
 	# Handle position/vector arrays -> Vector2
 	if key in ["position", "target_pos", "target_position"] and value is Array:
-		var arr: Array = value as Array
-		if arr.size() >= 2:
-			return Vector2(float(arr[0]), float(arr[1]))
+		var arr: Array = value
+		var arr_size: int = arr.size()
+		if arr_size >= 2:
+			var x_val: Variant = arr[0]
+			var y_val: Variant = arr[1]
+			var x: float = _variant_to_float(x_val)
+			var y: float = _variant_to_float(y_val)
+			return Vector2(x, y)
 
 	# Handle path arrays -> Array[Vector2] or Array[Vector2i]
 	if key == "path" and value is Array:
-		var path_arr: Array = value as Array
+		var path_arr: Array = value
 		var converted_path: Array = []
 		for point: Variant in path_arr:
-			if point is Array and point.size() >= 2:
-				# For move_entity, use Vector2i (grid coords)
-				if cmd_type == "move_entity":
-					converted_path.append(Vector2i(int(point[0]), int(point[1])))
-				else:
-					converted_path.append(Vector2(float(point[0]), float(point[1])))
+			if point is Array:
+				var point_arr: Array = point
+				var point_size: int = point_arr.size()
+				if point_size >= 2:
+					var px_val: Variant = point_arr[0]
+					var py_val: Variant = point_arr[1]
+					var px: float = _variant_to_float(px_val)
+					var py: float = _variant_to_float(py_val)
+					# For move_entity, use Vector2i (grid coords)
+					if cmd_type == "move_entity":
+						converted_path.append(Vector2i(int(px), int(py)))
+					else:
+						converted_path.append(Vector2(px, py))
 			elif point is Dictionary:
-				var x: float = float(point.get("x", 0))
-				var y: float = float(point.get("y", 0))
+				var point_dict: Dictionary = point
+				var x_raw: Variant = point_dict.get("x", 0)
+				var y_raw: Variant = point_dict.get("y", 0)
+				var x: float = _variant_to_float(x_raw)
+				var y: float = _variant_to_float(y_raw)
 				if cmd_type == "move_entity":
 					converted_path.append(Vector2i(int(x), int(y)))
 				else:
@@ -216,20 +236,23 @@ static func _convert_value(value: Variant, key: String, cmd_type: String) -> Var
 
 	# Handle lines array for dialog
 	if key == "lines" and value is Array:
-		var lines_arr: Array = value as Array
+		var lines_arr: Array = value
 		var converted_lines: Array = []
 		for line: Variant in lines_arr:
 			if line is Dictionary:
-				var line_dict: Dictionary = line as Dictionary
+				var line_dict: Dictionary = line
 				var converted_line: Dictionary = {}
 
 				# Support character_id lookup (preferred) or direct speaker name
 				if "character_id" in line_dict:
 					var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(str(line_dict["character_id"]))
-					if not char_data["name"].is_empty():
-						converted_line["speaker_name"] = char_data["name"]
-					if char_data["portrait"] != null:
-						converted_line["portrait"] = char_data["portrait"]
+					var char_name_variant: Variant = char_data.get("name", "")
+					var char_name: String = str(char_name_variant)
+					var char_portrait: Variant = char_data.get("portrait")
+					if not char_name.is_empty():
+						converted_line["speaker_name"] = char_name
+					if char_portrait != null:
+						converted_line["portrait"] = char_portrait
 				elif "speaker" in line_dict:
 					converted_line["speaker_name"] = str(line_dict["speaker"])
 				elif "speaker_name" in line_dict:
@@ -246,6 +269,15 @@ static func _convert_value(value: Variant, key: String, cmd_type: String) -> Var
 
 	# Pass through other values
 	return value
+
+
+## Safely convert a Variant to float with type checking
+static func _variant_to_float(value: Variant) -> float:
+	if value is float:
+		return value
+	elif value is int:
+		return float(value)
+	return 0.0
 
 
 ## Validate a loaded cinematic has required structure

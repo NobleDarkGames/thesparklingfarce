@@ -70,8 +70,8 @@ func _populate_display() -> void:
 	var materials_lines: Array[String] = []
 	materials_lines.append("Materials Consumed:")
 	for input: Dictionary in _recipe.inputs:
-		var material_id: String = input.get("material_id", "")
-		var qty: int = input.get("quantity", 1)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var qty: int = DictUtils.get_int(input, "quantity", 1)
 		var item: ItemData = get_item_data(material_id)
 		var name: String = item.item_name if item else material_id
 		materials_lines.append("  - %s x%d" % [name, qty])
@@ -94,17 +94,17 @@ func _on_confirm_pressed() -> void:
 
 	var result: Dictionary = CraftingManager.craft_recipe(_recipe, _crafter, choice_index)
 
-	if result.success:
+	if DictUtils.get_bool(result, "success", false):
 		context.set_result("craft_complete", {
 			"recipe_name": _recipe.recipe_name,
-			"output_item_id": result.output_item_id,
-			"output_item_name": result.output_item_name,
-			"gold_spent": result.gold_spent,
-			"destination": result.destination
+			"output_item_id": DictUtils.get_string(result, "output_item_id", ""),
+			"output_item_name": DictUtils.get_string(result, "output_item_name", ""),
+			"gold_spent": DictUtils.get_int(result, "gold_spent", 0),
+			"destination": DictUtils.get_string(result, "destination", "")
 		})
 		replace_with("transaction_result")
 	else:
-		_show_error(result.error)
+		_show_error(DictUtils.get_string(result, "error", "Unknown error"))
 
 
 func _show_error(error_msg: String) -> void:

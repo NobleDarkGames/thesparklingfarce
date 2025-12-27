@@ -110,7 +110,8 @@ func unregister_mod(mod_id: String) -> void:
 	var to_remove: Array[String] = []
 
 	for mode_id: String in _mod_modes.keys():
-		if _mod_modes[mode_id].get("source_mod") == mod_id:
+		var mode_entry: Dictionary = _mod_modes[mode_id]
+		if mode_entry.get("source_mod") == mod_id:
 			to_remove.append(mode_id)
 
 	for mode_id: String in to_remove:
@@ -149,7 +150,8 @@ func get_all_modes() -> Array[Dictionary]:
 	_rebuild_cache_if_dirty()
 	var result: Array[Dictionary] = []
 	for mode_id: String in _all_modes.keys():
-		result.append(_all_modes[mode_id].duplicate())
+		var entry: Dictionary = _all_modes[mode_id]
+		result.append(entry.duplicate())
 	# Sort by display name for consistent UI ordering
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a.get("display_name", "") < b.get("display_name", "")
@@ -163,7 +165,8 @@ func get_mode(mode_id: String) -> Dictionary:
 	_rebuild_cache_if_dirty()
 	var lower: String = mode_id.to_lower()
 	if lower in _all_modes:
-		return _all_modes[lower].duplicate()
+		var entry: Dictionary = _all_modes[lower]
+		return entry.duplicate()
 	return {}
 
 
@@ -172,7 +175,8 @@ func get_display_name(mode_id: String) -> String:
 	_rebuild_cache_if_dirty()
 	var lower: String = mode_id.to_lower()
 	if lower in _all_modes:
-		return _all_modes[lower].get("display_name", mode_id.capitalize())
+		var entry: Dictionary = _all_modes[lower]
+		return entry.get("display_name", mode_id.capitalize())
 	return mode_id.capitalize()
 
 
@@ -181,7 +185,8 @@ func get_description(mode_id: String) -> String:
 	_rebuild_cache_if_dirty()
 	var lower: String = mode_id.to_lower()
 	if lower in _all_modes:
-		return _all_modes[lower].get("description", "")
+		var entry: Dictionary = _all_modes[lower]
+		return entry.get("description", "")
 	return ""
 
 
@@ -202,7 +207,8 @@ func get_mode_source(mode_id: String) -> String:
 	if lower in DEFAULT_MODES and lower not in _mod_modes:
 		return "base"
 	if lower in _mod_modes:
-		return _mod_modes[lower].get("source_mod", "")
+		var entry: Dictionary = _mod_modes[lower]
+		return entry.get("source_mod", "")
 	return ""
 
 
@@ -218,16 +224,20 @@ func _rebuild_cache_if_dirty() -> void:
 	# Start with defaults
 	_all_modes.clear()
 	for mode_id: String in DEFAULT_MODES.keys():
+		var mode_data: Dictionary = DEFAULT_MODES[mode_id]
+		var display_name: String = mode_data.get("display_name", "")
+		var description: String = mode_data.get("description", "")
 		_all_modes[mode_id] = {
 			"id": mode_id,
-			"display_name": DEFAULT_MODES[mode_id].display_name,
-			"description": DEFAULT_MODES[mode_id].description,
+			"display_name": display_name,
+			"description": description,
 			"source_mod": "base"
 		}
 
 	# Add/override with mod modes
 	for mode_id: String in _mod_modes.keys():
-		_all_modes[mode_id] = _mod_modes[mode_id].duplicate()
+		var entry: Dictionary = _mod_modes[mode_id]
+		_all_modes[mode_id] = entry.duplicate()
 
 	_cache_dirty = false
 

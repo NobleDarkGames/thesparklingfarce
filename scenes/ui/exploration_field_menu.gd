@@ -321,7 +321,8 @@ func _build_menu_options() -> void:
 
 		# SF2-authentic: HIDE Magic option if no party member has field spells
 		# Don't grey it out - completely hide it
-		if opt_copy.id == "magic" and not has_field_magic:
+		var opt_id: String = DictUtils.get_string(opt_copy, "id", "")
+		if opt_id == "magic" and not has_field_magic:
 			continue  # Skip adding this option
 
 		_menu_options.append(opt_copy)
@@ -345,7 +346,7 @@ func _party_has_field_magic() -> bool:
 
 		# Check learned abilities for field-usable spells
 		for ability_dict: Dictionary in save_data.learned_abilities:
-			var ability_id: String = ability_dict.get("ability_id", "")
+			var ability_id: String = DictUtils.get_string(ability_dict, "ability_id", "")
 			if ability_id in FIELD_USABLE_ABILITY_IDS:
 				return true
 
@@ -368,7 +369,8 @@ func _rebuild_option_labels() -> void:
 	# Create label for each option
 	for option: Dictionary in _menu_options:
 		var label: Label = Label.new()
-		label.text = "  " + option.label  # Indent for cursor space
+		var option_label_text: String = DictUtils.get_string(option, "label", "")
+		label.text = "  " + option_label_text  # Indent for cursor space
 		label.add_theme_font_override("font", MONOGRAM_FONT)
 		label.add_theme_font_size_override("font_size", FONT_SIZE)
 		label.add_theme_color_override("font_color", TEXT_NORMAL)
@@ -381,19 +383,20 @@ func _update_selection_visual() -> void:
 	for i: int in range(_option_labels.size()):
 		var label: Label = _option_labels[i]
 		var option: Dictionary = _menu_options[i]
+		var option_label: String = DictUtils.get_string(option, "label", "")
 
 		if i == _selected_index:
 			# Selected: show cursor and yellow text
 			label.add_theme_color_override("font_color", TEXT_SELECTED)
-			label.text = CURSOR_CHAR + " " + option.label
+			label.text = CURSOR_CHAR + " " + option_label
 		elif i == _hover_index:
 			# Hovered: lighter text, no cursor
 			label.add_theme_color_override("font_color", TEXT_HOVER)
-			label.text = "  " + option.label
+			label.text = "  " + option_label
 		else:
 			# Normal: default text, no cursor
 			label.add_theme_color_override("font_color", TEXT_NORMAL)
-			label.text = "  " + option.label
+			label.text = "  " + option_label
 
 
 ## Position the menu near the hero, clamped to viewport bounds
@@ -481,15 +484,15 @@ func _confirm_selection() -> void:
 		return
 
 	var selected_option: Dictionary = _menu_options[_selected_index]
-	var option_id: String = selected_option.get("id", "")
-	var is_custom: bool = selected_option.get("is_custom", false)
+	var option_id: String = DictUtils.get_string(selected_option, "id", "")
+	var is_custom: bool = DictUtils.get_bool(selected_option, "is_custom", false)
 
 	AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 
 	# Emit appropriate signal based on option
 	if is_custom:
 		# Phase 4: Custom mod options
-		var scene_path: String = selected_option.get("scene_path", "")
+		var scene_path: String = DictUtils.get_string(selected_option, "scene_path", "")
 		custom_option_requested.emit(option_id, scene_path)
 	else:
 		# Built-in options

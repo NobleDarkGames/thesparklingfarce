@@ -126,7 +126,7 @@ func _update_sort_label() -> void:
 
 func _populate_item_grid() -> void:
 	# Clear existing
-	for child in item_grid.get_children():
+	for child: Node in item_grid.get_children():
 		child.queue_free()
 	item_buttons.clear()
 

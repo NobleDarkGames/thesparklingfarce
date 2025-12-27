@@ -31,7 +31,7 @@ func register_slot_layout(mod_id: String, slots: Array) -> void:
 	var typed_slots: Array[Dictionary] = []
 	for slot: Variant in slots:
 		if slot is Dictionary:
-			var slot_dict: Dictionary = slot as Dictionary
+			var slot_dict: Dictionary = slot
 			# Validate required fields
 			if "id" in slot_dict and "display_name" in slot_dict:
 				var validated: Dictionary = {
@@ -118,7 +118,8 @@ func get_slot_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for slot: Dictionary in get_slots():
 		if "id" in slot:
-			ids.append(slot.id)
+			var slot_id: String = slot.get("id", "")
+			ids.append(slot_id)
 	return ids
 
 

@@ -167,7 +167,12 @@ func get_buff_effects() -> Array[StatusEffectData]:
 	for effect: StatusEffectData in _effects.values():
 		var is_buff: bool = false
 		for value: Variant in effect.stat_modifiers.values():
-			if int(value) > 0:
+			var int_value: int = 0
+			if value is int:
+				int_value = value
+			elif value is float:
+				int_value = int(value)
+			if int_value > 0:
 				is_buff = true
 				break
 		if is_buff:
@@ -182,7 +187,12 @@ func get_debuff_effects() -> Array[StatusEffectData]:
 		var is_debuff: bool = effect.damage_per_turn > 0
 		if not is_debuff:
 			for value: Variant in effect.stat_modifiers.values():
-				if int(value) < 0:
+				var int_value: int = 0
+				if value is int:
+					int_value = value
+				elif value is float:
+					int_value = int(value)
+				if int_value < 0:
 					is_debuff = true
 					break
 		if is_debuff:

@@ -256,7 +256,8 @@ func set_font_scale(scale: float) -> void:
 func get_mod_setting(mod_id: String, key: String, default: Variant = null) -> Variant:
 	if mod_id not in _mod_settings:
 		return default
-	return _mod_settings[mod_id].get(key, default)
+	var mod_dict: Dictionary = _mod_settings[mod_id]
+	return mod_dict.get(key, default)
 
 
 ## Set a mod-specific setting
@@ -273,7 +274,9 @@ func set_mod_setting(mod_id: String, key: String, value: Variant) -> void:
 
 ## Get all settings for a mod (for settings UI)
 func get_all_mod_settings(mod_id: String) -> Dictionary:
-	return _mod_settings.get(mod_id, {}).duplicate()
+	var settings_val: Variant = _mod_settings.get(mod_id, {})
+	var mod_settings: Dictionary = settings_val if settings_val is Dictionary else {}
+	return mod_settings.duplicate()
 
 
 # ============================================================================
@@ -322,9 +325,13 @@ func save_settings() -> void:
 
 	# Save mod settings
 	for mod_id: String in _mod_settings:
-		for key: String in _mod_settings[mod_id]:
+		var dict_val: Variant = _mod_settings.get(mod_id)
+		if not dict_val is Dictionary:
+			continue
+		var mod_dict: Dictionary = dict_val
+		for key: String in mod_dict:
 			var full_key: String = "%s:%s" % [mod_id, key]
-			config.set_value(MOD_SETTINGS_SECTION, full_key, _mod_settings[mod_id][key])
+			config.set_value(MOD_SETTINGS_SECTION, full_key, mod_dict[key])
 
 	var err: Error = config.save(SETTINGS_FILE)
 	if err != OK:

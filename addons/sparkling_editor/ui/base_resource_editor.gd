@@ -466,7 +466,8 @@ func _scan_all_mods_for_resources() -> void:
 	var dir_name: String = resource_type_id + "s"  # Default: add 's' to type ID
 	var type_dir_map: Dictionary = ModLoader.RESOURCE_TYPE_DIRS if "RESOURCE_TYPE_DIRS" in ModLoader else {}
 	for type_dir: String in type_dir_map.keys():
-		if type_dir_map[type_dir] == resource_type_id:
+		var type_value: String = DictUtils.get_string(type_dir_map, type_dir, "")
+		if type_value == resource_type_id:
 			dir_name = type_dir
 			break
 
@@ -512,7 +513,7 @@ func _apply_filter() -> void:
 
 	var filter_text: String = search_filter.text.strip_edges().to_lower() if search_filter else ""
 
-	for i in range(all_resources.size()):
+	for i: int in range(all_resources.size()):
 		var resource: Resource = all_resources[i]
 		var path: String = all_resource_paths[i]
 		var source_mod: String = all_resource_source_mods[i] if i < all_resource_source_mods.size() else ""
@@ -528,7 +529,7 @@ func _apply_filter() -> void:
 	# Restore selection based on stored path (not dependent on ItemList maintaining state)
 	# This fixes the "stateless selection" tribble where filtering loses selection
 	if not current_resource_path.is_empty():
-		for list_idx in range(resource_list.item_count):
+		for list_idx: int in range(resource_list.item_count):
 			if resource_list.get_item_metadata(list_idx) == current_resource_path:
 				resource_list.select(list_idx)
 				break
@@ -702,7 +703,8 @@ func _on_create_new() -> void:
 		if active_mod:
 			active_mod_id = active_mod.mod_id
 			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			save_dir = resource_dirs.get(resource_type_id, "")
+			if resource_type_id in resource_dirs:
+				save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
 
 	# Fallback to legacy directory
 	if save_dir == "":
@@ -739,7 +741,7 @@ func _on_create_new() -> void:
 			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
 
 		# Auto-select the newly created resource
-		for i in range(resource_list.item_count):
+		for i: int in range(resource_list.item_count):
 			if resource_list.get_item_metadata(i) == full_path:
 				resource_list.select(i)
 				_on_resource_selected(i)
@@ -775,7 +777,8 @@ func _on_duplicate_resource() -> void:
 		if active_mod:
 			active_mod_id = active_mod.mod_id
 			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			save_dir = resource_dirs.get(resource_type_id, "")
+			if resource_type_id in resource_dirs:
+				save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
 
 	if save_dir.is_empty():
 		save_dir = resource_directory
@@ -817,7 +820,7 @@ func _on_duplicate_resource() -> void:
 			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
 
 		# Select the newly created resource
-		for i in range(resource_list.item_count):
+		for i: int in range(resource_list.item_count):
 			if resource_list.get_item_metadata(i) == full_path:
 				resource_list.select(i)
 				_on_resource_selected(i)
@@ -838,7 +841,7 @@ func _on_delete() -> void:
 	var references: Array[String] = _check_resource_references(current_resource)
 	if references.size() > 0:
 		var ref_list: String = ""
-		for i in range(mini(references.size(), 5)):
+		for i: int in range(mini(references.size(), 5)):
 			ref_list += "\n  - " + references[i].get_file()
 		if references.size() > 5:
 			ref_list += "\n  ... and %d more" % (references.size() - 5)
@@ -894,7 +897,7 @@ func _perform_delete() -> void:
 ## Show error messages in the visual error panel
 func _show_errors(errors: Array) -> void:
 	var error_text: String = "[b]Error:[/b]\n"
-	for error in errors:
+	for error: Variant in errors:
 		error_text += "• " + str(error) + "\n"
 	error_label.text = error_text
 
@@ -1033,7 +1036,8 @@ func _on_copy_to_mod() -> void:
 	var save_dir: String = ""
 	if resource_type_id != "":
 		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-		save_dir = resource_dirs.get(resource_type_id, "")
+		if resource_type_id in resource_dirs:
+			save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
 
 	if save_dir.is_empty():
 		save_dir = resource_directory
@@ -1075,7 +1079,7 @@ func _on_copy_to_mod() -> void:
 			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
 
 		# Select the newly created resource
-		for i in range(resource_list.item_count):
+		for i: int in range(resource_list.item_count):
 			if resource_list.get_item_metadata(i) == full_path:
 				resource_list.select(i)
 				_on_resource_selected(i)
@@ -1110,7 +1114,8 @@ func _on_create_override() -> void:
 	var save_dir: String = ""
 	if resource_type_id != "":
 		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-		save_dir = resource_dirs.get(resource_type_id, "")
+		if resource_type_id in resource_dirs:
+			save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
 
 	if save_dir.is_empty():
 		save_dir = resource_directory
@@ -1171,7 +1176,7 @@ func _perform_create_override(override_path: String) -> void:
 			event_bus.notify_resource_created(resource_type_id, override_path, override_resource)
 
 		# Select the override
-		for i in range(resource_list.item_count):
+		for i: int in range(resource_list.item_count):
 			if resource_list.get_item_metadata(i) == override_path:
 				resource_list.select(i)
 				_on_resource_selected(i)
@@ -1202,12 +1207,14 @@ func _update_resource_id_for_copy(resource: Resource, original_name: String) -> 
 
 	for prop: String in name_properties:
 		if prop in resource:
-			var current_value: Variant = resource.get(prop)
-			if current_value is String and not current_value.is_empty():
-				# Don't add multiple copy suffixes
-				if not current_value.ends_with(copy_suffix):
-					resource.set(prop, current_value + copy_suffix)
-				return
+			var current_value_variant: Variant = resource.get(prop)
+			if current_value_variant is String:
+				var current_value: String = current_value_variant
+				if not current_value.is_empty():
+					# Don't add multiple copy suffixes
+					if not current_value.ends_with(copy_suffix):
+						resource.set(prop, current_value + copy_suffix)
+					return
 
 	# If no name property found, try to set display_name if it exists
 	if "display_name" in resource:
@@ -1228,7 +1235,9 @@ func _check_namespace_conflicts(resource_id: String, excluding_mod: String) -> A
 
 	# Get the directory name for this resource type
 	var type_dir_map: Dictionary = ModLoader.RESOURCE_TYPE_DIRS if "RESOURCE_TYPE_DIRS" in ModLoader else {}
-	var dir_name: String = type_dir_map.get(resource_type_id, resource_type_id + "s")
+	var dir_name: String = resource_type_id + "s"  # Default: add 's' to type ID
+	if resource_type_id in type_dir_map:
+		dir_name = DictUtils.get_string(type_dir_map, resource_type_id, dir_name)
 
 	# Scan each mod's data directory
 	var mods_dir: DirAccess = DirAccess.open("res://mods/")
@@ -1352,7 +1361,7 @@ func _get_active_mod_resource_directory(type_id: String) -> String:
 
 	var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
 	if type_id in resource_dirs:
-		return resource_dirs[type_id]
+		return DictUtils.get_string(resource_dirs, type_id, "")
 	return ""
 
 
@@ -1368,7 +1377,7 @@ func _scan_all_mods_for_resource_type(type_id: String) -> Array[Dictionary]:
 	for mod: ModManifest in mods:
 		var resource_dirs: Dictionary = ModLoader.get_resource_directories(mod.mod_id)
 		if type_id in resource_dirs:
-			var dir_path: String = resource_dirs[type_id]
+			var dir_path: String = DictUtils.get_string(resource_dirs, type_id, "")
 			var dir: DirAccess = DirAccess.open(dir_path)
 			if dir:
 				dir.list_dir_begin()
@@ -1435,8 +1444,8 @@ func _capture_resource_state(resource: Resource) -> Dictionary:
 	# Default implementation: use Godot's property list
 	var state: Dictionary = {}
 	for prop: Dictionary in resource.get_property_list():
-		var prop_name: String = prop.get("name", "")
-		var usage: int = prop.get("usage", 0)
+		var prop_name: String = DictUtils.get_string(prop, "name", "")
+		var usage: int = DictUtils.get_int(prop, "usage", 0)
 		# Only capture exported/stored properties (not built-in ones)
 		if usage & PROPERTY_USAGE_STORAGE:
 			state[prop_name] = resource.get(prop_name)
@@ -1484,8 +1493,8 @@ func _perform_save_with_undo() -> void:
 	# Store old and new states for property-based undo
 	for prop_name: String in new_state.keys():
 		if prop_name in old_state:
-			var old_val: Variant = old_state.get(prop_name)
-			var new_val: Variant = new_state.get(prop_name)
+			var old_val: Variant = old_state[prop_name]
+			var new_val: Variant = new_state[prop_name]
 			# Only record if value actually changed
 			if not _values_equal(old_val, new_val):
 				undo_redo.add_do_property(current_resource, prop_name, new_val)
@@ -1548,7 +1557,7 @@ func _values_equal(a: Variant, b: Variant) -> bool:
 		var arr_b: Array = b
 		if arr_a.size() != arr_b.size():
 			return false
-		for i in range(arr_a.size()):
+		for i: int in range(arr_a.size()):
 			if not _values_equal(arr_a[i], arr_b[i]):
 				return false
 		return true

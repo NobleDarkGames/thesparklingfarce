@@ -167,7 +167,7 @@ func _process(_delta: float) -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var new_hover: int = -1
 
-	for i in range(_action_labels.size()):
+	for i: int in range(_action_labels.size()):
 		var label: Label = _action_labels[i]
 		var label_rect: Rect2 = label.get_global_rect()
 		if label_rect.has_point(mouse_pos):
@@ -306,7 +306,9 @@ func _rebuild_action_labels() -> void:
 	# Create label for each available action
 	for action_type: ActionType in _available_actions:
 		var label: Label = Label.new()
-		label.text = "  " + ACTION_NAMES[action_type]
+		var action_name_value: Variant = ACTION_NAMES.get(action_type, "")
+		var action_name: String = action_name_value if action_name_value is String else ""
+		label.text = "  " + action_name
 		label.add_theme_font_override("font", MONOGRAM_FONT)
 		label.add_theme_font_size_override("font_size", 16)
 		label.modulate = COLOR_NORMAL
@@ -315,18 +317,20 @@ func _rebuild_action_labels() -> void:
 
 
 func _update_selection_visual() -> void:
-	for i in range(_action_labels.size()):
+	for i: int in range(_action_labels.size()):
 		var label: Label = _action_labels[i]
+		var action_name_value: Variant = ACTION_NAMES.get(_available_actions[i], "")
+		var action_name: String = action_name_value if action_name_value is String else ""
 
 		if i == _selected_index:
 			label.modulate = COLOR_SELECTED
-			label.text = "> " + ACTION_NAMES[_available_actions[i]]
+			label.text = "> " + action_name
 		elif i == _hover_index:
 			label.modulate = COLOR_HOVER
-			label.text = "  " + ACTION_NAMES[_available_actions[i]]
+			label.text = "  " + action_name
 		else:
 			label.modulate = COLOR_NORMAL
-			label.text = "  " + ACTION_NAMES[_available_actions[i]]
+			label.text = "  " + action_name
 
 
 # =============================================================================
@@ -341,7 +345,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i in range(_action_labels.size()):
+			for i: int in range(_action_labels.size()):
 				var label: Label = _action_labels[i]
 				var label_rect: Rect2 = label.get_global_rect()
 				if label_rect.has_point(mouse_pos):
@@ -391,7 +395,8 @@ func _confirm_selection() -> void:
 		return
 
 	var selected_action: ActionType = _available_actions[_selected_index]
-	var action_string: String = ACTION_NAMES[selected_action].to_lower()
+	var action_value: Variant = ACTION_NAMES.get(selected_action, "")
+	var action_string: String = (action_value if action_value is String else "").to_lower()
 
 	AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 

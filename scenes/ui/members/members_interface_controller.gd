@@ -157,7 +157,8 @@ func _get_screen_scene(screen_name: String) -> PackedScene:
 		return null
 
 	# Load and cache
-	var scene: PackedScene = load(path) as PackedScene
+	var loaded: Resource = load(path)
+	var scene: PackedScene = loaded if loaded is PackedScene else null
 	if scene:
 		_screen_scenes[screen_name] = scene
 	return scene

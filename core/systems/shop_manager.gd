@@ -744,7 +744,8 @@ func _count_character_items(save_data: CharacterSaveData, item_id: String) -> in
 
 	# Count equipped items
 	for entry: Dictionary in save_data.equipped_items:
-		if entry.get("item_id", "") == item_id:
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if entry_item_id == item_id:
 			count += 1
 
 	return count
@@ -756,7 +757,8 @@ func _is_item_equipped(character_uid: String, item_id: String) -> bool:
 		return false
 
 	for entry: Dictionary in save_data.equipped_items:
-		if entry.get("item_id", "") == item_id:
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if entry_item_id == item_id:
 			return true
 
 	return false
@@ -769,8 +771,9 @@ func _unequip_item(character_uid: String, item_id: String) -> Dictionary:
 
 	# Find which slot has this item
 	for entry: Dictionary in save_data.equipped_items:
-		if entry.get("item_id", "") == item_id:
-			var slot_id: String = entry.get("slot", "")
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if entry_item_id == item_id:
+			var slot_id: String = DictUtils.get_string(entry, "slot", "")
 			var result: Dictionary = EquipmentManager.unequip_item(save_data, slot_id)
 			if result.success:
 				return {success = true, error = ""}

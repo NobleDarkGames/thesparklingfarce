@@ -99,13 +99,21 @@ func validate_neutrals() -> bool:
 func _validate_unit_array(units: Array[Dictionary], unit_type: String) -> bool:
 	for i: int in range(units.size()):
 		var unit: Dictionary = units[i]
-		if "character" not in unit or unit.character == null:
+		if "character" not in unit:
+			push_error("BattleData: %s %d missing character" % [unit_type, i])
+			return false
+		var character: Variant = unit.get("character")
+		if character == null:
 			push_error("BattleData: %s %d missing character" % [unit_type, i])
 			return false
 		if "position" not in unit:
 			push_error("BattleData: %s %d missing position" % [unit_type, i])
 			return false
-		if "ai_behavior" not in unit or unit.ai_behavior == null:
+		if "ai_behavior" not in unit:
+			push_error("BattleData: %s %d missing ai_behavior" % [unit_type, i])
+			return false
+		var ai_behavior: Variant = unit.get("ai_behavior")
+		if ai_behavior == null:
 			push_error("BattleData: %s %d missing ai_behavior" % [unit_type, i])
 			return false
 	return true
@@ -146,7 +154,7 @@ func validate_defeat_condition() -> bool:
 ## Get dialogue for a specific turn (if any)
 func get_turn_dialogue(turn: int) -> DialogueData:
 	if turn in turn_dialogues:
-		return turn_dialogues[turn]
+		return turn_dialogues[turn] as DialogueData
 	return null
 
 

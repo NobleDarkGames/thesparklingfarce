@@ -183,11 +183,15 @@ func get_depot_contents_grouped() -> Dictionary:
 
 		if item_data:
 			# Convert enum to string name for grouping
-			item_type_name = ItemData.ItemType.keys()[item_data.item_type].to_lower()
+			var key_name: String = ItemData.ItemType.keys()[item_data.item_type]
+			item_type_name = key_name.to_lower()
 
 		if item_type_name not in grouped:
 			grouped[item_type_name] = []
-		grouped[item_type_name].append(item_id)
+		var list_val: Variant = grouped.get(item_type_name)
+		if list_val is Array:
+			var type_list: Array = list_val
+			type_list.append(item_id)
 
 	return grouped
 
@@ -385,6 +389,8 @@ func get_debug_string() -> String:
 		output += "  Capacity: Unlimited\n"
 
 	for item_dict: Dictionary in stacked:
-		output += "  - %s x%d\n" % [item_dict.item_id, item_dict.quantity]
+		var item_id_val: String = DictUtils.get_string(item_dict, "item_id", "")
+		var quantity_val: int = DictUtils.get_int(item_dict, "quantity", 0)
+		output += "  - %s x%d\n" % [item_id_val, quantity_val]
 
 	return output

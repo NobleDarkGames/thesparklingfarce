@@ -59,7 +59,7 @@ func _on_initialized() -> void:
 
 func _populate_inventory_grid() -> void:
 	# Clear existing
-	for child in item_grid.get_children():
+	for child: Node in item_grid.get_children():
 		child.queue_free()
 	item_buttons.clear()
 	selected_index = -1

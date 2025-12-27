@@ -505,7 +505,7 @@ func _load_walk_sound() -> void:
 	var extensions: Array[String] = ["ogg", "wav", "mp3"]
 	var mod_path: String = AudioManager.current_mod_path
 
-	for ext in extensions:
+	for ext: String in extensions:
 		var audio_path: String = "%s/audio/sfx/walk.%s" % [mod_path, ext]
 		if ResourceLoader.exists(audio_path):
 			var stream: AudioStream = load(audio_path)

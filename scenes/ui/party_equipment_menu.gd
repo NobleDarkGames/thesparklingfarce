@@ -254,7 +254,7 @@ func _create_character_tabs() -> void:
 	_character_tabs.clear()
 
 	# Create tab for each party member
-	for i in range(_party_character_data.size()):
+	for i: int in range(_party_character_data.size()):
 		var character: CharacterData = _party_character_data[i]
 		var tab: Button = Button.new()
 		tab.text = character.character_name
@@ -293,7 +293,7 @@ func _select_character(index: int) -> void:
 	_current_index = index
 
 	# Update tab visual state
-	for i in range(_character_tabs.size()):
+	for i: int in range(_character_tabs.size()):
 		_character_tabs[i].button_pressed = (i == index)
 
 	# Update inventory panel
@@ -317,7 +317,7 @@ func _enter_transfer_mode(item_id: String) -> void:
 	_footer_label.modulate = Color(1.0, 1.0, 0.5, 1.0)
 
 	# Highlight other character tabs as valid targets
-	for i in range(_character_tabs.size()):
+	for i: int in range(_character_tabs.size()):
 		if i != _current_index:
 			_character_tabs[i].modulate = Color(0.5, 1.0, 0.5, 1.0)
 
@@ -344,13 +344,16 @@ func _execute_transfer(target_index: int) -> void:
 		from_uid, to_uid, _transfer_item_id
 	)
 
-	if result.success:
+	var success_val: Variant = result.get("success", false)
+	var success: bool = success_val if success_val is bool else false
+	if success:
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 		item_transferred.emit(from_uid, to_uid, _transfer_item_id)
 		_footer_label.text = "Item transferred!"
 	else:
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-		_footer_label.text = result.error
+		var error_val: Variant = result.get("error", "Unknown error")
+		_footer_label.text = str(error_val) if error_val != null else "Unknown error"
 
 	_cancel_transfer_mode()
 	_inventory_panel.refresh()
@@ -451,14 +454,15 @@ func _on_item_use_requested(item_id: String, _inventory_index: int) -> void:
 	var save_data: CharacterSaveData = _party_save_data[_current_index]
 	var result: Dictionary = _apply_item_effect(item_data, save_data)
 
-	if result.success:
+	var use_success: bool = DictUtils.get_bool(result, "success", false)
+	if use_success:
 		# Remove item from inventory
 		save_data.remove_item_from_inventory(item_id)
-		_footer_label.text = result.message
+		_footer_label.text = DictUtils.get_string(result, "message", "")
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 		_inventory_panel.refresh()
 	else:
-		_footer_label.text = result.message
+		_footer_label.text = DictUtils.get_string(result, "message", "Unknown error")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 
 
@@ -494,7 +498,7 @@ func _apply_item_effect(item: ItemData, target: CharacterSaveData) -> Dictionary
 
 func _get_character_name(save_data: CharacterSaveData) -> String:
 	## Get display name for a character
-	for i in range(_party_save_data.size()):
+	for i: int in range(_party_save_data.size()):
 		if _party_save_data[i] == save_data:
 			return _party_character_data[i].character_name
 	return save_data.fallback_character_name
@@ -572,7 +576,7 @@ func refresh() -> void:
 
 ## Open menu and select specific character
 func open_for_character(character_uid: String) -> void:
-	for i in range(_party_character_data.size()):
+	for i: int in range(_party_character_data.size()):
 		if _party_character_data[i].character_uid == character_uid:
 			_select_character(i)
 			break

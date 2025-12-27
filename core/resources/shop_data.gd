@@ -173,7 +173,8 @@ func validate() -> bool:
 		if "item_id" not in entry:
 			push_error("ShopData '%s': inventory entry missing item_id" % shop_id)
 			return false
-		if entry.item_id.is_empty():
+		var validate_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if validate_item_id.is_empty():
 			push_error("ShopData '%s': inventory entry has empty item_id" % shop_id)
 			return false
 
@@ -197,8 +198,9 @@ func get_effective_buy_price(item_id: String, is_deal: bool = false) -> int:
 
 	# First check for price override in inventory (allows testing without ItemData)
 	for entry: Dictionary in inventory:
-		if entry.get("item_id", "") == item_id:
-			var override: int = entry.get("price_override", -1)
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if entry_item_id == item_id:
+			var override: int = DictUtils.get_int(entry, "price_override", -1)
 			if override >= 0:
 				base_price = override
 			break
@@ -237,8 +239,9 @@ func get_effective_sell_price(item_id: String) -> int:
 ## @return: true if in stock (stock > 0 or stock == -1 for infinite)
 func has_item_in_stock(item_id: String) -> bool:
 	for entry: Dictionary in inventory:
-		if entry.get("item_id", "") == item_id:
-			var stock: int = entry.get("stock", -1)
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if entry_item_id == item_id:
+			var stock: int = DictUtils.get_int(entry, "stock", -1)
 			return stock != 0  # -1 = infinite, >0 = in stock
 	return false
 
@@ -248,8 +251,9 @@ func has_item_in_stock(item_id: String) -> bool:
 ## @return: Stock count (-1 = infinite, 0 = sold out, >0 = count)
 func get_item_stock(item_id: String) -> int:
 	for entry: Dictionary in inventory:
-		if entry.get("item_id", "") == item_id:
-			return entry.get("stock", -1)
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if entry_item_id == item_id:
+			return DictUtils.get_int(entry, "stock", -1)
 	return 0  # Not in inventory
 
 
@@ -259,8 +263,10 @@ func get_item_stock(item_id: String) -> int:
 ## @return: true if successful, false if insufficient stock
 func decrement_stock(item_id: String, quantity: int = 1) -> bool:
 	for i: int in range(inventory.size()):
-		if inventory[i].get("item_id", "") == item_id:
-			var current_stock: int = inventory[i].get("stock", -1)
+		var inv_entry: Dictionary = inventory[i]
+		var entry_item_id: String = DictUtils.get_string(inv_entry, "item_id", "")
+		if entry_item_id == item_id:
+			var current_stock: int = DictUtils.get_int(inv_entry, "stock", -1)
 			if current_stock == -1:
 				return true  # Infinite stock
 			if current_stock < quantity:
@@ -292,9 +298,9 @@ func is_available(current_flags: Dictionary) -> bool:
 func get_all_item_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for entry: Dictionary in inventory:
-		var item_id: String = entry.get("item_id", "")
-		if not item_id.is_empty():
-			ids.append(item_id)
+		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+		if not entry_item_id.is_empty():
+			ids.append(entry_item_id)
 	return ids
 
 
@@ -319,7 +325,11 @@ func _get_item_data(item_id: String) -> ItemData:
 	if item_id.is_empty():
 		return null
 	# Use ModLoader autoload (available globally at runtime)
-	var mod_loader: Node = Engine.get_main_loop().root.get_node_or_null("/root/ModLoader") if Engine.get_main_loop() else null
+	var mod_loader: Node = null
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var scene_tree: SceneTree = main_loop as SceneTree
+		mod_loader = scene_tree.root.get_node_or_null("/root/ModLoader")
 	if mod_loader and "registry" in mod_loader:
 		return mod_loader.registry.get_resource("item", item_id) as ItemData
 	# Fallback for editor preview

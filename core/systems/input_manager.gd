@@ -43,16 +43,16 @@ enum InputState {
 }
 
 ## Signals
-signal movement_confirmed(unit: Node2D, destination: Vector2i)
-signal action_selected(unit: Node2D, action: String)
-signal target_selected(unit: Node2D, target: Node2D)
-signal item_use_requested(unit: Node2D, item_id: String, target: Node2D)  # Player used an item on a target
-signal spell_cast_requested(unit: Node2D, ability: AbilityData, target: Node2D)  # Player cast a spell on a target
+signal movement_confirmed(unit: Unit, destination: Vector2i)
+signal action_selected(unit: Unit, action: String)
+signal target_selected(unit: Unit, target: Unit)
+signal item_use_requested(unit: Unit, item_id: String, target: Unit)  # Player used an item on a target
+signal spell_cast_requested(unit: Unit, ability: AbilityData, target: Unit)  # Player cast a spell on a target
 signal turn_cancelled()  # Player wants to redo movement
 
 ## Current state
 var current_state: InputState = InputState.WAITING
-var active_unit: Node2D = null
+var active_unit: Unit = null
 
 ## Turn session ID to prevent stale signals from previous turns
 var _turn_session_id: int = 0
@@ -250,7 +250,7 @@ func _spell_needs_target_selection(ability: AbilityData) -> bool:
 
 
 ## Cast the selected spell on the given target
-func _cast_spell_on_target(target: Node2D) -> void:
+func _cast_spell_on_target(target: Unit) -> void:
 	# Emit spell cast signal for BattleManager to handle
 	spell_cast_requested.emit(active_unit, selected_spell_data, target)
 
@@ -339,7 +339,7 @@ func _item_needs_target_selection(item: ItemData) -> bool:
 
 
 ## Use the selected item on the given target
-func _use_item_on_target(target: Node2D) -> void:
+func _use_item_on_target(target: Unit) -> void:
 	# Emit item use signal for BattleManager to handle
 	item_use_requested.emit(active_unit, selected_item_id, target)
 
@@ -395,7 +395,7 @@ func _on_action_menu_cancelled(signal_session_id: int) -> void:
 
 
 ## Initialize input manager for new player turn
-func start_player_turn(unit: Node2D) -> void:
+func start_player_turn(unit: Unit) -> void:
 	if not unit:
 		push_error("InputManager: Cannot start turn with null unit")
 		return
@@ -827,7 +827,7 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 
 	# Accept key: Check what's under cursor
 	if event.is_action_pressed("ui_accept"):
-		var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		var unit_at_cursor: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 
 		if unit_at_cursor == active_unit:
 			# Pressed A on our own unit - return to direct movement mode
@@ -989,8 +989,8 @@ func _check_enemies_in_range() -> bool:
 		max_range
 	)
 
-	for cell in attack_cells:
-		var occupant: Node2D = GridManager.get_unit_at_cell(cell)
+	for cell: Vector2i in attack_cells:
+		var occupant: Unit = GridManager.get_unit_at_cell(cell) as Unit
 		if occupant and occupant.is_enemy_unit():
 			return true
 
@@ -1035,7 +1035,7 @@ func _move_cursor(offset: Vector2i) -> void:
 
 	# Allow cursor to pass through allied units (same faction as active unit)
 	if not is_walkable and active_unit:
-		var unit_at_pos: Node = GridManager.get_unit_at_cell(new_pos)
+		var unit_at_pos: Unit = GridManager.get_unit_at_cell(new_pos) as Unit
 		if unit_at_pos and unit_at_pos.faction == active_unit.faction:
 			is_ally_cell = true
 
@@ -1139,7 +1139,7 @@ func _draw_path_preview() -> void:
 		push_warning("InputManager: No path_preview_parent set!")
 		return
 
-	for cell in current_path:
+	for cell: Vector2i in current_path:
 		# Create Node2D with ColorRect child for proper world positioning
 		var path_node: Node2D = Node2D.new()
 		path_node.position = GridManager.cell_to_world(cell)
@@ -1160,7 +1160,7 @@ func _draw_path_preview() -> void:
 
 ## Clear path preview visuals
 func _clear_path_preview() -> void:
-	for visual in path_visuals:
+	for visual: Node2D in path_visuals:
 		if visual:
 			var parent: Node = visual.get_parent()
 			if parent:
@@ -1310,7 +1310,7 @@ func _cancel_direct_movement() -> void:
 		return  # Already at start
 
 	# Update grid occupation back to start
-	var current_occupant: Node2D = GridManager.get_unit_at_cell(active_unit.grid_position)
+	var current_occupant: Unit = GridManager.get_unit_at_cell(active_unit.grid_position) as Unit
 	if current_occupant == active_unit:
 		GridManager.clear_cell_occupied(active_unit.grid_position)
 
@@ -1347,8 +1347,8 @@ func _get_valid_target_cells(weapon_range: int) -> Array[Vector2i]:
 		)
 
 		# Filter to only cells with enemy units
-		for cell in cells_in_range:
-			var occupant: Node2D = GridManager.get_unit_at_cell(cell)
+		for cell: Vector2i in cells_in_range:
+			var occupant: Unit = GridManager.get_unit_at_cell(cell) as Unit
 			if occupant and occupant.is_enemy_unit():
 				valid_cells.append(cell)
 
@@ -1368,7 +1368,7 @@ func _get_best_initial_target() -> Vector2i:
 
 	# Try to find a target in the facing direction
 	var facing_candidates: Array[Vector2i] = []
-	for target_cell in _attack_valid_targets:
+	for target_cell: Vector2i in _attack_valid_targets:
 		var delta: Vector2i = target_cell - unit_pos
 		var target_dir: Vector2i = FacingUtils.get_dominant_direction_vector(delta)
 		if target_dir == facing_dir:
@@ -1439,7 +1439,7 @@ func _handle_targeting_input(event: InputEvent) -> void:
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
-			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
+			var target: Unit = GridManager.get_unit_at_cell(target_cell) as Unit
 			if target:
 				_select_target(target)
 			handled = true
@@ -1452,7 +1452,7 @@ func _handle_targeting_input(event: InputEvent) -> void:
 
 	# Accept key to confirm target selection
 	if event.is_action_pressed("ui_accept"):
-		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		var target: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 		if target:
 			_select_target(target)
 		handled = true
@@ -1468,13 +1468,13 @@ func _handle_targeting_input(event: InputEvent) -> void:
 
 
 ## Select target for action
-func _select_target(target: Node2D) -> void:
+func _select_target(target: Unit) -> void:
 	target_selected.emit(active_unit, target)
 	_execute_action_on_target(target)
 
 
 ## Execute action on target
-func _execute_action_on_target(target: Node2D) -> void:
+func _execute_action_on_target(target: Unit) -> void:
 	# NOTE: We do NOT execute actions here - just signal what was selected
 	# BattleManager handles all action execution
 	# The signal was already emitted in _select_target()
@@ -1500,7 +1500,7 @@ func _complete_turn() -> void:
 	active_unit.mark_acted()
 
 	# Save reference before clearing
-	var unit: Node2D = active_unit
+	var unit: Unit = active_unit
 
 	# Clear state (this will set active_unit to null)
 	set_state(InputState.WAITING)
@@ -1554,7 +1554,7 @@ func _update_unit_inspector() -> void:
 		return
 
 	# Check what's under the cursor
-	var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+	var unit_at_cursor: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 
 	if unit_at_cursor:
 		# Show stats for this unit (player or enemy)
@@ -1585,7 +1585,7 @@ func _update_combat_forecast() -> void:
 		return
 
 	# Check for enemy under cursor
-	var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+	var target: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 
 	if target and target.is_alive() and active_unit:
 		# Show forecast for this target
@@ -1639,7 +1639,7 @@ func _try_direct_step(direction: Vector2i) -> bool:
 			return true
 
 	# Check what's at the target cell
-	var occupant: Node2D = GridManager.get_unit_at_cell(target_cell)
+	var occupant: Unit = GridManager.get_unit_at_cell(target_cell) as Unit
 
 	# Block if enemy occupies the cell
 	if occupant and occupant.faction != active_unit.faction:
@@ -1667,10 +1667,10 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 
 	# Update grid occupation (handle ally pass-through)
 	var old_pos: Vector2i = active_unit.grid_position
-	var target_occupant: Node2D = GridManager.get_unit_at_cell(target_cell)
+	var target_occupant: Unit = GridManager.get_unit_at_cell(target_cell) as Unit
 
 	# Clear old position unless an ally is there (we were passing through)
-	var old_occupant: Node2D = GridManager.get_unit_at_cell(old_pos)
+	var old_occupant: Unit = GridManager.get_unit_at_cell(old_pos) as Unit
 	if old_occupant == active_unit:
 		GridManager.clear_cell_occupied(old_pos)
 
@@ -1732,11 +1732,11 @@ func _undo_last_step() -> void:
 	var previous_cell: Vector2i = movement_path_taken[-1]
 
 	# Update grid occupation
-	var current_occupant: Node2D = GridManager.get_unit_at_cell(active_unit.grid_position)
+	var current_occupant: Unit = GridManager.get_unit_at_cell(active_unit.grid_position) as Unit
 	if current_occupant == active_unit:
 		GridManager.clear_cell_occupied(active_unit.grid_position)
 
-	var prev_occupant: Node2D = GridManager.get_unit_at_cell(previous_cell)
+	var prev_occupant: Unit = GridManager.get_unit_at_cell(previous_cell) as Unit
 	if not prev_occupant:
 		GridManager.set_cell_occupied(previous_cell, active_unit)
 
@@ -1828,7 +1828,7 @@ func _handle_direct_movement_input(event: InputEvent) -> void:
 
 ## Check if unit can confirm its current position (not standing on an ally)
 func _can_confirm_direct_position() -> bool:
-	var occupant: Node2D = GridManager.get_unit_at_cell(active_unit.grid_position)
+	var occupant: Unit = GridManager.get_unit_at_cell(active_unit.grid_position) as Unit
 	if occupant and occupant != active_unit:
 		# Standing on another unit (ally pass-through) - can't confirm here
 		AudioManager.play_sfx("movement_blocked", AudioManager.SFXCategory.UI)
@@ -1850,7 +1850,7 @@ func _handle_item_target_input(event: InputEvent) -> void:
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
-			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
+			var target: Unit = GridManager.get_unit_at_cell(target_cell) as Unit
 			if target and _is_valid_item_target(target):
 				_confirm_item_target(target)
 			handled = true
@@ -1863,7 +1863,7 @@ func _handle_item_target_input(event: InputEvent) -> void:
 
 	# Accept key to confirm target selection
 	if event.is_action_pressed("ui_accept"):
-		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		var target: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 		if target and _is_valid_item_target(target):
 			_confirm_item_target(target)
 		else:
@@ -1912,8 +1912,8 @@ func _get_valid_ability_target_cells(ability: AbilityData) -> Array[Vector2i]:
 
 		AbilityData.TargetType.SINGLE_ALLY:
 			# Include self and all allies (same faction) in range
-			for cell in cells_in_range:
-				var unit: Node2D = GridManager.get_unit_at_cell(cell)
+			for cell: Vector2i in cells_in_range:
+				var unit: Unit = GridManager.get_unit_at_cell(cell) as Unit
 				if unit and unit.faction == active_unit.faction and unit.is_alive():
 					valid_cells.append(cell)
 			# Always include self for healing abilities
@@ -1922,8 +1922,8 @@ func _get_valid_ability_target_cells(ability: AbilityData) -> Array[Vector2i]:
 
 		AbilityData.TargetType.SINGLE_ENEMY:
 			# Only enemies in range
-			for cell in cells_in_range:
-				var unit: Node2D = GridManager.get_unit_at_cell(cell)
+			for cell: Vector2i in cells_in_range:
+				var unit: Unit = GridManager.get_unit_at_cell(cell) as Unit
 				if unit and unit.faction != active_unit.faction and unit.is_alive():
 					valid_cells.append(cell)
 
@@ -1945,7 +1945,7 @@ func _get_valid_item_target_cells() -> Array[Vector2i]:
 
 
 ## Check if a unit is a valid target for an ability (unified for item/spell)
-func _is_valid_ability_target(unit: Node2D, ability: AbilityData) -> bool:
+func _is_valid_ability_target(unit: Unit, ability: AbilityData) -> bool:
 	if not unit or not unit.is_alive():
 		return false
 
@@ -1971,7 +1971,7 @@ func _is_valid_ability_target(unit: Node2D, ability: AbilityData) -> bool:
 
 
 ## Check if a unit is a valid target for the selected item
-func _is_valid_item_target(unit: Node2D) -> bool:
+func _is_valid_item_target(unit: Unit) -> bool:
 	var effect: AbilityData = selected_item_data.effect as AbilityData if selected_item_data else null
 	return _is_valid_ability_target(unit, effect)
 
@@ -2024,7 +2024,7 @@ func _update_target_info_panel() -> void:
 		return
 
 	# Check what's under the cursor
-	var unit_at_cursor: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+	var unit_at_cursor: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 
 	if unit_at_cursor and unit_at_cursor.is_alive():
 		# Show stats for potential target
@@ -2041,7 +2041,7 @@ func _update_item_target_info() -> void:
 
 
 ## Confirm item target and use item
-func _confirm_item_target(target: Node2D) -> void:
+func _confirm_item_target(target: Unit) -> void:
 	# Play confirm sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -2094,7 +2094,7 @@ func _handle_spell_target_input(event: InputEvent) -> void:
 			var mouse_world: Vector2 = active_unit.get_global_mouse_position()
 			var target_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
-			var target: Node2D = GridManager.get_unit_at_cell(target_cell)
+			var target: Unit = GridManager.get_unit_at_cell(target_cell) as Unit
 			if target and _is_valid_spell_target(target):
 				_confirm_spell_target(target)
 			handled = true
@@ -2107,7 +2107,7 @@ func _handle_spell_target_input(event: InputEvent) -> void:
 
 	# Accept key to confirm target selection
 	if event.is_action_pressed("ui_accept"):
-		var target: Node2D = GridManager.get_unit_at_cell(current_cursor_position)
+		var target: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
 		if target and _is_valid_spell_target(target):
 			_confirm_spell_target(target)
 		else:
@@ -2135,7 +2135,7 @@ func _get_valid_spell_target_cells() -> Array[Vector2i]:
 
 
 ## Check if a unit is a valid target for the selected spell
-func _is_valid_spell_target(unit: Node2D) -> bool:
+func _is_valid_spell_target(unit: Unit) -> bool:
 	return _is_valid_ability_target(unit, selected_spell_data)
 
 
@@ -2204,7 +2204,7 @@ func _update_spell_target_info() -> void:
 
 
 ## Confirm spell target and cast spell
-func _confirm_spell_target(target: Node2D) -> void:
+func _confirm_spell_target(target: Unit) -> void:
 	# Play confirm sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
@@ -2261,8 +2261,8 @@ func _get_aoe_affected_cells(target_cell: Vector2i, radius: int) -> Array[Vector
 		return affected
 
 	# Include center and all cells within radius (Manhattan distance for SF-style grid)
-	for dx in range(-radius, radius + 1):
-		for dy in range(-radius, radius + 1):
+	for dx: int in range(-radius, radius + 1):
+		for dy: int in range(-radius, radius + 1):
 			var manhattan_dist: int = absi(dx) + absi(dy)
 			if manhattan_dist <= radius:
 				var cell: Vector2i = target_cell + Vector2i(dx, dy)

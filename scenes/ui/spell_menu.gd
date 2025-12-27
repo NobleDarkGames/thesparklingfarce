@@ -124,7 +124,7 @@ func _create_spell_labels(slot_count: int) -> void:
 		_container.remove_child(_description_label)
 
 	# Create new labels for each spell
-	for i in range(slot_count):
+	for i: int in range(slot_count):
 		# HBox for spell name + MP cost
 		var hbox: HBoxContainer = HBoxContainer.new()
 		hbox.name = "SpellRow%d" % i
@@ -168,7 +168,7 @@ func _process(_delta: float) -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var new_hover: int = -1
 
-	for i in range(_spell_labels.size()):
+	for i: int in range(_spell_labels.size()):
 		var label: Label = _spell_labels[i]
 		var label_rect: Rect2 = label.get_global_rect()
 		if label_rect.has_point(mouse_pos):
@@ -221,20 +221,22 @@ func show_spells(abilities: Array[AbilityData], current_mp: int, session_id: int
 
 ## Populate spell labels with ability data
 func _populate_spell_labels() -> void:
-	for i in range(_spell_labels.size()):
+	for i: int in range(_spell_labels.size()):
+		var spell_label: Label = _spell_labels[i]
+		var mp_label: Label = _mp_labels[i]
 		if i < _abilities.size() and _abilities[i]:
 			var ability: AbilityData = _abilities[i]
-			_spell_labels[i].text = ability.ability_name
-			_mp_labels[i].text = "%d MP" % ability.mp_cost
+			spell_label.text = ability.ability_name
+			mp_label.text = "%d MP" % ability.mp_cost
 
 			# Color MP cost based on whether castable
 			if ability.mp_cost <= _current_mp:
-				_mp_labels[i].modulate = COLOR_MP
+				mp_label.modulate = COLOR_MP
 			else:
-				_mp_labels[i].modulate = COLOR_MP_INSUFFICIENT
+				mp_label.modulate = COLOR_MP_INSUFFICIENT
 		else:
-			_spell_labels[i].text = "(None)"
-			_mp_labels[i].text = ""
+			spell_label.text = "(None)"
+			mp_label.text = ""
 
 
 ## Check if a spell at index is castable (has enough MP)
@@ -251,7 +253,7 @@ func _is_spell_castable(index: int) -> bool:
 
 ## Check if any castable spells exist
 func _has_any_castable_spells() -> bool:
-	for i in range(_abilities.size()):
+	for i: int in range(_abilities.size()):
 		if _is_spell_castable(i):
 			return true
 	return false
@@ -260,7 +262,7 @@ func _has_any_castable_spells() -> bool:
 ## Smart default selection based on spell availability
 func _select_smart_default() -> void:
 	# Select first castable spell
-	for i in range(_abilities.size()):
+	for i: int in range(_abilities.size()):
 		if _is_spell_castable(i):
 			selected_index = i
 			return
@@ -271,7 +273,7 @@ func _select_smart_default() -> void:
 
 ## Update visual highlighting
 func _update_selection_visual() -> void:
-	for i in range(_spell_labels.size()):
+	for i: int in range(_spell_labels.size()):
 		var label: Label = _spell_labels[i]
 		var is_castable: bool = _is_spell_castable(i)
 
@@ -385,7 +387,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i in range(_spell_labels.size()):
+			for i: int in range(_spell_labels.size()):
 				var label: Label = _spell_labels[i]
 				var label_rect: Rect2 = label.get_global_rect()
 				if label_rect.has_point(mouse_pos):
@@ -422,7 +424,7 @@ func _move_selection(direction: int) -> void:
 	var start_index: int = selected_index
 
 	# Loop through spells to find next one
-	for _i in range(_spell_labels.size()):
+	for _i: int in range(_spell_labels.size()):
 		selected_index = wrapi(selected_index + direction, 0, _spell_labels.size())
 
 		# Allow selecting any slot (for visual feedback), even uncastable ones

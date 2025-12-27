@@ -69,7 +69,7 @@ enum CommandType {
 
 
 ## Add a move entity command
-func add_move_entity(actor_id: String, path: Array, speed: float = 3.0, wait: bool = true) -> void:
+func add_move_entity(actor_id: String, path: Array[Variant], speed: float = 3.0, wait: bool = true) -> void:
 	var command: Dictionary = {
 		"type": "move_entity",
 		"target": actor_id,
@@ -226,12 +226,16 @@ func add_fade_screen(fade_type: String, duration: float = 1.0) -> void:
 ## @param character_id: Optional CharacterData ID for sprite/appearance
 func add_actor(actor_id: String, position: Variant, facing: String = "down", character_id: String = "") -> void:
 	var pos_array: Array = [0, 0]
-	if position is Array and position.size() >= 2:
-		pos_array = [position[0], position[1]]
+	if position is Array:
+		var pos_arr: Array = position
+		if pos_arr.size() >= 2:
+			pos_array = [pos_arr[0], pos_arr[1]]
 	elif position is Vector2i:
-		pos_array = [position.x, position.y]
+		var pos_v2i: Vector2i = position
+		pos_array = [pos_v2i.x, pos_v2i.y]
 	elif position is Vector2:
-		pos_array = [int(position.x), int(position.y)]
+		var pos_v2: Vector2 = position
+		pos_array = [int(pos_v2.x), int(pos_v2.y)]
 
 	var actor_def: Dictionary = {
 		"actor_id": actor_id,

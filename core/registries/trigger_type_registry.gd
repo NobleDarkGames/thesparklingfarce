@@ -113,7 +113,8 @@ func get_trigger_type_source(trigger_type: String) -> String:
 	if lower_type in DEFAULT_TRIGGER_TYPES:
 		return "base"
 	for mod_id: String in _mod_trigger_types:
-		if lower_type in _mod_trigger_types[mod_id]:
+		var types: Array = _mod_trigger_types[mod_id]
+		if lower_type in types:
 			return mod_id
 	return ""
 
@@ -122,7 +123,8 @@ func get_trigger_type_source(trigger_type: String) -> String:
 func get_trigger_script_path(trigger_type: String) -> String:
 	var lower_type: String = trigger_type.to_lower()
 	if lower_type in _trigger_scripts:
-		return _trigger_scripts[lower_type].get("path", "")
+		var entry: Dictionary = _trigger_scripts[lower_type]
+		return entry.get("path", "")
 	return ""
 
 
@@ -141,7 +143,8 @@ func _rebuild_cache_if_dirty() -> void:
 
 	# Add mod types (avoiding duplicates)
 	for mod_id: String in _mod_trigger_types:
-		for trigger_type: String in _mod_trigger_types[mod_id]:
+		var trigger_types: Array = _mod_trigger_types[mod_id]
+		for trigger_type: String in trigger_types:
 			if trigger_type not in _all_trigger_types:
 				_all_trigger_types.append(trigger_type)
 

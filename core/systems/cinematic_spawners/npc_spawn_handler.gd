@@ -20,11 +20,15 @@ func get_available_entities() -> Array[Dictionary]:
 
 	var npcs: Array = ModLoader.registry.get_all_resources("npc")
 	for entry: Dictionary in npcs:
-		var npc_data: NPCData = entry.get("resource") as NPCData
+		if "resource" not in entry:
+			continue
+		var npc_data: NPCData = entry["resource"] as NPCData
 		if npc_data:
+			var entity_id: String = str(entry["id"]) if "id" in entry else ""
+			var display_name: String = npc_data.npc_name if not npc_data.npc_name.is_empty() else entity_id
 			entities.append({
-				"id": entry.get("id", ""),
-				"name": npc_data.npc_name if not npc_data.npc_name.is_empty() else entry.get("id", ""),
+				"id": entity_id,
+				"name": display_name,
 				"resource": npc_data
 			})
 
@@ -34,7 +38,7 @@ func get_available_entities() -> Array[Dictionary]:
 func create_sprite_node(entity_id: String, facing: String) -> Node2D:
 	var npc_data: NPCData = ModLoader.registry.get_resource("npc", entity_id) as NPCData
 	if npc_data == null:
-		push_warning("NPCSpawnHandler: NPCData '%s' not found in registry" % npc_data)
+		push_warning("NPCSpawnHandler: NPCData '%s' not found in registry" % entity_id)
 		return _create_placeholder_sprite()
 
 	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()

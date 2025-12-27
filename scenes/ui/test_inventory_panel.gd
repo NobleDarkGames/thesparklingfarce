@@ -40,7 +40,7 @@ func _create_test_data() -> void:
 	# Try to load real character data, or create mock data
 	var characters_to_load: Array[String] = ["max", "maggie", "warrioso"]
 
-	for char_id in characters_to_load:
+	for char_id: String in characters_to_load:
 		var char_data: CharacterData = ModLoader.registry.get_resource("character", char_id) as CharacterData
 		if char_data:
 			var save_data: CharacterSaveData = CharacterSaveData.new()
@@ -124,7 +124,7 @@ func _create_character_buttons() -> void:
 		child.queue_free()
 
 	# Create button for each test character
-	for i in range(_test_characters.size()):
+	for i: int in range(_test_characters.size()):
 		var save_data: CharacterSaveData = _test_characters[i]
 		var button: Button = Button.new()
 		button.text = save_data.fallback_character_name

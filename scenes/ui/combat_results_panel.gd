@@ -136,15 +136,20 @@ func show_results() -> void:
 	var formation_count: int = 0
 
 	for entry: Dictionary in _xp_entries:
-		if entry.source == "formation":
-			formation_total += entry.amount
+		var source: String = DictUtils.get_string(entry, "source", "")
+		var amount: int = DictUtils.get_int(entry, "amount", 0)
+		if source == "formation":
+			formation_total += amount
 			formation_count += 1
 		else:
 			combat_entries.append(entry)
 
 	# Add XP entries with stagger (attacker's damage/kill XP)
 	for entry: Dictionary in combat_entries:
-		var row: HBoxContainer = _create_xp_row(entry.name, entry.amount, entry.source)
+		var entry_name: String = DictUtils.get_string(entry, "name", "")
+		var entry_amount: int = DictUtils.get_int(entry, "amount", 0)
+		var entry_source: String = DictUtils.get_string(entry, "source", "")
+		var row: HBoxContainer = _create_xp_row(entry_name, entry_amount, entry_source)
 		row.modulate.a = 0.0
 		entries_container.add_child(row)
 

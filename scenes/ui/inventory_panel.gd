@@ -317,7 +317,7 @@ func _rebuild_slots() -> void:
 
 	# Create equipment slots
 	for slot_def: Dictionary in slot_layout:
-		var slot_id: String = slot_def.get("id", "")
+		var slot_id: String = DictUtils.get_string(slot_def, "id", "")
 		if slot_id.is_empty():
 			continue
 
@@ -327,7 +327,8 @@ func _rebuild_slots() -> void:
 		_equipment_slots[slot_id] = slot
 
 		# Set slot label for when empty (show abbreviated name)
-		var display_name: String = slot_def.get("display_name", slot_id.capitalize())
+		var default_display: String = slot_id.capitalize()
+		var display_name: String = DictUtils.get_string(slot_def, "display_name", default_display)
 		var abbrev: String = _abbreviate_slot_name(display_name)
 		slot.set_slot_label(abbrev)
 

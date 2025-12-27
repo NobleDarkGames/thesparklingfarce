@@ -122,19 +122,20 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 		modulate.a = 1.0  ## Ensure fully visible
 
 	# Update portrait with animation - try emotion variant if not explicitly provided
-	var new_portrait: Texture2D = line_data.get("portrait", null)
+	var portrait_value: Variant = line_data.get("portrait")
+	var new_portrait: Texture2D = portrait_value if portrait_value is Texture2D else null
 
 	# If no portrait provided, try to load based on speaker name and emotion
 	if not new_portrait:
-		var speaker_name: String = line_data.get("speaker_name", "")
-		var emotion: String = line_data.get("emotion", "neutral")
-		if not speaker_name.is_empty():
-			new_portrait = _try_load_portrait_variant(speaker_name, emotion)
+		var portrait_speaker_name: String = DictUtils.get_string(line_data, "speaker_name", "")
+		var emotion: String = DictUtils.get_string(line_data, "emotion", "neutral")
+		if not portrait_speaker_name.is_empty():
+			new_portrait = _try_load_portrait_variant(portrait_speaker_name, emotion)
 
 	await _update_portrait(new_portrait)
 
 	# Update speaker name with color modulation
-	var speaker_name: String = line_data.get("speaker_name", "")
+	var speaker_name: String = DictUtils.get_string(line_data, "speaker_name", "")
 	speaker_label.text = speaker_name
 	speaker_label.visible = not speaker_name.is_empty()
 
@@ -145,7 +146,8 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 		speaker_tween.tween_property(speaker_label, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.3)
 
 	# Start text reveal (with variable interpolation)
-	full_text = TextInterpolator.interpolate(line_data.get("text", ""))
+	var text_str: String = DictUtils.get_string(line_data, "text", "")
+	full_text = TextInterpolator.interpolate(text_str)
 	_start_text_reveal()
 
 
@@ -169,7 +171,8 @@ func _try_load_portrait_variant(speaker_name: String, emotion: String) -> Textur
 	# Try each path
 	for path: String in search_paths:
 		if ResourceLoader.exists(path):
-			var portrait: Texture2D = load(path) as Texture2D
+			var loaded: Resource = load(path)
+			var portrait: Texture2D = loaded if loaded is Texture2D else null
 			if portrait:
 				return portrait
 
@@ -178,7 +181,8 @@ func _try_load_portrait_variant(speaker_name: String, emotion: String) -> Textur
 	for path: String in search_paths:
 		var fallback_path: String = path.replace(portrait_filename, fallback_filename)
 		if ResourceLoader.exists(fallback_path):
-			var portrait: Texture2D = load(fallback_path) as Texture2D
+			var loaded_fallback: Resource = load(fallback_path)
+			var portrait: Texture2D = loaded_fallback if loaded_fallback is Texture2D else null
 			if portrait:
 				return portrait
 

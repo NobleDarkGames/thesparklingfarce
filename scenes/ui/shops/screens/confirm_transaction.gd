@@ -46,19 +46,21 @@ func _on_confirm_pressed() -> void:
 		context.selected_destination
 	)
 
-	if result.success:
+	if result.get("success", false):
 		var item_data: ItemData = get_item_data(context.selected_item_id)
+		var transaction_val: Variant = result.get("transaction", {})
+		var transaction: Dictionary = transaction_val if transaction_val is Dictionary else {}
 		context.set_result("purchase_complete", {
 			"item_id": context.selected_item_id,
 			"item_name": item_data.item_name if item_data else context.selected_item_id,
-			"total_cost": result.transaction.total_cost,
+			"total_cost": transaction.get("total_cost", 0),
 			"destination": context.selected_destination
 		})
 		replace_with("transaction_result")
 	else:
 		# Show error and go back
 		context.set_result("purchase_failed", {
-			"error": result.error
+			"error": result.get("error", "Unknown error")
 		})
 		replace_with("transaction_result")
 

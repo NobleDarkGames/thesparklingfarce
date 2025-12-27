@@ -186,8 +186,10 @@ func _build_save_prompt() -> void:
 # =============================================================================
 
 func show_chapter_title(chapter: Dictionary) -> void:
-	var chapter_num: int = chapter.get("number", 0)
-	var chapter_name: String = chapter.get("name", "Unknown")
+	var chapter_num_val: Variant = chapter.get("number", 0)
+	var chapter_num: int = chapter_num_val if chapter_num_val is int else 0
+	var chapter_name_val: Variant = chapter.get("name", "Unknown")
+	var chapter_name: String = chapter_name_val if chapter_name_val is String else "Unknown"
 
 	# Update labels
 	var num_label: Label = _title_card.get_node("CenterContainer/VBoxContainer/ChapterNumberLabel")

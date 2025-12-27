@@ -62,14 +62,14 @@ static func show_system_message(message: String, manager: Node) -> bool:
 ## Resolve character from ID (supports both resource ID and character_uid)
 ## @param character_id: Either a resource ID like "max" or character_uid like "hk7wm4np"
 ## @return: CharacterData if found, null otherwise
-static func resolve_character(character_id: String) -> Resource:
+static func resolve_character(character_id: String) -> CharacterData:
 	# First try by character_uid (what the editor stores)
-	var character: Resource = ModLoader.registry.get_character_by_uid(character_id)
+	var character: CharacterData = ModLoader.registry.get_character_by_uid(character_id) as CharacterData
 	if character:
 		return character
 
 	# Fallback to resource ID lookup
-	return ModLoader.registry.get_resource("character", character_id)
+	return ModLoader.registry.get_resource("character", character_id) as CharacterData
 
 
 ## Resolve a character_id to display data (name and portrait)
@@ -86,7 +86,7 @@ static func resolve_character_data(character_id: String) -> Dictionary:
 	if character_id.begins_with("npc:"):
 		var npc_id: String = character_id.substr(4)  # Remove "npc:" prefix
 		if ModLoader and ModLoader.registry:
-			var npc: Resource = ModLoader.registry.get_npc_by_id(npc_id)
+			var npc: NPCData = ModLoader.registry.get_npc_by_id(npc_id) as NPCData
 			if npc:
 				result["name"] = npc.get_display_name()
 				var portrait: Texture2D = npc.get_portrait()
@@ -99,7 +99,7 @@ static func resolve_character_data(character_id: String) -> Dictionary:
 
 	# Try to look up character in ModRegistry
 	if ModLoader and ModLoader.registry:
-		var character: Resource = ModLoader.registry.get_character_by_uid(character_id)
+		var character: CharacterData = ModLoader.registry.get_character_by_uid(character_id) as CharacterData
 		if character:
 			result["name"] = character.character_name
 			if character.portrait:

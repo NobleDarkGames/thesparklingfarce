@@ -152,8 +152,9 @@ func _connect_to_target() -> void:
 	# Try to connect to the target's movement signal
 	# PartyFollower and HeroController both use "moved_to_tile"
 	if _follow_target.has_signal("moved_to_tile"):
-		if not _follow_target.moved_to_tile.is_connected(_on_target_moved):
-			_follow_target.moved_to_tile.connect(_on_target_moved)
+		var signal_obj: Signal = Signal(_follow_target, "moved_to_tile")
+		if not signal_obj.is_connected(_on_target_moved):
+			signal_obj.connect(_on_target_moved)
 
 	# If following a PartyFollower, we need to track when IT moves
 	# PartyFollower doesn't emit its own signal, so we check if it has a hero
@@ -161,15 +162,17 @@ func _connect_to_target() -> void:
 		# The PartyFollower gets its movement from the hero, so we connect to hero
 		var hero: Node2D = _find_hero()
 		if hero and hero.has_signal("moved_to_tile"):
-			if not hero.moved_to_tile.is_connected(_on_hero_moved_for_follower):
-				hero.moved_to_tile.connect(_on_hero_moved_for_follower)
+			var hero_signal: Signal = Signal(hero, "moved_to_tile")
+			if not hero_signal.is_connected(_on_hero_moved_for_follower):
+				hero_signal.connect(_on_hero_moved_for_follower)
 
 
 func _find_hero() -> Node2D:
 	var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
 	if heroes.is_empty():
 		return null
-	return heroes[0] as Node2D
+	var first_hero: Node = heroes[0]
+	return first_hero if first_hero is Node2D else null
 
 
 # =============================================================================
@@ -208,14 +211,14 @@ func _update_movement_from_target() -> void:
 func _get_target_historical_position() -> Vector2i:
 	# If target has historical tile method, use it
 	if _follow_target.has_method("get_historical_tile"):
-		return _follow_target.get_historical_tile(follow_distance)
+		return _follow_target.call("get_historical_tile", follow_distance) as Vector2i
 
 	# If target is a PartyFollower with its own grid_position
 	if "grid_position" in _follow_target:
 		# For PartyFollower, we want to be [follow_distance] behind IT
 		# But PartyFollower doesn't keep its own history, so we approximate
 		# by using our own history or just staying behind current position
-		return _follow_target.grid_position
+		return _follow_target.get("grid_position") as Vector2i
 
 	# Fallback: use target's current world position
 	return _world_to_grid(_follow_target.global_position)
@@ -315,7 +318,8 @@ func _load_directional_sprites() -> void:
 	for dir: String in directions:
 		var sprite_path: String = caravan_dir.path_join("wagon_%s.png" % dir)
 		if ResourceLoader.exists(sprite_path):
-			var texture: Texture2D = load(sprite_path) as Texture2D
+			var loaded: Resource = load(sprite_path)
+			var texture: Texture2D = loaded if loaded is Texture2D else null
 			if texture:
 				_direction_sprites[dir] = texture
 				if DEBUG_MODE:

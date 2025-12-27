@@ -150,14 +150,15 @@ func _transition_to_screen(screen_name: String) -> void:
 func _get_screen_scene(screen_name: String) -> PackedScene:
 	# Return cached if available
 	if screen_name in _screen_scenes:
-		return _screen_scenes[screen_name]
+		var cached: Variant = _screen_scenes[screen_name]
+		return cached if cached is PackedScene else null
 
 	# Check if path exists
 	if screen_name not in SCREEN_PATHS:
 		push_error("CaravanInterfaceController: Unknown screen name '%s'" % screen_name)
 		return null
 
-	var path: String = SCREEN_PATHS[screen_name]
+	var path: String = DictUtils.get_string(SCREEN_PATHS, screen_name, "")
 
 	# Check if file exists before loading
 	if not ResourceLoader.exists(path):
@@ -165,7 +166,8 @@ func _get_screen_scene(screen_name: String) -> PackedScene:
 		return null
 
 	# Load and cache
-	var scene: PackedScene = load(path) as PackedScene
+	var loaded: Resource = load(path)
+	var scene: PackedScene = loaded if loaded is PackedScene else null
 	if scene:
 		_screen_scenes[screen_name] = scene
 	return scene

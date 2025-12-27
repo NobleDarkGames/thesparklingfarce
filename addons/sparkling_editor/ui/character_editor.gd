@@ -131,7 +131,7 @@ func _load_resource_data() -> void:
 
 	# Set battle configuration - find the matching category index
 	var category_index: int = -1
-	for i in range(category_option.item_count):
+	for i: int in range(category_option.item_count):
 		if category_option.get_item_text(i) == character.unit_category:
 			category_index = i
 			break
@@ -148,7 +148,7 @@ func _load_resource_data() -> void:
 
 	# Set default AI brain
 	if character.default_ai_brain:
-		for i in range(available_ai_brains.size()):
+		for i: int in range(available_ai_brains.size()):
 			if available_ai_brains[i] == character.default_ai_brain:
 				default_ai_option.select(i + 1)
 				break
@@ -422,7 +422,7 @@ func _add_battle_configuration_section() -> void:
 	category_option.tooltip_text = "Determines AI allegiance: player = controllable ally, enemy = hostile AI, boss = high-priority enemy, neutral = non-combatant."
 	# Populate from registry
 	var categories: Array[String] = _get_unit_categories_from_registry()
-	for i in range(categories.size()):
+	for i: int in range(categories.size()):
 		category_option.add_item(categories[i], i)
 	category_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	category_container.add_child(category_option)
@@ -757,12 +757,13 @@ func _load_available_ai_brains() -> void:
 	if ModLoader and ModLoader.ai_brain_registry:
 		var brains: Array[Dictionary] = ModLoader.ai_brain_registry.get_all_brains()
 		for brain_info: Dictionary in brains:
-			var instance: Resource = ModLoader.ai_brain_registry.get_brain_instance(brain_info.get("id", ""))
+			var brain_id: String = DictUtils.get_string(brain_info, "id", "")
+			var instance: Resource = ModLoader.ai_brain_registry.get_brain_instance(brain_id)
 			if instance:
 				var ai_brain: AIBrain = instance as AIBrain
 				if ai_brain:
 					available_ai_brains.append(ai_brain)
-					var display_name: String = brain_info.get("display_name", "Unknown")
+					var display_name: String = DictUtils.get_string(brain_info, "display_name", "Unknown")
 					default_ai_option.add_item(display_name, available_ai_brains.size())
 
 
@@ -786,7 +787,7 @@ func _setup_filter_buttons() -> void:
 	var categories: Array[String] = ["all"]
 	categories.append_array(unit_categories)
 
-	for category in categories:
+	for category: String in categories:
 		var btn: Button = Button.new()
 		# Generate button text: "all" -> "All", "player" -> "Players", etc.
 		if category == "all":
@@ -809,7 +810,7 @@ func _setup_filter_buttons() -> void:
 
 func _on_filter_changed(category: String) -> void:
 	# Deselect all other buttons
-	for btn_category in filter_buttons.keys():
+	for btn_category: Variant in filter_buttons.keys():
 		filter_buttons[btn_category].button_pressed = (btn_category == category)
 
 	# Update current filter
@@ -830,7 +831,7 @@ func _apply_filter() -> void:
 	resource_list.clear()
 
 	# Use all_resources to maintain index alignment with all_resource_source_mods
-	for i in range(all_resources.size()):
+	for i: int in range(all_resources.size()):
 		var character: CharacterData = all_resources[i] as CharacterData
 		if not character:
 			continue
@@ -883,9 +884,9 @@ func _add_equipment_section() -> void:
 	equipment_warning_labels.clear()
 
 	for slot: Dictionary in slots:
-		var slot_id: String = slot.get("id", "")
-		var display_name: String = slot.get("display_name", slot_id.capitalize())
-		var accepts_types: Array = slot.get("accepts_types", [])
+		var slot_id: String = DictUtils.get_string(slot, "id", "")
+		var display_name: String = DictUtils.get_string(slot, "display_name", slot_id.capitalize())
+		var accepts_types: Array = DictUtils.get_array(slot, "accepts_types", [])
 
 		# Create a container for each slot
 		var slot_container: VBoxContainer = VBoxContainer.new()
@@ -1148,9 +1149,11 @@ func _on_inventory_add_pressed() -> void:
 
 ## Handle confirmation of adding an inventory item
 func _on_inventory_add_confirmed(dialog: AcceptDialog) -> void:
-	var picker: ResourcePicker = dialog.get_meta("picker") as ResourcePicker
+	var picker_val: Variant = dialog.get_meta("picker")
+	var picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 	if picker and picker.has_selection():
-		var item: ItemData = picker.get_selected_resource() as ItemData
+		var item_val: Resource = picker.get_selected_resource()
+		var item: ItemData = item_val if item_val is ItemData else null
 		if item:
 			# Extract item_id from resource path (filename without extension)
 			var item_id: String = item.resource_path.get_file().get_basename()
@@ -1325,7 +1328,7 @@ func _generate_sprite_frames_path(character: CharacterData) -> String:
 	# Extract mod name from character path (e.g., res://mods/_sandbox/data/characters/hero.tres)
 	var path_parts: PackedStringArray = char_path.split("/")
 	var mod_name: String = "_sandbox"
-	for i in range(path_parts.size()):
+	for i: int in range(path_parts.size()):
 		if path_parts[i] == "mods" and i + 1 < path_parts.size():
 			mod_name = path_parts[i + 1]
 			break

@@ -122,7 +122,8 @@ func get_weapon_type_source(weapon_type: String) -> String:
 	if lower_type in DEFAULT_WEAPON_TYPES:
 		return "base"
 	for mod_id: String in _mod_weapon_types:
-		if lower_type in _mod_weapon_types[mod_id]:
+		var types: Array = _mod_weapon_types[mod_id]
+		if lower_type in types:
 			return mod_id
 	return ""
 
@@ -133,7 +134,8 @@ func get_armor_type_source(armor_type: String) -> String:
 	if lower_type in DEFAULT_ARMOR_TYPES:
 		return "base"
 	for mod_id: String in _mod_armor_types:
-		if lower_type in _mod_armor_types[mod_id]:
+		var types: Array = _mod_armor_types[mod_id]
+		if lower_type in types:
 			return mod_id
 	return ""
 
@@ -149,12 +151,14 @@ func _rebuild_cache_if_dirty() -> void:
 
 	# Add mod types (avoiding duplicates)
 	for mod_id: String in _mod_weapon_types:
-		for weapon_type: String in _mod_weapon_types[mod_id]:
+		var weapon_types: Array = _mod_weapon_types[mod_id]
+		for weapon_type: String in weapon_types:
 			if weapon_type not in _all_weapon_types:
 				_all_weapon_types.append(weapon_type)
 
 	for mod_id: String in _mod_armor_types:
-		for armor_type: String in _mod_armor_types[mod_id]:
+		var armor_types: Array = _mod_armor_types[mod_id]
+		for armor_type: String in armor_types:
 			if armor_type not in _all_armor_types:
 				_all_armor_types.append(armor_type)
 

@@ -70,8 +70,9 @@ func _process(_delta: float) -> void:
 	var new_hover: int = -1
 
 	for i: int in range(menu_items.size()):
-		var label: Label = menu_items[i]["label"]
-		var action: String = menu_items[i]["action"]
+		var item: Dictionary = menu_items[i]
+		var label: Label = item["label"] as Label
+		var action: String = DictUtils.get_string(item, "action", "")
 
 		if action not in available_actions:
 			continue
@@ -107,8 +108,8 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 
 	# Update menu item visibility/colors
 	for item: Dictionary in menu_items:
-		var label: Label = item["label"]
-		var action: String = item["action"]
+		var label: Label = item["label"] as Label
+		var action: String = DictUtils.get_string(item, "action", "")
 
 		if action in available_actions:
 			label.modulate = COLOR_NORMAL
@@ -188,7 +189,7 @@ func reset_menu() -> void:
 
 	# Reset all labels to default state
 	for item: Dictionary in menu_items:
-		var label: Label = item["label"]
+		var label: Label = item["label"] as Label
 		label.modulate = COLOR_DISABLED
 		label.remove_theme_color_override("font_color")
 
@@ -204,8 +205,9 @@ func _input(event: InputEvent) -> void:
 			# Check which label was clicked
 			var mouse_pos: Vector2 = get_global_mouse_position()
 			for i: int in range(menu_items.size()):
-				var label: Label = menu_items[i]["label"]
-				var action: String = menu_items[i]["action"]
+				var item: Dictionary = menu_items[i]
+				var label: Label = item["label"] as Label
+				var action: String = DictUtils.get_string(item, "action", "")
 
 				# Check if mouse is over this label
 				var label_rect: Rect2 = label.get_global_rect()
@@ -274,7 +276,8 @@ func _move_selection(direction: int) -> void:
 		selected_index = wrapi(selected_index + direction, 0, menu_items.size())
 
 		var item: Dictionary = menu_items[selected_index]
-		if item["action"] in available_actions:
+		var item_action: String = DictUtils.get_string(item, "action", "")
+		if item_action in available_actions:
 			# Only play sound and update if we actually moved
 			if selected_index != start_index:
 				AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
@@ -290,7 +293,8 @@ func _move_selection(direction: int) -> void:
 ## Select action by name
 func _select_action_by_name(action: String) -> void:
 	for i: int in range(menu_items.size()):
-		if menu_items[i]["action"] == action:
+		var item_action: String = DictUtils.get_string(menu_items[i], "action", "")
+		if item_action == action:
 			selected_index = i
 			break
 
@@ -299,8 +303,8 @@ func _select_action_by_name(action: String) -> void:
 func _update_selection_visual() -> void:
 	for i: int in range(menu_items.size()):
 		var item: Dictionary = menu_items[i]
-		var label: Label = item["label"]
-		var action: String = item["action"]
+		var label: Label = item["label"] as Label
+		var action: String = DictUtils.get_string(item, "action", "")
 
 		if i == selected_index and action in available_actions:
 			# Selected item - bright yellow
@@ -325,7 +329,7 @@ func _pulse_selected_item() -> void:
 	if selected_index < 0 or selected_index >= menu_items.size():
 		return
 
-	var label: Label = menu_items[selected_index]["label"]
+	var label: Label = menu_items[selected_index]["label"] as Label
 
 	# Kill existing pulse
 	if _pulse_tween:
@@ -357,7 +361,7 @@ func _confirm_selection() -> void:
 		print("[ACTION_MENU DEBUG] BLOCKED: No actions available")
 		return
 
-	var selected_action: String = menu_items[selected_index]["action"]
+	var selected_action: String = DictUtils.get_string(menu_items[selected_index], "action", "")
 	print("[ACTION_MENU DEBUG] Selected action: '%s', session: %d" % [selected_action, _menu_session_id])
 
 	# Safety check 4: Don't emit if selected action is not in available list

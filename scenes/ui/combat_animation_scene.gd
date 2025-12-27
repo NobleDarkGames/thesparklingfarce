@@ -17,7 +17,7 @@ extends CanvasLayer
 
 signal animation_complete
 ## Emitted when damage is applied at impact moment (for BattleManager to track)
-signal damage_applied(defender: Node2D, damage: int, defender_died: bool)
+signal damage_applied(defender: Unit, damage: int, defender_died: bool)
 ## Emitted when a single phase completes (used internally)
 signal phase_complete
 ## Emitted when XP display is complete (used internally)
@@ -40,12 +40,12 @@ var defender_sprite: Control = null
 
 ## Session state tracking
 var _session_active: bool = false
-var _initial_attacker: Node2D = null  ## The unit who initiated the combat (for role tracking)
-var _initial_defender: Node2D = null  ## The unit who was attacked (for role tracking)
+var _initial_attacker: Unit = null  ## The unit who initiated the combat (for role tracking)
+var _initial_defender: Unit = null  ## The unit who was attacked (for role tracking)
 
 ## Current phase tracking (who is currently attacking/defending visually)
-var _current_attacker: Node2D = null
-var _current_defender: Node2D = null
+var _current_attacker: Unit = null
+var _current_defender: Unit = null
 
 ## Combat phase queue
 var _combat_phases: Array[CombatPhase] = []
@@ -120,7 +120,7 @@ func _ready() -> void:
 
 ## Start a combat session - fades in and sets up the initial combatants
 ## Call this ONCE at the start of a combat exchange
-func start_session(initial_attacker: Node2D, initial_defender: Node2D) -> void:
+func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 	_session_active = true
 	_initial_attacker = initial_attacker
 	_initial_defender = initial_defender
@@ -249,7 +249,7 @@ func _swap_combatant_roles() -> void:
 		defender_sprite = null
 
 	# Swap the tracked units
-	var temp: Node2D = _current_attacker
+	var temp: Unit = _current_attacker
 	_current_attacker = _current_defender
 	_current_defender = temp
 
@@ -308,8 +308,8 @@ func _execute_phase(phase: CombatPhase) -> void:
 ## Legacy entry point: play combat animation sequence
 ## This wraps the new session-based API for backwards compatibility
 func play_combat_animation(
-	attacker: Node2D,
-	defender: Node2D,
+	attacker: Unit,
+	defender: Unit,
 	damage: int,
 	was_critical: bool,
 	was_miss: bool,
@@ -336,7 +336,7 @@ func play_combat_animation(
 
 ## Set up a combatant's visual representation
 func _setup_combatant(
-	unit: Node2D,
+	unit: Unit,
 	container: Control,
 	name_label: Label,
 	hp_bar: ProgressBar,
@@ -372,7 +372,7 @@ func _setup_combatant(
 
 
 ## Create placeholder portrait using colored panel and character initial
-func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
+func _create_placeholder_sprite(unit: Unit, is_attacker: bool) -> Control:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(180, 180)
 
@@ -417,7 +417,7 @@ func _create_placeholder_sprite(unit: Node2D, is_attacker: bool) -> Control:
 
 
 ## Create sprite from real combat animation data
-func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
+func _create_real_sprite(unit: Unit, is_attacker: bool) -> Control:
 	var anim_data: CombatAnimationData = unit.character_data.combat_animation_data
 
 	var sprite_node: Node = null
@@ -447,7 +447,7 @@ func _create_real_sprite(unit: Node2D, is_attacker: bool) -> Control:
 
 
 ## Get color based on character class
-func _get_class_color(unit: Node2D) -> Color:
+func _get_class_color(unit: Unit) -> Color:
 	var char_class_name: String = unit.character_data.character_class.display_name.to_lower() if unit.character_data.character_class else "unknown"
 
 	if "warrior" in char_class_name or "knight" in char_class_name or "fighter" in char_class_name:
@@ -469,7 +469,7 @@ func _get_class_color(unit: Node2D) -> Color:
 # =============================================================================
 
 ## Play standard hit animation
-func _play_hit_animation(damage: int, target: Node2D) -> void:
+func _play_hit_animation(damage: int, target: Unit) -> void:
 	combat_log.text = "Hit!"
 	combat_log.add_theme_color_override("font_color", Color.WHITE)
 
@@ -498,7 +498,7 @@ func _play_hit_animation(damage: int, target: Node2D) -> void:
 
 
 ## Play critical hit animation
-func _play_critical_animation(damage: int, target: Node2D) -> void:
+func _play_critical_animation(damage: int, target: Unit) -> void:
 	combat_log.text = "Critical Hit!"
 	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.YELLOW)
@@ -567,7 +567,7 @@ func _play_miss_animation() -> void:
 
 
 ## Play healing animation (for item heal and spell heal phases)
-func _play_heal_animation(heal_amount: int, target: Node2D) -> void:
+func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 	combat_log.text = "Heal!"
 	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.GREEN)
@@ -594,7 +594,7 @@ func _play_heal_animation(heal_amount: int, target: Node2D) -> void:
 
 ## Play status effect animation (for SPELL_STATUS phases)
 @warning_ignore("unused_parameter")
-func _play_status_animation(was_resisted: bool, status_name: String, _target: Node2D) -> void:
+func _play_status_animation(was_resisted: bool, status_name: String, _target: Unit) -> void:
 	if was_resisted:
 		# Similar to miss - white flash, "Resisted!" text
 		combat_log.text = "Resisted!"
@@ -724,7 +724,7 @@ func show_custom_banner(text: String, color: Color) -> void:
 # =============================================================================
 
 ## Apply damage to target at the impact moment
-func _apply_damage_at_impact(damage: int, target: Node2D) -> void:
+func _apply_damage_at_impact(damage: int, target: Unit) -> void:
 	if target == null or not is_instance_valid(target):
 		push_warning("CombatAnimationScene: Cannot apply damage - target is null or invalid")
 		return
@@ -745,7 +745,7 @@ func _apply_damage_at_impact(damage: int, target: Node2D) -> void:
 
 ## Apply healing to target at the animation moment
 ## Returns the actual heal amount (may be less if near max HP)
-func _apply_healing_at_impact(heal_amount: int, target: Node2D) -> int:
+func _apply_healing_at_impact(heal_amount: int, target: Unit) -> int:
 	if target == null or not is_instance_valid(target):
 		push_warning("CombatAnimationScene: Cannot apply healing - target is null or invalid")
 		return 0
@@ -853,16 +853,19 @@ func _display_xp_entries() -> void:
 
 	# Second: Display XP entries
 	for entry: Dictionary in _xp_entries:
+		var entry_name: String = DictUtils.get_string(entry, "name", "")
+		var entry_amount: int = DictUtils.get_int(entry, "amount", 0)
+		var entry_source: String = DictUtils.get_string(entry, "source", "")
 		# Format source for display (damage/kill -> combat, others as-is)
-		var source_display: String = entry.source
-		if entry.source == "damage" or entry.source == "kill":
+		var source_display: String = entry_source
+		if entry_source == "damage" or entry_source == "kill":
 			source_display = "combat"
-		var line: String = "%s gained %d %s XP" % [entry.name, entry.amount, source_display]
-		if entry.source == "kill":
+		var line: String = "%s gained %d %s XP" % [entry_name, entry_amount, source_display]
+		if entry_source == "kill":
 			line = "[color=#FFFF66]%s![/color]" % line
-		elif entry.source == "formation":
+		elif entry_source == "formation":
 			line = "[color=#B3D9FF]%s[/color]" % line  # Light blue for formation
-		elif entry.source in ["heal", "buff", "debuff"]:
+		elif entry_source in ["heal", "buff", "debuff"]:
 			line = "[color=#B3FFB3]%s[/color]" % line  # Light green for support
 		else:
 			line = "[color=#FFF2B3]%s[/color]" % line

@@ -18,7 +18,7 @@ const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 @export var delay_before_attack: float = 0.3       # Brief pause before initiating attack
 
 ## Called by TurnManager when enemy/neutral unit's turn starts
-func process_enemy_turn(unit: Node2D) -> void:
+func process_enemy_turn(unit: Unit) -> void:
 	if not unit:
 		push_error("AIController: Cannot process turn for null unit")
 		return

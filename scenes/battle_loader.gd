@@ -38,9 +38,9 @@ const ChoiceSelectorScene: PackedScene = preload("res://scenes/ui/choice_selecto
 
 var _ground_layer: TileMapLayer = null
 var _highlight_layer: TileMapLayer = null
-var _player_units: Array[Node2D] = []  # All player units
-var _enemy_units: Array[Node2D] = []  # All enemy units
-var _neutral_units: Array[Node2D] = []  # All neutral units
+var _player_units: Array[Unit] = []  # All player units
+var _enemy_units: Array[Unit] = []  # All enemy units
+var _neutral_units: Array[Unit] = []  # All neutral units
 var _action_menu: Control = null  # Action menu UI
 var _item_menu: Control = null  # Item menu UI
 var _spell_menu: Control = null  # Spell menu UI
@@ -121,7 +121,7 @@ func _load_map_scene() -> bool:
 
 func _ready() -> void:
 	# Check if TriggerManager has battle data (from map trigger)
-	var trigger_battle_data: Resource = TriggerManager.get_current_battle_data()
+	var trigger_battle_data: BattleData = TriggerManager.get_current_battle_data()
 	if trigger_battle_data:
 		battle_data = trigger_battle_data
 
@@ -164,39 +164,47 @@ func _ready() -> void:
 		push_warning("BattleLoader: PartyManager has no party members!")
 	else:
 		for spawn_entry: Dictionary in party_spawn_data:
-			var character: CharacterData = spawn_entry.character
-			var spawn_position: Vector2i = spawn_entry.position
+			var spawn_character_val: Variant = spawn_entry.get("character")
+			var spawn_position_val: Variant = spawn_entry.get("position")
+			var character: CharacterData = spawn_character_val as CharacterData
+			var spawn_position: Vector2i = spawn_position_val as Vector2i
 
 			# Get save data from PartyManager to preserve equipped items
 			var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
-			var player_unit: Node2D = _spawn_unit(character, spawn_position, "player", null, save_data)
+			var player_unit: Unit = _spawn_unit(character, spawn_position, "player", null, save_data)
 			_player_units.append(player_unit)
 
 	# Spawn enemy units from BattleData
-	for enemy_dict in battle_data.enemies:
-		if not 'character' in enemy_dict or not enemy_dict.character:
+	for enemy_dict: Dictionary in battle_data.enemies:
+		var enemy_character_val: Variant = enemy_dict.get("character")
+		if enemy_character_val == null:
 			push_error("BattleLoader: Enemy missing character data")
 			continue
 
-		var character: CharacterData = enemy_dict.character
-		var enemy_pos: Vector2i = enemy_dict.position if 'position' in enemy_dict else Vector2i(10, 5)
-		var ai_behavior: AIBehaviorData = enemy_dict.ai_behavior if 'ai_behavior' in enemy_dict else null
+		var character: CharacterData = enemy_character_val as CharacterData
+		var enemy_pos_val: Variant = enemy_dict.get("position", Vector2i(10, 5))
+		var enemy_pos: Vector2i = enemy_pos_val as Vector2i
+		var ai_behavior_val: Variant = enemy_dict.get("ai_behavior")
+		var ai_behavior: AIBehaviorData = ai_behavior_val as AIBehaviorData if ai_behavior_val != null else null
 
-		var enemy_unit: Node2D = _spawn_unit(character, enemy_pos, "enemy", ai_behavior)
+		var enemy_unit: Unit = _spawn_unit(character, enemy_pos, "enemy", ai_behavior)
 		_enemy_units.append(enemy_unit)
 
 	# Spawn neutral units from BattleData
 	if not battle_data.neutrals.is_empty():
-		for neutral_dict in battle_data.neutrals:
-			if not 'character' in neutral_dict or not neutral_dict.character:
+		for neutral_dict: Dictionary in battle_data.neutrals:
+			var neutral_character_val: Variant = neutral_dict.get("character")
+			if neutral_character_val == null:
 				push_error("BattleLoader: Neutral missing character data")
 				continue
 
-			var character: CharacterData = neutral_dict.character
-			var neutral_pos: Vector2i = neutral_dict.position if 'position' in neutral_dict else Vector2i(8, 5)
-			var ai_behavior: AIBehaviorData = neutral_dict.ai_behavior if 'ai_behavior' in neutral_dict else null
+			var character: CharacterData = neutral_character_val as CharacterData
+			var neutral_pos_val: Variant = neutral_dict.get("position", Vector2i(8, 5))
+			var neutral_pos: Vector2i = neutral_pos_val as Vector2i
+			var ai_behavior_val: Variant = neutral_dict.get("ai_behavior")
+			var ai_behavior: AIBehaviorData = ai_behavior_val as AIBehaviorData if ai_behavior_val != null else null
 
-			var neutral_unit: Node2D = _spawn_unit(character, neutral_pos, "neutral", ai_behavior)
+			var neutral_unit: Unit = _spawn_unit(character, neutral_pos, "neutral", ai_behavior)
 			_neutral_units.append(neutral_unit)
 
 	print("[FLOW] Units: %d player, %d enemy, %d neutral" % [
@@ -292,7 +300,7 @@ func _ready() -> void:
 			await DialogManager.dialog_ended
 
 	# Start turn-based battle (this will emit signals immediately)
-	var all_units: Array[Node2D] = _player_units + _enemy_units + _neutral_units
+	var all_units: Array[Unit] = _player_units + _enemy_units + _neutral_units
 	TurnManager.start_battle(all_units)
 
 	# Connect InputManager signals to BattleManager (for combat execution)
@@ -303,9 +311,9 @@ func _ready() -> void:
 
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData, p_save_data: CharacterSaveData = null) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData, p_save_data: CharacterSaveData = null) -> Unit:
 	# Use BattleManager's unit scene (supports mod overrides)
-	var unit: Node2D = BattleManager._get_unit_scene().instantiate()
+	var unit: Unit = BattleManager._get_unit_scene().instantiate()
 
 	# Initialize with character data (and save data if available for player units)
 	if p_save_data:
@@ -349,7 +357,7 @@ func _process(_delta: float) -> void:
 	# - On turn start: CameraController.follow_unit() smoothly pans to new unit
 	# - During unit movement: Follow the moving unit's position (while they're animating)
 	# - In inspection mode: InputManager controls the camera to follow cursor
-	var active_unit: Node2D = TurnManager.get_active_unit()
+	var active_unit: Unit = TurnManager.get_active_unit()
 	if InputManager.current_state != InputManager.InputState.INSPECTING:
 		if active_unit and active_unit.is_alive():
 			# If unit is currently moving (has active tween), follow them smoothly
@@ -378,7 +386,7 @@ func _process(_delta: float) -> void:
 		debug_label.text += "Active: %s\n" % UnitUtils.get_display_name(active_unit)
 
 	debug_label.text += "\n--- Units ---\n"
-	for unit in _player_units:
+	for unit: Unit in _player_units:
 		if unit.is_alive():
 			debug_label.text += "P: %s HP:%d/%d\n" % [
 				UnitUtils.get_display_name(unit).left(8),
@@ -386,7 +394,7 @@ func _process(_delta: float) -> void:
 				unit.stats.max_hp
 			]
 
-	for unit in _enemy_units:
+	for unit: Unit in _enemy_units:
 		if unit.is_alive():
 			debug_label.text += "E: %s HP:%d/%d\n" % [
 				UnitUtils.get_display_name(unit).left(8),
@@ -406,7 +414,7 @@ func _on_turn_cycle_started(turn_number: int) -> void:
 		_turn_order_panel.show_panel()
 
 
-func _on_player_turn_started(unit: Node2D) -> void:
+func _on_player_turn_started(unit: Unit) -> void:
 	unit.show_selection()
 
 	# Move camera to active unit
@@ -429,7 +437,7 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	InputManager.start_player_turn(unit)
 
 
-func _on_enemy_turn_started(unit: Node2D) -> void:
+func _on_enemy_turn_started(unit: Unit) -> void:
 	unit.show_selection()
 
 	# Move camera to active unit
@@ -448,7 +456,7 @@ func _on_enemy_turn_started(unit: Node2D) -> void:
 	_update_turn_order_display(unit)
 
 
-func _on_unit_turn_ended(unit: Node2D) -> void:
+func _on_unit_turn_ended(unit: Unit) -> void:
 	unit.hide_selection()
 
 	# Disconnect from cell_entered signal
@@ -477,13 +485,13 @@ func _on_battle_ended(_victory: bool) -> void:
 
 
 ## Helper to update the turn order panel with current battle state
-func _update_turn_order_display(active_unit: Node2D) -> void:
-	var upcoming: Array[Node2D] = TurnManager.get_remaining_turn_queue()
+func _update_turn_order_display(active_unit: Unit) -> void:
+	var upcoming: Array[Unit] = TurnManager.get_remaining_turn_queue()
 	_turn_order_panel.update_turn_order(active_unit, upcoming)
 	_turn_order_panel.animate_transition()
 
 
-func _on_combat_resolved(_attacker: Node2D, _defender: Node2D, _damage: int, _hit: bool, _crit: bool) -> void:
+func _on_combat_resolved(_attacker: Unit, _defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
 	# TODO: Show damage numbers (Phase 3)
 	pass
 

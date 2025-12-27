@@ -36,7 +36,8 @@ func _load_opening_cinematic() -> void:
 	var cinematic_scene_path: String = _get_opening_cinematic_path()
 
 	# Load the scene
-	var scene_resource: PackedScene = load(cinematic_scene_path) as PackedScene
+	var loaded: Resource = load(cinematic_scene_path)
+	var scene_resource: PackedScene = loaded if loaded is PackedScene else null
 	if not scene_resource:
 		push_error("Startup: Failed to load opening cinematic scene: %s" % cinematic_scene_path)
 		_skip_to_main_menu()

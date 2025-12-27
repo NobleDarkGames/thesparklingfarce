@@ -102,8 +102,9 @@ func equip_item(
 
 	# Update or add the equipped item entry
 	var found: bool = false
-	for i in range(save_data.equipped_items.size()):
-		if save_data.equipped_items[i].get("slot", "") == slot_id:
+	for i: int in range(save_data.equipped_items.size()):
+		var equipped_entry: Dictionary = save_data.equipped_items[i]
+		if equipped_entry.get("slot", "") == slot_id:
 			save_data.equipped_items[i] = new_entry
 			found = true
 			break
@@ -162,8 +163,9 @@ func _unequip_slot(
 			return {success = false, error = "Cannot unequip cursed item", unequipped_item_id = ""}
 
 	# Remove the entry from equipped_items
-	for i in range(save_data.equipped_items.size() - 1, -1, -1):
-		if save_data.equipped_items[i].get("slot", "") == slot_id:
+	for i: int in range(save_data.equipped_items.size() - 1, -1, -1):
+		var equipped_entry: Dictionary = save_data.equipped_items[i]
+		if equipped_entry.get("slot", "") == slot_id:
 			save_data.equipped_items.remove_at(i)
 			break
 
@@ -320,8 +322,9 @@ func attempt_uncurse(
 			pass
 
 	# Mark curse as broken
-	for i in range(save_data.equipped_items.size()):
-		if save_data.equipped_items[i].get("slot", "") == slot_id:
+	for i: int in range(save_data.equipped_items.size()):
+		var equipped_entry: Dictionary = save_data.equipped_items[i]
+		if equipped_entry.get("slot", "") == slot_id:
 			save_data.equipped_items[i]["curse_broken"] = true
 			break
 

@@ -139,7 +139,7 @@ func _get_world_position() -> Vector2:
 
 	var parent: Node = get_parent()
 	if parent is Node2D:
-		return (parent as Node2D).global_position
+		return parent.global_position
 
 	return Vector2.ZERO
 

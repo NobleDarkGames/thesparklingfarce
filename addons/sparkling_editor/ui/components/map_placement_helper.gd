@@ -109,7 +109,8 @@ func _add_npc_to_closed_scene(
 	position: Vector2
 ) -> bool:
 	# Load the scene as a PackedScene
-	var packed_scene: PackedScene = load(scene_path) as PackedScene
+	var loaded: Resource = load(scene_path)
+	var packed_scene: PackedScene = loaded if loaded is PackedScene else null
 	if not packed_scene:
 		push_error("MapPlacementHelper: Failed to load scene: %s" % scene_path)
 		return false

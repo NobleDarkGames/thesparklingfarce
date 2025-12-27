@@ -144,20 +144,23 @@ func cycle_member(delta: int) -> void:
 func get_current_member_uid() -> String:
 	if not PartyManager:
 		return ""
-	var party: Array = PartyManager.party_members
+	var party: Array[CharacterData] = PartyManager.party_members
 	if current_member_index < 0 or current_member_index >= party.size():
 		current_member_index = 0
 	if party.is_empty():
 		return ""
-	return party[current_member_index].character_uid
+	var character: CharacterData = party[current_member_index]
+	return character.character_uid
 
 
 ## Set current member by UID (finds index)
 func set_current_member_by_uid(uid: String) -> void:
 	if not PartyManager:
 		return
-	for i: int in range(PartyManager.party_members.size()):
-		if PartyManager.party_members[i].character_uid == uid:
+	var party: Array[CharacterData] = PartyManager.party_members
+	for i: int in range(party.size()):
+		var character: CharacterData = party[i]
+		if character.character_uid == uid:
 			current_member_index = i
 			return
 

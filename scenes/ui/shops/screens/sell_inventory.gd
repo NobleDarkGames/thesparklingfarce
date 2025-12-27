@@ -59,7 +59,7 @@ func _create_styles() -> void:
 
 func _populate_item_list() -> void:
 	# Clear existing
-	for child in item_list.get_children():
+	for child: Node in item_list.get_children():
 		child.queue_free()
 	item_buttons.clear()
 

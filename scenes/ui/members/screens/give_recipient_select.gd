@@ -63,7 +63,7 @@ func _on_initialized() -> void:
 
 func _populate_character_grid() -> void:
 	# Clear existing
-	for child in char_grid.get_children():
+	for child: Node in char_grid.get_children():
 		child.queue_free()
 	char_buttons.clear()
 
@@ -180,7 +180,7 @@ func _execute_give() -> void:
 	# Execute the transfer
 	var result: Dictionary = transfer_item_between_members(_source_uid, selected_uid, _item_id)
 
-	if result.success:
+	if result.get("success", false):
 		# Success!
 		var item_data: ItemData = get_item_data(_item_id)
 		var item_name: String = item_data.item_name if item_data else _item_id

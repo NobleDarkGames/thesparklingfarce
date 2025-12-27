@@ -919,7 +919,8 @@ func _refresh_mod_list() -> void:
 				var json_text: String = FileAccess.get_file_as_string(mod_json_path)
 				var json_data: Variant = JSON.parse_string(json_text)
 				if json_data is Dictionary:
-					var display_name: String = json_data.get("name", folder_name)
+					var json_dict: Dictionary = json_data
+					var display_name: String = DictUtils.get_string(json_dict, "name", folder_name)
 					mod_list.add_item(display_name)
 					mod_list.set_item_metadata(mod_list.item_count - 1, mod_json_path)
 		folder_name = mods_dir.get_next()
@@ -983,7 +984,7 @@ func _populate_ui_from_data() -> void:
 	# Dependencies
 	dependencies_list.clear()
 	var deps: Array = current_mod_data.get("dependencies", [])
-	for dep in deps:
+	for dep: Variant in deps:
 		dependencies_list.add_item(str(dep))
 
 	# Custom types
@@ -996,12 +997,13 @@ func _populate_ui_from_data() -> void:
 	# Equipment slot layout
 	equipment_slots_list.clear()
 	var slots: Array = current_mod_data.get("equipment_slot_layout", [])
-	for slot in slots:
+	for slot: Variant in slots:
 		if slot is Dictionary:
-			var slot_id: String = slot.get("id", "")
-			var slot_name: String = slot.get("display_name", slot_id)
+			var slot_dict: Dictionary = slot
+			var slot_id: String = DictUtils.get_string(slot_dict, "id", "")
+			var slot_name: String = DictUtils.get_string(slot_dict, "display_name", slot_id)
 			equipment_slots_list.add_item("%s (%s)" % [slot_name, slot_id])
-			equipment_slots_list.set_item_metadata(equipment_slots_list.item_count - 1, slot)
+			equipment_slots_list.set_item_metadata(equipment_slots_list.item_count - 1, slot_dict)
 
 	# Inventory config
 	var inv_config: Dictionary = current_mod_data.get("inventory_config", {})
@@ -1015,7 +1017,7 @@ func _populate_ui_from_data() -> void:
 	# Scene overrides
 	scene_overrides_list.clear()
 	var scenes: Dictionary = current_mod_data.get("scenes", {})
-	for scene_id in scenes:
+	for scene_id: String in scenes:
 		var scene_path: String = scenes[scene_id]
 		scene_overrides_list.add_item("%s -> %s" % [scene_id, scene_path])
 		scene_overrides_list.set_item_metadata(scene_overrides_list.item_count - 1, {
@@ -1037,13 +1039,14 @@ func _populate_ui_from_data() -> void:
 			continue  # Skip meta keys like _replace_all
 		var opt_data: Variant = field_menu_opts[option_id]
 		if opt_data is Dictionary:
-			var label_text: String = opt_data.get("label", option_id)
-			var position_text: String = opt_data.get("position", "end")
+			var opt_dict: Dictionary = opt_data
+			var label_text: String = DictUtils.get_string(opt_dict, "label", option_id)
+			var position_text: String = DictUtils.get_string(opt_dict, "position", "end")
 			field_menu_options_list.add_item("%s (%s) [%s]" % [label_text, option_id, position_text])
 			field_menu_options_list.set_item_metadata(field_menu_options_list.item_count - 1, {
 				"id": option_id,
 				"label": label_text,
-				"scene_path": opt_data.get("scene_path", ""),
+				"scene_path": opt_dict.get("scene_path", ""),
 				"position": position_text
 			})
 
@@ -1063,7 +1066,7 @@ func _collect_data_from_ui() -> void:
 
 	# Hidden campaigns
 	var hidden_campaigns: Array = []
-	for i in range(hidden_campaigns_list.item_count):
+	for i: int in range(hidden_campaigns_list.item_count):
 		hidden_campaigns.append(hidden_campaigns_list.get_item_text(i))
 	if hidden_campaigns.size() > 0:
 		current_mod_data["hidden_campaigns"] = hidden_campaigns
@@ -1072,7 +1075,7 @@ func _collect_data_from_ui() -> void:
 
 	# Dependencies
 	var deps: Array = []
-	for i in range(dependencies_list.item_count):
+	for i: int in range(dependencies_list.item_count):
 		deps.append(dependencies_list.get_item_text(i))
 	current_mod_data["dependencies"] = deps
 
@@ -1099,10 +1102,10 @@ func _collect_data_from_ui() -> void:
 
 	# Equipment slot layout
 	var slots: Array = []
-	for i in range(equipment_slots_list.item_count):
-		var slot_data: Dictionary = equipment_slots_list.get_item_metadata(i)
+	for i: int in range(equipment_slots_list.item_count):
+		var slot_data: Variant = equipment_slots_list.get_item_metadata(i)
 		if slot_data is Dictionary:
-			slots.append(slot_data)
+			slots.append(slot_data as Dictionary)
 	if slots.size() > 0:
 		current_mod_data["equipment_slot_layout"] = slots
 	elif "equipment_slot_layout" in current_mod_data:
@@ -1125,10 +1128,11 @@ func _collect_data_from_ui() -> void:
 
 	# Scene overrides
 	var scenes: Dictionary = {}
-	for i in range(scene_overrides_list.item_count):
-		var override_data: Dictionary = scene_overrides_list.get_item_metadata(i)
+	for i: int in range(scene_overrides_list.item_count):
+		var override_data: Variant = scene_overrides_list.get_item_metadata(i)
 		if override_data is Dictionary:
-			scenes[override_data.get("id", "")] = override_data.get("path", "")
+			var override_dict: Dictionary = override_data as Dictionary
+			scenes[override_dict.get("id", "")] = override_dict.get("path", "")
 	if scenes.size() > 0:
 		current_mod_data["scenes"] = scenes
 	elif "scenes" in current_mod_data:
@@ -1144,15 +1148,16 @@ func _collect_data_from_ui() -> void:
 	var field_menu_opts: Dictionary = {}
 	if field_menu_replace_all_check.button_pressed:
 		field_menu_opts["_replace_all"] = true
-	for i in range(field_menu_options_list.item_count):
-		var opt_data: Dictionary = field_menu_options_list.get_item_metadata(i)
+	for i: int in range(field_menu_options_list.item_count):
+		var opt_data: Variant = field_menu_options_list.get_item_metadata(i)
 		if opt_data is Dictionary:
-			var option_id: String = opt_data.get("id", "")
+			var opt_dict: Dictionary = opt_data as Dictionary
+			var option_id: String = DictUtils.get_string(opt_dict, "id", "")
 			if not option_id.is_empty():
 				field_menu_opts[option_id] = {
-					"label": opt_data.get("label", option_id),
-					"scene_path": opt_data.get("scene_path", ""),
-					"position": opt_data.get("position", "end")
+					"label": DictUtils.get_string(opt_dict, "label", option_id),
+					"scene_path": DictUtils.get_string(opt_dict, "scene_path", ""),
+					"position": DictUtils.get_string(opt_dict, "position", "end")
 				}
 	if field_menu_opts.size() > 0:
 		current_mod_data["field_menu_options"] = field_menu_opts
@@ -1213,7 +1218,7 @@ func _validate_mod_data() -> Array[String]:
 ## Convert array to newline-separated text
 func _array_to_lines(arr: Array) -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	for item in arr:
+	for item: Variant in arr:
 		lines.append(str(item))
 	return "\n".join(lines)
 
@@ -1222,7 +1227,7 @@ func _array_to_lines(arr: Array) -> String:
 func _lines_to_array(text: String) -> Array:
 	var arr: Array = []
 	var lines: PackedStringArray = text.split("\n")
-	for line in lines:
+	for line: String in lines:
 		var trimmed: String = line.strip_edges()
 		if not trimmed.is_empty():
 			arr.append(trimmed)
@@ -1250,7 +1255,7 @@ func _on_add_dependency() -> void:
 		return
 
 	# Check for duplicates
-	for i in range(dependencies_list.item_count):
+	for i: int in range(dependencies_list.item_count):
 		if dependencies_list.get_item_text(i) == dep_id:
 			return
 
@@ -1326,11 +1331,12 @@ func _on_update_equipment_slot() -> void:
 
 ## Load selected slot data into edit fields
 func _on_equipment_slot_selected(index: int) -> void:
-	var slot_data: Dictionary = equipment_slots_list.get_item_metadata(index)
+	var slot_data: Variant = equipment_slots_list.get_item_metadata(index)
 	if slot_data is Dictionary:
-		slot_id_edit.text = slot_data.get("id", "")
-		slot_display_name_edit.text = slot_data.get("display_name", "")
-		var accepts: Array = slot_data.get("accepts_types", [])
+		var slot_dict: Dictionary = slot_data as Dictionary
+		slot_id_edit.text = slot_dict.get("id", "")
+		slot_display_name_edit.text = slot_dict.get("display_name", "")
+		var accepts: Array = slot_dict.get("accepts_types", [])
 		slot_accepts_types_edit.text = ", ".join(accepts)
 
 
@@ -1348,11 +1354,13 @@ func _on_add_scene_override() -> void:
 		return
 
 	# Check for duplicate IDs
-	for i in range(scene_overrides_list.item_count):
-		var existing: Dictionary = scene_overrides_list.get_item_metadata(i)
-		if existing.get("id", "") == scene_id:
-			_show_errors(["Scene ID '%s' already exists" % scene_id])
-			return
+	for i: int in range(scene_overrides_list.item_count):
+		var existing: Variant = scene_overrides_list.get_item_metadata(i)
+		if existing is Dictionary:
+			var existing_dict: Dictionary = existing as Dictionary
+			if existing_dict.get("id", "") == scene_id:
+				_show_errors(["Scene ID '%s' already exists" % scene_id])
+				return
 
 	var override_data: Dictionary = {
 		"id": scene_id,
@@ -1378,10 +1386,11 @@ func _on_remove_scene_override() -> void:
 
 ## Load selected scene override into edit fields
 func _on_scene_override_selected(index: int) -> void:
-	var override_data: Dictionary = scene_overrides_list.get_item_metadata(index)
+	var override_data: Variant = scene_overrides_list.get_item_metadata(index)
 	if override_data is Dictionary:
-		scene_id_edit.text = override_data.get("id", "")
-		scene_path_edit.text = override_data.get("path", "")
+		var override_dict: Dictionary = override_data as Dictionary
+		scene_id_edit.text = override_dict.get("id", "")
+		scene_path_edit.text = override_dict.get("path", "")
 
 
 # =============================================================================
@@ -1415,11 +1424,13 @@ func _on_add_field_menu_option() -> void:
 		return
 
 	# Check for duplicate IDs
-	for i in range(field_menu_options_list.item_count):
-		var existing: Dictionary = field_menu_options_list.get_item_metadata(i)
-		if existing.get("id", "") == option_id:
-			_show_errors(["Option ID '%s' already exists" % option_id])
-			return
+	for i: int in range(field_menu_options_list.item_count):
+		var existing: Variant = field_menu_options_list.get_item_metadata(i)
+		if existing is Dictionary:
+			var existing_dict: Dictionary = existing as Dictionary
+			if existing_dict.get("id", "") == option_id:
+				_show_errors(["Option ID '%s' already exists" % option_id])
+				return
 
 	# Validate scene path exists (warning, not blocking)
 	var mod_dir: String = current_mod_path.get_base_dir()
@@ -1488,13 +1499,15 @@ func _on_update_field_menu_option() -> void:
 
 	# Check for duplicate IDs (excluding the currently selected item)
 	var selected_index: int = selected[0]
-	for i in range(field_menu_options_list.item_count):
+	for i: int in range(field_menu_options_list.item_count):
 		if i == selected_index:
 			continue
-		var existing: Dictionary = field_menu_options_list.get_item_metadata(i)
-		if existing.get("id", "") == option_id:
-			_show_errors(["Option ID '%s' already exists" % option_id])
-			return
+		var existing: Variant = field_menu_options_list.get_item_metadata(i)
+		if existing is Dictionary:
+			var existing_dict: Dictionary = existing as Dictionary
+			if existing_dict.get("id", "") == option_id:
+				_show_errors(["Option ID '%s' already exists" % option_id])
+				return
 
 	var opt_data: Dictionary = {
 		"id": option_id,
@@ -1511,14 +1524,15 @@ func _on_update_field_menu_option() -> void:
 
 ## Load selected field menu option into edit fields
 func _on_field_menu_option_selected(index: int) -> void:
-	var opt_data: Dictionary = field_menu_options_list.get_item_metadata(index)
+	var opt_data: Variant = field_menu_options_list.get_item_metadata(index)
 	if opt_data is Dictionary:
-		field_menu_option_id_edit.text = opt_data.get("id", "")
-		field_menu_option_label_edit.text = opt_data.get("label", "")
-		field_menu_option_scene_path_edit.text = opt_data.get("scene_path", "")
+		var opt_dict: Dictionary = opt_data
+		field_menu_option_id_edit.text = DictUtils.get_string(opt_dict, "id", "")
+		field_menu_option_label_edit.text = DictUtils.get_string(opt_dict, "label", "")
+		field_menu_option_scene_path_edit.text = DictUtils.get_string(opt_dict, "scene_path", "")
 
 		# Set position dropdown
-		var position: String = opt_data.get("position", "end")
+		var position: String = DictUtils.get_string(opt_dict, "position", "end")
 		var position_index: int = FIELD_MENU_POSITIONS.find(position)
 		if position_index >= 0:
 			field_menu_option_position_dropdown.select(position_index)
@@ -1535,7 +1549,7 @@ func _on_field_menu_replace_all_toggled(_pressed: bool) -> void:
 func _parse_comma_list(text: String) -> Array:
 	var arr: Array = []
 	var parts: PackedStringArray = text.split(",")
-	for part in parts:
+	for part: String in parts:
 		var trimmed: String = part.strip_edges()
 		if not trimmed.is_empty():
 			arr.append(trimmed)
@@ -1545,7 +1559,7 @@ func _parse_comma_list(text: String) -> Array:
 ## Show error messages
 func _show_errors(errors: Array) -> void:
 	var error_text: String = "[b]Error:[/b]\n"
-	for error in errors:
+	for error: Variant in errors:
 		error_text += "* " + str(error) + "\n"
 	error_label.text = error_text
 	error_panel.show()
@@ -1577,7 +1591,7 @@ func _on_total_conversion_toggled(pressed: bool) -> void:
 
 		# Add base game hidden campaigns pattern if not already present
 		var has_base_pattern: bool = false
-		for i in range(hidden_campaigns_list.item_count):
+		for i: int in range(hidden_campaigns_list.item_count):
 			if hidden_campaigns_list.get_item_text(i) == "_base_game:*":
 				has_base_pattern = true
 				break
@@ -1603,7 +1617,7 @@ func _on_add_hidden_campaign() -> void:
 		return
 
 	# Check for duplicates
-	for i in range(hidden_campaigns_list.item_count):
+	for i: int in range(hidden_campaigns_list.item_count):
 		if hidden_campaigns_list.get_item_text(i) == pattern:
 			return
 
@@ -1623,7 +1637,7 @@ func _on_remove_hidden_campaign() -> void:
 ## Add pattern to hide all base game campaigns
 func _on_hide_all_base_campaigns() -> void:
 	# Check if already present
-	for i in range(hidden_campaigns_list.item_count):
+	for i: int in range(hidden_campaigns_list.item_count):
 		if hidden_campaigns_list.get_item_text(i) == "_base_game:*":
 			return
 
@@ -1636,9 +1650,9 @@ func _on_campaign_suggestion_selected(index: int) -> void:
 	if index <= 0:  # Skip the placeholder
 		return
 
-	var campaign_id: String = campaign_suggestions_dropdown.get_item_metadata(index)
-	if campaign_id:
-		hidden_campaign_input.text = campaign_id
+	var campaign_id: Variant = campaign_suggestions_dropdown.get_item_metadata(index)
+	if campaign_id is String:
+		hidden_campaign_input.text = campaign_id as String
 
 	# Reset dropdown to placeholder
 	campaign_suggestions_dropdown.select(0)

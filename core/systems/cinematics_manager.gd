@@ -308,9 +308,10 @@ func get_spawnable_types() -> Array[String]:
 func get_all_spawnable_handlers() -> Array[Dictionary]:
 	var handlers: Array[Dictionary] = []
 	for type_id: String in _spawnable_handlers.keys():
+		var handler: SpawnableEntityHandler = _spawnable_handlers[type_id] as SpawnableEntityHandler
 		handlers.append({
 			"type_id": type_id,
-			"handler": _spawnable_handlers[type_id]
+			"handler": handler
 		})
 	return handlers
 
@@ -473,7 +474,8 @@ func _execute_next_command() -> void:
 
 	# Reset completion flag
 	_command_completed = false
-	_current_command_waits = command.get("params", {}).get("wait", false)
+	var params_dict: Dictionary = DictUtils.get_dict(command, "params", {})
+	_current_command_waits = DictUtils.get_bool(params_dict, "wait", false)
 
 	# Execute command based on type
 	var command_type: String = command.get("type", "")
@@ -481,7 +483,8 @@ func _execute_next_command() -> void:
 
 	# Check custom executor registry first (allows mods to add/override commands)
 	if command_type in _command_executors:
-		_current_executor = _command_executors[command_type]
+		var executor: CinematicCommandExecutor = _command_executors[command_type] as CinematicCommandExecutor
+		_current_executor = executor
 		var completed: bool = _current_executor.execute(command, self)
 		if completed:
 			_command_completed = true
@@ -754,8 +757,9 @@ func _get_role_name(role: NPCData.NPCRole) -> String:
 func _disable_player_input() -> void:
 	# InputManager is for battles - only try to disable if it has the method
 	if InputManager.has_method("set_input_enabled"):
-		var current_state: Variant = InputManager.get("input_enabled")
-		_previous_input_state = current_state if current_state != null else true
+		var input_state_value: Variant = InputManager.get("input_enabled")
+		var input_enabled_state: bool = input_state_value if input_state_value is bool else true
+		_previous_input_state = input_enabled_state
 		InputManager.set_input_enabled(false)
 
 	_player_input_disabled = true
@@ -789,13 +793,13 @@ func _spawn_actors_from_data(cinematic: CinematicData) -> void:
 		return
 
 	# Spawn each actor
-	for actor_def: Variant in actors:
-		if not actor_def is Dictionary:
-			push_warning("CinematicsManager: Invalid actor definition (not a dictionary)")
+	for i: int in range(actors.size()):
+		var actor_val: Variant = actors[i]
+		if not actor_val is Dictionary:
+			push_warning("CinematicsManager: Invalid actor definition at index %d (not a dictionary)" % i)
 			continue
-
-		var actor_dict: Dictionary = actor_def as Dictionary
-		_spawn_single_actor(actor_dict)
+		var actor_def: Dictionary = actor_val
+		_spawn_single_actor(actor_def)
 
 
 ## Spawn a single actor from a definition dictionary
@@ -926,9 +930,10 @@ func play_inline_cinematic(commands: Array, cinematic_id: String = "") -> bool:
 	cinematic.can_skip = true
 
 	# Add commands
-	for cmd: Variant in commands:
-		if cmd is Dictionary:
-			cinematic.commands.append(cmd)
+	for i: int in range(commands.size()):
+		var cmd_val: Variant = commands[i]
+		if cmd_val is Dictionary:
+			cinematic.commands.append(cmd_val)
 
 	return play_cinematic_from_resource(cinematic)
 
@@ -951,15 +956,18 @@ func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicDat
 		return null
 
 	# Look up the interactable data
-	var interactable: Resource = ModLoader.registry.get_resource("interactable", interactable_id)
-	if not interactable:
+	var interactable_resource: InteractableData = ModLoader.registry.get_resource("interactable", interactable_id) as InteractableData
+	if not interactable_resource:
 		push_error("CinematicsManager: Interactable '%s' not found for auto-cinematic" % interactable_id)
 		return null
 
 	# Cast to InteractableData (can't use class_name in type hint due to load order)
-	if not interactable.has_method("has_rewards"):
+	if not interactable_resource.has_method("has_rewards"):
 		push_error("CinematicsManager: Invalid interactable resource for '%s'" % interactable_id)
 		return null
+
+	# Use typed intermediate for property access
+	var interactable: InteractableDataScript = interactable_resource as InteractableDataScript
 
 	# Build the cinematic
 	var cinematic: CinematicData = CinematicData.new()
@@ -980,7 +988,7 @@ func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicDat
 		})
 
 	# Show dialog text if present
-	var dialog_text: String = interactable.dialog_text if "dialog_text" in interactable else ""
+	var dialog_text: String = interactable.dialog_text
 	if not dialog_text.is_empty():
 		cinematic.commands.append({
 			"type": "dialog",
@@ -992,8 +1000,8 @@ func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicDat
 	# If no commands at all, add type-specific default message
 	if cinematic.commands.is_empty():
 		var default_msg: String = InteractableDataScript.FALLBACK_EMPTY_MESSAGE
-		if "interactable_type" in interactable:
-			default_msg = InteractableDataScript.get_default_empty_message(interactable.interactable_type)
+		var interactable_type: InteractableDataScript.InteractableType = interactable.interactable_type
+		default_msg = InteractableDataScript.get_default_empty_message(interactable_type)
 		cinematic.commands.append({
 			"type": "dialog",
 			"params": {

@@ -29,7 +29,7 @@ var _hp_tween: Tween = null
 var _mp_tween: Tween = null
 
 ## Cached reference to current unit for updates
-var _current_unit: Node2D = null
+var _current_unit: Unit = null
 
 
 func _ready() -> void:
@@ -39,7 +39,7 @@ func _ready() -> void:
 
 
 ## Display stats for the given unit.
-func show_unit_stats(unit: Node2D) -> void:
+func show_unit_stats(unit: Unit) -> void:
 	# Kill any existing tween to prevent conflicts
 	if _current_tween and _current_tween.is_valid():
 		_current_tween.kill()

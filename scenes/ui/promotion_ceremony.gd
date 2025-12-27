@@ -51,7 +51,7 @@ const COLOR_LIGHT_GRAY: Color = Color(0.7, 0.7, 0.7, 1.0)
 ## State
 var _can_dismiss: bool = false
 var _blink_tween: Tween = null
-var _current_unit: Node2D = null
+var _current_unit: Unit = null
 var _old_class: ClassData = null
 var _new_class: ClassData = null
 var _stat_changes: Dictionary = {}
@@ -77,7 +77,7 @@ func _ready() -> void:
 ## @param unit: Unit being promoted
 ## @param old_class: Previous ClassData
 ## @param new_class: New ClassData (after promotion)
-func show_promotion(unit: Node2D, old_class: ClassData, new_class: ClassData) -> void:
+func show_promotion(unit: Unit, old_class: ClassData, new_class: ClassData) -> void:
 	_can_dismiss = false
 	_current_unit = unit
 	_old_class = old_class
@@ -112,7 +112,7 @@ func show_promotion(unit: Node2D, old_class: ClassData, new_class: ClassData) ->
 	_phase_continue_prompt()
 
 
-func _setup_character_display(unit: Node2D, old_class: ClassData, new_class: ClassData) -> void:
+func _setup_character_display(unit: Unit, old_class: ClassData, new_class: ClassData) -> void:
 	# Character name
 	var char_name: String = "Unknown"
 	if unit.character_data:
@@ -308,11 +308,11 @@ func _dismiss() -> void:
 
 ## Called when PromotionManager completes a promotion
 ## Use this to get the stat changes
-func _on_promotion_completed(unit: Node2D, old_class: Resource, new_class: Resource, stat_changes: Dictionary) -> void:
+func _on_promotion_completed(unit: Unit, old_class: Resource, new_class: Resource, stat_changes: Dictionary) -> void:
 	_stat_changes = stat_changes
 
 
 ## Utility method for external callers to trigger ceremony with stat changes
-func show_promotion_with_stats(unit: Node2D, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
+func show_promotion_with_stats(unit: Unit, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
 	_stat_changes = stat_changes
 	await show_promotion(unit, old_class, new_class)

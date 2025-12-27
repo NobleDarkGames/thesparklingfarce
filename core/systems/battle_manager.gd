@@ -22,11 +22,11 @@ const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 ## Signals for battle events
 signal battle_started(battle_data: Resource)
 signal battle_ended(victory: bool)
-signal unit_spawned(unit: Node2D)
-signal combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool)
+signal unit_spawned(unit: Unit)
+signal combat_resolved(attacker: Unit, defender: Unit, damage: int, hit: bool, crit: bool)
 
 ## Current battle data (loaded from mods/)
-var current_battle_data: Resource = null
+var current_battle_data: BattleData = null
 
 ## Battle state - delegates to TurnManager as single source of truth
 ## This prevents desync bugs between BattleManager and TurnManager
@@ -37,10 +37,10 @@ var battle_active: bool:
 		push_warning("BattleManager.battle_active should not be set directly - use TurnManager")
 
 ## Unit tracking
-var all_units: Array[Node2D] = []
-var player_units: Array[Node2D] = []
-var enemy_units: Array[Node2D] = []
-var neutral_units: Array[Node2D] = []
+var all_units: Array[Unit] = []
+var player_units: Array[Unit] = []
+var enemy_units: Array[Unit] = []
+var neutral_units: Array[Unit] = []
 
 ## Scene references (set by battle scene)
 var battle_scene_root: Node = null
@@ -263,9 +263,9 @@ func _spawn_all_units() -> void:
 
 
 ## Spawn units from array of dictionaries
-## Format: [{character: CharacterData, position: Vector2i, ai_brain: AIBrain}, ...]
-func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
-	var units: Array[Node2D] = []
+## Format: [{character: CharacterData, position: Vector2i, ai_brain: AIBehaviorData}, ...]
+func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
+	var units: Array[Unit] = []
 
 	for data: Variant in unit_data:
 		# Validate data structure
@@ -277,16 +277,16 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Node2D]:
 			push_warning("BattleManager: Unit data missing character or position")
 			continue
 
-		var character_data: Resource = data.character
+		var character_data: CharacterData = data.character as CharacterData
 		var grid_pos: Vector2i = data.position
-		var ai_brain: Resource = data.get("ai_brain", null)
+		var ai_behavior: AIBehaviorData = data.get("ai_brain", null) as AIBehaviorData
 
 		# Instantiate unit
-		var unit: Node2D = _get_cached_scene("unit_scene").instantiate()
+		var unit: Unit = _get_cached_scene("unit_scene").instantiate() as Unit
 
-		# Initialize unit with character data, faction, and AI brain
+		# Initialize unit with character data, faction, and AI behavior
 		if unit.has_method("initialize"):
-			unit.initialize(character_data, faction, ai_brain)
+			unit.initialize(character_data, faction, ai_behavior)
 		else:
 			push_error("BattleManager: Unit scene missing initialize() method")
 			unit.queue_free()
@@ -353,7 +353,7 @@ func _connect_signals() -> void:
 
 
 ## Handle action selection from InputManager
-func _on_action_selected(unit: Node2D, action: String) -> void:
+func _on_action_selected(unit: Unit, action: String) -> void:
 
 	match action:
 		"attack":
@@ -373,9 +373,9 @@ func _on_action_selected(unit: Node2D, action: String) -> void:
 
 
 ## Handle target selection from InputManager
-func _on_target_selected(unit: Node2D, target: Node2D) -> void:
+func _on_target_selected(unit: Unit, target: Unit) -> void:
 	# Check for action modifiers from status effects (confusion, berserk, etc.)
-	var actual_target: Node2D = _check_action_modifiers(unit, target)
+	var actual_target: Unit = _check_action_modifiers(unit, target)
 
 	# Execute the attack on the actual target
 	_execute_attack(unit, actual_target)
@@ -387,7 +387,7 @@ func _on_target_selected(unit: Node2D, target: Node2D) -> void:
 ## @param unit: The acting unit
 ## @param intended_target: The player/AI's intended target
 ## @return: The actual target after any modifications
-func _check_action_modifiers(unit: Node2D, intended_target: Node2D) -> Node2D:
+func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 	if not unit or not unit.stats:
 		return intended_target
 
@@ -410,11 +410,11 @@ func _check_action_modifiers(unit: Node2D, intended_target: Node2D) -> Node2D:
 
 			match effect_data.action_modifier:
 				StatusEffectData.ActionModifier.RANDOM_TARGET:
-					var random_target: Node2D = _get_random_unit_except_self(unit)
+					var random_target: Unit = _get_random_unit_except_self(unit)
 					return random_target
 
 				StatusEffectData.ActionModifier.ATTACK_ALLIES:
-					var ally_target: Node2D = _get_random_ally(unit)
+					var ally_target: Unit = _get_random_ally(unit)
 					if ally_target:
 						return ally_target
 
@@ -428,19 +428,19 @@ func _check_action_modifiers(unit: Node2D, intended_target: Node2D) -> Node2D:
 				var confusion_roll: int = randi_range(1, 100)
 				if confusion_roll <= 50:
 					# Confused! Attack a random unit (friend or foe, including self)
-					var random_target: Node2D = _get_random_confusion_target(unit)
+					var random_target: Unit = _get_random_confusion_target(unit)
 					return random_target
 
 	return intended_target
 
 
 ## Get a random target for a confused unit (any living unit on the battlefield, including self)
-func _get_random_confusion_target(confused_unit: Node2D) -> Node2D:
-	var valid_targets: Array[Node2D] = []
+func _get_random_confusion_target(confused_unit: Unit) -> Unit:
+	var valid_targets: Array[Unit] = []
 
-	for unit: Node2D in all_units:
-		if unit.is_alive():
-			valid_targets.append(unit)
+	for unit_node: Unit in all_units:
+		if unit_node and unit_node.is_alive():
+			valid_targets.append(unit_node)
 
 	if valid_targets.is_empty():
 		return confused_unit  # Fallback to self if somehow no targets
@@ -449,12 +449,12 @@ func _get_random_confusion_target(confused_unit: Node2D) -> Node2D:
 
 
 ## Get a random unit except the specified one (for RANDOM_TARGET modifier)
-func _get_random_unit_except_self(acting_unit: Node2D) -> Node2D:
-	var valid_targets: Array[Node2D] = []
+func _get_random_unit_except_self(acting_unit: Unit) -> Unit:
+	var valid_targets: Array[Unit] = []
 
-	for unit: Node2D in all_units:
-		if unit.is_alive() and unit != acting_unit:
-			valid_targets.append(unit)
+	for unit_node: Unit in all_units:
+		if unit_node and unit_node.is_alive() and unit_node != acting_unit:
+			valid_targets.append(unit_node)
 
 	if valid_targets.is_empty():
 		return acting_unit  # Fallback to self if somehow no other targets
@@ -463,12 +463,12 @@ func _get_random_unit_except_self(acting_unit: Node2D) -> Node2D:
 
 
 ## Get a random ally of the unit (for ATTACK_ALLIES modifier like berserk/charm)
-func _get_random_ally(acting_unit: Node2D) -> Node2D:
-	var allies: Array[Node2D] = []
+func _get_random_ally(acting_unit: Unit) -> Unit:
+	var allies: Array[Unit] = []
 
-	for unit: Node2D in all_units:
-		if unit.is_alive() and unit != acting_unit and unit.faction == acting_unit.faction:
-			allies.append(unit)
+	for unit_node: Unit in all_units:
+		if unit_node and unit_node.is_alive() and unit_node != acting_unit and unit_node.faction == acting_unit.faction:
+			allies.append(unit_node)
 
 	if allies.is_empty():
 		return acting_unit  # Fallback to self if no other allies
@@ -477,7 +477,7 @@ func _get_random_ally(acting_unit: Node2D) -> Node2D:
 
 
 ## Execute Stay action (end turn)
-func _execute_stay(unit: Node2D) -> void:
+func _execute_stay(unit: Unit) -> void:
 
 	# Reset InputManager to waiting state
 	InputManager.reset_to_waiting()
@@ -488,7 +488,7 @@ func _execute_stay(unit: Node2D) -> void:
 
 ## Handle item use request from InputManager
 ## SF2-AUTHENTIC: Uses the full battle overlay screen, same as attacks
-func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> void:
+func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 	# Face the target before using item (SF2-authentic)
 	if target and target != unit and unit.has_method("face_toward"):
 		unit.face_toward(target.grid_position)
@@ -573,7 +573,7 @@ func _on_item_use_requested(unit: Node2D, item_id: String, target: Node2D) -> vo
 
 
 ## Consume item from unit's inventory
-func _consume_item_from_inventory(unit: Node2D, item_id: String) -> void:
+func _consume_item_from_inventory(unit: Unit, item_id: String) -> void:
 	if not unit.character_data:
 		push_warning("BattleManager: Unit has no character_data, cannot consume item")
 		return
@@ -590,7 +590,7 @@ func _consume_item_from_inventory(unit: Node2D, item_id: String) -> void:
 
 ## Award XP for item usage (SF-authentic)
 ## Healers get 10 XP, non-healers get 1 XP
-func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
+func _award_item_use_xp(user: Unit, target: Unit, item: ItemData) -> void:
 	if not user or not user.character_data:
 		return
 
@@ -618,7 +618,7 @@ func _award_item_use_xp(user: Node2D, target: Node2D, item: ItemData) -> void:
 # =============================================================================
 
 ## Handle spell cast request from InputManager
-func _on_spell_cast_requested(caster: Node2D, ability: AbilityData, target: Node2D) -> void:
+func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) -> void:
 	# Face the target before casting (SF2-authentic)
 	if target and target != caster and caster.has_method("face_toward"):
 		caster.face_toward(target.grid_position)
@@ -651,7 +651,7 @@ func _on_spell_cast_requested(caster: Node2D, ability: AbilityData, target: Node
 	InputManager.refresh_stats_panel()
 
 	# Get all targets (single target or AoE)
-	var targets: Array[Node2D] = _get_spell_targets(caster, target, ability)
+	var targets: Array[Unit] = _get_spell_targets(caster, target, ability)
 
 	if targets.is_empty():
 		push_warning("BattleManager: No valid targets for spell '%s'" % ability.ability_id)
@@ -661,7 +661,7 @@ func _on_spell_cast_requested(caster: Node2D, ability: AbilityData, target: Node
 
 	# Apply the spell effect to all targets
 	var any_effect_applied: bool = false
-	for spell_target: Node2D in targets:
+	for spell_target: Unit in targets:
 		var effect_applied: bool = false
 
 		match ability.ability_type:
@@ -718,8 +718,8 @@ func _on_spell_cast_requested(caster: Node2D, ability: AbilityData, target: Node
 
 ## Get all targets for a spell (handles single-target and AoE)
 ## Returns array of valid targets based on spell's area_of_effect and target_type
-func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityData) -> Array[Node2D]:
-	var targets: Array[Node2D] = []
+func _get_spell_targets(caster: Unit, center_target: Unit, ability: AbilityData) -> Array[Unit]:
+	var targets: Array[Unit] = []
 
 	# Single target (no AoE)
 	if ability.area_of_effect <= 0:
@@ -737,7 +737,7 @@ func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityD
 			if manhattan_dist <= ability.area_of_effect:
 				var cell: Vector2i = center_cell + Vector2i(dx, dy)
 				if GridManager.is_within_bounds(cell):
-					var unit: Node2D = GridManager.get_unit_at_cell(cell)
+					var unit: Unit = GridManager.get_unit_at_cell(cell)
 					if unit and unit.is_alive() and _is_valid_spell_target(caster, unit, ability):
 						targets.append(unit)
 
@@ -745,7 +745,7 @@ func _get_spell_targets(caster: Node2D, center_target: Node2D, ability: AbilityD
 
 
 ## Check if a unit is a valid target for a spell (based on target_type)
-func _is_valid_spell_target(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+func _is_valid_spell_target(caster: Unit, target: Unit, ability: AbilityData) -> bool:
 	if not target or not target.is_alive():
 		return false
 
@@ -770,7 +770,7 @@ func _is_valid_spell_target(caster: Node2D, target: Node2D, ability: AbilityData
 
 ## Apply healing spell effect via combat screen
 ## SF2-AUTHENTIC: Uses the same battle overlay as attacks and item heals
-func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+func _apply_spell_heal(caster: Unit, target: Unit, ability: AbilityData) -> bool:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for healing spell")
 		return false
@@ -790,7 +790,7 @@ func _apply_spell_heal(caster: Node2D, target: Node2D, ability: AbilityData) -> 
 
 
 ## Apply damage spell effect via combat screen
-func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+func _apply_spell_damage(caster: Unit, target: Unit, ability: AbilityData) -> bool:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for damage spell")
 		return false
@@ -812,7 +812,7 @@ func _apply_spell_damage(caster: Node2D, target: Node2D, ability: AbilityData) -
 ## Apply status effect spell to target
 ## Handles both applying status effects and removing them (cure spells)
 ## Returns true if any effect was applied/removed
-func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+func _apply_spell_status(caster: Unit, target: Unit, ability: AbilityData) -> bool:
 	if not target or not target.stats:
 		push_warning("BattleManager: Invalid target for status spell")
 		return false
@@ -872,7 +872,7 @@ func _apply_spell_status(caster: Node2D, target: Node2D, ability: AbilityData) -
 ## Award XP for spell casting (SF2-authentic)
 ## Healing spells award XP based on amount healed
 ## Damage spells award XP based on damage dealt
-func _award_spell_xp(caster: Node2D, target: Node2D, ability: AbilityData) -> void:
+func _award_spell_xp(caster: Unit, target: Unit, ability: AbilityData) -> void:
 	if not caster or not caster.character_data:
 		return
 
@@ -902,7 +902,7 @@ func _award_spell_xp(caster: Node2D, target: Node2D, ability: AbilityData) -> vo
 
 ## Execute attack from AI (called by AIBrain)
 ## This is the public API for AI brains to trigger attacks
-func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
+func execute_ai_attack(attacker: Unit, defender: Unit) -> void:
 	# Face the target before attacking (SF2-authentic) - handled in _execute_attack
 	await _execute_attack(attacker, defender)
 
@@ -913,7 +913,7 @@ func execute_ai_attack(attacker: Node2D, defender: Node2D) -> void:
 ## @param ability_id: The ability ID to cast
 ## @param target: The target unit for the spell
 ## @return: True if spell was cast successfully
-func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> bool:
+func execute_ai_spell(caster: Unit, ability_id: String, target: Unit) -> bool:
 	# Face the target before casting (SF2-authentic)
 	if target and target != caster and caster.has_method("face_toward"):
 		caster.face_toward(target.grid_position)
@@ -941,7 +941,7 @@ func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> boo
 	caster.stats.current_mp -= ability.mp_cost
 
 	# Get all targets (handles AoE)
-	var targets: Array[Node2D] = _get_spell_targets(caster, target, ability)
+	var targets: Array[Unit] = _get_spell_targets(caster, target, ability)
 
 	if targets.is_empty():
 		# Refund MP if no valid targets
@@ -950,7 +950,7 @@ func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> boo
 
 	# Apply the spell effect to all targets
 	var any_effect_applied: bool = false
-	for spell_target: Node2D in targets:
+	for spell_target: Unit in targets:
 		var effect_applied: bool = false
 
 		match ability.ability_type:
@@ -975,7 +975,7 @@ func execute_ai_spell(caster: Node2D, ability_id: String, target: Node2D) -> boo
 ## Execute Attack action using the new session-based combat system
 ## SF-AUTHENTIC: All phases (initial, double, counter) execute in a SINGLE
 ## battle screen session - one fade in, one fade out, no jarring transitions.
-func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
+func _execute_attack(attacker: Unit, defender: Unit) -> void:
 	# Face the target before attacking (SF2-authentic)
 	if attacker.has_method("face_toward"):
 		attacker.face_toward(defender.grid_position)
@@ -996,7 +996,7 @@ func _execute_attack(attacker: Node2D, defender: Node2D) -> void:
 
 ## Build the complete combat sequence by pre-calculating all phases
 ## Order: Initial Attack -> Double Attack (if any) -> Counter (if any)
-func _build_combat_sequence(attacker: Node2D, defender: Node2D) -> Array[CombatPhase]:
+func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase]:
 	var phases: Array[CombatPhase] = []
 
 	# Get terrain bonuses for defender's position
@@ -1066,7 +1066,7 @@ func _build_combat_sequence(attacker: Node2D, defender: Node2D) -> Array[CombatP
 
 
 ## Get the weapon name for a unit (for display in combat results)
-func _get_unit_weapon_name(unit: Node2D) -> String:
+func _get_unit_weapon_name(unit: Unit) -> String:
 	if not unit or not unit.character_data:
 		return ""
 
@@ -1082,8 +1082,8 @@ func _get_unit_weapon_name(unit: Node2D) -> String:
 
 ## Calculate a single attack phase (initial or double attack)
 func _calculate_attack_phase(
-	attacker: Node2D,
-	defender: Node2D,
+	attacker: Unit,
+	defender: Unit,
 	terrain_defense: int,
 	terrain_evasion: int,
 	is_counter: bool,
@@ -1126,8 +1126,8 @@ func _calculate_attack_phase(
 
 ## Calculate a counter attack phase (75% damage)
 func _calculate_counter_phase(
-	counter_attacker: Node2D,
-	counter_target: Node2D,
+	counter_attacker: Unit,
+	counter_target: Unit,
 	terrain_defense: int,
 	terrain_evasion: int
 ) -> CombatPhase:
@@ -1166,7 +1166,7 @@ func _calculate_counter_phase(
 
 ## Check if defender can counterattack
 ## Now properly handles dead zones: a bow (min=2, max=3) CANNOT counter at distance 1
-func _can_counterattack(original_attacker: Node2D, original_defender: Node2D) -> bool:
+func _can_counterattack(original_attacker: Unit, original_defender: Unit) -> bool:
 	# Check if defender would still be alive (this is called after simulating damage)
 	# The actual HP check happens in _build_combat_sequence
 
@@ -1199,8 +1199,8 @@ func _can_counterattack(original_attacker: Node2D, original_defender: Node2D) ->
 
 ## Execute the complete combat session with all pre-calculated phases
 func _execute_combat_session(
-	initial_attacker: Node2D,
-	initial_defender: Node2D,
+	initial_attacker: Unit,
+	initial_defender: Unit,
 	phases: Array[CombatPhase]
 ) -> void:
 	# Track deaths for skip mode XP and signal emission
@@ -1224,13 +1224,13 @@ func _execute_combat_session(
 		combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
 
 		# Connect XP handler to feed entries to battle screen
-		var xp_handler: Callable = func(unit: Node2D, amount: int, source: String) -> void:
+		var xp_handler: Callable = func(unit: Unit, amount: int, source: String) -> void:
 			if combat_anim_instance and is_instance_valid(combat_anim_instance):
 				combat_anim_instance.queue_xp_entry(UnitUtils.get_display_name(unit), amount, source)
 		ExperienceManager.unit_gained_xp.connect(xp_handler)
 
 		# Connect damage handler to POOL damage (not award XP yet - SF2-authentic)
-		var damage_handler: Callable = func(def_unit: Node2D, dmg: int, died: bool) -> void:
+		var damage_handler: Callable = func(def_unit: Unit, dmg: int, died: bool) -> void:
 			# Find which phase this corresponds to
 			var current_phase: CombatPhase = _find_current_phase_for_defender(phases, def_unit)
 			if current_phase and dmg > 0:
@@ -1389,13 +1389,14 @@ func _execute_combat_session(
 
 
 ## Helper to find current phase for damage handler
-func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Node2D) -> CombatPhase:
+func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Unit) -> CombatPhase:
 	# Return the most recent phase where this unit is the defender
 	# (In practice, the damage_applied signal fires during execute_all_phases,
 	#  so we track which phase we're on via the scene's internal state)
 	for i: int in range(phases.size() - 1, -1, -1):
-		if phases[i].defender == defender:
-			return phases[i]
+		var phase: CombatPhase = phases[i]
+		if phase.defender == defender:
+			return phase
 	return null
 
 
@@ -1427,7 +1428,7 @@ func _show_battlefield() -> void:
 
 ## Check if attacker should perform a double attack
 ## SF2 mechanic: class-based double_attack_rate determines chance
-func _check_double_attack(attacker: Node2D) -> bool:
+func _check_double_attack(attacker: Unit) -> bool:
 	if attacker == null or not attacker.has_method("get_current_class"):
 		return false
 
@@ -1447,7 +1448,7 @@ func _check_double_attack(attacker: Node2D) -> bool:
 
 
 ## Get weapon minimum attack range for a unit (1 for melee, 2+ for ranged with dead zone)
-func _get_unit_weapon_min_range(unit: Node2D) -> int:
+func _get_unit_weapon_min_range(unit: Unit) -> int:
 	if unit.stats and unit.stats.cached_weapon:
 		return unit.stats.get_weapon_min_range()
 	if "weapon_min_range" in unit:
@@ -1456,7 +1457,7 @@ func _get_unit_weapon_min_range(unit: Node2D) -> int:
 
 
 ## Get weapon maximum attack range for a unit (default 1 for melee)
-func _get_unit_weapon_max_range(unit: Node2D) -> int:
+func _get_unit_weapon_max_range(unit: Unit) -> int:
 	if unit.stats and unit.stats.cached_weapon:
 		return unit.stats.get_weapon_max_range()
 	if "weapon_range" in unit:
@@ -1467,7 +1468,7 @@ func _get_unit_weapon_max_range(unit: Node2D) -> int:
 
 
 ## Handle unit death - called when unit.died signal is emitted
-func _on_unit_died(unit: Node2D) -> void:
+func _on_unit_died(unit: Unit) -> void:
 	# Persist death to CharacterSaveData for player units
 	_persist_unit_death(unit)
 
@@ -1484,7 +1485,7 @@ func _on_unit_died(unit: Node2D) -> void:
 
 ## Persist unit death to CharacterSaveData (for player units only)
 ## This allows church revival to know which characters are dead
-func _persist_unit_death(unit: Node2D) -> void:
+func _persist_unit_death(unit: Unit) -> void:
 	# Only persist for player faction
 	if not unit or unit.faction != "player":
 		return
@@ -1628,7 +1629,7 @@ func _show_defeat_screen() -> bool:
 
 
 ## Handle unit gaining XP
-func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
+func _on_unit_gained_xp(unit: Unit, amount: int, source: String) -> void:
 
 	# Queue XP entry for combat results panel
 	_pending_xp_entries.append({
@@ -1639,7 +1640,7 @@ func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
 
 
 ## Handle unit level up
-func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+func _on_unit_leveled_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
 	# Queue the level-up for display
 	_pending_level_ups.append({
 		"unit": unit,
@@ -1688,7 +1689,7 @@ func _wait_for_level_ups() -> void:
 
 
 ## Handle unit learning ability
-func _on_unit_learned_ability(unit: Node2D, ability: Resource) -> void:
+func _on_unit_learned_ability(unit: Unit, ability: Resource) -> void:
 	pass  # Future: Show ability learned notification
 
 
@@ -1739,9 +1740,9 @@ func end_battle() -> void:
 		combat_anim_instance = null
 
 	# Clear units
-	for unit: Node2D in all_units:
-		if is_instance_valid(unit):
-			unit.queue_free()
+	for unit_node: Unit in all_units:
+		if is_instance_valid(unit_node):
+			unit_node.queue_free()
 
 	all_units.clear()
 	player_units.clear()
@@ -1773,7 +1774,7 @@ enum BattleExitReason {
 ## This handles Egress spell, Angel Wing item, and automatic exits from death
 ## @param initiator: The unit that triggered the exit (for Egress/Angel Wing) or null (for death)
 ## @param reason: Why we're exiting the battle
-func _execute_battle_exit(initiator: Node2D, reason: BattleExitReason) -> void:
+func _execute_battle_exit(initiator: Unit, reason: BattleExitReason) -> void:
 	# Prevent re-entry if already exiting
 	if not battle_active:
 		return
@@ -1852,8 +1853,10 @@ func _revive_all_party_members(full_restoration: bool) -> void:
 ## Sync all surviving player units' HP/MP to their CharacterSaveData after battle
 ## Called after victory to persist current state (dead units already marked via _persist_unit_death)
 func _sync_surviving_units_to_save_data() -> void:
-	for unit: Node2D in player_units:
-		if not is_instance_valid(unit) or not unit.is_alive:
+	for unit: Unit in player_units:
+		if not is_instance_valid(unit):
+			continue
+		if not unit.is_alive():
 			continue
 		if not unit.character_data:
 			continue

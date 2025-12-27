@@ -121,18 +121,27 @@ func get_spawn_point(spawn_id: String) -> Dictionary:
 ## Get the default spawn point for this map
 ## Returns empty Dictionary if no default is defined
 func get_default_spawn_point() -> Dictionary:
-	for spawn_id: String in spawn_points.keys():
-		var data: Dictionary = spawn_points[spawn_id]
-		if data.get("is_default", false):
+	for spawn_id_key: Variant in spawn_points.keys():
+		var spawn_id: String = str(spawn_id_key)
+		var data_val: Variant = spawn_points.get(spawn_id)
+		if not data_val is Dictionary:
+			continue
+		var data: Dictionary = data_val
+		var is_default: bool = DictUtils.get_bool(data, "is_default", false)
+		if is_default:
 			data["spawn_id"] = spawn_id
 			return data
 
 	# Fallback: return first spawn point if no default
 	if not spawn_points.is_empty():
-		var first_id: String = spawn_points.keys()[0]
-		var data: Dictionary = spawn_points[first_id].duplicate()
-		data["spawn_id"] = first_id
-		return data
+		var all_keys: Array = spawn_points.keys()
+		var first_id: String = str(all_keys[0])
+		var first_val: Variant = spawn_points.get(first_id)
+		if first_val is Dictionary:
+			var first_entry: Dictionary = first_val
+			var data: Dictionary = first_entry.duplicate()
+			data["spawn_id"] = first_id
+			return data
 
 	return {}
 
@@ -140,9 +149,14 @@ func get_default_spawn_point() -> Dictionary:
 ## Get the caravan spawn point for this map
 ## Returns empty Dictionary if no caravan spawn is defined
 func get_caravan_spawn_point() -> Dictionary:
-	for spawn_id: String in spawn_points.keys():
-		var data: Dictionary = spawn_points[spawn_id]
-		if data.get("is_caravan_spawn", false):
+	for spawn_id_key: Variant in spawn_points.keys():
+		var spawn_id: String = str(spawn_id_key)
+		var data_val: Variant = spawn_points.get(spawn_id)
+		if not data_val is Dictionary:
+			continue
+		var data: Dictionary = data_val
+		var is_caravan_spawn: bool = DictUtils.get_bool(data, "is_caravan_spawn", false)
+		if is_caravan_spawn:
 			data["spawn_id"] = spawn_id
 			return data
 	return {}
@@ -181,7 +195,8 @@ func add_connection(
 ## Returns empty Dictionary if no connection exists for this trigger
 func get_connection_for_trigger(trigger_id: String) -> Dictionary:
 	for connection: Dictionary in connections:
-		if connection.get("trigger_id", "") == trigger_id:
+		var conn_trigger_id: String = DictUtils.get_string(connection, "trigger_id", "")
+		if conn_trigger_id == trigger_id:
 			return connection
 	return {}
 
@@ -260,14 +275,21 @@ func validate() -> Array[String]:
 		errors.append("scene_path must be a .tscn file")
 
 	# Validate spawn point data if present
-	for spawn_id: String in spawn_points.keys():
-		var data: Dictionary = spawn_points[spawn_id]
+	for spawn_id_key: Variant in spawn_points.keys():
+		var spawn_id: String = str(spawn_id_key)
+		var data_val: Variant = spawn_points.get(spawn_id)
+		if not data_val is Dictionary:
+			errors.append("Spawn point '%s' has invalid data type" % spawn_id)
+			continue
+		var data: Dictionary = data_val
 		if "grid_position" not in data:
 			errors.append("Spawn point '%s' missing grid_position" % spawn_id)
 		if "facing" not in data:
 			errors.append("Spawn point '%s' missing facing direction" % spawn_id)
-		elif data["facing"] not in ["up", "down", "left", "right"]:
-			errors.append("Spawn point '%s' has invalid facing: %s" % [spawn_id, data["facing"]])
+		else:
+			var facing: String = DictUtils.get_string(data, "facing", "")
+			if facing not in ["up", "down", "left", "right"]:
+				errors.append("Spawn point '%s' has invalid facing: %s" % [spawn_id, facing])
 
 	# Validate connections format if present
 	for connection: Dictionary in connections:
@@ -337,11 +359,11 @@ static func from_dict(data: Dictionary) -> Resource:
 	var script: GDScript = load("res://core/resources/map_metadata.gd")
 	var metadata: Resource = script.new()
 
-	metadata.map_id = data.get("map_id", "")
-	metadata.display_name = data.get("display_name", "")
+	metadata.map_id = DictUtils.get_string(data, "map_id", "")
+	metadata.display_name = DictUtils.get_string(data, "display_name", "")
 
 	# Parse map type from string
-	var type_str: String = data.get("map_type", "TOWN")
+	var type_str: String = DictUtils.get_string(data, "map_type", "TOWN")
 	match type_str.to_upper():
 		"TOWN":
 			metadata.map_type = MapType.TOWN
@@ -356,14 +378,16 @@ static func from_dict(data: Dictionary) -> Resource:
 		_:
 			metadata.map_type = MapType.TOWN
 
-	metadata.caravan_accessible = data.get("caravan_accessible", false)
-	metadata.caravan_visible = data.get("caravan_visible", false)
-	metadata.scene_path = data.get("scene_path", "")
-	metadata.spawn_points = data.get("spawn_points", {})
-	metadata.connections.assign(data.get("connections", []))
-	metadata.edge_connections = data.get("edge_connections", {})
-	metadata.music_id = data.get("music_id", "")
-	metadata.ambient_id = data.get("ambient_id", "")
+	metadata.caravan_accessible = DictUtils.get_bool(data, "caravan_accessible", false)
+	metadata.caravan_visible = DictUtils.get_bool(data, "caravan_visible", false)
+	metadata.scene_path = DictUtils.get_string(data, "scene_path", "")
+	metadata.spawn_points = DictUtils.get_dict(data, "spawn_points", {})
+	var connections_data: Array = DictUtils.get_array(data, "connections", [])
+	if not connections_data.is_empty():
+		metadata.connections.assign(connections_data)
+	metadata.edge_connections = DictUtils.get_dict(data, "edge_connections", {})
+	metadata.music_id = DictUtils.get_string(data, "music_id", "")
+	metadata.ambient_id = DictUtils.get_string(data, "ambient_id", "")
 
 	return metadata
 
@@ -421,7 +445,8 @@ func _extract_spawn_points_from_scene(scene_root: Node) -> void:
 		return
 
 	# Use SpawnPoint's static helper to find all spawn points
-	var spawn_point_script: GDScript = load("res://core/components/spawn_point.gd") as GDScript
+	var loaded_script: Resource = load("res://core/components/spawn_point.gd")
+	var spawn_point_script: GDScript = loaded_script if loaded_script is GDScript else null
 	if spawn_point_script and spawn_point_script.has_method("find_all_in_tree"):
 		var found_spawns: Array = spawn_point_script.find_all_in_tree(scene_root)
 		for spawn_node: Node in found_spawns:
@@ -468,7 +493,7 @@ func _find_door_triggers_recursive(node: Node) -> void:
 			var trigger_data: Variant = node.get("trigger_data")
 
 			if not trigger_id.is_empty() and trigger_data is Dictionary:
-				var data: Dictionary = trigger_data as Dictionary
+				var data: Dictionary = trigger_data
 				var connection: Dictionary = {
 					"trigger_id": trigger_id,
 					"transition_type": "fade"

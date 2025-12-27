@@ -39,8 +39,8 @@ const CinematicActorScript: GDScript = preload("res://core/components/cinematic_
 		if Engine.is_editor_hint():
 			queue_redraw()
 
-## Visual representation (can be Sprite2D or AnimatedSprite2D)
-@export var sprite: Node2D
+## Visual representation (AnimatedSprite2D for directional animations)
+@export var sprite: AnimatedSprite2D
 
 ## Current facing direction (for sprite display)
 var facing_direction: String = "down"
@@ -157,7 +157,7 @@ func _create_cinematic_actor() -> void:
 
 ## Find existing sprite or create one from npc_data
 ## Always creates AnimatedSprite2D with directional animations
-func _find_or_create_sprite() -> Node2D:
+func _find_or_create_sprite() -> AnimatedSprite2D:
 	# Check for existing AnimatedSprite2D first (preferred)
 	var existing_animated: AnimatedSprite2D = get_node_or_null("AnimatedSprite2D")
 	if existing_animated:
@@ -393,31 +393,25 @@ func set_facing(direction: String) -> void:
 
 ## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary)
 func play_idle_animation() -> void:
-	if not sprite or not sprite is AnimatedSprite2D:
-		return
-	var animated_sprite: AnimatedSprite2D = sprite as AnimatedSprite2D
-	if not animated_sprite.sprite_frames:
+	if not sprite or not sprite.sprite_frames:
 		return
 	var anim_name: String = "walk_" + facing_direction
-	if animated_sprite.sprite_frames.has_animation(anim_name):
-		if animated_sprite.animation != anim_name:
-			animated_sprite.play(anim_name)
+	if sprite.sprite_frames.has_animation(anim_name):
+		if sprite.animation != anim_name:
+			sprite.play(anim_name)
 
 
 ## Play walk animation for current facing direction
 func play_walk_animation() -> void:
-	if not sprite or not sprite is AnimatedSprite2D:
-		return
-	var animated_sprite: AnimatedSprite2D = sprite as AnimatedSprite2D
-	if not animated_sprite.sprite_frames:
+	if not sprite or not sprite.sprite_frames:
 		return
 	var anim_name: String = "walk_" + facing_direction
-	if animated_sprite.sprite_frames.has_animation(anim_name):
-		if animated_sprite.animation != anim_name:
-			animated_sprite.play(anim_name)
-	elif animated_sprite.sprite_frames.has_animation("walk_down"):
+	if sprite.sprite_frames.has_animation(anim_name):
+		if sprite.animation != anim_name:
+			sprite.play(anim_name)
+	elif sprite.sprite_frames.has_animation("walk_down"):
 		# Fallback to walk_down if no directional animation
-		animated_sprite.play("walk_down")
+		sprite.play("walk_down")
 
 
 ## Get the display name for this NPC (for UI/dialogs)

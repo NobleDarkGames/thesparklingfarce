@@ -105,7 +105,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if show_message:
 		var message: String = custom_message
 		if message.is_empty():
-			var template: String = DEFAULT_MESSAGES.get(reason, DEFAULT_MESSAGES["left"])
+			var template: String = str(DEFAULT_MESSAGES.get(reason, DEFAULT_MESSAGES["left"]))
 			message = template % character.character_uid
 		return CinematicCommandExecutor.show_system_message(message, manager)
 

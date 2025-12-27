@@ -28,11 +28,11 @@ var phase_type: PhaseType = PhaseType.INITIAL_ATTACK
 
 ## The unit dealing damage in this phase
 ## For COUNTER_ATTACK, this is the original defender
-var attacker: Node2D = null
+var attacker: Unit = null
 
 ## The unit receiving damage in this phase
 ## For COUNTER_ATTACK, this is the original attacker
-var defender: Node2D = null
+var defender: Unit = null
 
 ## Pre-calculated damage for this phase (0 if miss)
 var damage: int = 0
@@ -64,8 +64,8 @@ var was_resisted: bool = false
 
 ## Factory method to create an initial attack phase
 static func create_initial_attack(
-	p_attacker: Node2D,
-	p_defender: Node2D,
+	p_attacker: Unit,
+	p_defender: Unit,
 	p_damage: int,
 	p_was_critical: bool,
 	p_was_miss: bool,
@@ -86,8 +86,8 @@ static func create_initial_attack(
 
 ## Factory method to create a double attack phase
 static func create_double_attack(
-	p_attacker: Node2D,
-	p_defender: Node2D,
+	p_attacker: Unit,
+	p_defender: Unit,
 	p_damage: int,
 	p_was_critical: bool,
 	p_was_miss: bool,
@@ -109,8 +109,8 @@ static func create_double_attack(
 ## Factory method to create a counter attack phase
 ## Note: attacker/defender are SWAPPED from the original attack
 static func create_counter_attack(
-	p_counter_attacker: Node2D,
-	p_counter_target: Node2D,
+	p_counter_attacker: Unit,
+	p_counter_target: Unit,
 	p_damage: int,
 	p_was_critical: bool,
 	p_was_miss: bool,
@@ -132,8 +132,8 @@ static func create_counter_attack(
 ## Factory method to create a spell attack phase
 ## Spells cannot be countered or trigger double attacks
 static func create_spell_attack(
-	p_caster: Node2D,
-	p_target: Node2D,
+	p_caster: Unit,
+	p_target: Unit,
 	p_damage: int,
 	p_spell_name: String = ""
 ) -> CombatPhase:
@@ -153,8 +153,8 @@ static func create_spell_attack(
 ## Factory method to create an item heal phase
 ## Shows HP going UP on the target
 static func create_item_heal(
-	p_user: Node2D,
-	p_target: Node2D,
+	p_user: Unit,
+	p_target: Unit,
 	p_heal_amount: int,
 	p_item_name: String = ""
 ) -> CombatPhase:
@@ -175,8 +175,8 @@ static func create_item_heal(
 ## Factory method to create a spell heal phase
 ## Shows HP going UP on the target
 static func create_spell_heal(
-	p_caster: Node2D,
-	p_target: Node2D,
+	p_caster: Unit,
+	p_target: Unit,
 	p_heal_amount: int,
 	p_spell_name: String = ""
 ) -> CombatPhase:
@@ -197,8 +197,8 @@ static func create_spell_heal(
 ## Factory method to create a status spell phase
 ## Shows status effect being applied (or resisted)
 static func create_spell_status(
-	p_caster: Node2D,
-	p_target: Node2D,
+	p_caster: Unit,
+	p_target: Unit,
 	p_spell_name: String,
 	p_status_effect: String,
 	p_was_resisted: bool = false

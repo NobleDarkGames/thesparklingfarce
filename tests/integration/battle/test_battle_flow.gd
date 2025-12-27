@@ -28,8 +28,8 @@ var _expected_events: Array[String] = [
 ]
 
 # Units
-var _player_unit: Node2D
-var _enemy_unit: Node2D
+var _player_unit: Unit
+var _enemy_unit: Unit
 
 
 func _ready() -> void:
@@ -88,7 +88,7 @@ func _ready() -> void:
 	_record_event("battle_started")
 
 	# Start battle
-	var all_units: Array[Node2D] = [_player_unit, _enemy_unit]
+	var all_units: Array[Unit] = [_player_unit, _enemy_unit]
 	TurnManager.start_battle(all_units)
 
 
@@ -113,9 +113,9 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	return character
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
 	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Node2D = unit_scene.instantiate()
+	var unit: Unit = unit_scene.instantiate() as Unit
 	unit.initialize(character, p_faction, p_ai_behavior)
 	unit.grid_position = cell
 	unit.position = Vector2(cell.x * 32, cell.y * 32)
@@ -130,7 +130,7 @@ func _record_event(event_name: String) -> void:
 	print("[EVENT] %s" % event_name)
 
 
-func _on_player_turn_started(unit: Node2D) -> void:
+func _on_player_turn_started(unit: Unit) -> void:
 	_record_event("turn_started")
 	print("\n[PLAYER TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
@@ -163,18 +163,18 @@ func _on_player_turn_started(unit: Node2D) -> void:
 		TurnManager.end_unit_turn(unit)
 
 
-func _on_enemy_turn_started(unit: Node2D) -> void:
+func _on_enemy_turn_started(unit: Unit) -> void:
 	_record_event("turn_started")
 	print("\n[ENEMY TURN] %s at %s" % [unit.get_display_name(), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
 	# AIController will handle the turn
 
 
-func _on_unit_turn_ended(unit: Node2D) -> void:
+func _on_unit_turn_ended(unit: Unit) -> void:
 	print("  -> Turn ended for %s" % unit.get_display_name())
 
 
-func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
+func _on_combat_resolved(attacker: Unit, defender: Unit, damage: int, hit: bool, crit: bool) -> void:
 	_record_event("combat_occurred")
 	var hit_str: String = "HIT" if hit else "MISS"
 	var crit_str: String = " (CRIT!)" if crit else ""

@@ -27,7 +27,7 @@ static func get_instance() -> AIBrain:
 # =============================================================================
 
 ## Apply AI delay if conditions are met (unit in tree, delay > 0)
-func _apply_delay(unit: Node2D, delay: float) -> void:
+func _apply_delay(unit: Unit, delay: float) -> void:
 	if delay > 0 and unit.get_tree():
 		await unit.get_tree().create_timer(delay).timeout
 
@@ -39,7 +39,7 @@ func _get_delay(context: Dictionary, delay_key: String, default: float = 0.3) ->
 
 
 ## Execute AI behavior based on AIBehaviorData configuration
-func execute_with_behavior(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
+func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
 	if not behavior:
 		push_warning("ConfigurableAIBrain: No behavior data, using default aggressive")
 		await execute_async(unit, context)
@@ -93,18 +93,18 @@ func execute_with_behavior(unit: Node2D, context: Dictionary, behavior: AIBehavi
 
 
 ## Default execute_async - aggressive behavior (for fallback)
-func execute_async(unit: Node2D, context: Dictionary) -> void:
+func execute_async(unit: Unit, context: Dictionary) -> void:
 	await _execute_aggressive(unit, context, null)
 
 
 ## Aggressive behavior: move toward nearest enemy and attack
-func _execute_aggressive(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
-	var player_units: Array[Node2D] = get_player_units(context)
+func _execute_aggressive(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
+	var player_units: Array[Unit] = get_player_units(context)
 	if player_units.is_empty():
 		return
 
 	# Find target based on threat weights if behavior provided, else nearest
-	var target: Node2D
+	var target: Unit
 	if behavior:
 		target = _find_best_target(unit, player_units, behavior)
 	else:
@@ -134,13 +134,13 @@ func _execute_aggressive(unit: Node2D, context: Dictionary, behavior: AIBehavior
 ## Cautious behavior: hold position, attack enemies that enter engagement zone, limited pursuit
 ## - alert_range: how far enemy can be before AI notices and may approach
 ## - engagement_range: how close enemy must be for AI to commit to attack
-func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
-	var player_units: Array[Node2D] = get_player_units(context)
+func _execute_cautious(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
+	var player_units: Array[Unit] = get_player_units(context)
 	if player_units.is_empty():
 		return
 
 	# Check for targets in attack range first - attack immediately if found
-	for target: Node2D in player_units:
+	for target: Unit in player_units:
 		if not target.is_alive():
 			continue
 		if is_in_attack_range(unit, target):
@@ -149,7 +149,7 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 			return
 
 	# Find nearest enemy
-	var nearest: Node2D = find_nearest_target(unit, player_units)
+	var nearest: Unit = find_nearest_target(unit, player_units)
 	if not nearest:
 		return
 
@@ -181,8 +181,8 @@ func _execute_cautious(unit: Node2D, context: Dictionary, behavior: AIBehaviorDa
 
 ## Opportunistic behavior: prioritize wounded, retreat if low HP
 ## Integrates item usage and outnumbered detection
-func _execute_opportunistic(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
-	var player_units: Array[Node2D] = get_player_units(context)
+func _execute_opportunistic(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
+	var player_units: Array[Unit] = get_player_units(context)
 	if player_units.is_empty():
 		return
 
@@ -205,7 +205,7 @@ func _execute_opportunistic(unit: Node2D, context: Dictionary, behavior: AIBehav
 			return
 
 	# Find best target (wounded priority)
-	var target: Node2D = _find_best_target(unit, player_units, behavior)
+	var target: Unit = _find_best_target(unit, player_units, behavior)
 	if not target:
 		return
 
@@ -220,7 +220,7 @@ func _execute_opportunistic(unit: Node2D, context: Dictionary, behavior: AIBehav
 
 
 ## Retreat behavior: move away from enemies, optionally toward healers
-func _execute_retreat(unit: Node2D, enemies: Array[Node2D], context: Dictionary) -> void:
+func _execute_retreat(unit: Unit, enemies: Array[Unit], context: Dictionary) -> void:
 	var unit_class: ClassData = unit.get_current_class()
 	if not unit_class:
 		return
@@ -233,7 +233,7 @@ func _execute_retreat(unit: Node2D, enemies: Array[Node2D], context: Dictionary)
 		return
 
 	# Check if we should seek a healer
-	var healer_target: Node2D = null
+	var healer_target: Unit = null
 	if behavior and behavior.seek_healer_when_wounded:
 		healer_target = _find_nearest_allied_healer(unit, context)
 
@@ -249,7 +249,7 @@ func _execute_retreat(unit: Node2D, enemies: Array[Node2D], context: Dictionary)
 
 		# Distance from enemies (want to maximize)
 		var min_enemy_dist: int = 999
-		for enemy: Node2D in enemies:
+		for enemy: Unit in enemies:
 			if enemy.is_alive():
 				var dist: int = GridManager.grid.get_manhattan_distance(cell, enemy.grid_position)
 				min_enemy_dist = mini(min_enemy_dist, dist)
@@ -270,17 +270,17 @@ func _execute_retreat(unit: Node2D, enemies: Array[Node2D], context: Dictionary)
 
 
 ## Find best target based on threat weights and calculated unit threat
-func _find_best_target(unit: Node2D, targets: Array[Node2D], behavior: AIBehaviorData) -> Node2D:
+func _find_best_target(unit: Unit, targets: Array[Unit], behavior: AIBehaviorData) -> Unit:
 	if targets.is_empty():
 		return null
 
-	var best_target: Node2D = null
+	var best_target: Unit = null
 	var best_score: float = -999.0
 
 	var wounded_weight: float = behavior.get_threat_weight("wounded_target", 1.0) if behavior else 1.0
 	var proximity_weight: float = behavior.get_threat_weight("proximity", 1.0) if behavior else 1.0
 
-	for target: Node2D in targets:
+	for target: Unit in targets:
 		if not target.is_alive():
 			continue
 
@@ -311,7 +311,7 @@ func _find_best_target(unit: Node2D, targets: Array[Node2D], behavior: AIBehavio
 ## @param unit: Target unit to evaluate
 ## @param behavior: AI behavior providing threat weights
 ## @return: Calculated threat score (higher = more threatening)
-func _calculate_unit_threat(unit: Node2D, behavior: AIBehaviorData) -> float:
+func _calculate_unit_threat(unit: Unit, behavior: AIBehaviorData) -> float:
 	var threat: float = 0.0
 
 	if not unit or not unit.stats:
@@ -402,12 +402,12 @@ func _calculate_unit_threat(unit: Node2D, behavior: AIBehaviorData) -> float:
 
 ## Execute support role: heal wounded allies, fall back to attack if none need healing
 ## Returns true if a healing action was performed
-func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
+func _execute_support_role(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
 	# Get allied units (same faction)
-	var allies: Array[Node2D] = _get_allied_units(unit, context)
+	var allies: Array[Unit] = _get_allied_units(unit, context)
 
 	# Find wounded allies
-	var wounded_allies: Array[Node2D] = _find_wounded_allies(allies, behavior)
+	var wounded_allies: Array[Unit] = _find_wounded_allies(allies, behavior)
 
 	if wounded_allies.is_empty():
 		return false  # No one to heal
@@ -419,7 +419,7 @@ func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehavi
 		return false  # No healing abilities available
 
 	# Find best target to heal
-	var heal_target: Node2D = _find_best_heal_target(unit, wounded_allies, behavior)
+	var heal_target: Unit = _find_best_heal_target(unit, wounded_allies, behavior)
 
 	if not heal_target:
 		return false
@@ -455,8 +455,8 @@ func _execute_support_role(unit: Node2D, context: Dictionary, behavior: AIBehavi
 
 
 ## Get all units allied to this unit (same faction)
-func _get_allied_units(unit: Node2D, context: Dictionary) -> Array[Node2D]:
-	var allies: Array[Node2D] = []
+func _get_allied_units(unit: Unit, context: Dictionary) -> Array[Unit]:
+	var allies: Array[Unit] = []
 
 	match unit.faction:
 		"enemy":
@@ -470,13 +470,13 @@ func _get_allied_units(unit: Node2D, context: Dictionary) -> Array[Node2D]:
 
 
 ## Find wounded allies that could benefit from healing
-func _find_wounded_allies(allies: Array[Node2D], behavior: AIBehaviorData) -> Array[Node2D]:
-	var wounded: Array[Node2D] = []
+func _find_wounded_allies(allies: Array[Unit], behavior: AIBehaviorData) -> Array[Unit]:
+	var wounded: Array[Unit] = []
 
 	# Determine minimum damage threshold for healing (default: 20% missing HP)
 	var heal_threshold: float = 0.8  # Heal if below 80% HP
 
-	for ally: Node2D in allies:
+	for ally: Unit in allies:
 		if not ally.is_alive() or not ally.stats:
 			continue
 
@@ -488,15 +488,15 @@ func _find_wounded_allies(allies: Array[Node2D], behavior: AIBehaviorData) -> Ar
 
 
 ## Find best target to heal based on priority rules
-func _find_best_heal_target(unit: Node2D, wounded: Array[Node2D], behavior: AIBehaviorData) -> Node2D:
+func _find_best_heal_target(unit: Unit, wounded: Array[Unit], behavior: AIBehaviorData) -> Unit:
 	if wounded.is_empty():
 		return null
 
-	var best_target: Node2D = null
+	var best_target: Unit = null
 	var best_score: float = -999.0
 	var prioritize_boss: bool = behavior.prioritize_boss_heals if behavior else false
 
-	for ally: Node2D in wounded:
+	for ally: Unit in wounded:
 		var score: float = 0.0
 
 		# Most wounded gets highest priority
@@ -524,7 +524,7 @@ func _find_best_heal_target(unit: Node2D, wounded: Array[Node2D], behavior: AIBe
 
 
 ## Get list of healing abilities the unit can use
-func _get_unit_healing_abilities(unit: Node2D) -> Array[Dictionary]:
+func _get_unit_healing_abilities(unit: Unit) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 
 	if not unit.stats:
@@ -558,7 +558,7 @@ func _get_unit_healing_abilities(unit: Node2D) -> Array[Dictionary]:
 
 ## Select the best healing ability for this situation
 ## Integrates AoE optimization to skip AoE heals when not enough targets
-func _select_best_healing_ability(unit: Node2D, target: Node2D, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
+func _select_best_healing_ability(unit: Unit, target: Unit, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
 	if abilities.is_empty():
 		return {}
 
@@ -612,7 +612,7 @@ func _select_best_healing_ability(unit: Node2D, target: Node2D, abilities: Array
 
 
 ## Move unit into spell casting range of target
-func _move_into_spell_range(unit: Node2D, target_pos: Vector2i, spell_range: int) -> bool:
+func _move_into_spell_range(unit: Unit, target_pos: Vector2i, spell_range: int) -> bool:
 	if not unit:
 		return false
 
@@ -671,7 +671,7 @@ func _move_into_spell_range(unit: Node2D, target_pos: Vector2i, spell_range: int
 ## @param caster: The casting unit (to determine valid targets)
 ## @param ability: The ability being cast
 ## @return: Number of valid targets in AoE
-func _count_aoe_targets(center: Vector2i, radius: int, caster: Node2D, ability: AbilityData) -> int:
+func _count_aoe_targets(center: Vector2i, radius: int, caster: Unit, ability: AbilityData) -> int:
 	var count: int = 0
 
 	for dx: int in range(-radius, radius + 1):
@@ -684,15 +684,15 @@ func _count_aoe_targets(center: Vector2i, radius: int, caster: Node2D, ability: 
 			if not GridManager.is_within_bounds(cell):
 				continue
 
-			var unit: Node2D = GridManager.get_unit_at_cell(cell)
-			if unit and unit.is_alive() and _is_valid_aoe_target(caster, unit, ability):
+			var aoe_unit: Unit = GridManager.get_unit_at_cell(cell)
+			if aoe_unit and aoe_unit.is_alive() and _is_valid_aoe_target(caster, aoe_unit, ability):
 				count += 1
 
 	return count
 
 
 ## Check if unit is a valid target for this AoE ability
-func _is_valid_aoe_target(caster: Node2D, target: Node2D, ability: AbilityData) -> bool:
+func _is_valid_aoe_target(caster: Unit, target: Unit, ability: AbilityData) -> bool:
 	match ability.ability_type:
 		AbilityData.AbilityType.HEAL, AbilityData.AbilityType.SUPPORT:
 			return target.faction == caster.faction
@@ -707,22 +707,22 @@ func _is_valid_aoe_target(caster: Node2D, target: Node2D, ability: AbilityData) 
 ## @param ability: The AoE ability
 ## @param behavior: AI behavior settings
 ## @return: Dictionary with "target_cell" and "hit_count", or empty if not enough targets
-func _find_best_aoe_target(caster: Node2D, ability: AbilityData, behavior: AIBehaviorData) -> Dictionary:
+func _find_best_aoe_target(caster: Unit, ability: AbilityData, behavior: AIBehaviorData) -> Dictionary:
 	var min_targets: int = behavior.aoe_minimum_targets if behavior else 2
 	var aoe_radius: int = ability.area_of_effect
 	var spell_range: int = ability.max_range
 
-	var opponents: Array[Node2D]
+	var opponents: Array[Unit] = []
 	if caster.faction == "enemy":
-		opponents = BattleManager.player_units
+		opponents.assign(BattleManager.player_units)
 	else:
-		opponents = BattleManager.enemy_units
+		opponents.assign(BattleManager.enemy_units)
 
 	var best_cell: Vector2i = Vector2i(-1, -1)
 	var best_count: int = 0
 
 	# Check each potential target position
-	for opponent: Node2D in opponents:
+	for opponent: Unit in opponents:
 		if not opponent.is_alive():
 			continue
 
@@ -755,8 +755,8 @@ func _find_best_aoe_target(caster: Node2D, ability: AbilityData, behavior: AIBeh
 ## @param ability_type: The ability type to look for (HEAL or ATTACK)
 ## @param target: Target for the item (defaults to self for healing)
 ## @return: true if item was used, false otherwise
-func _try_use_item(unit: Node2D, context: Dictionary, behavior: AIBehaviorData,
-		ability_type: AbilityData.AbilityType, target: Node2D = null) -> bool:
+func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
+		ability_type: AbilityData.AbilityType, target: Unit = null) -> bool:
 	# Check behavior flags based on ability type
 	if not behavior:
 		return false
@@ -807,12 +807,12 @@ func _try_use_item(unit: Node2D, context: Dictionary, behavior: AIBehaviorData,
 
 
 ## Convenience wrapper for healing items (uses self as target)
-func _try_use_healing_item(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
+func _try_use_healing_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
 	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.HEAL)
 
 
 ## Convenience wrapper for attack items
-func _try_use_attack_item(unit: Node2D, target: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
+func _try_use_attack_item(unit: Unit, target: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
 	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.ATTACK, target)
 
 
@@ -821,13 +821,13 @@ func _try_use_attack_item(unit: Node2D, target: Node2D, context: Dictionary, beh
 # =============================================================================
 
 ## Find nearest ally with healing abilities
-func _find_nearest_allied_healer(unit: Node2D, context: Dictionary) -> Node2D:
-	var allies: Array[Node2D] = _get_allied_units(unit, context)
+func _find_nearest_allied_healer(unit: Unit, context: Dictionary) -> Unit:
+	var allies: Array[Unit] = _get_allied_units(unit, context)
 
-	var nearest_healer: Node2D = null
+	var nearest_healer: Unit = null
 	var nearest_dist: int = 999
 
-	for ally: Node2D in allies:
+	for ally: Unit in allies:
 		if ally == unit or not ally.is_alive():
 			continue
 
@@ -860,9 +860,9 @@ func _find_nearest_allied_healer(unit: Node2D, context: Dictionary) -> Node2D:
 ## @param context: Battle context
 ## @param radius: Tile radius to check (default 3)
 ## @return: true if enemies outnumber allies 2:1 or more
-func _is_outnumbered(unit: Node2D, context: Dictionary, radius: int = 3) -> bool:
-	var allies: Array[Node2D] = _get_allied_units(unit, context)
-	var opponents: Array[Node2D]
+func _is_outnumbered(unit: Unit, context: Dictionary, radius: int = 3) -> bool:
+	var allies: Array[Unit] = _get_allied_units(unit, context)
+	var opponents: Array[Unit]
 	if unit.faction == "enemy":
 		opponents = get_player_units(context)
 	else:
@@ -871,14 +871,14 @@ func _is_outnumbered(unit: Node2D, context: Dictionary, radius: int = 3) -> bool
 	var nearby_allies: int = 1  # Count self
 	var nearby_enemies: int = 0
 
-	for ally: Node2D in allies:
+	for ally: Unit in allies:
 		if ally == unit or not ally.is_alive():
 			continue
 		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, ally.grid_position)
 		if dist <= radius:
 			nearby_allies += 1
 
-	for enemy: Node2D in opponents:
+	for enemy: Unit in opponents:
 		if not enemy.is_alive():
 			continue
 		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, enemy.grid_position)
@@ -895,12 +895,12 @@ func _is_outnumbered(unit: Node2D, context: Dictionary, radius: int = 3) -> bool
 
 ## Execute tactical role: apply debuffs/status effects to high-threat targets
 ## @return: true if a debuff was applied, false otherwise
-func _execute_tactical_role(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> bool:
+func _execute_tactical_role(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
 	if not behavior.use_status_effects:
 		return false
 
 	# Get opponent units
-	var opponents: Array[Node2D]
+	var opponents: Array[Unit]
 	if unit.faction == "enemy":
 		opponents = get_player_units(context)
 	else:
@@ -915,10 +915,10 @@ func _execute_tactical_role(unit: Node2D, context: Dictionary, behavior: AIBehav
 		return false
 
 	# Find best target (highest threat that doesn't already have debuffs)
-	var best_target: Node2D = null
+	var best_target: Unit = null
 	var best_threat: float = -999.0
 
-	for target: Node2D in opponents:
+	for target: Unit in opponents:
 		if not target.is_alive():
 			continue
 
@@ -967,7 +967,7 @@ func _execute_tactical_role(unit: Node2D, context: Dictionary, behavior: AIBehav
 
 
 ## Get list of debuff abilities the unit can use
-func _get_unit_debuff_abilities(unit: Node2D, behavior: AIBehaviorData) -> Array[Dictionary]:
+func _get_unit_debuff_abilities(unit: Unit, behavior: AIBehaviorData) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 
 	if not unit.stats:
@@ -1013,7 +1013,7 @@ func _get_unit_debuff_abilities(unit: Node2D, behavior: AIBehaviorData) -> Array
 
 
 ## Select the best debuff ability for the situation
-func _select_best_debuff_ability(unit: Node2D, target: Node2D, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
+func _select_best_debuff_ability(unit: Unit, target: Unit, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
 	if abilities.is_empty():
 		return {}
 
@@ -1050,17 +1050,17 @@ func _select_best_debuff_ability(unit: Node2D, target: Node2D, abilities: Array[
 # =============================================================================
 
 ## Execute defensive role: position between VIP and threats
-func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBehaviorData) -> void:
+func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
 	# Get allies and opponents
-	var allies: Array[Node2D] = _get_allied_units(unit, context)
-	var opponents: Array[Node2D]
+	var allies: Array[Unit] = _get_allied_units(unit, context)
+	var opponents: Array[Unit]
 	if unit.faction == "enemy":
 		opponents = get_player_units(context)
 	else:
 		opponents = get_enemy_units(context)
 
 	# Find VIP to protect (highest ai_threat_modifier or boss tag)
-	var vip: Node2D = _find_vip_to_protect(unit, allies)
+	var vip: Unit = _find_vip_to_protect(unit, allies)
 
 	if not vip or opponents.is_empty():
 		# No VIP or no threats - fall back to cautious behavior
@@ -1068,13 +1068,13 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 		return
 
 	# Find nearest threat to VIP
-	var nearest_threat: Node2D = find_nearest_target(vip, opponents)
+	var nearest_threat: Unit = find_nearest_target(vip, opponents)
 	if not nearest_threat:
 		await _execute_cautious(unit, context, behavior)
 		return
 
 	# Check if we should attack first (enemy adjacent to us)
-	for opponent: Node2D in opponents:
+	for opponent: Unit in opponents:
 		if not opponent.is_alive():
 			continue
 		if is_in_attack_range(unit, opponent):
@@ -1090,7 +1090,7 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 
 	if best_target == unit.grid_position:
 		# Already in best position - check for attack opportunity
-		for opponent: Node2D in opponents:
+		for opponent: Unit in opponents:
 			if not opponent.is_alive():
 				continue
 			if is_in_attack_range(unit, opponent):
@@ -1106,7 +1106,7 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
 
 	# Attack if now in range of any opponent
-	for opponent: Node2D in opponents:
+	for opponent: Unit in opponents:
 		if not opponent.is_alive():
 			continue
 		if is_in_attack_range(unit, opponent):
@@ -1116,15 +1116,15 @@ func _execute_defensive_role(unit: Node2D, context: Dictionary, behavior: AIBeha
 
 
 ## Find the VIP (most valuable ally to protect)
-func _find_vip_to_protect(protector: Node2D, allies: Array[Node2D]) -> Node2D:
-	var best_vip: Node2D = null
+func _find_vip_to_protect(protector: Unit, allies: Array[Unit]) -> Unit:
+	var best_vip: Unit = null
 	var best_priority: float = -999.0
 
-	for ally: Node2D in allies:
+	for ally: Unit in allies:
 		if ally == protector or not ally.is_alive():
 			continue
 
-		if not "character_data" in ally or ally.character_data == null:
+		if not ally.character_data:
 			continue
 
 		var priority: float = 0.0
@@ -1159,7 +1159,7 @@ func _find_vip_to_protect(protector: Node2D, allies: Array[Node2D]) -> Node2D:
 
 
 ## Calculate position to intercept threats to VIP
-func _calculate_intercept_position(protector: Node2D, vip: Node2D, threat: Node2D) -> Vector2i:
+func _calculate_intercept_position(protector: Unit, vip: Unit, threat: Unit) -> Vector2i:
 	# Calculate midpoint between VIP and threat
 	var vip_pos: Vector2i = vip.grid_position
 	var threat_pos: Vector2i = threat.grid_position
@@ -1193,7 +1193,7 @@ func _calculate_intercept_position(protector: Node2D, vip: Node2D, threat: Node2
 
 
 ## Find best defensive position balancing protection and attack opportunity
-func _find_best_defensive_position(unit: Node2D, intercept_pos: Vector2i, opponents: Array[Node2D]) -> Vector2i:
+func _find_best_defensive_position(unit: Unit, intercept_pos: Vector2i, opponents: Array[Unit]) -> Vector2i:
 	var unit_class: ClassData = unit.get_current_class()
 	if not unit_class:
 		return intercept_pos
@@ -1224,7 +1224,7 @@ func _find_best_defensive_position(unit: Node2D, intercept_pos: Vector2i, oppone
 		score -= dist_to_intercept * 2.0  # Penalty for distance from intercept
 
 		# Bonus: can attack an opponent from this cell
-		for opponent: Node2D in opponents:
+		for opponent: Unit in opponents:
 			if not opponent.is_alive():
 				continue
 			var dist_to_enemy: int = GridManager.grid.get_manhattan_distance(cell, opponent.grid_position)

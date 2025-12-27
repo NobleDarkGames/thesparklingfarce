@@ -82,7 +82,7 @@ func _load_config_from_registry() -> void:
 
 	# Try to load from mod registry
 	if ModLoader and ModLoader.registry:
-		var loaded_config: Resource = ModLoader.registry.get_resource("experience_config", "default")
+		var loaded_config: ExperienceConfig = ModLoader.registry.get_resource("experience_config", "default") as ExperienceConfig
 		if loaded_config is ExperienceConfig:
 			config = loaded_config
 			return
@@ -118,7 +118,7 @@ func set_config(new_config: ExperienceConfig) -> void:
 ## @param defender: Unit that was attacked
 ## @param damage_dealt: Amount of damage dealt
 ## @param got_kill: Whether this attack killed the defender
-func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_kill: bool) -> void:
+func award_combat_xp(attacker: Unit, defender: Unit, damage_dealt: int, got_kill: bool) -> void:
 	if attacker == null or defender == null:
 		push_warning("ExperienceManager: Cannot award combat XP with null units")
 		return
@@ -166,7 +166,7 @@ func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_
 	# Each ally receives a percentage of base XP individually (not divided from a pool)
 	# Allies who are behind the party average level receive bonus XP (catch-up mechanic)
 	if config.enable_formation_xp and damage_dealt > 0:
-		var nearby_allies: Array[Node2D] = _get_units_in_formation_radius(attacker)
+		var nearby_allies: Array[Unit] = _get_units_in_formation_radius(attacker)
 
 		if nearby_allies.size() > 0:
 			# Base formation XP per ally (before catch-up adjustment)
@@ -178,7 +178,7 @@ func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_
 			# Get party average level for catch-up calculation
 			var avg_level: float = _get_party_average_level()
 
-			for ally in nearby_allies:
+			for ally: Unit in nearby_allies:
 				var ally_xp: int = per_ally_base
 
 				# Apply catch-up multiplier: underleveled allies earn more, overleveled earn less
@@ -201,8 +201,8 @@ func award_combat_xp(attacker: Node2D, defender: Node2D, damage_dealt: int, got_
 ##
 ## @param center_unit: Unit to check from
 ## @return: Array of Units within formation range
-func _get_units_in_formation_radius(center_unit: Node2D) -> Array[Node2D]:
-	var nearby_allies: Array[Node2D] = []
+func _get_units_in_formation_radius(center_unit: Unit) -> Array[Unit]:
+	var nearby_allies: Array[Unit] = []
 
 	if not is_instance_valid(center_unit):
 		return nearby_allies
@@ -210,7 +210,7 @@ func _get_units_in_formation_radius(center_unit: Node2D) -> Array[Node2D]:
 	var center_pos: Vector2i = center_unit.grid_position
 	var all_units: Array = TurnManager.all_units
 
-	for unit: Node2D in all_units:
+	for unit: Unit in all_units:
 		# Skip self
 		if unit == center_unit:
 			continue
@@ -243,7 +243,7 @@ func _get_units_in_formation_radius(center_unit: Node2D) -> Array[Node2D]:
 ## @param action_type: Type of action ("heal", "buff", "debuff")
 ## @param target: Unit being targeted (for heal ratio calculation)
 ## @param amount: Amount healed (for healing XP) or 0 for buffs/debuffs
-func award_support_xp(supporter: Node2D, action_type: String, target: Node2D, amount: int) -> void:
+func award_support_xp(supporter: Unit, action_type: String, target: Unit, amount: int) -> void:
 	if not config.enable_enhanced_support_xp:
 		return
 
@@ -273,7 +273,8 @@ func award_support_xp(supporter: Node2D, action_type: String, target: Node2D, am
 
 	# Apply anti-spam scaling
 	if config.anti_spam_enabled:
-		var usage_count: int = supporter.stats.support_actions_this_battle.get(action_type, 0)
+		var usage_count_value: Variant = supporter.stats.support_actions_this_battle.get(action_type, 0)
+		var usage_count: int = usage_count_value if usage_count_value is int else 0
 		var multiplier: float = config.get_anti_spam_multiplier(usage_count)
 		base_xp = int(base_xp * multiplier)
 
@@ -311,7 +312,7 @@ func award_support_xp(supporter: Node2D, action_type: String, target: Node2D, am
 ## @param unit: Unit to receive XP
 ## @param amount: Amount of XP to award
 ## @param source: Source of XP (for signal)
-func _give_xp_to_unit(unit: Node2D, amount: int, source: String) -> void:
+func _give_xp_to_unit(unit: Unit, amount: int, source: String) -> void:
 	if unit == null or unit.stats == null:
 		return
 
@@ -335,7 +336,7 @@ func _give_xp_to_unit(unit: Node2D, amount: int, source: String) -> void:
 ## Called by UnitStats when XP threshold is reached.
 ##
 ## @param unit: Unit to level up
-func _trigger_level_up(unit: Node2D) -> void:
+func _trigger_level_up(unit: Unit) -> void:
 	if unit == null or unit.stats == null:
 		return
 
@@ -353,7 +354,7 @@ func _trigger_level_up(unit: Node2D) -> void:
 ##
 ## @param unit: Unit to level up
 ## @return: Dictionary of stat increases {stat_name: increase}
-func apply_level_up(unit: Node2D) -> Dictionary:
+func apply_level_up(unit: Unit) -> Dictionary:
 	if unit == null or unit.stats == null or unit.character_data == null:
 		push_error("ExperienceManager: Invalid unit for level-up")
 		return {}
@@ -432,7 +433,7 @@ func _calculate_stat_increase(growth_rate: int) -> int:
 ## @param new_level: New level reached
 ## @param class_data: ClassData with learnable abilities
 ## @return: Array of learned AbilityData
-func _check_learned_abilities(unit: Node2D, old_level: int, new_level: int, class_data: ClassData) -> Array[Resource]:
+func _check_learned_abilities(unit: Unit, old_level: int, new_level: int, class_data: ClassData) -> Array[Resource]:
 	var learned: Array[Resource] = []
 
 	# ==========================================================================
@@ -483,7 +484,7 @@ func _get_party_average_level() -> float:
 	var count: int = 0
 
 	var all_units: Array = TurnManager.all_units
-	for unit: Node2D in all_units:
+	for unit: Unit in all_units:
 		if unit.faction == "player" and unit.stats != null and unit.stats.is_alive():
 			total_level += unit.stats.level
 			count += 1

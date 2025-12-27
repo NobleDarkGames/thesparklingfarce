@@ -579,10 +579,13 @@ class FormBuilder extends RefCounted:
 		if not tooltip.is_empty():
 			dropdown.tooltip_text = tooltip
 
-		for i in range(options.size()):
+		for i: int in range(options.size()):
 			var opt: Variant = options[i]
 			if opt is Dictionary:
-				dropdown.add_item(opt.get("label", ""), opt.get("id", i))
+				var opt_dict: Dictionary = opt
+				var opt_label: String = DictUtils.get_string(opt_dict, "label", "")
+				var opt_id: int = DictUtils.get_int(opt_dict, "id", i)
+				dropdown.add_item(opt_label, opt_id)
 			else:
 				dropdown.add_item(str(opt), i)
 

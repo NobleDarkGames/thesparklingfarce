@@ -128,7 +128,7 @@ enum NPCRole {
 func get_cinematic_id_for_state() -> String:
 	# Check conditional cinematics in priority order
 	for condition: Dictionary in conditional_cinematics:
-		var cinematic_id: String = condition.get("cinematic_id", "")
+		var cinematic_id: String = DictUtils.get_string(condition, "cinematic_id", "")
 		if cinematic_id.is_empty():
 			continue
 
@@ -155,34 +155,36 @@ func get_cinematic_id_for_state() -> String:
 ## Supports legacy "flag" key, "flags" array (AND), and "any_flags" array (OR)
 ## Returns true if the condition is met (after applying negate if present)
 func _evaluate_condition(condition: Dictionary) -> bool:
-	var negate: bool = condition.get("negate", false)
+	var negate: bool = DictUtils.get_bool(condition, "negate", false)
 
 	# Track whether we have any conditions to check
 	var has_any_condition: bool = false
 	var all_conditions_pass: bool = true
 
 	# Legacy single flag support (backward compatibility)
-	var single_flag: String = condition.get("flag", "")
+	var single_flag: String = DictUtils.get_string(condition, "flag", "")
 	if not single_flag.is_empty():
 		has_any_condition = true
 		if not GameState.has_flag(single_flag):
 			all_conditions_pass = false
 
 	# AND logic: all flags in "flags" array must be true
-	var and_flags: Array = condition.get("flags", [])
+	var and_flags: Array = DictUtils.get_array(condition, "flags", [])
 	if not and_flags.is_empty():
 		has_any_condition = true
-		for flag_name: String in and_flags:
+		for flag_variant: Variant in and_flags:
+			var flag_name: String = str(flag_variant) if flag_variant is String else ""
 			if not flag_name.is_empty() and not GameState.has_flag(flag_name):
 				all_conditions_pass = false
 				break
 
 	# OR logic: at least one flag in "any_flags" array must be true
-	var or_flags: Array = condition.get("any_flags", [])
+	var or_flags: Array = DictUtils.get_array(condition, "any_flags", [])
 	if not or_flags.is_empty():
 		has_any_condition = true
 		var any_or_flag_set: bool = false
-		for flag_name: String in or_flags:
+		for flag_variant: Variant in or_flags:
+			var flag_name: String = str(flag_variant) if flag_variant is String else ""
 			if not flag_name.is_empty() and GameState.has_flag(flag_name):
 				any_or_flag_set = true
 				break

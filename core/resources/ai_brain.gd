@@ -16,13 +16,13 @@ extends Resource
 ## Subclasses MUST override this method
 ## @param unit: The unit taking its turn
 ## @param context: Dictionary with battle state (player_units, enemy_units, etc.)
-func execute(unit: Node2D, context: Dictionary) -> void:
+func execute(unit: Unit, context: Dictionary) -> void:
 	push_error("AIBrain.execute() must be overridden by subclass: %s" % get_class())
 
 
 ## Async version of execute - waits for movement animations to complete
 ## Override this in subclasses for async behavior, or keep execute() for backwards compatibility
-func execute_async(unit: Node2D, context: Dictionary) -> void:
+func execute_async(unit: Unit, context: Dictionary) -> void:
 	# Default implementation calls the synchronous execute() and waits
 	execute(unit, context)
 
@@ -31,32 +31,38 @@ func execute_async(unit: Node2D, context: Dictionary) -> void:
 
 
 ## Helper: Get all player units from context
-func get_player_units(context: Dictionary) -> Array[Node2D]:
+func get_player_units(context: Dictionary) -> Array[Unit]:
 	if "player_units" in context:
-		return context.player_units
+		var units_variant: Variant = context.get("player_units")
+		if units_variant is Array[Unit]:
+			return units_variant
 	return []
 
 
 ## Helper: Get all enemy units from context
-func get_enemy_units(context: Dictionary) -> Array[Node2D]:
+func get_enemy_units(context: Dictionary) -> Array[Unit]:
 	if "enemy_units" in context:
-		return context.enemy_units
+		var units_variant: Variant = context.get("enemy_units")
+		if units_variant is Array[Unit]:
+			return units_variant
 	return []
 
 
 ## Helper: Get all neutral units from context
-func get_neutral_units(context: Dictionary) -> Array[Node2D]:
+func get_neutral_units(context: Dictionary) -> Array[Unit]:
 	if "neutral_units" in context:
-		return context.neutral_units
+		var units_variant: Variant = context.get("neutral_units")
+		if units_variant is Array[Unit]:
+			return units_variant
 	return []
 
 
 ## Helper: Find nearest target unit to this unit
-func find_nearest_target(unit: Node2D, targets: Array[Node2D]) -> Node2D:
-	var nearest: Node2D = null
+func find_nearest_target(unit: Unit, targets: Array[Unit]) -> Unit:
+	var nearest: Unit = null
 	var nearest_distance: int = 9999
 
-	for target: Node2D in targets:
+	for target: Unit in targets:
 		if not target.is_alive():
 			continue
 
@@ -74,7 +80,7 @@ func find_nearest_target(unit: Node2D, targets: Array[Node2D]) -> Node2D:
 
 ## Helper: Check if target is in attack range
 ## Uses unit's equipped weapon range (min/max) to support ranged weapons and dead zones
-func is_in_attack_range(unit: Node2D, target: Node2D) -> bool:
+func is_in_attack_range(unit: Unit, target: Unit) -> bool:
 	if not unit or not target:
 		return false
 
@@ -93,7 +99,7 @@ func is_in_attack_range(unit: Node2D, target: Node2D) -> bool:
 
 ## Helper: Move unit toward target position
 ## Returns true if movement succeeded
-func move_toward_target(unit: Node2D, target_position: Vector2i) -> bool:
+func move_toward_target(unit: Unit, target_position: Vector2i) -> bool:
 	if not unit:
 		return false
 
@@ -144,7 +150,7 @@ func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: i
 	var best_cell: Vector2i = Vector2i(-1, -1)
 	var best_distance: int = 9999
 
-	for cell in adjacent_cells:
+	for cell: Vector2i in adjacent_cells:
 		# Skip occupied cells
 		if GridManager.is_cell_occupied(cell):
 			continue
@@ -165,7 +171,7 @@ func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: i
 
 ## Helper: Attack target unit
 ## Signals BattleManager to execute the attack
-func attack_target(unit: Node2D, target: Node2D) -> void:
+func attack_target(unit: Unit, target: Unit) -> void:
 	if not unit or not target:
 		push_error("AIBrain: Cannot attack with null unit or target")
 		return

@@ -44,8 +44,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		if item_entry is String:
 			item_id = item_entry
 		elif item_entry is Dictionary:
-			item_id = item_entry.get("item_id", "")
-			quantity = item_entry.get("quantity", 1)
+			var item_dict: Dictionary = item_entry
+			item_id = item_dict.get("item_id", "")
+			quantity = item_dict.get("quantity", 1)
 
 		if item_id.is_empty():
 			continue
@@ -106,7 +107,7 @@ func _grant_single_item(item_id: String, recipient_uid: String) -> Dictionary:
 ## Get display name for an item
 func _get_item_display_name(item_id: String) -> String:
 	if ModLoader and ModLoader.registry:
-		var item: Resource = ModLoader.registry.get_resource("item", item_id)
+		var item: ItemData = ModLoader.registry.get_resource("item", item_id) as ItemData
 		if item and "item_name" in item:
 			return item.item_name
 	return item_id

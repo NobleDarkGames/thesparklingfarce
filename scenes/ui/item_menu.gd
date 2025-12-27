@@ -120,7 +120,7 @@ func _create_item_labels(slot_count: int) -> void:
 		_container.remove_child(_description_label)
 
 	# Create new labels
-	for i in range(slot_count):
+	for i: int in range(slot_count):
 		var label: Label = Label.new()
 		label.name = "ItemSlot%d" % i
 		label.text = "(Empty)"
@@ -147,7 +147,7 @@ func _process(_delta: float) -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var new_hover: int = -1
 
-	for i in range(_item_labels.size()):
+	for i: int in range(_item_labels.size()):
 		var label: Label = _item_labels[i]
 		var label_rect: Rect2 = label.get_global_rect()
 		if label_rect.has_point(mouse_pos):
@@ -168,7 +168,7 @@ func _process(_delta: float) -> void:
 ## Show menu with unit's inventory
 ## @param unit: The Unit whose inventory to display
 ## @param session_id: Turn session ID from InputManager
-func show_menu(unit: Node2D, session_id: int) -> void:
+func show_menu(unit: Unit, session_id: int) -> void:
 	_menu_session_id = session_id
 	_hover_index = -1
 
@@ -212,7 +212,7 @@ func show_menu(unit: Node2D, session_id: int) -> void:
 
 
 ## Load inventory from unit's save data
-func _load_inventory_from_unit(unit: Node2D) -> void:
+func _load_inventory_from_unit(unit: Unit) -> void:
 	_inventory_items.clear()
 	_item_data_cache.clear()
 
@@ -236,7 +236,7 @@ func _load_inventory_from_unit(unit: Node2D) -> void:
 		_inventory_items.append("")
 
 	# Load ItemData for each slot
-	for item_id in _inventory_items:
+	for item_id: String in _inventory_items:
 		if item_id.is_empty():
 			_item_data_cache.append(null)
 		else:
@@ -246,7 +246,7 @@ func _load_inventory_from_unit(unit: Node2D) -> void:
 
 ## Populate item labels with inventory contents
 func _populate_item_labels() -> void:
-	for i in range(_item_labels.size()):
+	for i: int in range(_item_labels.size()):
 		var label: Label = _item_labels[i]
 
 		if i < _item_data_cache.size() and _item_data_cache[i]:
@@ -271,14 +271,14 @@ func _is_item_usable(index: int) -> bool:
 
 ## Check if any usable items exist
 func _has_any_usable_items() -> bool:
-	for i in range(_item_data_cache.size()):
+	for i: int in range(_item_data_cache.size()):
 		if _is_item_usable(i):
 			return true
 	return false
 
 
 ## Smart default selection based on unit state
-func _select_smart_default(unit: Node2D) -> void:
+func _select_smart_default(unit: Unit) -> void:
 	# Check if unit is injured (HP < max HP)
 	var is_injured: bool = false
 	if unit and unit.stats:
@@ -286,7 +286,7 @@ func _select_smart_default(unit: Node2D) -> void:
 
 	# If injured, try to select first healing item
 	if is_injured:
-		for i in range(_item_data_cache.size()):
+		for i: int in range(_item_data_cache.size()):
 			var item: ItemData = _item_data_cache[i]
 			if item and _is_item_usable(i):
 				# Check if it's a healing item (has heal effect)
@@ -297,7 +297,7 @@ func _select_smart_default(unit: Node2D) -> void:
 						return
 
 	# Otherwise select first usable item
-	for i in range(_item_data_cache.size()):
+	for i: int in range(_item_data_cache.size()):
 		if _is_item_usable(i):
 			selected_index = i
 			return
@@ -308,7 +308,7 @@ func _select_smart_default(unit: Node2D) -> void:
 
 ## Update visual highlighting
 func _update_selection_visual() -> void:
-	for i in range(_item_labels.size()):
+	for i: int in range(_item_labels.size()):
 		var label: Label = _item_labels[i]
 		var is_usable: bool = _is_item_usable(i)
 		var is_empty: bool = i >= _item_data_cache.size() or _item_data_cache[i] == null
@@ -428,7 +428,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i in range(_item_labels.size()):
+			for i: int in range(_item_labels.size()):
 				var label: Label = _item_labels[i]
 				var label_rect: Rect2 = label.get_global_rect()
 				if label_rect.has_point(mouse_pos):
@@ -465,7 +465,7 @@ func _move_selection(direction: int) -> void:
 	var start_index: int = selected_index
 
 	# Loop through items to find next selectable one
-	for _i in range(_item_labels.size()):
+	for _i: int in range(_item_labels.size()):
 		selected_index = wrapi(selected_index + direction, 0, _item_labels.size())
 
 		# Allow selecting any slot (for visual feedback), but only usable items can be confirmed

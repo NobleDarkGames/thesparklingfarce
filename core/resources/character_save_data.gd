@@ -459,8 +459,8 @@ func get_item_count(item_id: String) -> int:
 func get_current_class(character_data: CharacterData = null) -> ClassData:
 	# If we have a saved current class, use it
 	if not current_class_resource_id.is_empty():
-		var class_resource: Resource = ModLoader.registry.get_resource("class", current_class_resource_id)
-		if class_resource and class_resource is ClassData:
+		var class_resource: ClassData = ModLoader.registry.get_resource("class", current_class_resource_id) as ClassData
+		if class_resource:
 			return class_resource as ClassData
 		else:
 			push_warning("CharacterSaveData: Could not load saved class '%s', falling back to template" % current_class_resource_id)

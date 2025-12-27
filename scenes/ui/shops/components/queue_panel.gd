@@ -39,7 +39,7 @@ func refresh(queue: RefCounted, current_gold: int) -> void:
 ## Update the items list
 func _update_items_display(queue: RefCounted) -> void:
 	# Clear existing
-	for child in queue_items.get_children():
+	for child: Node in queue_items.get_children():
 		child.queue_free()
 
 	# Add each queued item

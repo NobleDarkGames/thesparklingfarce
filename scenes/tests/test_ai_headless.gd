@@ -44,8 +44,8 @@ func _ready() -> void:
 		aggressive_ai.behavior_mode = "aggressive"
 
 	# Spawn units
-	var player_unit: Node2D = _spawn_unit(player_character, Vector2i(2, 5), "player", null)
-	var enemy_unit: Node2D = _spawn_unit(enemy_character, Vector2i(7, 5), "enemy", aggressive_ai)
+	var player_unit: Unit = _spawn_unit(player_character, Vector2i(2, 5), "player", null)
+	var enemy_unit: Unit = _spawn_unit(enemy_character, Vector2i(7, 5), "enemy", aggressive_ai)
 
 	# Setup BattleManager
 	BattleManager.setup(self, self)
@@ -61,7 +61,7 @@ func _ready() -> void:
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
 	# Start battle
-	var all_units: Array[Node2D] = [player_unit, enemy_unit]
+	var all_units: Array[Unit] = [player_unit, enemy_unit]
 	TurnManager.start_battle(all_units)
 
 
@@ -86,9 +86,9 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	return character
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Node2D:
+func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
 	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Node2D = unit_scene.instantiate()
+	var unit: Unit = unit_scene.instantiate()
 	unit.initialize(character, p_faction, p_ai_behavior)
 	unit.grid_position = cell
 	unit.position = Vector2(cell.x * 32, cell.y * 32)
@@ -98,7 +98,7 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 	return unit
 
 
-func _on_player_turn_started(unit: Node2D) -> void:
+func _on_player_turn_started(unit: Unit) -> void:
 	print("\n[PLAYER TURN] %s at %s" % [UnitUtils.get_display_name(unit), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
 
@@ -108,17 +108,17 @@ func _on_player_turn_started(unit: Node2D) -> void:
 	TurnManager.end_unit_turn(unit)
 
 
-func _on_enemy_turn_started(unit: Node2D) -> void:
+func _on_enemy_turn_started(unit: Unit) -> void:
 	print("\n[ENEMY TURN] %s at %s" % [UnitUtils.get_display_name(unit), unit.grid_position])
 	print("  Stats: %s" % unit.get_stats_summary())
 	# AIController will handle the turn
 
 
-func _on_unit_turn_ended(unit: Node2D) -> void:
+func _on_unit_turn_ended(unit: Unit) -> void:
 	print("  -> Turn ended for %s" % UnitUtils.get_display_name(unit))
 
 
-func _on_combat_resolved(attacker: Node2D, defender: Node2D, damage: int, hit: bool, crit: bool) -> void:
+func _on_combat_resolved(attacker: Unit, defender: Unit, damage: int, hit: bool, crit: bool) -> void:
 	var hit_str: String = "HIT" if hit else "MISS"
 	var crit_str: String = " (CRIT!)" if crit else ""
 	print("  [COMBAT] %s attacks %s: %s for %d damage%s" % [

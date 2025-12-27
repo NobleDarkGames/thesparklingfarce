@@ -162,14 +162,14 @@ func get_transition_target(outcome: Dictionary, game_state_checker: Callable) ->
 		# Sort branches by priority (higher first)
 		var sorted_branches: Array[Dictionary] = branches.duplicate()
 		sorted_branches.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-			var a_priority: int = a.get("priority", 0)
-			var b_priority: int = b.get("priority", 0)
+			var a_priority: int = DictUtils.get_int(a, "priority", 0)
+			var b_priority: int = DictUtils.get_int(b, "priority", 0)
 			return a_priority > b_priority
 		)
 
 		for branch: Dictionary in sorted_branches:
 			if _branch_matches(branch, outcome, game_state_checker):
-				return branch.get("target", "")
+				return DictUtils.get_string(branch, "target", "")
 
 	# Fallback to on_complete
 	return on_complete
@@ -177,15 +177,16 @@ func get_transition_target(outcome: Dictionary, game_state_checker: Callable) ->
 
 ## Check if a branch matches the given outcome and game state
 func _branch_matches(branch: Dictionary, outcome: Dictionary, game_state_checker: Callable) -> bool:
-	var trigger: String = branch.get("trigger", "always")
+	var trigger: String = DictUtils.get_string(branch, "trigger", "always")
 
 	match trigger:
 		"choice":
-			var choice_value: String = branch.get("choice_value", "")
-			if outcome.get("choice", "") != choice_value:
+			var choice_value: String = DictUtils.get_string(branch, "choice_value", "")
+			var outcome_choice: String = DictUtils.get_string(outcome, "choice", "")
+			if outcome_choice != choice_value:
 				return false
 		"flag":
-			var required_flag: String = branch.get("required_flag", "")
+			var required_flag: String = DictUtils.get_string(branch, "required_flag", "")
 			if not required_flag.is_empty() and not game_state_checker.call(required_flag):
 				return false
 		"always":
@@ -195,15 +196,17 @@ func _branch_matches(branch: Dictionary, outcome: Dictionary, game_state_checker
 			return false
 
 	# Check additional required flags
-	var required_flags_list: Array = branch.get("required_flags", [])
-	for flag: String in required_flags_list:
-		if not game_state_checker.call(flag):
+	var required_flags_list: Array = DictUtils.get_array(branch, "required_flags", [])
+	for flag_variant: Variant in required_flags_list:
+		var flag: String = flag_variant if flag_variant is String else ""
+		if not flag.is_empty() and not game_state_checker.call(flag):
 			return false
 
 	# Check forbidden flags
-	var forbidden_flags_list: Array = branch.get("forbidden_flags", [])
-	for flag: String in forbidden_flags_list:
-		if game_state_checker.call(flag):
+	var forbidden_flags_list: Array = DictUtils.get_array(branch, "forbidden_flags", [])
+	for flag_variant: Variant in forbidden_flags_list:
+		var flag: String = flag_variant if flag_variant is String else ""
+		if not flag.is_empty() and game_state_checker.call(flag):
 			return false
 
 	return true

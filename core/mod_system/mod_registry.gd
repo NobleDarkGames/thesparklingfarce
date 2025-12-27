@@ -12,7 +12,7 @@ var _resources_by_type: Dictionary = {}
 
 # Dictionary structure: { "resource_id": "mod_id" }
 # Tracks which mod provided each resource
-var _resource_sources: Dictionary = {}
+var _resource_sources: Dictionary[String, String] = {}
 
 # Dictionary structure: { "mod_id": Array[String] of resource_ids }
 # Tracks all resources provided by each mod
@@ -20,11 +20,11 @@ var _mod_resources: Dictionary = {}
 
 # Scene registration (separate from resources - scenes are paths, not Resource objects)
 # Dictionary structure: { "scene_id": "scene_path" }
-var _scenes: Dictionary = {}
+var _scenes: Dictionary[String, String] = {}
 
 # Dictionary structure: { "scene_id": "mod_id" }
 # Tracks which mod provided each scene
-var _scene_sources: Dictionary = {}
+var _scene_sources: Dictionary[String, String] = {}
 
 # Override chains - tracks the history of resource overrides for debugging
 # Dictionary structure: { "resource_type:resource_id": Array[{mod_id, priority}] }
@@ -44,7 +44,8 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 
 	# Check for conflicts and track override chain
 	var composite_id: String = "%s:%s" % [resource_type, resource_id]
-	if resource_id in _resources_by_type[resource_type]:
+	var type_resources: Dictionary = _resources_by_type[resource_type]
+	if resource_id in type_resources:
 		var existing_mod_id: String = _resource_sources.get(resource_id, "")
 		if not existing_mod_id.is_empty() and existing_mod_id != mod_id:
 			var existing_priority: int = _get_mod_priority(existing_mod_id)
@@ -53,7 +54,8 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 			# Track the override chain
 			if composite_id not in _override_chains:
 				_override_chains[composite_id] = []
-			_override_chains[composite_id].append({
+			var override_chain: Array = _override_chains[composite_id]
+			override_chain.append({
 				"mod_id": existing_mod_id,
 				"priority": existing_priority
 			})
@@ -71,8 +73,9 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 	# Track mod's resources
 	if mod_id not in _mod_resources:
 		_mod_resources[mod_id] = []
-	if resource_id not in _mod_resources[mod_id]:
-		_mod_resources[mod_id].append(resource_id)
+	var mod_resource_list: Array = _mod_resources[mod_id]
+	if resource_id not in mod_resource_list:
+		mod_resource_list.append(resource_id)
 
 
 ## Get a mod's priority (helper for conflict detection)
@@ -81,10 +84,14 @@ func _get_mod_priority(mod_id: String) -> int:
 	if Engine.has_singleton("ModLoader"):
 		return 0  # Can't access priority from singleton
 	# Try to get ModLoader from autoloads
-	var mod_loader: Node = Engine.get_main_loop().root.get_node_or_null("/root/ModLoader") if Engine.get_main_loop() else null
+	var mod_loader: Node = null
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var scene_tree: SceneTree = main_loop as SceneTree
+		mod_loader = scene_tree.root.get_node_or_null("/root/ModLoader")
 	if mod_loader and mod_loader.has_method("get_mod"):
-		var manifest: Resource = mod_loader.get_mod(mod_id)
-		if manifest and "load_priority" in manifest:
+		var manifest: ModManifest = mod_loader.get_mod(mod_id) as ModManifest
+		if manifest:
 			return manifest.load_priority
 	return 0
 
@@ -93,14 +100,17 @@ func _get_mod_priority(mod_id: String) -> int:
 func get_resource(resource_type: String, resource_id: String) -> Resource:
 	if resource_type not in _resources_by_type:
 		return null
-	return _resources_by_type[resource_type].get(resource_id, null)
+	var type_dict: Dictionary = _resources_by_type[resource_type]
+	var res_val: Variant = type_dict.get(resource_id, null)
+	return res_val if res_val is Resource else null
 
 
 ## Get all resources of a specific type
 func get_all_resources(resource_type: String) -> Array[Resource]:
 	var result: Array[Resource] = []
 	if resource_type in _resources_by_type:
-		for resource: Resource in _resources_by_type[resource_type].values():
+		var type_dict: Dictionary = _resources_by_type[resource_type]
+		for resource: Resource in type_dict.values():
 			result.append(resource)
 	return result
 
@@ -114,7 +124,8 @@ func get_character_by_uid(uid: String) -> CharacterData:
 	if "character" not in _resources_by_type:
 		return null
 
-	for character: Resource in _resources_by_type["character"].values():
+	var character_dict: Dictionary = _resources_by_type["character"]
+	for character: Resource in character_dict.values():
 		var char_data: CharacterData = character as CharacterData
 		if char_data and char_data.character_uid == uid:
 			return char_data
@@ -140,7 +151,8 @@ func get_npc_by_id(npc_id: String) -> NPCData:
 	if "npc" not in _resources_by_type:
 		return null
 
-	for npc: Resource in _resources_by_type["npc"].values():
+	var npc_dict: Dictionary = _resources_by_type["npc"]
+	for npc: Resource in npc_dict.values():
 		var npc_data: NPCData = npc as NPCData
 		if npc_data and npc_data.npc_id == npc_id:
 			return npc_data
@@ -155,7 +167,8 @@ func get_hero_character() -> CharacterData:
 		return null
 
 	var heroes: Array[CharacterData] = []
-	for character: Resource in _resources_by_type["character"].values():
+	var character_dict: Dictionary = _resources_by_type["character"]
+	for character: Resource in character_dict.values():
 		var char_data: CharacterData = character as CharacterData
 		if char_data and char_data.is_hero:
 			heroes.append(char_data)
@@ -176,7 +189,8 @@ func get_hero_character() -> CharacterData:
 func get_resource_ids(resource_type: String) -> Array[String]:
 	var result: Array[String] = []
 	if resource_type in _resources_by_type:
-		for resource_id: String in _resources_by_type[resource_type].keys():
+		var type_dict: Dictionary = _resources_by_type[resource_type]
+		for resource_id: String in type_dict.keys():
 			result.append(resource_id)
 	return result
 
@@ -188,7 +202,13 @@ func get_resource_source(resource_id: String) -> String:
 
 ## Get all resources provided by a specific mod
 func get_mod_resources(mod_id: String) -> Array[String]:
-	return _mod_resources.get(mod_id, []).duplicate()
+	var mod_res_val: Variant = _mod_resources.get(mod_id, [])
+	var mod_res: Array = mod_res_val if mod_res_val is Array else []
+	var result: Array[String] = []
+	for res_id: Variant in mod_res:
+		if res_id is String:
+			result.append(res_id)
+	return result
 
 
 ## Get all registered resource types
@@ -203,7 +223,8 @@ func get_resource_types() -> Array[String]:
 func get_resource_count(resource_type: String) -> int:
 	if resource_type not in _resources_by_type:
 		return 0
-	return _resources_by_type[resource_type].size()
+	var type_dict: Dictionary = _resources_by_type[resource_type]
+	return type_dict.size()
 
 
 ## Get total count of all resources
@@ -218,7 +239,8 @@ func get_total_resource_count() -> int:
 func has_resource(resource_type: String, resource_id: String) -> bool:
 	if resource_type not in _resources_by_type:
 		return false
-	return resource_id in _resources_by_type[resource_type]
+	var type_dict: Dictionary = _resources_by_type[resource_type]
+	return resource_id in type_dict
 
 
 ## Clear all registered resources and scenes
@@ -235,7 +257,9 @@ func clear() -> void:
 ## Returns array of {mod_id, priority} entries showing previous providers
 func get_override_chain(resource_type: String, resource_id: String) -> Array:
 	var composite_id: String = "%s:%s" % [resource_type, resource_id]
-	return _override_chains.get(composite_id, []).duplicate()
+	var chain_val: Variant = _override_chains.get(composite_id, [])
+	var chain: Array = chain_val if chain_val is Array else []
+	return chain.duplicate()
 
 
 ## Clear all resources from a specific mod
@@ -261,7 +285,8 @@ func clear_mod_resources(mod_id: String) -> void:
 func unregister_resource(resource_type: String, resource_id: String) -> void:
 	# Remove from type dictionary
 	if resource_type in _resources_by_type:
-		_resources_by_type[resource_type].erase(resource_id)
+		var type_dict: Dictionary = _resources_by_type[resource_type]
+		type_dict.erase(resource_id)
 
 	# Get the mod that owned this resource before removing from sources
 	var mod_id: String = _resource_sources.get(resource_id, "")

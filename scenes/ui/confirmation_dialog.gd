@@ -196,7 +196,8 @@ func show_confirmation(title: String, message: String) -> bool:
 
 	# Wait for user response
 	var result: Array = await _wait_for_response()
-	return result[0] as bool
+	var first_val: Variant = result[0] if result.size() > 0 else false
+	return first_val if first_val is bool else false
 
 
 ## Check if the dialog is currently visible

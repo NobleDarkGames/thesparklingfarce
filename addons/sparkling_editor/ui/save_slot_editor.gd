@@ -317,7 +317,7 @@ func _refresh_player_party() -> void:
 
 	player_members_list.clear()
 
-	for i in range(current_save_data.party_members.size()):
+	for i: int in range(current_save_data.party_members.size()):
 		var char_save: CharacterSaveData = current_save_data.party_members[i]
 		var display_text: String = char_save.fallback_character_name
 
@@ -421,9 +421,11 @@ func _update_party_info() -> void:
 		info_text += "\n[b]Active Mods:[/b]\n"
 		for mod_info: Dictionary in current_save_data.active_mods:
 			if "mod_id" in mod_info:
-				info_text += "- %s" % mod_info.mod_id
+				var mod_id: String = DictUtils.get_string(mod_info, "mod_id", "")
+				info_text += "- %s" % mod_id
 				if "version" in mod_info:
-					info_text += " (v%s)" % mod_info.version
+					var version: String = DictUtils.get_string(mod_info, "version", "")
+					info_text += " (v%s)" % version
 				info_text += "\n"
 
 	party_info_label.text = info_text
@@ -702,7 +704,7 @@ func _ensure_hero_is_leader() -> void:
 		return
 
 	var hero_index: int = -1
-	for i in range(current_save_data.party_members.size()):
+	for i: int in range(current_save_data.party_members.size()):
 		if current_save_data.party_members[i].is_hero:
 			hero_index = i
 			break
@@ -830,8 +832,10 @@ func _editor_get_slot_metadata(slot_number: int) -> SlotMetadata:
 	if json.parse(json_string) != OK:
 		return meta
 
-	for meta_dict: Dictionary in json.data:
-		if meta_dict.get("slot_number", 0) == slot_number:
+	var meta_array: Array = json.data
+	for meta_dict: Dictionary in meta_array:
+		var meta_slot: int = meta_dict.get("slot_number", 0)
+		if meta_slot == slot_number:
 			meta.deserialize_from_dict(meta_dict)
 			break
 
@@ -850,7 +854,7 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 			var json: JSON = JSON.new()
 			if json.parse(file.get_as_text()) == OK:
 				var metadata_array: Array = json.data
-				for i in range(metadata_array.size()):
+				for i: int in range(metadata_array.size()):
 					var meta_dict: Dictionary = metadata_array[i]
 					all_metadata.append(meta_dict)
 			file.close()
@@ -858,9 +862,11 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 	# Find or create metadata for this slot
 	var slot_meta_dict: Dictionary = {}
 	var found: bool = false
-	for i in range(all_metadata.size()):
-		if all_metadata[i].get("slot_number", 0) == slot_number:
-			slot_meta_dict = all_metadata[i]
+	for i: int in range(all_metadata.size()):
+		var existing_meta: Dictionary = all_metadata[i]
+		var existing_slot: int = existing_meta.get("slot_number", 0)
+		if existing_slot == slot_number:
+			slot_meta_dict = existing_meta
 			found = true
 			break
 
@@ -874,8 +880,10 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 	slot_meta_dict = slot_meta.serialize_to_dict()
 
 	# Find and replace in array
-	for i in range(all_metadata.size()):
-		if all_metadata[i].get("slot_number", 0) == slot_number:
+	for i: int in range(all_metadata.size()):
+		var check_meta: Dictionary = all_metadata[i]
+		var check_slot: int = check_meta.get("slot_number", 0)
+		if check_slot == slot_number:
 			all_metadata[i] = slot_meta_dict
 			break
 

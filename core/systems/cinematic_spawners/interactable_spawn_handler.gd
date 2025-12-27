@@ -20,11 +20,15 @@ func get_available_entities() -> Array[Dictionary]:
 
 	var interactables: Array = ModLoader.registry.get_all_resources("interactable")
 	for entry: Dictionary in interactables:
-		var inter_data: InteractableData = entry.get("resource") as InteractableData
+		if "resource" not in entry:
+			continue
+		var inter_data: InteractableData = entry["resource"] as InteractableData
 		if inter_data:
+			var entity_id: String = str(entry["id"]) if "id" in entry else ""
+			var display_name: String = inter_data.display_name if not inter_data.display_name.is_empty() else entity_id
 			entities.append({
-				"id": entry.get("id", ""),
-				"name": inter_data.display_name if not inter_data.display_name.is_empty() else entry.get("id", ""),
+				"id": entity_id,
+				"name": display_name,
 				"resource": inter_data
 			})
 

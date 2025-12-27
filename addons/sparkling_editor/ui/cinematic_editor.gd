@@ -224,7 +224,7 @@ static func _build_categories_from_definitions(definitions: Dictionary) -> Dicti
 
 		# Get category from metadata, or fallback to default
 		if "category" in def:
-			category = def.category
+			category = def.get("category", "")
 		elif cmd_type in DEFAULT_CATEGORIES:
 			category = DEFAULT_CATEGORIES[cmd_type]
 		else:
@@ -232,7 +232,8 @@ static func _build_categories_from_definitions(definitions: Dictionary) -> Dicti
 
 		if category not in categories:
 			categories[category] = []
-		categories[category].append(cmd_type)
+		var category_list: Array = categories[category]
+		category_list.append(cmd_type)
 
 	# Sort categories in a sensible order
 	var ordered: Dictionary = {}
@@ -833,11 +834,12 @@ func _add_new_command(cmd_type: String) -> void:
 
 	if cmd_type in definitions:
 		var def: Dictionary = definitions[cmd_type]
-		if "has_target" in def and def.has_target:
+		if "has_target" in def and def.get("has_target", false):
 			new_cmd["target"] = ""
 		if "params" in def:
-			for param_name: String in def.params.keys():
-				var param_def: Dictionary = def.params[param_name]
+			var def_params: Dictionary = def.get("params", {})
+			for param_name: String in def_params.keys():
+				var param_def: Dictionary = def_params[param_name]
 				new_cmd["params"][param_name] = param_def.get("default", "")
 
 	# Insert after current selection or at end
@@ -1113,8 +1115,9 @@ func _build_inspector_for_command(index: int) -> void:
 	# Description (from merged definitions)
 	var definitions: Dictionary = _get_merged_command_definitions()
 	if cmd_type in definitions and "description" in definitions[cmd_type]:
+		var cmd_def: Dictionary = definitions[cmd_type]
 		var desc_label: Label = Label.new()
-		desc_label.text = definitions[cmd_type].description
+		desc_label.text = cmd_def.get("description", "")
 		desc_label.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inspector_panel.add_child(desc_label)
@@ -1142,8 +1145,9 @@ func _build_inspector_for_command(index: int) -> void:
 	# Build parameter fields based on definition (using merged definitions)
 	if cmd_type in definitions and "params" in definitions[cmd_type]:
 		var def: Dictionary = definitions[cmd_type]
-		for param_name: String in def.params.keys():
-			var param_def: Dictionary = def.params[param_name]
+		var def_params: Dictionary = def.get("params", {})
+		for param_name: String in def_params.keys():
+			var param_def: Dictionary = def_params[param_name]
 			var current_value: Variant = params.get(param_name, param_def.get("default", ""))
 			_create_param_field(param_name, param_def, current_value)
 	else:
@@ -1179,13 +1183,15 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			spin.min_value = param_def.get("min", 0.0)
 			spin.max_value = param_def.get("max", 100.0)
 			spin.step = 0.1
-			spin.value = float(current_value) if current_value != null else param_def.default
+			var float_default: float = float(param_def.get("default", 0.0))
+			spin.value = float(current_value) if current_value != null else float_default
 			spin.value_changed.connect(_on_param_changed.bind(param_name))
 			control = spin
 
 		"bool":
 			var check: CheckBox = CheckBox.new()
-			check.button_pressed = bool(current_value) if current_value != null else param_def.default
+			var bool_default: bool = bool(param_def.get("default", false))
+			check.button_pressed = bool(current_value) if current_value != null else bool_default
 			check.toggled.connect(_on_param_changed.bind(param_name))
 			control = check
 
@@ -1501,7 +1507,7 @@ func _on_enum_changed(index: int, param_name: String, options: Array) -> void:
 func _on_character_or_npc_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
 	var metadata: Variant = option_btn.get_item_metadata(index)
 	if metadata is Dictionary:
-		var meta_dict: Dictionary = metadata as Dictionary
+		var meta_dict: Dictionary = metadata
 		var item_type: String = meta_dict.get("type", "none")
 		var item_id: String = meta_dict.get("id", "")
 
@@ -1600,7 +1606,8 @@ func _on_duplicate_command() -> void:
 	if selected_command_index < 0:
 		return
 	var commands: Array = current_cinematic_data.get("commands", [])
-	var cmd: Dictionary = commands[selected_command_index].duplicate(true)
+	var original_cmd: Dictionary = commands[selected_command_index]
+	var cmd: Dictionary = original_cmd.duplicate(true)
 	commands.insert(selected_command_index + 1, cmd)
 	_rebuild_command_list()
 	_select_command(selected_command_index + 1)
@@ -1974,9 +1981,11 @@ func _on_add_actor() -> void:
 
 ## Check if an actor ID already exists
 func _actor_id_exists(actor_id: String, actors: Array) -> bool:
-	for actor: Variant in actors:
-		if actor is Dictionary and actor.get("actor_id", "") == actor_id:
-			return true
+	for actor_item: Variant in actors:
+		if actor_item is Dictionary:
+			var actor_dict: Dictionary = actor_item
+			if actor_dict.get("actor_id", "") == actor_id:
+				return true
 	return false
 
 
@@ -2060,9 +2069,14 @@ func _on_actor_selected(index: int) -> void:
 
 	# Set position
 	var pos: Variant = actor.get("position", [0, 0])
-	if pos is Array and pos.size() >= 2:
-		actor_pos_x_spin.value = pos[0]
-		actor_pos_y_spin.value = pos[1]
+	if pos is Array:
+		var pos_arr: Array = pos
+		if pos_arr.size() >= 2:
+			actor_pos_x_spin.value = pos_arr[0]
+			actor_pos_y_spin.value = pos_arr[1]
+		else:
+			actor_pos_x_spin.value = 0
+			actor_pos_y_spin.value = 0
 	else:
 		actor_pos_x_spin.value = 0
 		actor_pos_y_spin.value = 0
@@ -2105,11 +2119,12 @@ func _on_actor_entity_type_changed(index: int) -> void:
 		return
 
 	var entity_type: String = actor_entity_type_picker.get_item_metadata(index)
-	actors[selected_actor_index]["entity_type"] = entity_type
+	var selected_actor: Dictionary = actors[selected_actor_index]
+	selected_actor["entity_type"] = entity_type
 	# Clear entity_id when type changes
-	actors[selected_actor_index]["entity_id"] = ""
+	selected_actor["entity_id"] = ""
 	# Remove legacy character_id if present
-	actors[selected_actor_index].erase("character_id")
+	selected_actor.erase("character_id")
 
 	# Repopulate entity picker for new type
 	_populate_actor_entity_picker()
@@ -2132,10 +2147,11 @@ func _on_actor_entity_changed(index: int) -> void:
 	var entity_id: Variant = actor_entity_picker.get_item_metadata(index)
 	var entity_type: String = actor_entity_type_picker.get_item_metadata(actor_entity_type_picker.selected)
 
-	actors[selected_actor_index]["entity_type"] = entity_type
-	actors[selected_actor_index]["entity_id"] = entity_id if entity_id else ""
+	var selected_actor: Dictionary = actors[selected_actor_index]
+	selected_actor["entity_type"] = entity_type
+	selected_actor["entity_id"] = entity_id if entity_id else ""
 	# Remove legacy character_id if present
-	actors[selected_actor_index].erase("character_id")
+	selected_actor.erase("character_id")
 
 	_rebuild_actors_list()
 	actors_list.select(selected_actor_index)

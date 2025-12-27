@@ -34,7 +34,7 @@ func _store_original_position() -> void:
 
 
 ## Show combat forecast for attacker vs defender
-func show_forecast(attacker: Node2D, defender: Node2D) -> void:
+func show_forecast(attacker: Unit, defender: Unit) -> void:
 	if not attacker or not defender:
 		hide_forecast()
 		return
@@ -109,7 +109,7 @@ func show_forecast(attacker: Node2D, defender: Node2D) -> void:
 
 ## Calculate defender's counter chance for forecast display
 ## Returns 0 if defender can't reach attacker (range mismatch)
-func _calculate_counter_chance_for_forecast(attacker: Node2D, defender: Node2D) -> int:
+func _calculate_counter_chance_for_forecast(attacker: Unit, defender: Unit) -> int:
 	# Get attack distance
 	var attack_distance: int = GridManager.get_distance(
 		attacker.grid_position,

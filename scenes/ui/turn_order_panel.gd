@@ -52,7 +52,7 @@ func _setup_slot_references() -> void:
 		return
 
 	# Iterate through slot containers
-	for i in range(3):
+	for i: int in range(3):
 		var slot_name: String = "Slot%d" % i
 		var slot: HBoxContainer = vbox.get_node_or_null(slot_name)
 		if not slot:
@@ -108,19 +108,19 @@ func hide_panel() -> void:
 ## Update the turn order display
 ## active_unit: Currently acting unit
 ## upcoming_queue: Remaining units in turn queue (after active_unit)
-func update_turn_order(active_unit: Node2D, upcoming_queue: Array[Node2D]) -> void:
+func update_turn_order(active_unit: Unit, upcoming_queue: Array[Unit]) -> void:
 	if not _is_initialized:
 		call_deferred("update_turn_order", active_unit, upcoming_queue)
 		return
 
 	# Build display list: current + next 2
-	var display_units: Array[Node2D] = []
+	var display_units: Array[Unit] = []
 	if active_unit:
 		display_units.append(active_unit)
 
 	# Add up to 2 more from upcoming queue
 	var added: int = 0
-	for unit in upcoming_queue:
+	for unit: Unit in upcoming_queue:
 		if added >= 2:
 			break
 		if unit and unit.is_alive():
@@ -128,14 +128,14 @@ func update_turn_order(active_unit: Node2D, upcoming_queue: Array[Node2D]) -> vo
 			added += 1
 
 	# Update each slot
-	for i in range(3):
+	for i: int in range(3):
 		if i >= _slots.size():
 			continue
 
 		var slot: Control = _slots[i]
 
 		if i < display_units.size():
-			var unit: Node2D = display_units[i]
+			var unit: Unit = display_units[i]
 			_update_slot(i, unit, i == 0)
 			slot.visible = true
 		else:
@@ -144,7 +144,7 @@ func update_turn_order(active_unit: Node2D, upcoming_queue: Array[Node2D]) -> vo
 
 
 ## Update a single slot with unit info
-func _update_slot(slot_index: int, unit: Node2D, is_current: bool) -> void:
+func _update_slot(slot_index: int, unit: Unit, is_current: bool) -> void:
 	if slot_index >= _faction_bars.size() or slot_index >= _name_labels.size():
 		return
 
@@ -177,7 +177,7 @@ func _update_slot(slot_index: int, unit: Node2D, is_current: bool) -> void:
 
 
 ## Get the faction color for a unit
-func _get_faction_color(unit: Node2D) -> Color:
+func _get_faction_color(unit: Unit) -> Color:
 	if not unit:
 		return COLOR_NEUTRAL
 

@@ -77,28 +77,28 @@ var loaded_mods: Array[ModManifest] = []
 var active_mod_id: String = "_base_game"  # Default active mod
 
 # Type registries for mod-extensible enums
-var equipment_registry: RefCounted = EquipmentRegistryClass.new()
-var unit_category_registry: RefCounted = UnitCategoryRegistryClass.new()
-var animation_offset_registry: RefCounted = AnimationOffsetRegistryClass.new()
-var trigger_type_registry: RefCounted = TriggerTypeRegistryClass.new()
-var terrain_registry: RefCounted = TerrainRegistryClass.new()
+var equipment_registry: EquipmentRegistry = EquipmentRegistryClass.new()
+var unit_category_registry: UnitCategoryRegistry = UnitCategoryRegistryClass.new()
+var animation_offset_registry: AnimationOffsetRegistry = AnimationOffsetRegistryClass.new()
+var trigger_type_registry: TriggerTypeRegistry = TriggerTypeRegistryClass.new()
+var terrain_registry: TerrainRegistry = TerrainRegistryClass.new()
 
 # Equipment system configuration (data-driven slots and inventory)
-var equipment_slot_registry: RefCounted = EquipmentSlotRegistryClass.new()
-var equipment_type_registry: RefCounted = EquipmentTypeRegistryClass.new()
-var inventory_config: RefCounted = InventoryConfigClass.new()
+var equipment_slot_registry: EquipmentSlotRegistry = EquipmentSlotRegistryClass.new()
+var equipment_type_registry: EquipmentTypeRegistry = EquipmentTypeRegistryClass.new()
+var inventory_config: InventoryConfig = InventoryConfigClass.new()
 
 # AI brain registry (declared in mod.json with metadata)
-var ai_brain_registry: RefCounted = AIBrainRegistryClass.new()
+var ai_brain_registry: AIBrainRegistry = AIBrainRegistryClass.new()
 
 # Tileset registry (declared in mod.json with metadata, also auto-discovered)
-var tileset_registry: RefCounted = TilesetRegistryClass.new()
+var tileset_registry: TilesetRegistry = TilesetRegistryClass.new()
 
 # AI mode registry (for configurable AI behaviors)
-var ai_mode_registry: RefCounted = AIModeRegistryClass.new()
+var ai_mode_registry: AIModeRegistry = AIModeRegistryClass.new()
 
 # Status effect registry (data-driven status effects)
-var status_effect_registry: RefCounted = StatusEffectRegistryClass.new()
+var status_effect_registry: StatusEffectRegistry = StatusEffectRegistryClass.new()
 
 # Legacy tileset registry for backwards compatibility
 # TODO: Migrate to tileset_registry and remove this
@@ -148,7 +148,7 @@ func _discover_and_load_mods() -> void:
 	resolved_mods.sort_custom(_sort_by_priority)
 
 	# Load each mod
-	for manifest in resolved_mods:
+	for manifest: ModManifest in resolved_mods:
 		_load_mod(manifest)
 
 
@@ -172,7 +172,7 @@ func _discover_and_load_mods_async() -> void:
 	resolved_mods.sort_custom(_sort_by_priority)
 
 	# Load each mod asynchronously
-	for manifest in resolved_mods:
+	for manifest: ModManifest in resolved_mods:
 		await _load_mod_async(manifest)
 
 	_is_loading = false
@@ -225,7 +225,7 @@ func _discover_mods() -> Array[ModManifest]:
 ## Load a single mod and register all its resources
 func _load_mod(manifest: ModManifest) -> void:
 	# Check dependencies (simple check - just verify they're loaded)
-	for dep_id in manifest.dependencies:
+	for dep_id: String in manifest.dependencies:
 		if not _is_mod_loaded(dep_id):
 			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
 			return
@@ -237,8 +237,11 @@ func _load_mod(manifest: ModManifest) -> void:
 	var data_dir: String = manifest.get_data_directory()
 	var loaded_count: int = 0
 
-	for dir_name: String in RESOURCE_TYPE_DIRS.keys():
-		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
+	var resource_dir_keys: Array = RESOURCE_TYPE_DIRS.keys()
+	for dir_name_variant: Variant in resource_dir_keys:
+		var dir_name: String = str(dir_name_variant)
+		var resource_type_variant: Variant = RESOURCE_TYPE_DIRS[dir_name]
+		var resource_type: String = str(resource_type_variant)
 		var type_dir: String = data_dir.path_join(dir_name)
 		loaded_count += _load_resources_from_directory(type_dir, resource_type, manifest.mod_id)
 
@@ -257,7 +260,7 @@ func _load_mod(manifest: ModManifest) -> void:
 ## Load a single mod asynchronously using threaded resource loading
 func _load_mod_async(manifest: ModManifest) -> void:
 	# Check dependencies (simple check - just verify they're loaded)
-	for dep_id in manifest.dependencies:
+	for dep_id: String in manifest.dependencies:
 		if not _is_mod_loaded(dep_id):
 			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
 			return
@@ -266,18 +269,22 @@ func _load_mod_async(manifest: ModManifest) -> void:
 	var data_dir: String = manifest.get_data_directory()
 	var resource_requests: Array[Dictionary] = []
 
-	for dir_name: String in RESOURCE_TYPE_DIRS.keys():
-		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
+	var async_resource_dir_keys: Array = RESOURCE_TYPE_DIRS.keys()
+	for dir_name_variant: Variant in async_resource_dir_keys:
+		var dir_name: String = str(dir_name_variant)
+		var resource_type_variant: Variant = RESOURCE_TYPE_DIRS[dir_name]
+		var resource_type: String = str(resource_type_variant)
 		var type_dir: String = data_dir.path_join(dir_name)
 		var requests: Array[Dictionary] = _collect_resource_paths(type_dir, resource_type, manifest.mod_id)
 		resource_requests.append_array(requests)
 
 	# Request all .tres resources to load in background threads
 	var tres_paths: Array[String] = []
-	for req in resource_requests:
-		if req.path.ends_with(".tres"):
-			ResourceLoader.load_threaded_request(req.path, "", true)  # true = use_sub_threads
-			tres_paths.append(req.path)
+	for req: Dictionary in resource_requests:
+		var req_path: String = DictUtils.get_string(req, "path", "")
+		if req_path.ends_with(".tres"):
+			ResourceLoader.load_threaded_request(req_path, "", true)  # true = use_sub_threads
+			tres_paths.append(req_path)
 
 	# Wait for all threaded loads to complete (polling with yield to not block)
 	if not tres_paths.is_empty():
@@ -285,27 +292,30 @@ func _load_mod_async(manifest: ModManifest) -> void:
 
 	# Now retrieve and register all resources
 	var loaded_count: int = 0
-	for req in resource_requests:
+	for req: Dictionary in resource_requests:
 		var resource: Resource = null
+		var req_path: String = DictUtils.get_string(req, "path", "")
+		var req_resource_type: String = DictUtils.get_string(req, "resource_type", "")
+		var req_resource_id: String = DictUtils.get_string(req, "resource_id", "")
 
-		if req.path.ends_with(".tres"):
+		if req_path.ends_with(".tres"):
 			# Get the threaded-loaded resource
-			resource = ResourceLoader.load_threaded_get(req.path)
-		elif req.path.ends_with(".json"):
+			resource = ResourceLoader.load_threaded_get(req_path)
+		elif req_path.ends_with(".json"):
 			# JSON resources are loaded synchronously (they're small text files)
-			resource = _load_json_resource(req.path, req.resource_type)
+			resource = _load_json_resource(req_path, req_resource_type)
 
 		if resource:
-			registry.register_resource(resource, req.resource_type, req.resource_id, manifest.mod_id)
+			registry.register_resource(resource, req_resource_type, req_resource_id, manifest.mod_id)
 			# Special handling for terrain resources - also register with terrain_registry
-			if req.resource_type == "terrain" and resource is TerrainData:
+			if req_resource_type == "terrain" and resource is TerrainData:
 				terrain_registry.register_terrain(resource, manifest.mod_id)
 			# Special handling for status effect resources - also register with status_effect_registry
-			if req.resource_type == "status_effect" and resource is StatusEffectData:
+			if req_resource_type == "status_effect" and resource is StatusEffectData:
 				status_effect_registry.register_effect(resource, manifest.mod_id)
 			loaded_count += 1
 		else:
-			push_warning("ModLoader: Failed to load resource: " + req.path)
+			push_warning("ModLoader: Failed to load resource: " + req_path)
 
 	# Register scenes from manifest
 	var scene_count: int = _register_mod_scenes(manifest)
@@ -369,7 +379,7 @@ func _wait_for_threaded_loads(paths: Array[String]) -> void:
 	while not pending.is_empty():
 		var still_pending: Array[String] = []
 
-		for path in pending:
+		for path: String in pending:
 			var status: ResourceLoader.ThreadLoadStatus = ResourceLoader.load_threaded_get_status(path)
 			match status:
 				ResourceLoader.THREAD_LOAD_LOADED:
@@ -445,7 +455,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 					status_effect_registry.register_effect(resource, mod_id)
 				# Debug: Log character registrations
 				if resource_type == "character" and resource is CharacterData:
-					var char: CharacterData = resource as CharacterData
+					var char: CharacterData = resource
 					print("ModLoader: Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
 				count += 1
 			elif not resource_id.is_empty():
@@ -523,8 +533,11 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 func _register_mod_scenes(manifest: ModManifest) -> int:
 	var count: int = 0
 
-	for scene_id: String in manifest.scenes.keys():
-		var relative_path: String = manifest.scenes[scene_id]
+	var scene_keys: Array = manifest.scenes.keys()
+	for scene_id_variant: Variant in scene_keys:
+		var scene_id: String = str(scene_id_variant)
+		var relative_path_variant: Variant = manifest.scenes[scene_id]
+		var relative_path: String = str(relative_path_variant)
 		var full_path: String = manifest.mod_directory.path_join(relative_path)
 
 		# Verify scene file exists - use ResourceLoader.exists() for export compatibility
@@ -634,15 +647,19 @@ func get_tileset(tileset_name: String) -> TileSet:
 		return null
 
 	var entry: Dictionary = _tileset_registry[name_lower]
+	var entry_resource: Variant = entry.get("resource")
+	var entry_path: String = DictUtils.get_string(entry, "path", "")
 
 	# Lazy-load the resource on first access
-	if entry.resource == null:
-		entry.resource = load(entry.path) as TileSet
-		if entry.resource == null:
-			push_error("ModLoader: Failed to load TileSet from: %s" % entry.path)
+	if entry_resource == null:
+		var loaded: Resource = load(entry_path)
+		entry_resource = loaded if loaded is TileSet else null
+		entry["resource"] = entry_resource
+		if entry_resource == null:
+			push_error("ModLoader: Failed to load TileSet from: %s" % entry_path)
 			return null
 
-	return entry.resource
+	return entry_resource if entry_resource is TileSet else null
 
 
 ## Get the path to a TileSet by name (without loading it)
@@ -653,7 +670,8 @@ func get_tileset_path(tileset_name: String) -> String:
 	if name_lower not in _tileset_registry:
 		return ""
 
-	return _tileset_registry[name_lower].path
+	var entry: Dictionary = _tileset_registry[name_lower]
+	return DictUtils.get_string(entry, "path", "")
 
 
 ## Check if a tileset is registered
@@ -664,8 +682,10 @@ func has_tileset(tileset_name: String) -> bool:
 ## Get all registered tileset names
 func get_tileset_names() -> Array[String]:
 	var names: Array[String] = []
-	for name: String in _tileset_registry.keys():
-		names.append(name)
+	var registry_keys: Array = _tileset_registry.keys()
+	for name_variant: Variant in registry_keys:
+		var tileset_name: String = str(name_variant)
+		names.append(tileset_name)
 	return names
 
 
@@ -676,12 +696,13 @@ func get_tileset_source(tileset_name: String) -> String:
 	if name_lower not in _tileset_registry:
 		return ""
 
-	return _tileset_registry[name_lower].mod_id
+	var entry: Dictionary = _tileset_registry[name_lower]
+	return DictUtils.get_string(entry, "mod_id", "")
 
 
 ## Check if a mod with the given ID is loaded
 func _is_mod_loaded(mod_id: String) -> bool:
-	for manifest in loaded_mods:
+	for manifest: ModManifest in loaded_mods:
 		if manifest.mod_id == mod_id:
 			return true
 	return false
@@ -703,7 +724,8 @@ func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedSce
 	if not mod_path.is_empty():
 		# Use ResourceLoader.exists() for export compatibility (.tscn -> .tscn.remap)
 		if ResourceLoader.exists(mod_path):
-			var scene: PackedScene = load(mod_path) as PackedScene
+			var loaded: Resource = load(mod_path)
+			var scene: PackedScene = loaded if loaded is PackedScene else null
 			if scene:
 				return scene
 			else:
@@ -715,7 +737,8 @@ func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedSce
 	if not fallback_path.is_empty():
 		# Use ResourceLoader.exists() for export compatibility
 		if ResourceLoader.exists(fallback_path):
-			var scene: PackedScene = load(fallback_path) as PackedScene
+			var loaded_fallback: Resource = load(fallback_path)
+			var scene: PackedScene = loaded_fallback if loaded_fallback is PackedScene else null
 			if scene:
 				return scene
 			else:
@@ -774,7 +797,8 @@ func load_texture_override(relative_path: String) -> Texture2D:
 	var path: String = resolve_asset_path(relative_path, "res://mods/_base_game/assets/")
 	if path.is_empty():
 		return null
-	return load(path) as Texture2D
+	var loaded: Resource = load(path)
+	return loaded if loaded is Texture2D else null
 
 
 ## Load a resource through the mod override system
@@ -845,7 +869,9 @@ func _visit_mod_for_sort(
 	# Visit all dependencies first
 	for dep_id: String in mod.dependencies:
 		if dep_id in mod_map:
-			if not _visit_mod_for_sort(mod_map[dep_id], mod_map, permanent, temporary, sorted, path):
+			var dep_val: Variant = mod_map[dep_id]
+			var dep_manifest: ModManifest = dep_val if dep_val is ModManifest else null
+			if dep_manifest and not _visit_mod_for_sort(dep_manifest, mod_map, permanent, temporary, sorted, path):
 				return false
 		# Note: Missing dependencies are handled later in _load_mod()
 
@@ -889,7 +915,7 @@ func _sort_by_priority(a: ModManifest, b: ModManifest) -> bool:
 
 ## Get a mod manifest by ID
 func get_mod(mod_id: String) -> ModManifest:
-	for manifest in loaded_mods:
+	for manifest: ModManifest in loaded_mods:
 		if manifest.mod_id == mod_id:
 			return manifest
 	return null
@@ -1029,8 +1055,11 @@ func get_resource_directories(mod_id: String) -> Dictionary:
 	var dirs: Dictionary = {}
 	var data_dir: String = manifest.get_data_directory()
 
-	for dir_name: String in RESOURCE_TYPE_DIRS.keys():
-		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
+	var dirs_keys: Array = RESOURCE_TYPE_DIRS.keys()
+	for dir_name_variant: Variant in dirs_keys:
+		var dir_name: String = str(dir_name_variant)
+		var resource_type_variant: Variant = RESOURCE_TYPE_DIRS[dir_name]
+		var resource_type: String = str(resource_type_variant)
 		dirs[resource_type] = data_dir.path_join(dir_name)
 
 	return dirs
@@ -1053,7 +1082,7 @@ func create_mod(mod_folder_name: String, mod_name: String, author: String = "", 
 
 	# Sanitize folder name (only alphanumeric, underscore, hyphen)
 	var safe_folder_name: String = ""
-	for c in mod_folder_name:
+	for c: String in mod_folder_name:
 		if c.is_valid_identifier() or c == "-" or c == "_":
 			safe_folder_name += c
 		elif c == " ":
@@ -1185,8 +1214,10 @@ func _find_hero_character() -> CharacterData:
 	# Build a lookup of character resource_id -> CharacterData for heroes
 	var hero_candidates: Array[Dictionary] = []
 	for resource: Resource in all_characters:
-		var character: CharacterData = resource as CharacterData
-		if character and character.is_hero and character.unit_category == "player":
+		if not resource is CharacterData:
+			continue
+		var character: CharacterData = resource
+		if character.is_hero and character.unit_category == "player":
 			# Get the resource ID from the resource path
 			var resource_id: String = character.resource_path.get_file().get_basename()
 			var source_mod: String = registry.get_resource_source(resource_id)
@@ -1203,11 +1234,15 @@ func _find_hero_character() -> CharacterData:
 	for i: int in range(loaded_mods.size() - 1, -1, -1):
 		var manifest: ModManifest = loaded_mods[i]
 		for candidate: Dictionary in hero_candidates:
-			if candidate.mod_id == manifest.mod_id:
-				return candidate.character
+			var candidate_mod_id: String = DictUtils.get_string(candidate, "mod_id", "")
+			if candidate_mod_id == manifest.mod_id:
+				var char_value: Variant = candidate.get("character")
+				return char_value if char_value is CharacterData else null
 
 	# Fallback: return first hero if mod lookup fails
-	return hero_candidates[0].character
+	var first_candidate: Dictionary = hero_candidates[0]
+	var first_char_value: Variant = first_candidate.get("character")
+	return first_char_value if first_char_value is CharacterData else null
 
 
 ## Get the priority cutoff for default party member selection
@@ -1232,8 +1267,10 @@ func _find_default_party_members() -> Array[CharacterData]:
 	var cutoff_priority: int = _get_party_cutoff_priority()
 
 	for resource: Resource in all_characters:
-		var character: CharacterData = resource as CharacterData
-		if character and character.is_default_party_member and character.unit_category == "player":
+		if not resource is CharacterData:
+			continue
+		var character: CharacterData = resource
+		if character.is_default_party_member and character.unit_category == "player":
 			# If there's a cutoff, check the source mod's priority
 			if cutoff_priority >= 0:
 				var resource_id: String = character.resource_path.get_file().get_basename()
@@ -1316,9 +1353,11 @@ func get_new_game_config() -> Resource:  # Returns NewGameConfigData
 	var best_config: Resource = null
 	var best_priority: int = -1
 	for entry: Dictionary in default_configs:
-		if entry.priority > best_priority:
-			best_priority = entry.priority
-			best_config = entry.config
+		var entry_priority: int = DictUtils.get_int(entry, "priority", 0)
+		if entry_priority > best_priority:
+			best_priority = entry_priority
+			var config_value: Variant = entry.get("config")
+			best_config = config_value if config_value is Resource else null
 
 	print("[DEBUG] get_new_game_config: Selected config with priority %d: %s" % [
 		best_priority,
@@ -1352,9 +1391,11 @@ func get_new_game_config_by_id(config_id: String) -> Resource:  # Returns NewGam
 	var best_config: Resource = null
 	var best_priority: int = -1
 	for entry: Dictionary in matching_configs:
-		if entry.priority > best_priority:
-			best_priority = entry.priority
-			best_config = entry.config
+		var entry_priority: int = DictUtils.get_int(entry, "priority", 0)
+		if entry_priority > best_priority:
+			best_priority = entry_priority
+			var config_value: Variant = entry.get("config")
+			best_config = config_value if config_value is Resource else null
 
 	return best_config
 

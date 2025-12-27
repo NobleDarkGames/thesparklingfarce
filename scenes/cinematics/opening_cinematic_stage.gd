@@ -47,14 +47,14 @@ func _start_cinematic() -> void:
 	# Check if ModLoader is available and has loaded mods
 	if ModLoader and ModLoader.registry:
 		# Try to get the cinematic from the registry (respects mod priority)
-		var cinematic: Resource = ModLoader.registry.get_resource("cinematic", CINEMATIC_ID)
+		var cinematic: CinematicData = ModLoader.registry.get_resource("cinematic", CINEMATIC_ID) as CinematicData
 		if cinematic:
 			success = CinematicsManager.play_cinematic(CINEMATIC_ID)
 
 	# If no mod provided the cinematic, load the core fallback directly
 	if not success:
 		print("OpeningCinematic: No mod cinematic found, using core fallback")
-		var fallback_cinematic: Resource = CinematicLoader.load_from_json(CORE_FALLBACK_CINEMATIC)
+		var fallback_cinematic: CinematicData = CinematicLoader.load_from_json(CORE_FALLBACK_CINEMATIC) as CinematicData
 		if fallback_cinematic:
 			success = CinematicsManager.play_cinematic_from_resource(fallback_cinematic)
 		else:

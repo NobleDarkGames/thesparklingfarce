@@ -154,8 +154,8 @@ func _can_afford_recipe(recipe: CraftingRecipeData) -> bool:
 
 	# Fallback: manual material check
 	for input: Dictionary in recipe.inputs:
-		var material_id: String = input.get("material_id", "")
-		var required_qty: int = input.get("quantity", 1)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var required_qty: int = DictUtils.get_int(input, "quantity", 1)
 		var owned_qty: int = _count_material(material_id)
 		if owned_qty < required_qty:
 			return false
@@ -240,8 +240,8 @@ func _update_details_panel() -> void:
 	var materials_lines: Array[String] = []
 	materials_lines.append("Materials Required:")
 	for input: Dictionary in recipe.inputs:
-		var material_id: String = input.get("material_id", "")
-		var required_qty: int = input.get("quantity", 1)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var required_qty: int = DictUtils.get_int(input, "quantity", 1)
 		var owned_qty: int = _count_material(material_id)
 
 		var item: ItemData = get_item_data(material_id)
@@ -255,10 +255,10 @@ func _update_details_panel() -> void:
 
 	# Update materials label color based on affordability
 	var missing_any: bool = false
-	for input: Dictionary in recipe.inputs:
-		var material_id: String = input.get("material_id", "")
-		var required_qty: int = input.get("quantity", 1)
-		if _count_material(material_id) < required_qty:
+	for input_check: Dictionary in recipe.inputs:
+		var mat_id: String = DictUtils.get_string(input_check, "material_id", "")
+		var req_qty: int = DictUtils.get_int(input_check, "quantity", 1)
+		if _count_material(mat_id) < req_qty:
 			missing_any = true
 			break
 
@@ -313,6 +313,7 @@ func _on_screen_exit() -> void:
 			continue
 		# Disconnect any connected signals
 		var connections: Array = btn.pressed.get_connections()
-		for conn: Dictionary in connections:
-			if conn.callable.get_object() == self:
-				btn.pressed.disconnect(conn.callable)
+		for conn_entry: Dictionary in connections:
+			var conn_callable: Callable = conn_entry.get("callable") as Callable
+			if conn_callable and conn_callable.get_object() == self:
+				btn.pressed.disconnect(conn_callable)

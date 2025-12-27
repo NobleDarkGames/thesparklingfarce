@@ -319,7 +319,7 @@ func _refresh_slots() -> void:
 	var reserve_party: Array[CharacterData] = PartyManager.get_reserve_party()
 
 	# Update active slots
-	for i in range(_active_slots.size()):
+	for i: int in range(_active_slots.size()):
 		var slot: PanelContainer = _active_slots[i]
 		var label: Label = slot.get_node("NameLabel") as Label
 
@@ -338,7 +338,7 @@ func _refresh_slots() -> void:
 		child.queue_free()
 	_reserve_slots.clear()
 
-	for i in range(reserve_party.size()):
+	for i: int in range(reserve_party.size()):
 		var character: CharacterData = reserve_party[i]
 		var slot: PanelContainer = _create_reserve_slot(i, character)
 		_reserve_container.add_child(slot)
@@ -406,8 +406,9 @@ func _move_selection(direction: Vector2i) -> void:
 	var active_count: int = PartyManager.get_active_count() if PartyManager else 0
 	var reserve_count: int = PartyManager.get_reserve_count() if PartyManager else 0
 
-	if _selection.section == "active":
-		var current_idx: int = _selection.index
+	var current_section: String = DictUtils.get_string(_selection, "section", "active")
+	var current_idx: int = DictUtils.get_int(_selection, "index", 0)
+	if current_section == "active":
 		var col: int = current_idx % ACTIVE_COLS
 		var row: int = current_idx / ACTIVE_COLS
 
@@ -419,29 +420,29 @@ func _move_selection(direction: Vector2i) -> void:
 				_selection = {"section": "reserve", "index": 0}
 			else:
 				var new_idx: int = mini(current_idx + 1, active_count - 1)
-				_selection.index = new_idx
+				_selection["index"] = new_idx
 		elif direction.x < 0:
-			_selection.index = maxi(0, current_idx - 1)
+			_selection["index"] = maxi(0, current_idx - 1)
 		elif direction.y > 0:
 			var new_idx: int = current_idx + ACTIVE_COLS
 			if new_idx < active_count:
-				_selection.index = new_idx
+				_selection["index"] = new_idx
 		elif direction.y < 0:
 			var new_idx: int = current_idx - ACTIVE_COLS
 			if new_idx >= 0:
-				_selection.index = new_idx
+				_selection["index"] = new_idx
 
 	else:  # reserve section
 		if direction.x < 0:
 			# Jump to active section (rightmost column)
 			var active_count_clamped: int = maxi(1, active_count)
-			var target_row: int = mini(_selection.index, ACTIVE_ROWS - 1)
+			var target_row: int = mini(current_idx, ACTIVE_ROWS - 1)
 			var target_idx: int = (target_row * ACTIVE_COLS) + (ACTIVE_COLS - 1)
 			_selection = {"section": "active", "index": mini(target_idx, active_count_clamped - 1)}
 		elif direction.y > 0:
-			_selection.index = mini(_selection.index + 1, reserve_count - 1)
+			_selection["index"] = mini(current_idx + 1, reserve_count - 1)
 		elif direction.y < 0:
-			_selection.index = maxi(0, _selection.index - 1)
+			_selection["index"] = maxi(0, current_idx - 1)
 
 	_update_selection_visual()
 	_update_info_panel()
@@ -480,10 +481,12 @@ func _update_selection_visual() -> void:
 
 
 func _get_slot(sel: Dictionary) -> PanelContainer:
-	if sel.section == "active" and sel.index < _active_slots.size():
-		return _active_slots[sel.index]
-	elif sel.section == "reserve" and sel.index < _reserve_slots.size():
-		return _reserve_slots[sel.index]
+	var section: String = DictUtils.get_string(sel, "section", "")
+	var index: int = DictUtils.get_int(sel, "index", 0)
+	if section == "active" and index < _active_slots.size():
+		return _active_slots[index]
+	elif section == "reserve" and index < _reserve_slots.size():
+		return _reserve_slots[index]
 	return null
 
 
@@ -507,8 +510,10 @@ func _update_info_panel() -> void:
 	_info_level.text = "Level %d" % character.starting_level
 
 	# Update hint based on state
+	var sel_section: String = DictUtils.get_string(_selection, "section", "")
+	var sel_index: int = DictUtils.get_int(_selection, "index", 0)
 	if _swap_source.is_empty():
-		if _selection.section == "active" and _selection.index == 0:
+		if sel_section == "active" and sel_index == 0:
 			_hint_label.text = "Hero cannot be moved"
 		else:
 			_hint_label.text = "Press Z to select for swap"
@@ -534,7 +539,9 @@ func _confirm_selection() -> void:
 		return
 
 	# Cannot select hero for swap
-	if _selection.section == "active" and _selection.index == 0:
+	var sel_section: String = DictUtils.get_string(_selection, "section", "")
+	var sel_index: int = DictUtils.get_int(_selection, "index", 0)
+	if sel_section == "active" and sel_index == 0:
 		if AudioManager:
 			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
 		return
@@ -549,7 +556,9 @@ func _confirm_selection() -> void:
 		return
 
 	# Second selection - perform swap
-	if _selection.section == _swap_source.section and _selection.index == _swap_source.index:
+	var swap_section: String = DictUtils.get_string(_swap_source, "section", "")
+	var swap_index: int = DictUtils.get_int(_swap_source, "index", 0)
+	if sel_section == swap_section and sel_index == swap_index:
 		# Selected same slot, cancel swap mode
 		_swap_source = {}
 		_update_selection_visual()
@@ -565,28 +574,36 @@ func _perform_swap() -> void:
 
 	var result: Dictionary = {"success": false, "error": "Unknown error"}
 
-	# Determine swap type
-	if _swap_source.section == "active" and _selection.section == "reserve":
-		# Active -> Reserve swap
-		result = PartyManager.swap_active_reserve(_swap_source.index, _selection.index)
-	elif _swap_source.section == "reserve" and _selection.section == "active":
-		# Reserve -> Active swap
-		result = PartyManager.swap_active_reserve(_selection.index, _swap_source.index)
-	elif _swap_source.section == "active" and _selection.section == "active":
-		# Swap within active (just reorder)
-		result = _swap_within_active(_swap_source.index, _selection.index)
-	elif _swap_source.section == "reserve" and _selection.section == "reserve":
-		# Swap within reserve (just reorder)
-		result = _swap_within_reserve(_swap_source.index, _selection.index)
+	# Get typed values from dictionaries
+	var swap_section: String = DictUtils.get_string(_swap_source, "section", "")
+	var swap_index: int = DictUtils.get_int(_swap_source, "index", 0)
+	var sel_section: String = DictUtils.get_string(_selection, "section", "")
+	var sel_index: int = DictUtils.get_int(_selection, "index", 0)
 
-	if result.success:
+	# Determine swap type
+	if swap_section == "active" and sel_section == "reserve":
+		# Active -> Reserve swap
+		result = PartyManager.swap_active_reserve(swap_index, sel_index)
+	elif swap_section == "reserve" and sel_section == "active":
+		# Reserve -> Active swap
+		result = PartyManager.swap_active_reserve(sel_index, swap_index)
+	elif swap_section == "active" and sel_section == "active":
+		# Swap within active (just reorder)
+		result = _swap_within_active(swap_index, sel_index)
+	elif swap_section == "reserve" and sel_section == "reserve":
+		# Swap within reserve (just reorder)
+		result = _swap_within_reserve(swap_index, sel_index)
+
+	var success: bool = DictUtils.get_bool(result, "success", false)
+	if success:
 		if AudioManager:
 			AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 		party_changed.emit()
 	else:
 		if AudioManager:
 			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
-		push_warning("PartyManagementPanel: Swap failed - %s" % result.error)
+		var error_msg: String = DictUtils.get_string(result, "error", "Unknown error")
+		push_warning("PartyManagementPanel: Swap failed - %s" % error_msg)
 
 	# Clear swap mode and refresh
 	_swap_source = {}

@@ -60,7 +60,7 @@ func _on_initialized() -> void:
 
 func _populate_character_grid() -> void:
 	# Clear existing
-	for child in char_grid.get_children():
+	for child: Node in char_grid.get_children():
 		child.queue_free()
 	char_buttons.clear()
 

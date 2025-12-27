@@ -207,7 +207,8 @@ func _add_basic_info_section() -> void:
 	var idx: int = 0
 	for key: String in INTERACTABLE_TEMPLATES.keys():
 		var template: Dictionary = INTERACTABLE_TEMPLATES[key]
-		template_option.add_item(template.get("label", key), idx)
+		var template_label: String = template.get("label", key)
+		template_option.add_item(template_label, idx)
 		template_option.set_item_metadata(idx, key)
 		idx += 1
 	template_option.item_selected.connect(_on_template_selected)
@@ -266,7 +267,8 @@ func _add_appearance_section() -> void:
 	var closed_row: HBoxContainer = SparklingEditorUtils.create_field_row("Sprite (Closed):", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
 
 	var closed_preview_panel: PanelContainer = _create_sprite_preview_panel()
-	sprite_closed_preview = closed_preview_panel.get_child(0) as TextureRect
+	var closed_child: Node = closed_preview_panel.get_child(0)
+	sprite_closed_preview = closed_child if closed_child is TextureRect else null
 	closed_row.add_child(closed_preview_panel)
 
 	sprite_closed_path_edit = LineEdit.new()
@@ -291,7 +293,8 @@ func _add_appearance_section() -> void:
 	var opened_row: HBoxContainer = SparklingEditorUtils.create_field_row("Sprite (Opened):", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
 
 	var opened_preview_panel: PanelContainer = _create_sprite_preview_panel()
-	sprite_opened_preview = opened_preview_panel.get_child(0) as TextureRect
+	var opened_child: Node = opened_preview_panel.get_child(0)
+	sprite_opened_preview = opened_child if opened_child is TextureRect else null
 	opened_row.add_child(opened_preview_panel)
 
 	sprite_opened_path_edit = LineEdit.new()
@@ -510,9 +513,9 @@ func _add_behavior_section_to(parent: Control) -> void:
 
 ## Override: Load interactable data from resource into UI
 func _load_resource_data() -> void:
-	var interactable: InteractableData = current_resource as InteractableData
-	if not interactable:
+	if not current_resource is InteractableData:
 		return
+	var interactable: InteractableData = current_resource
 
 	_updating_ui = true
 
@@ -528,7 +531,7 @@ func _load_resource_data() -> void:
 	_id_is_locked = (interactable.interactable_id != expected_auto_id) and not interactable.interactable_id.is_empty()
 	_update_lock_button()
 
-	type_option.select(interactable.interactable_type as int)
+	type_option.select(int(interactable.interactable_type))
 
 	# Appearance
 	var closed_path: String = interactable.sprite_closed.resource_path if interactable.sprite_closed else ""
@@ -563,9 +566,9 @@ func _load_resource_data() -> void:
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
-	var interactable: InteractableData = current_resource as InteractableData
-	if not interactable:
+	if not current_resource is InteractableData:
 		return
+	var interactable: InteractableData = current_resource
 
 	# Basic info
 	interactable.interactable_id = interactable_id_edit.text.strip_edges()
@@ -574,10 +577,10 @@ func _save_resource_data() -> void:
 
 	# Appearance
 	var closed_path: String = sprite_closed_path_edit.text.strip_edges()
-	interactable.sprite_closed = load(closed_path) as Texture2D if not closed_path.is_empty() and ResourceLoader.exists(closed_path) else null
+	interactable.sprite_closed = _load_texture(closed_path)
 
 	var opened_path: String = sprite_opened_path_edit.text.strip_edges()
-	interactable.sprite_opened = load(opened_path) as Texture2D if not opened_path.is_empty() and ResourceLoader.exists(opened_path) else null
+	interactable.sprite_opened = _load_texture(opened_path)
 
 	# Rewards
 	interactable.gold_reward = int(gold_reward_spin.value)
@@ -647,8 +650,8 @@ func _create_new_resource() -> Resource:
 
 ## Override: Get the display name from an interactable resource
 func _get_resource_display_name(resource: Resource) -> String:
-	var interactable: InteractableData = resource as InteractableData
-	if interactable:
+	if resource is InteractableData:
+		var interactable: InteractableData = resource
 		if not interactable.display_name.is_empty():
 			return interactable.display_name
 		if not interactable.interactable_id.is_empty():
@@ -663,9 +666,9 @@ func _get_resource_display_name(resource: Resource) -> String:
 func _load_item_rewards(rewards: Array[Dictionary]) -> void:
 	_clear_item_reward_entries()
 	for reward: Dictionary in rewards:
-		var item_id: String = reward.get("item_id", "")
-		var quantity: int = reward.get("quantity", 1)
-		_add_item_reward_entry(item_id, quantity)
+		var reward_item_id: String = reward.get("item_id", "")
+		var reward_quantity: int = reward.get("quantity", 1)
+		_add_item_reward_entry(reward_item_id, reward_quantity)
 
 
 func _add_item_reward_entry(item_id: String = "", quantity: int = 1) -> void:
@@ -720,7 +723,8 @@ func _add_item_reward_entry(item_id: String = "", quantity: int = 1) -> void:
 
 func _clear_item_reward_entries() -> void:
 	for entry: Dictionary in _item_reward_entries:
-		var container: Control = entry.get("container") as Control
+		var container_val: Variant = entry.get("container")
+		var container: Control = container_val if container_val is Control else null
 		if container and is_instance_valid(container):
 			container.queue_free()
 	_item_reward_entries.clear()
@@ -729,8 +733,10 @@ func _clear_item_reward_entries() -> void:
 func _collect_item_rewards() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _item_reward_entries:
-		var item_picker: ResourcePicker = entry.get("item_picker") as ResourcePicker
-		var qty_spin: SpinBox = entry.get("quantity_spin") as SpinBox
+		var picker_val: Variant = entry.get("item_picker")
+		var item_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
+		var spin_val: Variant = entry.get("quantity_spin")
+		var qty_spin: SpinBox = spin_val if spin_val is SpinBox else null
 
 		if not item_picker or not item_picker.has_selection():
 			continue
@@ -749,7 +755,8 @@ func _collect_item_rewards() -> Array[Dictionary]:
 
 func _refresh_item_reward_pickers() -> void:
 	for entry: Dictionary in _item_reward_entries:
-		var item_picker: ResourcePicker = entry.get("item_picker") as ResourcePicker
+		var picker_val: Variant = entry.get("item_picker")
+		var item_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 		if item_picker:
 			item_picker.refresh()
 
@@ -759,7 +766,7 @@ func _on_add_item_reward() -> void:
 
 
 func _on_remove_item_reward(entry_container: HBoxContainer) -> void:
-	for i in range(_item_reward_entries.size()):
+	for i: int in range(_item_reward_entries.size()):
 		if _item_reward_entries[i].get("container") == entry_container:
 			_item_reward_entries.remove_at(i)
 			break
@@ -895,7 +902,8 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 
 func _clear_conditional_entries() -> void:
 	for entry: Dictionary in _conditional_entries:
-		var container: Control = entry.get("container") as Control
+		var container_val: Variant = entry.get("container")
+		var container: Control = container_val if container_val is Control else null
 		if container and is_instance_valid(container):
 			container.queue_free()
 	_conditional_entries.clear()
@@ -904,10 +912,14 @@ func _clear_conditional_entries() -> void:
 func _collect_conditional_cinematics() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _conditional_entries:
-		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
-		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
-		var negate_check: CheckBox = entry.get("negate_check") as CheckBox
-		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
+		var and_val: Variant = entry.get("and_flags_edit")
+		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var or_val: Variant = entry.get("or_flags_edit")
+		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var negate_val: Variant = entry.get("negate_check")
+		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
+		var cine_val: Variant = entry.get("cinematic_edit")
+		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
 
 		if not cinematic_edit:
 			continue
@@ -936,9 +948,12 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 
 func _has_valid_conditional() -> bool:
 	for entry: Dictionary in _conditional_entries:
-		var and_flags_edit: LineEdit = entry.get("and_flags_edit") as LineEdit
-		var or_flags_edit: LineEdit = entry.get("or_flags_edit") as LineEdit
-		var cinematic_edit: LineEdit = entry.get("cinematic_edit") as LineEdit
+		var and_val: Variant = entry.get("and_flags_edit")
+		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var or_val: Variant = entry.get("or_flags_edit")
+		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var cine_val: Variant = entry.get("cinematic_edit")
+		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
 
 		if not cinematic_edit:
 			continue
@@ -961,7 +976,7 @@ func _on_add_conditional() -> void:
 
 
 func _on_remove_conditional(entry_container: VBoxContainer) -> void:
-	for i in range(_conditional_entries.size()):
+	for i: int in range(_conditional_entries.size()):
 		if _conditional_entries[i].get("container") == entry_container:
 			_conditional_entries.remove_at(i)
 			break
@@ -992,8 +1007,10 @@ func _on_template_selected(index: int) -> void:
 		if not _id_is_locked:
 			interactable_id_edit.text = SparklingEditorUtils.generate_id_from_name(template_name)
 
-	type_option.select(template.get("type", 0) as int)
-	one_shot_check.button_pressed = template.get("one_shot", true)
+	var template_type: int = DictUtils.get_int(template, "type", 0)
+	type_option.select(template_type)
+	var template_one_shot: bool = template.get("one_shot", true)
+	one_shot_check.button_pressed = template_one_shot
 
 	var template_dialog: String = template.get("dialog", "")
 	if not template_dialog.is_empty():
@@ -1001,7 +1018,8 @@ func _on_template_selected(index: int) -> void:
 
 	_updating_ui = false
 
-	_show_dialog_status("Applied '%s' template - customize as needed!" % template.get("label", template_key), Color(0.5, 0.8, 1.0))
+	var template_label: String = template.get("label", template_key)
+	_show_dialog_status("Applied '%s' template - customize as needed!" % template_label, Color(0.5, 0.8, 1.0))
 
 
 func _on_name_changed(new_name: String) -> void:
@@ -1215,12 +1233,21 @@ func _load_sprite_preview(preview: TextureRect, path: String) -> void:
 		return
 
 	if ResourceLoader.exists(clean_path):
-		var texture: Texture2D = load(clean_path) as Texture2D
+		var loaded: Resource = load(clean_path)
+		var texture: Texture2D = loaded if loaded is Texture2D else null
 		preview.texture = texture
 		preview.tooltip_text = clean_path
 	else:
 		preview.texture = null
 		preview.tooltip_text = "File not found: " + clean_path
+
+
+## Helper to safely load a texture from path
+func _load_texture(path: String) -> Texture2D:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	var loaded: Resource = load(path)
+	return loaded if loaded is Texture2D else null
 
 
 # =============================================================================

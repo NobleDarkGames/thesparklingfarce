@@ -330,8 +330,8 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 	basic_row.add_child(ntype_label)
 
 	node_type_option = OptionButton.new()
-	for t: String in NODE_TYPES:
-		node_type_option.add_item(t)
+	for node_type: String in NODE_TYPES:
+		node_type_option.add_item(node_type)
 	node_type_option.item_selected.connect(_on_node_type_changed)
 	basic_row.add_child(node_type_option)
 
@@ -484,8 +484,8 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 
 	completion_trigger_option = OptionButton.new()
 	completion_trigger_option.custom_minimum_size.x = 120
-	for t: String in COMPLETION_TRIGGERS:
-		completion_trigger_option.add_item(t)
+	for trigger: String in COMPLETION_TRIGGERS:
+		completion_trigger_option.add_item(trigger)
 	completion_trigger_option.item_selected.connect(_on_completion_trigger_changed)
 	completion_trigger_row.add_child(completion_trigger_option)
 
@@ -548,17 +548,17 @@ func _setup_branches_section() -> void:
 
 func _rebuild_branches_ui() -> void:
 	# Clear existing branch rows
-	for child in branches_container.get_children():
+	for child: Node in branches_container.get_children():
 		child.queue_free()
 
 	if selected_node_id.is_empty():
 		return
 
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var branches: Array = node_data.get("branches", [])
+	var branches: Array = DictUtils.get_array(node_data, "branches", [])
 
-	for i in range(branches.size()):
-		var branch: Dictionary = branches[i]
+	for i: int in range(branches.size()):
+		var branch: Dictionary = branches[i] if branches[i] is Dictionary else {}
 		_create_branch_row(i, branch)
 
 
@@ -579,8 +579,9 @@ func _create_branch_row(index: int, branch: Dictionary) -> void:
 	label_label.custom_minimum_size.x = 40
 	row.add_child(label_label)
 
+	var branch_label: String = str(branch.get("label", ""))
 	var label_edit: LineEdit = LineEdit.new()
-	label_edit.text = branch.get("label", "")
+	label_edit.text = branch_label
 	label_edit.custom_minimum_size.x = 180
 	label_edit.placeholder_text = "Choice text shown to player"
 	label_edit.text_changed.connect(_on_branch_label_changed.bind(index))
@@ -592,8 +593,9 @@ func _create_branch_row(index: int, branch: Dictionary) -> void:
 	value_label.custom_minimum_size.x = 40
 	row.add_child(value_label)
 
+	var branch_choice_value: String = str(branch.get("choice_value", ""))
 	var value_edit: LineEdit = LineEdit.new()
-	value_edit.text = branch.get("choice_value", "")
+	value_edit.text = branch_choice_value
 	value_edit.custom_minimum_size.x = 80
 	value_edit.placeholder_text = "Internal ID"
 	value_edit.text_changed.connect(_on_branch_value_changed.bind(index))
@@ -605,9 +607,10 @@ func _create_branch_row(index: int, branch: Dictionary) -> void:
 	target_label.custom_minimum_size.x = 45
 	row.add_child(target_label)
 
+	var branch_target: String = str(branch.get("target", ""))
 	var target_option: OptionButton = OptionButton.new()
 	target_option.custom_minimum_size.x = 120
-	_populate_branch_target_dropdown(target_option, branch.get("target", ""))
+	_populate_branch_target_dropdown(target_option, branch_target)
 	target_option.item_selected.connect(_on_branch_target_changed.bind(index))
 	row.add_child(target_option)
 
@@ -626,14 +629,14 @@ func _populate_branch_target_dropdown(option: OptionButton, current_target: Stri
 	option.clear()
 	option.add_item("(None)", -1)
 
-	var nodes: Array = current_campaign_data.get("nodes", [])
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
 	var selected_index: int = 0
 
-	for i in range(nodes.size()):
-		var node: Dictionary = nodes[i]
-		var node_id: String = node.get("node_id", "")
-		var display: String = node.get("display_name", node_id)
-		option.add_item(display, i)
+	for i: int in range(nodes.size()):
+		var node: Dictionary = nodes[i] if nodes[i] is Dictionary else {}
+		var node_id: String = DictUtils.get_string(node, "node_id", "")
+		var node_display_name: String = DictUtils.get_string(node, "display_name", node_id)
+		option.add_item(node_display_name, i)
 		option.set_item_metadata(i + 1, node_id)
 
 		if node_id == current_target:
@@ -650,7 +653,7 @@ func _on_add_branch() -> void:
 	if "branches" not in node_data:
 		node_data["branches"] = []
 
-	var branches: Array = node_data["branches"]
+	var branches: Array = DictUtils.get_array(node_data, "branches", [])
 	var new_index: int = branches.size()
 
 	var new_branch: Dictionary = {
@@ -670,7 +673,7 @@ func _on_remove_branch(index: int) -> void:
 		return
 
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var branches: Array = node_data.get("branches", [])
+	var branches: Array = DictUtils.get_array(node_data, "branches", [])
 
 	if index >= 0 and index < branches.size():
 		branches.remove_at(index)
@@ -683,10 +686,11 @@ func _on_branch_label_changed(new_text: String, index: int) -> void:
 		return
 
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var branches: Array = node_data.get("branches", [])
+	var branches: Array = DictUtils.get_array(node_data, "branches", [])
 
 	if index >= 0 and index < branches.size():
-		branches[index]["label"] = new_text
+		var branch: Dictionary = branches[index] if branches[index] is Dictionary else {}
+		branch["label"] = new_text
 
 
 func _on_branch_value_changed(new_text: String, index: int) -> void:
@@ -694,10 +698,11 @@ func _on_branch_value_changed(new_text: String, index: int) -> void:
 		return
 
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var branches: Array = node_data.get("branches", [])
+	var branches: Array = DictUtils.get_array(node_data, "branches", [])
 
 	if index >= 0 and index < branches.size():
-		branches[index]["choice_value"] = new_text
+		var branch: Dictionary = branches[index] if branches[index] is Dictionary else {}
+		branch["choice_value"] = new_text
 
 
 func _on_branch_target_changed(option_index: int, branch_index: int) -> void:
@@ -705,18 +710,21 @@ func _on_branch_target_changed(option_index: int, branch_index: int) -> void:
 		return
 
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var branches: Array = node_data.get("branches", [])
+	var branches: Array = DictUtils.get_array(node_data, "branches", [])
 
 	if branch_index >= 0 and branch_index < branches.size():
 		# Get the target option button from the row
-		var row: HBoxContainer = branches_container.get_child(branch_index)
-		if row:
-			for child in row.get_children():
+		var row_node: Node = branches_container.get_child(branch_index)
+		if row_node is HBoxContainer:
+			var row: HBoxContainer = row_node
+			for child: Node in row.get_children():
 				if child is OptionButton:
-					var metadata: Variant = child.get_item_metadata(option_index)
+					var option_button: OptionButton = child
+					var metadata: Variant = option_button.get_item_metadata(option_index)
 					var target: String = "" if (option_index == 0 or metadata == null) else str(metadata)
-					branches[branch_index]["target"] = target
-					branches[branch_index]["trigger"] = "choice"
+					var branch: Dictionary = branches[branch_index] if branches[branch_index] is Dictionary else {}
+					branch["target"] = target
+					branch["trigger"] = "choice"
 					_rebuild_graph()
 					break
 
@@ -761,7 +769,7 @@ func _refresh_campaign_list() -> void:
 
 
 func _on_campaign_selected(index: int) -> void:
-	var path: String = campaign_list.get_item_metadata(index)
+	var path: String = str(campaign_list.get_item_metadata(index))
 	_load_campaign(path)
 
 
@@ -781,7 +789,8 @@ func _load_campaign(path: String) -> void:
 		return
 
 	current_campaign_path = path
-	current_campaign_data = json.data
+	var json_data: Variant = json.data
+	current_campaign_data = json_data if json_data is Dictionary else {}
 	_populate_form()
 	_rebuild_graph()
 	_hide_errors()
@@ -790,10 +799,10 @@ func _load_campaign(path: String) -> void:
 func _populate_form() -> void:
 	_updating_ui = true
 
-	campaign_id_edit.text = current_campaign_data.get("campaign_id", "")
-	campaign_name_edit.text = current_campaign_data.get("campaign_name", "")
+	campaign_id_edit.text = str(current_campaign_data.get("campaign_id", ""))
+	campaign_name_edit.text = str(current_campaign_data.get("campaign_name", ""))
 	# Note: description_edit not in compact UI, skip assignment
-	version_edit.text = current_campaign_data.get("campaign_version", "1.0.0")
+	version_edit.text = str(current_campaign_data.get("campaign_version", "1.0.0"))
 
 	_update_node_dropdowns()
 
@@ -801,9 +810,9 @@ func _populate_form() -> void:
 
 
 func _update_node_dropdowns() -> void:
-	var nodes: Array = current_campaign_data.get("nodes", [])
-	var starting_id: String = current_campaign_data.get("starting_node_id", "")
-	var hub_id: String = current_campaign_data.get("default_hub_id", "")
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+	var starting_id: String = DictUtils.get_string(current_campaign_data, "starting_node_id", "")
+	var hub_id: String = DictUtils.get_string(current_campaign_data, "default_hub_id", "")
 
 	# Update starting node dropdown
 	starting_node_option.clear()
@@ -824,10 +833,10 @@ func _update_node_dropdowns() -> void:
 	var starting_index: int = 0
 	var hub_index: int = 0
 
-	for i in range(nodes.size()):
-		var node: Dictionary = nodes[i]
-		var node_id: String = node.get("node_id", "")
-		var display: String = node.get("display_name", node_id)
+	for i: int in range(nodes.size()):
+		var node: Dictionary = nodes[i] if nodes[i] is Dictionary else {}
+		var node_id: String = DictUtils.get_string(node, "node_id", "")
+		var display: String = DictUtils.get_string(node, "display_name", node_id)
 
 		starting_node_option.add_item(display, i)
 		starting_node_option.set_item_metadata(i + 1, node_id)
@@ -855,21 +864,21 @@ func _update_node_dropdowns() -> void:
 
 func _rebuild_graph() -> void:
 	# Clear existing graph
-	for child in graph_edit.get_children():
+	for child: Node in graph_edit.get_children():
 		if child is GraphNode:
 			child.queue_free()
 	graph_nodes.clear()
 	graph_edit.clear_connections()
 
-	var nodes: Array = current_campaign_data.get("nodes", [])
-	var starting_id: String = current_campaign_data.get("starting_node_id", "")
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+	var starting_id: String = DictUtils.get_string(current_campaign_data, "starting_node_id", "")
 
 	# Create graph nodes
-	for i in range(nodes.size()):
-		var node_data: Dictionary = nodes[i]
+	for i: int in range(nodes.size()):
+		var node_data: Dictionary = nodes[i] if nodes[i] is Dictionary else {}
 		var graph_node: GraphNode = _create_graph_node(node_data, i, starting_id)
 		graph_edit.add_child(graph_node)
-		graph_nodes[node_data.get("node_id", "")] = graph_node
+		graph_nodes[DictUtils.get_string(node_data, "node_id", "")] = graph_node
 
 	# Create connections after all nodes exist
 	call_deferred("_create_connections")
@@ -877,22 +886,25 @@ func _rebuild_graph() -> void:
 
 func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) -> GraphNode:
 	var graph_node: GraphNode = GraphNode.new()
-	var node_id: String = node_data.get("node_id", "node_%d" % index)
-	var node_type: String = node_data.get("node_type", "scene")
-	var display_name: String = node_data.get("display_name", node_id)
-	var is_hub: bool = node_data.get("is_hub", false)
+	var node_id: String = DictUtils.get_string(node_data, "node_id", "node_%d" % index)
+	var node_type: String = DictUtils.get_string(node_data, "node_type", "scene")
+	var display_name: String = DictUtils.get_string(node_data, "display_name", node_id)
+	var is_hub: bool = DictUtils.get_bool(node_data, "is_hub", false)
 	var is_start: bool = (node_id == starting_id)
 
 	graph_node.name = node_id
 	graph_node.title = display_name
 
 	# Position from stored data or auto-layout
-	var pos_x: float = node_data.get("_editor_pos_x", index % 4 * 200)
-	var pos_y: float = node_data.get("_editor_pos_y", int(index / 4) * 150)
+	var pos_x_variant: Variant = node_data.get("_editor_pos_x", index % 4 * 200)
+	var pos_x: float = float(pos_x_variant) if pos_x_variant is float or pos_x_variant is int else 0.0
+	var pos_y_variant: Variant = node_data.get("_editor_pos_y", int(index / 4) * 150)
+	var pos_y: float = float(pos_y_variant) if pos_y_variant is float or pos_y_variant is int else 0.0
 	graph_node.position_offset = Vector2(pos_x, pos_y)
 
 	# Color based on type
-	var base_color: Color = NODE_COLORS.get(node_type, Color(0.5, 0.5, 0.5))
+	var base_color_variant: Variant = NODE_COLORS.get(node_type, Color(0.5, 0.5, 0.5))
+	var base_color: Color = base_color_variant as Color if base_color_variant is Color else Color(0.5, 0.5, 0.5)
 
 	# Create custom stylebox
 	var style: StyleBoxFlat = StyleBoxFlat.new()
@@ -940,21 +952,23 @@ func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) 
 		graph_node.set_slot(2, false, 0, Color.WHITE, true, 1, Color(0.8, 0.3, 0.3))  # Defeat (red)
 	elif node_type == "choice":
 		# Choice nodes have one output per branch
-		var branches: Array = node_data.get("branches", [])
+		var branches: Array = DictUtils.get_array(node_data, "branches", [])
+		var choice_color_variant: Variant = NODE_COLORS["choice"]
+		var choice_color: Color = choice_color_variant as Color if choice_color_variant is Color else Color(0.6, 0.3, 0.7)
 		if branches.is_empty():
 			# No branches yet - show placeholder
-			graph_node.set_slot(1, false, 0, Color.WHITE, true, 0, NODE_COLORS["choice"])
+			graph_node.set_slot(1, false, 0, Color.WHITE, true, 0, choice_color)
 		else:
 			# Create output slot for each branch
-			for i in range(branches.size()):
-				var branch: Dictionary = branches[i]
+			for i: int in range(branches.size()):
+				var branch: Dictionary = branches[i] if branches[i] is Dictionary else {}
 				var branch_label: Label = Label.new()
-				branch_label.text = branch.get("label", "Choice %d" % (i + 1))
+				branch_label.text = DictUtils.get_string(branch, "label", "Choice %d" % (i + 1))
 				branch_label.add_theme_font_size_override("font_size", 14)
 				branch_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 				graph_node.add_child(branch_label)
 				# Slot index is child index (2 + i because we have type_label and id_label first)
-				graph_node.set_slot(2 + i, false, 0, Color.WHITE, true, 0, NODE_COLORS["choice"])
+				graph_node.set_slot(2 + i, false, 0, Color.WHITE, true, 0, choice_color)
 	else:
 		# Other nodes just have on_complete
 		graph_node.set_slot(1, false, 0, Color.WHITE, true, 0, Color.WHITE)
@@ -970,11 +984,12 @@ func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) 
 
 
 func _create_connections() -> void:
-	var nodes: Array = current_campaign_data.get("nodes", [])
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
 
-	for node_data: Dictionary in nodes:
-		var from_id: String = node_data.get("node_id", "")
-		var node_type: String = node_data.get("node_type", "scene")
+	for node_data_variant: Variant in nodes:
+		var node_data: Dictionary = node_data_variant if node_data_variant is Dictionary else {}
+		var from_id: String = DictUtils.get_string(node_data, "node_id", "")
+		var node_type: String = DictUtils.get_string(node_data, "node_type", "scene")
 
 		if from_id not in graph_nodes:
 			continue
@@ -985,25 +1000,25 @@ func _create_connections() -> void:
 		# Other nodes: port 0 = on_complete
 		if node_type == "battle":
 			# Victory connection (right port 0)
-			var victory_target: String = node_data.get("on_victory", "")
+			var victory_target: String = DictUtils.get_string(node_data, "on_victory", "")
 			if not victory_target.is_empty() and victory_target in graph_nodes:
 				graph_edit.connect_node(from_id, 0, victory_target, 0)
 
 			# Defeat connection (right port 1)
-			var defeat_target: String = node_data.get("on_defeat", "")
+			var defeat_target: String = DictUtils.get_string(node_data, "on_defeat", "")
 			if not defeat_target.is_empty() and defeat_target in graph_nodes:
 				graph_edit.connect_node(from_id, 1, defeat_target, 0)
 		elif node_type == "choice":
 			# Connect each branch to its target
-			var branches: Array = node_data.get("branches", [])
-			for i in range(branches.size()):
-				var branch: Dictionary = branches[i]
-				var target: String = branch.get("target", "")
+			var branches: Array = DictUtils.get_array(node_data, "branches", [])
+			for i: int in range(branches.size()):
+				var branch: Dictionary = branches[i] if branches[i] is Dictionary else {}
+				var target: String = DictUtils.get_string(branch, "target", "")
 				if not target.is_empty() and target in graph_nodes:
 					graph_edit.connect_node(from_id, i, target, 0)
 		else:
 			# on_complete connection (right port 0)
-			var complete_target: String = node_data.get("on_complete", "")
+			var complete_target: String = DictUtils.get_string(node_data, "on_complete", "")
 			if not complete_target.is_empty() and complete_target in graph_nodes:
 				graph_edit.connect_node(from_id, 0, complete_target, 0)
 
@@ -1030,42 +1045,42 @@ func _populate_node_inspector() -> void:
 		_updating_ui = false
 		return
 
-	node_id_edit.text = node_data.get("node_id", "")
-	node_name_edit.text = node_data.get("display_name", "")
+	node_id_edit.text = str(node_data.get("node_id", ""))
+	node_name_edit.text = str(node_data.get("display_name", ""))
 
-	var node_type: String = node_data.get("node_type", "scene")
-	for i in range(NODE_TYPES.size()):
+	var node_type: String = str(node_data.get("node_type", "scene"))
+	for i: int in range(NODE_TYPES.size()):
 		if NODE_TYPES[i] == node_type:
 			node_type_option.select(i)
 			break
 
-	resource_id_edit.text = node_data.get("resource_id", "")
-	scene_path_edit.text = node_data.get("scene_path", "")
+	resource_id_edit.text = str(node_data.get("resource_id", ""))
+	scene_path_edit.text = str(node_data.get("scene_path", ""))
 
 	# Update transition dropdowns with current selection
-	_select_transition_target(on_victory_option, node_data.get("on_victory", ""))
-	_select_transition_target(on_defeat_option, node_data.get("on_defeat", ""))
-	_select_transition_target(on_complete_option, node_data.get("on_complete", ""))
+	_select_transition_target(on_victory_option, DictUtils.get_string(node_data, "on_victory", ""))
+	_select_transition_target(on_defeat_option, DictUtils.get_string(node_data, "on_defeat", ""))
+	_select_transition_target(on_complete_option, DictUtils.get_string(node_data, "on_complete", ""))
 
-	is_hub_check.button_pressed = node_data.get("is_hub", false)
-	is_chapter_boundary_check.button_pressed = node_data.get("is_chapter_boundary", false)
-	allow_egress_check.button_pressed = node_data.get("allow_egress", true)
-	retain_xp_check.button_pressed = node_data.get("retain_xp_on_defeat", true)
-	repeatable_check.button_pressed = node_data.get("repeatable", false)
-	defeat_penalty_spin.value = node_data.get("defeat_gold_penalty", 0.5)
+	is_hub_check.button_pressed = DictUtils.get_bool(node_data, "is_hub", false)
+	is_chapter_boundary_check.button_pressed = DictUtils.get_bool(node_data, "is_chapter_boundary", false)
+	allow_egress_check.button_pressed = DictUtils.get_bool(node_data, "allow_egress", true)
+	retain_xp_check.button_pressed = DictUtils.get_bool(node_data, "retain_xp_on_defeat", true)
+	repeatable_check.button_pressed = DictUtils.get_bool(node_data, "repeatable", false)
+	defeat_penalty_spin.value = DictUtils.get_float(node_data, "defeat_gold_penalty", 0.5)
 
-	pre_cinematic_edit.text = node_data.get("pre_cinematic_id", "")
-	post_cinematic_edit.text = node_data.get("post_cinematic_id", "")
+	pre_cinematic_edit.text = DictUtils.get_string(node_data, "pre_cinematic_id", "")
+	post_cinematic_edit.text = DictUtils.get_string(node_data, "post_cinematic_id", "")
 
 	# Completion trigger fields (scene nodes only)
-	var completion_trigger: String = node_data.get("completion_trigger", "exit_trigger")
-	for i in range(COMPLETION_TRIGGERS.size()):
+	var completion_trigger: String = str(node_data.get("completion_trigger", "exit_trigger"))
+	for i: int in range(COMPLETION_TRIGGERS.size()):
 		if COMPLETION_TRIGGERS[i] == completion_trigger:
 			completion_trigger_option.select(i)
 			break
 
-	completion_flag_edit.text = node_data.get("completion_flag", "")
-	completion_npc_edit.text = node_data.get("completion_npc_id", "")
+	completion_flag_edit.text = str(node_data.get("completion_flag", ""))
+	completion_npc_edit.text = str(node_data.get("completion_npc_id", ""))
 
 	# Update visibility based on node type and completion trigger
 	_update_completion_trigger_visibility(node_type, completion_trigger)
@@ -1078,7 +1093,7 @@ func _select_transition_target(option: OptionButton, target_id: String) -> void:
 		option.select(0)
 		return
 
-	for i in range(1, option.item_count):
+	for i: int in range(1, option.item_count):
 		if option.get_item_metadata(i) == target_id:
 			option.select(i)
 			return
@@ -1111,23 +1126,25 @@ func _clear_node_inspector() -> void:
 	transitions_row.visible = true
 	branches_section.visible = false
 	# Clear branches container
-	for child in branches_container.get_children():
+	for child: Node in branches_container.get_children():
 		child.queue_free()
 	_updating_ui = false
 
 
 func _get_node_data(node_id: String) -> Dictionary:
-	var nodes: Array = current_campaign_data.get("nodes", [])
-	for node: Dictionary in nodes:
-		if node.get("node_id", "") == node_id:
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+	for node_variant: Variant in nodes:
+		var node: Dictionary = node_variant if node_variant is Dictionary else {}
+		if DictUtils.get_string(node, "node_id", "") == node_id:
 			return node
 	return {}
 
 
 func _get_node_index(node_id: String) -> int:
-	var nodes: Array = current_campaign_data.get("nodes", [])
-	for i in range(nodes.size()):
-		if nodes[i].get("node_id", "") == node_id:
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+	for i: int in range(nodes.size()):
+		var node: Dictionary = nodes[i] if nodes[i] is Dictionary else {}
+		if DictUtils.get_string(node, "node_id", "") == node_id:
 			return i
 	return -1
 
@@ -1140,8 +1157,9 @@ func _update_node_data(node_id: String, key: String, value: Variant) -> void:
 	if index < 0:
 		return
 
-	var nodes: Array = current_campaign_data.get("nodes", [])
-	nodes[index][key] = value
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+	var node: Dictionary = nodes[index] if nodes[index] is Dictionary else {}
+	node[key] = value
 
 
 # Node inspector change handlers
@@ -1154,10 +1172,12 @@ func _on_node_id_changed(new_text: String) -> void:
 
 	# Update graph node name
 	if old_id in graph_nodes:
-		var gn: GraphNode = graph_nodes[old_id]
-		gn.name = new_text
-		graph_nodes.erase(old_id)
-		graph_nodes[new_text] = gn
+		var gn_variant: Variant = graph_nodes[old_id]
+		var gn: GraphNode = gn_variant as GraphNode if gn_variant is GraphNode else null
+		if gn:
+			gn.name = new_text
+			graph_nodes.erase(old_id)
+			graph_nodes[new_text] = gn
 
 	selected_node_id = new_text
 	_update_node_dropdowns()
@@ -1166,7 +1186,10 @@ func _on_node_id_changed(new_text: String) -> void:
 func _on_node_name_changed(new_text: String) -> void:
 	_update_node_data(selected_node_id, "display_name", new_text)
 	if selected_node_id in graph_nodes:
-		graph_nodes[selected_node_id].title = new_text
+		var gn_variant: Variant = graph_nodes[selected_node_id]
+		var gn: GraphNode = gn_variant as GraphNode if gn_variant is GraphNode else null
+		if gn:
+			gn.title = new_text
 	_update_node_dropdowns()
 
 
@@ -1177,7 +1200,7 @@ func _on_node_type_changed(index: int) -> void:
 	_update_node_data(selected_node_id, "node_type", new_type)
 	# Update completion trigger visibility based on new type
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var completion_trigger: String = node_data.get("completion_trigger", "exit_trigger")
+	var completion_trigger: String = str(node_data.get("completion_trigger", "exit_trigger"))
 	_update_completion_trigger_visibility(new_type, completion_trigger)
 	_rebuild_graph()  # Rebuild to update colors and slots
 
@@ -1257,7 +1280,7 @@ func _on_completion_trigger_changed(index: int) -> void:
 	_update_node_data(selected_node_id, "completion_trigger", new_trigger)
 	# Update visibility of flag/npc fields based on selected trigger
 	var node_data: Dictionary = _get_node_data(selected_node_id)
-	var node_type: String = node_data.get("node_type", "scene")
+	var node_type: String = str(node_data.get("node_type", "scene"))
 	_update_completion_trigger_visibility(node_type, new_trigger)
 
 
@@ -1314,12 +1337,16 @@ func _on_default_hub_changed(index: int) -> void:
 func _on_node_position_changed(node_id: String) -> void:
 	if node_id not in graph_nodes:
 		return
-	var gn: GraphNode = graph_nodes[node_id]
+	var gn_variant: Variant = graph_nodes[node_id]
+	if not gn_variant is GraphNode:
+		return
+	var gn: GraphNode = gn_variant
 	var index: int = _get_node_index(node_id)
 	if index >= 0:
-		var nodes: Array = current_campaign_data.get("nodes", [])
-		nodes[index]["_editor_pos_x"] = gn.position_offset.x
-		nodes[index]["_editor_pos_y"] = gn.position_offset.y
+		var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+		var node: Dictionary = nodes[index] if nodes[index] is Dictionary else {}
+		node["_editor_pos_x"] = gn.position_offset.x
+		node["_editor_pos_y"] = gn.position_offset.y
 
 
 func _on_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
@@ -1328,7 +1355,7 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 	# Choice nodes: port 0, 1, 2... for each branch
 	# Other nodes: port 0 = on_complete
 	var from_data: Dictionary = _get_node_data(String(from_node))
-	var node_type: String = from_data.get("node_type", "scene")
+	var node_type: String = DictUtils.get_string(from_data, "node_type", "scene")
 
 	var target_id: String = String(to_node)
 
@@ -1339,9 +1366,10 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 			_update_node_data(String(from_node), "on_defeat", target_id)
 	elif node_type == "choice":
 		# Update branch target
-		var branches: Array = from_data.get("branches", [])
+		var branches: Array = DictUtils.get_array(from_data, "branches", [])
 		if from_port >= 0 and from_port < branches.size():
-			branches[from_port]["target"] = target_id
+			var branch: Dictionary = branches[from_port] if branches[from_port] is Dictionary else {}
+			branch["target"] = target_id
 	else:
 		# on_complete (port 0)
 		_update_node_data(String(from_node), "on_complete", target_id)
@@ -1356,7 +1384,7 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 	# Choice nodes: port 0, 1, 2... for each branch
 	# Other nodes use port 0 = on_complete
 	var from_data: Dictionary = _get_node_data(String(from_node))
-	var node_type: String = from_data.get("node_type", "scene")
+	var node_type: String = DictUtils.get_string(from_data, "node_type", "scene")
 
 	if node_type == "battle":
 		if from_port == 0:
@@ -1365,9 +1393,10 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 			_update_node_data(String(from_node), "on_defeat", "")
 	elif node_type == "choice":
 		# Clear branch target
-		var branches: Array = from_data.get("branches", [])
+		var branches: Array = DictUtils.get_array(from_data, "branches", [])
 		if from_port >= 0 and from_port < branches.size():
-			branches[from_port]["target"] = ""
+			var branch: Dictionary = branches[from_port] if branches[from_port] is Dictionary else {}
+			branch["target"] = ""
 	else:
 		_update_node_data(String(from_node), "on_complete", "")
 
@@ -1380,7 +1409,7 @@ func _on_add_node() -> void:
 	if "nodes" not in current_campaign_data:
 		current_campaign_data["nodes"] = []
 
-	var nodes: Array = current_campaign_data["nodes"]
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
 	var new_index: int = nodes.size()
 	var new_id: String = "node_%d" % new_index
 
@@ -1405,26 +1434,28 @@ func _on_delete_node() -> void:
 	if index < 0:
 		return
 
-	var nodes: Array = current_campaign_data.get("nodes", [])
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
 
 	# Remove references to this node from other nodes
-	for node: Dictionary in nodes:
-		if node.get("on_victory", "") == selected_node_id:
+	for node_variant: Variant in nodes:
+		var node: Dictionary = node_variant if node_variant is Dictionary else {}
+		if DictUtils.get_string(node, "on_victory", "") == selected_node_id:
 			node["on_victory"] = ""
-		if node.get("on_defeat", "") == selected_node_id:
+		if DictUtils.get_string(node, "on_defeat", "") == selected_node_id:
 			node["on_defeat"] = ""
-		if node.get("on_complete", "") == selected_node_id:
+		if DictUtils.get_string(node, "on_complete", "") == selected_node_id:
 			node["on_complete"] = ""
 		# Also clear branch targets pointing to this node
-		var branches: Array = node.get("branches", [])
-		for branch: Dictionary in branches:
-			if branch.get("target", "") == selected_node_id:
+		var branches: Array = DictUtils.get_array(node, "branches", [])
+		for branch_variant: Variant in branches:
+			var branch: Dictionary = branch_variant if branch_variant is Dictionary else {}
+			if DictUtils.get_string(branch, "target", "") == selected_node_id:
 				branch["target"] = ""
 
 	# Clear starting/hub if pointing to deleted node
-	if current_campaign_data.get("starting_node_id", "") == selected_node_id:
+	if DictUtils.get_string(current_campaign_data, "starting_node_id", "") == selected_node_id:
 		current_campaign_data["starting_node_id"] = ""
-	if current_campaign_data.get("default_hub_id", "") == selected_node_id:
+	if DictUtils.get_string(current_campaign_data, "default_hub_id", "") == selected_node_id:
 		current_campaign_data["default_hub_id"] = ""
 
 	nodes.remove_at(index)
@@ -1494,7 +1525,7 @@ func _on_save() -> void:
 	# Notify that a campaign was saved (not mods_reloaded - that's for mod manifest changes)
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
 	if event_bus:
-		var campaign_id: String = current_campaign_data.get("campaign_id", "")
+		var campaign_id: String = str(current_campaign_data.get("campaign_id", ""))
 		event_bus.resource_saved.emit("campaign", campaign_id, null)
 
 
@@ -1507,19 +1538,20 @@ func _collect_metadata_from_ui() -> void:
 func _validate() -> Array[String]:
 	var errors: Array[String] = []
 
-	if current_campaign_data.get("campaign_id", "").is_empty():
+	if str(current_campaign_data.get("campaign_id", "")).is_empty():
 		errors.append("Campaign ID is required")
-	if current_campaign_data.get("campaign_name", "").is_empty():
+	if DictUtils.get_string(current_campaign_data, "campaign_name", "").is_empty():
 		errors.append("Campaign name is required")
 
-	var nodes: Array = current_campaign_data.get("nodes", [])
-	if nodes.size() > 0 and current_campaign_data.get("starting_node_id", "").is_empty():
+	var nodes: Array = DictUtils.get_array(current_campaign_data, "nodes", [])
+	if nodes.size() > 0 and DictUtils.get_string(current_campaign_data, "starting_node_id", "").is_empty():
 		errors.append("Starting node is required when nodes exist")
 
 	# Check for duplicate node IDs
 	var seen_ids: Dictionary = {}
-	for node: Dictionary in nodes:
-		var nid: String = node.get("node_id", "")
+	for node_variant: Variant in nodes:
+		var node: Dictionary = node_variant if node_variant is Dictionary else {}
+		var nid: String = DictUtils.get_string(node, "node_id", "")
 		if nid in seen_ids:
 			errors.append("Duplicate node ID: " + nid)
 		seen_ids[nid] = true

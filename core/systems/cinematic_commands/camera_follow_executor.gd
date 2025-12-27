@@ -23,7 +23,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		return true  # Complete immediately on error
 
 	# Get actor's parent entity (the actual Node2D to follow)
-	var entity: Node2D = actor.parent_entity if actor.parent_entity else actor.get_parent() as Node2D
+	var parent_node: Node = actor.get_parent()
+	var entity: Node2D = actor.parent_entity if actor.parent_entity else (parent_node if parent_node is Node2D else null)
 	if not entity:
 		push_error("CameraFollowExecutor: Actor '%s' has no valid parent entity to follow" % target)
 		return true

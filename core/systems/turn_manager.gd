@@ -16,9 +16,9 @@ const AGI_OFFSET_MAX: int = 1
 
 ## Signals for turn events
 signal turn_cycle_started(turn_number: int)
-signal player_turn_started(unit: Node2D)
-signal enemy_turn_started(unit: Node2D)
-signal unit_turn_ended(unit: Node2D)
+signal player_turn_started(unit: Unit)
+signal enemy_turn_started(unit: Unit)
+signal unit_turn_ended(unit: Unit)
 signal battle_ended(victory: bool)
 signal hero_died_in_battle()  ## SF2: Hero death triggers immediate battle exit
 
@@ -28,13 +28,13 @@ signal victory_condition_check(battle_data: Resource, context: Dictionary)
 signal defeat_condition_check(battle_data: Resource, context: Dictionary)
 
 ## All units participating in battle (player + enemy + neutral)
-var all_units: Array[Node2D] = []
+var all_units: Array[Unit] = []
 
 ## Current turn queue (sorted by AGI priority)
-var turn_queue: Array[Node2D] = []
+var turn_queue: Array[Unit] = []
 
 ## Currently active unit
-var active_unit: Node2D = null
+var active_unit: Unit = null
 
 ## Overall turn counter
 var turn_number: int = 0
@@ -72,7 +72,7 @@ func _get_elapsed_time() -> String:
 
 
 ## Initialize battle with all units
-func start_battle(units: Array[Node2D]) -> void:
+func start_battle(units: Array[Unit]) -> void:
 	if units.is_empty():
 		push_error("TurnManager: Cannot start battle with no units")
 		return
@@ -88,7 +88,7 @@ func start_battle(units: Array[Node2D]) -> void:
 
 ## Calculate turn priority for a unit (Shining Force II formula)
 ## Returns: AGI * Random(0.875 to 1.125) + Random(-1, 0, 1)
-func calculate_turn_priority(unit: Node2D) -> float:
+func calculate_turn_priority(unit: Unit) -> float:
 	if not unit.has_method("get_stats_summary"):
 		push_warning("TurnManager: Unit missing stats")
 		return 0.0
@@ -111,7 +111,7 @@ func calculate_turn_order() -> void:
 	turn_queue.clear()
 
 	# Calculate priority for each living unit
-	for unit: Node2D in all_units:
+	for unit: Unit in all_units:
 		if not unit.is_alive():
 			continue
 
@@ -120,7 +120,7 @@ func calculate_turn_order() -> void:
 		turn_queue.append(unit)
 
 	# Sort by priority (highest first)
-	turn_queue.sort_custom(func(a: Node2D, b: Node2D) -> bool: return a.turn_priority > b.turn_priority)
+	turn_queue.sort_custom(func(a: Unit, b: Unit) -> bool: return a.turn_priority > b.turn_priority)
 
 
 ## Start a new turn cycle
@@ -129,7 +129,7 @@ func start_new_turn_cycle() -> void:
 	turn_cycle_started.emit(turn_number)
 
 	# Reset all unit visuals (remove dimming from previous round)
-	for unit: Node2D in all_units:
+	for unit: Unit in all_units:
 		if unit.is_alive() and unit.has_method("reset_acted_visual"):
 			unit.reset_acted_visual()
 
@@ -142,7 +142,7 @@ func start_new_turn_cycle() -> void:
 
 	# Start first unit's turn
 	if not turn_queue.is_empty():
-		var first_unit: Node2D = turn_queue.pop_front()
+		var first_unit: Unit = turn_queue.pop_front()
 		start_unit_turn(first_unit)
 	else:
 		push_error("TurnManager: Turn queue is empty after calculation")
@@ -150,7 +150,7 @@ func start_new_turn_cycle() -> void:
 
 
 ## Start a unit's turn
-func start_unit_turn(unit: Node2D) -> void:
+func start_unit_turn(unit: Unit) -> void:
 	if not unit or not unit.is_alive():
 		# Skip dead units, get next
 		advance_to_next_unit()
@@ -199,7 +199,7 @@ func start_unit_turn(unit: Node2D) -> void:
 
 
 ## End the current unit's turn
-func end_unit_turn(unit: Node2D) -> void:
+func end_unit_turn(unit: Unit) -> void:
 	if unit != active_unit:
 		push_warning("TurnManager: Trying to end turn for non-active unit")
 		return
@@ -242,7 +242,7 @@ func advance_to_next_unit() -> void:
 		start_new_turn_cycle()
 	else:
 		# Get next unit
-		var next_unit: Node2D = turn_queue.pop_front()
+		var next_unit: Unit = turn_queue.pop_front()
 		start_unit_turn(next_unit)
 
 
@@ -252,7 +252,7 @@ func _check_battle_end() -> bool:
 		return true
 
 	# Get battle data from BattleManager for condition checks
-	var battle_data: Resource = BattleManager.current_battle_data
+	var battle_data: BattleData = BattleManager.current_battle_data
 
 	# Count living units by faction and track hero/boss status
 	var player_count: int = 0
@@ -260,7 +260,7 @@ func _check_battle_end() -> bool:
 	var hero_alive: bool = false
 	var boss_alive: bool = true
 
-	for unit: Node2D in all_units:
+	for unit: Unit in all_units:
 		if not unit.is_alive():
 			continue
 
@@ -362,7 +362,7 @@ func _check_defeat_condition(battle_data: Resource, player_count: int, hero_aliv
 func _is_boss_alive(battle_data: Resource) -> bool:
 	if not battle_data or battle_data.victory_boss_index < 0:
 		# Fallback: check any enemy with is_boss flag
-		for unit: Node2D in all_units:
+		for unit: Unit in all_units:
 			if unit.is_enemy_unit() and unit.is_alive():
 				if unit.character_data and unit.character_data.is_boss:
 					return true
@@ -371,7 +371,7 @@ func _is_boss_alive(battle_data: Resource) -> bool:
 	# Check specific boss by index
 	var boss_index: int = battle_data.victory_boss_index
 	var enemy_index: int = 0
-	for unit: Node2D in all_units:
+	for unit: Unit in all_units:
 		if unit.is_enemy_unit():
 			if enemy_index == boss_index:
 				return unit.is_alive()
@@ -390,7 +390,7 @@ func _end_battle(victory: bool) -> void:
 
 
 ## Get the currently active unit
-func get_active_unit() -> Node2D:
+func get_active_unit() -> Unit:
 	return active_unit
 
 
@@ -405,7 +405,7 @@ func is_battle_active() -> bool:
 
 
 ## Get remaining units in turn queue
-func get_remaining_turn_queue() -> Array[Node2D]:
+func get_remaining_turn_queue() -> Array[Unit]:
 	return turn_queue.duplicate()
 
 
@@ -416,7 +416,7 @@ func get_turn_number() -> int:
 
 ## Process terrain effects for a unit at the start of their turn
 ## Returns true if the unit died from terrain damage
-func _process_terrain_effects(unit: Node2D) -> bool:
+func _process_terrain_effects(unit: Unit) -> bool:
 	if not unit or not unit.is_alive():
 		return false
 
@@ -463,7 +463,7 @@ func _process_terrain_effects(unit: Node2D) -> bool:
 
 
 ## Show a popup for terrain effects (damage or healing)
-func _show_terrain_popup(unit: Node2D, message: String, color: Color) -> void:
+func _show_terrain_popup(unit: Unit, message: String, color: Color) -> void:
 	var label: Label = Label.new()
 	label.text = message
 	label.add_theme_color_override("font_color", color)
@@ -485,7 +485,7 @@ func _show_terrain_popup(unit: Node2D, message: String, color: Color) -> void:
 ## - died: true if unit died from status damage (poison)
 ##
 ## Uses data-driven StatusEffectData from ModLoader.status_effect_registry
-func _process_status_effects(unit: Node2D) -> Dictionary:
+func _process_status_effects(unit: Unit) -> Dictionary:
 	var result: Dictionary = {"skip_turn": false, "died": false}
 
 	if not unit or not unit.is_alive() or not unit.stats:
@@ -588,7 +588,7 @@ func _process_status_effects(unit: Node2D) -> Dictionary:
 ## Legacy fallback for status effects not in registry (backwards compatibility)
 ## Returns: {skip_turn: bool, showed_popup: bool}
 func _process_legacy_status_effect(
-	unit: Node2D,
+	unit: Unit,
 	effect_state: Dictionary,
 	effects_to_remove: Array[String]
 ) -> Dictionary:
@@ -657,7 +657,7 @@ func _process_legacy_status_effect(
 
 
 ## Show a status effect popup above unit
-func _show_status_popup(unit: Node2D, message: String, color: Color) -> void:
+func _show_status_popup(unit: Unit, message: String, color: Color) -> void:
 	var label: Label = Label.new()
 	label.text = message
 	label.add_theme_color_override("font_color", color)
@@ -676,7 +676,7 @@ func _show_status_popup(unit: Node2D, message: String, color: Color) -> void:
 
 
 ## Helper to get unit display name safely
-func _get_unit_name(unit: Node2D) -> String:
+func _get_unit_name(unit: Unit) -> String:
 	if unit.has_method("get_display_name"):
 		return unit.get_display_name()
 	return "Unknown"

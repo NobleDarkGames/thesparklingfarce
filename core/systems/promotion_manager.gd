@@ -22,29 +22,29 @@ const UnitUtils: GDScript = preload("res://core/utils/unit_utils.gd")
 ## Emitted when a unit reaches promotion eligibility.
 ## UI can use this to display promotion availability indicator.
 ## @param unit: Unit that can now promote
-signal promotion_available(unit: Node2D)
+signal promotion_available(unit: Unit)
 
 ## Emitted when promotion process begins (before stat changes).
 ## @param unit: Unit being promoted
 ## @param old_class: Previous ClassData
 ## @param new_class: Target ClassData
-signal promotion_started(unit: Node2D, old_class: Resource, new_class: Resource)
+signal promotion_started(unit: Unit, old_class: Resource, new_class: Resource)
 
 ## Emitted when promotion completes successfully.
 ## @param unit: Unit that was promoted
 ## @param old_class: Previous ClassData
 ## @param new_class: New ClassData
 ## @param stat_changes: Dictionary of changes {stat_name: bonus_amount}
-signal promotion_completed(unit: Node2D, old_class: Resource, new_class: Resource, stat_changes: Dictionary)
+signal promotion_completed(unit: Unit, old_class: Resource, new_class: Resource, stat_changes: Dictionary)
 
 ## Emitted when promotion is cancelled (user backed out).
 ## @param unit: Unit that was going to promote
-signal promotion_cancelled(unit: Node2D)
+signal promotion_cancelled(unit: Unit)
 
 ## Emitted when equipment must be unequipped due to class incompatibility.
 ## @param unit: Unit losing equipment
 ## @param items: Array of ItemData that were unequipped
-signal equipment_unequipped(unit: Node2D, items: Array)
+signal equipment_unequipped(unit: Unit, items: Array)
 
 
 # ============================================================================
@@ -78,7 +78,7 @@ func _connect_to_experience_manager() -> void:
 ## Returns true if unit meets level requirement and has a promotion path.
 ## @param unit: Unit to check
 ## @return: true if promotion is available
-func can_promote(unit: Node2D) -> bool:
+func can_promote(unit: Unit) -> bool:
 	if not _validate_unit(unit):
 		return false
 
@@ -99,7 +99,7 @@ func can_promote(unit: Node2D) -> bool:
 ## Used by ExperienceManager to emit promotion_available signal.
 ## @param unit: Unit to check
 ## @return: true if just became eligible
-func check_promotion_eligibility(unit: Node2D) -> bool:
+func check_promotion_eligibility(unit: Unit) -> bool:
 	if can_promote(unit):
 		promotion_available.emit(unit)
 		return true
@@ -123,7 +123,7 @@ func _get_promotion_level(class_data: ClassData) -> int:
 ## Returns all paths where item requirements are met.
 ## @param unit: Unit to get promotions for
 ## @return: Array of ClassData options
-func get_available_promotions(unit: Node2D) -> Array[ClassData]:
+func get_available_promotions(unit: Unit) -> Array[ClassData]:
 	var promotions: Array[ClassData] = []
 
 	if not _validate_unit(unit):
@@ -150,7 +150,7 @@ func get_available_promotions(unit: Node2D) -> Array[ClassData]:
 ## Returns paths with availability status for each.
 ## @param unit: Unit to get promotions for
 ## @return: Array of Dictionaries with path info and availability
-func get_available_promotions_detailed(unit: Node2D) -> Array[Dictionary]:
+func get_available_promotions_detailed(unit: Unit) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
 
 	if not _validate_unit(unit):
@@ -181,7 +181,7 @@ func get_available_promotions_detailed(unit: Node2D) -> Array[Dictionary]:
 ## @param unit: Unit to check (for future unit-specific inventory)
 ## @param required_item: ItemData to check for
 ## @return: true if item is available
-func _has_required_item(_unit: Node2D, required_item: ItemData) -> bool:
+func _has_required_item(_unit: Unit, required_item: ItemData) -> bool:
 	if not required_item:
 		return true
 
@@ -199,7 +199,7 @@ func _has_required_item(_unit: Node2D, required_item: ItemData) -> bool:
 ## @param unit: Unit to check inventory
 ## @param target_class: The target ClassData of the promotion path
 ## @return: true if item is available (or no item required)
-func has_item_for_promotion(unit: Node2D, target_class: ClassData) -> bool:
+func has_item_for_promotion(unit: Unit, target_class: ClassData) -> bool:
 	var class_data: ClassData = _get_unit_class(unit)
 	if not class_data:
 		return false
@@ -216,7 +216,7 @@ func has_item_for_promotion(unit: Node2D, target_class: ClassData) -> bool:
 
 ## DEPRECATED: Use has_item_for_promotion instead.
 ## Kept for backward compatibility.
-func has_item_for_special_promotion(unit: Node2D, class_data: ClassData = null) -> bool:
+func has_item_for_special_promotion(unit: Unit, class_data: ClassData = null) -> bool:
 	if class_data == null:
 		class_data = _get_unit_class(unit)
 
@@ -248,7 +248,7 @@ func _has_special_promotion(class_data: ClassData) -> bool:
 ## @param unit: Unit to promote
 ## @param target_class: ClassData to promote to
 ## @return: Dictionary of stat changes applied
-func execute_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
+func execute_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	var stat_changes: Dictionary = {}
 
 	if not _validate_unit(unit):
@@ -328,7 +328,7 @@ func execute_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 ## @param unit: Unit to preview promotion for
 ## @param target_class: ClassData to preview
 ## @return: Dictionary describing the promotion effects
-func preview_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
+func preview_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	var preview: Dictionary = {
 		"valid": false,
 		"old_class_name": "",
@@ -367,15 +367,15 @@ func preview_promotion(unit: Node2D, target_class: ClassData) -> Dictionary:
 ## @param unit: Unit being promoted
 ## @param new_class: Target class
 ## @return: Array of items that were unequipped
-func _check_equipment_compatibility(unit: Node2D, new_class: ClassData) -> Array:
+func _check_equipment_compatibility(unit: Unit, new_class: ClassData) -> Array:
 	var unequipped: Array = []
 
 	# TODO: Implement when equipment system is complete
 	# For now, return empty array
 	var conflicts: Array = _get_equipment_conflicts(unit, new_class)
 
-	for i in range(conflicts.size()):
-		var item: Resource = conflicts[i]
+	for i: int in range(conflicts.size()):
+		var item: ItemData = conflicts[i] as ItemData
 		# Unequip item and move to inventory
 		# PartyManager.unequip_item(unit, item)
 		# PartyManager.add_to_inventory(item)
@@ -388,7 +388,7 @@ func _check_equipment_compatibility(unit: Node2D, new_class: ClassData) -> Array
 ## @param unit: Unit to check
 ## @param new_class: Target class
 ## @return: Array of conflicting ItemData
-func _get_equipment_conflicts(unit: Node2D, new_class: ClassData) -> Array:
+func _get_equipment_conflicts(unit: Unit, new_class: ClassData) -> Array:
 	var conflicts: Array = []
 
 	# TODO: Implement when equipment system is complete
@@ -420,7 +420,7 @@ func _calculate_promotion_bonuses() -> Dictionary:
 	# Check for promotion bonus properties in config
 	var bonus_stats: Array[String] = ["hp", "mp", "strength", "defense", "agility", "intelligence", "luck"]
 
-	for stat in bonus_stats:
+	for stat: String in bonus_stats:
 		var config_key: String = "promotion_bonus_" + stat
 		if config_key in _experience_config:
 			var bonus: int = _experience_config.get(config_key)
@@ -433,12 +433,13 @@ func _calculate_promotion_bonuses() -> Dictionary:
 ## Apply stat bonuses to unit.
 ## @param unit: Unit to modify
 ## @param bonuses: Dictionary of stat bonuses
-func _apply_stat_bonuses(unit: Node2D, bonuses: Dictionary) -> void:
+func _apply_stat_bonuses(unit: Unit, bonuses: Dictionary) -> void:
 	if not unit.stats:
 		return
 
 	for stat_name: String in bonuses.keys():
-		var bonus: int = bonuses[stat_name]
+		var bonus_variant: Variant = bonuses[stat_name]
+		var bonus: int = bonus_variant if bonus_variant is int else 0
 
 		match stat_name:
 			"hp":
@@ -464,7 +465,7 @@ func _apply_stat_bonuses(unit: Node2D, bonuses: Dictionary) -> void:
 # ============================================================================
 
 ## Validate unit is valid for promotion operations.
-func _validate_unit(unit: Node2D) -> bool:
+func _validate_unit(unit: Unit) -> bool:
 	if unit == null:
 		return false
 	if unit.stats == null:
@@ -476,7 +477,7 @@ func _validate_unit(unit: Node2D) -> bool:
 
 ## Get unit's current class.
 ## Checks CharacterSaveData first (for promoted characters), then falls back to CharacterData.
-func _get_unit_class(unit: Node2D) -> ClassData:
+func _get_unit_class(unit: Unit) -> ClassData:
 	if not unit.character_data:
 		return null
 
@@ -494,7 +495,7 @@ func _get_unit_class(unit: Node2D) -> ClassData:
 ## Set unit's class via CharacterSaveData (does NOT mutate CharacterData template).
 ## @param unit: The unit being promoted
 ## @param new_class: The ClassData to set
-func _set_unit_class(unit: Node2D, new_class: ClassData) -> void:
+func _set_unit_class(unit: Unit, new_class: ClassData) -> void:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if not save_data:
 		push_error("PromotionManager: Cannot set class - no CharacterSaveData for unit '%s'" % UnitUtils.get_display_name(unit))
@@ -510,7 +511,7 @@ func _set_unit_class(unit: Node2D, new_class: ClassData) -> void:
 ## Get CharacterSaveData for a unit from PartyManager.
 ## @param unit: The unit to get save data for
 ## @return: CharacterSaveData or null if not found
-func _get_unit_save_data(unit: Node2D) -> CharacterSaveData:
+func _get_unit_save_data(unit: Unit) -> CharacterSaveData:
 	if not unit.character_data:
 		return null
 
@@ -546,7 +547,7 @@ func _is_special_promotion(old_class: ClassData, target_class: ClassData) -> boo
 ## @param unit: Unit being promoted (for future unit-specific inventory)
 ## @param class_data: The class being promoted from
 ## @param path: The PromotionPath being taken
-func _consume_promotion_item(_unit: Node2D, class_data: ClassData, path: PromotionPath) -> void:
+func _consume_promotion_item(_unit: Unit, class_data: ClassData, path: PromotionPath) -> void:
 	# Check if class says to consume item (defaults to true)
 	if not class_data.consume_promotion_item:
 		return
@@ -567,7 +568,7 @@ func _should_reset_level(target_class: ClassData) -> bool:
 
 
 ## Get cumulative level from unit's save data.
-func _get_cumulative_level(unit: Node2D) -> int:
+func _get_cumulative_level(unit: Unit) -> int:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if save_data:
 		return save_data.cumulative_level
@@ -579,14 +580,14 @@ func _get_cumulative_level(unit: Node2D) -> int:
 
 
 ## Set cumulative level in unit's save data.
-func _set_cumulative_level(unit: Node2D, total: int) -> void:
+func _set_cumulative_level(unit: Unit, total: int) -> void:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if save_data:
 		save_data.cumulative_level = total
 
 
 ## Increment promotion count for unit.
-func _increment_promotion_count(unit: Node2D) -> void:
+func _increment_promotion_count(unit: Unit) -> void:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if save_data:
 		save_data.promotion_count += 1

@@ -50,7 +50,7 @@ func _get_character_data(character_uid: String) -> CharacterData:
 
 func _populate_slot_grid() -> void:
 	# Clear existing
-	for child in slot_grid.get_children():
+	for child: Node in slot_grid.get_children():
 		child.queue_free()
 	slot_buttons.clear()
 
@@ -63,13 +63,13 @@ func _populate_slot_grid() -> void:
 	var can_afford: bool = _get_gold() >= cost
 
 	for entry: Dictionary in save_data.equipped_items:
-		var slot: String = entry.get("slot", "")
+		var slot: String = DictUtils.get_string(entry, "slot", "")
 		if slot.is_empty():
 			continue
 		if not EquipmentManager.is_slot_cursed(save_data, slot):
 			continue
 
-		var item_id: String = entry.get("item_id", "")
+		var item_id: String = DictUtils.get_string(entry, "item_id", "")
 		var item: ItemData = ModLoader.registry.get_resource("item", item_id)
 		var item_name: String = item.item_name if item else item_id
 
@@ -101,7 +101,7 @@ func _on_slot_selected(slot_id: String) -> void:
 	var character_uid: String = context.selected_destination
 	var result: Dictionary = ShopManager.church_uncurse(character_uid, slot_id)
 
-	if result.success:
+	if result.get("success", false):
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
 		var item_id: String = EquipmentManager.get_equipped_item_id(save_data, slot_id) if save_data else ""
 		var item: ItemData = ModLoader.registry.get_resource("item", item_id) if item_id else null
@@ -110,11 +110,11 @@ func _on_slot_selected(slot_id: String) -> void:
 		context.last_result = {
 			"success": true,
 			"message": "The curse has been lifted from %s!" % item_name,
-			"gold_spent": result.cost
+			"gold_spent": result.get("cost", 0)
 		}
 		push_screen("transaction_result")
 	else:
-		print("[ChurchSlotSelect] Uncurse failed: %s" % result.error)
+		print("[ChurchSlotSelect] Uncurse failed: %s" % result.get("error", "Unknown error"))
 
 
 func _on_button_focus_entered(btn: Button) -> void:

@@ -98,7 +98,7 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 	# Copy lines into the DialogueData, resolving character_id if present
 	for line_data: Variant in lines:
 		if line_data is Dictionary:
-			var line_dict: Dictionary = (line_data as Dictionary).duplicate()
+			var line_dict: Dictionary = line_data.duplicate()
 
 			# Resolve character_id to speaker_name and portrait if present
 			if "character_id" in line_dict and not "speaker_name" in line_dict:

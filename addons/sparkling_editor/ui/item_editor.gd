@@ -655,14 +655,14 @@ func _populate_equipment_slot_options() -> void:
 		]
 
 	for slot: Dictionary in slots:
-		var slot_id: String = slot.get("id", "")
-		var display_name: String = slot.get("display_name", slot_id.capitalize())
+		var slot_id: String = DictUtils.get_string(slot, "id", "")
+		var display_name: String = DictUtils.get_string(slot, "display_name", slot_id.capitalize())
 		equipment_slot_option.add_item(display_name)
 		equipment_slot_option.set_item_metadata(equipment_slot_option.item_count - 1, slot_id)
 
 
 func _select_equipment_slot(slot_id: String) -> void:
-	for i in range(equipment_slot_option.item_count):
+	for i: int in range(equipment_slot_option.item_count):
 		if equipment_slot_option.get_item_metadata(i) == slot_id:
 			equipment_slot_option.select(i)
 			return
@@ -674,7 +674,9 @@ func _select_equipment_slot(slot_id: String) -> void:
 func _get_selected_equipment_slot() -> String:
 	var selected: int = equipment_slot_option.selected
 	if selected >= 0:
-		return equipment_slot_option.get_item_metadata(selected)
+		var metadata: Variant = equipment_slot_option.get_item_metadata(selected)
+		if metadata is String:
+			return metadata
 	return "weapon"
 
 

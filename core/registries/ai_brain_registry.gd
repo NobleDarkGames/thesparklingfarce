@@ -180,7 +180,8 @@ func get_all_brain_ids() -> Array[String]:
 func get_all_brains() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for brain_id: String in _brains.keys():
-		result.append(_brains[brain_id].duplicate())
+		var entry: Dictionary = _brains[brain_id]
+		result.append(entry.duplicate())
 	# Sort by display name for consistent UI ordering
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a.get("display_name", "") < b.get("display_name", "")
@@ -193,7 +194,8 @@ func get_all_brains() -> Array[Dictionary]:
 func get_brain(brain_id: String) -> Dictionary:
 	var lower: String = brain_id.to_lower()
 	if lower in _brains:
-		return _brains[lower].duplicate()
+		var entry: Dictionary = _brains[lower]
+		return entry.duplicate()
 	return {}
 
 
@@ -201,7 +203,8 @@ func get_brain(brain_id: String) -> Dictionary:
 func get_display_name(brain_id: String) -> String:
 	var lower: String = brain_id.to_lower()
 	if lower in _brains:
-		return _brains[lower].get("display_name", brain_id.capitalize())
+		var entry: Dictionary = _brains[lower]
+		return entry.get("display_name", brain_id.capitalize())
 	return brain_id.capitalize()
 
 
@@ -209,7 +212,8 @@ func get_display_name(brain_id: String) -> String:
 func get_description(brain_id: String) -> String:
 	var lower: String = brain_id.to_lower()
 	if lower in _brains:
-		return _brains[lower].get("description", "")
+		var entry: Dictionary = _brains[lower]
+		return entry.get("description", "")
 	return ""
 
 
@@ -217,7 +221,8 @@ func get_description(brain_id: String) -> String:
 func get_brain_path(brain_id: String) -> String:
 	var lower: String = brain_id.to_lower()
 	if lower in _brains:
-		return _brains[lower].get("path", "")
+		var entry: Dictionary = _brains[lower]
+		return entry.get("path", "")
 	return ""
 
 
@@ -230,7 +235,8 @@ func has_brain(brain_id: String) -> bool:
 func get_source_mod(brain_id: String) -> String:
 	var lower: String = brain_id.to_lower()
 	if lower in _brains:
-		return _brains[lower].get("source_mod", "")
+		var entry: Dictionary = _brains[lower]
+		return entry.get("source_mod", "")
 	return ""
 
 
@@ -248,7 +254,8 @@ func get_brain_instance(brain_id: String) -> Resource:
 	if lower not in _brains:
 		return null
 
-	var path: String = _brains[lower].get("path", "")
+	var brain_entry: Dictionary = _brains[lower]
+	var path: String = brain_entry.get("path", "")
 	if path.is_empty():
 		return null
 

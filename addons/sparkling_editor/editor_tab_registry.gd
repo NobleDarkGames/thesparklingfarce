@@ -108,10 +108,10 @@ signal tab_unregistered(tab_id: String)
 # =============================================================================
 
 ## Registered tabs: {tab_id: {id, display_name, scene_path, category, priority, source_mod, instance}}
-var _tabs: Dictionary = {}
+var _tabs: Dictionary[String, Dictionary] = {}
 
 ## Tab instances (populated when MainPanel creates the tabs)
-var _instances: Dictionary = {}
+var _instances: Dictionary[String, Control] = {}
 
 ## Cached sorted tab list (rebuilt when dirty)
 var _sorted_tabs: Array[Dictionary] = []
@@ -125,16 +125,17 @@ var _cache_dirty: bool = true
 ## Called by MainPanel during initialization
 func register_builtin_tabs() -> void:
 	for tab_def: Dictionary in BUILTIN_TABS:
-		var tab_id: String = tab_def.get("id", "")
+		var tab_id: String = DictUtils.get_string(tab_def, "id", "")
 		if tab_id.is_empty():
 			continue
 
 		var scene_path: String = ""
 		if "scene" in tab_def:
-			scene_path = BUILTIN_SCENE_PATH + tab_def["scene"]
+			var scene_name: String = DictUtils.get_string(tab_def, "scene", "")
+			scene_path = BUILTIN_SCENE_PATH + scene_name
 
 		# For static tabs (like Overview), scene_path can be empty
-		var is_static: bool = tab_def.get("is_static", false)
+		var is_static: bool = DictUtils.get_bool(tab_def, "is_static", false)
 
 		# Verify scene exists (unless it's a static tab)
 		if not is_static and not scene_path.is_empty():
@@ -142,12 +143,16 @@ func register_builtin_tabs() -> void:
 				push_warning("EditorTabRegistry: Built-in tab '%s' scene not found: %s" % [tab_id, scene_path])
 				continue
 
+		var display_name: String = DictUtils.get_string(tab_def, "display_name", tab_id.capitalize())
+		var category: String = DictUtils.get_string(tab_def, "category", "content")
+		var priority: int = DictUtils.get_int(tab_def, "priority", 100)
+
 		_tabs[tab_id] = {
 			"id": tab_id,
-			"display_name": tab_def.get("display_name", tab_id.capitalize()),
+			"display_name": display_name,
 			"scene_path": scene_path,
-			"category": tab_def.get("category", "content"),
-			"priority": tab_def.get("priority", 100),
+			"category": category,
+			"priority": priority,
 			"source_mod": "",
 			"refresh_method": "refresh",
 			"is_static": is_static
@@ -169,7 +174,7 @@ func register_builtin_tabs() -> void:
 func register_mod_tab(mod_id: String, ext_id: String, config: Dictionary, mod_directory: String) -> void:
 	var tab_id: String = "%s:%s" % [mod_id, ext_id]
 
-	var scene_path: String = config.get("editor_scene", "")
+	var scene_path: String = DictUtils.get_string(config, "editor_scene", "")
 	if scene_path.is_empty():
 		push_warning("EditorTabRegistry: Mod '%s' tab '%s' missing editor_scene" % [mod_id, ext_id])
 		return
@@ -191,14 +196,18 @@ func register_mod_tab(mod_id: String, ext_id: String, config: Dictionary, mod_di
 		push_warning("EditorTabRegistry: Mod '%s' tab '%s' scene not found: %s" % [mod_id, ext_id, full_path])
 		return
 
+	var tab_name: String = DictUtils.get_string(config, "tab_name", ext_id)
+	var priority: int = DictUtils.get_int(config, "priority", 100)
+	var refresh_method: String = DictUtils.get_string(config, "refresh_method", "refresh")
+
 	_tabs[tab_id] = {
 		"id": tab_id,
-		"display_name": "[%s] %s" % [mod_id, config.get("tab_name", ext_id)],
+		"display_name": "[%s] %s" % [mod_id, tab_name],
 		"scene_path": full_path,
 		"category": "mod",
-		"priority": config.get("priority", 100),
+		"priority": priority,
 		"source_mod": mod_id,
-		"refresh_method": config.get("refresh_method", "refresh"),
+		"refresh_method": refresh_method,
 		"is_static": false
 	}
 
@@ -246,7 +255,9 @@ func unregister_tab(tab_id: String) -> void:
 func clear_mod_registrations() -> void:
 	var to_remove: Array[String] = []
 	for tab_id: String in _tabs.keys():
-		if not _tabs[tab_id].get("source_mod", "").is_empty():
+		var tab_info: Dictionary = _tabs[tab_id]
+		var source_mod_str: String = DictUtils.get_string(tab_info, "source_mod", "")
+		if not source_mod_str.is_empty():
 			to_remove.append(tab_id)
 
 	for tab_id: String in to_remove:
@@ -271,15 +282,20 @@ func set_instance(tab_id: String, instance: Control) -> void:
 ## Get a tab's Control instance
 ## Returns null if the tab doesn't exist or has been freed
 func get_instance(tab_id: String) -> Control:
-	if tab_id in _instances and is_instance_valid(_instances[tab_id]):
-		return _instances[tab_id]
+	if tab_id in _instances:
+		var instance: Control = _instances[tab_id]
+		if is_instance_valid(instance):
+			return instance
 	return null
 
 
 ## Check if a tab has been instantiated and is still valid
 ## Uses is_instance_valid() to properly detect freed nodes
 func has_instance(tab_id: String) -> bool:
-	return tab_id in _instances and is_instance_valid(_instances[tab_id])
+	if tab_id in _instances:
+		var instance: Control = _instances[tab_id]
+		return is_instance_valid(instance)
+	return false
 
 
 # =============================================================================
@@ -304,7 +320,8 @@ func get_all_tabs_sorted() -> Array[Dictionary]:
 func get_tabs_by_category(category: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for tab: Dictionary in get_all_tabs_sorted():
-		if tab.get("category", "") == category:
+		var tab_category_str: String = DictUtils.get_string(tab, "category", "")
+		if tab_category_str == category:
 			result.append(tab.duplicate())
 	return result
 
@@ -324,28 +341,32 @@ func has_tab(tab_id: String) -> bool:
 ## Get which mod provided a tab (empty for built-in)
 func get_source_mod(tab_id: String) -> String:
 	if tab_id in _tabs:
-		return _tabs[tab_id].get("source_mod", "")
+		var tab_info: Dictionary = _tabs[tab_id]
+		return DictUtils.get_string(tab_info, "source_mod", "")
 	return ""
 
 
 ## Get a tab's display name
 func get_display_name(tab_id: String) -> String:
 	if tab_id in _tabs:
-		return _tabs[tab_id].get("display_name", tab_id.capitalize())
+		var tab_info: Dictionary = _tabs[tab_id]
+		return DictUtils.get_string(tab_info, "display_name", tab_id.capitalize())
 	return tab_id.capitalize()
 
 
 ## Get a tab's scene path
 func get_scene_path(tab_id: String) -> String:
 	if tab_id in _tabs:
-		return _tabs[tab_id].get("scene_path", "")
+		var tab_info: Dictionary = _tabs[tab_id]
+		return DictUtils.get_string(tab_info, "scene_path", "")
 	return ""
 
 
 ## Check if a tab is static (no scene, created programmatically)
 func is_static_tab(tab_id: String) -> bool:
 	if tab_id in _tabs:
-		return _tabs[tab_id].get("is_static", false)
+		var tab_info: Dictionary = _tabs[tab_id]
+		return DictUtils.get_bool(tab_info, "is_static", false)
 	return false
 
 
@@ -365,7 +386,10 @@ func get_active_categories() -> Array[String]:
 ## Get display name for a category
 func get_category_display_name(category: String) -> String:
 	if category in CATEGORY_DISPLAY_NAMES:
-		return CATEGORY_DISPLAY_NAMES[category]
+		var display_name: Variant = CATEGORY_DISPLAY_NAMES[category]
+		if display_name is String:
+			return display_name
+		return category.capitalize()
 	return category.capitalize()
 
 
@@ -405,8 +429,8 @@ func refresh_tab(tab_id: String) -> void:
 		_instances.erase(tab_id)
 		return
 
-	var tab_info: Dictionary = _tabs.get(tab_id, {})
-	var refresh_method: String = tab_info.get("refresh_method", "refresh")
+	var tab_info: Dictionary = _tabs[tab_id]
+	var refresh_method: String = DictUtils.get_string(tab_info, "refresh_method", "refresh")
 
 	# Security: Only allow safe refresh method names
 	if not _is_safe_refresh_method(refresh_method):
@@ -444,8 +468,8 @@ func _rebuild_cache_if_dirty() -> void:
 
 ## Compare two tabs for sorting
 func _compare_tabs(a: Dictionary, b: Dictionary) -> bool:
-	var cat_a: String = a.get("category", "content")
-	var cat_b: String = b.get("category", "content")
+	var cat_a: String = DictUtils.get_string(a, "category", "content")
+	var cat_b: String = DictUtils.get_string(b, "category", "content")
 
 	var cat_order_a: int = CATEGORIES.find(cat_a)
 	var cat_order_b: int = CATEGORIES.find(cat_b)
@@ -461,7 +485,9 @@ func _compare_tabs(a: Dictionary, b: Dictionary) -> bool:
 		return cat_order_a < cat_order_b
 
 	# Same category: sort by priority
-	return a.get("priority", 100) < b.get("priority", 100)
+	var priority_a: int = DictUtils.get_int(a, "priority", 100)
+	var priority_b: int = DictUtils.get_int(b, "priority", 100)
+	return priority_a < priority_b
 
 
 # =============================================================================
@@ -469,12 +495,14 @@ func _compare_tabs(a: Dictionary, b: Dictionary) -> bool:
 # =============================================================================
 
 ## Get registration stats for debugging
-func get_stats() -> Dictionary:
+func get_stats() -> Dictionary[String, int]:
 	var builtin_count: int = 0
 	var mod_count: int = 0
 
 	for tab_id: String in _tabs.keys():
-		if _tabs[tab_id].get("source_mod", "").is_empty():
+		var tab_info: Dictionary = _tabs[tab_id]
+		var source_mod_str: String = DictUtils.get_string(tab_info, "source_mod", "")
+		if source_mod_str.is_empty():
 			builtin_count += 1
 		else:
 			mod_count += 1

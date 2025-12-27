@@ -41,7 +41,7 @@ var music_volume: float = 0.5
 
 func _ready() -> void:
 	# Create audio player pool for sound effects (8 simultaneous sounds)
-	for i in range(8):
+	for i: int in range(8):
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.bus = SFX_BUS
 		add_child(player)
@@ -83,8 +83,8 @@ func set_active_mod(mod_path: String) -> void:
 
 ## Play a sound effect from the current mod
 ## @param sfx_name: Name of the sound file (without extension)
-## @param category: Category for organization (optional, defaults to SYSTEM)
-func play_sfx(sfx_name: String, category: SFXCategory = SFXCategory.SYSTEM) -> void:
+## @param _category: Category for organization (optional, defaults to SYSTEM) - reserved for future use
+func play_sfx(sfx_name: String, _category: SFXCategory = SFXCategory.SYSTEM) -> void:
 	var stream: AudioStream = _load_audio(sfx_name, "sfx")
 	if not stream:
 		return  # Audio file not found, fail silently
@@ -165,7 +165,7 @@ func _load_audio(audio_name: String, subfolder: String) -> AudioStream:
 	# Try common audio formats
 	var extensions: Array[String] = ["ogg", "wav", "mp3"]
 
-	for ext in extensions:
+	for ext: String in extensions:
 		var audio_path: String = "%s/audio/%s/%s.%s" % [current_mod_path, subfolder, audio_name, ext]
 
 		if ResourceLoader.exists(audio_path):
@@ -180,7 +180,7 @@ func _load_audio(audio_name: String, subfolder: String) -> AudioStream:
 
 ## Find an available (not playing) SFX player
 func _get_available_sfx_player() -> AudioStreamPlayer:
-	for player in _sfx_players:
+	for player: AudioStreamPlayer in _sfx_players:
 		if not player.playing:
 			return player
 	return null
@@ -194,7 +194,7 @@ func is_sfx_playing(sfx_name: String) -> bool:
 	if not stream:
 		return false
 
-	for player in _sfx_players:
+	for player: AudioStreamPlayer in _sfx_players:
 		if player.playing and player.stream == stream:
 			return true
 	return false

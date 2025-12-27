@@ -42,7 +42,7 @@ func _on_initialized() -> void:
 
 func _setup_character_buttons() -> void:
 	# Clear existing
-	for child in character_grid.get_children():
+	for child: Node in character_grid.get_children():
 		child.queue_free()
 	character_buttons.clear()
 
@@ -158,7 +158,7 @@ func _on_character_clicked(character_uid: String) -> void:
 		character_uid
 	)
 
-	if result.success:
+	if result.get("success", false):
 		# Remove from queue (already charged by ShopManager)
 		context.queue.remove_one(first_item.item_id)
 
@@ -169,7 +169,7 @@ func _on_character_clicked(character_uid: String) -> void:
 
 		_update_display()
 	else:
-		_show_error("Could not place item: %s" % result.error)
+		_show_error("Could not place item: %s" % result.get("error", "Unknown error"))
 
 
 func _on_caravan_clicked() -> void:
@@ -184,7 +184,7 @@ func _on_caravan_clicked() -> void:
 				"caravan"
 			)
 
-			if result.success:
+			if result.get("success", false):
 				_placed_count += 1
 				_total_spent += queued.unit_price
 				item_placed.emit(queued.item_id, "caravan", queued.unit_price)

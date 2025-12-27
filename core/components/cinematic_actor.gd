@@ -50,7 +50,11 @@ signal facing_completed()
 
 func _ready() -> void:
 	# Get reference to parent entity
-	parent_entity = get_parent()
+	var parent: Node = get_parent()
+	if parent is Node2D:
+		parent_entity = parent
+	else:
+		parent_entity = null
 
 	if parent_entity == null:
 		push_error("CinematicActor: Must be child of a Node2D entity")
@@ -110,7 +114,7 @@ func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0)
 
 	# Delegate directly to parent entity's move_along_path
 	if parent_entity.has_method("move_along_path"):
-		parent_entity.move_along_path(complete_path)
+		parent_entity.call("move_along_path", complete_path)
 		_await_parent_movement(complete_path)
 	else:
 		# Fallback for simple test entities without Unit component
@@ -173,7 +177,7 @@ func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 		return
 
 	# Call parent's move_along_path (reusing battle/exploration movement code)
-	parent_entity.move_along_path(complete_path)
+	parent_entity.call("move_along_path", complete_path)
 	_await_parent_movement(complete_path)
 
 
@@ -245,8 +249,9 @@ func _stop_movement() -> void:
 ## Connect to parent's moved signal or estimate completion time
 func _await_parent_movement(complete_path: Array[Vector2i]) -> void:
 	if parent_entity.has_signal("moved"):
-		if not parent_entity.moved.is_connected(_on_parent_moved):
-			parent_entity.moved.connect(_on_parent_moved, CONNECT_ONE_SHOT)
+		var moved_signal: Signal = Signal(parent_entity, "moved")
+		if not moved_signal.is_connected(_on_parent_moved):
+			moved_signal.connect(_on_parent_moved, CONNECT_ONE_SHOT)
 	else:
 		var path_length: float = complete_path.size() * GridManager.get_tile_size()
 		var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())

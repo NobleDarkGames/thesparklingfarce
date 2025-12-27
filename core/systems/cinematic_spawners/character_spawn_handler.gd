@@ -19,11 +19,15 @@ func get_available_entities() -> Array[Dictionary]:
 
 	var characters: Array = ModLoader.registry.get_all_resources("character")
 	for entry: Dictionary in characters:
-		var char_data: CharacterData = entry.get("resource") as CharacterData
+		if "resource" not in entry:
+			continue
+		var char_data: CharacterData = entry["resource"] as CharacterData
 		if char_data:
+			var entity_id: String = str(entry["id"]) if "id" in entry else ""
+			var display_name: String = char_data.character_name if not char_data.character_name.is_empty() else entity_id
 			entities.append({
-				"id": entry.get("id", ""),
-				"name": char_data.character_name if not char_data.character_name.is_empty() else entry.get("id", ""),
+				"id": entity_id,
+				"name": display_name,
 				"resource": char_data
 			})
 

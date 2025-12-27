@@ -42,7 +42,7 @@ func _ready() -> void:
 
 
 ## Show the level-up celebration
-func show_level_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+func show_level_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
 	_can_dismiss = false
 
 	# Play level-up sound
@@ -75,8 +75,15 @@ func show_level_up(unit: Node2D, old_level: int, new_level: int, stat_increases:
 	await _reveal_stats(stat_increases)
 
 	# Show learned abilities if any
-	if "abilities" in stat_increases and not stat_increases.abilities.is_empty():
-		await _reveal_abilities(stat_increases.abilities)
+	if "abilities" in stat_increases:
+		var abilities_val: Variant = stat_increases.get("abilities", [])
+		var abilities_array: Array = abilities_val if abilities_val is Array else []
+		if not abilities_array.is_empty():
+			var typed_abilities: Array[Resource] = []
+			for ability: Variant in abilities_array:
+				if ability is Resource:
+					typed_abilities.append(ability)
+			await _reveal_abilities(typed_abilities)
 
 	# Show continue prompt
 	continue_label.visible = true
@@ -117,7 +124,8 @@ func _reveal_stats(stat_increases: Dictionary) -> void:
 		if stat_name not in stat_increases:
 			continue
 
-		var increase: int = stat_increases[stat_name]
+		var increase_val: Variant = stat_increases.get(stat_name, 0)
+		var increase: int = increase_val if increase_val is int else 0
 		if increase <= 0:
 			continue
 

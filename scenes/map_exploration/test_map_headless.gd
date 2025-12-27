@@ -6,9 +6,9 @@ const HeroControllerScript: GDScript = preload("res://scenes/map_exploration/her
 const MapCameraScript: GDScript = preload("res://scenes/map_exploration/map_camera.gd")
 const PartyFollowerScript: GDScript = preload("res://scenes/map_exploration/party_follower.gd")
 
-var hero: Node2D = null
+var hero: CharacterBody2D = null
 var camera: Camera2D = null
-var followers: Array[Node2D] = []
+var followers: Array[CharacterBody2D] = []
 var test_frame: int = 0
 var test_complete: bool = false
 
@@ -69,7 +69,7 @@ func _ready() -> void:
 
 	# Test 3: Create followers in SF2-style formation
 	print("\n[TEST 3] Creating party followers (formation style)...")
-	for i in range(3):
+	for i: int in range(3):
 		var follower: CharacterBody2D = CharacterBody2D.new()
 		follower.set_script(PartyFollowerScript)
 		follower.name = "Follower%d" % (i + 1)
@@ -140,7 +140,7 @@ func _physics_process(_delta: float) -> void:
 		print("Hero final position: %s" % hero.position)
 		print("Hero grid position: %s" % hero.get("grid_position"))
 
-		for i in range(followers.size()):
+		for i: int in range(followers.size()):
 			if i < followers.size():
 				print("Follower %d position: %s" % [i + 1, followers[i].position])
 

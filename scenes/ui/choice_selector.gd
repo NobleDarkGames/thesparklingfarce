@@ -67,7 +67,8 @@ func _on_choices_ready(choices: Array[Dictionary]) -> void:
 	# Create labels for each choice
 	for i: int in range(choices.size()):
 		var choice_dict: Dictionary = choices[i]
-		var choice_text: String = choice_dict.get("choice_text", "Choice " + str(i + 1))
+		var choice_text_val: Variant = choice_dict.get("choice_text", "Choice " + str(i + 1))
+		var choice_text: String = str(choice_text_val) if choice_text_val != null else "Choice " + str(i + 1)
 
 		var label: Label = Label.new()
 		label.text = choice_text

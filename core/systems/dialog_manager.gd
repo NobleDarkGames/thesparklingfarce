@@ -162,7 +162,7 @@ func _show_choices() -> void:
 		return
 
 	var choices: Array[Dictionary] = []
-	for i in range(current_dialogue.get_choice_count()):
+	for i: int in range(current_dialogue.get_choice_count()):
 		choices.append(current_dialogue.get_choice(i))
 
 	current_state = State.WAITING_FOR_CHOICE
@@ -200,7 +200,8 @@ func select_choice(choice_index: int) -> void:
 		push_error("DialogManager: Invalid choice index %d" % choice_index)
 		return
 
-	var next_dialogue: DialogueData = choice.get("next_dialogue", null)
+	var next_dialogue_variant: Variant = choice["next_dialogue"] if "next_dialogue" in choice else null
+	var next_dialogue: DialogueData = next_dialogue_variant as DialogueData
 	choice_selected.emit(choice_index, next_dialogue)
 
 	# End current dialog
@@ -289,10 +290,15 @@ func show_choices(choices: Array[Dictionary]) -> bool:
 	# Map to format expected by ChoiceSelector (choice_text key)
 	var ui_choices: Array[Dictionary] = []
 	for choice: Dictionary in choices:
+		var choice_value: String = choice["value"] if "value" in choice else ""
+		var choice_label: String = choice["label"] if "label" in choice else choice_value
+		if choice_label.is_empty():
+			choice_label = "Option"
+		var choice_desc: String = choice["description"] if "description" in choice else ""
 		ui_choices.append({
-			"choice_text": choice.get("label", choice.get("value", "Option")),
-			"value": choice.get("value", ""),
-			"description": choice.get("description", "")
+			"choice_text": choice_label,
+			"value": choice_value,
+			"description": choice_desc
 		})
 
 	current_state = State.WAITING_FOR_CHOICE
@@ -305,7 +311,8 @@ func show_choices(choices: Array[Dictionary]) -> bool:
 func get_external_choice_value(choice_index: int) -> String:
 	if choice_index < 0 or choice_index >= _external_choices.size():
 		return ""
-	return _external_choices[choice_index].get("value", "")
+	var choice: Dictionary = _external_choices[choice_index]
+	return choice["value"] if "value" in choice else ""
 
 
 ## Clear external choice state
@@ -366,7 +373,7 @@ func import_state(state: Dictionary) -> bool:
 	if state.is_empty():
 		return true  # No dialog to restore is valid
 
-	var dialogue_id: String = state.get("dialogue_id", "")
+	var dialogue_id: String = state["dialogue_id"] if "dialogue_id" in state else ""
 	if dialogue_id.is_empty():
 		push_warning("DialogManager: Cannot restore dialog - no dialogue_id in state")
 		return false
@@ -379,9 +386,13 @@ func import_state(state: Dictionary) -> bool:
 
 	# Restore state
 	current_dialogue = dialogue
-	current_line_index = state.get("line_index", 0)
-	current_state = state.get("state", State.WAITING_FOR_INPUT) as State
-	_dialog_chain_stack = state.get("chain_stack", []).duplicate()
+	current_line_index = state["line_index"] if "line_index" in state else 0
+	current_state = (state["state"] if "state" in state else State.WAITING_FOR_INPUT) as State
+	var chain_stack_raw: Array = state["chain_stack"] if "chain_stack" in state else []
+	_dialog_chain_stack = []
+	for item: Variant in chain_stack_raw:
+		if item is String:
+			_dialog_chain_stack.append(item)
 
 	# Emit signals to restore UI
 	dialog_started.emit(dialogue)

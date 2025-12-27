@@ -67,15 +67,17 @@ func register_from_config(mod_id: String, config: Dictionary) -> void:
 
 	# Register categories first (so subtypes can reference them)
 	if "categories" in config and config.categories is Dictionary:
-		for cat_id: String in config.categories.keys():
-			var cat_data: Variant = config.categories[cat_id]
+		var categories_dict: Dictionary = config.categories
+		for cat_id: String in categories_dict.keys():
+			var cat_data: Variant = categories_dict[cat_id]
 			if cat_data is Dictionary:
 				_register_category(mod_id, cat_id, cat_data)
 
 	# Register subtypes
 	if "subtypes" in config and config.subtypes is Dictionary:
-		for subtype_id: String in config.subtypes.keys():
-			var subtype_data: Variant = config.subtypes[subtype_id]
+		var subtypes_dict: Dictionary = config.subtypes
+		for subtype_id: String in subtypes_dict.keys():
+			var subtype_data: Variant = subtypes_dict[subtype_id]
 			if subtype_data is Dictionary:
 				_register_subtype(mod_id, subtype_id, subtype_data)
 
@@ -159,7 +161,8 @@ func _register_subtype(mod_id: String, subtype_id: String, data: Dictionary) -> 
 func get_category(subtype: String) -> String:
 	var lower: String = subtype.to_lower()
 	if lower in _subtypes:
-		return _subtypes[lower].get("category", "")
+		var entry: Dictionary = _subtypes[lower]
+		return entry.get("category", "")
 	return ""
 
 
@@ -204,7 +207,8 @@ func get_subtypes_for_category(category: String) -> Array[String]:
 	var lower_category: String = category.to_lower()
 
 	for subtype_id: String in _subtypes.keys():
-		if _subtypes[subtype_id].get("category", "") == lower_category:
+		var entry: Dictionary = _subtypes[subtype_id]
+		if entry.get("category", "") == lower_category:
 			result.append(subtype_id)
 
 	return result
@@ -230,7 +234,8 @@ func get_all_subtypes() -> Array[String]:
 func get_subtype_display_name(subtype: String) -> String:
 	var lower: String = subtype.to_lower()
 	if lower in _subtypes:
-		return _subtypes[lower].get("display_name", subtype.capitalize())
+		var entry: Dictionary = _subtypes[lower]
+		return entry.get("display_name", subtype.capitalize())
 	return subtype.capitalize()
 
 
@@ -238,7 +243,8 @@ func get_subtype_display_name(subtype: String) -> String:
 func get_category_display_name(category: String) -> String:
 	var lower: String = category.to_lower()
 	if lower in _categories:
-		return _categories[lower].get("display_name", category.capitalize())
+		var entry: Dictionary = _categories[lower]
+		return entry.get("display_name", category.capitalize())
 	return category.capitalize()
 
 
@@ -246,7 +252,8 @@ func get_category_display_name(category: String) -> String:
 func get_subtype_source_mod(subtype: String) -> String:
 	var lower: String = subtype.to_lower()
 	if lower in _subtypes:
-		return _subtypes[lower].get("source_mod", "")
+		var entry: Dictionary = _subtypes[lower]
+		return entry.get("source_mod", "")
 	return ""
 
 
@@ -254,7 +261,8 @@ func get_subtype_source_mod(subtype: String) -> String:
 func get_category_source_mod(category: String) -> String:
 	var lower: String = category.to_lower()
 	if lower in _categories:
-		return _categories[lower].get("source_mod", "")
+		var entry: Dictionary = _categories[lower]
+		return entry.get("source_mod", "")
 	return ""
 
 
@@ -275,7 +283,8 @@ func get_subtypes_grouped_by_category() -> Dictionary:
 		if category not in result:
 			result[category] = []
 
-		result[category].append({
+		var category_list: Array = result[category]
+		category_list.append({
 			"id": subtype_id,
 			"display_name": subtype_data.get("display_name", subtype_id.capitalize()),
 			"source_mod": subtype_data.get("source_mod", "")
