@@ -300,6 +300,70 @@
 				"text": "A Main Character!  An indespensible plot point!  I've seen dozens of you, don't try to fool me!"
 			},
 			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "No... no I'm not-"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "I bet you've got amnesia too, don't you?"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "I... uh..."
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "Boyishly handsome? Check.\nMysterious arrival? Check.\nAmnesia? CHECK.\nYou're a protagonist. I'd bet my pension on it."
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "Look, I don't want any-"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "WANT? I know exactly what your type WANT. All the healing herbs in town! All the strongest of our townsfolk to join you on some idiotic quest! Admit it!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "I don't know what you're talking about, but I think we got off on the wrong-"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "EVERY TIME a protagonist shows up, farmland gets trampled, local shops get cleaned out of potions, property value plummets from the constant villains revenge attacks, and we lose half our infrastructure to poorly aimed AoE spells!"
+			},
+			"type": "dialog_line"
 		}
 	],
 	"description": "",
