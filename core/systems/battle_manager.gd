@@ -65,6 +65,7 @@ var _scene_cache: Dictionary = {}
 const BATTLEFIELD_SETTLE_DELAY: float = 1.2  ## Pause after combat to let player read results
 const RETURN_TO_MAP_DELAY: float = 2.0  ## Pause before transitioning back to map
 const DEATH_FADE_DURATION: float = 0.5  ## How long unit fade-out takes on death
+const EXIT_MESSAGE_DURATION: float = 1.5  ## How long Egress/exit message displays
 
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
@@ -1235,17 +1236,7 @@ func _execute_combat_session(
 			var current_phase: CombatPhase = _find_current_phase_for_defender(phases, def_unit)
 			if current_phase and dmg > 0:
 				# Pool damage by attacker/defender pair instead of awarding immediately
-				var pool_key: String = "%d:%d" % [current_phase.attacker.get_instance_id(), def_unit.get_instance_id()]
-				if pool_key not in xp_pools:
-					xp_pools[pool_key] = {
-						"attacker": current_phase.attacker,
-						"defender": def_unit,
-						"total_damage": 0,
-						"got_kill": false
-					}
-				xp_pools[pool_key]["total_damage"] += dmg
-				if died:
-					xp_pools[pool_key]["got_kill"] = true
+				_pool_damage_for_xp(xp_pools, current_phase.attacker, def_unit, dmg, died)
 				# Track death state
 				if def_unit == initial_attacker:
 					attacker_died = died
@@ -1360,17 +1351,7 @@ func _execute_combat_session(
 					defender_died = died
 
 				# SF2-AUTHENTIC: Pool damage instead of awarding XP immediately
-				var pool_key: String = "%d:%d" % [phase.attacker.get_instance_id(), phase.defender.get_instance_id()]
-				if pool_key not in xp_pools:
-					xp_pools[pool_key] = {
-						"attacker": phase.attacker,
-						"defender": phase.defender,
-						"total_damage": 0,
-						"got_kill": false
-					}
-				xp_pools[pool_key]["total_damage"] += phase.damage
-				if died:
-					xp_pools[pool_key]["got_kill"] = true
+				_pool_damage_for_xp(xp_pools, phase.attacker, phase.defender, phase.damage, died)
 
 			# Emit combat resolved signal
 			combat_resolved.emit(phase.attacker, phase.defender, phase.damage, not phase.was_miss, phase.was_critical)
@@ -1398,6 +1379,22 @@ func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Unit
 		if phase.defender == defender:
 			return phase
 	return null
+
+
+## Helper to pool XP damage for SF2-authentic awarding
+## Double attacks should show as a single XP entry, so we pool damage by attacker/defender pair
+func _pool_damage_for_xp(xp_pools: Dictionary, attacker: Unit, defender: Unit, damage: int, died: bool) -> void:
+	var pool_key: String = "%d:%d" % [attacker.get_instance_id(), defender.get_instance_id()]
+	if pool_key not in xp_pools:
+		xp_pools[pool_key] = {
+			"attacker": attacker,
+			"defender": defender,
+			"total_damage": 0,
+			"got_kill": false
+		}
+	xp_pools[pool_key]["total_damage"] += damage
+	if died:
+		xp_pools[pool_key]["got_kill"] = true
 
 
 ## Hide the battlefield for combat animation
@@ -1908,7 +1905,7 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 		return
 
 	# Brief pause for player to read message
-	await get_tree().create_timer(1.5).timeout
+	await get_tree().create_timer(EXIT_MESSAGE_DURATION).timeout
 
 	canvas.queue_free()
 

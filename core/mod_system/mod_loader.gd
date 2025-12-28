@@ -183,10 +183,11 @@ func _discover_and_load_mods_async() -> void:
 func _discover_mods() -> Array[ModManifest]:
 	var mods: Array[ModManifest] = []
 
-	# Debug: Log export status
+	# Debug: Log export status (only in debug builds)
 	var is_exported: bool = not OS.has_feature("editor")
-	print("ModLoader: Running in %s mode" % ("EXPORT" if is_exported else "EDITOR"))
-	print("ModLoader: Attempting to open: %s" % MODS_DIRECTORY)
+	if OS.is_debug_build():
+		print("ModLoader: Running in %s mode" % ("EXPORT" if is_exported else "EDITOR"))
+		print("ModLoader: Attempting to open: %s" % MODS_DIRECTORY)
 
 	var dir: DirAccess = DirAccess.open(MODS_DIRECTORY)
 	if not dir:
@@ -194,32 +195,39 @@ func _discover_mods() -> Array[ModManifest]:
 		push_error("ModLoader: DirAccess error: %s" % DirAccess.get_open_error())
 		return mods
 
-	print("ModLoader: Successfully opened mods directory")
+	if OS.is_debug_build():
+		print("ModLoader: Successfully opened mods directory")
 	dir.list_dir_begin()
 	var folder_name: String = dir.get_next()
 
 	while folder_name != "":
-		print("ModLoader: Found folder/file: '%s' (is_dir: %s)" % [folder_name, dir.current_is_dir()])
+		if OS.is_debug_build():
+			print("ModLoader: Found folder/file: '%s' (is_dir: %s)" % [folder_name, dir.current_is_dir()])
 		if dir.current_is_dir() and not folder_name.begins_with("."):
 			var mod_json_path: String = MODS_DIRECTORY.path_join(folder_name).path_join("mod.json")
 
 			# Check if mod.json exists
-			print("ModLoader: Checking for mod.json at: %s" % mod_json_path)
+			if OS.is_debug_build():
+				print("ModLoader: Checking for mod.json at: %s" % mod_json_path)
 			if FileAccess.file_exists(mod_json_path):
-				print("ModLoader: Found mod.json, loading...")
+				if OS.is_debug_build():
+					print("ModLoader: Found mod.json, loading...")
 				var manifest: ModManifest = ModManifest.load_from_file(mod_json_path)
 				if manifest:
-					print("ModLoader: Loaded mod '%s' from %s" % [manifest.mod_id, folder_name])
+					if OS.is_debug_build():
+						print("ModLoader: Loaded mod '%s' from %s" % [manifest.mod_id, folder_name])
 					mods.append(manifest)
 				else:
 					push_warning("ModLoader: Failed to load manifest for mod in folder: " + folder_name)
 			else:
-				print("ModLoader: No mod.json at %s" % mod_json_path)
+				if OS.is_debug_build():
+					print("ModLoader: No mod.json at %s" % mod_json_path)
 
 		folder_name = dir.get_next()
 
 	dir.list_dir_end()
-	print("ModLoader: Discovered %d mods total" % mods.size())
+	if OS.is_debug_build():
+		print("ModLoader: Discovered %d mods total" % mods.size())
 	return mods
 
 
@@ -407,11 +415,11 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 	if not dir:
 		# Directory might not exist in this mod (that's okay)
 		# But log it for character type to debug export issues
-		if resource_type == "character":
+		if resource_type == "character" and OS.is_debug_build():
 			print("ModLoader: Could not open character directory: %s (error: %s)" % [directory, DirAccess.get_open_error()])
 		return 0
 
-	if resource_type == "character":
+	if resource_type == "character" and OS.is_debug_build():
 		print("ModLoader: Scanning character directory: %s" % directory)
 
 	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
@@ -430,7 +438,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 			var resource: Resource = null
 			var resource_id: String = ""
 
-			if resource_type == "character":
+			if resource_type == "character" and OS.is_debug_build():
 				print("ModLoader: Found character file: %s -> %s" % [file_name, original_name])
 
 			if original_name.ends_with(".tres"):
@@ -455,7 +463,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 				if resource_type == "status_effect" and resource is StatusEffectData:
 					status_effect_registry.register_effect(resource, mod_id)
 				# Debug: Log character registrations
-				if resource_type == "character" and resource is CharacterData:
+				if resource_type == "character" and resource is CharacterData and OS.is_debug_build():
 					var char: CharacterData = resource
 					print("ModLoader: Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
 				count += 1
@@ -465,7 +473,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
-	if resource_type == "character":
+	if resource_type == "character" and OS.is_debug_build():
 		print("ModLoader: Loaded %d characters from %s" % [count, directory])
 	return count
 
@@ -668,13 +676,13 @@ func get_tileset(tileset_name: String) -> TileSet:
 
 		# First, discover any new textures in the tileset's texture directory
 		var discovered: int = TileSetAutoGeneratorClass.auto_discover_textures(tileset, entry_path, tileset_name)
-		if discovered > 0:
+		if discovered > 0 and OS.is_debug_build():
 			print("ModLoader: Discovered %d new texture(s) for TileSet '%s'" % [discovered, tileset_name])
 
 		# Then, auto-populate tile definitions for all atlas sources
 		var generated: int = TileSetAutoGeneratorClass.auto_populate_tileset(tileset, tileset_name)
 		entry["auto_populated"] = true
-		if generated > 0:
+		if generated > 0 and OS.is_debug_build():
 			print("ModLoader: Auto-generated %d tile(s) for TileSet '%s'" % [generated, tileset_name])
 
 	return entry_resource if entry_resource is TileSet else null
@@ -1237,7 +1245,7 @@ func _find_hero_character() -> CharacterData:
 		if character.is_hero and character.unit_category == "player":
 			# Get the resource ID from the resource path
 			var resource_id: String = character.resource_path.get_file().get_basename()
-			var source_mod: String = registry.get_resource_source(resource_id)
+			var source_mod: String = registry.get_resource_source(resource_id, "character")
 			hero_candidates.append({
 				"character": character,
 				"mod_id": source_mod
@@ -1290,7 +1298,7 @@ func _find_default_party_members() -> Array[CharacterData]:
 			# If there's a cutoff, check the source mod's priority
 			if cutoff_priority >= 0:
 				var resource_id: String = character.resource_path.get_file().get_basename()
-				var source_mod_id: String = registry.get_resource_source(resource_id)
+				var source_mod_id: String = registry.get_resource_source(resource_id, "character")
 				var source_mod: ModManifest = get_mod(source_mod_id)
 				if source_mod and source_mod.load_priority < cutoff_priority:
 					continue  # Skip characters from lower-priority mods
@@ -1331,22 +1339,25 @@ func get_hidden_campaign_patterns() -> Array[String]:
 func get_new_game_config() -> NewGameConfigData:
 	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
 	if all_configs.is_empty():
-		print("[DEBUG] get_new_game_config: No configs found in registry")
+		if OS.is_debug_build():
+			print("[DEBUG] get_new_game_config: No configs found in registry")
 		return null
 
-	print("[DEBUG] get_new_game_config: Found %d configs" % all_configs.size())
+	if OS.is_debug_build():
+		print("[DEBUG] get_new_game_config: Found %d configs" % all_configs.size())
 
 	# Build list of default configs with their source mod priorities
 	var default_configs: Array[Dictionary] = []
 	for config: NewGameConfigData in all_configs:
 		if config and config.is_default:
 			var resource_id: String = config.resource_path.get_file().get_basename()
-			var source_mod_id: String = registry.get_resource_source(resource_id)
+			var source_mod_id: String = registry.get_resource_source(resource_id, "new_game_config")
 			var source_mod: ModManifest = get_mod(source_mod_id)
 			var priority: int = source_mod.load_priority if source_mod else 0
-			print("[DEBUG]   Config '%s': resource_id='%s', source_mod='%s', priority=%d" % [
-				config.config_id, resource_id, source_mod_id, priority
-			])
+			if OS.is_debug_build():
+				print("[DEBUG]   Config '%s': resource_id='%s', source_mod='%s', priority=%d" % [
+					config.config_id, resource_id, source_mod_id, priority
+				])
 			default_configs.append({
 				"config": config,
 				"mod_id": source_mod_id,
@@ -1360,7 +1371,7 @@ func get_new_game_config() -> NewGameConfigData:
 			for config: NewGameConfigData in all_configs:
 				if config:
 					var resource_id: String = config.resource_path.get_file().get_basename()
-					var source_mod_id: String = registry.get_resource_source(resource_id)
+					var source_mod_id: String = registry.get_resource_source(resource_id, "new_game_config")
 					if source_mod_id == manifest.mod_id:
 						return config
 		return null
@@ -1375,10 +1386,11 @@ func get_new_game_config() -> NewGameConfigData:
 			var config_value: Variant = entry.get("config")
 			best_config = config_value if config_value is NewGameConfigData else null
 
-	print("[DEBUG] get_new_game_config: Selected config with priority %d: %s" % [
-		best_priority,
-		best_config.config_id if best_config else "NULL"
-	])
+	if OS.is_debug_build():
+		print("[DEBUG] get_new_game_config: Selected config with priority %d: %s" % [
+			best_priority,
+			best_config.config_id if best_config else "NULL"
+		])
 	return best_config
 
 
@@ -1392,7 +1404,7 @@ func get_new_game_config_by_id(config_id: String) -> NewGameConfigData:
 	for config: NewGameConfigData in all_configs:
 		if config and config.config_id == config_id:
 			var resource_id: String = config.resource_path.get_file().get_basename()
-			var source_mod_id: String = registry.get_resource_source(resource_id)
+			var source_mod_id: String = registry.get_resource_source(resource_id, "new_game_config")
 			var source_mod: ModManifest = get_mod(source_mod_id)
 			var priority: int = source_mod.load_priority if source_mod else 0
 			matching_configs.append({

@@ -10,11 +10,12 @@ class_name ModRegistry
 # Example: { "character": { "hero": CharacterData, "mage": CharacterData } }
 var _resources_by_type: Dictionary = {}
 
-# Dictionary structure: { "resource_id": "mod_id" }
-# Tracks which mod provided each resource
+# Dictionary structure: { "resource_type:resource_id": "mod_id" }
+# Tracks which mod provided each resource (uses composite key to avoid collisions
+# between resources of different types with the same ID, e.g., character "hero" vs item "hero")
 var _resource_sources: Dictionary[String, String] = {}
 
-# Dictionary structure: { "mod_id": Array[String] of resource_ids }
+# Dictionary structure: { "mod_id": Array[String] of composite_ids (type:id) }
 # Tracks all resources provided by each mod
 var _mod_resources: Dictionary = {}
 
@@ -46,7 +47,7 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 	var composite_id: String = "%s:%s" % [resource_type, resource_id]
 	var type_resources: Dictionary = _resources_by_type[resource_type]
 	if resource_id in type_resources:
-		var existing_mod_id: String = _resource_sources.get(resource_id, "")
+		var existing_mod_id: String = _resource_sources.get(composite_id, "")
 		if not existing_mod_id.is_empty() and existing_mod_id != mod_id:
 			var existing_priority: int = _get_mod_priority(existing_mod_id)
 			var new_priority: int = _get_mod_priority(mod_id)
@@ -68,14 +69,14 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 
 	# Register the resource (overrides any existing resource with same ID)
 	_resources_by_type[resource_type][resource_id] = resource
-	_resource_sources[resource_id] = mod_id
+	_resource_sources[composite_id] = mod_id
 
-	# Track mod's resources
+	# Track mod's resources (using composite_id to match _resource_sources)
 	if mod_id not in _mod_resources:
 		_mod_resources[mod_id] = []
 	var mod_resource_list: Array = _mod_resources[mod_id]
-	if resource_id not in mod_resource_list:
-		mod_resource_list.append(resource_id)
+	if composite_id not in mod_resource_list:
+		mod_resource_list.append(composite_id)
 
 
 ## Get a mod's priority (helper for conflict detection)
@@ -176,7 +177,7 @@ func get_hero_character() -> CharacterData:
 	if heroes.size() > 1:
 		push_warning("ModRegistry: Multiple heroes detected! Only one hero should exist. Using first found.")
 		for hero: CharacterData in heroes:
-			var source_mod: String = get_resource_source(hero.resource_path.get_file().get_basename())
+			var source_mod: String = get_resource_source(hero.resource_path.get_file().get_basename(), "character")
 			push_warning("  - Hero '%s' from mod '%s'" % [hero.character_name, source_mod])
 
 	return heroes[0]
@@ -193,8 +194,20 @@ func get_resource_ids(resource_type: String) -> Array[String]:
 
 
 ## Get the mod ID that provided a specific resource
-func get_resource_source(resource_id: String) -> String:
-	return _resource_sources.get(resource_id, "")
+## If resource_type is provided, uses the composite key for accurate lookup
+## If resource_type is empty, attempts a simple lookup (for backwards compatibility,
+## but may return wrong result if multiple types have same resource_id)
+func get_resource_source(resource_id: String, resource_type: String = "") -> String:
+	if resource_type.is_empty():
+		# Backwards-compatible: search all composite keys for this resource_id
+		# This may return the wrong mod if multiple types have same ID
+		for composite_key: String in _resource_sources.keys():
+			if composite_key.ends_with(":" + resource_id):
+				return _resource_sources[composite_key]
+		return ""
+	else:
+		var composite_id: String = "%s:%s" % [resource_type, resource_id]
+		return _resource_sources.get(composite_id, "")
 
 
 ## Get all resources provided by a specific mod
@@ -265,13 +278,19 @@ func clear_mod_resources(mod_id: String) -> void:
 		return
 
 	# Remove each resource registered by this mod
-	for resource_id: String in _mod_resources[mod_id]:
-		# Find and remove from type dictionaries
-		for type_dict: Dictionary in _resources_by_type.values():
-			if resource_id in type_dict:
-				type_dict.erase(resource_id)
+	# _mod_resources now stores composite_ids (type:id)
+	for composite_id: String in _mod_resources[mod_id]:
+		# Parse composite_id to get type and resource_id
+		var parts: PackedStringArray = composite_id.split(":", true, 1)
+		if parts.size() == 2:
+			var res_type: String = parts[0]
+			var res_id: String = parts[1]
+			# Remove from type dictionary
+			if res_type in _resources_by_type:
+				var type_dict: Dictionary = _resources_by_type[res_type]
+				type_dict.erase(res_id)
 		# Remove from sources
-		_resource_sources.erase(resource_id)
+		_resource_sources.erase(composite_id)
 
 	# Clear mod's resource list
 	_mod_resources.erase(mod_id)
@@ -280,21 +299,23 @@ func clear_mod_resources(mod_id: String) -> void:
 ## Unregister a single resource by type and ID
 ## Used by the editor when deleting resources
 func unregister_resource(resource_type: String, resource_id: String) -> void:
+	var composite_id: String = "%s:%s" % [resource_type, resource_id]
+
 	# Remove from type dictionary
 	if resource_type in _resources_by_type:
 		var type_dict: Dictionary = _resources_by_type[resource_type]
 		type_dict.erase(resource_id)
 
 	# Get the mod that owned this resource before removing from sources
-	var mod_id: String = _resource_sources.get(resource_id, "")
+	var mod_id: String = _resource_sources.get(composite_id, "")
 
 	# Remove from source tracking
-	_resource_sources.erase(resource_id)
+	_resource_sources.erase(composite_id)
 
 	# Remove from mod resources tracking
 	if mod_id != "" and mod_id in _mod_resources:
 		var mod_res: Array = _mod_resources[mod_id]
-		var idx: int = mod_res.find(resource_id)
+		var idx: int = mod_res.find(composite_id)
 		if idx >= 0:
 			mod_res.remove_at(idx)
 

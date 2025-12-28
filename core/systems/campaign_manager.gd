@@ -297,15 +297,36 @@ func _discover_campaigns() -> void:
 					push_error("  - %s" % error)
 
 
-## Get all available campaigns (respecting hidden_campaigns from mods)
+## Get all available campaigns, sorted by source mod priority (highest first)
+## This ensures "first available" means "from the highest-priority mod"
+## Respects hidden_campaigns patterns from mods
 func get_available_campaigns() -> Array[CampaignData]:
 	var result: Array[CampaignData] = []
 	var hidden_patterns: Array[String] = _get_hidden_campaign_patterns()
 
+	# Collect campaigns with their source mod priorities
+	var campaigns_with_priority: Array[Dictionary] = []
 	for campaign_id: String in _campaigns:
 		var campaign: CampaignData = _campaigns[campaign_id]
-		if not _is_campaign_hidden(campaign_id, hidden_patterns):
-			result.append(campaign)
+		if _is_campaign_hidden(campaign_id, hidden_patterns):
+			continue
+
+		var source_mod_id: String = ModLoader.registry.get_resource_source(campaign_id, "campaign")
+		var source_mod: ModManifest = ModLoader.get_mod(source_mod_id) if source_mod_id else null
+		var priority: int = source_mod.load_priority if source_mod else 0
+		campaigns_with_priority.append({
+			"campaign": campaign,
+			"priority": priority
+		})
+
+	# Sort by priority descending (highest priority first)
+	campaigns_with_priority.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.priority > b.priority
+	)
+
+	for entry: Dictionary in campaigns_with_priority:
+		result.append(entry.campaign)
+
 	return result
 
 
