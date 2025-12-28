@@ -19,6 +19,16 @@
 				17.0,
 				3.0
 			]
+		},
+		{
+			"actor_id": "intro_mayor",
+			"entity_id": "demo_campaign_character_1766881252",
+			"entity_type": "character",
+			"facing": "down",
+			"position": [
+				50.0,
+				7.0
+			]
 		}
 	],
 	"can_skip": true,
@@ -139,32 +149,11 @@
 		},
 		{
 			"params": {
-				"facing": "down",
-				"position": [
-					5.0,
-					5.0
-				]
-			},
-			"target": "intro_hero",
-			"type": "set_position"
-		},
-		{
-			"params": {
-				"continuous": true,
-				"duration": 0.0,
-				"speed": 8.0,
-				"wait": false
-			},
-			"target": "intro_hero",
-			"type": "camera_follow"
-		},
-		{
-			"params": {
 				"color": [
-					0,
-					0,
-					0,
-					1
+					0.0,
+					0.0,
+					0.0,
+					1.0
 				],
 				"duration": 1.0,
 				"fade_type": "out"
@@ -179,6 +168,16 @@
 		},
 		{
 			"params": {
+				"continuous": true,
+				"duration": 0.0,
+				"speed": 8.0,
+				"wait": false
+			},
+			"target": "mud_farmer",
+			"type": "camera_follow"
+		},
+		{
+			"params": {
 				"fade_duration": 0.5,
 				"map_id": "mudford",
 				"scene_id": "",
@@ -189,17 +188,35 @@
 		},
 		{
 			"params": {
+				"facing": "down",
+				"position": [
+					5.0,
+					2.0
+				]
+			},
+			"target": "intro_mayor",
+			"type": "set_position"
+		},
+		{
+			"params": {
 				"duration": 1.0
 			},
 			"type": "wait"
 		},
 		{
 			"params": {
+				"direction": "up"
+			},
+			"target": "mud_farmer",
+			"type": "set_facing"
+		},
+		{
+			"params": {
 				"color": [
-					0,
-					0,
-					0,
-					1
+					0.0,
+					0.0,
+					0.0,
+					1.0
 				],
 				"duration": 1.0,
 				"fade_type": "in"
@@ -217,6 +234,70 @@
 				"character_id": "wnc45s25",
 				"emotion": "neutral",
 				"text": "..and so I dragged him here to see you!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "We DO NOT need this right now!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "wnc45s25",
+				"emotion": "neutral",
+				"text": "What harm could he do? I've got  socks older than this kid!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "Wh... where am I?"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "You're in Mudford, but not for long!  I want you out NOW!  You hear me!?"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "Why?  What did I do?"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "You're a PROTAGONIST!  Admit it!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "A... a what?"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "A Main Character!  An indespensible plot point!  I've seen dozens of you, don't try to fool me!"
 			},
 			"type": "dialog_line"
 		}

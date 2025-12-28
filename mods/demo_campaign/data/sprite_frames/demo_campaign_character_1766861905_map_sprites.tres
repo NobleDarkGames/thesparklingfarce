@@ -1,6 +1,6 @@
 [gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://1a3od87sak3m"]
 
-[ext_resource type="Texture2D" uid="uid://8lckb5kyjky7" path="res://mods/demo_campaign/assets/sprites/map/henchman_spritesheet.png" id="1_agtu1"]
+[ext_resource type="Texture2D" uid="uid://fy61co31etnf" path="res://mods/demo_campaign/assets/sprites/map/hero_spritesheet.png" id="1_agtu1"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_pp6i6"]
 atlas = ExtResource("1_agtu1")

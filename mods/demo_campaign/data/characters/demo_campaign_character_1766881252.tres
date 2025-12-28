@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://ddnme1vymiv13"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_30183"]
+[ext_resource type="Resource" uid="uid://nivncn7dj42l" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766861870.tres" id="1_vfd7p"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_dapgd"]
+[ext_resource type="Texture2D" uid="uid://cr6tpimnlbknt" path="res://mods/demo_campaign/assets/portraits/MayorKing.png" id="2_o3gyc"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_8igxs"]
+[ext_resource type="SpriteFrames" uid="uid://csnjw3u0j2ge3" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1766881252_map_sprites.tres" id="4_712gl"]
+
+[resource]
+script = ExtResource("1_30183")
+character_uid = "bymdrjkx"
+character_name = "Mayor King"
+character_class = ExtResource("1_vfd7p")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_o3gyc")
+sprite_frames = ExtResource("4_712gl")
+unit_category = "neutral"
