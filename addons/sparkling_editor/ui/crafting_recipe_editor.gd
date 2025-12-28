@@ -307,6 +307,7 @@ func _add_basic_info_section() -> void:
 	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Recipe Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	recipe_name_edit = LineEdit.new()
 	recipe_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	recipe_name_edit.max_length = 64  # Reasonable limit for UI display
 	recipe_name_edit.placeholder_text = "e.g., Mithril Sword Forging"
 	recipe_name_edit.tooltip_text = "Display name for this recipe. Shown in crafting menus."
 	recipe_name_edit.text_changed.connect(_on_name_changed)
@@ -778,6 +779,15 @@ func _on_dependencies_changed(_changed_type: String) -> void:
 		upgrade_base_picker.refresh()
 	if upgrade_result_picker:
 		upgrade_result_picker.refresh()
+
+	# Re-validate and update display for current resource
+	# This catches stale references to deleted items
+	if current_resource:
+		_refresh_inputs_list()
+		_refresh_choice_list()
+		var validation: Dictionary = _validate_resource()
+		if not validation.valid:
+			_show_errors(validation.errors)
 
 
 ## Override refresh to also refresh caches and pickers

@@ -408,7 +408,7 @@ func _add_campaign_section() -> void:
 	var campaign_label: Label = Label.new()
 	campaign_label.text = "Starting Campaign:"
 	campaign_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	campaign_label.tooltip_text = "Which campaign to start. Leave as 'Auto' to use the first available."
+	campaign_label.tooltip_text = "Which campaign to start. Leave as 'Auto' to use the highest-priority mod's campaign."
 	campaign_container.add_child(campaign_label)
 
 	campaign_option = OptionButton.new()
@@ -634,7 +634,7 @@ func _populate_campaign_dropdown() -> void:
 		return
 
 	campaign_option.clear()
-	campaign_option.add_item("(Auto-detect first available)", -1)
+	campaign_option.add_item("(Auto - highest priority mod's campaign)", -1)
 	campaign_option.set_item_metadata(0, "")
 
 	var idx: int = 1

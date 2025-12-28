@@ -189,7 +189,7 @@ func _update_name_preview() -> void:
 		return
 
 	var name_text: String = ""
-	if name_source:
+	if is_instance_valid(name_source):
 		name_text = name_source.text.strip_edges()
 
 	if name_text.is_empty():
@@ -205,7 +205,7 @@ func _update_dialog_preview() -> void:
 		return
 
 	var dialog_text: String = ""
-	if dialog_source:
+	if is_instance_valid(dialog_source):
 		dialog_text = dialog_source.text.strip_edges()
 
 	if dialog_text.is_empty():
@@ -228,13 +228,13 @@ func _update_portrait_preview() -> void:
 	var portrait_tex: Texture2D = null
 
 	# Try character data first
-	if character_picker_source and character_picker_source.has_selection():
+	if is_instance_valid(character_picker_source) and character_picker_source.has_selection():
 		var char_data: CharacterData = character_picker_source.get_selected_resource() as CharacterData
 		if char_data and char_data.portrait:
 			portrait_tex = char_data.portrait
 
 	# Fall back to direct portrait path
-	if not portrait_tex and portrait_path_source:
+	if not portrait_tex and is_instance_valid(portrait_path_source):
 		var path: String = portrait_path_source.text.strip_edges()
 		if not path.is_empty() and ResourceLoader.exists(path):
 			portrait_tex = load(path) as Texture2D
@@ -249,13 +249,13 @@ func _update_sprite_preview() -> void:
 	var sprite_tex: Texture2D = null
 
 	# Try character data first
-	if character_picker_source and character_picker_source.has_selection():
+	if is_instance_valid(character_picker_source) and character_picker_source.has_selection():
 		var char_data: CharacterData = character_picker_source.get_selected_resource() as CharacterData
 		if char_data and char_data.map_sprite:
 			sprite_tex = char_data.map_sprite
 
 	# Fall back to direct sprite path
-	if not sprite_tex and sprite_path_source:
+	if not sprite_tex and is_instance_valid(sprite_path_source):
 		var path: String = sprite_path_source.text.strip_edges()
 		if not path.is_empty() and ResourceLoader.exists(path):
 			sprite_tex = load(path) as Texture2D

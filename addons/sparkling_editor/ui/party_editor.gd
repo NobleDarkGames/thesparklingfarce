@@ -126,13 +126,19 @@ func _validate_resource() -> Dictionary:
 
 	# Validate that at least one member is selected
 	var has_valid_member: bool = false
+	var empty_slots: int = 0
 	for member_ui: Dictionary in members_list:
 		if member_ui.character_option.selected > 0:
 			has_valid_member = true
-			break
+		else:
+			empty_slots += 1
 
 	if not has_valid_member:
 		errors.append("Party must have at least one member")
+
+	# Warn about empty slots that will be removed on save
+	if empty_slots > 0 and has_valid_member:
+		push_warning("PartyEditor: %d member slot(s) have no character selected and will be removed on save" % empty_slots)
 
 	return {
 		"valid": errors.is_empty(),
@@ -181,6 +187,7 @@ func _add_basic_info_section() -> void:
 	detail_panel.add_child(name_label)
 
 	party_name_edit = LineEdit.new()
+	party_name_edit.max_length = 64  # Reasonable limit for UI display
 	party_name_edit.placeholder_text = "Enter party name"
 	party_name_edit.tooltip_text = "Display name for this party template. E.g., 'Starting Party', 'Boss Squad'."
 	detail_panel.add_child(party_name_edit)
@@ -407,8 +414,10 @@ func _load_default_party_info() -> void:
 	var highest_priority: int = -1
 	var highest_priority_party_id: String = ""
 
-	for ngc: NewGameConfigData in all_configs:
+	for resource: Resource in all_configs:
+		var ngc: NewGameConfigData = resource as NewGameConfigData
 		if not ngc:
+			push_warning("PartyEditor: Skipping non-NewGameConfigData resource: %s" % resource.resource_path)
 			continue
 
 		if ngc.starting_party_id.is_empty():

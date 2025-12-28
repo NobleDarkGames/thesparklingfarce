@@ -422,6 +422,7 @@ func _add_basic_info_section() -> void:
 	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Display Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	npc_name_edit = LineEdit.new()
 	npc_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	npc_name_edit.max_length = 64  # Reasonable limit for dialog box display
 	npc_name_edit.placeholder_text = "Guard, Shopkeeper, Elder..."
 	npc_name_edit.tooltip_text = "Name shown in dialog boxes when this NPC speaks. E.g., 'Guard', 'Old Man', 'Sarah'."
 	npc_name_edit.text_changed.connect(_on_name_changed)

@@ -124,6 +124,10 @@ var _file_dialog: EditorFileDialog
 ## Track if we've been initialized
 var _initialized: bool = false
 
+## Track active tweens for cleanup
+var _clear_tween: Tween = null
+var _error_tween: Tween = null
+
 
 func _init() -> void:
 	# Set up layout
@@ -139,9 +143,21 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	# Kill any active tweens to prevent errors on freed nodes
+	if _clear_tween and _clear_tween.is_valid():
+		_clear_tween.kill()
+		_clear_tween = null
+	if _error_tween and _error_tween.is_valid():
+		_error_tween.kill()
+		_error_tween = null
+
 	# Clean up the file dialog if it exists
-	if _file_dialog and is_instance_valid(_file_dialog):
-		_file_dialog.queue_free()
+	if _file_dialog:
+		if is_instance_valid(_file_dialog):
+			var parent: Node = _file_dialog.get_parent()
+			if is_instance_valid(parent):
+				parent.remove_child(_file_dialog)
+			_file_dialog.queue_free()
 		_file_dialog = null
 
 
@@ -493,18 +509,31 @@ func _on_clear_pressed() -> void:
 
 	# Optional: Add a brief visual feedback (flash)
 	if _preview_panel:
+		# Cancel any existing animation
+		if _clear_tween and _clear_tween.is_valid():
+			_clear_tween.kill()
+
 		var original_modulate: Color = _preview_panel.modulate
 		_preview_panel.modulate = Color(1.5, 1.5, 1.5)
 
-		var tween: Tween = create_tween()
-		tween.tween_property(_preview_panel, "modulate", original_modulate, 0.15)
+		_clear_tween = create_tween()
+		_clear_tween.tween_property(_preview_panel, "modulate", original_modulate, 0.15)
 
 	clear()
 
 
 func _on_path_submitted(new_path: String) -> void:
 	## Handle Enter key in path LineEdit
-	set_texture_path(new_path.strip_edges())
+	var sanitized: String = new_path.strip_edges()
+	# Validate path format - must be empty or start with res://
+	if not sanitized.is_empty() and not sanitized.begins_with("res://"):
+		_is_valid = false
+		_validation_message = "Path must start with res://"
+		_validation_severity = "error"
+		_update_validation_display()
+		validation_changed.emit(false, _validation_message)
+		return
+	set_texture_path(sanitized)
 
 
 func _on_path_focus_exited() -> void:
@@ -530,8 +559,12 @@ func _show_validation_error_animation() -> void:
 	if not _path_edit:
 		return
 
+	# Cancel any existing error animation
+	if _error_tween and _error_tween.is_valid():
+		_error_tween.kill()
+
 	var original_x: float = _path_edit.position.x
-	var tween: Tween = create_tween()
-	tween.tween_property(_path_edit, "position:x", original_x + 3, 0.05)
-	tween.tween_property(_path_edit, "position:x", original_x - 3, 0.05)
-	tween.tween_property(_path_edit, "position:x", original_x, 0.05)
+	_error_tween = create_tween()
+	_error_tween.tween_property(_path_edit, "position:x", original_x + 3, 0.05)
+	_error_tween.tween_property(_path_edit, "position:x", original_x - 3, 0.05)
+	_error_tween.tween_property(_path_edit, "position:x", original_x, 0.05)

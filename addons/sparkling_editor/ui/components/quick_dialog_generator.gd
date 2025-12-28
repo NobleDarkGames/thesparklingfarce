@@ -134,9 +134,15 @@ static func load_dialog_text_from_cinematic(cinematics_dir: String, cinematic_id
 	var json: JSON = JSON.new()
 	var parse_result: Error = json.parse(json_text)
 	if parse_result != OK:
+		push_warning("QuickDialogGenerator: Failed to parse cinematic '%s': Line %d: %s" % [
+			file_path,
+			json.get_error_line(),
+			json.get_error_message()
+		])
 		return ""
 
 	if not json.data is Dictionary:
+		push_warning("QuickDialogGenerator: Cinematic '%s' root is not a Dictionary" % file_path)
 		return ""
 	var data: Dictionary = json.data
 

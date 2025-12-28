@@ -79,11 +79,14 @@ func _setup_ui() -> void:
 	character_picker = OptionButton.new()
 	character_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	character_picker.add_item("(Custom Speaker)", 0)
+	character_picker.set_item_metadata(0, null)  # No character for custom speaker
 	for i: int in range(_characters.size()):
 		var char_data: CharacterData = _characters[i] as CharacterData
 		if char_data:
 			var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
+			var item_idx: int = character_picker.item_count
 			character_picker.add_item(display_name, i + 1)
+			character_picker.set_item_metadata(item_idx, char_data)
 	character_picker.item_selected.connect(_on_character_selected)
 	char_vbox.add_child(character_picker)
 
@@ -146,14 +149,9 @@ func _setup_ui() -> void:
 
 
 func _on_character_selected(index: int) -> void:
-	if index > 0:
-		var char_idx: int = index - 1
-		if char_idx >= 0 and char_idx < _characters.size():
-			var char_data: CharacterData = _characters[char_idx] as CharacterData
-			if char_data and char_data.portrait:
-				portrait_preview.texture = char_data.portrait
-			else:
-				portrait_preview.texture = null
+	var char_data: CharacterData = character_picker.get_item_metadata(index) as CharacterData
+	if char_data and char_data.portrait:
+		portrait_preview.texture = char_data.portrait
 	else:
 		portrait_preview.texture = null
 
@@ -173,18 +171,15 @@ func _update_preview() -> void:
 func _build_command_dict() -> Dictionary:
 	var params: Dictionary = {}
 
-	# Character
-	var char_idx: int = character_picker.selected
-	if char_idx > 0:
-		var data_idx: int = char_idx - 1
-		if data_idx >= 0 and data_idx < _characters.size():
-			var char_res: Resource = _characters[data_idx]
-			if char_res:
-				# Use get() for safe property access in editor context
-				var char_uid: String = ""
-				if "character_uid" in char_res:
-					char_uid = str(char_res.get("character_uid"))
-				params["character_id"] = char_uid
+	# Character - use metadata instead of index arithmetic
+	var selected_idx: int = character_picker.selected
+	var char_data: CharacterData = character_picker.get_item_metadata(selected_idx) as CharacterData
+	if char_data:
+		# Use get() for safe property access in editor context
+		var char_uid: String = ""
+		if "character_uid" in char_data:
+			char_uid = str(char_data.get("character_uid"))
+		params["character_id"] = char_uid
 	else:
 		# Custom speaker - user needs to fill in manually
 		params["character_id"] = "REPLACE_WITH_CHARACTER_UID"
@@ -226,28 +221,31 @@ func _on_cancel() -> void:
 func show_popup(preselect_character_uid: String = "") -> void:
 	_refresh_characters()
 
-	# Rebuild character list
+	# Rebuild character list with metadata
 	character_picker.clear()
 	character_picker.add_item("(Custom Speaker)", 0)
+	character_picker.set_item_metadata(0, null)  # No character for custom speaker
 	for i: int in range(_characters.size()):
 		var char_res: Resource = _characters[i]
 		if char_res:
 			# Use get() for safe property access in editor context
 			var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
+			var item_idx: int = character_picker.item_count
 			character_picker.add_item(display_name, i + 1)
+			character_picker.set_item_metadata(item_idx, char_res)
 
-	# Preselect if provided
+	# Preselect if provided - search by metadata instead of index
 	if not preselect_character_uid.is_empty():
-		for i: int in range(_characters.size()):
-			var char_res: Resource = _characters[i]
-			# Use get() for safe property access in editor context
-			var char_uid: String = ""
-			if "character_uid" in char_res:
-				char_uid = str(char_res.get("character_uid"))
-			if char_uid == preselect_character_uid:
-				character_picker.selected = i + 1
-				_on_character_selected(i + 1)
-				break
+		for item_idx: int in range(character_picker.item_count):
+			var char_data: CharacterData = character_picker.get_item_metadata(item_idx) as CharacterData
+			if char_data:
+				var char_uid: String = ""
+				if "character_uid" in char_data:
+					char_uid = str(char_data.get("character_uid"))
+				if char_uid == preselect_character_uid:
+					character_picker.selected = item_idx
+					_on_character_selected(item_idx)
+					break
 	else:
 		character_picker.selected = 0
 		portrait_preview.texture = null

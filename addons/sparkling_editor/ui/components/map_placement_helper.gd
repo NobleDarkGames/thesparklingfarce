@@ -38,7 +38,7 @@ func place_npc_on_map(
 
 	# Check if this scene is currently being edited
 	var edited_root: Node = EditorInterface.get_edited_scene_root()
-	var scene_is_open: bool = edited_root != null and edited_root.scene_file_path == scene_path
+	var scene_is_open: bool = is_instance_valid(edited_root) and edited_root.scene_file_path == scene_path
 
 	var success: bool
 	if scene_is_open:
@@ -108,6 +108,8 @@ func _add_npc_to_closed_scene(
 	node_name: String,
 	position: Vector2
 ) -> bool:
+	print("MapPlacementHelper: Loading scene %s..." % scene_path)
+
 	# Load the scene as a PackedScene
 	var loaded: Resource = load(scene_path)
 	var packed_scene: PackedScene = loaded if loaded is PackedScene else null
@@ -165,6 +167,7 @@ func _add_npc_to_closed_scene(
 		return false
 
 	# Save the modified scene
+	print("MapPlacementHelper: Saving modified scene...")
 	var save_result: Error = ResourceSaver.save(new_packed, scene_path)
 	scene_root.queue_free()
 
@@ -173,8 +176,10 @@ func _add_npc_to_closed_scene(
 		return false
 
 	# Notify the editor to refresh
+	print("MapPlacementHelper: Rescanning filesystem...")
 	EditorInterface.get_resource_filesystem().scan()
 
+	print("MapPlacementHelper: NPC '%s' placed successfully in closed scene." % node_name)
 	return true
 
 
@@ -220,4 +225,4 @@ static func get_available_maps(mod_path: String) -> Array[Dictionary]:
 ## Check if a scene is currently open in the editor
 static func is_scene_open(scene_path: String) -> bool:
 	var edited_root: Node = EditorInterface.get_edited_scene_root()
-	return edited_root != null and edited_root.scene_file_path == scene_path
+	return is_instance_valid(edited_root) and edited_root.scene_file_path == scene_path

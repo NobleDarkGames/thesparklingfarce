@@ -123,6 +123,7 @@ func _add_basic_info_section() -> void:
 	detail_panel.add_child(name_label)
 
 	battle_name_edit = LineEdit.new()
+	battle_name_edit.max_length = 64  # Reasonable limit for UI display
 	battle_name_edit.placeholder_text = "Enter battle name"
 	battle_name_edit.tooltip_text = "Display name shown when battle begins. E.g., 'Battle of Guardiana'."
 	detail_panel.add_child(battle_name_edit)

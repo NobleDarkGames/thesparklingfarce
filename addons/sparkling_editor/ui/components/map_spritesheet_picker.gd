@@ -229,7 +229,12 @@ func generate_sprite_frames(output_path: String) -> bool:
 	var global_dir_path: String = ProjectSettings.globalize_path(dir_path)
 	var dir_error: Error = DirAccess.make_dir_recursive_absolute(global_dir_path)
 	if dir_error != OK and dir_error != ERR_ALREADY_EXISTS:
-		var error_msg: String = "Failed to create directory: %s" % dir_path
+		var error_msg: String = "Failed to create directory '%s': %s (error code %d)" % [
+			dir_path,
+			error_string(dir_error),
+			dir_error
+		]
+		push_error("MapSpritesheetPicker: " + error_msg)
 		sprite_frames_generation_failed.emit(error_msg)
 		return false
 

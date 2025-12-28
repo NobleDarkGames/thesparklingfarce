@@ -335,6 +335,7 @@ func _add_basic_info_section() -> void:
 
 	name_edit = LineEdit.new()
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.max_length = 64  # Reasonable limit for UI display
 	name_edit.tooltip_text = "Display name shown in menus and dialogue. Can differ from resource filename."
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
