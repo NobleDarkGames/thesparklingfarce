@@ -13,55 +13,68 @@
 texture = ExtResource("1_grass")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "grass"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dirt"]
 texture = ExtResource("2_dirt")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "dirt"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_water"]
 texture = ExtResource("3_water")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "water"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_sand"]
 texture = ExtResource("4_sand")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "sand"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_stone"]
 texture = ExtResource("5_stone")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "stone"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_forest"]
 texture = ExtResource("6_forest")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "forest"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_road"]
 texture = ExtResource("7_road")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "road"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_wall"]
 texture = ExtResource("8_wall")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
-0:0/0/custom_data_0 = "wall"
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
 
 [resource]
 tile_size = Vector2i(32, 32)
-custom_data_layers_count = 1
-custom_data_layer_0/name = "terrain_type"
-custom_data_layer_0/type = 4
 sources/0 = SubResource("TileSetAtlasSource_grass")
 sources/1 = SubResource("TileSetAtlasSource_dirt")
 sources/2 = SubResource("TileSetAtlasSource_water")

@@ -64,6 +64,7 @@ const AIBrainRegistryClass = preload("res://core/registries/ai_brain_registry.gd
 const TilesetRegistryClass = preload("res://core/registries/tileset_registry.gd")
 const AIModeRegistryClass = preload("res://core/registries/ai_mode_registry.gd")
 const StatusEffectRegistryClass = preload("res://core/registries/status_effect_registry.gd")
+const TileSetAutoGeneratorClass = preload("res://core/tools/tileset_auto_generator.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -637,6 +638,7 @@ func _discover_tilesets(manifest: ModManifest) -> int:
 
 ## Get a TileSet resource by name
 ## Returns the highest-priority mod's version of the tileset
+## Auto-generates tile definitions based on texture dimensions if missing
 ## @param tileset_name: The tileset name (e.g., "terrain_placeholder")
 ## @return: The TileSet resource, or null if not found
 func get_tileset(tileset_name: String) -> TileSet:
@@ -649,6 +651,7 @@ func get_tileset(tileset_name: String) -> TileSet:
 	var entry: Dictionary = _tileset_registry[name_lower]
 	var entry_resource: Variant = entry.get("resource")
 	var entry_path: String = DictUtils.get_string(entry, "path", "")
+	var auto_populated: bool = entry.get("auto_populated", false)
 
 	# Lazy-load the resource on first access
 	if entry_resource == null:
@@ -658,6 +661,14 @@ func get_tileset(tileset_name: String) -> TileSet:
 		if entry_resource == null:
 			push_error("ModLoader: Failed to load TileSet from: %s" % entry_path)
 			return null
+
+	# Auto-populate tile definitions based on texture dimensions (once per tileset)
+	if entry_resource is TileSet and not auto_populated:
+		var tileset: TileSet = entry_resource as TileSet
+		var generated: int = TileSetAutoGeneratorClass.auto_populate_tileset(tileset, tileset_name)
+		entry["auto_populated"] = true
+		if generated > 0:
+			print("ModLoader: Auto-generated %d tile(s) for TileSet '%s'" % [generated, tileset_name])
 
 	return entry_resource if entry_resource is TileSet else null
 
