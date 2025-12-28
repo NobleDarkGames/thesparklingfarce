@@ -123,12 +123,9 @@ func load_terrain_data() -> void:
 	if not tilemap or not tilemap.tile_set:
 		return
 
-	# Check if tileset has terrain_type custom data layer
-	if not _tileset_has_terrain_type():
-		# No terrain_type layer - terrain will use fallback plains
-		return
-
 	# Cache terrain data for each cell in the grid
+	# Terrain is derived from atlas source filename (e.g., grass.png -> "grass")
+	# with optional per-tile override via terrain_type custom data
 	for x: int in range(grid.grid_size.x):
 		for y: int in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
@@ -138,7 +135,7 @@ func load_terrain_data() -> void:
 				_cell_terrain_cache[cell] = terrain
 
 
-## Check if tileset has terrain_type custom data layer
+## Check if tileset has terrain_type custom data layer (for optional per-tile overrides)
 func _tileset_has_terrain_type() -> bool:
 	if not tilemap or not tilemap.tile_set:
 		return false
@@ -150,18 +147,35 @@ func _tileset_has_terrain_type() -> bool:
 	return false
 
 
-## Get terrain ID from tile custom data at a specific cell
+## Get terrain ID for a cell.
+## Priority: 1) Per-tile custom data override, 2) Atlas source filename
+## This allows all tiles in "grass.png" to automatically use "grass" terrain,
+## while still supporting per-tile overrides for special cases.
 func _get_terrain_id_at_cell(cell: Vector2i) -> String:
-	if not tilemap:
+	if not tilemap or not tilemap.tile_set:
 		return ""
 
+	# Check if cell has a tile
+	var source_id: int = tilemap.get_cell_source_id(cell)
+	if source_id == -1:
+		return ""
+
+	# Priority 1: Check for per-tile custom data override
 	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
-	if tile_data == null:
-		return ""
+	if tile_data and _tileset_has_terrain_type():
+		var terrain_type: Variant = tile_data.get_custom_data(TERRAIN_TYPE_LAYER_NAME)
+		if terrain_type is String and not terrain_type.is_empty():
+			return terrain_type
 
-	var terrain_type: Variant = tile_data.get_custom_data(TERRAIN_TYPE_LAYER_NAME)
-	if terrain_type is String:
-		return terrain_type
+	# Priority 2: Derive from atlas source filename
+	var source: TileSetSource = tilemap.tile_set.get_source(source_id)
+	if source is TileSetAtlasSource:
+		var atlas_source: TileSetAtlasSource = source as TileSetAtlasSource
+		if atlas_source.texture:
+			# "res://path/to/grass.png" -> "grass"
+			var filename: String = atlas_source.texture.resource_path.get_file().get_basename()
+			return filename
+
 	return ""
 
 
