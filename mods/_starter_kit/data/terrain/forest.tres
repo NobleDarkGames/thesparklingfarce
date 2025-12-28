@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TerrainData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/terrain_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+terrain_id = "forest"
+display_name = "Forest"
+movement_cost_walking = 2
+movement_cost_floating = 1
+movement_cost_flying = 1
+impassable_walking = false
+impassable_floating = false
+impassable_flying = false
+defense_bonus = 2
+evasion_bonus = 15
+damage_per_turn = 0
+healing_per_turn = 0

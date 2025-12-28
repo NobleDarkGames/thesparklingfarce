@@ -1298,16 +1298,16 @@ func _save_appearance_to_character(character: CharacterData) -> void:
 		if sprite_frames and sprite_frames.resource_path.is_empty():
 			var output_path: String = _generate_sprite_frames_path(character)
 			if _sprite_frames_picker.generate_sprite_frames(output_path):
-				# Reload from disk to ensure it's an external reference
-				sprite_frames = load(output_path) as SpriteFrames
+				# Use in-memory reference (avoids Godot resource cache returning stale data)
+				sprite_frames = _sprite_frames_picker.get_generated_sprite_frames()
 		character.sprite_frames = sprite_frames
 	elif _sprite_frames_picker.is_valid() and _sprite_frames_picker.get_texture() != null:
 		# Valid spritesheet selected but no SpriteFrames generated yet
 		# Auto-generate SpriteFrames when saving
 		var output_path: String = _generate_sprite_frames_path(character)
 		if _sprite_frames_picker.generate_sprite_frames(output_path):
-			# Load from disk to ensure external reference
-			character.sprite_frames = load(output_path) as SpriteFrames
+			# Use in-memory reference (avoids Godot resource cache returning stale data)
+			character.sprite_frames = _sprite_frames_picker.get_generated_sprite_frames()
 	else:
 		# No valid spritesheet - clear the sprite_frames if picker is empty
 		if _sprite_frames_picker.get_texture_path().is_empty():

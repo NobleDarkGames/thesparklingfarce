@@ -65,7 +65,7 @@ const BUILTIN_TABS: Array[Dictionary] = [
 
 	# Battle editors (tactical scenario design)
 	{"id": "maps", "display_name": "Maps", "scene": "map_metadata_editor.tscn", "category": "battle", "priority": 10},
-	{"id": "terrain", "display_name": "Terrain", "scene": "terrain_editor.tscn", "category": "battle", "priority": 20},
+	{"id": "terrain", "display_name": "Terrain Effects", "scene": "terrain_editor.tscn", "category": "battle", "priority": 20},
 	{"id": "battles", "display_name": "Battles", "scene": "battle_editor.tscn", "category": "battle", "priority": 30},
 	{"id": "ai_behaviors", "display_name": "AI Behaviors", "scene": "ai_brain_editor.tscn", "category": "battle", "priority": 40},
 

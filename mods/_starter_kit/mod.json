@@ -1,0 +1,10 @@
+{
+	"author": "The Sparkling Farce Team",
+	"dependencies": [],
+	"description": "Core terrain types and starter content for The Sparkling Farce platform. Provides sensible defaults that mods can override.",
+	"godot_version": "4.5",
+	"id": "_starter_kit",
+	"load_priority": -1,
+	"name": "Starter Kit",
+	"version": "1.0.0"
+}
