@@ -37,7 +37,8 @@ extends Resource
 # ============================================================================
 
 ## Campaign ID to start (can be namespaced: "mod_id:campaign_id")
-## If empty, uses first available campaign from CampaignManager
+## If empty, uses the campaign from the highest-priority mod that provides one.
+## This means total conversion mods (priority 9000+) automatically take precedence.
 @export var starting_campaign_id: String = ""
 
 # ============================================================================
