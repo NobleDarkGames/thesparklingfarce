@@ -19,12 +19,13 @@ extends GdUnitTestSuite
 # =============================================================================
 
 ## Mock BattleData for testing rewards (gold only - no items)
-class MockBattleData extends Resource:
-	var battle_name: String = "Test Battle"
-	var gold_reward: int = 0
-	var item_rewards: Array = []  # Empty - item tests require real ItemData
-	var victory_condition: int = 0
-	var defeat_condition: int = 1
+class MockBattleData extends BattleData:
+	func _init() -> void:
+		battle_name = "Test Battle"
+		gold_reward = 0
+		item_rewards = []  # Empty - item tests require real ItemData
+		victory_condition = VictoryCondition.DEFEAT_ALL_ENEMIES
+		defeat_condition = DefeatCondition.LEADER_DEFEATED
 
 
 # =============================================================================

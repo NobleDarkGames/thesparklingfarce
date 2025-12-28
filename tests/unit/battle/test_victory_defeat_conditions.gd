@@ -15,57 +15,49 @@ extends GdUnitTestSuite
 # =============================================================================
 
 ## Mock unit for testing (simulates a battlefield unit)
-class MockUnit extends Node2D:
-	var character_data: Resource = null
-	var stats: RefCounted = null
-	var faction: String = "player"
-	var grid_position: Vector2i = Vector2i.ZERO
-	var turn_priority: float = 0.0
-	var _is_alive: bool = true
-	var _is_hero: bool = false
-	var _is_boss: bool = false
+## Extends Unit to satisfy type requirements but bypasses scene structure
+class MockUnit extends Unit:
+	var _mock_is_alive: bool = true
+
+	func _ready() -> void:
+		# Override to prevent parent from accessing missing child nodes
+		pass
 
 	func is_alive() -> bool:
-		return _is_alive
+		return _mock_is_alive
 
 	func is_dead() -> bool:
-		return not _is_alive
-
-	func is_player_unit() -> bool:
-		return faction == "player"
-
-	func is_enemy_unit() -> bool:
-		return faction == "enemy"
+		return not _mock_is_alive
 
 	func set_hero(val: bool) -> void:
-		_is_hero = val
 		if character_data == null:
 			character_data = MockCharacterData.new()
 		character_data.is_hero = val
 
 	func set_boss(val: bool) -> void:
-		_is_boss = val
 		if character_data == null:
 			character_data = MockCharacterData.new()
 		character_data.is_boss = val
 
 
 ## Mock CharacterData for testing
-class MockCharacterData extends Resource:
-	var is_hero: bool = false
-	var is_boss: bool = false
-	var character_uid: String = "test_char"
+class MockCharacterData extends CharacterData:
+	func _init() -> void:
+		is_hero = false
+		is_boss = false
+		character_uid = "test_char"
 
 
 ## Mock BattleData for testing victory/defeat conditions
-class MockBattleData extends Resource:
-	var victory_condition: int = 0  # BattleData.VictoryCondition.DEFEAT_ALL_ENEMIES
-	var defeat_condition: int = 1   # BattleData.DefeatCondition.LEADER_DEFEATED
-	var victory_boss_index: int = -1
-	var victory_turn_count: int = 5
-	var defeat_turn_limit: int = 10
-	var gold_reward: int = 0
-	var item_rewards: Array = []
+class MockBattleData extends BattleData:
+	func _init() -> void:
+		victory_condition = VictoryCondition.DEFEAT_ALL_ENEMIES
+		defeat_condition = DefeatCondition.LEADER_DEFEATED
+		victory_boss_index = -1
+		victory_turn_count = 5
+		defeat_turn_limit = 10
+		gold_reward = 0
+		item_rewards = []
 
 
 # =============================================================================
@@ -74,8 +66,8 @@ class MockBattleData extends Resource:
 
 var _mock_units: Array[MockUnit] = []
 var _mock_battle_data: MockBattleData = null
-var _original_battle_data: Resource = null
-var _original_all_units: Array[Node2D] = []
+var _original_battle_data: BattleData = null
+var _original_all_units: Array[Unit] = []
 var _original_turn_number: int = 0
 var _original_battle_active: bool = false
 
@@ -112,10 +104,10 @@ func after_test() -> void:
 
 
 ## Helper to create and register a mock unit
-func _create_mock_unit(faction: String, alive: bool = true) -> MockUnit:
+func _create_mock_unit(p_faction: String, alive: bool = true) -> MockUnit:
 	var unit: MockUnit = MockUnit.new()
-	unit.faction = faction
-	unit._is_alive = alive
+	unit.faction = p_faction
+	unit._mock_is_alive = alive
 	unit.character_data = MockCharacterData.new()
 	_mock_units.append(unit)
 	return unit
@@ -123,7 +115,7 @@ func _create_mock_unit(faction: String, alive: bool = true) -> MockUnit:
 
 ## Helper to set up TurnManager with mock units
 func _setup_turn_manager_units(units: Array[MockUnit]) -> void:
-	var typed_units: Array[Node2D] = []
+	var typed_units: Array[Unit] = []
 	for unit: MockUnit in units:
 		typed_units.append(unit)
 	TurnManager.all_units = typed_units
