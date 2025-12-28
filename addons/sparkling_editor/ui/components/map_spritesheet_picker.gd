@@ -159,6 +159,11 @@ func _update_preview(texture: Texture2D) -> void:
 	_preview_sprite.stop()
 	_preview_sprite.sprite_frames = null
 
+	# IMPORTANT: Clear cached generated sprite frames when texture changes
+	# This forces regeneration on save with the new spritesheet
+	_generated_sprite_frames = null
+	_sprite_frames_path = ""
+
 	# Only create preview if texture is valid
 	if texture == null or not _is_valid:
 		return
