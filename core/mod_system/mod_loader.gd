@@ -662,9 +662,16 @@ func get_tileset(tileset_name: String) -> TileSet:
 			push_error("ModLoader: Failed to load TileSet from: %s" % entry_path)
 			return null
 
-	# Auto-populate tile definitions based on texture dimensions (once per tileset)
+	# Auto-discover textures and populate tile definitions (once per tileset)
 	if entry_resource is TileSet and not auto_populated:
 		var tileset: TileSet = entry_resource as TileSet
+
+		# First, discover any new textures in the tileset's texture directory
+		var discovered: int = TileSetAutoGeneratorClass.auto_discover_textures(tileset, entry_path, tileset_name)
+		if discovered > 0:
+			print("ModLoader: Discovered %d new texture(s) for TileSet '%s'" % [discovered, tileset_name])
+
+		# Then, auto-populate tile definitions for all atlas sources
 		var generated: int = TileSetAutoGeneratorClass.auto_populate_tileset(tileset, tileset_name)
 		entry["auto_populated"] = true
 		if generated > 0:
