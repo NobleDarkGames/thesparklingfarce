@@ -1,0 +1,22 @@
+{
+	"campaign_description": "",
+	"campaign_id": "demo_campaign:new_campaign",
+	"campaign_name": "Demo Campaign",
+	"campaign_version": "1.0.0",
+	"chapters": [],
+	"default_hub_id": "",
+	"initial_flags": {
+
+	},
+	"nodes": [
+		{
+			"_editor_pos_x": 60.0,
+			"_editor_pos_y": 40.0,
+			"display_name": "Mudford",
+			"is_hub": false,
+			"node_id": "node_0",
+			"node_type": "scene"
+		}
+	],
+	"starting_node_id": "node_0"
+}

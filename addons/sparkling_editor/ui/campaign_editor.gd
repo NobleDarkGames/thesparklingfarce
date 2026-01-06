@@ -276,7 +276,7 @@ func _setup_graph_section(parent: VBoxContainer) -> void:
 
 	graph_edit = GraphEdit.new()
 	graph_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	graph_edit.custom_minimum_size.y = 300
+	graph_edit.custom_minimum_size.y = 150  # Reduced to prevent overflow - will expand to fill
 	graph_edit.connection_request.connect(_on_connection_request)
 	graph_edit.disconnection_request.connect(_on_disconnection_request)
 	graph_edit.node_selected.connect(_on_graph_node_selected)
@@ -291,8 +291,8 @@ func _setup_graph_section(parent: VBoxContainer) -> void:
 
 func _setup_inspector_section(parent: VSplitContainer) -> void:
 	inspector_scroll = ScrollContainer.new()
-	inspector_scroll.custom_minimum_size.y = 100  # Small minimum - rely on VSplitContainer for sizing
-	inspector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inspector_scroll.custom_minimum_size.y = 120  # Fixed minimum height for inspector
+	# Don't use SIZE_EXPAND_FILL - let VSplitContainer control sizing and scroll when needed
 	inspector_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	inspector_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	inspector_scroll.clip_contents = true
