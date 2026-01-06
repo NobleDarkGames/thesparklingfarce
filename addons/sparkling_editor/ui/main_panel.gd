@@ -65,7 +65,7 @@ func _setup_ui() -> void:
 	_create_mod_selector_ui()
 
 	# Make tabs more visible with custom theme overrides
-	tab_container.add_theme_font_size_override("font_size", 16)
+	tab_container.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	tab_container.add_theme_constant_override("side_margin", 10)
 
 	# Initialize the tab registry and create tabs
@@ -410,7 +410,7 @@ func _create_mod_selector_ui() -> void:
 
 	var label: Label = Label.new()
 	label.text = "Active Mod:"
-	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	hbox.add_child(label)
 
 	mod_selector = OptionButton.new()
@@ -420,7 +420,7 @@ func _create_mod_selector_ui() -> void:
 
 	mod_info_label = Label.new()
 	mod_info_label.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
-	mod_info_label.add_theme_font_size_override("font_size", 16)
+	mod_info_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	mod_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(mod_info_label)
 
@@ -849,5 +849,3 @@ func _create_default_new_game_config(mod_path: String, mod_name: String) -> void
 	var save_err: Error = ResourceSaver.save(config, config_path)
 	if save_err != OK:
 		push_warning("Failed to create default NewGameConfigData: " + error_string(save_err))
-	else:
-		print("[SparklingEditor] Created default NewGameConfigData for mod")

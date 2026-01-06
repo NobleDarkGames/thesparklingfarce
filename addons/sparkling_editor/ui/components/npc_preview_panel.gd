@@ -45,7 +45,7 @@ func _setup_ui() -> void:
 	# Title
 	var title: Label = Label.new()
 	title.text = "Preview"
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(title)
 

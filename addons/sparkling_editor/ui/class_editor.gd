@@ -44,13 +44,6 @@ func _ready() -> void:
 	super._ready()
 
 
-## Called when a dependent resource type changes (class created/saved/deleted)
-func _on_dependencies_changed(changed_type: String) -> void:
-	if changed_type == "class":
-		# ResourcePickers in promotion paths auto-refresh via EditorEventBus
-		pass
-
-
 ## Override: Create the class-specific detail form
 func _create_detail_form() -> void:
 	# Basic info section
@@ -575,7 +568,7 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	warning_label.text = "!"
 	warning_label.tooltip_text = "Another ability is already set for this level"
 	warning_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
-	warning_label.add_theme_font_size_override("font_size", 16)
+	warning_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	warning_label.visible = false
 	row.add_child(warning_label)
 
@@ -624,22 +617,10 @@ func _on_ability_level_changed(_new_value: float, _row: HBoxContainer) -> void:
 
 ## Check all ability rows for duplicate levels and show/hide warnings
 func _check_duplicate_levels() -> void:
-	# Collect all levels and their rows
-	var level_counts: Dictionary = {}  # level -> Array[HBoxContainer]
+	# Single pass: collect levels and warning labels together
+	var level_counts: Dictionary = {}  # level -> count
+	var row_data: Array = []  # Array of {level: int, warning: Label}
 
-	for child in learnable_abilities_container.get_children():
-		if not is_instance_valid(child) or not child is HBoxContainer:
-			continue
-		var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
-		if not level_spin:
-			continue
-
-		var level: int = int(level_spin.value)
-		if level not in level_counts:
-			level_counts[level] = []
-		level_counts[level].append(child)
-
-	# Update warnings for all rows
 	for child in learnable_abilities_container.get_children():
 		if not is_instance_valid(child) or not child is HBoxContainer:
 			continue
@@ -649,5 +630,10 @@ func _check_duplicate_levels() -> void:
 			continue
 
 		var level: int = int(level_spin.value)
-		var is_duplicate: bool = level in level_counts and level_counts[level].size() > 1
-		warning_label.visible = is_duplicate
+		level_counts[level] = level_counts.get(level, 0) + 1
+		row_data.append({"level": level, "warning": warning_label})
+
+	# Update warnings using collected data (no second iteration over children)
+	for entry: Dictionary in row_data:
+		var is_duplicate: bool = level_counts.get(entry["level"], 0) > 1
+		entry["warning"].visible = is_duplicate

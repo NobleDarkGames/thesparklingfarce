@@ -408,12 +408,20 @@ func test_editor_metadata_facing_param() -> void:
 	assert_bool("options" in params.facing).is_true()
 
 
-func test_editor_metadata_character_id_param() -> void:
+func test_editor_metadata_entity_type_param() -> void:
 	var metadata: Dictionary = _executor.get_editor_metadata()
 	var params: Dictionary = metadata.get("params", {})
 
-	assert_bool("character_id" in params).is_true()
-	assert_str(params.character_id.type).is_equal("character")
+	assert_bool("entity_type" in params).is_true()
+	assert_str(params.entity_type.type).is_equal("spawnable_type")
+
+
+func test_editor_metadata_entity_id_param() -> void:
+	var metadata: Dictionary = _executor.get_editor_metadata()
+	var params: Dictionary = metadata.get("params", {})
+
+	assert_bool("entity_id" in params).is_true()
+	assert_str(params.entity_id.type).is_equal("spawnable_entity")
 
 
 # =============================================================================

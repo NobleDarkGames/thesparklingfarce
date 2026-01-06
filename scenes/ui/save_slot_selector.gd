@@ -78,7 +78,7 @@ func _setup_ui() -> void:
 		var slot_button: Button = Button.new()
 		slot_button.name = "Slot%d" % (i + 1)
 		slot_button.custom_minimum_size = Vector2(400, 60)
-		slot_button.add_theme_font_size_override("font_size", 18)
+		slot_button.add_theme_font_size_override("font_size", 16)  # Monogram requires multiples of 8
 		slot_button.pressed.connect(_on_slot_pressed.bind(i + 1))
 		_slot_container.add_child(slot_button)
 		_slot_buttons.append(slot_button)

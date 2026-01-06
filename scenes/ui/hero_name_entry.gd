@@ -97,7 +97,7 @@ func _setup_ui() -> void:
 	var title: Label = Label.new()
 	title.text = "Enter Hero Name"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 32)  # Monogram requires multiples of 8
 	main_container.add_child(title)
 
 	# Content area - side-by-side layout (portrait section | character grid)

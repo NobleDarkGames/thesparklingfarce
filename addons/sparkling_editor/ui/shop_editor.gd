@@ -302,7 +302,7 @@ func _add_inventory_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Inventory"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	inventory_container.add_child(section_label)
 
 	var help_label: Label = Label.new()
@@ -375,7 +375,7 @@ func _add_deals_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Deals (Discounted Items)"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	deals_container.add_child(section_label)
 
 	var help_label: Label = Label.new()

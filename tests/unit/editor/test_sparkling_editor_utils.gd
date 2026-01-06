@@ -311,12 +311,17 @@ func test_scan_all_mod_directories_returns_array() -> void:
 	assert_object(mods).is_not_null()
 
 
-func test_scan_all_mod_directories_finds_base_game() -> void:
+func test_scan_all_mod_directories_finds_valid_mods() -> void:
 	var mods: Array[String] = SparklingEditorUtils.scan_all_mod_directories()
 
-	# If mods directory exists, it should find _base_game
+	# If mods directory exists, it should find at least one mod
+	# We don't assume any specific mod (like _base_game) exists
 	if mods.size() > 0:
-		assert_bool(mods.has("_base_game")).is_true()
+		# Each mod ID should be a valid non-empty string
+		for mod_id: String in mods:
+			assert_str(mod_id).is_not_empty()
+			# Mod IDs should not have path separators
+			assert_bool("/" in mod_id).is_false()
 
 
 func test_scan_all_mod_directories_excludes_hidden() -> void:

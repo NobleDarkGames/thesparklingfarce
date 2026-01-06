@@ -291,41 +291,14 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Basic Information")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	dialogue_id_edit = form.add_text_field("Dialogue ID:", "",
+		"Unique ID for referencing this dialogue. Used in triggers and NPC assignments.")
 
-	# Dialogue ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Dialogue ID:"
-	id_label.custom_minimum_size.x = 120
-	id_label.tooltip_text = "Unique identifier for this dialogue"
-	id_container.add_child(id_label)
-
-	dialogue_id_edit = LineEdit.new()
-	dialogue_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dialogue_id_edit.tooltip_text = "Unique ID for referencing this dialogue. Used in triggers and NPC assignments."
-	id_container.add_child(dialogue_id_edit)
-	section.add_child(id_container)
-
-	# Title
-	var title_container: HBoxContainer = HBoxContainer.new()
-	var title_label: Label = Label.new()
-	title_label.text = "Title:"
-	title_label.custom_minimum_size.x = 120
-	title_container.add_child(title_label)
-
-	dialogue_title_edit = LineEdit.new()
-	dialogue_title_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dialogue_title_edit.tooltip_text = "Human-readable title for organization. Shown in editor dropdowns."
-	title_container.add_child(dialogue_title_edit)
-	section.add_child(title_container)
-
-	detail_panel.add_child(section)
+	dialogue_title_edit = form.add_text_field("Title:", "",
+		"Human-readable title for organization. Shown in editor dropdowns.")
 
 
 func _add_lines_section() -> void:
@@ -333,7 +306,7 @@ func _add_lines_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Dialogue Lines"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Container for the list of lines
@@ -354,13 +327,13 @@ func _add_choices_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Choices (Optional Branching)"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add choices for yes/no branches. If no choices, dialogue flows to 'Next Dialogue'."
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(help_label)
 
 	# Container for the list of choices
@@ -377,67 +350,27 @@ func _add_choices_section() -> void:
 
 
 func _add_flow_control_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Flow Control")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Flow Control"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	# Next dialogue
-	var next_container: HBoxContainer = HBoxContainer.new()
-	var next_label: Label = Label.new()
-	next_label.text = "Next Dialogue:"
-	next_label.custom_minimum_size.x = 150
-	next_label.tooltip_text = "Dialogue to play after this one (if no choices)"
-	next_container.add_child(next_label)
-
+	# Next dialogue dropdown
 	next_dialogue_option = OptionButton.new()
 	next_dialogue_option.add_item("(None)", 0)
 	next_dialogue_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	next_container.add_child(next_dialogue_option)
-	section.add_child(next_container)
+	form.add_labeled_control("Next Dialogue:", next_dialogue_option,
+		"Dialogue to play after this one (if no choices)")
 
-	# Auto advance
-	auto_advance_check = CheckBox.new()
-	auto_advance_check.text = "Auto-advance dialogue"
-	auto_advance_check.tooltip_text = "Automatically progress to next line without player input. Good for cutscenes."
-	section.add_child(auto_advance_check)
+	auto_advance_check = form.add_standalone_checkbox("Auto-advance dialogue", false,
+		"Automatically progress to next line without player input. Good for cutscenes.")
 
-	# Advance delay
-	var delay_container: HBoxContainer = HBoxContainer.new()
-	var delay_label: Label = Label.new()
-	delay_label.text = "Advance Delay (sec):"
-	delay_label.custom_minimum_size.x = 150
-	delay_container.add_child(delay_label)
-
-	advance_delay_spin = SpinBox.new()
-	advance_delay_spin.min_value = 0.1
-	advance_delay_spin.max_value = 10.0
-	advance_delay_spin.step = 0.1
-	advance_delay_spin.value = 2.0
-	advance_delay_spin.tooltip_text = "Seconds to wait between auto-advancing lines. 2.0 is typical reading pace."
-	delay_container.add_child(advance_delay_spin)
-	section.add_child(delay_container)
-
-	detail_panel.add_child(section)
+	advance_delay_spin = form.add_float_field("Advance Delay (sec):", 0.1, 10.0, 0.1, 2.0,
+		"Seconds to wait between auto-advancing lines. 2.0 is typical reading pace.")
 
 
 func _add_audio_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Audio & Visuals"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
-
-	var note_label: Label = Label.new()
-	note_label.text = "Note: Background music, text sounds, portraits, and backgrounds\ncan be assigned in the Inspector after saving."
-	note_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	note_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(note_label)
-
-	detail_panel.add_child(section)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Audio & Visuals")
+	form.add_help_text("Note: Background music, text sounds, portraits, and backgrounds\ncan be assigned in the Inspector after saving.")
 
 
 func _on_add_line_pressed() -> void:
@@ -457,7 +390,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	var line_num_label: Label = Label.new()
 	line_num_label.text = "Line " + str(lines_list.size() + 1)
-	line_num_label.add_theme_font_size_override("font_size", 16)
+	line_num_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	header.add_child(line_num_label)
 
 	var spacer: Control = Control.new()
@@ -574,7 +507,7 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var text_hint: Label = Label.new()
 	text_hint.text = "(Use {variable_name} for dynamic text)"
 	text_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	text_hint.add_theme_font_size_override("font_size", 16)
+	text_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	text_header.add_child(text_hint)
 	text_container.add_child(text_header)
 
@@ -698,7 +631,7 @@ func _add_choice_ui(choice_dict: Dictionary) -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	var choice_num_label: Label = Label.new()
 	choice_num_label.text = "Choice " + str(choices_list.size() + 1)
-	choice_num_label.add_theme_font_size_override("font_size", 16)
+	choice_num_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	header.add_child(choice_num_label)
 
 	var spacer: Control = Control.new()

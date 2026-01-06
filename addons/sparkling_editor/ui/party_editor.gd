@@ -179,7 +179,7 @@ func _get_resource_display_name(resource: Resource) -> String:
 func _add_basic_info_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var name_label: Label = Label.new()
@@ -219,13 +219,13 @@ func _add_basic_info_section() -> void:
 func _add_party_members_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Party Members"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Add characters to this party. Formation offsets determine spawn positions."
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(help_label)
 
 	members_container = VBoxContainer.new()
@@ -380,7 +380,7 @@ func _add_separator_to_panel(panel: Control) -> void:
 func _add_default_party_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "New Game Configuration"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
@@ -555,8 +555,6 @@ func _get_or_create_default_config(active_mod: ModManifest) -> NewGameConfigData
 
 ## Show success message (wrapper for base class)
 func _show_success_message(message: String) -> void:
-	# Use the push_warning for now - could be enhanced with a proper UI popup
-	print("[PartyEditor] " + message)
 	# If we have the error panel, use it with success styling
 	if error_panel and error_label:
 		var success_color: Color = SparklingEditorUtils.get_success_color()

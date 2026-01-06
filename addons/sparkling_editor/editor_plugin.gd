@@ -45,9 +45,7 @@ func _refresh_tilesets() -> void:
 		# Save if any changes were made
 		if discovered > 0 or generated > 0:
 			var err: Error = ResourceSaver.save(tileset, tileset_path)
-			if err == OK:
-				print("SparklingEditor: Saved updated tileset '%s'" % tileset_name)
-			else:
+			if err != OK:
 				push_error("SparklingEditor: Failed to save tileset '%s': %s" % [tileset_name, err])
 
 

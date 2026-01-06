@@ -32,6 +32,7 @@ func before_test() -> void:
 func _create_mock_node(node_id: String, node_type: String, resource_id: String) -> CampaignNode:
 	var node: CampaignNode = CampaignNode.new()
 	node.node_id = node_id
+	node.display_name = node_id.capitalize()  # Required by CampaignNode.validate()
 	node.node_type = node_type
 	node.resource_id = resource_id
 	return node

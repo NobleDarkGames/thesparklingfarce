@@ -342,7 +342,7 @@ func _update_resource_id_for_copy(resource: Resource, original_name: String) -> 
 func _add_identity_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	# Config ID
@@ -400,7 +400,7 @@ func _add_identity_section() -> void:
 func _add_campaign_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Campaign"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	# Campaign selector
@@ -446,7 +446,7 @@ func _add_campaign_section() -> void:
 func _add_economy_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Economy"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	# Starting Gold
@@ -479,7 +479,7 @@ func _add_economy_section() -> void:
 func _add_party_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Starting Party"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	# Party selector
@@ -515,7 +515,7 @@ func _add_party_section() -> void:
 func _add_caravan_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Caravan"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	# Caravan unlocked checkbox
@@ -539,7 +539,7 @@ func _add_caravan_section() -> void:
 func _add_depot_items_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Starting Depot Items"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
@@ -564,7 +564,7 @@ func _add_depot_items_section() -> void:
 func _add_story_flags_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Starting Story Flags"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()

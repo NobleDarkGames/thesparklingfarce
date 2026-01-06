@@ -88,16 +88,12 @@ func save_json_file(path: String, data: Dictionary) -> bool:
 
 ## Ensure a directory exists, creating it if needed
 ## Returns true if directory exists or was created successfully
+## Note: Delegates to SparklingEditorUtils but shows UI error on failure
 func ensure_directory_exists(dir_path: String) -> bool:
-	if DirAccess.dir_exists_absolute(dir_path):
-		return true
-
-	var err: Error = DirAccess.make_dir_recursive_absolute(dir_path)
-	if err != OK:
-		_show_errors(["Failed to create directory: " + error_string(err)])
-		return false
-
-	return true
+	var success: bool = SparklingEditorUtils.ensure_directory_exists(dir_path)
+	if not success:
+		_show_errors(["Failed to create directory: " + dir_path])
+	return success
 
 
 # =============================================================================

@@ -198,7 +198,7 @@ func _create_current_party_panel(parent: Control) -> void:
 
 	var current_label: Label = Label.new()
 	current_label.text = "Current Party Members"
-	current_label.add_theme_font_size_override("font_size", 16)
+	current_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(current_label)
 
 	# Party members list
@@ -237,7 +237,7 @@ func _create_available_characters_panel(parent: Control) -> void:
 
 	var available_label: Label = Label.new()
 	available_label.text = "Available Characters"
-	available_label.add_theme_font_size_override("font_size", 16)
+	available_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	right_panel.add_child(available_label)
 
 	# Available characters list

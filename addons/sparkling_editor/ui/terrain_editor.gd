@@ -201,13 +201,13 @@ func _add_movement_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Movement"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Movement cost: 1 = normal, 2 = half speed, 3+ = very slow. Check 'Impassable' to block entirely."
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(help_label)
 

@@ -266,33 +266,16 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Basic Information")
 
 	# Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Item Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_container.add_child(name_label)
+	name_edit = form.add_text_field("Item Name:", "",
+		"Display name shown in menus and shops. E.g., Steel Sword, Healing Herb.")
+	name_edit.max_length = 64
 
-	name_edit = LineEdit.new()
-	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_edit.max_length = 64  # Reasonable limit for UI display
-	name_edit.tooltip_text = "Display name shown in menus and shops. E.g., Steel Sword, Healing Herb."
-	name_container.add_child(name_edit)
-	section.add_child(name_container)
-
-	# Icon picker (placed right after name - icon is part of item identity)
+	# Icon picker (custom composite control)
 	var icon_container: HBoxContainer = HBoxContainer.new()
-	var icon_label: Label = Label.new()
-	icon_label.text = "Icon:"
-	icon_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	icon_container.add_child(icon_label)
 
 	# Preview at actual game size (32x32) with border
 	var preview_panel: PanelContainer = PanelContainer.new()
@@ -331,74 +314,34 @@ func _add_basic_info_section() -> void:
 	icon_clear_btn.pressed.connect(_on_clear_icon)
 	icon_container.add_child(icon_clear_btn)
 
-	section.add_child(icon_container)
+	form.add_labeled_control("Icon:", icon_container, "Item icon displayed in menus and inventory")
 
 	# Item Type
-	var type_container: HBoxContainer = HBoxContainer.new()
-	var type_label: Label = Label.new()
-	type_label.text = "Item Type:"
-	type_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	type_container.add_child(type_label)
-
 	item_type_option = OptionButton.new()
-	item_type_option.tooltip_text = "Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item."
 	item_type_option.add_item("Weapon", ItemData.ItemType.WEAPON)
 	item_type_option.add_item("Accessory", ItemData.ItemType.ACCESSORY)
 	item_type_option.add_item("Consumable", ItemData.ItemType.CONSUMABLE)
 	item_type_option.add_item("Key Item", ItemData.ItemType.KEY_ITEM)
 	item_type_option.item_selected.connect(_on_item_type_changed)
-	type_container.add_child(item_type_option)
-	section.add_child(type_container)
+	form.add_labeled_control("Item Type:", item_type_option,
+		"Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item.")
 
 	# Equipment Type
-	var equip_container: HBoxContainer = HBoxContainer.new()
-	var equip_label: Label = Label.new()
-	equip_label.text = "Equipment Type:"
-	equip_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	equip_label.tooltip_text = "For weapons: sword, axe, bow, etc.\nFor accessories: ring, amulet, etc."
-	equip_container.add_child(equip_label)
-
-	equipment_type_edit = LineEdit.new()
-	equipment_type_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_type_edit.placeholder_text = "e.g., sword, ring"
-	equipment_type_edit.tooltip_text = "Category for class restrictions. Weapons: sword, axe, bow, staff. Accessories: ring, amulet."
-	equip_container.add_child(equipment_type_edit)
-	section.add_child(equip_container)
+	equipment_type_edit = form.add_text_field("Equipment Type:", "e.g., sword, ring",
+		"Category for class restrictions. Weapons: sword, axe, bow, staff. Accessories: ring, amulet.")
 
 	# Equipment Slot
-	var slot_container: HBoxContainer = HBoxContainer.new()
-	var slot_label: Label = Label.new()
-	slot_label.text = "Equipment Slot:"
-	slot_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	slot_label.tooltip_text = "Which slot this item occupies when equipped"
-	slot_container.add_child(slot_label)
-
 	equipment_slot_option = OptionButton.new()
 	equipment_slot_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_slot_option.tooltip_text = "Which character slot this item occupies. Weapon = main hand. Ring/Accessory = accessory slots."
 	_populate_equipment_slot_options()
-	slot_container.add_child(equipment_slot_option)
-	section.add_child(slot_container)
+	form.add_labeled_control("Equipment Slot:", equipment_slot_option,
+		"Which character slot this item occupies. Weapon = main hand. Ring/Accessory = accessory slots.")
 
-	# Help text explaining equipment type vs slot
-	var equip_help: Label = Label.new()
-	equip_help.text = "Type = weapon/accessory category (sword, ring). Slot = where equipped (weapon, ring_1, ring_2)."
-	equip_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	equip_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	equip_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(equip_help)
+	form.add_help_text("Type = weapon/accessory category (sword, ring). Slot = where equipped (weapon, ring_1, ring_2).")
 
 	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	section.add_child(desc_label)
-
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 120
-	description_edit.tooltip_text = "Flavor text shown when examining the item. Describe effects, lore, or usage hints."
-	section.add_child(description_edit)
-
-	detail_panel.add_child(section)
+	description_edit = form.add_text_area("Description:", 120,
+		"Flavor text shown when examining the item. Describe effects, lore, or usage hints.")
 
 
 func _add_stat_modifiers_section() -> void:
@@ -423,118 +366,41 @@ func _add_stat_modifiers_section() -> void:
 
 func _add_weapon_section() -> void:
 	weapon_section = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(weapon_section)
+	form.add_section("Weapon Properties")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Weapon Properties"
-	section_label.add_theme_font_size_override("font_size", 16)
-	weapon_section.add_child(section_label)
+	attack_power_spin = form.add_number_field("Attack Power:", 0, 999, 10,
+		"Base damage added to attacks. Typical: 5-15 early game, 20-40 mid, 50+ late game.")
 
-	# Attack Power
-	var power_container: HBoxContainer = HBoxContainer.new()
-	var power_label: Label = Label.new()
-	power_label.text = "Attack Power:"
-	power_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	power_container.add_child(power_label)
-
-	attack_power_spin = SpinBox.new()
-	attack_power_spin.min_value = 0
-	attack_power_spin.max_value = 999
-	attack_power_spin.value = 10
-	attack_power_spin.tooltip_text = "Base damage added to attacks. Typical: 5-15 early game, 20-40 mid, 50+ late game."
-	power_container.add_child(attack_power_spin)
-	weapon_section.add_child(power_container)
-
-	# Min Attack Range
-	var min_range_container: HBoxContainer = HBoxContainer.new()
-	var min_range_label: Label = Label.new()
-	min_range_label.text = "Min Attack Range:"
-	min_range_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	min_range_label.tooltip_text = "Minimum attack distance. Set to 2+ for ranged weapons with dead zones (cannot hit adjacent)."
-	min_range_container.add_child(min_range_label)
-
-	min_attack_range_spin = SpinBox.new()
-	min_attack_range_spin.min_value = 1
-	min_attack_range_spin.max_value = 20
-	min_attack_range_spin.value = 1
-	min_attack_range_spin.tooltip_text = "Closest distance this weapon can hit. 1 = adjacent. 2+ = cannot hit adjacent targets (bow dead zone)."
+	min_attack_range_spin = form.add_number_field("Min Attack Range:", 1, 20, 1,
+		"Closest distance this weapon can hit. 1 = adjacent. 2+ = cannot hit adjacent targets (bow dead zone).")
 	min_attack_range_spin.value_changed.connect(_on_min_range_changed)
-	min_range_container.add_child(min_attack_range_spin)
-	weapon_section.add_child(min_range_container)
 
-	# Max Attack Range
-	var max_range_container: HBoxContainer = HBoxContainer.new()
-	var max_range_label: Label = Label.new()
-	max_range_label.text = "Max Attack Range:"
-	max_range_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	max_range_label.tooltip_text = "Maximum attack distance. Set to 1 for melee, higher for ranged weapons."
-	max_range_container.add_child(max_range_label)
-
-	max_attack_range_spin = SpinBox.new()
-	max_attack_range_spin.min_value = 1
-	max_attack_range_spin.max_value = 20
-	max_attack_range_spin.value = 1
-	max_attack_range_spin.tooltip_text = "Farthest distance this weapon can hit. 1 = melee only. 2-3 = short range. 4+ = long range."
+	max_attack_range_spin = form.add_number_field("Max Attack Range:", 1, 20, 1,
+		"Farthest distance this weapon can hit. 1 = melee only. 2-3 = short range. 4+ = long range.")
 	max_attack_range_spin.value_changed.connect(_on_max_range_changed)
-	max_range_container.add_child(max_attack_range_spin)
-	weapon_section.add_child(max_range_container)
 
-	# Range presets help label
-	var range_help: Label = Label.new()
-	range_help.text = "Sword: 1-1 | Spear: 1-2 | Bow: 2-3 | Crossbow: 2-4"
-	range_help.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-	range_help.add_theme_font_size_override("font_size", 12)
-	weapon_section.add_child(range_help)
+	form.add_help_text("Sword: 1-1 | Spear: 1-2 | Bow: 2-3 | Crossbow: 2-4")
 
-	# Hit Rate
-	var hit_container: HBoxContainer = HBoxContainer.new()
-	var hit_label: Label = Label.new()
-	hit_label.text = "Hit Rate (%):"
-	hit_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	hit_container.add_child(hit_label)
+	hit_rate_spin = form.add_number_field("Hit Rate (%):", 0, 100, 90,
+		"Base accuracy percentage. 90% = reliable. 70% = inaccurate but powerful. Combined with character AGI.")
 
-	hit_rate_spin = SpinBox.new()
-	hit_rate_spin.min_value = 0
-	hit_rate_spin.max_value = 100
-	hit_rate_spin.value = 90
-	hit_rate_spin.tooltip_text = "Base accuracy percentage. 90% = reliable. 70% = inaccurate but powerful. Combined with character AGI."
-	hit_container.add_child(hit_rate_spin)
-	weapon_section.add_child(hit_container)
-
-	# Critical Rate
-	var crit_container: HBoxContainer = HBoxContainer.new()
-	var crit_label: Label = Label.new()
-	crit_label.text = "Critical Rate (%):"
-	crit_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	crit_container.add_child(crit_label)
-
-	crit_rate_spin = SpinBox.new()
-	crit_rate_spin.min_value = 0
-	crit_rate_spin.max_value = 100
-	crit_rate_spin.value = 5
-	crit_rate_spin.tooltip_text = "Chance for double damage. Typical: 5% normal, 15% for killer weapons, 25%+ for crit-focused builds."
-	crit_container.add_child(crit_rate_spin)
-	weapon_section.add_child(crit_container)
+	crit_rate_spin = form.add_number_field("Critical Rate (%):", 0, 100, 5,
+		"Chance for double damage. Typical: 5% normal, 15% for killer weapons, 25%+ for crit-focused builds.")
 
 	detail_panel.add_child(weapon_section)
 
 
 func _add_consumable_section() -> void:
 	consumable_section = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(consumable_section)
+	form.add_section("Consumable Properties")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Consumable Properties"
-	section_label.add_theme_font_size_override("font_size", 16)
-	consumable_section.add_child(section_label)
+	usable_battle_check = form.add_standalone_checkbox("Usable in Battle", false,
+		"Can be used during combat. E.g., Healing Herb during a unit's turn.")
 
-	usable_battle_check = CheckBox.new()
-	usable_battle_check.text = "Usable in Battle"
-	usable_battle_check.tooltip_text = "Can be used during combat. E.g., Healing Herb during a unit's turn."
-	consumable_section.add_child(usable_battle_check)
-
-	usable_field_check = CheckBox.new()
-	usable_field_check.text = "Usable on Field"
-	usable_field_check.tooltip_text = "Can be used from the menu outside of battle. E.g., healing items in town."
-	consumable_section.add_child(usable_field_check)
+	usable_field_check = form.add_standalone_checkbox("Usable on Field", false,
+		"Can be used from the menu outside of battle. E.g., healing items in town.")
 
 	# Effect picker - allows selecting an AbilityData resource for the consumable effect
 	effect_picker = ResourcePicker.new()
@@ -543,14 +409,10 @@ func _add_consumable_section() -> void:
 	effect_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	effect_picker.allow_none = true
 	effect_picker.none_text = "(No Effect)"
-	effect_picker.tooltip_text = "Ability that activates when used. Create abilities for healing, buffs, damage, etc."
-	consumable_section.add_child(effect_picker)
+	form.add_labeled_control("", effect_picker,
+		"Ability that activates when used. Create abilities for healing, buffs, damage, etc.")
 
-	var help_label: Label = Label.new()
-	help_label.text = "The ability that activates when this item is used"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	consumable_section.add_child(help_label)
+	form.add_help_text("The ability that activates when this item is used")
 
 	detail_panel.add_child(consumable_section)
 
@@ -593,41 +455,18 @@ func _on_item_type_changed(index: int) -> void:
 
 func _add_curse_section() -> void:
 	curse_section = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(curse_section)
+	form.add_section("Curse Properties")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Curse Properties"
-	section_label.add_theme_font_size_override("font_size", 16)
-	curse_section.add_child(section_label)
-
-	# Is Cursed checkbox
-	is_cursed_check = CheckBox.new()
-	is_cursed_check.text = "Is Cursed (cannot be unequipped normally)"
-	is_cursed_check.button_pressed = false
-	is_cursed_check.tooltip_text = "Cursed items lock to the character. Often powerful but with drawbacks. Requires special items or church to remove."
+	is_cursed_check = form.add_standalone_checkbox("Is Cursed (cannot be unequipped normally)", false,
+		"Cursed items lock to the character. Often powerful but with drawbacks. Requires special items or church to remove.")
 	is_cursed_check.toggled.connect(_on_cursed_toggled)
-	curse_section.add_child(is_cursed_check)
 
-	# Uncurse Items (comma-separated list)
-	var uncurse_container: HBoxContainer = HBoxContainer.new()
-	var uncurse_label: Label = Label.new()
-	uncurse_label.text = "Uncurse Items:"
-	uncurse_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	uncurse_label.tooltip_text = "Item IDs that can remove this curse (comma-separated)"
-	uncurse_container.add_child(uncurse_label)
-
-	uncurse_items_edit = LineEdit.new()
-	uncurse_items_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	uncurse_items_edit.placeholder_text = "e.g., purify_scroll, holy_water"
-	uncurse_items_edit.tooltip_text = "Item IDs (comma-separated) that can remove this curse. Leave empty if only church/NPC can uncurse."
+	uncurse_items_edit = form.add_text_field("Uncurse Items:", "e.g., purify_scroll, holy_water",
+		"Item IDs (comma-separated) that can remove this curse. Leave empty if only church/NPC can uncurse.")
 	uncurse_items_edit.editable = false  # Only enabled when cursed
-	uncurse_container.add_child(uncurse_items_edit)
-	curse_section.add_child(uncurse_container)
 
-	var help_label: Label = Label.new()
-	help_label.text = "Leave empty if only church service can remove curse"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 14)
-	curse_section.add_child(help_label)
+	form.add_help_text("Leave empty if only church service can remove curse")
 
 	detail_panel.add_child(curse_section)
 

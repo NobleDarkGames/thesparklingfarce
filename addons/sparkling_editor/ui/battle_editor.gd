@@ -113,92 +113,58 @@ func _create_detail_form() -> void:
 
 ## Section 1: Basic Information
 func _add_basic_info_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Basic Information")
 
-	var name_label: Label = Label.new()
-	name_label.text = "Battle Name:"
-	detail_panel.add_child(name_label)
+	battle_name_edit = form.add_text_field("Battle Name:", "Enter battle name",
+		"Display name shown when battle begins. E.g., 'Battle of Guardiana'.")
+	battle_name_edit.max_length = 64
 
-	battle_name_edit = LineEdit.new()
-	battle_name_edit.max_length = 64  # Reasonable limit for UI display
-	battle_name_edit.placeholder_text = "Enter battle name"
-	battle_name_edit.tooltip_text = "Display name shown when battle begins. E.g., 'Battle of Guardiana'."
-	detail_panel.add_child(battle_name_edit)
+	battle_description_edit = form.add_text_area("Description:", 120,
+		"Notes for modders describing the battle scenario, objectives, and story context.")
 
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	detail_panel.add_child(desc_label)
-
-	battle_description_edit = TextEdit.new()
-	battle_description_edit.custom_minimum_size = Vector2(0, 120)
-	battle_description_edit.tooltip_text = "Notes for modders describing the battle scenario, objectives, and story context."
-	detail_panel.add_child(battle_description_edit)
-
-	_add_separator()
+	form.add_separator()
 
 
 ## Section 2: Map Selection
 func _add_map_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Map Configuration"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
-
-	var map_label: Label = Label.new()
-	map_label.text = "Map Scene:"
-	detail_panel.add_child(map_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Map Configuration")
 
 	map_scene_option = OptionButton.new()
-	map_scene_option.tooltip_text = "The tilemap scene where combat takes place. Maps are in mods/*/maps/."
 	map_scene_option.item_selected.connect(_on_map_scene_changed)
-	detail_panel.add_child(map_scene_option)
+	form.add_labeled_control("Map Scene:", map_scene_option,
+		"The tilemap scene where combat takes place. Maps are in mods/*/maps/.")
 
-	var map_note: Label = Label.new()
-	map_note.text = "Maps are loaded from mods/*/maps/ directories"
-	map_note.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	map_note.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(map_note)
+	form.add_help_text("Maps are loaded from mods/*/maps/ directories")
 
-	# Player Spawn Point with place button
-	var spawn_label: Label = Label.new()
-	spawn_label.text = "Player Spawn Point (X, Y):"
-	detail_panel.add_child(spawn_label)
-
+	# Player Spawn Point (custom HBox for X, Y)
 	var spawn_hbox: HBoxContainer = HBoxContainer.new()
 	player_spawn_x_spin = SpinBox.new()
 	player_spawn_x_spin.min_value = 0
 	player_spawn_x_spin.max_value = 100
 	player_spawn_x_spin.value = 2
-	player_spawn_x_spin.tooltip_text = "X coordinate for party formation center. Party arranges in formation around this point."
+	player_spawn_x_spin.tooltip_text = "X coordinate for party formation center."
 	spawn_hbox.add_child(player_spawn_x_spin)
 
 	player_spawn_y_spin = SpinBox.new()
 	player_spawn_y_spin.min_value = 0
 	player_spawn_y_spin.max_value = 100
 	player_spawn_y_spin.value = 2
-	player_spawn_y_spin.tooltip_text = "Y coordinate for party formation center. Party arranges in formation around this point."
+	player_spawn_y_spin.tooltip_text = "Y coordinate for party formation center."
 	spawn_hbox.add_child(player_spawn_y_spin)
 
-	detail_panel.add_child(spawn_hbox)
+	form.add_labeled_control("Player Spawn (X, Y):", spawn_hbox,
+		"Party arranges in formation around this point.")
 
-	var spawn_note: Label = Label.new()
-	spawn_note.text = "Party members spawn in formation around this point"
-	spawn_note.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	spawn_note.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(spawn_note)
-
-	_add_separator()
+	form.add_help_text("Party members spawn in formation around this point")
+	form.add_separator()
 
 
 ## Section 3: Player Forces
 func _add_player_forces_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Player Forces"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Player Forces")
 
 	# Use ResourcePicker for cross-mod party selection
 	player_party_picker = ResourcePicker.new()
@@ -207,16 +173,11 @@ func _add_player_forces_section() -> void:
 	player_party_picker.label_min_width = 120
 	player_party_picker.none_text = "(Use PartyManager)"
 	player_party_picker.allow_none = true
-	player_party_picker.tooltip_text = "Override party for this battle. Leave empty to use player's current party."
-	detail_panel.add_child(player_party_picker)
+	form.add_labeled_control("", player_party_picker,
+		"Override party for this battle. Leave empty to use player's current party.")
 
-	var party_note: Label = Label.new()
-	party_note.text = "If not set, uses PartyManager's current party"
-	party_note.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	party_note.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(party_note)
-
-	_add_separator()
+	form.add_help_text("If not set, uses PartyManager's current party")
+	form.add_separator()
 
 
 ## Section 4: Enemy Forces (collapsible)
@@ -269,7 +230,7 @@ func _add_neutral_forces_section() -> void:
 func _add_victory_conditions_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Victory Conditions"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var condition_label: Label = Label.new()
@@ -298,7 +259,7 @@ func _add_victory_conditions_section() -> void:
 func _add_defeat_conditions_section() -> void:
 	var section_label: Label = Label.new()
 	section_label.text = "Defeat Conditions"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
 	var condition_label: Label = Label.new()
@@ -324,10 +285,8 @@ func _add_defeat_conditions_section() -> void:
 
 ## Section 7: Battle Flow & Dialogue
 func _add_battle_flow_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Battle Flow & Dialogue"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Battle Flow & Dialogue")
 
 	# Use ResourcePicker for cross-mod dialogue selection
 	pre_battle_dialogue_picker = ResourcePicker.new()
@@ -336,7 +295,7 @@ func _add_battle_flow_section() -> void:
 	pre_battle_dialogue_picker.label_min_width = 140
 	pre_battle_dialogue_picker.allow_none = true
 	pre_battle_dialogue_picker.tooltip_text = "Cutscene that plays before combat begins. Sets up story context."
-	detail_panel.add_child(pre_battle_dialogue_picker)
+	form.add_labeled_control("", pre_battle_dialogue_picker)
 
 	victory_dialogue_picker = ResourcePicker.new()
 	victory_dialogue_picker.resource_type = "dialogue"
@@ -344,7 +303,7 @@ func _add_battle_flow_section() -> void:
 	victory_dialogue_picker.label_min_width = 140
 	victory_dialogue_picker.allow_none = true
 	victory_dialogue_picker.tooltip_text = "Cutscene that plays when player wins. Rewards, story progression."
-	detail_panel.add_child(victory_dialogue_picker)
+	form.add_labeled_control("", victory_dialogue_picker)
 
 	defeat_dialogue_picker = ResourcePicker.new()
 	defeat_dialogue_picker.resource_type = "dialogue"
@@ -352,69 +311,33 @@ func _add_battle_flow_section() -> void:
 	defeat_dialogue_picker.label_min_width = 140
 	defeat_dialogue_picker.allow_none = true
 	defeat_dialogue_picker.tooltip_text = "Cutscene that plays when player loses. Usually offers retry or game over."
-	detail_panel.add_child(defeat_dialogue_picker)
+	form.add_labeled_control("", defeat_dialogue_picker)
 
-	var turn_note: Label = Label.new()
-	turn_note.text = "Turn-based dialogues: Coming soon"
-	turn_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	turn_note.add_theme_font_size_override("font_size", 12)
-	detail_panel.add_child(turn_note)
-
-	_add_separator()
+	form.add_help_text("Turn-based dialogues: Coming soon")
+	form.add_separator()
 
 
 ## Section 8: Audio (Placeholders)
 func _add_audio_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Audio"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
-
-	var audio_note: Label = Label.new()
-	audio_note.text = "Audio settings (BGM, Victory, Defeat music): Coming soon"
-	audio_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	audio_note.add_theme_font_size_override("font_size", 12)
-	detail_panel.add_child(audio_note)
-
-	_add_separator()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Audio")
+	form.add_help_text("Audio settings (BGM, Victory, Defeat music): Coming soon")
+	form.add_separator()
 
 
 ## Section 10: Rewards
 func _add_rewards_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Rewards"
-	section_label.add_theme_font_size_override("font_size", 16)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Rewards")
 
-	var exp_label: Label = Label.new()
-	exp_label.text = "Experience Reward:"
-	detail_panel.add_child(exp_label)
+	experience_reward_spin = form.add_number_field("Experience Reward:", 0, 10000, 10, 0,
+		"Bonus XP for completing this battle. Divided among surviving party members.")
 
-	experience_reward_spin = SpinBox.new()
-	experience_reward_spin.min_value = 0
-	experience_reward_spin.max_value = 10000
-	experience_reward_spin.step = 10
-	experience_reward_spin.tooltip_text = "Bonus XP for completing this battle. Divided among surviving party members."
-	detail_panel.add_child(experience_reward_spin)
+	gold_reward_spin = form.add_number_field("Gold Reward:", 0, 10000, 10, 0,
+		"Gold received upon victory. Added to party funds.")
 
-	var gold_label: Label = Label.new()
-	gold_label.text = "Gold Reward:"
-	detail_panel.add_child(gold_label)
-
-	gold_reward_spin = SpinBox.new()
-	gold_reward_spin.min_value = 0
-	gold_reward_spin.max_value = 10000
-	gold_reward_spin.step = 10
-	gold_reward_spin.tooltip_text = "Gold received upon victory. Added to party funds."
-	detail_panel.add_child(gold_reward_spin)
-
-	var items_note: Label = Label.new()
-	items_note.text = "Item rewards: Coming soon"
-	items_note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	items_note.add_theme_font_size_override("font_size", 12)
-	detail_panel.add_child(items_note)
-
-	_add_separator()
+	form.add_help_text("Item rewards: Coming soon")
+	form.add_separator()
 
 
 ## Helper: Add visual separator

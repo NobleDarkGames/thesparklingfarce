@@ -97,7 +97,6 @@ func _add_npc_to_open_scene(
 	# Mark the scene as modified so user knows to save
 	EditorInterface.mark_scene_as_unsaved()
 
-	print("MapPlacementHelper: Added %s to open scene (remember to save!)" % final_node_name)
 	return true
 
 
@@ -108,8 +107,6 @@ func _add_npc_to_closed_scene(
 	node_name: String,
 	position: Vector2
 ) -> bool:
-	print("MapPlacementHelper: Loading scene %s..." % scene_path)
-
 	# Load the scene as a PackedScene
 	var loaded: Resource = load(scene_path)
 	var packed_scene: PackedScene = loaded if loaded is PackedScene else null
@@ -167,7 +164,6 @@ func _add_npc_to_closed_scene(
 		return false
 
 	# Save the modified scene
-	print("MapPlacementHelper: Saving modified scene...")
 	var save_result: Error = ResourceSaver.save(new_packed, scene_path)
 	scene_root.queue_free()
 
@@ -176,10 +172,8 @@ func _add_npc_to_closed_scene(
 		return false
 
 	# Notify the editor to refresh
-	print("MapPlacementHelper: Rescanning filesystem...")
 	EditorInterface.get_resource_filesystem().scan()
 
-	print("MapPlacementHelper: NPC '%s' placed successfully in closed scene." % node_name)
 	return true
 
 

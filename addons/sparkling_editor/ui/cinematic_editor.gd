@@ -10,6 +10,25 @@ extends JsonEditorBase
 
 const DialogLinePopupScript = preload("res://addons/sparkling_editor/ui/components/dialog_line_popup.gd")
 
+# =============================================================================
+# Parameter Bound Constants
+# =============================================================================
+# These define reasonable limits for cinematic command parameters.
+# Rationale:
+# - SPEED_MIN/MAX: 0.5-20.0 tiles/sec covers crawl to sprint speeds
+# - DURATION_SHORT_MAX: 5.0 sec is reasonable for transitions/effects
+# - DURATION_LONG_MAX: 60.0 sec allows lengthy dramatic pauses
+# - SHAKE_INTENSITY_MAX: 20.0 pixels is intense but not nauseating
+# - SHAKE_FREQUENCY_MAX: 60.0 Hz matches typical refresh rates
+const SPEED_MIN: float = 0.5
+const SPEED_MAX: float = 20.0
+const DURATION_SHORT_MAX: float = 5.0
+const DURATION_LONG_MAX: float = 60.0
+const SHAKE_INTENSITY_MIN: float = 0.5
+const SHAKE_INTENSITY_MAX: float = 20.0
+const SHAKE_FREQUENCY_MIN: float = 5.0
+const SHAKE_FREQUENCY_MAX: float = 60.0
+
 # Command type definitions with parameter schemas
 # Each command type defines its parameters and their types for the inspector
 const COMMAND_DEFINITIONS: Dictionary = {
@@ -419,7 +438,7 @@ func _setup_file_list_panel(parent: HSplitContainer) -> void:
 
 	var title: Label = Label.new()
 	title.text = "Cinematics"
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	header.add_child(title)
 
 	header.add_spacer(false)
@@ -474,7 +493,7 @@ func _setup_command_list_panel(parent: HSplitContainer) -> void:
 
 	var cmd_label: Label = Label.new()
 	cmd_label.text = "Commands"
-	cmd_label.add_theme_font_size_override("font_size", 16)
+	cmd_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	cmd_header.add_child(cmd_label)
 
 	cmd_header.add_spacer(false)
@@ -776,7 +795,7 @@ func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	# Header
 	var header: Label = Label.new()
 	header.text = "Command Inspector"
-	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	right_panel.add_child(header)
 
 	var sep: HSeparator = HSeparator.new()
@@ -1136,7 +1155,7 @@ func _build_inspector_for_command(index: int) -> void:
 	# Command type header
 	var type_label: Label = Label.new()
 	type_label.text = cmd_type.to_upper()
-	type_label.add_theme_font_size_override("font_size", 16)
+	type_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	type_label.add_theme_color_override("font_color", _get_command_color(cmd_type))
 	inspector_panel.add_child(type_label)
 

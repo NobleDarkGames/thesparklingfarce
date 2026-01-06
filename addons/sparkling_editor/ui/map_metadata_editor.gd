@@ -937,12 +937,6 @@ func _on_confirm_create_map() -> void:
 	# Notify EditorEventBus so other panels (like CinematicEditor) refresh their dropdowns
 	notify_resource_created(map_id)
 
-	# Notify user and offer to open the scene
-	print("MapMetadataEditor: Created new map '%s' with files:" % map_name)
-	print("  Script: %s" % script_path)
-	print("  Scene:  %s" % scene_path)
-	print("  JSON:   %s" % json_path)
-
 
 func _generate_map_script(p_map_id: String, p_map_name: String, p_map_type: String) -> String:
 	# Build script content with string concatenation to avoid % formatting issues

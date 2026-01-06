@@ -220,13 +220,13 @@ func _setup_base_ui() -> void:
 
 	var list_label: Label = Label.new()
 	list_label.text = resource_type_name + "s"
-	list_label.add_theme_font_size_override("font_size", 16)
+	list_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(list_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a " + resource_type_name.to_lower() + " to edit"
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(help_label)
 
 	# Search filter
@@ -283,7 +283,7 @@ func _setup_base_ui() -> void:
 
 	var detail_label: Label = Label.new()
 	detail_label.text = resource_type_name + " Details"
-	detail_label.add_theme_font_size_override("font_size", 16)
+	detail_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(detail_label)
 
 	# Buttons will be added after child creates form
@@ -731,6 +731,9 @@ func _on_create_new() -> void:
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
 		await get_tree().process_frame
+		# Safety check: node may have been freed during await
+		if not is_inside_tree():
+			return
 		_refresh_list()
 
 		# Register with ModLoader.registry so it's immediately available in pickers
@@ -810,6 +813,9 @@ func _on_duplicate_resource() -> void:
 		# Refresh and select the new resource
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
+		# Safety check: node may have been freed during await
+		if not is_inside_tree():
+			return
 		_refresh_list()
 
 		# Register with ModLoader.registry so it's immediately available in pickers

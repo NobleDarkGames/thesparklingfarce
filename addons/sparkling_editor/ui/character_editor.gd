@@ -323,7 +323,7 @@ func _add_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Name
@@ -409,7 +409,7 @@ func _add_battle_configuration_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Battle Configuration"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# Unit Category
@@ -501,7 +501,7 @@ func _add_battle_configuration_section() -> void:
 	var ai_help: Label = Label.new()
 	ai_help.text = "AI used when this character is an enemy (can override in Battle Editor)"
 	ai_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	ai_help.add_theme_font_size_override("font_size", 16)
+	ai_help.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(ai_help)
 
 	detail_panel.add_child(section)
@@ -713,7 +713,7 @@ func _add_stats_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Base Stats"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	hp_spin = _create_stat_editor("HP:", section, "Hit Points - how much damage the character can take before falling. Typical: 15-25 for mages, 25-40 for warriors.")

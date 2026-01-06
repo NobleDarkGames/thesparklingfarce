@@ -55,7 +55,6 @@ func create_dialog_cinematic(
 		return ""
 
 	cinematic_created.emit(cinematic_id, file_path)
-	print("QuickDialogGenerator: Created cinematic '%s' at %s" % [cinematic_id, file_path])
 
 	return cinematic_id
 

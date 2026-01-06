@@ -144,13 +144,13 @@ func _setup_ui() -> void:
 
 	var list_label: Label = Label.new()
 	list_label.text = "Available Mods"
-	list_label.add_theme_font_size_override("font_size", 16)
+	list_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(list_label)
 
 	var help_label: Label = Label.new()
 	help_label.text = "Select a mod to edit its settings"
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 16)
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(help_label)
 
 	mod_list = ItemList.new()
@@ -182,7 +182,7 @@ func _setup_ui() -> void:
 
 	var detail_label: Label = Label.new()
 	detail_label.text = "Mod Settings"
-	detail_label.add_theme_font_size_override("font_size", 16)
+	detail_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(detail_label)
 
 	# Create all form sections
@@ -225,7 +225,7 @@ func _create_basic_info_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	# ID (read-only after creation)
@@ -269,13 +269,13 @@ func _create_load_priority_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Load Priority"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Higher priority mods override lower priority content with matching IDs"
 	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(help_text)
 
 	var priority_container: HBoxContainer = HBoxContainer.new()
@@ -303,7 +303,7 @@ func _create_load_priority_section() -> void:
 	var ranges_text: Label = Label.new()
 	ranges_text.text = "0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions"
 	ranges_text.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	ranges_text.add_theme_font_size_override("font_size", 16)
+	ranges_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(ranges_text)
 
 	detail_panel.add_child(section)
@@ -315,7 +315,7 @@ func _create_total_conversion_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Total Conversion Mode"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	total_conversion_section.add_child(section_label)
 
 	total_conversion_check = CheckBox.new()
@@ -344,7 +344,7 @@ func _create_hidden_campaigns_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Hidden Campaigns"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	hidden_campaigns_section.add_child(section_label)
 
 	var help_text: Label = Label.new()
@@ -407,13 +407,13 @@ func _create_dependencies_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Dependencies"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Other mods that must be loaded before this one"
 	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(help_text)
 
 	dependencies_container = VBoxContainer.new()
@@ -452,13 +452,13 @@ func _create_custom_types_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Custom Types"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Register new enum-like values (one per line)"
 	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(help_text)
 
 	weapon_types_edit = _create_type_editor("Weapon Types:", section, "e.g., laser, plasma, energy_blade")
@@ -475,13 +475,13 @@ func _create_equipment_slots_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Equipment Slot Layout"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Define custom equipment slots (for total conversions)"
 	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(help_text)
 
 	equipment_slots_container = VBoxContainer.new()
@@ -556,57 +556,34 @@ func _create_equipment_slots_section() -> void:
 
 
 func _create_inventory_config_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Inventory Configuration")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Inventory Configuration"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	slots_per_character_spin = form.add_number_field("Slots per Character:", 1, 99, 1, 4,
+		"Number of inventory slots each character has")
 
-	# Slots per character
-	var slots_container: HBoxContainer = HBoxContainer.new()
-	var slots_label: Label = Label.new()
-	slots_label.text = "Slots per Character:"
-	slots_label.custom_minimum_size.x = 150
-	slots_container.add_child(slots_label)
+	allow_duplicates_check = form.add_standalone_checkbox("Allow duplicate items in inventory", true,
+		"When enabled, characters can carry multiple copies of the same item")
 
-	slots_per_character_spin = SpinBox.new()
-	slots_per_character_spin.min_value = 1
-	slots_per_character_spin.max_value = 99
-	slots_per_character_spin.value = 4
-	slots_container.add_child(slots_per_character_spin)
-	section.add_child(slots_container)
-
-	# Allow duplicates
-	allow_duplicates_check = CheckBox.new()
-	allow_duplicates_check.text = "Allow duplicate items in inventory"
-	section.add_child(allow_duplicates_check)
-
-	detail_panel.add_child(section)
-	_add_separator()
+	form.add_separator()
 
 
 func _create_party_config_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Party Configuration")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Party Configuration"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	replaces_lower_priority_check = form.add_standalone_checkbox("Replaces lower priority party members", false,
+		"When enabled, party members from lower-priority mods will be ignored")
 
-	replaces_lower_priority_check = CheckBox.new()
-	replaces_lower_priority_check.text = "Replaces lower priority party members"
-	section.add_child(replaces_lower_priority_check)
-
+	# Custom warning label (uses orange color for emphasis)
 	var warning_label: Label = Label.new()
 	warning_label.text = "Warning: When enabled, party members from lower-priority mods will be ignored.\nUse this for total conversions that provide their own starting party."
 	warning_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
-	warning_label.add_theme_font_size_override("font_size", 16)
+	warning_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(warning_label)
+	detail_panel.add_child(warning_label)
 
-	detail_panel.add_child(section)
-	_add_separator()
+	form.add_separator()
 
 
 func _create_scene_overrides_section() -> void:
@@ -614,13 +591,13 @@ func _create_scene_overrides_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Scene Overrides"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Replace engine scenes with custom versions (for total conversions)"
 	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(help_text)
 
 	scene_overrides_container = VBoxContainer.new()
@@ -683,13 +660,13 @@ func _create_field_menu_options_section() -> void:
 
 	var section_label: Label = Label.new()
 	section_label.text = "Field Menu Options"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	section.add_child(section_label)
 
 	var help_text: Label = Label.new()
 	help_text.text = "Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)"
 	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
+	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(help_text)
 
@@ -795,26 +772,15 @@ func _create_field_menu_options_section() -> void:
 
 
 func _create_content_paths_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Content Paths")
+	form.add_help_text("Relative paths within the mod folder")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Content Paths"
-	section_label.add_theme_font_size_override("font_size", 16)
-	section.add_child(section_label)
+	data_path_edit = form.add_text_field("Data Path:", "data/",
+		"Resource files (default: data/)")
 
-	var help_text: Label = Label.new()
-	help_text.text = "Relative paths within the mod folder"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 16)
-	section.add_child(help_text)
-
-	data_path_edit = _create_line_edit_field("Data Path:", section, "Resource files (default: data/)")
-	data_path_edit.text = "data/"
-
-	assets_path_edit = _create_line_edit_field("Assets Path:", section, "Art and audio (default: assets/)")
-	assets_path_edit.text = "assets/"
-
-	detail_panel.add_child(section)
+	assets_path_edit = form.add_text_field("Assets Path:", "assets/",
+		"Art and audio (default: assets/)")
 
 
 func _create_error_panel() -> void:
