@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://ds6el5acnlojt"]
+
+[ext_resource type="Script" path="res://core/components/map_trigger.gd" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_default"]
+size = Vector2(32, 32)
+
+[node name="MapTrigger" type="Area2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_default")

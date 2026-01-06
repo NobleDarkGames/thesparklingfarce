@@ -565,6 +565,12 @@ func _end_cinematic() -> void:
 	# Clean up spawned actors
 	_cleanup_spawned_actors()
 
+	# DEFENSIVE: Ensure DialogManager is reset to IDLE
+	# This catches edge cases where dialog might still be active
+	# (e.g., if skip happened during dialog without proper executor cleanup)
+	if DialogManager and DialogManager.is_dialog_active():
+		DialogManager.end_dialog()
+
 	# Clear current data
 	current_cinematic = null
 	current_command_index = 0

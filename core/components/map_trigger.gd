@@ -38,46 +38,59 @@ const TRIGGER_TYPE_NAMES: Dictionary = {
 	TriggerType.CUSTOM: "custom"
 }
 
-## The type of this trigger (enum - DEPRECATED, use trigger_type_string)
-## Kept for backwards compatibility with existing scenes
+## The type of this trigger (determines handling by TriggerManager)
 @export var trigger_type: TriggerType = TriggerType.BATTLE
 
-## String-based trigger type (preferred for mod extensibility)
-## If set, this takes precedence over trigger_type enum
-## Use registered types from ModLoader.trigger_type_registry
-## Examples: "battle", "dialog", "puzzle", "shop", "minigame"
-@export var trigger_type_string: String = ""
-
 ## Unique identifier for this trigger (used for save system and completion tracking)
+## Leave empty to auto-generate from node name
 @export var trigger_id: String = ""
 
 ## If true, trigger can only activate once (tracked in GameState)
 @export var one_shot: bool = true
 
 ## Story flags that MUST be set for this trigger to activate
-## Example: ["defeated_first_boss", "talked_to_king"]
 @export var required_flags: Array[String] = []
 
 ## Story flags that PREVENT this trigger from activating if set
-## Example: ["already_got_treasure", "door_unlocked"]
 @export var forbidden_flags: Array[String] = []
 
-## Type-specific data payload (interpretation depends on trigger_type)
-##
-## For BATTLE triggers:
-##   { "battle_id": "tutorial_battle_001" }
-##
-## For DIALOG triggers:
-##   { "dialog_id": "king_greeting" }
-##
-## For CHEST triggers:
-##   { "item_id": "healing_herb", "quantity": 3, "gold": 100 }
-##
-## For DOOR triggers:
-##   { "destination_scene": "res://maps/town_interior.tscn", "spawn_point": "door_01" }
-##
-## For TRANSITION triggers:
-##   { "target_position": Vector2(10, 15) }
+# =============================================================================
+# TYPE-SPECIFIC SETTINGS (use these instead of trigger_data)
+# =============================================================================
+
+@export_group("Door Settings")
+## Scene to transition to (e.g., "res://mods/my_mod/maps/town.tscn")
+@export_file("*.tscn") var destination_scene: String = ""
+## Spawn point ID in the destination scene
+@export var spawn_point: String = ""
+## Item ID required to use this door (leave empty for unlocked)
+@export var requires_key: String = ""
+
+@export_group("Battle Settings")
+## Battle ID to initiate (from mod's data/battles/)
+@export var battle_id: String = ""
+
+@export_group("Dialog Settings")
+## Dialog ID to start (from mod's data/dialogues/)
+@export var dialog_id: String = ""
+
+@export_group("Cutscene Settings")
+## Cinematic ID to play (from mod's data/cinematics/)
+@export var cinematic_id: String = ""
+
+@export_group("Chest Settings")
+## Item ID to grant (leave empty for gold-only chest)
+@export var chest_item_id: String = ""
+## Quantity of item to grant
+@export var chest_quantity: int = 1
+## Gold to grant
+@export var chest_gold: int = 0
+
+@export_group("Advanced")
+## String-based trigger type for mod-defined custom types
+## Only needed for custom trigger types (e.g., "puzzle", "minigame")
+@export var trigger_type_string: String = ""
+## Raw trigger data (for advanced use - convenience fields above are preferred)
 @export var trigger_data: Dictionary = {}
 
 ## Emitted when the trigger is activated (player enters and conditions met)
@@ -95,9 +108,45 @@ func _ready() -> void:
 	# Connect to body entered signal
 	body_entered.connect(_on_body_entered)
 
-	# Validate trigger configuration
+	# Auto-generate trigger_id from node name if not set
+	# "ExitSouth" → "exit_south", "BattleTrigger1" → "battle_trigger_1"
 	if trigger_id.is_empty():
-		push_warning("MapTrigger at %s has no trigger_id - one_shot functionality won't work" % get_path())
+		trigger_id = name.to_snake_case()
+
+	# Populate trigger_data from convenience fields (if set)
+	_populate_trigger_data()
+
+
+## Populate trigger_data dictionary from convenience @export fields.
+## Convenience fields take precedence over raw trigger_data entries.
+func _populate_trigger_data() -> void:
+	# Door settings
+	if not destination_scene.is_empty():
+		trigger_data["destination_scene"] = destination_scene
+	if not spawn_point.is_empty():
+		trigger_data["spawn_point"] = spawn_point
+	if not requires_key.is_empty():
+		trigger_data["requires_key"] = requires_key
+
+	# Battle settings
+	if not battle_id.is_empty():
+		trigger_data["battle_id"] = battle_id
+
+	# Dialog settings
+	if not dialog_id.is_empty():
+		trigger_data["dialog_id"] = dialog_id
+
+	# Cutscene settings
+	if not cinematic_id.is_empty():
+		trigger_data["cinematic_id"] = cinematic_id
+
+	# Chest settings
+	if not chest_item_id.is_empty():
+		trigger_data["item_id"] = chest_item_id
+	if chest_quantity > 1:
+		trigger_data["quantity"] = chest_quantity
+	if chest_gold > 0:
+		trigger_data["gold"] = chest_gold
 
 
 ## Called when a body enters the trigger area

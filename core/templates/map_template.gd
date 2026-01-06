@@ -143,8 +143,10 @@ func _ready() -> void:
 	_debug_print("MapTemplate: Ready! Arrow keys to move, Space/Enter to interact")
 
 	# Emit hero_ready signal so ExplorationUIManager can connect input
-	# This happens AFTER all awaits complete, guaranteeing the hero is ready
+	# CRITICAL: Wait one frame to ensure ExplorationUIManager has connected to the signal.
+	# Without this, New Game flow (no transition context) emits before anyone listens.
 	if hero:
+		await get_tree().process_frame
 		hero_ready.emit(hero)
 
 

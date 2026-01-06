@@ -118,6 +118,46 @@ func _ready() -> void:
 	# Start with idle animation facing current direction
 	_play_idle_animation()
 
+	# Request UI controller from ExplorationUIManager (Pull Pattern)
+	# This eliminates race conditions - hero asks when IT is ready
+	_request_ui_controller()
+
+
+## Request the exploration UI controller from ExplorationUIManager.
+## Uses Pull Pattern - hero asks for controller when IT is ready, eliminating race conditions.
+func _request_ui_controller() -> void:
+	# ExplorationUIManager is an autoload - guaranteed to exist
+	if not ExplorationUIManager:
+		push_warning("[HeroController] ExplorationUIManager autoload not found")
+		return
+
+	# Try immediately first
+	var controller: Node = ExplorationUIManager.get_controller()
+	if controller:
+		ui_controller = controller
+		ExplorationUIManager.register_hero(self)
+		_logged_fallback_warning = false  # Clear any previous warning
+		return
+
+	# Retry loop - ExplorationUIManager might still be initializing
+	_request_ui_controller_async()
+
+
+## Async retry loop for UI controller request.
+func _request_ui_controller_async() -> void:
+	for attempt: int in range(10):
+		await get_tree().process_frame
+		if not ExplorationUIManager:
+			return
+		var controller: Node = ExplorationUIManager.get_controller()
+		if controller:
+			ui_controller = controller
+			ExplorationUIManager.register_hero(self)
+			_logged_fallback_warning = false
+			return
+
+	push_warning("[HeroController] Could not get UI controller after 10 attempts")
+
 
 func _physics_process(delta: float) -> void:
 	# Handle movement

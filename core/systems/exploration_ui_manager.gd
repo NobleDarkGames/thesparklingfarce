@@ -124,18 +124,20 @@ func _initialize() -> void:
 
 	_initialized = true
 
-	# CRITICAL: Attempt activation for scene already loaded (handles editor play
+	# CRITICAL: Connect to MapTemplate signal IMMEDIATELY (same frame as _initialize)
+	# This must happen before call_deferred to avoid missing the hero_ready signal
+	_connect_to_map_template()
+
+	# Attempt activation for scene already loaded (handles editor play
 	# and edge cases where scene loads before signal connection)
 	call_deferred("_initial_activation")
 
 
 func _initial_activation() -> void:
-	# Primary path: Connect to MapTemplate's hero_ready signal
-	# This is the guaranteed-safe way to know when the hero is ready
-	_connect_to_map_template()
+	# Signal connection already happened in _initialize()
+	# This is now just a fallback retry loop for edge cases
 
 	# Fallback: short retry loop for edge cases (editor play, custom scenes)
-	# Reduced from 10 to 3 since signal is the primary mechanism now
 	var max_attempts: int = 3
 	for attempt: int in range(max_attempts):
 		await get_tree().process_frame
@@ -277,6 +279,21 @@ func _deactivate() -> void:
 # =============================================================================
 # PUBLIC API
 # =============================================================================
+
+## Get the UI controller for hero input handling.
+## Called by HeroController when it's ready (Pull Pattern).
+## Returns null if not yet initialized - caller should retry.
+func get_controller() -> ExplorationUIController:
+	return _controller
+
+
+## Register a hero that has pulled the controller.
+## This tracks the hero for menu systems without relying on signal timing.
+func register_hero(hero: Node) -> void:
+	if hero and "ui_controller" in hero:
+		_current_hero = hero
+		_ui_layer.visible = true
+
 
 ## Check if exploration UI is currently active
 func is_active() -> bool:

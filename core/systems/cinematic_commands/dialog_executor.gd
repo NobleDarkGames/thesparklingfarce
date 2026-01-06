@@ -139,6 +139,15 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 		return true
 
 
+## Called when the cinematic is interrupted (e.g., skipped by player)
+## CRITICAL: This must end any active dialog to prevent stale state.
+## Without this, DialogManager.is_dialog_active() would return true after
+## skipping a cinematic during dialog, blocking hero input on subsequent scenes.
+func interrupt() -> void:
+	if DialogManager and DialogManager.is_dialog_active():
+		DialogManager.end_dialog()
+
+
 ## Auto-follow: move camera to the speaking character before dialog
 ## Does NOT wait for completion - camera catches up while dialog shows
 func _auto_follow_character(character_id: String, manager: Node) -> void:
