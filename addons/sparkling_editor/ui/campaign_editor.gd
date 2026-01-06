@@ -80,6 +80,9 @@ var transitions_row: HBoxContainer
 var error_panel: PanelContainer
 var error_label: RichTextLabel
 
+# NewGameConfig prompt dialog
+var new_game_config_dialog: ConfirmationDialog
+
 # Current state
 var current_campaign_path: String = ""
 var current_campaign_data: Dictionary = {}
@@ -1081,8 +1084,19 @@ func _populate_node_inspector() -> void:
 	var resource_id: String = str(node_data.get("resource_id", ""))
 	_select_resource_in_picker(resource_id_picker, resource_id)
 
-	var scene_path_id: String = str(node_data.get("scene_path", ""))
-	_select_resource_in_picker(scene_path_picker, scene_path_id)
+	# scene_path stores a .tscn path, but picker shows MapMetadata resources
+	# Find the MapMetadata whose scene_path matches
+	var stored_scene_path: String = str(node_data.get("scene_path", ""))
+	var found_map_metadata: bool = false
+	if not stored_scene_path.is_empty() and ModLoader and ModLoader.registry:
+		var all_maps: Array[Resource] = ModLoader.registry.get_all_resources("map")
+		for map_res: Resource in all_maps:
+			if "scene_path" in map_res and map_res.scene_path == stored_scene_path:
+				scene_path_picker.select_resource(map_res)
+				found_map_metadata = true
+				break
+	if not found_map_metadata:
+		scene_path_picker.select_none()
 
 	# Update transition dropdowns with current selection
 	_select_transition_target(on_victory_option, DictUtils.get_string(node_data, "on_victory", ""))
@@ -1250,8 +1264,13 @@ func _on_resource_id_selected(metadata: Dictionary) -> void:
 func _on_scene_path_selected(metadata: Dictionary) -> void:
 	if _updating_ui:
 		return
-	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
-	_update_node_data(selected_node_id, "scene_path", resource_id)
+	# MapMetadata resources have a scene_path property pointing to the .tscn file
+	# We need that, not the .json file's resource_path
+	var scene_path: String = ""
+	var resource: Resource = metadata.get("resource", null)
+	if resource and "scene_path" in resource:
+		scene_path = resource.scene_path
+	_update_node_data(selected_node_id, "scene_path", scene_path)
 
 
 func _on_victory_target_changed(index: int) -> void:
@@ -1630,6 +1649,9 @@ func _on_save() -> void:
 		var campaign_id: String = str(current_campaign_data.get("campaign_id", ""))
 		event_bus.resource_saved.emit("campaign", campaign_id, null)
 
+	# Check if mod needs a NewGameConfigData
+	_check_new_game_config_prompt()
+
 
 func _collect_metadata_from_ui() -> void:
 	current_campaign_data["campaign_id"] = campaign_id_edit.text.strip_edges()
@@ -1668,3 +1690,93 @@ func _show_errors(errors: Array[String]) -> void:
 
 func _hide_errors() -> void:
 	error_panel.visible = false
+
+
+# =============================================================================
+# NEW GAME CONFIG PROGRESSIVE DISCOVERY
+# =============================================================================
+
+## Check if the active mod needs a NewGameConfigData and prompt if not
+func _check_new_game_config_prompt() -> void:
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		return
+
+	# Check if mod already has a NewGameConfigData
+	if _mod_has_new_game_config(active_mod.mod_id):
+		return
+
+	# Show the prompt dialog
+	_show_new_game_config_prompt()
+
+
+## Check if a mod has any NewGameConfigData resources
+func _mod_has_new_game_config(mod_id: String) -> bool:
+	var config_dir: String = "res://mods/%s/data/new_game_configs/" % mod_id
+	var dir: DirAccess = DirAccess.open(config_dir)
+	if not dir:
+		return false
+
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if file_name.ends_with(".tres") or file_name.ends_with(".json"):
+			dir.list_dir_end()
+			return true
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	return false
+
+
+## Show the NewGameConfigData creation prompt
+func _show_new_game_config_prompt() -> void:
+	if not new_game_config_dialog:
+		new_game_config_dialog = ConfirmationDialog.new()
+		new_game_config_dialog.title = "Campaign Saved"
+		new_game_config_dialog.dialog_text = "To make this campaign playable from New Game,\nyou need a NewGameConfigData.\n\nCreate one now?"
+		new_game_config_dialog.ok_button_text = "Create Now"
+		new_game_config_dialog.cancel_button_text = "Later"
+		new_game_config_dialog.confirmed.connect(_on_new_game_config_confirmed)
+		add_child(new_game_config_dialog)
+
+	new_game_config_dialog.popup_centered()
+
+
+## Called when user confirms NewGameConfigData creation
+func _on_new_game_config_confirmed() -> void:
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		return
+
+	var campaign_id: String = str(current_campaign_data.get("campaign_id", ""))
+	_create_new_game_config(active_mod.mod_id, campaign_id)
+
+
+## Create a NewGameConfigData resource for the mod
+func _create_new_game_config(mod_id: String, campaign_id: String) -> void:
+	# Ensure directory exists
+	var config_dir: String = "res://mods/%s/data/new_game_configs/" % mod_id
+	var parent_dir: DirAccess = DirAccess.open("res://mods/%s/data/" % mod_id)
+	if parent_dir and not parent_dir.dir_exists("new_game_configs"):
+		parent_dir.make_dir("new_game_configs")
+
+	# Create the resource
+	var config: NewGameConfigData = NewGameConfigData.new()
+	config.config_id = "%s:default" % mod_id
+	config.config_name = "Default"
+	config.config_description = "Default starting configuration"
+	config.is_default = true
+	config.starting_campaign_id = campaign_id
+	config.starting_location_label = "Prologue"
+
+	# Save as .tres file
+	var file_path: String = config_dir + "default_config.tres"
+	var error: Error = ResourceSaver.save(config, file_path)
+
+	if error == OK:
+		# Reload mods to pick up the new resource
+		if ModLoader:
+			ModLoader.reload_mods()
+
+		# Notify user
+		print("CampaignEditor: Created NewGameConfigData at %s" % file_path)

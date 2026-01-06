@@ -414,13 +414,13 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 
 	if not dir:
 		# Directory might not exist in this mod (that's okay)
-		# But log it for character type to debug export issues
-		if resource_type == "character" and OS.is_debug_build():
-			print("ModLoader: Could not open character directory: %s (error: %s)" % [directory, DirAccess.get_open_error()])
+		# But log it for character/campaign type to debug export issues
+		if resource_type in ["character", "campaign"] and OS.is_debug_build():
+			print("ModLoader: Could not open %s directory: %s (error: %s)" % [resource_type, directory, DirAccess.get_open_error()])
 		return 0
 
-	if resource_type == "character" and OS.is_debug_build():
-		print("ModLoader: Scanning character directory: %s" % directory)
+	if resource_type in ["character", "campaign"] and OS.is_debug_build():
+		print("ModLoader: Scanning %s directory: %s" % [resource_type, directory])
 
 	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
 
@@ -438,8 +438,8 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 			var resource: Resource = null
 			var resource_id: String = ""
 
-			if resource_type == "character" and OS.is_debug_build():
-				print("ModLoader: Found character file: %s -> %s" % [file_name, original_name])
+			if resource_type in ["character", "campaign"] and OS.is_debug_build():
+				print("ModLoader: Found %s file: %s -> %s" % [resource_type, file_name, original_name])
 
 			if original_name.ends_with(".tres"):
 				# Standard Godot resource (load using original path - Godot handles remapping)
@@ -462,10 +462,12 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 				# Special handling for status effect resources - also register with status_effect_registry
 				if resource_type == "status_effect" and resource is StatusEffectData:
 					status_effect_registry.register_effect(resource, mod_id)
-				# Debug: Log character registrations
+				# Debug: Log character/campaign registrations
 				if resource_type == "character" and resource is CharacterData and OS.is_debug_build():
 					var char: CharacterData = resource
 					print("ModLoader: Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
+				if resource_type == "campaign" and OS.is_debug_build():
+					print("ModLoader: Registered campaign '%s'" % resource_id)
 				count += 1
 			elif not resource_id.is_empty():
 				push_warning("ModLoader: Failed to load resource: " + full_path)
@@ -1339,12 +1341,7 @@ func get_hidden_campaign_patterns() -> Array[String]:
 func get_new_game_config() -> NewGameConfigData:
 	var all_configs: Array[Resource] = registry.get_all_resources("new_game_config")
 	if all_configs.is_empty():
-		if OS.is_debug_build():
-			print("[DEBUG] get_new_game_config: No configs found in registry")
 		return null
-
-	if OS.is_debug_build():
-		print("[DEBUG] get_new_game_config: Found %d configs" % all_configs.size())
 
 	# Build list of default configs with their source mod priorities
 	var default_configs: Array[Dictionary] = []
@@ -1354,10 +1351,6 @@ func get_new_game_config() -> NewGameConfigData:
 			var source_mod_id: String = registry.get_resource_source(resource_id, "new_game_config")
 			var source_mod: ModManifest = get_mod(source_mod_id)
 			var priority: int = source_mod.load_priority if source_mod else 0
-			if OS.is_debug_build():
-				print("[DEBUG]   Config '%s': resource_id='%s', source_mod='%s', priority=%d" % [
-					config.config_id, resource_id, source_mod_id, priority
-				])
 			default_configs.append({
 				"config": config,
 				"mod_id": source_mod_id,
@@ -1386,11 +1379,6 @@ func get_new_game_config() -> NewGameConfigData:
 			var config_value: Variant = entry.get("config")
 			best_config = config_value if config_value is NewGameConfigData else null
 
-	if OS.is_debug_build():
-		print("[DEBUG] get_new_game_config: Selected config with priority %d: %s" % [
-			best_priority,
-			best_config.config_id if best_config else "NULL"
-		])
 	return best_config
 
 

@@ -542,6 +542,9 @@ func _end_cinematic() -> void:
 
 	current_state = State.ENDING
 
+	# DEFENSIVE: Clear backdrop loading flag to prevent maps entering backdrop mode
+	_loading_backdrop = false
+
 	var finished_cinematic: CinematicData = current_cinematic
 
 	# Remove from chain stack

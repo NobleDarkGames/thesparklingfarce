@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="NewGameConfigData" load_steps=2 format=3 uid="uid://v75nj22al5pn"]
+
+[ext_resource type="Script" uid="uid://beybtbcw12oks" path="res://core/resources/new_game_config_data.gd" id="1_yhiuy"]
+
+[resource]
+script = ExtResource("1_yhiuy")
+config_id = "demo_campaign_config"
+config_name = "Demo Campaign Config"
+starting_location_label = "Prologue, Dawg"

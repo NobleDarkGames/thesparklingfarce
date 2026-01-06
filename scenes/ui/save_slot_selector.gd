@@ -198,7 +198,7 @@ func _start_new_game(hero_name: String) -> void:
 				campaign_id = campaigns[0].campaign_id
 
 		if not campaign_id.is_empty():
-			CampaignManager.start_campaign(campaign_id)
+			await CampaignManager.start_campaign(campaign_id)
 		else:
 			push_warning("SaveSlotSelector: No campaign found")
 			_show_no_campaign_error()
@@ -207,7 +207,7 @@ func _start_new_game(hero_name: String) -> void:
 		# Just start with whatever campaign is available
 		var campaigns: Array[CampaignData] = CampaignManager.get_available_campaigns()
 		if not campaigns.is_empty():
-			CampaignManager.start_campaign(campaigns[0].campaign_id)
+			await CampaignManager.start_campaign(campaigns[0].campaign_id)
 		else:
 			_show_no_campaign_error()
 

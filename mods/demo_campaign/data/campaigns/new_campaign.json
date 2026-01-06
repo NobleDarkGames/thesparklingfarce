@@ -15,7 +15,8 @@
 			"display_name": "Mudford",
 			"is_hub": false,
 			"node_id": "node_0",
-			"node_type": "scene"
+			"node_type": "scene",
+			"scene_path": "res://mods/demo_campaign/maps/mudford.tscn"
 		}
 	],
 	"starting_node_id": "node_0"

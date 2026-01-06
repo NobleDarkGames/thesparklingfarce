@@ -308,6 +308,11 @@ func _create_hero() -> void:
 		animated_sprite.modulate = Color(0.2, 0.8, 0.2)  # Green tint for hero
 		_debug_print("  Using default fallback sprite for %s" % hero_data.character_name)
 
+	# Start the idle/walk animation (HeroController will update direction as needed)
+	if animated_sprite.sprite_frames.has_animation("walk_down"):
+		animated_sprite.animation = "walk_down"
+		animated_sprite.play()
+
 	visual_container.add_child(animated_sprite)
 
 	# Collision shape
