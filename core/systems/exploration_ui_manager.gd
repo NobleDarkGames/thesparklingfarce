@@ -130,17 +130,24 @@ func _initialize() -> void:
 
 
 func _initial_activation() -> void:
-	# Wait for hero creation with retry - hero may not exist immediately in dynamically-built scenes
-	# This is critical for preventing the "can't move on new game" bug
-	var max_attempts: int = 10
+	# Primary path: Connect to MapTemplate's hero_ready signal
+	# This is the guaranteed-safe way to know when the hero is ready
+	_connect_to_map_template()
+
+	# Fallback: short retry loop for edge cases (editor play, custom scenes)
+	# Reduced from 10 to 3 since signal is the primary mechanism now
+	var max_attempts: int = 3
 	for attempt: int in range(max_attempts):
 		await get_tree().process_frame
 		_try_activate()
 		if _current_hero:
-			print("[ExplorationUIManager] Initial activation successful - hero connected (attempt %d)" % [attempt + 1])
+			print("[ExplorationUIManager] Initial activation via fallback (attempt %d)" % [attempt + 1])
 			return
 
-	push_warning("[ExplorationUIManager] Failed to find hero after %d attempts - movement may not work!" % max_attempts)
+	# Not finding a hero immediately is OK - the signal will handle it when ready
+	# Only warn if this is clearly an exploration scene that should have a hero
+	if get_tree().current_scene and get_tree().current_scene.has_signal("hero_ready"):
+		push_warning("[ExplorationUIManager] MapTemplate detected but hero not ready yet - waiting for signal")
 
 
 func _setup_controller() -> void:
@@ -158,15 +165,51 @@ func _setup_controller() -> void:
 # =============================================================================
 
 func _on_scene_changed(_scene_path: String) -> void:
-	# Wait for scene to settle and hero to be created, with retry
-	# Hero may be created after scene's _ready() via deferred calls
-	var max_attempts: int = 5
+	# Try to connect to MapTemplate's hero_ready signal (the proper way)
+	# This guarantees we activate only when the hero is fully initialized
+	_connect_to_map_template()
+
+	# Fallback: short retry loop for scenes that don't use MapTemplate
+	# or for edge cases (editor play, custom map scripts)
+	var max_attempts: int = 3
 	for attempt: int in range(max_attempts):
 		await get_tree().process_frame
 		_try_activate()
 		if _current_hero:
 			return
 	# If still no hero after retries, that's ok - might be a non-exploration scene
+
+
+## Connect to MapTemplate's hero_ready signal if present in the scene.
+## This is the proper initialization path - signal fires when hero is fully ready.
+func _connect_to_map_template() -> void:
+	# Find any MapTemplate in the current scene
+	var root: Node = get_tree().current_scene
+	if not root:
+		return
+
+	# Check if root itself is a MapTemplate or find one in children
+	var map_templates: Array[Node] = []
+	if root.has_signal("hero_ready"):
+		map_templates.append(root)
+	else:
+		# Search immediate children (map templates are usually root or direct child)
+		for child: Node in root.get_children():
+			if child.has_signal("hero_ready"):
+				map_templates.append(child)
+
+	# Connect to each map template found
+	for map_template: Node in map_templates:
+		if not map_template.hero_ready.is_connected(_on_hero_ready):
+			map_template.hero_ready.connect(_on_hero_ready)
+
+
+## Called when MapTemplate signals that the hero is ready.
+## This is the guaranteed-safe activation path.
+func _on_hero_ready(hero_node: Node) -> void:
+	if hero_node and "ui_controller" in hero_node:
+		_activate(hero_node)
+		print("[ExplorationUIManager] Hero ready signal received - input connected")
 
 
 func _on_battle_started(_battle_data: BattleData) -> void:

@@ -244,9 +244,9 @@ func attempt_move(direction: Vector2i) -> bool:
 	return true
 
 
-## Check if a tile is walkable using TileMap collision data and NPC occupancy.
-## Tiles with physics collision are considered impassable (walls, water, etc.)
-## Tiles without physics collision are walkable (grass, roads, etc.)
+## Check if a tile is walkable using TerrainData and NPC occupancy.
+## Terrain passability is determined by TerrainData.impassable_walking flag,
+## which modders can configure in the Sparkling Editor's Terrain Effects tab.
 ## Tiles occupied by NPCs are also impassable (SF-authentic behavior).
 func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 	# If no TileMap reference, allow movement (fallback behavior)
@@ -260,12 +260,9 @@ func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 	if tile_data == null:
 		return true
 
-	# Check if tile has collision polygon on physics layer 0
-	# If it has collision, it's impassable (wall, water, etc.)
-	# If no collision, it's walkable (grass, road, etc.)
-	var has_collision: bool = tile_data.get_collision_polygons_count(0) > 0
-
-	if has_collision:
+	# Check terrain type's impassable_walking flag
+	var terrain: TerrainData = _get_terrain_at_tile(tile_pos)
+	if terrain and terrain.impassable_walking:
 		return false
 
 	# Check if an NPC occupies this tile (SF-authentic: can't walk through NPCs)
@@ -277,6 +274,40 @@ func _is_tile_walkable(tile_pos: Vector2i) -> bool:
 		return false
 
 	return true
+
+
+## Get TerrainData for a tile position.
+## Priority: 1) Per-tile custom data override, 2) Atlas source filename
+## Returns null if no terrain data found (tile is walkable by default).
+func _get_terrain_at_tile(tile_pos: Vector2i) -> TerrainData:
+	if not tile_map or not tile_map.tile_set:
+		return null
+
+	var source_id: int = tile_map.get_cell_source_id(tile_pos)
+	if source_id == -1:
+		return null
+
+	# Priority 1: Check for per-tile custom data override
+	var tile_data: TileData = tile_map.get_cell_tile_data(tile_pos)
+	if tile_data:
+		var custom_layers: int = tile_map.tile_set.get_custom_data_layers_count()
+		for i: int in range(custom_layers):
+			if tile_map.tile_set.get_custom_data_layer_name(i) == "terrain_type":
+				var terrain_type: Variant = tile_data.get_custom_data("terrain_type")
+				if terrain_type is String and not terrain_type.is_empty():
+					return ModLoader.terrain_registry.get_terrain(terrain_type)
+				break
+
+	# Priority 2: Derive from atlas source filename
+	var source: TileSetSource = tile_map.tile_set.get_source(source_id)
+	if source is TileSetAtlasSource:
+		var atlas_source: TileSetAtlasSource = source as TileSetAtlasSource
+		if atlas_source.texture:
+			# "res://path/to/wall.png" -> "wall"
+			var filename: String = atlas_source.texture.resource_path.get_file().get_basename()
+			return ModLoader.terrain_registry.get_terrain(filename)
+
+	return null
 
 
 ## Check if any NPC occupies the given tile position.

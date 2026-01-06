@@ -29,6 +29,14 @@
 extends Node2D
 
 # =============================================================================
+# SIGNALS
+# =============================================================================
+
+## Emitted when the hero is fully initialized and ready for input.
+## ExplorationUIManager listens for this to connect input handling.
+signal hero_ready(hero_node: HeroController)
+
+# =============================================================================
 # CONFIGURATION
 # =============================================================================
 
@@ -133,6 +141,11 @@ func _ready() -> void:
 	_connect_hero_signals()
 
 	_debug_print("MapTemplate: Ready! Arrow keys to move, Space/Enter to interact")
+
+	# Emit hero_ready signal so ExplorationUIManager can connect input
+	# This happens AFTER all awaits complete, guaranteeing the hero is ready
+	if hero:
+		hero_ready.emit(hero)
 
 
 # =============================================================================
