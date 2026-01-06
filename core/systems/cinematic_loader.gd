@@ -144,7 +144,7 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 	# This allows simple single-line dialog commands in JSON:
 	#   {"type": "dialog_line", "params": {"character_id": "xyz", "text": "Hello!", "emotion": "happy"}}
 	# Converted to:
-	#   {"type": "show_dialog", "params": {"lines": [{"character_id": "xyz", "text": "Hello!", "emotion": "happy"}]}}
+	#   {"type": "show_dialog", "params": {"lines": [{"character_id": "xyz", "text": "Hello!", "emotion": "happy"}], "auto_follow": true}}
 	if cmd_type == "dialog_line":
 		cmd_type = "show_dialog"
 		var line_data: Dictionary = {}
@@ -158,7 +158,9 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 			line_data["emotion"] = params["emotion"]
 		else:
 			line_data["emotion"] = "neutral"
-		params = {"lines": [line_data]}
+		# Preserve auto_follow at params level (defaults to true if not specified)
+		var auto_follow: bool = params.get("auto_follow", true)
+		params = {"lines": [line_data], "auto_follow": auto_follow}
 
 	var command: Dictionary = {
 		"type": cmd_type,
@@ -244,8 +246,11 @@ static func _convert_value(value: Variant, key: String, cmd_type: String) -> Var
 				var converted_line: Dictionary = {}
 
 				# Support character_id lookup (preferred) or direct speaker name
+				# IMPORTANT: Preserve character_id for auto_follow camera tracking
 				if "character_id" in line_dict:
-					var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(str(line_dict["character_id"]))
+					var char_id: String = str(line_dict["character_id"])
+					converted_line["character_id"] = char_id  # Preserve for auto_follow
+					var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(char_id)
 					var char_name_variant: Variant = char_data.get("name", "")
 					var char_name: String = str(char_name_variant)
 					var char_portrait: Variant = char_data.get("portrait")

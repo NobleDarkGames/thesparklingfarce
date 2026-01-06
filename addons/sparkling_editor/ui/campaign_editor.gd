@@ -46,8 +46,8 @@ var node_name_edit: LineEdit
 var node_type_option: OptionButton
 var resource_id_picker: ResourcePicker  # Context-aware: battle/cinematic based on node type
 var resource_id_row: HBoxContainer  # Container for resource_id_picker (for visibility toggle)
-var scene_path_row: HBoxContainer  # Container for scene_path_edit (for visibility toggle)
-var scene_path_edit: LineEdit
+var scene_path_row: HBoxContainer  # Container for scene_path_picker (for visibility toggle)
+var scene_path_picker: ResourcePicker  # Map picker for scene nodes
 var on_victory_option: OptionButton
 var on_defeat_option: OptionButton
 var on_complete_option: OptionButton
@@ -365,16 +365,13 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 	scene_path_row = HBoxContainer.new()
 	scene_path_row.add_theme_constant_override("separation", 10)
 
-	var spath_label: Label = Label.new()
-	spath_label.text = "Scene Path:"
-	spath_label.custom_minimum_size.x = 80
-	scene_path_row.add_child(spath_label)
-
-	scene_path_edit = LineEdit.new()
-	scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scene_path_edit.placeholder_text = "res://mods/..."
-	scene_path_edit.text_changed.connect(_on_scene_path_changed)
-	scene_path_row.add_child(scene_path_edit)
+	scene_path_picker = ResourcePicker.new()
+	scene_path_picker.resource_type = "map"
+	scene_path_picker.label_text = "Map:"
+	scene_path_picker.label_min_width = 80
+	scene_path_picker.allow_none = true
+	scene_path_picker.resource_selected.connect(_on_scene_path_selected)
+	scene_path_row.add_child(scene_path_picker)
 
 	inspector_panel.add_child(scene_path_row)
 
@@ -1084,7 +1081,8 @@ func _populate_node_inspector() -> void:
 	var resource_id: String = str(node_data.get("resource_id", ""))
 	_select_resource_in_picker(resource_id_picker, resource_id)
 
-	scene_path_edit.text = str(node_data.get("scene_path", ""))
+	var scene_path_id: String = str(node_data.get("scene_path", ""))
+	_select_resource_in_picker(scene_path_picker, scene_path_id)
 
 	# Update transition dropdowns with current selection
 	_select_transition_target(on_victory_option, DictUtils.get_string(node_data, "on_victory", ""))
@@ -1140,7 +1138,7 @@ func _clear_node_inspector() -> void:
 	node_name_edit.text = ""
 	node_type_option.select(0)
 	resource_id_picker.select_none()
-	scene_path_edit.text = ""
+	scene_path_picker.select_none()
 	on_victory_option.select(0)
 	on_defeat_option.select(0)
 	on_complete_option.select(0)
@@ -1249,8 +1247,11 @@ func _on_resource_id_selected(metadata: Dictionary) -> void:
 	_update_node_data(selected_node_id, "resource_id", resource_id)
 
 
-func _on_scene_path_changed(new_text: String) -> void:
-	_update_node_data(selected_node_id, "scene_path", new_text)
+func _on_scene_path_selected(metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
+	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
+	_update_node_data(selected_node_id, "scene_path", resource_id)
 
 
 func _on_victory_target_changed(index: int) -> void:

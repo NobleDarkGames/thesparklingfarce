@@ -148,6 +148,18 @@ func get_actor(actor_id: String) -> CinematicActor:
 	return _registered_actors.get(actor_id, null)
 
 
+## Get a registered actor by character UID (for auto_follow in dialogs)
+## Returns the first actor found with matching character_uid, or null
+func get_actor_by_character_uid(character_uid: String) -> CinematicActor:
+	if character_uid.is_empty():
+		return null
+	for actor_id: String in _registered_actors:
+		var actor: CinematicActor = _registered_actors[actor_id] as CinematicActor
+		if actor and actor.character_uid == character_uid:
+			return actor
+	return null
+
+
 ## Register a command executor for a specific command type
 ## Mods can use this to add custom cinematic commands without modifying core code
 ##
@@ -900,6 +912,15 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	cinematic_actor.name = "CinematicActor"
 	cinematic_actor.actor_id = actor_id
 	cinematic_actor.sprite_node = sprite_node
+	# Track character UID for auto_follow in dialogs
+	# Must look up the actual CharacterData to get its character_uid property
+	if entity_type == "character" and not entity_id.is_empty():
+		var char_data: CharacterData = ModLoader.registry.get_character(entity_id) as CharacterData
+		if char_data and "character_uid" in char_data:
+			cinematic_actor.character_uid = str(char_data.get("character_uid"))
+		else:
+			# Fallback to entity_id if character not found
+			cinematic_actor.character_uid = entity_id
 	entity.add_child(cinematic_actor)
 
 	# Add to scene tree (use cinematic stage if available, otherwise current scene)

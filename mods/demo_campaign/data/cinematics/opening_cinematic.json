@@ -84,6 +84,7 @@
 		},
 		{
 			"params": {
+				"auto_follow": false,
 				"character_id": "wnc45s25",
 				"emotion": "neutral",
 				"text": "𝅘𝅥𝅮 Oh the mud farmin life is the life for me! A mud farmer's life is a life of glee! 𝅘𝅥𝅮 "
@@ -106,6 +107,7 @@
 		},
 		{
 			"params": {
+				"auto_follow": false,
 				"character_id": "wnc45s25",
 				"emotion": "neutral",
 				"text": "𝅘𝅥𝅮 The days are long and the work is hard, but my mud brings all the boys to the - 𝅘𝅥𝅮 Oh what's this?"
@@ -121,6 +123,7 @@
 		},
 		{
 			"params": {
+				"auto_follow": false,
 				"character_id": "wnc45s25",
 				"emotion": "neutral",
 				"text": "Another stranger washed up on the beach, eh?  Better get you to the Mayor!"
@@ -196,6 +199,16 @@
 			},
 			"target": "intro_mayor",
 			"type": "set_position"
+		},
+		{
+			"params": {
+				"continuous": true,
+				"duration": 0.5,
+				"speed": 8.0,
+				"wait": false
+			},
+			"target": "mud_farmer",
+			"type": "camera_follow"
 		},
 		{
 			"params": {

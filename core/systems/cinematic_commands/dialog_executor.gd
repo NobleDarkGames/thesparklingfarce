@@ -6,6 +6,8 @@
 class_name DialogExecutor
 extends CinematicCommandExecutor
 
+const CinematicActor = preload("res://core/components/cinematic_actor.gd")
+
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
@@ -57,6 +59,11 @@ func _execute_single_line(params: Dictionary, manager: Node) -> bool:
 		line_dict["speaker_name"] = char_data["name"]
 		if char_data["portrait"] != null:
 			line_dict["portrait"] = char_data["portrait"]
+
+		# Auto-follow: move camera to speaker if enabled (default true)
+		var auto_follow: bool = params.get("auto_follow", true)
+		if auto_follow:
+			_auto_follow_character(character_id, manager)
 	else:
 		line_dict["speaker_name"] = ""
 
@@ -84,6 +91,15 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 	if lines.is_empty():
 		push_error("DialogExecutor: Inline dialog has no lines")
 		return true
+
+	# Auto-follow: check first line's character for camera follow
+	var auto_follow: bool = params.get("auto_follow", true)
+	if auto_follow and lines.size() > 0:
+		var first_line: Variant = lines[0]
+		if first_line is Dictionary:
+			var first_char_id: String = str(first_line.get("character_id", ""))
+			if not first_char_id.is_empty():
+				_auto_follow_character(first_char_id, manager)
 
 	# Create temporary DialogueData
 	var dialogue: DialogueData = DialogueData.new()
@@ -121,3 +137,27 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 	else:
 		push_error("DialogExecutor: Failed to start inline dialog")
 		return true
+
+
+## Auto-follow: move camera to the speaking character before dialog
+## Does NOT wait for completion - camera catches up while dialog shows
+func _auto_follow_character(character_id: String, manager: Node) -> void:
+	# Find actor by character UID
+	var actor: CinematicActor = manager.get_actor_by_character_uid(character_id)
+	if actor == null:
+		return
+
+	# Get camera controller
+	var camera: CameraController = manager.get_camera_controller()
+	if not camera:
+		return
+
+	# Get actor's parent entity position
+	var entity: Node2D = actor.parent_entity
+	if not entity:
+		return
+
+	# Stop any existing follow, move to speaker, set them as new follow target
+	camera.stop_follow()
+	camera.move_to_position(entity.global_position, 0.3, false)
+	camera._follow_target = entity

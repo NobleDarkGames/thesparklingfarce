@@ -37,7 +37,8 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"params": {
 			"character_id": {"type": "character", "default": "", "hint": "Character UID"},
 			"text": {"type": "text", "default": "", "hint": "Variables: {player_name}, {char:id}, {gold}, {party_count}, {flag:name}, {var:key}"},
-			"emotion": {"type": "enum", "default": "neutral", "options": ["neutral", "happy", "sad", "angry", "worried", "surprised", "determined", "thinking"], "hint": "Character emotion"}
+			"emotion": {"type": "enum", "default": "neutral", "options": ["neutral", "happy", "sad", "angry", "worried", "surprised", "determined", "thinking"], "hint": "Character emotion"},
+			"auto_follow": {"type": "bool", "default": true, "hint": "Auto-follow speaker with camera"}
 		}
 	},
 	"show_dialog": {

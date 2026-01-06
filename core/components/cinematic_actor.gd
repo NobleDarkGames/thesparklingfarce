@@ -21,6 +21,10 @@ const FacingUtils = preload("res://core/utils/facing_utils.gd")
 ## Unique identifier for this actor (used in cinematic commands)
 @export var actor_id: String = ""
 
+## Character UID this actor represents (for auto_follow in dialogs)
+## Set automatically when spawning characters via actors array or spawn_entity
+var character_uid: String = ""
+
 ## Default movement speed for cinematic movement (tiles per second)
 @export var default_speed: float = 3.0
 
