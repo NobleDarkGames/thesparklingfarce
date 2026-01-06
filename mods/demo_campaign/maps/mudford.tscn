@@ -22,6 +22,13 @@ spawn_id = "default_start"
 is_default = true
 description = "Default starting position"
 
+[node name="FromWorld" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(181, 534)
+script = ExtResource("4_spawn")
+spawn_id = "from_world"
+facing = "up"
+metadata/_custom_type_script = "uid://cvr41yel2uyjd"
+
 [node name="Followers" type="Node2D" parent="."]
 
 [node name="MapCamera" type="Camera2D" parent="."]
@@ -35,5 +42,6 @@ position = Vector2(176, 594)
 scale = Vector2(4.7199974, 0.67999995)
 trigger_type = 3
 trigger_id = "exit_south"
+one_shot = false
 destination_scene = "uid://cic5vl64gxyim"
 spawn_point = "from_mudford"
