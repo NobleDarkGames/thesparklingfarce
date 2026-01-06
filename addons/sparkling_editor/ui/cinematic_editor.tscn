@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://addons/sparkling_editor/ui/cinematic_editor.gd" id="1_editor"]
 
 [node name="CinematicEditor" type="Control"]
-layout_mode = 3
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

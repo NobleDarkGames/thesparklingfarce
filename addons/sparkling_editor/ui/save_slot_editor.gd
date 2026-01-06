@@ -81,6 +81,7 @@ func _on_resource_deleted_event(res_type: String, _res_id: String) -> void:
 # ============================================================================
 
 func _setup_ui() -> void:
+	# Root Control uses layout_mode = 1 with anchors in .tscn for proper TabContainer containment
 	# Wrap everything in a ScrollContainer for proper scrolling
 	var scroll_container: ScrollContainer = ScrollContainer.new()
 	scroll_container.set_anchors_preset(Control.PRESET_FULL_RECT)

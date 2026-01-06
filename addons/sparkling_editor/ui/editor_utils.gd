@@ -528,8 +528,9 @@ class FormBuilder extends RefCounted:
 		return edit
 
 	## Add a number input field (SpinBox)
+	## Note: step parameter is at the end for backward compatibility
 	func add_number_field(label_text: String, min_val: float = 0, max_val: float = 100,
-			default_val: float = 0, tooltip: String = "") -> SpinBox:
+			default_val: float = 0, tooltip: String = "", step: float = 1) -> SpinBox:
 		var container: Control = _get_container()
 		var row: HBoxContainer = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -544,6 +545,7 @@ class FormBuilder extends RefCounted:
 		var spin: SpinBox = SpinBox.new()
 		spin.min_value = min_val
 		spin.max_value = max_val
+		spin.step = step
 		spin.value = default_val
 		if not tooltip.is_empty():
 			spin.tooltip_text = tooltip

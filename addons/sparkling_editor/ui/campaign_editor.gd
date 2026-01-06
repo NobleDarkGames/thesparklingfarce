@@ -44,7 +44,9 @@ var default_hub_option: OptionButton
 var node_id_edit: LineEdit
 var node_name_edit: LineEdit
 var node_type_option: OptionButton
-var resource_id_edit: LineEdit
+var resource_id_picker: ResourcePicker  # Context-aware: battle/cinematic based on node type
+var resource_id_row: HBoxContainer  # Container for resource_id_picker (for visibility toggle)
+var scene_path_row: HBoxContainer  # Container for scene_path_edit (for visibility toggle)
 var scene_path_edit: LineEdit
 var on_victory_option: OptionButton
 var on_defeat_option: OptionButton
@@ -55,8 +57,8 @@ var allow_egress_check: CheckBox
 var retain_xp_check: CheckBox
 var repeatable_check: CheckBox
 var defeat_penalty_spin: SpinBox
-var pre_cinematic_edit: LineEdit
-var post_cinematic_edit: LineEdit
+var pre_cinematic_picker: ResourcePicker  # Cinematic picker for pre-battle cinematics
+var post_cinematic_picker: ResourcePicker  # Cinematic picker for post-battle cinematics
 
 # Completion trigger components (scene nodes only)
 var completion_trigger_row: HBoxContainer
@@ -64,7 +66,7 @@ var completion_trigger_option: OptionButton
 var completion_flag_label: Label
 var completion_flag_edit: LineEdit
 var completion_npc_label: Label
-var completion_npc_edit: LineEdit
+var completion_npc_picker: ResourcePicker  # NPC picker for npc_interaction trigger
 
 # Branches editor components (choice nodes only)
 var branches_section: VBoxContainer
@@ -94,8 +96,10 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
+	# Root Control uses layout_mode = 1 with anchors in .tscn for proper TabContainer containment
 	var main_hsplit: HSplitContainer = HSplitContainer.new()
 	main_hsplit.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_hsplit.clip_contents = true  # Prevent content from overflowing dock bounds
 	add_child(main_hsplit)
 
 	# Left panel - Campaign list
@@ -129,11 +133,14 @@ func _setup_ui() -> void:
 	# Center - Main content split (graph + inspector)
 	var center_vsplit: VSplitContainer = VSplitContainer.new()
 	center_vsplit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center_vsplit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center_vsplit.clip_contents = true  # Prevent overflow beyond bounds
 	main_hsplit.add_child(center_vsplit)
 
 	# Top area - Metadata + Graph
 	var top_section: VBoxContainer = VBoxContainer.new()
 	top_section.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	top_section.clip_contents = true
 	center_vsplit.add_child(top_section)
 
 	_setup_metadata_section(top_section)
@@ -284,8 +291,11 @@ func _setup_graph_section(parent: VBoxContainer) -> void:
 
 func _setup_inspector_section(parent: VSplitContainer) -> void:
 	inspector_scroll = ScrollContainer.new()
-	inspector_scroll.custom_minimum_size.y = 200
+	inspector_scroll.custom_minimum_size.y = 100  # Small minimum - rely on VSplitContainer for sizing
+	inspector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inspector_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inspector_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	inspector_scroll.clip_contents = true
 
 	inspector_panel = VBoxContainer.new()
 	inspector_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -337,33 +347,36 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 
 	inspector_panel.add_child(basic_row)
 
-	# Resource row
-	var res_row: HBoxContainer = HBoxContainer.new()
-	res_row.add_theme_constant_override("separation", 10)
+	# Resource row (for battle/cutscene nodes - type changes dynamically)
+	resource_id_row = HBoxContainer.new()
+	resource_id_row.add_theme_constant_override("separation", 10)
 
-	var resid_label: Label = Label.new()
-	resid_label.text = "Resource ID:"
-	resid_label.custom_minimum_size.x = 80
-	res_row.add_child(resid_label)
+	resource_id_picker = ResourcePicker.new()
+	resource_id_picker.resource_type = "battle"  # Default, updated when node type changes
+	resource_id_picker.label_text = "Resource:"
+	resource_id_picker.label_min_width = 80
+	resource_id_picker.allow_none = true
+	resource_id_picker.resource_selected.connect(_on_resource_id_selected)
+	resource_id_row.add_child(resource_id_picker)
 
-	resource_id_edit = LineEdit.new()
-	resource_id_edit.custom_minimum_size.x = 150
-	resource_id_edit.placeholder_text = "BattleData/CinematicData ID"
-	resource_id_edit.text_changed.connect(_on_resource_id_changed)
-	res_row.add_child(resource_id_edit)
+	inspector_panel.add_child(resource_id_row)
+
+	# Scene path row (for scene nodes only)
+	scene_path_row = HBoxContainer.new()
+	scene_path_row.add_theme_constant_override("separation", 10)
 
 	var spath_label: Label = Label.new()
 	spath_label.text = "Scene Path:"
-	spath_label.custom_minimum_size.x = 75
-	res_row.add_child(spath_label)
+	spath_label.custom_minimum_size.x = 80
+	scene_path_row.add_child(spath_label)
 
 	scene_path_edit = LineEdit.new()
 	scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scene_path_edit.placeholder_text = "res://mods/..."
 	scene_path_edit.text_changed.connect(_on_scene_path_changed)
-	res_row.add_child(scene_path_edit)
+	scene_path_row.add_child(scene_path_edit)
 
-	inspector_panel.add_child(res_row)
+	inspector_panel.add_child(scene_path_row)
 
 	# Transitions row
 	transitions_row = HBoxContainer.new()
@@ -434,14 +447,14 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 
 	inspector_panel.add_child(flags_row)
 
-	# Battle penalty + cinematics row
-	var misc_row: HBoxContainer = HBoxContainer.new()
-	misc_row.add_theme_constant_override("separation", 10)
+	# Battle penalty row
+	var penalty_row: HBoxContainer = HBoxContainer.new()
+	penalty_row.add_theme_constant_override("separation", 10)
 
 	var penalty_label: Label = Label.new()
 	penalty_label.text = "Defeat Gold Penalty:"
 	penalty_label.custom_minimum_size.x = 120
-	misc_row.add_child(penalty_label)
+	penalty_row.add_child(penalty_label)
 
 	defeat_penalty_spin = SpinBox.new()
 	defeat_penalty_spin.min_value = 0.0
@@ -449,29 +462,31 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 	defeat_penalty_spin.step = 0.05
 	defeat_penalty_spin.value = 0.5
 	defeat_penalty_spin.value_changed.connect(_on_defeat_penalty_changed)
-	misc_row.add_child(defeat_penalty_spin)
+	penalty_row.add_child(defeat_penalty_spin)
 
-	var pre_cine_label: Label = Label.new()
-	pre_cine_label.text = "Pre-Cinematic:"
-	pre_cine_label.custom_minimum_size.x = 90
-	misc_row.add_child(pre_cine_label)
+	inspector_panel.add_child(penalty_row)
 
-	pre_cinematic_edit = LineEdit.new()
-	pre_cinematic_edit.custom_minimum_size.x = 100
-	pre_cinematic_edit.text_changed.connect(_on_pre_cinematic_changed)
-	misc_row.add_child(pre_cinematic_edit)
+	# Pre/Post cinematic pickers row
+	var cine_row: HBoxContainer = HBoxContainer.new()
+	cine_row.add_theme_constant_override("separation", 10)
 
-	var post_cine_label: Label = Label.new()
-	post_cine_label.text = "Post-Cinematic:"
-	post_cine_label.custom_minimum_size.x = 95
-	misc_row.add_child(post_cine_label)
+	pre_cinematic_picker = ResourcePicker.new()
+	pre_cinematic_picker.resource_type = "cinematic"
+	pre_cinematic_picker.label_text = "Pre-Cinematic:"
+	pre_cinematic_picker.label_min_width = 90
+	pre_cinematic_picker.allow_none = true
+	pre_cinematic_picker.resource_selected.connect(_on_pre_cinematic_selected)
+	cine_row.add_child(pre_cinematic_picker)
 
-	post_cinematic_edit = LineEdit.new()
-	post_cinematic_edit.custom_minimum_size.x = 100
-	post_cinematic_edit.text_changed.connect(_on_post_cinematic_changed)
-	misc_row.add_child(post_cinematic_edit)
+	post_cinematic_picker = ResourcePicker.new()
+	post_cinematic_picker.resource_type = "cinematic"
+	post_cinematic_picker.label_text = "Post-Cinematic:"
+	post_cinematic_picker.label_min_width = 95
+	post_cinematic_picker.allow_none = true
+	post_cinematic_picker.resource_selected.connect(_on_post_cinematic_selected)
+	cine_row.add_child(post_cinematic_picker)
 
-	inspector_panel.add_child(misc_row)
+	inspector_panel.add_child(cine_row)
 
 	# Completion trigger row (scene nodes only)
 	completion_trigger_row = HBoxContainer.new()
@@ -501,15 +516,15 @@ func _setup_inspector_section(parent: VSplitContainer) -> void:
 	completion_trigger_row.add_child(completion_flag_edit)
 
 	completion_npc_label = Label.new()
-	completion_npc_label.text = "NPC ID:"
-	completion_npc_label.custom_minimum_size.x = 50
+	completion_npc_label.text = "NPC:"
+	completion_npc_label.custom_minimum_size.x = 35
 	completion_trigger_row.add_child(completion_npc_label)
 
-	completion_npc_edit = LineEdit.new()
-	completion_npc_edit.custom_minimum_size.x = 120
-	completion_npc_edit.placeholder_text = "npc_id"
-	completion_npc_edit.text_changed.connect(_on_completion_npc_changed)
-	completion_trigger_row.add_child(completion_npc_edit)
+	completion_npc_picker = ResourcePicker.new()
+	completion_npc_picker.resource_type = "npc"
+	completion_npc_picker.allow_none = true
+	completion_npc_picker.resource_selected.connect(_on_completion_npc_selected)
+	completion_trigger_row.add_child(completion_npc_picker)
 
 	inspector_panel.add_child(completion_trigger_row)
 
@@ -1064,7 +1079,11 @@ func _populate_node_inspector() -> void:
 			node_type_option.select(i)
 			break
 
-	resource_id_edit.text = str(node_data.get("resource_id", ""))
+	# Update resource_id_picker based on node type
+	_update_resource_picker_for_node_type(node_type)
+	var resource_id: String = str(node_data.get("resource_id", ""))
+	_select_resource_in_picker(resource_id_picker, resource_id)
+
 	scene_path_edit.text = str(node_data.get("scene_path", ""))
 
 	# Update transition dropdowns with current selection
@@ -1079,8 +1098,11 @@ func _populate_node_inspector() -> void:
 	repeatable_check.button_pressed = DictUtils.get_bool(node_data, "repeatable", false)
 	defeat_penalty_spin.value = DictUtils.get_float(node_data, "defeat_gold_penalty", 0.5)
 
-	pre_cinematic_edit.text = DictUtils.get_string(node_data, "pre_cinematic_id", "")
-	post_cinematic_edit.text = DictUtils.get_string(node_data, "post_cinematic_id", "")
+	# Select cinematics in pickers
+	var pre_cine_id: String = DictUtils.get_string(node_data, "pre_cinematic_id", "")
+	var post_cine_id: String = DictUtils.get_string(node_data, "post_cinematic_id", "")
+	_select_resource_in_picker(pre_cinematic_picker, pre_cine_id)
+	_select_resource_in_picker(post_cinematic_picker, post_cine_id)
 
 	# Completion trigger fields (scene nodes only)
 	var completion_trigger: String = str(node_data.get("completion_trigger", "exit_trigger"))
@@ -1090,7 +1112,8 @@ func _populate_node_inspector() -> void:
 			break
 
 	completion_flag_edit.text = str(node_data.get("completion_flag", ""))
-	completion_npc_edit.text = str(node_data.get("completion_npc_id", ""))
+	var completion_npc_id: String = str(node_data.get("completion_npc_id", ""))
+	_select_resource_in_picker(completion_npc_picker, completion_npc_id)
 
 	# Update visibility based on node type and completion trigger
 	_update_completion_trigger_visibility(node_type, completion_trigger)
@@ -1116,7 +1139,7 @@ func _clear_node_inspector() -> void:
 	node_id_edit.text = ""
 	node_name_edit.text = ""
 	node_type_option.select(0)
-	resource_id_edit.text = ""
+	resource_id_picker.select_none()
 	scene_path_edit.text = ""
 	on_victory_option.select(0)
 	on_defeat_option.select(0)
@@ -1127,12 +1150,14 @@ func _clear_node_inspector() -> void:
 	retain_xp_check.button_pressed = true
 	repeatable_check.button_pressed = false
 	defeat_penalty_spin.value = 0.5
-	pre_cinematic_edit.text = ""
-	post_cinematic_edit.text = ""
+	pre_cinematic_picker.select_none()
+	post_cinematic_picker.select_none()
 	completion_trigger_option.select(1)  # Default to exit_trigger
 	completion_flag_edit.text = ""
-	completion_npc_edit.text = ""
+	completion_npc_picker.select_none()
 	completion_trigger_row.visible = false
+	resource_id_row.visible = false
+	scene_path_row.visible = false
 	transitions_row.visible = true
 	branches_section.visible = false
 	# Clear branches container
@@ -1208,6 +1233,8 @@ func _on_node_type_changed(index: int) -> void:
 		return
 	var new_type: String = NODE_TYPES[index]
 	_update_node_data(selected_node_id, "node_type", new_type)
+	# Update resource picker for new node type
+	_update_resource_picker_for_node_type(new_type)
 	# Update completion trigger visibility based on new type
 	var node_data: Dictionary = _get_node_data(selected_node_id)
 	var completion_trigger: String = str(node_data.get("completion_trigger", "exit_trigger"))
@@ -1215,8 +1242,11 @@ func _on_node_type_changed(index: int) -> void:
 	_rebuild_graph()  # Rebuild to update colors and slots
 
 
-func _on_resource_id_changed(new_text: String) -> void:
-	_update_node_data(selected_node_id, "resource_id", new_text)
+func _on_resource_id_selected(metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
+	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
+	_update_node_data(selected_node_id, "resource_id", resource_id)
 
 
 func _on_scene_path_changed(new_text: String) -> void:
@@ -1275,12 +1305,25 @@ func _on_defeat_penalty_changed(value: float) -> void:
 	_update_node_data(selected_node_id, "defeat_gold_penalty", value)
 
 
-func _on_pre_cinematic_changed(new_text: String) -> void:
-	_update_node_data(selected_node_id, "pre_cinematic_id", new_text)
+func _on_pre_cinematic_selected(metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
+	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
+	_update_node_data(selected_node_id, "pre_cinematic_id", resource_id)
 
 
-func _on_post_cinematic_changed(new_text: String) -> void:
-	_update_node_data(selected_node_id, "post_cinematic_id", new_text)
+func _on_post_cinematic_selected(metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
+	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
+	_update_node_data(selected_node_id, "post_cinematic_id", resource_id)
+
+
+func _on_completion_npc_selected(metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
+	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
+	_update_node_data(selected_node_id, "completion_npc_id", resource_id)
 
 
 func _on_completion_trigger_changed(index: int) -> void:
@@ -1298,15 +1341,14 @@ func _on_completion_flag_changed(new_text: String) -> void:
 	_update_node_data(selected_node_id, "completion_flag", new_text)
 
 
-func _on_completion_npc_changed(new_text: String) -> void:
-	_update_node_data(selected_node_id, "completion_npc_id", new_text)
-
-
 func _update_completion_trigger_visibility(node_type: String, completion_trigger: String) -> void:
 	var is_choice: bool = (node_type == "choice")
+	var is_battle: bool = (node_type == "battle")
+	var is_cutscene: bool = (node_type == "cutscene")
+	var is_scene: bool = (node_type == "scene")
 
 	# Only show completion trigger row for scene nodes
-	completion_trigger_row.visible = (node_type == "scene")
+	completion_trigger_row.visible = is_scene
 
 	# Show flag field only when trigger is "flag_set"
 	var show_flag: bool = (completion_trigger == "flag_set")
@@ -1316,15 +1358,64 @@ func _update_completion_trigger_visibility(node_type: String, completion_trigger
 	# Show NPC field only when trigger is "npc_interaction"
 	var show_npc: bool = (completion_trigger == "npc_interaction")
 	completion_npc_label.visible = show_npc
-	completion_npc_edit.visible = show_npc
+	completion_npc_picker.visible = show_npc
 
 	# Hide transitions row for choice nodes (they use branches instead)
 	transitions_row.visible = not is_choice
+
+	# Show resource_id_row only for battle and cutscene nodes
+	resource_id_row.visible = (is_battle or is_cutscene)
+
+	# Show scene_path_row only for scene nodes
+	scene_path_row.visible = is_scene
 
 	# Show branches section only for choice nodes
 	branches_section.visible = is_choice
 	if is_choice:
 		_rebuild_branches_ui()
+
+
+## Update the resource_id_picker's resource type based on node type
+func _update_resource_picker_for_node_type(node_type: String) -> void:
+	match node_type:
+		"battle":
+			resource_id_picker.resource_type = "battle"
+			resource_id_picker.label_text = "Battle:"
+		"cutscene":
+			resource_id_picker.resource_type = "cinematic"
+			resource_id_picker.label_text = "Cinematic:"
+		_:
+			# scene and choice nodes don't use resource_id picker
+			resource_id_picker.resource_type = "battle"  # Default
+			resource_id_picker.label_text = "Resource:"
+	# Force picker to refresh its dropdown options
+	resource_id_picker.refresh()
+
+
+## Select a resource in a ResourcePicker by its ID (looks up from registry)
+func _select_resource_in_picker(picker: ResourcePicker, resource_id: String) -> void:
+	if resource_id.is_empty():
+		picker.select_none()
+		return
+
+	# Look up the resource from registry using picker's resource_type
+	var resource: Resource = null
+	if ModLoader and ModLoader.registry:
+		resource = ModLoader.registry.get_resource(picker.resource_type, resource_id)
+
+	if resource:
+		picker.select_resource(resource)
+	else:
+		# Resource not found - try to select by scanning dropdown items
+		# This handles cases where the resource_id exists but wasn't found via registry
+		var option_button: OptionButton = picker.get_option_button()
+		for i in range(option_button.item_count):
+			var metadata: Variant = option_button.get_item_metadata(i)
+			if metadata is Dictionary and metadata.get("resource_id", "") == resource_id:
+				option_button.select(i)
+				return
+		# If still not found, just select none
+		picker.select_none()
 
 
 func _on_starting_node_changed(index: int) -> void:

@@ -125,15 +125,9 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
-	# Use full anchors to fill available space
-	anchor_right = 1.0
-	anchor_bottom = 1.0
-	offset_right = 0.0
-	offset_bottom = 0.0
-
+	# Root Control uses layout_mode = 1 with anchors in .tscn for proper TabContainer containment
 	var hsplit: HSplitContainer = HSplitContainer.new()
-	hsplit.anchor_right = 1.0
-	hsplit.anchor_bottom = 1.0
+	hsplit.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hsplit.split_offset = 200
 	add_child(hsplit)
 
@@ -559,7 +553,7 @@ func _create_inventory_config_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.add_section("Inventory Configuration")
 
-	slots_per_character_spin = form.add_number_field("Slots per Character:", 1, 99, 1, 4,
+	slots_per_character_spin = form.add_number_field("Slots per Character:", 1, 99, 4,
 		"Number of inventory slots each character has")
 
 	allow_duplicates_check = form.add_standalone_checkbox("Allow duplicate items in inventory", true,

@@ -75,15 +75,9 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
-	# Use full anchors to fill available space
-	anchor_right = 1.0
-	anchor_bottom = 1.0
-	offset_right = 0.0
-	offset_bottom = 0.0
-
+	# Root Control uses layout_mode = 1 with anchors in .tscn for proper TabContainer containment
 	var hsplit: HSplitContainer = HSplitContainer.new()
-	hsplit.anchor_right = 1.0
-	hsplit.anchor_bottom = 1.0
+	hsplit.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hsplit.split_offset = 220
 	add_child(hsplit)
 

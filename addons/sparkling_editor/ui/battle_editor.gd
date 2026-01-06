@@ -330,11 +330,11 @@ func _add_rewards_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.add_section("Rewards")
 
-	experience_reward_spin = form.add_number_field("Experience Reward:", 0, 10000, 10, 0,
-		"Bonus XP for completing this battle. Divided among surviving party members.")
+	experience_reward_spin = form.add_number_field("Experience Reward:", 0, 10000, 0,
+		"Bonus XP for completing this battle. Divided among surviving party members.", 10)
 
-	gold_reward_spin = form.add_number_field("Gold Reward:", 0, 10000, 10, 0,
-		"Gold received upon victory. Added to party funds.")
+	gold_reward_spin = form.add_number_field("Gold Reward:", 0, 10000, 0,
+		"Gold received upon victory. Added to party funds.", 10)
 
 	form.add_help_text("Item rewards: Coming soon")
 	form.add_separator()

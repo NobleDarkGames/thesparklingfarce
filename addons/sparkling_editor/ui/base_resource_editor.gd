@@ -198,17 +198,9 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _setup_base_ui() -> void:
-	# Note: TabContainer children must use anchors to fill available space
-	# Using full anchors to stretch both horizontally and vertically
-	anchor_right = 1.0
-	anchor_bottom = 1.0
-	offset_right = 0.0
-	offset_bottom = 0.0
-
+	# Root Control uses layout_mode = 1 with anchors in .tscn for proper TabContainer containment
 	var hsplit: HSplitContainer = HSplitContainer.new()
-	# HSplitContainer uses anchors to fill the parent Control
-	hsplit.anchor_right = 1.0
-	hsplit.anchor_bottom = 1.0
+	hsplit.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hsplit.split_offset = 150  # Default split position - left panel gets ~150px
 	hsplit.clip_contents = true  # Ensure children are properly clipped
 	add_child(hsplit)
