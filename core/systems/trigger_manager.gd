@@ -400,8 +400,13 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	# Check for locked door (requires key item)
 	var requires_key: String = trigger_data["requires_key"] if "requires_key" in trigger_data else ""
 	if not requires_key.is_empty():
-		# TODO: Check if player has key item in inventory
-		pass
+		if not _party_has_item(requires_key):
+			# Show locked door message and abort transition
+			var item_data: ItemData = ModLoader.registry.get_resource("item", requires_key) as ItemData
+			var item_name: String = item_data.item_name if item_data else requires_key
+			if DialogManager:
+				DialogManager.show_message("The door is locked. You need the %s." % item_name)
+			return
 
 	# Create transition context with spawn point info
 	var context: TransitionContext = TransitionContext.from_current_scene(player)
@@ -474,3 +479,20 @@ func _handle_custom_trigger(trigger: Node, _player: Node2D) -> void:
 	var _trigger_data: Dictionary = trigger.get("trigger_data")
 	# TODO: Phase 5 - custom trigger system
 	pass
+
+
+# =============================================================================
+# HELPERS
+# =============================================================================
+
+## Check if any party member has a specific item in their inventory
+## @param item_id: ID of the item to check for
+## @return: true if any party member has the item
+func _party_has_item(item_id: String) -> bool:
+	if not PartyManager:
+		return false
+	for character: CharacterData in PartyManager.party_members:
+		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
+		if save_data and save_data.has_item_in_inventory(item_id):
+			return true
+	return false
