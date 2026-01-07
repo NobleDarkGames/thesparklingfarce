@@ -1,13 +1,11 @@
-[gd_scene load_steps=3 format=4 uid="uid://beguibdtaqvk0"]
+[gd_scene load_steps=4 format=4 uid="uid://beguibdtaqvk0"]
 
 [ext_resource type="Script" uid="uid://yg77xmxx5358" path="res://mods/demo_campaign/maps/first_battle_map.gd" id="1_script"]
 [ext_resource type="TileSet" uid="uid://dy2k670qtyfeq" path="res://core/defaults/tilesets/default_tileset.tres" id="2_tileset"]
+[ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="3_highlight"]
 
 [node name="FirstBattleMap" type="Node2D"]
 script = ExtResource("1_script")
-map_id = "demo_campaign:first_battle_map"
-map_type = "BATTLE"
-display_name = "First Battle Map"
 
 [node name="Map" type="Node2D" parent="."]
 
@@ -16,4 +14,5 @@ tile_map_data = PackedByteArray("AAD2//r/AQAAAAIAAAD2//v/AQAAAAIAAAD2//z/AQAAAAI
 tile_set = ExtResource("2_tileset")
 
 [node name="HighlightLayer" type="TileMapLayer" parent="Map"]
-tile_set = ExtResource("2_tileset")
+z_index = 1
+tile_set = ExtResource("3_highlight")

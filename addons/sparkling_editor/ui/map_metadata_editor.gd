@@ -1045,10 +1045,11 @@ script = ExtResource("3_camera")
 ## Generate a battle map scene with BattleLoader-compatible structure
 ## Battle maps need: Map/GroundLayer, Map/HighlightLayer for grid-based combat
 func _generate_battle_map_scene(capitalized_name: String, script_path: String, tileset_path: String, map_id: String, map_name: String) -> String:
-	var scene: String = """[gd_scene load_steps=3 format=4]
+	var scene: String = """[gd_scene load_steps=4 format=4]
 
 [ext_resource type="Script" path="%s" id="1_script"]
 [ext_resource type="TileSet" path="%s" id="2_tileset"]
+[ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="3_highlight"]
 
 [node name="%s" type="Node2D"]
 script = ExtResource("1_script")
@@ -1062,7 +1063,8 @@ display_name = "%s"
 tile_set = ExtResource("2_tileset")
 
 [node name="HighlightLayer" type="TileMapLayer" parent="Map"]
-tile_set = ExtResource("2_tileset")
+z_index = 1
+tile_set = ExtResource("3_highlight")
 """ % [script_path, tileset_path, capitalized_name, map_id, map_name]
 
 	return scene

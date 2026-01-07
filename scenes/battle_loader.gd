@@ -115,7 +115,7 @@ func _load_map_scene() -> bool:
 	# Reparent the Map node from the instanced scene to battle_loader
 	map_node.get_parent().remove_child(map_node)
 	add_child(map_node)
-	move_child(map_node, 1)  # After Background
+	move_child(map_node, 0)  # First child (map renders behind units/UI)
 
 	# Store reference for later use (instead of relying on $Map)
 	_map_node = map_node
