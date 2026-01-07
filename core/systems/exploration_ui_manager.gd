@@ -30,10 +30,10 @@ signal menu_closed()
 # PRELOADS
 # =============================================================================
 
-const PartyEquipmentMenuScene: PackedScene = preload("res://scenes/ui/party_equipment_menu.tscn")
 const CaravanInterfaceScene: PackedScene = preload("res://scenes/ui/caravan/caravan_interface.tscn")
 const ExplorationFieldMenuScene: PackedScene = preload("res://scenes/ui/exploration_field_menu.tscn")
 const MembersInterfaceScene: PackedScene = preload("res://scenes/ui/members/members_interface.tscn")
+const FieldItemsInterfaceScene: PackedScene = preload("res://scenes/ui/field_items/field_item_interface.tscn")
 
 # =============================================================================
 # STATE
@@ -46,10 +46,10 @@ var _ui_layer: CanvasLayer = null
 var _controller: ExplorationUIController = null
 
 ## UI panel instances
-var _party_menu: PartyEquipmentMenu = null
 var _caravan_interface: CanvasLayer = null  # CaravanInterfaceController (is a CanvasLayer)
 var _field_menu: ExplorationFieldMenu = null
 var _members_interface: CanvasLayer = null  # MembersInterfaceController (is a CanvasLayer)
+var _field_items_interface: CanvasLayer = null  # FieldItemInterfaceController (is a CanvasLayer)
 
 ## Currently connected hero (if any)
 var _current_hero: Node = null
@@ -77,11 +77,6 @@ func _initialize() -> void:
 	_ui_layer.visible = false  # Hidden until activated
 	get_tree().root.call_deferred("add_child", _ui_layer)
 
-	# Create UI panels
-	_party_menu = PartyEquipmentMenuScene.instantiate()
-	_party_menu.name = "PartyEquipmentMenu"
-	_party_menu.visible = false
-
 	# CaravanInterfaceController is a CanvasLayer that manages its own visibility
 	_caravan_interface = CaravanInterfaceScene.instantiate()
 	_caravan_interface.name = "CaravanInterface"
@@ -96,12 +91,17 @@ func _initialize() -> void:
 	_members_interface.name = "MembersInterface"
 	# It starts hidden by default via its _ready()
 
+	# FieldItemsInterfaceController is a CanvasLayer for field menu Item option
+	_field_items_interface = FieldItemsInterfaceScene.instantiate()
+	_field_items_interface.name = "FieldItemsInterface"
+	# It starts hidden by default via its _ready()
+
 	# Defer adding children until layer is in tree
-	_ui_layer.call_deferred("add_child", _party_menu)
 	_ui_layer.call_deferred("add_child", _field_menu)
-	# CaravanInterfaceController and MembersInterfaceController are their own CanvasLayers, add to root
+	# CanvasLayer-based interfaces are added to root
 	get_tree().root.call_deferred("add_child", _caravan_interface)
 	get_tree().root.call_deferred("add_child", _members_interface)
+	get_tree().root.call_deferred("add_child", _field_items_interface)
 
 	# Create the controller
 	_controller = ExplorationUIController.new()
@@ -154,7 +154,8 @@ func _initial_activation() -> void:
 
 func _setup_controller() -> void:
 	if _controller and _controller.has_method("setup"):
-		_controller.setup(_party_menu, _caravan_interface, _field_menu, _members_interface)
+		# Pass null for deprecated party_equipment_menu (replaced by field_items_interface)
+		_controller.setup(null, _caravan_interface, _field_menu, _members_interface, _field_items_interface)
 
 		# Forward controller signals
 		if _controller.has_signal("menu_opened"):

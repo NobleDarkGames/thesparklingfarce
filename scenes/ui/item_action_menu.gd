@@ -35,7 +35,8 @@ signal menu_cancelled()
 enum Context {
 	EXPLORATION,      ## Field/exploration mode - item in inventory
 	BATTLE,           ## During battle
-	EQUIPMENT_SLOT    ## Item currently equipped (for unequip action)
+	EQUIPMENT_SLOT,   ## Item currently equipped (for unequip action)
+	FIELD_MENU        ## Field menu item - no GIVE action (transfers are Caravan-only)
 }
 
 enum ActionType {
@@ -260,9 +261,10 @@ func _determine_available_actions() -> void:
 	if not _current_item_data:
 		return
 
-	var is_exploration: bool = _context == Context.EXPLORATION
+	var is_exploration: bool = _context == Context.EXPLORATION or _context == Context.FIELD_MENU
 	var is_battle: bool = _context == Context.BATTLE
 	var is_equipment_slot: bool = _context == Context.EQUIPMENT_SLOT
+	var is_field_menu: bool = _context == Context.FIELD_MENU
 
 	# EQUIPMENT_SLOT context: Item is currently equipped
 	if is_equipment_slot:
@@ -284,8 +286,9 @@ func _determine_available_actions() -> void:
 	if _current_item_data.is_equippable() and is_exploration:
 		_available_actions.append(ActionType.EQUIP)
 
-	# GIVE: Transfer to another party member (exploration only)
-	if is_exploration:
+	# GIVE: Transfer to another party member (exploration only, NOT field menu)
+	# Field menu is for quick item use - transfers require the Caravan (SF2 authentic)
+	if is_exploration and not is_field_menu:
 		_available_actions.append(ActionType.GIVE)
 
 	# DROP: If item can be dropped

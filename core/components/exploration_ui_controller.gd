@@ -40,10 +40,11 @@ signal menu_closed()
 ## UI states for exploration mode
 enum UIState {
 	EXPLORING,      ## Normal gameplay, hero can move and interact
-	INVENTORY,      ## PartyEquipmentMenu open
+	INVENTORY,      ## PartyEquipmentMenu open (deprecated, use FIELD_ITEMS)
 	MEMBERS,        ## MembersInterface open (new screen-based system)
 	DEPOT,          ## CaravanDepotPanel open (from menu or Caravan interaction)
 	FIELD_MENU,     ## ExplorationFieldMenu open (Item/Magic/Search/Member)
+	FIELD_ITEMS,    ## FieldItemsInterface open (hero inventory, SF2 authentic)
 	DIALOG,         ## Dialog box active (future)
 	SHOP,           ## Shop interface (future)
 	PAUSED          ## Pause menu (future)
@@ -63,8 +64,9 @@ var _previous_state: UIState = UIState.EXPLORING
 # UI REFERENCES
 # =============================================================================
 
-## Party equipment menu (must be set via setup())
-var party_equipment_menu: PartyEquipmentMenu = null
+## Party equipment menu (deprecated - replaced by field_items_interface)
+## Kept for backwards compatibility but typically null
+var party_equipment_menu: Node = null
 
 ## Caravan depot interface (must be set via setup())
 ## Type is Node because CaravanInterfaceController is a CanvasLayer in scenes/
@@ -76,6 +78,10 @@ var exploration_field_menu: ExplorationFieldMenu = null
 ## Members interface (new screen-based party management)
 ## Type is Node because MembersInterfaceController is a CanvasLayer in scenes/
 var members_interface: Node = null
+
+## Field items interface (SF2-authentic hero inventory for field menu Item option)
+## Type is Node because FieldItemInterfaceController is a CanvasLayer in scenes/
+var field_items_interface: Node = null
 
 # =============================================================================
 # LIFECYCLE
@@ -91,15 +97,17 @@ func _exit_tree() -> void:
 
 
 ## Initialize the controller with UI panel references
-## @param equipment_menu: PartyEquipmentMenu instance
+## @param equipment_menu: Deprecated, typically null (replaced by field_items_interface)
 ## @param depot_interface: CaravanInterfaceController instance (CanvasLayer)
 ## @param field_menu: ExplorationFieldMenu instance (optional, can be set later)
 ## @param members_interface_node: MembersInterfaceController instance (optional)
-func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu: ExplorationFieldMenu = null, members_interface_node: Node = null) -> void:
+## @param field_items_interface_node: FieldItemInterfaceController instance (optional)
+func setup(equipment_menu: Node, depot_interface: Node, field_menu: ExplorationFieldMenu = null, members_interface_node: Node = null, field_items_interface_node: Node = null) -> void:
 	party_equipment_menu = equipment_menu
 	caravan_interface = depot_interface
 	exploration_field_menu = field_menu
 	members_interface = members_interface_node
+	field_items_interface = field_items_interface_node
 
 	_connect_signals()
 
@@ -109,7 +117,7 @@ func setup(equipment_menu: PartyEquipmentMenu, depot_interface: Node, field_menu
 	# CaravanInterfaceController manages its own visibility via show()/hide()
 	if exploration_field_menu:
 		exploration_field_menu.visible = false
-	# MembersInterfaceController manages its own visibility
+	# MembersInterfaceController and FieldItemInterfaceController manage their own visibility
 
 
 ## Set up the exploration field menu (can be called after initial setup)
@@ -139,6 +147,12 @@ func _connect_signals() -> void:
 		if members_interface.has_signal("members_closed"):
 			if not members_interface.members_closed.is_connected(_on_members_close_requested):
 				members_interface.members_closed.connect(_on_members_close_requested)
+
+	if field_items_interface:
+		# FieldItemInterfaceController emits field_items_closed signal
+		if field_items_interface.has_signal("field_items_closed"):
+			if not field_items_interface.field_items_closed.is_connected(_on_field_items_close_requested):
+				field_items_interface.field_items_closed.connect(_on_field_items_close_requested)
 
 	_connect_field_menu_signals()
 
@@ -174,6 +188,11 @@ func _disconnect_signals() -> void:
 			if members_interface.members_closed.is_connected(_on_members_close_requested):
 				members_interface.members_closed.disconnect(_on_members_close_requested)
 
+	if field_items_interface:
+		if field_items_interface.has_signal("field_items_closed"):
+			if field_items_interface.field_items_closed.is_connected(_on_field_items_close_requested):
+				field_items_interface.field_items_closed.disconnect(_on_field_items_close_requested)
+
 	if exploration_field_menu:
 		if exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
 			exploration_field_menu.close_requested.disconnect(_on_field_menu_close_requested)
@@ -202,8 +221,8 @@ func _input(event: InputEvent) -> void:
 			# Open inventory from exploration mode
 			open_inventory()
 			get_viewport().set_input_as_handled()
-		elif current_state == UIState.INVENTORY:
-			# Close inventory with toggle (pressing I again closes it)
+		elif current_state == UIState.FIELD_ITEMS:
+			# Close field items with toggle (pressing I again closes it)
 			close_all_menus()
 			AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 			get_viewport().set_input_as_handled()
@@ -230,19 +249,19 @@ func is_blocking_input() -> bool:
 	return current_state != UIState.EXPLORING
 
 
-## Open the party equipment/inventory menu
+## Open the hero's inventory (field items interface)
+## This is the SF2-authentic hero-only inventory view
 func open_inventory() -> void:
 	if current_state != UIState.EXPLORING:
 		return
 
-	if not party_equipment_menu:
-		push_warning("ExplorationUIController: No PartyEquipmentMenu assigned")
-		return
-
-	_set_state(UIState.INVENTORY)
-	party_equipment_menu.refresh()
-	party_equipment_menu.visible = true
-	AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
+	# Use new FieldItemsInterface (SF2 authentic: hero only, no GIVE)
+	if field_items_interface and field_items_interface.has_method("open_field_items"):
+		_set_state(UIState.FIELD_ITEMS)
+		field_items_interface.open_field_items()
+		AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
+	else:
+		push_warning("ExplorationUIController: No FieldItemsInterface assigned")
 
 
 ## Open the Caravan depot interface
@@ -279,6 +298,9 @@ func close_all_menus() -> void:
 	if members_interface and members_interface.has_method("is_open"):
 		if members_interface.is_open():
 			members_interface.close_interface()
+	if field_items_interface and field_items_interface.has_method("is_open"):
+		if field_items_interface.is_open():
+			field_items_interface.close_interface()
 	if exploration_field_menu:
 		exploration_field_menu.hide_menu()
 
@@ -338,17 +360,22 @@ func _on_field_menu_close_requested() -> void:
 	_set_state(UIState.EXPLORING)
 
 
-## Field menu Item option - open inventory
+## Field menu Item option - open hero's inventory (SF2 authentic)
 func _on_field_menu_item_requested() -> void:
 	# Close field menu first
 	if exploration_field_menu:
 		exploration_field_menu.hide_menu()
 
-	# Open inventory (transitions from FIELD_MENU to INVENTORY)
-	_set_state(UIState.INVENTORY)
-	if party_equipment_menu:
-		party_equipment_menu.refresh()
-		party_equipment_menu.visible = true
+	# Open new FieldItemsInterface (SF2 authentic: hero only, no GIVE)
+	if field_items_interface and field_items_interface.has_method("open_field_items"):
+		_set_state(UIState.FIELD_ITEMS)
+		field_items_interface.open_field_items()
+	else:
+		# Fallback to deprecated PartyEquipmentMenu
+		_set_state(UIState.INVENTORY)
+		if party_equipment_menu:
+			party_equipment_menu.refresh()
+			party_equipment_menu.visible = true
 
 
 ## Field menu Member option - open the new Members interface
@@ -371,6 +398,11 @@ func _on_field_menu_member_requested() -> void:
 
 ## Members interface closed - return to exploration
 func _on_members_close_requested() -> void:
+	_set_state(UIState.EXPLORING)
+
+
+## Field items interface closed - return to exploration
+func _on_field_items_close_requested() -> void:
 	_set_state(UIState.EXPLORING)
 
 
