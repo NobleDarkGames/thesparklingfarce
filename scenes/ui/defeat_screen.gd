@@ -11,10 +11,9 @@ extends CanvasLayer
 ## - "[Hero] has fallen! The force retreats..."
 ## - No retry option - you just wake up in town
 ## - Full party restoration: HP, MP, status cleared, dead revived
-## - Press any key to continue (or ESC to quit to title)
+## - Press any key to continue
 
 signal continue_requested  ## Player pressed any key to continue with retreat
-signal quit_requested      ## Player pressed ESC to quit to title
 signal result_dismissed    ## Generic dismiss (for compatibility)
 
 ## Font reference
@@ -78,7 +77,7 @@ func show_defeat(hero_name: String = "The hero") -> void:
 
 	# Phase 3: Show hint after delay
 	await get_tree().create_timer(HINT_DELAY).timeout
-	hint_label.text = "Press any key...  (ESC to quit)"
+	hint_label.text = "Press any key..."
 	var hint_tween: Tween = create_tween()
 	hint_tween.tween_property(hint_label, "modulate:a", 0.6, 0.3)
 	await hint_tween.finished
@@ -103,17 +102,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		return
 
-	# ESC/Cancel quits to title
-	if event.is_action_pressed("sf_cancel") or event.is_action_pressed("ui_cancel"):
-		_can_interact = false
-		set_process_input(false)
-		AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
-		await _fade_out()
-		quit_requested.emit()
-		result_dismissed.emit()
-		return
-
-	# Any other key/button continues with retreat
+	# Any key/button continues with retreat (SF2-authentic: no quit option)
 	if event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton:
 		_can_interact = false
 		set_process_input(false)

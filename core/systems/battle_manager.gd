@@ -1626,12 +1626,6 @@ func _show_defeat_screen() -> bool:
 	var defeat_screen: CanvasLayer = _get_cached_scene("defeat_screen_scene").instantiate()
 	battle_scene_root.add_child(defeat_screen)
 
-	var player_choice: String = ""  # "continue" or "quit"
-
-	# Connect to SF2-authentic signals
-	defeat_screen.continue_requested.connect(func() -> void: player_choice = "continue")
-	defeat_screen.quit_requested.connect(func() -> void: player_choice = "quit")
-
 	# Get hero name for SF2-authentic flavor text
 	var hero_name: String = "The hero"
 	var hero: CharacterData = PartyManager.get_hero()
@@ -1642,11 +1636,7 @@ func _show_defeat_screen() -> bool:
 	await defeat_screen.result_dismissed
 	defeat_screen.queue_free()
 
-	# Handle player choice
-	if player_choice == "quit":
-		# TODO: Implement return to title (Phase 3)
-		push_warning("BattleManager: Return to title not yet implemented - retreating instead")
-
+	# SF2-authentic: defeat always continues (player revives at last safe location)
 	return false
 
 
