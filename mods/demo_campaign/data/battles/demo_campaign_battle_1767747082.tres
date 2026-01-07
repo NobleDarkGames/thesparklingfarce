@@ -11,8 +11,9 @@ script = ExtResource("2_6pcfb")
 battle_name = "Battle #1"
 battle_description = "First battle"
 map_scene = ExtResource("2_dodtd")
+player_spawn_point = Vector2i(0, 3)
 enemies = Array[Dictionary]([{
 "ai_behavior": ExtResource("2_isyrl"),
 "character": ExtResource("1_uoqjm"),
-"position": Vector2i(12, 12)
+"position": Vector2i(9, 10)
 }])

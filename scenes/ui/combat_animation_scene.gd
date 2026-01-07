@@ -34,16 +34,21 @@ signal xp_display_complete
 @onready var attacker_hp_bar: ProgressBar = $CenterContainer/HBoxContainer/AttackerContainer/HPBar
 @onready var defender_hp_bar: ProgressBar = $CenterContainer/HBoxContainer/DefenderContainer/HPBar
 
-## Sprite containers (will be populated dynamically)
-var attacker_sprite: Control = null
-var defender_sprite: Control = null
+## Sprite containers - POSITION BASED (not role based)
+## Right side = player, Left side = enemy (SF2 convention)
+var _right_sprite: Control = null  ## Player's sprite (always on right)
+var _left_sprite: Control = null   ## Enemy's sprite (always on left)
+
+## Unit tracking - POSITION BASED
+var _right_unit: Unit = null  ## Player unit (always on right)
+var _left_unit: Unit = null   ## Enemy unit (always on left)
 
 ## Session state tracking
 var _session_active: bool = false
 var _initial_attacker: Unit = null  ## The unit who initiated the combat (for role tracking)
 var _initial_defender: Unit = null  ## The unit who was attacked (for role tracking)
 
-## Current phase tracking (who is currently attacking/defending visually)
+## Current phase tracking (who is currently attacking/defending in THIS phase)
 var _current_attacker: Unit = null
 var _current_defender: Unit = null
 
@@ -132,9 +137,14 @@ func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 	_initial_attacker_died = false
 	_initial_defender_died = false
 
-	# Set up combatants visually (attacker on RIGHT, defender on LEFT)
-	await _setup_combatant(initial_attacker, attacker_container, attacker_name, attacker_hp_bar, true)
-	await _setup_combatant(initial_defender, defender_container, defender_name, defender_hp_bar, false)
+	# SF2 POSITIONING: Player ALWAYS on RIGHT, Enemy ALWAYS on LEFT
+	# (regardless of who initiated the attack)
+	_right_unit = initial_attacker if initial_attacker.is_player_unit() else initial_defender
+	_left_unit = initial_defender if initial_attacker.is_player_unit() else initial_attacker
+
+	# Set up combatants visually (player on RIGHT with back view, enemy on LEFT with front view)
+	_right_sprite = await _setup_combatant_and_return_sprite(_right_unit, attacker_container, attacker_name, attacker_hp_bar)
+	_left_sprite = await _setup_combatant_and_return_sprite(_left_unit, defender_container, defender_name, defender_hp_bar)
 
 	# Fade in background and contents
 	var tween: Tween = create_tween()
@@ -223,49 +233,16 @@ func _should_skip_remaining_phases() -> bool:
 	return _initial_attacker_died and _initial_defender_died
 
 
-## Swap the visual positions of combatants for counter attacks
-## The original defender is now attacking, so they move to the attacker position
+## Handle role swap for counter attacks (SF2 style)
+## SF2 RULE: Positions NEVER swap. Player stays on right, enemy stays on left.
+## We just swap who is attacking/defending - the helper functions handle the rest.
 func _swap_combatant_roles() -> void:
-	# Animate the swap with a brief transition
-	var swap_duration: float = _get_duration(0.3)
-
-	# Store current positions
-	var attacker_start: Vector2 = attacker_container.position
-	var defender_start: Vector2 = defender_container.position
-
-	# Cross-fade sprites by fading out current and rebuilding
-	var fade_tween: Tween = create_tween()
-	fade_tween.set_parallel(true)
-	fade_tween.tween_property(attacker_sprite, "modulate:a", 0.0, swap_duration * 0.5)
-	fade_tween.tween_property(defender_sprite, "modulate:a", 0.0, swap_duration * 0.5)
-	await fade_tween.finished
-
-	# Clear old sprites
-	if attacker_sprite and is_instance_valid(attacker_sprite):
-		attacker_sprite.queue_free()
-		attacker_sprite = null
-	if defender_sprite and is_instance_valid(defender_sprite):
-		defender_sprite.queue_free()
-		defender_sprite = null
-
-	# Swap the tracked units
+	# Swap the tracked units (who is attacking/defending this phase)
 	var temp: Unit = _current_attacker
 	_current_attacker = _current_defender
 	_current_defender = temp
-
-	# Rebuild with swapped roles (new attacker on RIGHT, new defender on LEFT)
-	await _setup_combatant(_current_attacker, attacker_container, attacker_name, attacker_hp_bar, true)
-	await _setup_combatant(_current_defender, defender_container, defender_name, defender_hp_bar, false)
-
-	# Fade in new sprites
-	attacker_sprite.modulate.a = 0.0
-	defender_sprite.modulate.a = 0.0
-
-	var reveal_tween: Tween = create_tween()
-	reveal_tween.set_parallel(true)
-	reveal_tween.tween_property(attacker_sprite, "modulate:a", 1.0, swap_duration * 0.5)
-	reveal_tween.tween_property(defender_sprite, "modulate:a", 1.0, swap_duration * 0.5)
-	await reveal_tween.finished
+	# That's it! _get_attacker_sprite(), _get_defender_sprite(), and _get_attack_direction()
+	# will now return the correct values based on _current_attacker/_current_defender
 
 
 ## Execute a single combat phase
@@ -339,9 +316,8 @@ func _setup_combatant(
 	unit: Unit,
 	container: Control,
 	name_label: Label,
-	hp_bar: ProgressBar,
-	is_attacker: bool
-) -> void:
+	hp_bar: ProgressBar
+) -> Control:
 	# Set name
 	name_label.text = unit.character_data.character_name
 
@@ -356,23 +332,61 @@ func _setup_combatant(
 	# Create sprite (real or placeholder)
 	var sprite: Control = null
 	if unit.character_data.combat_animation_data and unit.character_data.combat_animation_data.battle_sprite:
-		sprite = _create_real_sprite(unit, is_attacker)
+		sprite = _create_real_sprite(unit)
 	else:
-		sprite = _create_placeholder_sprite(unit, is_attacker)
-
-	# Store reference
-	if is_attacker:
-		attacker_sprite = sprite
-	else:
-		defender_sprite = sprite
+		sprite = _create_placeholder_sprite(unit)
 
 	# Add to container (insert before name label)
 	container.add_child(sprite)
 	container.move_child(sprite, 0)
 
+	return sprite
+
+
+## Alias for backward compatibility
+func _setup_combatant_and_return_sprite(
+	unit: Unit,
+	container: Control,
+	name_label: Label,
+	hp_bar: ProgressBar
+) -> Control:
+	return await _setup_combatant(unit, container, name_label, hp_bar)
+
+
+## Get the sprite for the current attacker (whoever is attacking this phase)
+func _get_attacker_sprite() -> Control:
+	if _current_attacker == _right_unit:
+		return _right_sprite
+	else:
+		return _left_sprite
+
+
+## Get the sprite for the current defender (whoever is being attacked this phase)
+func _get_defender_sprite() -> Control:
+	if _current_defender == _right_unit:
+		return _right_sprite
+	else:
+		return _left_sprite
+
+
+## Get the HP bar for the current defender
+func _get_defender_hp_bar() -> ProgressBar:
+	if _current_defender == _right_unit:
+		return attacker_hp_bar  # Right side uses attacker_container's HP bar
+	else:
+		return defender_hp_bar  # Left side uses defender_container's HP bar
+
+
+## Get the name label for the current defender
+func _get_defender_name() -> Label:
+	if _current_defender == _right_unit:
+		return attacker_name  # Right side uses attacker_container's name
+	else:
+		return defender_name  # Left side uses defender_container's name
+
 
 ## Create placeholder portrait using colored panel and character initial
-func _create_placeholder_sprite(unit: Unit, is_attacker: bool) -> Control:
+func _create_placeholder_sprite(unit: Unit) -> Control:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(180, 180)
 
@@ -382,7 +396,7 @@ func _create_placeholder_sprite(unit: Unit, is_attacker: bool) -> Control:
 	style_box.border_width_right = 4
 	style_box.border_width_top = 4
 	style_box.border_width_bottom = 4
-	style_box.border_color = Color.WHITE if is_attacker else Color(0.8, 0.8, 0.8)
+	style_box.border_color = Color.WHITE if unit.is_player_unit() else Color(0.8, 0.8, 0.8)
 	style_box.corner_radius_top_left = 8
 	style_box.corner_radius_top_right = 8
 	style_box.corner_radius_bottom_left = 8
@@ -417,7 +431,7 @@ func _create_placeholder_sprite(unit: Unit, is_attacker: bool) -> Control:
 
 
 ## Create sprite from real combat animation data
-func _create_real_sprite(unit: Unit, is_attacker: bool) -> Control:
+func _create_real_sprite(unit: Unit) -> Control:
 	var anim_data: CombatAnimationData = unit.character_data.combat_animation_data
 
 	var sprite_node: Node = null
@@ -433,15 +447,24 @@ func _create_real_sprite(unit: Unit, is_attacker: bool) -> Control:
 		sprite_node = static_sprite
 
 	sprite_node.scale = Vector2.ONE * anim_data.sprite_scale
-	sprite_node.position = anim_data.sprite_offset
 
-	# Flip attacker to face left (toward defender)
-	if is_attacker:
-		sprite_node.flip_h = true
+	# NOTE: No flip needed - sprites are pre-oriented:
+	# - Player sprites are BACK views (facing left toward enemy)
+	# - Enemy sprites are FRONT views (facing right toward player)
 
-	var container: Control = Control.new()
-	container.custom_minimum_size = Vector2(120, 120)
-	container.add_child(sprite_node)
+	# Use CenterContainer to properly center the sprite
+	var container: CenterContainer = CenterContainer.new()
+	container.custom_minimum_size = Vector2(180, 180)
+
+	# Wrap sprite in a Control for proper sizing
+	var sprite_wrapper: Control = Control.new()
+	sprite_wrapper.custom_minimum_size = Vector2(180, 180)
+	sprite_wrapper.add_child(sprite_node)
+
+	# Center the sprite within the wrapper
+	sprite_node.position = Vector2(90, 90) + anim_data.sprite_offset
+
+	container.add_child(sprite_wrapper)
 
 	return container
 
@@ -468,16 +491,30 @@ func _get_class_color(unit: Unit) -> Color:
 # ATTACK ANIMATIONS
 # =============================================================================
 
+## Get attack direction multiplier based on who is attacking
+## Player (right side) attacks LEFT (-1), Enemy (left side) attacks RIGHT (+1)
+func _get_attack_direction() -> float:
+	# If current attacker is on the right, they lunge LEFT (-1)
+	# If current attacker is on the left, they lunge RIGHT (+1)
+	if _current_attacker == _right_unit:
+		return -1.0  # Right side attacks left
+	else:
+		return 1.0   # Left side attacks right
+
+
 ## Play standard hit animation
 func _play_hit_animation(damage: int, target: Unit) -> void:
 	combat_log.text = "Hit!"
 	combat_log.add_theme_color_override("font_color", Color.WHITE)
 
-	var attacker_start_pos: Vector2 = attacker_sprite.position
+	var atk_sprite: Control = _get_attacker_sprite()
+	var def_sprite: Control = _get_defender_sprite()
+	var attacker_start_pos: Vector2 = atk_sprite.position
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
+	var direction: float = _get_attack_direction()
 
 	var tween: Tween = create_tween()
-	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
+	tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * direction), move_duration)
 	await tween.finished
 
 	await get_tree().create_timer(_get_pause(BASE_IMPACT_PAUSE_DURATION)).timeout
@@ -485,15 +522,15 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	# Apply damage at impact
 	_apply_damage_at_impact(damage, target)
 
-	_flash_sprite(defender_sprite, Color.RED, _get_duration(BASE_FLASH_DURATION))
+	_flash_sprite(def_sprite, Color.RED, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, false)
 
 	# Update defender HP bar
 	var hp_tween: Tween = create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
+	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
 	tween = create_tween()
-	tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
+	tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
 
@@ -503,11 +540,14 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.YELLOW)
 
-	var attacker_start_pos: Vector2 = attacker_sprite.position
+	var atk_sprite: Control = _get_attacker_sprite()
+	var def_sprite: Control = _get_defender_sprite()
+	var attacker_start_pos: Vector2 = atk_sprite.position
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
+	var direction: float = _get_attack_direction()
 
 	var tween: Tween = create_tween()
-	tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE * 1.5, move_duration)
+	tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * 1.5 * direction), move_duration)
 	await tween.finished
 
 	_screen_shake()
@@ -515,16 +555,16 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	# Apply damage at impact
 	_apply_damage_at_impact(damage, target)
 
-	_flash_sprite(defender_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
+	_flash_sprite(def_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, true)
 
 	var hp_tween: Tween = create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
+	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 
 	await get_tree().create_timer(_get_pause(BASE_CRIT_PAUSE_DURATION)).timeout
 
 	tween = create_tween()
-	tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
+	tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
 
@@ -534,16 +574,20 @@ func _play_miss_animation() -> void:
 	combat_log.add_theme_font_override("font", monogram_font)
 	combat_log.add_theme_color_override("font_color", Color.GRAY)
 
-	var attacker_start_pos: Vector2 = attacker_sprite.position
-	var defender_start_pos: Vector2 = defender_sprite.position
+	var atk_sprite: Control = _get_attacker_sprite()
+	var def_sprite: Control = _get_defender_sprite()
+	var attacker_start_pos: Vector2 = atk_sprite.position
+	var defender_start_pos: Vector2 = def_sprite.position
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
+	var direction: float = _get_attack_direction()
 
 	var attack_tween: Tween = create_tween()
-	attack_tween.tween_property(attacker_sprite, "position:x", attacker_start_pos.x - ATTACK_MOVE_DISTANCE, move_duration)
+	attack_tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * direction), move_duration)
 
+	# Defender dodges away from attacker (opposite direction)
 	var dodge_tween: Tween = create_tween()
-	dodge_tween.tween_property(defender_sprite, "position:x", defender_start_pos.x + 30, move_duration)
+	dodge_tween.tween_property(def_sprite, "position:x", defender_start_pos.x - (30 * direction), move_duration)
 
 	await attack_tween.finished
 
@@ -560,8 +604,8 @@ func _play_miss_animation() -> void:
 
 	var return_tween: Tween = create_tween()
 	return_tween.set_parallel(true)
-	return_tween.tween_property(attacker_sprite, "position", attacker_start_pos, move_duration)
-	return_tween.tween_property(defender_sprite, "position", defender_start_pos, move_duration)
+	return_tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
+	return_tween.tween_property(def_sprite, "position", defender_start_pos, move_duration)
 
 	await return_tween.finished
 
@@ -573,7 +617,7 @@ func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 	combat_log.add_theme_color_override("font_color", Color.GREEN)
 
 	# Flash the target green
-	_flash_sprite(defender_sprite, Color.GREEN, _get_duration(BASE_FLASH_DURATION))
+	_flash_sprite(_get_defender_sprite(), Color.GREEN, _get_duration(BASE_FLASH_DURATION))
 
 	# Play healing sound
 	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
@@ -586,7 +630,7 @@ func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 
 	# Update defender HP bar (HP goes UP - target.stats.current_hp now has new value)
 	var hp_tween: Tween = create_tween()
-	hp_tween.tween_property(defender_hp_bar, "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
+	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
 	# Brief pause
 	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
@@ -595,19 +639,20 @@ func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 ## Play status effect animation (for SPELL_STATUS phases)
 @warning_ignore("unused_parameter")
 func _play_status_animation(was_resisted: bool, status_name: String, _target: Unit) -> void:
+	var def_sprite: Control = _get_defender_sprite()
 	if was_resisted:
 		# Similar to miss - white flash, "Resisted!" text
 		combat_log.text = "Resisted!"
 		combat_log.add_theme_font_override("font", monogram_font)
 		combat_log.add_theme_color_override("font_color", Color.WHITE)
-		_flash_sprite(defender_sprite, Color.WHITE, _get_duration(BASE_FLASH_DURATION))
+		_flash_sprite(def_sprite, Color.WHITE, _get_duration(BASE_FLASH_DURATION))
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 	else:
 		# Status applied - purple flash, show status name
 		combat_log.text = status_name.capitalize() + "!"
 		combat_log.add_theme_font_override("font", monogram_font)
 		combat_log.add_theme_color_override("font_color", Color(0.8, 0.4, 1.0))  # Purple
-		_flash_sprite(defender_sprite, Color(0.8, 0.4, 1.0), _get_duration(BASE_FLASH_DURATION))
+		_flash_sprite(def_sprite, Color(0.8, 0.4, 1.0), _get_duration(BASE_FLASH_DURATION))
 		AudioManager.play_sfx("spell_cast", AudioManager.SFXCategory.COMBAT)
 
 	# Brief pause
@@ -771,7 +816,8 @@ func _apply_healing_at_impact(heal_amount: int, target: Unit) -> int:
 
 ## Play death animation for defender
 func _play_death_animation() -> void:
-	if defender_sprite == null:
+	var def_sprite: Control = _get_defender_sprite()
+	if def_sprite == null:
 		return
 
 	combat_log.text = "Defeated!"
@@ -782,10 +828,10 @@ func _play_death_animation() -> void:
 
 	var death_tween: Tween = create_tween()
 	death_tween.set_parallel(true)
-	death_tween.tween_property(defender_sprite, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
-	death_tween.tween_property(defender_sprite, "position:y", defender_sprite.position.y + 30, _get_duration(BASE_DEATH_ANIMATION_DURATION))
-	death_tween.tween_property(defender_hp_bar, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
-	death_tween.tween_property(defender_name, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
+	death_tween.tween_property(def_sprite, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
+	death_tween.tween_property(def_sprite, "position:y", def_sprite.position.y + 30, _get_duration(BASE_DEATH_ANIMATION_DURATION))
+	death_tween.tween_property(_get_defender_hp_bar(), "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
+	death_tween.tween_property(_get_defender_name(), "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
 
 	await death_tween.finished
 	await get_tree().create_timer(_get_pause(BASE_DEATH_PAUSE_DURATION)).timeout
