@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3 uid="uid://ckthfm6d41jgh"]
+
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_lsocc"]
+[ext_resource type="Texture2D" uid="uid://bybkmqeq14cl5" path="res://mods/demo_campaign/assets/icons/items/SwordOfKurt.png" id="1_w628p"]
+
+[resource]
+script = ExtResource("1_lsocc")
+item_name = "Sword of Kurt"
+icon = ExtResource("1_w628p")
+equipment_type = "sword"
+strength_modifier = 1
+attack_power = 2
+buy_price = 100
+sell_price = 50
+description = "Kurt's special sword"

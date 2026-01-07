@@ -1,0 +1,99 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=17 format=3 uid="uid://l63mbf8p388k"]
+
+[ext_resource type="Resource" uid="uid://cecf73d76mhj0" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767742517.tres" id="1_10t0c"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_igxgf"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_07tfd"]
+[ext_resource type="Texture2D" uid="uid://dm2y7kdv1dbtl" path="res://mods/demo_campaign/assets/portraits/Kurt.png" id="2_mfycq"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_dg7wo"]
+[ext_resource type="Texture2D" uid="uid://cqr077hxicmbg" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_6.png" id="4_rl78p"]
+[ext_resource type="Resource" uid="uid://ckthfm6d41jgh" path="res://mods/demo_campaign/data/items/demo_campaign_item_1767742764.tres" id="6_mfycq"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0r2py"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c3tae"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i604y"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mpgy8"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jx4t4"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_536cr"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_61hqx"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u2bhb"]
+atlas = ExtResource("4_rl78p")
+region = Rect2(32, 96, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_rl78p"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0r2py")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c3tae")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i604y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mpgy8")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jx4t4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_536cr")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_61hqx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u2bhb")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]
+
+[resource]
+script = ExtResource("1_igxgf")
+character_uid = "6djr4fap"
+character_name = "Kurt"
+character_class = ExtResource("1_10t0c")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_mfycq")
+sprite_frames = SubResource("SpriteFrames_rl78p")
+starting_equipment = Array[ExtResource("2_07tfd")]([ExtResource("6_mfycq")])

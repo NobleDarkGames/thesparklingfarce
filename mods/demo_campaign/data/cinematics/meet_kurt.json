@@ -1,0 +1,82 @@
+{
+	"actors": [
+		{
+			"actor_id": "kurt",
+			"entity_id": "demo_campaign_character_1767742555",
+			"entity_type": "character",
+			"facing": "down",
+			"position": [
+				0.0,
+				0.0
+			]
+		}
+	],
+	"can_skip": true,
+	"cinematic_id": "meet_kurt",
+	"cinematic_name": "Meet Kurt",
+	"commands": [
+		{
+			"params": {
+				"facing": "",
+				"position": [
+					4.0,
+					8.0
+				]
+			},
+			"target": "kurt",
+			"type": "set_position"
+		},
+		{
+			"params": {
+				"auto_follow": true,
+				"character_id": "6djr4fap",
+				"emotion": "neutral",
+				"text": "Wait!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						4.0,
+						16.0
+					]
+				],
+				"position": [
+					4.0,
+					8.0
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "kurt",
+			"type": "move_entity"
+		},
+		{
+			"params": {
+				"auto_follow": true,
+				"character_id": "6djr4fap",
+				"emotion": "neutral",
+				"position": [
+					4.0,
+					8.0
+				],
+				"text": "Hey, {player_name}. I'm Kurt.  "
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"character_id": "6djr4fap",
+				"custom_message": "",
+				"recruitment_chapter": "",
+				"show_message": true,
+				"to_active": true
+			},
+			"type": "add_party_member"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}
