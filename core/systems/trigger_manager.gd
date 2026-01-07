@@ -23,10 +23,6 @@ signal door_transition_started(from_map: String, to_map: String)
 ## Emitted when a door transition completes and spawn point is resolved
 signal door_transition_completed(spawn_point_id: String)
 
-## Emitted when a door with completes_campaign_node: true is used
-## CampaignManager listens to this for explicit opt-in campaign node completion
-signal campaign_node_completion_requested
-
 ## Preload TransitionContext for door transitions
 const TransitionContext = preload("res://core/resources/transition_context.gd")
 
@@ -221,10 +217,6 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 
 	GameState.set_transition_context(context)
 
-	# Notify CampaignManager so it can track this battle for flag setting
-	if CampaignManager:
-		CampaignManager.notify_battle_started(battle_id)
-
 	# Transition to battle scene (will load the battle_loader scene)
 	# We need to pass the battle_data to the battle scene somehow
 	# For now, store it in GameState temporarily
@@ -258,9 +250,23 @@ func start_battle(battle_id: String) -> void:
 		push_error("  Available battles: %s" % available)
 		return
 
-	# Notify CampaignManager so it can track this battle for flag setting
-	if CampaignManager:
-		CampaignManager.notify_battle_started(battle_id)
+	# Create transition context so BattleManager knows where to return
+	var current_scene: Node = get_tree().current_scene
+	if current_scene:
+		var context: TransitionContext = TransitionContext.new()
+		context.return_scene_path = current_scene.scene_file_path
+
+		# Try to find and capture hero position for proper return placement
+		var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
+		if heroes.size() > 0:
+			var hero: Node2D = heroes[0] as Node2D
+			if hero:
+				context.hero_world_position = hero.global_position
+				context.hero_grid_position = hero.get("grid_position") if hero.get("grid_position") != null else Vector2i.ZERO
+				if hero.get("facing_direction"):
+					context.hero_facing = hero.facing_direction
+
+		GameState.set_transition_context(context)
 
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
@@ -272,6 +278,24 @@ func start_battle_with_data(battle_data: BattleData) -> void:
 	if not battle_data:
 		push_error("TriggerManager: Cannot start battle with null data")
 		return
+
+	# Create transition context so BattleManager knows where to return
+	var current_scene: Node = get_tree().current_scene
+	if current_scene:
+		var context: TransitionContext = TransitionContext.new()
+		context.return_scene_path = current_scene.scene_file_path
+
+		# Try to find and capture hero position for proper return placement
+		var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
+		if heroes.size() > 0:
+			var hero: Node2D = heroes[0] as Node2D
+			if hero:
+				context.hero_world_position = hero.global_position
+				context.hero_grid_position = hero.get("grid_position") if hero.get("grid_position") != null else Vector2i.ZERO
+				if hero.get("facing_direction"):
+					context.hero_facing = hero.facing_direction
+
+		GameState.set_transition_context(context)
 
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
@@ -393,11 +417,6 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 
 	# Emit signal for any listeners (UI animations, etc.)
 	door_transition_started.emit(context.return_scene_path, destination_scene)
-
-	# Check if this door explicitly completes a campaign node
-	var completes_node: bool = trigger_data["completes_campaign_node"] if "completes_campaign_node" in trigger_data else false
-	if completes_node:
-		campaign_node_completion_requested.emit()
 
 	# Transition to new scene
 	match transition_type:

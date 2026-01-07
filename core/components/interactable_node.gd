@@ -212,7 +212,7 @@ func interact(player: Node2D) -> void:
 	# Emit signal before processing (request was approved)
 	interaction_started.emit(self, player)
 
-	# Set interaction context for CampaignManager
+	# Set interaction context for cinematics
 	CinematicsManager.set_interaction_context({"interactable_id": interactable_data.interactable_id})
 
 	# Get the cinematic to play

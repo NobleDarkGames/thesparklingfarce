@@ -6,4 +6,6 @@
 script = ExtResource("1_yhiuy")
 config_id = "demo_campaign_config"
 config_name = "Demo Campaign Config"
+starting_scene_path = "res://mods/demo_campaign/maps/mudford.tscn"
+starting_spawn_point = "default"
 starting_location_label = "Prologue, Dawg"

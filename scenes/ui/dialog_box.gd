@@ -32,6 +32,7 @@ func _ready() -> void:
 	# Connect to DialogManager signals
 	DialogManager.line_changed.connect(_on_line_changed)
 	DialogManager.dialog_ended.connect(_on_dialog_ended)
+	DialogManager.dialog_cancelled.connect(_on_dialog_cancelled)
 
 	# Start hidden with NO stale content
 	hide()
@@ -44,6 +45,8 @@ func _exit_tree() -> void:
 		DialogManager.line_changed.disconnect(_on_line_changed)
 	if DialogManager.dialog_ended.is_connected(_on_dialog_ended):
 		DialogManager.dialog_ended.disconnect(_on_dialog_ended)
+	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
+		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 
 	# Clear any stale text content to prevent flicker on first show
 	_clear_all_content()
@@ -256,6 +259,25 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 	blink_animation.stop()
 
 	# Reset state for next dialog
+	is_first_line = true
+	current_portrait = null
+
+
+## Called when dialog is cancelled (player backed out)
+func _on_dialog_cancelled() -> void:
+	# Cancel any existing fade
+	if fade_tween:
+		fade_tween.kill()
+		fade_tween = null
+
+	# Hide immediately (no fade for cancel - feels more responsive)
+	hide()
+	modulate.a = 0.0
+
+	# Clear content and reset state
+	_clear_all_content()
+	continue_indicator.hide()
+	blink_animation.stop()
 	is_first_line = true
 	current_portrait = null
 

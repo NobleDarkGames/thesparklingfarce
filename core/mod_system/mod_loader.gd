@@ -25,7 +25,6 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 	"cinematics": "cinematic",
 	"parties": "party",
 	"battles": "battle",
-	"campaigns": "campaign",
 	"maps": "map",  # MapMetadata resources for exploration maps
 	"terrain": "terrain",  # TerrainData resources for battle terrain effects
 	"experience_configs": "experience_config",  # ExperienceConfig resources for XP/leveling settings
@@ -41,11 +40,10 @@ const RESOURCE_TYPE_DIRS: Dictionary = {
 }
 
 # Resource types that support JSON loading (in addition to .tres)
-const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "campaign", "map"]
+const JSON_SUPPORTED_TYPES: Array[String] = ["cinematic", "map"]
 
 # Preload loaders for JSON resources
 const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
-const CampaignLoader = preload("res://core/systems/campaign_loader.gd")
 const MapMetadataLoader = preload("res://core/systems/map_metadata_loader.gd")
 
 # Preload resource classes needed before class_name is available
@@ -418,12 +416,12 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 
 	if not dir:
 		# Directory might not exist in this mod (that's okay)
-		# But log it for character/campaign type to debug export issues
-		if resource_type in ["character", "campaign"] and OS.is_debug_build():
+		# But log it for character type to debug export issues
+		if resource_type == "character" and OS.is_debug_build():
 			print("ModLoader: Could not open %s directory: %s (error: %s)" % [resource_type, directory, DirAccess.get_open_error()])
 		return 0
 
-	if resource_type in ["character", "campaign"] and OS.is_debug_build():
+	if resource_type == "character" and OS.is_debug_build():
 		print("ModLoader: Scanning %s directory: %s" % [resource_type, directory])
 
 	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
@@ -442,7 +440,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 			var resource: Resource = null
 			var resource_id: String = ""
 
-			if resource_type in ["character", "campaign"] and OS.is_debug_build():
+			if resource_type == "character" and OS.is_debug_build():
 				print("ModLoader: Found %s file: %s -> %s" % [resource_type, file_name, original_name])
 
 			if original_name.ends_with(".tres"):
@@ -451,7 +449,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 				resource_id = original_name.get_basename()
 
 			elif original_name.ends_with(".json") and supports_json:
-				# JSON resource (cinematics, campaigns, maps)
+				# JSON resource (cinematics, maps)
 				resource = _load_json_resource(full_path, resource_type)
 				resource_id = original_name.get_basename()
 				# Set resource_path so JSON-loaded resources can be identified like .tres resources
@@ -466,12 +464,10 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 				# Special handling for status effect resources - also register with status_effect_registry
 				if resource_type == "status_effect" and resource is StatusEffectData:
 					status_effect_registry.register_effect(resource, mod_id)
-				# Debug: Log character/campaign registrations
+				# Debug: Log character registrations
 				if resource_type == "character" and resource is CharacterData and OS.is_debug_build():
 					var char: CharacterData = resource
 					print("ModLoader: Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
-				if resource_type == "campaign" and OS.is_debug_build():
-					print("ModLoader: Registered campaign '%s'" % resource_id)
 				count += 1
 			elif not resource_id.is_empty():
 				push_warning("ModLoader: Failed to load resource: " + full_path)
@@ -489,8 +485,6 @@ func _load_json_resource(json_path: String, resource_type: String) -> Resource:
 	match resource_type:
 		"cinematic":
 			return CinematicLoader.load_from_json(json_path)
-		"campaign":
-			return CampaignLoader.load_from_json(json_path)
 		"map":
 			return MapMetadataLoader.load_from_json(json_path)
 		_:
@@ -1140,7 +1134,7 @@ func create_mod(mod_folder_name: String, mod_name: String, author: String = "", 
 
 	# Create standard subdirectories
 	var subdirs: Array[String] = ["data", "assets", "scenes", "tilesets", "triggers"]
-	var data_subdirs: Array[String] = ["characters", "classes", "items", "abilities", "battles", "parties", "dialogues", "cinematics", "maps", "campaigns", "terrain", "experience_configs"]
+	var data_subdirs: Array[String] = ["characters", "classes", "items", "abilities", "battles", "parties", "dialogues", "cinematics", "maps", "terrain", "experience_configs"]
 
 	for subdir: String in subdirs:
 		err = DirAccess.make_dir_absolute(mod_path.path_join(subdir))
@@ -1320,25 +1314,6 @@ func _find_default_party_members() -> Array[CharacterData]:
 			members.append(character)
 
 	return members
-
-
-# =============================================================================
-# Hidden Campaign Patterns (for Total Conversion Mods)
-# =============================================================================
-
-## Get all hidden campaign patterns from loaded mods
-## Returns patterns aggregated from all mods' hidden_campaigns arrays
-## Patterns support glob-style matching: "base_game:*" matches all campaigns with that prefix
-## Used by CampaignManager to filter campaigns from the selection UI
-func get_hidden_campaign_patterns() -> Array[String]:
-	var patterns: Array[String] = []
-
-	for manifest: ModManifest in loaded_mods:
-		for pattern: String in manifest.hidden_campaigns:
-			if pattern not in patterns:
-				patterns.append(pattern)
-
-	return patterns
 
 
 # =============================================================================

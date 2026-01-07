@@ -43,24 +43,37 @@ extends Resource
 @export var game_version: String = "0.1.0"
 
 # ============================================================================
-# CAMPAIGN PROGRESS
+# SCENE PROGRESS
 # ============================================================================
 
-## Current campaign ID (namespaced: "mod_id:campaign_id")
+## Current scene path (where to load when resuming)
+@export var current_scene_path: String = ""
+
+## Current spawn point ID within the scene (optional)
+@export var current_spawn_point: String = ""
+
+## Last safe location scene path (for Egress/defeat returns)
+@export var last_safe_location: String = ""
+
+## Current location name (for display in save menu)
+## Example: "Mudford", "Overworld", "Ancient Shrine"
+@export var current_location: String = "headquarters"
+
+# ============================================================================
+# LEGACY CAMPAIGN FIELDS (kept for backwards compatibility with old saves)
+# ============================================================================
+
+## @deprecated Use current_scene_path instead
 @export var current_campaign_id: String = ""
 
-## Current node ID within the campaign
+## @deprecated Use current_scene_path instead
 @export var current_node_id: String = ""
 
-## History of visited nodes (for back-tracking if needed)
+## @deprecated No longer used
 @export var campaign_node_history: Array[String] = []
 
-## Last hub node visited (for egress return)
+## @deprecated Use last_safe_location instead
 @export var last_hub_id: String = ""
-
-## Current campaign chapter/location (legacy, used for display)
-## Example: "chapter_1", "headquarters", "battle_5"
-@export var current_location: String = "headquarters"
 
 ## Story flags (quest completion, dialogue choices, etc.)
 ## Format: {"flag_name": bool}
@@ -130,12 +143,16 @@ func serialize_to_dict() -> Dictionary:
 		"slot_number": slot_number,
 		"active_mods": active_mods.duplicate(),
 		"game_version": game_version,
-		# Campaign progress
+		# Scene progress
+		"current_scene_path": current_scene_path,
+		"current_spawn_point": current_spawn_point,
+		"last_safe_location": last_safe_location,
+		"current_location": current_location,
+		# Legacy campaign fields (for backwards compatibility)
 		"current_campaign_id": current_campaign_id,
 		"current_node_id": current_node_id,
 		"campaign_node_history": campaign_node_history.duplicate(),
 		"last_hub_id": last_hub_id,
-		"current_location": current_location,
 		"story_flags": story_flags.duplicate(),
 		"completed_battles": completed_battles.duplicate(),
 		"available_battles": available_battles.duplicate(),
@@ -185,7 +202,13 @@ func deserialize_from_dict(data: Dictionary) -> void:
 					active_mods.append(mod_entry)
 	game_version = DictUtils.get_string(data, "game_version", "0.1.0")
 
-	# Campaign progress - with type safety
+	# Scene progress - with type safety
+	current_scene_path = DictUtils.get_string(data, "current_scene_path", "")
+	current_spawn_point = DictUtils.get_string(data, "current_spawn_point", "")
+	last_safe_location = DictUtils.get_string(data, "last_safe_location", "")
+	current_location = DictUtils.get_string(data, "current_location", "headquarters")
+
+	# Legacy campaign fields - for backwards compatibility with old saves
 	current_campaign_id = DictUtils.get_string(data, "current_campaign_id", "")
 	current_node_id = DictUtils.get_string(data, "current_node_id", "")
 	if "campaign_node_history" in data:
@@ -197,7 +220,6 @@ func deserialize_from_dict(data: Dictionary) -> void:
 				if node_entry is String:
 					campaign_node_history.append(node_entry)
 	last_hub_id = DictUtils.get_string(data, "last_hub_id", "")
-	current_location = DictUtils.get_string(data, "current_location", "headquarters")
 	if "story_flags" in data:
 		var flags_data: Variant = data.get("story_flags")
 		if flags_data is Dictionary:

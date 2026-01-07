@@ -189,30 +189,35 @@ func _start_new_game(hero_name: String) -> void:
 			var flag_value: bool = starting_flags[flag_name]
 			GameState.set_flag(flag_name, flag_value)
 
-		# Start the campaign
-		var campaign_id: String = config.starting_campaign_id
-		if campaign_id.is_empty():
-			# Get first available campaign
-			var campaigns: Array[CampaignData] = CampaignManager.get_available_campaigns()
-			if not campaigns.is_empty():
-				campaign_id = campaigns[0].campaign_id
+		# Get starting scene path
+		var scene_path: String = config.starting_scene_path
 
-		if not campaign_id.is_empty():
-			await CampaignManager.start_campaign(campaign_id)
+		if scene_path.is_empty():
+			push_warning("SaveSlotSelector: No starting_scene_path in config")
+			_show_no_scene_error()
+			return
+
+		# Store in save data
+		SaveManager.current_save.current_scene_path = scene_path
+		SaveManager.current_save.current_spawn_point = config.starting_spawn_point
+
+		# Play intro cinematic if specified, then load scene
+		if not config.intro_cinematic_id.is_empty():
+			CinematicsManager.cinematic_ended.connect(_on_intro_cinematic_ended.bind(scene_path), CONNECT_ONE_SHOT)
+			CinematicsManager.play_cinematic(config.intro_cinematic_id)
 		else:
-			push_warning("SaveSlotSelector: No campaign found")
-			_show_no_campaign_error()
+			# Load starting scene directly
+			SceneManager.change_scene(scene_path)
 	else:
-		push_warning("SaveSlotSelector: No new game config found, using defaults")
-		# Just start with whatever campaign is available
-		var campaigns: Array[CampaignData] = CampaignManager.get_available_campaigns()
-		if not campaigns.is_empty():
-			await CampaignManager.start_campaign(campaigns[0].campaign_id)
-		else:
-			_show_no_campaign_error()
+		push_warning("SaveSlotSelector: No new game config found")
+		_show_no_scene_error()
 
 
-func _show_no_campaign_error() -> void:
+func _on_intro_cinematic_ended(_cinematic_id: String, scene_path: String) -> void:
+	SceneManager.change_scene(scene_path)
+
+
+func _show_no_scene_error() -> void:
 	# Hide current UI
 	for child: Node in get_children():
 		if child is Control:
@@ -232,7 +237,7 @@ func _show_no_campaign_error() -> void:
 			CinematicsManager.cinematic_ended.connect(_on_error_cinematic_ended, CONNECT_ONE_SHOT)
 		CinematicsManager.play_cinematic_from_resource(error_cinematic)
 	else:
-		push_error("SaveSlotSelector: Failed to load no_campaign_error cinematic")
+		push_error("SaveSlotSelector: Failed to load error cinematic")
 		SceneManager.goto_main_menu()
 
 
@@ -252,26 +257,24 @@ func _load_game() -> void:
 	# Set as current save
 	SaveManager.current_save = save_data
 
-	# Restore gold to GameState
-	# Note: PartyManager import handles party restoration
-
 	# Restore story flags
 	var saved_flags: Dictionary = save_data.story_flags
 	for flag_name: String in saved_flags:
 		var flag_value: bool = saved_flags[flag_name]
 		GameState.set_flag(flag_name, flag_value)
 
+	# Restore last safe location
+	if not save_data.last_safe_location.is_empty():
+		GameState.set_last_safe_location(save_data.last_safe_location)
+
 	# Restore party from save
 	PartyManager.import_from_save(save_data.party_members)
 
-	# Resume campaign
-	if not save_data.current_campaign_id.is_empty():
-		CampaignManager.resume_campaign(
-			save_data.current_campaign_id,
-			save_data.current_node_id
-		)
+	# Load saved scene
+	if not save_data.current_scene_path.is_empty():
+		SceneManager.change_scene(save_data.current_scene_path)
 	else:
-		push_warning("SaveSlotSelector: No campaign in save, returning to main menu")
+		push_warning("SaveSlotSelector: No scene path in save, returning to main menu")
 		SceneManager.goto_main_menu()
 
 

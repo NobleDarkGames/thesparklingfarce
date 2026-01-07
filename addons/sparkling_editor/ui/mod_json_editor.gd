@@ -67,14 +67,6 @@ var replaces_lower_priority_check: CheckBox
 var total_conversion_section: VBoxContainer
 var total_conversion_check: CheckBox
 
-# Hidden Campaigns section
-var hidden_campaigns_section: VBoxContainer
-var hidden_campaigns_list: ItemList
-var hidden_campaign_input: LineEdit
-var add_hidden_campaign_button: Button
-var remove_hidden_campaign_button: Button
-var campaign_suggestions_dropdown: OptionButton
-
 # Scene Overrides section
 var scene_overrides_container: VBoxContainer
 var scene_overrides_list: ItemList
@@ -183,7 +175,6 @@ func _setup_ui() -> void:
 	_create_basic_info_section()
 	_create_load_priority_section()
 	_create_total_conversion_section()
-	_create_hidden_campaigns_section()
 	_create_dependencies_section()
 	_create_custom_types_section()
 	_create_equipment_slots_section()
@@ -316,8 +307,7 @@ func _create_total_conversion_section() -> void:
 	total_conversion_check.text = "Enable Total Conversion Mode"
 	total_conversion_check.tooltip_text = "When enabled, this mod completely replaces the base game.\n" + \
 		"- Sets load_priority to 9000 (overrides all other mods)\n" + \
-		"- Enables 'replaces_default_party' (uses your party instead of base game)\n" + \
-		"- Adds hidden_campaigns pattern to hide base game campaigns"
+		"- Enables 'replaces_default_party' (uses your party instead of base game)"
 	total_conversion_check.toggled.connect(_on_total_conversion_toggled)
 	total_conversion_section.add_child(total_conversion_check)
 
@@ -330,69 +320,6 @@ func _create_total_conversion_section() -> void:
 	total_conversion_section.add_child(help_text)
 
 	detail_panel.add_child(total_conversion_section)
-	_add_separator()
-
-
-func _create_hidden_campaigns_section() -> void:
-	hidden_campaigns_section = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Hidden Campaigns"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	hidden_campaigns_section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Hide campaigns from lower-priority mods (supports wildcards: * matches any).\n" + \
-		"Example: '_base_game:*' hides all base game campaigns"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 12)
-	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hidden_campaigns_section.add_child(help_text)
-
-	hidden_campaigns_list = ItemList.new()
-	hidden_campaigns_list.custom_minimum_size = Vector2(0, 80)
-	hidden_campaigns_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hidden_campaigns_section.add_child(hidden_campaigns_list)
-
-	# Input row with campaign suggestions
-	var input_row: HBoxContainer = HBoxContainer.new()
-
-	hidden_campaign_input = LineEdit.new()
-	hidden_campaign_input.placeholder_text = "Pattern (e.g., _base_game:* or mod_id:campaign_id)"
-	hidden_campaign_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	input_row.add_child(hidden_campaign_input)
-
-	# Dropdown for known campaigns
-	campaign_suggestions_dropdown = OptionButton.new()
-	campaign_suggestions_dropdown.custom_minimum_size = Vector2(150, 0)
-	campaign_suggestions_dropdown.tooltip_text = "Select a known campaign to hide"
-	campaign_suggestions_dropdown.item_selected.connect(_on_campaign_suggestion_selected)
-	input_row.add_child(campaign_suggestions_dropdown)
-
-	hidden_campaigns_section.add_child(input_row)
-
-	# Button row
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_hidden_campaign_button = Button.new()
-	add_hidden_campaign_button.text = "Add Pattern"
-	add_hidden_campaign_button.pressed.connect(_on_add_hidden_campaign)
-	button_row.add_child(add_hidden_campaign_button)
-
-	remove_hidden_campaign_button = Button.new()
-	remove_hidden_campaign_button.text = "Remove Selected"
-	remove_hidden_campaign_button.pressed.connect(_on_remove_hidden_campaign)
-	button_row.add_child(remove_hidden_campaign_button)
-
-	var hide_all_base_button: Button = Button.new()
-	hide_all_base_button.text = "Hide All Base Game"
-	hide_all_base_button.tooltip_text = "Add pattern to hide all base game campaigns"
-	hide_all_base_button.pressed.connect(_on_hide_all_base_campaigns)
-	button_row.add_child(hide_all_base_button)
-
-	hidden_campaigns_section.add_child(button_row)
-
-	detail_panel.add_child(hidden_campaigns_section)
 	_add_separator()
 
 
@@ -932,15 +859,6 @@ func _populate_ui_from_data() -> void:
 	var is_total_conversion: bool = priority_spin.value >= 9000
 	total_conversion_check.set_pressed_no_signal(is_total_conversion)
 
-	# Hidden campaigns
-	hidden_campaigns_list.clear()
-	var hidden_campaigns: Array = current_mod_data.get("hidden_campaigns", [])
-	for pattern: String in hidden_campaigns:
-		hidden_campaigns_list.add_item(pattern)
-
-	# Refresh campaign suggestions dropdown
-	_refresh_campaign_suggestions()
-
 	# Dependencies
 	dependencies_list.clear()
 	var deps: Array = current_mod_data.get("dependencies", [])
@@ -1023,15 +941,6 @@ func _collect_data_from_ui() -> void:
 
 	# Load priority
 	current_mod_data["load_priority"] = int(priority_spin.value)
-
-	# Hidden campaigns
-	var hidden_campaigns: Array = []
-	for i: int in range(hidden_campaigns_list.item_count):
-		hidden_campaigns.append(hidden_campaigns_list.get_item_text(i))
-	if hidden_campaigns.size() > 0:
-		current_mod_data["hidden_campaigns"] = hidden_campaigns
-	elif "hidden_campaigns" in current_mod_data:
-		current_mod_data.erase("hidden_campaigns")
 
 	# Dependencies
 	var deps: Array = []
@@ -1549,73 +1458,11 @@ func _on_total_conversion_toggled(pressed: bool) -> void:
 		# Enable replaces_lower_priority
 		replaces_lower_priority_check.button_pressed = true
 
-		# Add base game hidden campaigns pattern if not already present
-		var has_base_pattern: bool = false
-		for i: int in range(hidden_campaigns_list.item_count):
-			if hidden_campaigns_list.get_item_text(i) == "_base_game:*":
-				has_base_pattern = true
-				break
-
-		if not has_base_pattern:
-			hidden_campaigns_list.add_item("_base_game:*")
-
 		is_dirty = true
 	else:
 		# Reset to user mod priority
 		if priority_spin.value >= 9000:
 			priority_spin.value = 100
-
-
-# =============================================================================
-# Hidden Campaigns Handlers
-# =============================================================================
-
-## Add a hidden campaign pattern
-func _on_add_hidden_campaign() -> void:
-	var pattern: String = hidden_campaign_input.text.strip_edges()
-	if pattern.is_empty():
-		return
-
-	# Check for duplicates
-	for i: int in range(hidden_campaigns_list.item_count):
-		if hidden_campaigns_list.get_item_text(i) == pattern:
-			return
-
-	hidden_campaigns_list.add_item(pattern)
-	hidden_campaign_input.text = ""
-	is_dirty = true
-
-
-## Remove selected hidden campaign pattern
-func _on_remove_hidden_campaign() -> void:
-	var selected: PackedInt32Array = hidden_campaigns_list.get_selected_items()
-	if selected.size() > 0:
-		hidden_campaigns_list.remove_item(selected[0])
-		is_dirty = true
-
-
-## Add pattern to hide all base game campaigns
-func _on_hide_all_base_campaigns() -> void:
-	# Check if already present
-	for i: int in range(hidden_campaigns_list.item_count):
-		if hidden_campaigns_list.get_item_text(i) == "_base_game:*":
-			return
-
-	hidden_campaigns_list.add_item("_base_game:*")
-	is_dirty = true
-
-
-## Called when a campaign suggestion is selected from dropdown
-func _on_campaign_suggestion_selected(index: int) -> void:
-	if index <= 0:  # Skip the placeholder
-		return
-
-	var campaign_id: Variant = campaign_suggestions_dropdown.get_item_metadata(index)
-	if campaign_id is String:
-		hidden_campaign_input.text = campaign_id as String
-
-	# Reset dropdown to placeholder
-	campaign_suggestions_dropdown.select(0)
 
 
 # =============================================================================
@@ -1632,49 +1479,3 @@ func _mark_dirty() -> void:
 	is_dirty = true
 
 
-## Refresh the campaign suggestions dropdown with known campaigns
-func _refresh_campaign_suggestions() -> void:
-	campaign_suggestions_dropdown.clear()
-	campaign_suggestions_dropdown.add_item("-- Select Campaign --")
-
-	if not ModLoader:
-		return
-
-	# Add wildcard options first
-	campaign_suggestions_dropdown.add_item("_base_game:* (all base game)")
-	campaign_suggestions_dropdown.set_item_metadata(campaign_suggestions_dropdown.item_count - 1, "_base_game:*")
-
-	# Get all campaigns from ModLoader
-	var campaigns: Array[Resource] = ModLoader.registry.get_all_resources("campaign")
-
-	# Group campaigns by mod
-	var campaigns_by_mod: Dictionary = {}
-	for campaign: CampaignData in campaigns:
-		if not campaign:
-			continue
-		var campaign_path: String = campaign.resource_path
-		if campaign_path.is_empty():
-			continue
-		# Extract mod ID from path (res://mods/<mod_id>/data/campaigns/<filename>.json)
-		var parts: PackedStringArray = campaign_path.split("/")
-		if parts.size() >= 4:
-			var mod_id: String = parts[3]
-			if mod_id not in campaigns_by_mod:
-				campaigns_by_mod[mod_id] = []
-			# Get campaign ID from filename
-			var filename: String = campaign_path.get_file().get_basename()
-			campaigns_by_mod[mod_id].append(filename)
-
-	# Add individual campaigns
-	for mod_id: String in campaigns_by_mod.keys():
-		# Add wildcard for this mod
-		if mod_id != id_edit.text:  # Don't suggest hiding own campaigns
-			var mod_wildcard: String = "%s:*" % mod_id
-			campaign_suggestions_dropdown.add_item("%s (all from %s)" % [mod_wildcard, mod_id])
-			campaign_suggestions_dropdown.set_item_metadata(campaign_suggestions_dropdown.item_count - 1, mod_wildcard)
-
-			# Add individual campaigns
-			for campaign_name: String in campaigns_by_mod[mod_id]:
-				var full_id: String = "%s:%s" % [mod_id, campaign_name]
-				campaign_suggestions_dropdown.add_item(full_id)
-				campaign_suggestions_dropdown.set_item_metadata(campaign_suggestions_dropdown.item_count - 1, full_id)

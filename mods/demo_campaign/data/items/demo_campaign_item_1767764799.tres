@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3 uid="uid://ddt5ss03gooiu"]
+
+[ext_resource type="Texture2D" uid="uid://bybkmqeq14cl5" path="res://mods/demo_campaign/assets/icons/items/SwordOfKurt.png" id="1_mu0oa"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_wfoab"]
+
+[resource]
+script = ExtResource("1_wfoab")
+item_name = "Copper Sword"
+icon = ExtResource("1_mu0oa")
+equipment_type = "sword"
+attack_power = 2
+buy_price = 100
+sell_price = 50

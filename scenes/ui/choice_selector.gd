@@ -19,6 +19,7 @@ func _ready() -> void:
 	# Connect to DialogManager signals
 	DialogManager.choices_ready.connect(_on_choices_ready)
 	DialogManager.dialog_ended.connect(_on_dialog_ended)
+	DialogManager.dialog_cancelled.connect(_on_dialog_cancelled)
 
 	# Start hidden
 	hide()
@@ -33,6 +34,8 @@ func _exit_tree() -> void:
 		DialogManager.choices_ready.disconnect(_on_choices_ready)
 	if DialogManager.dialog_ended.is_connected(_on_dialog_ended):
 		DialogManager.dialog_ended.disconnect(_on_dialog_ended)
+	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
+		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 
 
 func _input(event: InputEvent) -> void:
@@ -93,7 +96,13 @@ func _on_choices_ready(choices: Array[Dictionary]) -> void:
 ## Called when dialog ends
 ## Only hide if choices are currently active - don't hide on dialog_ended if choices
 ## haven't been shown yet (e.g., campaign choices come AFTER dialog ends)
-func _on_dialog_ended(dialogue_data: DialogueData) -> void:
+func _on_dialog_ended(_dialogue_data: DialogueData) -> void:
+	if is_active:
+		_hide_with_animation()
+
+
+## Called when dialog is cancelled (player backed out)
+func _on_dialog_cancelled() -> void:
 	if is_active:
 		_hide_with_animation()
 

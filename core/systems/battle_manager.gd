@@ -1547,19 +1547,26 @@ func _on_battle_ended(victory: bool) -> void:
 	if not TurnManager.is_headless:
 		await _show_victory_screen()
 
+	# Check if external code is handling post-battle transition
+	var external_handles_transition: bool = GameState.external_battle_handler
+
 	# Emit battle_ended AFTER victory screen is dismissed
 	battle_ended.emit(true)
 
-	# Return to map after battle (if we came from a map trigger)
-	var context: TransitionContext = GameState.get_transition_context()
-	if context and context.is_valid():
-		context.battle_outcome = TransitionContext.BattleOutcome.VICTORY
+	# Reset external handler flag
+	GameState.external_battle_handler = false
 
-		# Store completed battle ID for one-shot tracking
-		if current_battle_data and current_battle_data.get("battle_id"):
-			context.completed_battle_id = current_battle_data.battle_id
+	# Return to map after battle ONLY if external code is NOT handling it
+	if not external_handles_transition:
+		var context: TransitionContext = GameState.get_transition_context()
+		if context and context.is_valid():
+			context.battle_outcome = TransitionContext.BattleOutcome.VICTORY
 
-		TriggerManager.return_to_map()
+			# Store completed battle ID for one-shot tracking
+			if current_battle_data and current_battle_data.get("battle_id"):
+				context.completed_battle_id = current_battle_data.battle_id
+
+			TriggerManager.return_to_map()
 
 
 ## Show victory screen and wait for player to dismiss
@@ -1825,20 +1832,20 @@ func _execute_battle_exit(initiator: Unit, reason: BattleExitReason) -> void:
 	if not TurnManager.is_headless and reason != BattleExitReason.HERO_DEATH:
 		await _show_exit_message(reason)
 
-	# 5. Check if CampaignManager is managing this battle
-	# If so, let it handle the scene transition via its on_defeat/on_victory branches
-	var campaign_handles_transition: bool = CampaignManager and CampaignManager.is_managing_campaign_battle()
+	# 5. Check if external code (e.g., trigger_battle command) is handling post-battle transition
+	var external_handles_transition: bool = GameState.external_battle_handler
 
 	# 6. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
-	# CampaignManager listens to this and will handle the transition if it's a campaign battle
+	# External handlers (like trigger_battle) listen to this and handle transitions
 	battle_ended.emit(false)
 
-	# 7. Clean up battle state
+	# 7. Clean up battle state and reset external handler flag
 	end_battle()
+	GameState.external_battle_handler = false
 
-	# 8. Transition to safe location ONLY if CampaignManager is NOT handling it
-	# For campaign battles, CampaignManager uses on_defeat target from campaign config
-	if not campaign_handles_transition:
+	# 8. Transition to safe location ONLY if external code is NOT handling it
+	# For trigger_battle cinematics, they handle the on_defeat transition
+	if not external_handles_transition:
 		await SceneManager.change_scene(return_path)
 
 

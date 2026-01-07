@@ -535,14 +535,6 @@ func get_map(map_id: String) -> MapMetadata:
 	return null
 
 
-## Get a campaign by ID (type-safe)
-func get_campaign(campaign_id: String) -> CampaignData:
-	var resource: Resource = get_resource("campaign", campaign_id)
-	if resource is CampaignData:
-		return resource
-	return null
-
-
 ## Get a new game config by ID (type-safe)
 func get_new_game_config(config_id: String) -> NewGameConfigData:
 	var resource: Resource = get_resource("new_game_config", config_id)

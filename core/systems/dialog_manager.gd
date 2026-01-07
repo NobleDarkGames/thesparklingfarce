@@ -170,23 +170,23 @@ func _show_choices() -> void:
 
 
 ## Player selected a choice
-## Handles both dialogue choices (from current_dialogue) and external choices (from CampaignManager)
+## Handles both dialogue choices (from current_dialogue) and external choices (from cinematics)
 func select_choice(choice_index: int) -> void:
 	if current_state != State.WAITING_FOR_CHOICE:
 		push_warning("DialogManager: Cannot select choice - not waiting for choice")
 		return
 
-	# Check if this is an external choice (from CampaignManager, etc.)
+	# Check if this is an external choice (from cinematics, etc.)
 	if not _external_choices.is_empty():
 		if choice_index < 0 or choice_index >= _external_choices.size():
 			push_error("DialogManager: Invalid external choice index %d" % choice_index)
 			return
 
-		# Emit signal - listeners (CampaignManager) will call get_external_choice_value()
+		# Emit signal - listeners will call get_external_choice_value()
 		# and clear_external_choices() after retrieving the value
 		choice_selected.emit(choice_index, null)
 
-		# Reset state (but don't clear _external_choices - CampaignManager needs them)
+		# Reset state (but don't clear _external_choices - caller needs them)
 		current_state = State.IDLE
 		return
 
@@ -277,7 +277,7 @@ func cancel_dialog() -> void:
 ## Pending external choices (stored so we can map index back to value)
 var _external_choices: Array[Dictionary] = []
 
-## Show choices from an external source (e.g., CampaignManager)
+## Show choices from an external source (e.g., cinematics)
 ## Choices should have: value, label, description (optional)
 ## Returns true if choices were shown
 func show_choices(choices: Array[Dictionary]) -> bool:

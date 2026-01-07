@@ -1,7 +1,7 @@
 {
-  "cinematic_id": "no_campaign_error",
-  "cinematic_name": "No Campaign Found",
-  "description": "Core fallback cinematic shown when no campaign is available to start a new game.",
+  "cinematic_id": "no_starting_scene_error",
+  "cinematic_name": "No Starting Scene",
+  "description": "Core fallback cinematic shown when no starting scene is configured.",
   "can_skip": true,
   "disable_player_input": true,
 
@@ -23,7 +23,7 @@
       "type": "dialog_line",
       "params": {
         "speaker_name": "System",
-        "text": "No campaign found! A campaign is required to start a new game.",
+        "text": "No starting scene configured! A starting scene is required to start a new game.",
         "emotion": "neutral"
       }
     },
@@ -31,7 +31,7 @@
       "type": "dialog_line",
       "params": {
         "speaker_name": "System",
-        "text": "To create a campaign, use the Campaign Editor in the Sparkling Editor dock.",
+        "text": "To configure your mod, create a NewGameConfig resource in the Sparkling Editor.",
         "emotion": "neutral"
       }
     },
@@ -39,7 +39,7 @@
       "type": "dialog_line",
       "params": {
         "speaker_name": "System",
-        "text": "Save it to your mod's data/campaigns/ folder, then reload the game.",
+        "text": "Set the 'Starting Scene Path' to your mod's first map scene.",
         "emotion": "neutral"
       }
     },

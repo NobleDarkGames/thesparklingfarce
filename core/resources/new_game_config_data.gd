@@ -33,12 +33,26 @@ extends Resource
 @export var is_default: bool = true
 
 # ============================================================================
-# CAMPAIGN SELECTION
+# STARTING SCENE
 # ============================================================================
 
+## Scene path to load when starting a new game
+## Example: "res://mods/demo_campaign/scenes/mudford.tscn"
+@export_file("*.tscn") var starting_scene_path: String = ""
+
+## Optional spawn point ID within the starting scene
+@export var starting_spawn_point: String = ""
+
+## Optional cinematic ID to play before loading the starting scene
+## Use for intro cutscenes, story setup, etc.
+@export var intro_cinematic_id: String = ""
+
+# ============================================================================
+# LEGACY CAMPAIGN (deprecated)
+# ============================================================================
+
+## @deprecated Use starting_scene_path instead
 ## Campaign ID to start (can be namespaced: "mod_id:campaign_id")
-## If empty, uses the campaign from the highest-priority mod that provides one.
-## This means total conversion mods (priority 9000+) automatically take precedence.
 @export var starting_campaign_id: String = ""
 
 # ============================================================================
@@ -118,12 +132,6 @@ func validate() -> bool:
 			if not ModLoader.registry.has_resource("party", starting_party_id):
 				push_warning("NewGameConfigData '%s': Party '%s' not found" % [config_id, starting_party_id])
 
-	# Warn about potentially missing campaign (non-fatal)
-	if not starting_campaign_id.is_empty():
-		if ModLoader and ModLoader.registry:
-			if not ModLoader.registry.has_resource("campaign", starting_campaign_id):
-				push_warning("NewGameConfigData '%s': Campaign '%s' not found" % [config_id, starting_campaign_id])
-
 	return is_valid
 
 
@@ -133,7 +141,7 @@ func get_debug_summary() -> String:
 	summary += "  Gold: %d\n" % starting_gold
 	summary += "  Depot Items: %d\n" % starting_depot_items.size()
 	summary += "  Story Flags: %d\n" % starting_story_flags.size()
-	summary += "  Campaign: %s\n" % (starting_campaign_id if not starting_campaign_id.is_empty() else "(first available)")
+	summary += "  Starting Scene: %s\n" % (starting_scene_path if not starting_scene_path.is_empty() else "(none)")
 	summary += "  Party: %s\n" % (starting_party_id if not starting_party_id.is_empty() else "(default resolution)")
 	summary += "  Caravan: %s\n" % ("unlocked" if caravan_unlocked else "locked")
 	return summary

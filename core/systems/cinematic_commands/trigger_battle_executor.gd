@@ -73,6 +73,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	# Set manager state to waiting (cinematic pauses during battle)
 	manager.current_state = manager.State.WAITING_FOR_COMMAND
 
+	# Tell BattleManager that we'll handle post-battle transitions
+	GameState.external_battle_handler = true
+
 	# Start the battle - this will transition to battle scene
 	# The cinematic will resume when battle_ended fires
 	TriggerManager.start_battle(battle_id)
@@ -99,10 +102,13 @@ func _on_battle_ended(victory: bool) -> void:
 	# Complete this command first
 	_complete()
 
-	# Play follow-up cinematic if specified
+	# Play follow-up cinematic if specified, otherwise return to map
 	if not follow_up_cinematic.is_empty():
 		# Defer to next frame to ensure clean state after battle cleanup
 		_manager.call_deferred("play_cinematic", follow_up_cinematic)
+	else:
+		# No follow-up cinematic - return to the map we came from
+		TriggerManager.call_deferred("return_to_map")
 
 
 func _complete() -> void:

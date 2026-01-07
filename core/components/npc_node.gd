@@ -335,12 +335,11 @@ func interact(player: Node2D) -> void:
 	# Get the appropriate cinematic based on game state
 	var cinematic_id: String = npc_data.get_cinematic_id_for_state()
 
-	# Set interaction context so other systems (CampaignManager, etc.) can identify this NPC
+	# Set interaction context so other systems can identify this NPC
 	CinematicsManager.set_interaction_context({"npc_id": npc_data.npc_id})
 
 	if cinematic_id.is_empty():
-		# No cinematic, but still notify campaign system of interaction
-		# Emit cinematic_ended so CampaignManager can process npc_interaction completion
+		# No cinematic - emit signal and clean up
 		CinematicsManager.cinematic_ended.emit("")
 		CinematicsManager.clear_interaction_context()
 		interaction_ended.emit(self)

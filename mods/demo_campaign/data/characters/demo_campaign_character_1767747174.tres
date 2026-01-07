@@ -8,46 +8,46 @@
 [ext_resource type="Texture2D" uid="uid://bngbcdqnpfivi" path="res://mods/demo_campaign/assets/sprites/map/archer_spritesheet.png" id="4_by0vw"]
 [ext_resource type="Resource" path="res://mods/demo_campaign/data/combat_animations/badguy_combat_anim.tres" id="5_combat"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_ow88t"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_5xqqv"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(0, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_oavgw"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_ow88t"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(32, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_ewk22"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_oavgw"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(0, 32, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_5d878"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_ewk22"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(32, 32, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_fexbm"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_5d878"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(0, 64, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_uuoye"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_fexbm"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(32, 64, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_xgqb1"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_uuoye"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(0, 96, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_v2xln"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_xgqb1"]
 atlas = ExtResource("4_by0vw")
 region = Rect2(32, 96, 32, 32)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_wcv5u"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_t15sv"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_ow88t")
+"texture": SubResource("AtlasTexture_5xqqv")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_oavgw")
+"texture": SubResource("AtlasTexture_ow88t")
 }],
 "loop": true,
 "name": &"walk_down",
@@ -55,10 +55,10 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_ewk22")
+"texture": SubResource("AtlasTexture_oavgw")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_5d878")
+"texture": SubResource("AtlasTexture_ewk22")
 }],
 "loop": true,
 "name": &"walk_left",
@@ -66,10 +66,10 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_fexbm")
+"texture": SubResource("AtlasTexture_5d878")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_uuoye")
+"texture": SubResource("AtlasTexture_fexbm")
 }],
 "loop": true,
 "name": &"walk_right",
@@ -77,10 +77,10 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_xgqb1")
+"texture": SubResource("AtlasTexture_uuoye")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_v2xln")
+"texture": SubResource("AtlasTexture_xgqb1")
 }],
 "loop": true,
 "name": &"walk_up",
@@ -92,9 +92,13 @@ script = ExtResource("1_ld0t0")
 character_uid = "4wgr822s"
 character_name = "Big Rat"
 character_class = ExtResource("1_ypq2g")
-base_hp = 20
-base_mp = 10
-sprite_frames = SubResource("SpriteFrames_wcv5u")
+base_mp = 1
+base_strength = 3
+base_defense = 3
+base_agility = 3
+base_intelligence = 3
+base_luck = 3
+sprite_frames = SubResource("SpriteFrames_t15sv")
 combat_animation_data = ExtResource("5_combat")
 unit_category = "enemy"
 is_unique = false

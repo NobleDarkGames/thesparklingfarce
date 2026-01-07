@@ -15,10 +15,12 @@ var description_edit: TextEdit
 var is_default_check: CheckBox
 
 # =============================================================================
-# CAMPAIGN SELECTION
+# STARTING SCENE
 # =============================================================================
 
-var campaign_option: OptionButton
+var starting_scene_edit: LineEdit
+var starting_spawn_edit: LineEdit
+var intro_cinematic_edit: LineEdit
 var location_label_edit: LineEdit
 
 # =============================================================================
@@ -59,7 +61,6 @@ var story_flags_list: Array[Dictionary] = []  # Track flag UI elements
 # CACHED DATA
 # =============================================================================
 
-var available_campaigns: Array[Resource] = []
 var available_parties: Array[Resource] = []
 var available_items: Array[Resource] = []
 
@@ -85,7 +86,7 @@ func _ready() -> void:
 	resource_type_name = "New Game Config"
 	resource_type_id = "new_game_config"
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
-	resource_dependencies = ["campaign", "party", "item"]
+	resource_dependencies = ["party", "item"]
 	super._ready()
 	_load_available_resources()
 	_load_active_default_info()
@@ -94,8 +95,6 @@ func _ready() -> void:
 ## Override: Called when dependent resource types change (via base class)
 func _on_dependencies_changed(changed_type: String) -> void:
 	match changed_type:
-		"campaign":
-			_load_available_campaigns()
 		"party":
 			_load_available_parties()
 			_update_preview_panel()
@@ -118,8 +117,8 @@ func _create_detail_form() -> void:
 	# Section 1: Identity
 	_add_identity_section()
 
-	# Section 2: Campaign Selection
-	_add_campaign_section()
+	# Section 2: Starting Scene
+	_add_starting_scene_section()
 
 	# Section 3: Economy
 	_add_economy_section()
@@ -152,8 +151,10 @@ func _load_resource_data() -> void:
 	description_edit.text = config.config_description
 	is_default_check.button_pressed = config.is_default
 
-	# Campaign
-	_select_campaign(config.starting_campaign_id)
+	# Starting Scene
+	starting_scene_edit.text = config.starting_scene_path
+	starting_spawn_edit.text = config.starting_spawn_point
+	intro_cinematic_edit.text = config.intro_cinematic_id
 	location_label_edit.text = config.starting_location_label
 
 	# Economy
@@ -189,8 +190,10 @@ func _save_resource_data() -> void:
 	config.config_description = description_edit.text
 	config.is_default = is_default_check.button_pressed
 
-	# Campaign
-	config.starting_campaign_id = _get_selected_campaign_id()
+	# Starting Scene
+	config.starting_scene_path = starting_scene_edit.text.strip_edges()
+	config.starting_spawn_point = starting_spawn_edit.text.strip_edges()
+	config.intro_cinematic_id = intro_cinematic_edit.text.strip_edges()
 	config.starting_location_label = location_label_edit.text.strip_edges()
 
 	# Economy
@@ -262,7 +265,9 @@ func _create_new_resource() -> Resource:
 	config.config_name = "New Configuration"
 	config.config_description = ""
 	config.is_default = false
-	config.starting_campaign_id = ""
+	config.starting_scene_path = ""
+	config.starting_spawn_point = ""
+	config.intro_cinematic_id = ""
 	config.starting_location_label = "Prologue"
 	config.starting_gold = 0
 	config.starting_depot_items = []
@@ -300,11 +305,6 @@ func _get_resource_display_name(resource: Resource) -> String:
 func _has_broken_references_quick(config: NewGameConfigData) -> bool:
 	if not ModLoader or not ModLoader.registry:
 		return false
-
-	# Check campaign reference
-	if not config.starting_campaign_id.is_empty():
-		if not ModLoader.registry.has_resource("campaign", config.starting_campaign_id):
-			return true
 
 	# Check party reference
 	if not config.starting_party_id.is_empty():
@@ -396,26 +396,57 @@ func _add_identity_section() -> void:
 	_add_separator()
 
 
-## Section 2: Campaign Selection
-func _add_campaign_section() -> void:
+## Section 2: Starting Scene
+func _add_starting_scene_section() -> void:
 	var section_label: Label = Label.new()
-	section_label.text = "Campaign"
+	section_label.text = "Starting Scene"
 	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(section_label)
 
-	# Campaign selector
-	var campaign_container: HBoxContainer = HBoxContainer.new()
-	var campaign_label: Label = Label.new()
-	campaign_label.text = "Starting Campaign:"
-	campaign_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	campaign_label.tooltip_text = "Which campaign to start. Leave as 'Auto' to use the highest-priority mod's campaign."
-	campaign_container.add_child(campaign_label)
+	# Starting Scene Path
+	var scene_container: HBoxContainer = HBoxContainer.new()
+	var scene_label: Label = Label.new()
+	scene_label.text = "Scene Path:"
+	scene_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	scene_label.tooltip_text = "Path to the scene file to load when starting a new game"
+	scene_container.add_child(scene_label)
 
-	campaign_option = OptionButton.new()
-	campaign_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	campaign_option.item_selected.connect(_on_campaign_selected)
-	campaign_container.add_child(campaign_option)
-	detail_panel.add_child(campaign_container)
+	starting_scene_edit = LineEdit.new()
+	starting_scene_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	starting_scene_edit.placeholder_text = "res://mods/your_mod/scenes/starting_map.tscn"
+	starting_scene_edit.text_changed.connect(_on_field_changed)
+	scene_container.add_child(starting_scene_edit)
+	detail_panel.add_child(scene_container)
+
+	# Starting Spawn Point
+	var spawn_container: HBoxContainer = HBoxContainer.new()
+	var spawn_label: Label = Label.new()
+	spawn_label.text = "Spawn Point:"
+	spawn_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	spawn_label.tooltip_text = "Optional spawn point ID within the starting scene"
+	spawn_container.add_child(spawn_label)
+
+	starting_spawn_edit = LineEdit.new()
+	starting_spawn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	starting_spawn_edit.placeholder_text = "(optional)"
+	starting_spawn_edit.text_changed.connect(_on_field_changed)
+	spawn_container.add_child(starting_spawn_edit)
+	detail_panel.add_child(spawn_container)
+
+	# Intro Cinematic
+	var cinematic_container: HBoxContainer = HBoxContainer.new()
+	var cinematic_label: Label = Label.new()
+	cinematic_label.text = "Intro Cinematic:"
+	cinematic_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	cinematic_label.tooltip_text = "Optional cinematic ID to play before loading the starting scene"
+	cinematic_container.add_child(cinematic_label)
+
+	intro_cinematic_edit = LineEdit.new()
+	intro_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	intro_cinematic_edit.placeholder_text = "(optional)"
+	intro_cinematic_edit.text_changed.connect(_on_field_changed)
+	cinematic_container.add_child(intro_cinematic_edit)
+	detail_panel.add_child(cinematic_container)
 
 	# Location label
 	var location_container: HBoxContainer = HBoxContainer.new()
@@ -433,7 +464,7 @@ func _add_campaign_section() -> void:
 	detail_panel.add_child(location_container)
 
 	var help_label: Label = Label.new()
-	help_label.text = "Location label is cosmetic - shown in save slots. Actual location is determined by campaign."
+	help_label.text = "Location label is cosmetic - shown in save slots."
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -568,7 +599,7 @@ func _add_story_flags_section() -> void:
 	detail_panel.add_child(section_label)
 
 	var help_label: Label = Label.new()
-	help_label.text = "Story flags to set at game start. These supplement (and override) the campaign's initial_flags."
+	help_label.text = "Story flags to set at game start."
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -597,16 +628,8 @@ func _add_separator() -> void:
 # =============================================================================
 
 func _load_available_resources() -> void:
-	_load_available_campaigns()
 	_load_available_parties()
 	_load_available_items()
-
-
-func _load_available_campaigns() -> void:
-	available_campaigns.clear()
-	if ModLoader and ModLoader.registry:
-		available_campaigns = ModLoader.registry.get_all_resources("campaign")
-	_populate_campaign_dropdown()
 
 
 func _load_available_parties() -> void:
@@ -623,49 +646,6 @@ func _load_available_items() -> void:
 	# Update existing item dropdowns
 	for item_ui: Dictionary in depot_items_list:
 		_populate_item_dropdown(item_ui.item_option)
-
-
-# =============================================================================
-# CAMPAIGN DROPDOWN
-# =============================================================================
-
-func _populate_campaign_dropdown() -> void:
-	if not campaign_option:
-		return
-
-	campaign_option.clear()
-	campaign_option.add_item("(Auto - highest priority mod's campaign)", -1)
-	campaign_option.set_item_metadata(0, "")
-
-	var idx: int = 1
-	for campaign: CampaignData in available_campaigns:
-		if not campaign:
-			continue
-		var display_name: String = campaign.campaign_name if not campaign.campaign_name.is_empty() else campaign.resource_path.get_file().get_basename()
-		campaign_option.add_item(display_name)
-		campaign_option.set_item_metadata(idx, campaign.campaign_id if not campaign.campaign_id.is_empty() else campaign.resource_path.get_file().get_basename())
-		idx += 1
-
-
-func _select_campaign(campaign_id: String) -> void:
-	if campaign_id.is_empty():
-		campaign_option.select(0)
-		return
-
-	for i: int in range(campaign_option.item_count):
-		if campaign_option.get_item_metadata(i) == campaign_id:
-			campaign_option.select(i)
-			return
-
-	# Campaign not found - default to auto
-	campaign_option.select(0)
-
-
-func _get_selected_campaign_id() -> String:
-	var selected: int = campaign_option.selected
-	if selected <= 0:
-		return ""
-	return campaign_option.get_item_metadata(selected)
 
 
 # =============================================================================
@@ -990,10 +970,6 @@ func _on_default_toggled(_pressed: bool) -> void:
 	_mark_dirty()
 
 
-func _on_campaign_selected(_index: int) -> void:
-	_mark_dirty()
-
-
 func _on_party_selected(index: int) -> void:
 	var is_auto: bool = (index <= 0)
 	_update_party_help(is_auto)
@@ -1059,12 +1035,6 @@ func _check_broken_references() -> Array[String]:
 
 	if not ModLoader or not ModLoader.registry:
 		return warnings
-
-	# Check campaign reference
-	var campaign_id: String = _get_selected_campaign_id()
-	if not campaign_id.is_empty():
-		if not ModLoader.registry.has_resource("campaign", campaign_id):
-			warnings.append("Warning: Campaign '%s' not found" % campaign_id)
 
 	# Check party reference
 	var party_id: String = _get_selected_party_id()

@@ -63,7 +63,7 @@ var _wait_timer: float = 0.0
 var _is_waiting: bool = false
 
 ## Interaction context - stores metadata about what triggered the current cinematic
-## Used by systems like CampaignManager to identify NPC interactions
+## Used by game systems to identify NPC/interactable interactions
 var _interaction_context: Dictionary = {}
 
 ## Command execution state

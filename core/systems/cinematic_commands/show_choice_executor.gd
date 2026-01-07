@@ -66,6 +66,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if not DialogManager.choice_selected.is_connected(_on_choice_selected):
 		DialogManager.choice_selected.connect(_on_choice_selected)
 
+	# Connect to dialog_cancelled to handle player backing out
+	if not DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
+		DialogManager.dialog_cancelled.connect(_on_dialog_cancelled)
+
 	# Show choices via DialogManager's external choice API
 	if not DialogManager.show_choices(_choices):
 		push_error("ShowChoiceExecutor: Failed to show choices")
@@ -81,6 +85,8 @@ func _on_choice_selected(choice_index: int, _next_dialogue: DialogueData) -> voi
 	# Disconnect immediately to avoid duplicate calls
 	if DialogManager.choice_selected.is_connected(_on_choice_selected):
 		DialogManager.choice_selected.disconnect(_on_choice_selected)
+	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
+		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 
 	# Get the selected choice
 	if choice_index < 0 or choice_index >= _choices.size():
@@ -97,6 +103,21 @@ func _on_choice_selected(choice_index: int, _next_dialogue: DialogueData) -> voi
 
 	# Execute the action
 	_execute_action(action, value)
+
+
+func _on_dialog_cancelled() -> void:
+	# Player backed out of the choice menu
+	if DialogManager.choice_selected.is_connected(_on_choice_selected):
+		DialogManager.choice_selected.disconnect(_on_choice_selected)
+	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
+		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
+
+	# Clear external choices from DialogManager
+	DialogManager.clear_external_choices()
+
+	# End the cinematic (player chose to cancel)
+	CinematicsManager.skip_cinematic()
+	_cleanup()
 
 
 func _execute_action(action: String, value: String) -> void:
@@ -225,6 +246,8 @@ func interrupt() -> void:
 	# Clean up signal connections if cinematic is skipped
 	if DialogManager.choice_selected.is_connected(_on_choice_selected):
 		DialogManager.choice_selected.disconnect(_on_choice_selected)
+	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
+		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 	if ShopManager.shop_closed.is_connected(_on_shop_closed):
 		ShopManager.shop_closed.disconnect(_on_shop_closed)
 

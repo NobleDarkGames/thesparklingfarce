@@ -52,6 +52,11 @@ var campaign_data: Dictionary = {
 ## Updated when entering a town map; used by battle exit systems (Egress, defeat)
 var last_safe_location: String = ""
 
+## When true, external code (e.g., trigger_battle cinematic command) handles post-battle
+## scene transitions. BattleManager will skip its own transition logic.
+## Reset to false after each battle ends.
+var external_battle_handler: bool = false
+
 ## Battle transition context - encapsulates all transition data
 ## Use TransitionContext for type safety and extensibility
 var _transition_context: TransitionContext = null
