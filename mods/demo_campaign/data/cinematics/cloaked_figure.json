@@ -5,34 +5,45 @@
 	"cinematic_name": "Cloaked Figure",
 	"commands": [
 		{
+			"type": "check_flag",
 			"params": {
-				"auto_follow": true,
-				"character_id": "npc:cloaky",
-				"emotion": "neutral",
-				"text": "Greetings, {player_name}.  Yes, I know all about you!"
-			},
-			"type": "dialog_line"
-		},
-		{
-			"params": {
-				"choices": [
+				"flag": "battle1_victory",
+				"if_true": [
 					{
-						"action": "battle",
-						"label": "Battle 1",
-						"value": "demo_campaign_battle_1767747082"
+						"type": "dialog_line",
+						"params": {
+							"auto_follow": true,
+							"character_id": "npc:cloaky",
+							"emotion": "neutral",
+							"text": "Ah, you've returned victorious! I knew you had it in you."
+						}
+					}
+				],
+				"if_false": [
+					{
+						"type": "dialog_line",
+						"params": {
+							"auto_follow": true,
+							"character_id": "npc:cloaky",
+							"emotion": "neutral",
+							"text": "Greetings, {player_name}. Yes, I know all about you!"
+						}
+					},
+					{
+						"type": "show_choice",
+						"params": {
+							"choices": [
+								{
+									"action": "battle",
+									"label": "Battle 1",
+									"on_victory_flags": ["battle1_victory"],
+									"value": "demo_campaign_battle_1767747082"
+								}
+							]
+						}
 					}
 				]
-			},
-			"type": "show_choice"
-		},
-		{
-			"params": {
-				"auto_follow": true,
-				"character_id": "rfcd4dp9",
-				"emotion": "neutral",
-				"text": "Whaaaaaaa?"
-			},
-			"type": "dialog_line"
+			}
 		}
 	],
 	"description": "",

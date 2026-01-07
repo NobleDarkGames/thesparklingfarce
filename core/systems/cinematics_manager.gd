@@ -34,7 +34,11 @@ signal cinematic_skipped()
 ## Current state
 var current_state: State = State.IDLE
 var current_cinematic: CinematicData = null
-var current_command_index: int = 0
+var current_command_index: int = 0  ## Kept for backwards compatibility with signals
+
+## Command queue for execution (supports branching via check_flag)
+## Commands are popped from front, branches inject at front
+var _command_queue: Array[Dictionary] = []
 
 ## Actor registry (actor_id -> CinematicActor)
 var _registered_actors: Dictionary = {}
@@ -253,6 +257,7 @@ func _register_built_in_commands() -> void:
 	const SetBackdropExecutor = preload("res://core/systems/cinematic_commands/set_backdrop_executor.gd")
 	const ShowChoiceExecutor = preload("res://core/systems/cinematic_commands/show_choice_executor.gd")
 	const TriggerBattleExecutor = preload("res://core/systems/cinematic_commands/trigger_battle_executor.gd")
+	const CheckFlagExecutor = preload("res://core/systems/cinematic_commands/check_flag_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -281,6 +286,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("set_backdrop", SetBackdropExecutor.new())
 	register_command_executor("show_choice", ShowChoiceExecutor.new())
 	register_command_executor("trigger_battle", TriggerBattleExecutor.new())
+	register_command_executor("check_flag", CheckFlagExecutor.new())
 
 
 ## Register all built-in spawnable entity types
@@ -455,6 +461,11 @@ func play_cinematic_from_resource(cinematic: CinematicData) -> bool:
 	current_command_index = 0
 	current_state = State.LOADING
 
+	# Populate command queue from cinematic's commands
+	_command_queue.clear()
+	for i: int in range(cinematic.get_command_count()):
+		_command_queue.append(cinematic.get_command(i))
+
 	# Auto-detect camera if not already set
 	if not _active_camera:
 		_auto_detect_camera()
@@ -489,13 +500,13 @@ func _execute_next_command() -> void:
 	if current_cinematic == null:
 		return
 
-	# Check if we've finished all commands
-	if current_command_index >= current_cinematic.get_command_count():
+	# Check if we've finished all commands (queue-based)
+	if _command_queue.is_empty():
 		_end_cinematic()
 		return
 
-	# Get next command
-	var command: Dictionary = current_cinematic.get_command(current_command_index)
+	# Pop next command from queue
+	var command: Dictionary = _command_queue.pop_front()
 	if command.is_empty():
 		push_error("CinematicsManager: Invalid command at index %d" % current_command_index)
 		_end_cinematic()
@@ -523,13 +534,23 @@ func _execute_next_command() -> void:
 		push_warning("CinematicsManager: Unknown command type '%s' - no executor registered" % command_type)
 		_command_completed = true
 
-	# Move to next command
+	# Increment index for signal/debugging compatibility
 	current_command_index += 1
 
 	# If command doesn't wait, continue immediately
 	if not _current_command_waits and not _is_waiting:
 		_command_completed = true
 
+
+## Inject commands at the front of the execution queue
+## Used by check_flag to insert branch commands for immediate execution
+## @param commands: Array of command dictionaries to inject
+func inject_commands(commands: Array) -> void:
+	# Insert at front (reverse order to maintain sequence)
+	for i: int in range(commands.size() - 1, -1, -1):
+		var cmd: Variant = commands[i]
+		if cmd is Dictionary:
+			_command_queue.push_front(cmd)
 
 
 ## Called when actor movement completes
@@ -606,6 +627,7 @@ func _end_cinematic() -> void:
 	# Clear current data
 	current_cinematic = null
 	current_command_index = 0
+	_command_queue.clear()
 	_command_completed = false
 	_is_waiting = false
 	_current_executor = null  # Clear executor reference

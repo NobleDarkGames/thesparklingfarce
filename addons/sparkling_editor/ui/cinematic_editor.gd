@@ -2226,6 +2226,10 @@ func _create_choice_row(index: int, choice_data: Dictionary, param_name: String,
 	var value_control: Control = _create_choice_value_control(current_action, current_value, index, param_name)
 	value_row.add_child(value_control)
 
+	# Battle-specific options (only shown when action is "battle")
+	if current_action == "battle":
+		_add_battle_options_to_choice(vbox, choice_data, index, param_name)
+
 	return panel
 
 
@@ -2239,6 +2243,153 @@ func _get_value_hint(action: String) -> String:
 		"shop": return "shop_id"
 		"none": return "(not used)"
 		_: return ""
+
+
+## Add battle-specific options to a choice panel (on_victory_cinematic, etc.)
+func _add_battle_options_to_choice(container: VBoxContainer, choice_data: Dictionary, choice_index: int, param_name: String) -> void:
+	# Separator
+	var sep: HSeparator = HSeparator.new()
+	container.add_child(sep)
+
+	# Header for battle options
+	var header: Label = Label.new()
+	header.text = "Battle Outcome Options"
+	header.add_theme_font_size_override("font_size", 11)
+	header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	container.add_child(header)
+
+	# On Victory Cinematic
+	var victory_cin_row: HBoxContainer = HBoxContainer.new()
+	container.add_child(victory_cin_row)
+	var victory_cin_lbl: Label = Label.new()
+	victory_cin_lbl.text = "On Victory:"
+	victory_cin_lbl.custom_minimum_size.x = 70
+	victory_cin_row.add_child(victory_cin_lbl)
+	var victory_cin_picker: OptionButton = _create_cinematic_picker_for_battle_choice(
+		choice_data.get("on_victory_cinematic", ""),
+		choice_index,
+		param_name,
+		"on_victory_cinematic"
+	)
+	victory_cin_row.add_child(victory_cin_picker)
+
+	# On Defeat Cinematic
+	var defeat_cin_row: HBoxContainer = HBoxContainer.new()
+	container.add_child(defeat_cin_row)
+	var defeat_cin_lbl: Label = Label.new()
+	defeat_cin_lbl.text = "On Defeat:"
+	defeat_cin_lbl.custom_minimum_size.x = 70
+	defeat_cin_row.add_child(defeat_cin_lbl)
+	var defeat_cin_picker: OptionButton = _create_cinematic_picker_for_battle_choice(
+		choice_data.get("on_defeat_cinematic", ""),
+		choice_index,
+		param_name,
+		"on_defeat_cinematic"
+	)
+	defeat_cin_row.add_child(defeat_cin_picker)
+
+	# On Victory Flags
+	var victory_flags_row: HBoxContainer = HBoxContainer.new()
+	container.add_child(victory_flags_row)
+	var victory_flags_lbl: Label = Label.new()
+	victory_flags_lbl.text = "Victory Flags:"
+	victory_flags_lbl.custom_minimum_size.x = 70
+	victory_flags_row.add_child(victory_flags_lbl)
+	var victory_flags_edit: LineEdit = LineEdit.new()
+	victory_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	victory_flags_edit.placeholder_text = "flag1, flag2, ..."
+	var victory_flags: Variant = choice_data.get("on_victory_flags", [])
+	if victory_flags is Array:
+		victory_flags_edit.text = ", ".join(victory_flags)
+	victory_flags_edit.text_changed.connect(_on_choice_battle_flags_changed.bind(choice_index, param_name, "on_victory_flags"))
+	victory_flags_row.add_child(victory_flags_edit)
+
+	# On Defeat Flags
+	var defeat_flags_row: HBoxContainer = HBoxContainer.new()
+	container.add_child(defeat_flags_row)
+	var defeat_flags_lbl: Label = Label.new()
+	defeat_flags_lbl.text = "Defeat Flags:"
+	defeat_flags_lbl.custom_minimum_size.x = 70
+	defeat_flags_row.add_child(defeat_flags_lbl)
+	var defeat_flags_edit: LineEdit = LineEdit.new()
+	defeat_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	defeat_flags_edit.placeholder_text = "flag1, flag2, ..."
+	var defeat_flags: Variant = choice_data.get("on_defeat_flags", [])
+	if defeat_flags is Array:
+		defeat_flags_edit.text = ", ".join(defeat_flags)
+	defeat_flags_edit.text_changed.connect(_on_choice_battle_flags_changed.bind(choice_index, param_name, "on_defeat_flags"))
+	defeat_flags_row.add_child(defeat_flags_edit)
+
+
+## Create cinematic picker for battle choice outcome
+func _create_cinematic_picker_for_battle_choice(current_value: String, choice_index: int, param_name: String, field_name: String) -> OptionButton:
+	var picker: OptionButton = OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.add_item("(None)", 0)
+	picker.set_item_metadata(0, "")
+
+	var selected_idx: int = 0
+	var item_idx: int = 1
+
+	# Use the cinematics list (same as _create_cinematic_picker)
+	for entry: Dictionary in cinematics:
+		var cinematic_id: String = entry.get("name", "")
+		var mod_id: String = entry.get("mod_id", "")
+
+		var display_name: String = "[%s] %s" % [mod_id, cinematic_id] if not mod_id.is_empty() else cinematic_id
+		picker.add_item(display_name, item_idx)
+		picker.set_item_metadata(item_idx, cinematic_id)
+
+		if cinematic_id == current_value:
+			selected_idx = item_idx
+		item_idx += 1
+
+	picker.select(selected_idx)
+	picker.item_selected.connect(_on_choice_battle_cinematic_changed.bind(choice_index, param_name, field_name, picker))
+	return picker
+
+
+## Handle cinematic picker change for battle choice
+func _on_choice_battle_cinematic_changed(item_index: int, choice_index: int, param_name: String, field_name: String, picker: OptionButton) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+
+	var cin_id: String = picker.get_item_metadata(item_index) if item_index >= 0 else ""
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var params: Dictionary = commands[selected_command_index].get("params", {})
+
+	if param_name in params and params[param_name] is Array:
+		var choices: Array = params[param_name]
+		if choice_index >= 0 and choice_index < choices.size():
+			var choice: Variant = choices[choice_index]
+			if choice is Dictionary:
+				choice[field_name] = cin_id
+				is_dirty = true
+
+
+## Handle flags text change for battle choice
+func _on_choice_battle_flags_changed(new_text: String, choice_index: int, param_name: String, field_name: String) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+
+	# Parse comma-separated flags
+	var flags: Array = []
+	for flag: String in new_text.split(","):
+		var trimmed: String = flag.strip_edges()
+		if not trimmed.is_empty():
+			flags.append(trimmed)
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var params: Dictionary = commands[selected_command_index].get("params", {})
+
+	if param_name in params and params[param_name] is Array:
+		var choices: Array = params[param_name]
+		if choice_index >= 0 and choice_index < choices.size():
+			var choice: Variant = choices[choice_index]
+			if choice is Dictionary:
+				choice[field_name] = flags
+				is_dirty = true
 
 
 ## Create the appropriate value control based on action type

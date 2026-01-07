@@ -9,9 +9,14 @@
 ##     - action: String - What to do: "battle", "set_flag", "cinematic", "set_variable", "shop", "none"
 ##     - value: String - Parameter for the action (battle_id, flag_name, cinematic_id, etc.)
 ##     - description: String (optional) - Tooltip/secondary text
+##     Battle-specific options (only used when action = "battle"):
+##     - on_victory_cinematic: String (optional) - Cinematic to play on victory
+##     - on_defeat_cinematic: String (optional) - Cinematic to play on defeat
+##     - on_victory_flags: Array[String] (optional) - Flags to set on victory
+##     - on_defeat_flags: Array[String] (optional) - Flags to set on defeat
 ##
 ## Supported Actions:
-##   - battle: Start a battle (value = battle_id)
+##   - battle: Start a battle (value = battle_id), with optional victory/defeat branching
 ##   - set_flag: Set a GameState flag (value = flag_name)
 ##   - cinematic: Play another cinematic (value = cinematic_id)
 ##   - set_variable: Set a variable (value = "key:value")
@@ -23,7 +28,13 @@
 ##     "type": "show_choice",
 ##     "params": {
 ##       "choices": [
-##         {"label": "Fight!", "action": "battle", "value": "goblin_ambush"},
+##         {
+##           "label": "Fight!",
+##           "action": "battle",
+##           "value": "goblin_ambush",
+##           "on_victory_cinematic": "victory_scene",
+##           "on_victory_flags": ["defeated_goblins"]
+##         },
 ##         {"label": "Run away", "action": "set_flag", "value": "fled_goblins"},
 ##         {"label": "Never mind", "action": "none", "value": ""}
 ##       ]
@@ -34,6 +45,12 @@ extends CinematicCommandExecutor
 
 var _manager: Node = null
 var _choices: Array[Dictionary] = []
+
+# Battle outcome tracking (mirrors trigger_battle_executor)
+var _on_victory_cinematic: String = ""
+var _on_defeat_cinematic: String = ""
+var _on_victory_flags: Array[String] = []
+var _on_defeat_flags: Array[String] = []
 
 
 func execute(command: Dictionary, manager: Node) -> bool:
@@ -55,7 +72,12 @@ func execute(command: Dictionary, manager: Node) -> bool:
 					"label": choice.get("label", ""),
 					"value": choice.get("value", ""),
 					"action": choice.get("action", "none"),
-					"description": choice.get("description", "")
+					"description": choice.get("description", ""),
+					# Battle-specific options (same as trigger_battle command)
+					"on_victory_cinematic": choice.get("on_victory_cinematic", ""),
+					"on_defeat_cinematic": choice.get("on_defeat_cinematic", ""),
+					"on_victory_flags": choice.get("on_victory_flags", []),
+					"on_defeat_flags": choice.get("on_defeat_flags", [])
 				})
 
 	if _choices.is_empty():
@@ -95,14 +117,12 @@ func _on_choice_selected(choice_index: int, _next_dialogue: DialogueData) -> voi
 		return
 
 	var choice: Dictionary = _choices[choice_index]
-	var action: String = choice.get("action", "none")
-	var value: String = choice.get("value", "")
 
 	# Clear external choices from DialogManager
 	DialogManager.clear_external_choices()
 
-	# Execute the action
-	_execute_action(action, value)
+	# Execute the action (pass full choice for action-specific options)
+	_execute_action(choice)
 
 
 func _on_dialog_cancelled() -> void:
@@ -120,10 +140,13 @@ func _on_dialog_cancelled() -> void:
 	_cleanup()
 
 
-func _execute_action(action: String, value: String) -> void:
+func _execute_action(choice: Dictionary) -> void:
+	var action: String = choice.get("action", "none")
+	var value: String = choice.get("value", "")
+
 	match action:
 		"battle":
-			_action_battle(value)
+			_action_battle(choice)
 		"set_flag":
 			_action_set_flag(value)
 		"cinematic":
@@ -140,18 +163,74 @@ func _execute_action(action: String, value: String) -> void:
 			_complete()
 
 
-func _action_battle(battle_id: String) -> void:
+func _action_battle(choice: Dictionary) -> void:
+	var battle_id: String = choice.get("value", "")
 	if battle_id.is_empty():
 		push_error("ShowChoiceExecutor: battle action requires battle_id")
 		_complete()
 		return
 
-	# Battle ends the cinematic and transitions to battle scene
-	# Complete first so cinematic can clean up, then trigger battle
+	# Validate battle exists
+	var battle_data: BattleData = ModLoader.registry.get_battle(battle_id)
+	if not battle_data:
+		push_error("ShowChoiceExecutor: Battle '%s' not found in registry" % battle_id)
+		_complete()
+		return
+
+	# Store outcome handlers (same as trigger_battle_executor)
+	_on_victory_cinematic = choice.get("on_victory_cinematic", "")
+	_on_defeat_cinematic = choice.get("on_defeat_cinematic", "")
+
+	# Parse flag arrays
+	_on_victory_flags.clear()
+	var victory_flags: Variant = choice.get("on_victory_flags", [])
+	if victory_flags is Array:
+		for flag: Variant in victory_flags:
+			if flag is String and not flag.is_empty():
+				_on_victory_flags.append(flag)
+
+	_on_defeat_flags.clear()
+	var defeat_flags: Variant = choice.get("on_defeat_flags", [])
+	if defeat_flags is Array:
+		for flag: Variant in defeat_flags:
+			if flag is String and not flag.is_empty():
+				_on_defeat_flags.append(flag)
+
+	# Connect to BattleManager's battle_ended signal
+	if not BattleManager.battle_ended.is_connected(_on_battle_ended):
+		BattleManager.battle_ended.connect(_on_battle_ended)
+
+	# Tell BattleManager that we'll handle post-battle transitions
+	GameState.external_battle_handler = true
+
+	# Start the battle - cinematic will resume when battle_ended fires
+	TriggerManager.start_battle(battle_id)
+
+
+func _on_battle_ended(victory: bool) -> void:
+	# Disconnect immediately to avoid duplicate calls
+	if BattleManager.battle_ended.is_connected(_on_battle_ended):
+		BattleManager.battle_ended.disconnect(_on_battle_ended)
+
+	# Set flags based on outcome
+	if victory:
+		for flag: String in _on_victory_flags:
+			GameState.set_flag(flag)
+	else:
+		for flag: String in _on_defeat_flags:
+			GameState.set_flag(flag)
+
+	# Determine follow-up cinematic
+	var follow_up_cinematic: String = _on_victory_cinematic if victory else _on_defeat_cinematic
+
+	# Complete this command
 	_complete()
 
-	# Use TriggerManager to start the battle
-	TriggerManager.start_battle(battle_id)
+	# Play follow-up cinematic if specified, otherwise return to map
+	if not follow_up_cinematic.is_empty():
+		CinematicsManager.call_deferred("play_cinematic", follow_up_cinematic)
+	else:
+		TriggerManager.call_deferred("return_to_map")
 
 
 func _action_set_flag(flag_name: String) -> void:
@@ -239,6 +318,10 @@ func _complete() -> void:
 
 func _cleanup() -> void:
 	_choices.clear()
+	_on_victory_cinematic = ""
+	_on_defeat_cinematic = ""
+	_on_victory_flags.clear()
+	_on_defeat_flags.clear()
 	_manager = null
 
 
@@ -250,6 +333,8 @@ func interrupt() -> void:
 		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 	if ShopManager.shop_closed.is_connected(_on_shop_closed):
 		ShopManager.shop_closed.disconnect(_on_shop_closed)
+	if BattleManager.battle_ended.is_connected(_on_battle_ended):
+		BattleManager.battle_ended.disconnect(_on_battle_ended)
 
 	# Clear any pending external choices
 	DialogManager.clear_external_choices()
