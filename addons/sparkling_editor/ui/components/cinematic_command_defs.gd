@@ -171,6 +171,13 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"params": {
 			"shop_id": {"type": "shop", "default": "", "hint": "ShopData resource ID"}
 		}
+	},
+	"show_choice": {
+		"description": "Show choices to player, each triggers an action",
+		"icon": "OptionButton",
+		"params": {
+			"choices": {"type": "choices", "default": [], "hint": "Each choice has a label, action type, and value"}
+		}
 	}
 }
 
@@ -192,7 +199,8 @@ const DEFAULT_CATEGORIES: Dictionary = {
 	"play_sound": "Audio",
 	"play_music": "Audio",
 	"set_variable": "Game State",
-	"open_shop": "Interaction"
+	"open_shop": "Interaction",
+	"show_choice": "Dialog"
 }
 
 

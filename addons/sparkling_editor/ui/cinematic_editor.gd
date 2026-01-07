@@ -75,12 +75,13 @@ var _updating_ui: bool = false
 # Track if ID should auto-generate from name (unlocked = auto-generate)
 var _id_is_locked: bool = false
 
-# Character, NPC, Shop, Map, and Interactable caches for pickers
+# Character, NPC, Shop, Map, Battle, and Interactable caches for pickers
 var _characters: Array[Resource] = []
 var _npcs: Array[Resource] = []
 var _shops: Array[Resource] = []
 var _maps: Array[Resource] = []
 var _interactables: Array[Resource] = []
+var _battles: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -127,12 +128,14 @@ func _refresh_characters() -> void:
 	_shops.clear()
 	_maps.clear()
 	_interactables.clear()
+	_battles.clear()
 	if ModLoader and ModLoader.registry:
 		_characters = ModLoader.registry.get_all_resources("character")
 		_npcs = ModLoader.registry.get_all_resources("npc")
 		_shops = ModLoader.registry.get_all_resources("shop")
 		_maps = ModLoader.registry.get_all_resources("map")
 		_interactables = ModLoader.registry.get_all_resources("interactable")
+		_battles = ModLoader.registry.get_all_resources("battle")
 
 	# Update actor picker dropdown if it exists
 	if actor_entity_picker:
@@ -1273,6 +1276,32 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			actor_btn.item_selected.connect(_on_actor_param_selected.bind(param_name, actor_btn))
 			control = actor_btn
 
+		"choices":
+			# Custom UI for show_choice command - editable list of choices
+			var choices_container: VBoxContainer = VBoxContainer.new()
+			choices_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			choices_container.add_theme_constant_override("separation", 4)
+
+			# Convert current_value to array
+			var choices_array: Array = []
+			if current_value is Array:
+				choices_array = current_value
+
+			# Build existing choices
+			for i: int in range(choices_array.size()):
+				var choice_dict: Variant = choices_array[i]
+				if choice_dict is Dictionary:
+					var choice_row: Control = _create_choice_row(i, choice_dict, param_name, choices_container)
+					choices_container.add_child(choice_row)
+
+			# Add button
+			var add_btn: Button = Button.new()
+			add_btn.text = "+ Add Choice"
+			add_btn.pressed.connect(_on_add_choice.bind(param_name, choices_container))
+			choices_container.add_child(add_btn)
+
+			control = choices_container
+
 		_:  # string and unknown types
 			var line_edit: LineEdit = LineEdit.new()
 			line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2036,3 +2065,343 @@ func _variant_to_bool(value: Variant, default: bool = false) -> bool:
 	if value is bool:
 		return value
 	return default
+
+
+# =============================================================================
+# CHOICES EDITOR SECTION (for show_choice command)
+# =============================================================================
+
+## Available actions for show_choice command
+const CHOICE_ACTIONS: Array[String] = ["none", "battle", "set_flag", "cinematic", "set_variable", "shop"]
+
+## Create a UI row for editing a single choice
+func _create_choice_row(index: int, choice_data: Dictionary, param_name: String, container: VBoxContainer) -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.set_meta("choice_index", index)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	panel.add_child(vbox)
+
+	# Header row with choice number and delete button
+	var header: HBoxContainer = HBoxContainer.new()
+	vbox.add_child(header)
+
+	var num_label: Label = Label.new()
+	num_label.text = "Choice %d" % (index + 1)
+	num_label.add_theme_font_size_override("font_size", 12)
+	header.add_child(num_label)
+
+	header.add_spacer(false)
+
+	var del_btn: Button = Button.new()
+	del_btn.text = "X"
+	del_btn.tooltip_text = "Remove this choice"
+	del_btn.custom_minimum_size.x = 24
+	del_btn.pressed.connect(_on_remove_choice.bind(index, param_name, container))
+	header.add_child(del_btn)
+
+	# Label field
+	var label_row: HBoxContainer = HBoxContainer.new()
+	vbox.add_child(label_row)
+
+	var label_lbl: Label = Label.new()
+	label_lbl.text = "Label:"
+	label_lbl.custom_minimum_size.x = 50
+	label_row.add_child(label_lbl)
+
+	var label_edit: LineEdit = LineEdit.new()
+	label_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label_edit.text = choice_data.get("label", "")
+	label_edit.placeholder_text = "Choice text shown to player"
+	label_edit.text_changed.connect(_on_choice_field_changed.bind(index, "label", param_name))
+	label_row.add_child(label_edit)
+
+	# Action row
+	var action_row: HBoxContainer = HBoxContainer.new()
+	vbox.add_child(action_row)
+
+	var action_lbl: Label = Label.new()
+	action_lbl.text = "Action:"
+	action_lbl.custom_minimum_size.x = 50
+	action_row.add_child(action_lbl)
+
+	var action_picker: OptionButton = OptionButton.new()
+	action_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var current_action: String = choice_data.get("action", "none")
+	for i: int in range(CHOICE_ACTIONS.size()):
+		action_picker.add_item(CHOICE_ACTIONS[i])
+		if CHOICE_ACTIONS[i] == current_action:
+			action_picker.select(i)
+	action_picker.item_selected.connect(_on_choice_action_changed.bind(index, param_name))
+	action_row.add_child(action_picker)
+
+	# Value field - use picker for battle/shop/cinematic, text for others
+	var value_row: HBoxContainer = HBoxContainer.new()
+	value_row.name = "ValueRow"
+	vbox.add_child(value_row)
+
+	var value_lbl: Label = Label.new()
+	value_lbl.text = "Value:"
+	value_lbl.custom_minimum_size.x = 50
+	value_row.add_child(value_lbl)
+
+	var current_value: String = choice_data.get("value", "")
+	var value_control: Control = _create_choice_value_control(current_action, current_value, index, param_name)
+	value_row.add_child(value_control)
+
+	return panel
+
+
+## Get hint text for value field based on action type
+func _get_value_hint(action: String) -> String:
+	match action:
+		"battle": return "battle_id"
+		"set_flag": return "flag_name"
+		"cinematic": return "cinematic_id"
+		"set_variable": return "key:value"
+		"shop": return "shop_id"
+		"none": return "(not used)"
+		_: return ""
+
+
+## Create the appropriate value control based on action type
+func _create_choice_value_control(action: String, current_value: String, choice_index: int, param_name: String) -> Control:
+	match action:
+		"battle":
+			return _create_battle_picker(current_value, choice_index, param_name)
+		"shop":
+			return _create_shop_picker_for_choice(current_value, choice_index, param_name)
+		"cinematic":
+			return _create_cinematic_picker(current_value, choice_index, param_name)
+		_:
+			# Default to LineEdit for set_flag, set_variable, none, etc.
+			var line_edit: LineEdit = LineEdit.new()
+			line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			line_edit.text = current_value
+			line_edit.placeholder_text = _get_value_hint(action)
+			line_edit.text_changed.connect(_on_choice_field_changed.bind(choice_index, "value", param_name))
+			return line_edit
+
+
+## Create battle picker dropdown for choice value
+func _create_battle_picker(current_value: String, choice_index: int, param_name: String) -> OptionButton:
+	var picker: OptionButton = OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.add_item("(Select battle)", 0)
+	picker.set_item_metadata(0, "")
+
+	var selected_idx: int = 0
+	var item_idx: int = 1
+
+	for battle_res: Resource in _battles:
+		if battle_res:
+			var battle_id: String = ""
+			var battle_name: String = ""
+
+			if "battle_id" in battle_res:
+				battle_id = str(battle_res.get("battle_id"))
+			if "battle_name" in battle_res:
+				battle_name = str(battle_res.get("battle_name"))
+
+			if battle_id.is_empty():
+				battle_id = battle_res.resource_path.get_file().get_basename()
+			if battle_name.is_empty():
+				battle_name = battle_id
+
+			# Get source mod
+			var mod_id: String = ""
+			if ModLoader and ModLoader.registry:
+				var resource_id: String = battle_res.resource_path.get_file().get_basename()
+				mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+			var display_name: String = "[%s] %s" % [mod_id, battle_name] if not mod_id.is_empty() else battle_name
+			picker.add_item(display_name, item_idx)
+			picker.set_item_metadata(item_idx, battle_id)
+
+			if battle_id == current_value:
+				selected_idx = item_idx
+			item_idx += 1
+
+	picker.select(selected_idx)
+	picker.item_selected.connect(_on_choice_value_picker_changed.bind(choice_index, param_name, picker))
+	return picker
+
+
+## Create shop picker dropdown for choice value
+func _create_shop_picker_for_choice(current_value: String, choice_index: int, param_name: String) -> OptionButton:
+	var picker: OptionButton = OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.add_item("(Select shop)", 0)
+	picker.set_item_metadata(0, "")
+
+	var selected_idx: int = 0
+	var item_idx: int = 1
+
+	for shop_res: Resource in _shops:
+		if shop_res:
+			var shop_id: String = ""
+			var shop_name: String = ""
+
+			if "shop_id" in shop_res:
+				shop_id = str(shop_res.get("shop_id"))
+			if "shop_name" in shop_res:
+				shop_name = str(shop_res.get("shop_name"))
+
+			if shop_id.is_empty():
+				shop_id = shop_res.resource_path.get_file().get_basename()
+			if shop_name.is_empty():
+				shop_name = shop_id
+
+			# Get source mod
+			var mod_id: String = ""
+			if ModLoader and ModLoader.registry:
+				var resource_id: String = shop_res.resource_path.get_file().get_basename()
+				mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+			var display_name: String = "[%s] %s" % [mod_id, shop_name] if not mod_id.is_empty() else shop_name
+			picker.add_item(display_name, item_idx)
+			picker.set_item_metadata(item_idx, shop_id)
+
+			if shop_id == current_value:
+				selected_idx = item_idx
+			item_idx += 1
+
+	picker.select(selected_idx)
+	picker.item_selected.connect(_on_choice_value_picker_changed.bind(choice_index, param_name, picker))
+	return picker
+
+
+## Create cinematic picker dropdown for choice value
+func _create_cinematic_picker(current_value: String, choice_index: int, param_name: String) -> OptionButton:
+	var picker: OptionButton = OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.add_item("(Select cinematic)", 0)
+	picker.set_item_metadata(0, "")
+
+	var selected_idx: int = 0
+	var item_idx: int = 1
+
+	# Use the cinematics list we already have
+	for entry: Dictionary in cinematics:
+		var cinematic_id: String = entry.get("name", "")
+		var mod_id: String = entry.get("mod_id", "")
+
+		var display_name: String = "[%s] %s" % [mod_id, cinematic_id] if not mod_id.is_empty() else cinematic_id
+		picker.add_item(display_name, item_idx)
+		picker.set_item_metadata(item_idx, cinematic_id)
+
+		if cinematic_id == current_value:
+			selected_idx = item_idx
+		item_idx += 1
+
+	picker.select(selected_idx)
+	picker.item_selected.connect(_on_choice_value_picker_changed.bind(choice_index, param_name, picker))
+	return picker
+
+
+## Handle choice value picker selection
+func _on_choice_value_picker_changed(item_index: int, choice_index: int, param_name: String, picker: OptionButton) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+
+	var value: String = picker.get_item_metadata(item_index)
+	if value == null:
+		value = ""
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var params: Dictionary = commands[selected_command_index].get("params", {})
+
+	if param_name in params and params[param_name] is Array:
+		var choices: Array = params[param_name]
+		if choice_index >= 0 and choice_index < choices.size():
+			var choice: Variant = choices[choice_index]
+			if choice is Dictionary:
+				choice["value"] = value
+				is_dirty = true
+
+
+## Add a new choice to the list
+func _on_add_choice(param_name: String, container: VBoxContainer) -> void:
+	if selected_command_index < 0:
+		return
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	if "params" not in commands[selected_command_index]:
+		commands[selected_command_index]["params"] = {}
+
+	var params: Dictionary = commands[selected_command_index]["params"]
+	if param_name not in params or not (params[param_name] is Array):
+		params[param_name] = []
+
+	var choices: Array = params[param_name]
+	var new_choice: Dictionary = {
+		"label": "New choice",
+		"action": "none",
+		"value": ""
+	}
+	choices.append(new_choice)
+
+	is_dirty = true
+	# Rebuild inspector to show new choice
+	_build_inspector_for_command(selected_command_index)
+
+
+## Remove a choice from the list
+func _on_remove_choice(index: int, param_name: String, _container: VBoxContainer) -> void:
+	if selected_command_index < 0:
+		return
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var params: Dictionary = commands[selected_command_index].get("params", {})
+
+	if param_name in params and params[param_name] is Array:
+		var choices: Array = params[param_name]
+		if index >= 0 and index < choices.size():
+			choices.remove_at(index)
+			is_dirty = true
+			# Rebuild inspector
+			_build_inspector_for_command(selected_command_index)
+
+
+## Handle choice field text changes (label, value)
+func _on_choice_field_changed(new_text: String, index: int, field: String, param_name: String) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var params: Dictionary = commands[selected_command_index].get("params", {})
+
+	if param_name in params and params[param_name] is Array:
+		var choices: Array = params[param_name]
+		if index >= 0 and index < choices.size():
+			var choice: Variant = choices[index]
+			if choice is Dictionary:
+				choice[field] = new_text
+				is_dirty = true
+
+
+## Handle choice action dropdown changes
+func _on_choice_action_changed(action_index: int, choice_index: int, param_name: String) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+
+	if action_index < 0 or action_index >= CHOICE_ACTIONS.size():
+		return
+
+	var new_action: String = CHOICE_ACTIONS[action_index]
+
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var params: Dictionary = commands[selected_command_index].get("params", {})
+
+	if param_name in params and params[param_name] is Array:
+		var choices: Array = params[param_name]
+		if choice_index >= 0 and choice_index < choices.size():
+			var choice: Variant = choices[choice_index]
+			if choice is Dictionary:
+				choice["action"] = new_action
+				is_dirty = true
+
+				# Update placeholder text for value field
+				# We need to find the value LineEdit - rebuild inspector is simpler
+				_build_inspector_for_command(selected_command_index)

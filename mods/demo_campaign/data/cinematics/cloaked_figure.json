@@ -15,6 +15,18 @@
 		},
 		{
 			"params": {
+				"choices": [
+					{
+						"action": "battle",
+						"label": "Battle 1",
+						"value": "demo_campaign_battle_1767747082"
+					}
+				]
+			},
+			"type": "show_choice"
+		},
+		{
+			"params": {
 				"auto_follow": true,
 				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
