@@ -38,7 +38,6 @@ const SCREEN_PATHS: Dictionary = {
 	"sell_char_select": "res://scenes/ui/shops/screens/sell_char_select.tscn",
 	"sell_inventory": "res://scenes/ui/shops/screens/sell_inventory.tscn",
 	"sell_confirm": "res://scenes/ui/shops/screens/sell_confirm.tscn",
-	"confirm_transaction": "res://scenes/ui/shops/screens/confirm_transaction.tscn",
 	"transaction_result": "res://scenes/ui/shops/screens/transaction_result.tscn",
 	# Church screens
 	"church_action_select": "res://scenes/ui/shops/screens/church_action_select.tscn",

@@ -291,7 +291,7 @@ func _on_back_requested() -> void:
 	# If queue has items, confirm before going back
 	if context.queue and not context.queue.is_empty():
 		# For now, just clear queue and go back
-		# TODO: Add confirmation dialog
+		# TODO: Add cancel-queue confirmation dialog (protects against losing queued items)
 		context.queue.clear()
 		show_queue_panel(false)
 

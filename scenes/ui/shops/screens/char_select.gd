@@ -6,7 +6,7 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 ##
 ## Shows party members who can equip the selected item, plus a Caravan option.
-## Selecting a character proceeds to confirm_transaction screen.
+## SF2 authentic: selecting a character completes the purchase immediately.
 
 var selected_destination: String = ""
 var _selected_button: Button = null
@@ -174,7 +174,30 @@ func _proceed_to_confirmation() -> void:
 	if selected_destination.is_empty():
 		return
 	context.selected_destination = selected_destination
-	push_screen("confirm_transaction")
+
+	# SF2 authentic: selection IS confirmation - complete purchase immediately
+	var result: Dictionary = ShopManager.buy_item(
+		context.selected_item_id,
+		1,
+		selected_destination
+	)
+
+	if result.get("success", false):
+		var item_data: ItemData = get_item_data(context.selected_item_id)
+		var transaction_val: Variant = result.get("transaction", {})
+		var transaction: Dictionary = transaction_val if transaction_val is Dictionary else {}
+		context.set_result("purchase_complete", {
+			"item_id": context.selected_item_id,
+			"item_name": item_data.item_name if item_data else context.selected_item_id,
+			"total_cost": transaction.get("total_cost", 0),
+			"destination": selected_destination
+		})
+		replace_with("transaction_result")
+	else:
+		context.set_result("purchase_failed", {
+			"error": result.get("error", "Unknown error")
+		})
+		replace_with("transaction_result")
 
 
 func _on_confirm_pressed() -> void:
