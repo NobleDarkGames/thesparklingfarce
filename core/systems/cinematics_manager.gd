@@ -355,6 +355,12 @@ func get_camera_controller() -> CameraController:
 	return _active_camera as CameraController
 
 
+## Get the active camera regardless of type (Camera2D, CameraController, MapCamera)
+## Returns null if no camera detected
+func get_active_camera() -> Camera2D:
+	return _active_camera
+
+
 ## Auto-detect camera in the current scene
 func _auto_detect_camera() -> void:
 	# Try to find a Camera2D in the current scene
@@ -579,6 +585,10 @@ func _end_cinematic() -> void:
 		camera.stop_follow()
 		camera.offset = Vector2.ZERO  # Reset any active shake
 		camera.set_tactical_mode()  # Restore fast camera for gameplay
+	elif _active_camera and _active_camera is MapCamera:
+		# Clear cinematic target to resume hero following
+		var map_camera: MapCamera = _active_camera as MapCamera
+		map_camera.clear_cinematic_target()
 
 	# Clean up spawned actors
 	_cleanup_spawned_actors()

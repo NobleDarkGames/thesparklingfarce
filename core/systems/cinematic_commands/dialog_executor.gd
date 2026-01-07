@@ -156,17 +156,22 @@ func _auto_follow_character(character_id: String, manager: Node) -> void:
 	if actor == null:
 		return
 
-	# Get camera controller
-	var camera: CameraController = manager.get_camera_controller()
-	if not camera:
-		return
-
 	# Get actor's parent entity position
 	var entity: Node2D = actor.parent_entity
 	if not entity:
 		return
 
-	# Stop any existing follow, move to speaker, set them as new follow target
-	camera.stop_follow()
-	camera.move_to_position(entity.global_position, 0.3, false)
-	camera._follow_target = entity
+	# Try CameraController first (battle/cinematic stages)
+	var camera: CameraController = manager.get_camera_controller()
+	if camera:
+		# Stop any existing follow, move to speaker, set them as new follow target
+		camera.stop_follow()
+		camera.move_to_position(entity.global_position, 0.3, false)
+		camera._follow_target = entity
+		return
+
+	# Fallback: Try MapCamera (exploration mode)
+	var active_camera: Camera2D = manager.get_active_camera()
+	if active_camera is MapCamera:
+		var map_camera: MapCamera = active_camera as MapCamera
+		map_camera.set_cinematic_target(entity)

@@ -32,6 +32,9 @@ signal member_departed(character_uid: String, reason: String)
 ## Emitted when a departed member rejoins the party
 signal member_rejoined(character_uid: String)
 
+## Emitted when a new member is added to the party
+signal member_added(character: CharacterData)
+
 # ============================================================================
 # PARTY DATA
 # ============================================================================
@@ -156,6 +159,7 @@ func add_member(character: CharacterData, to_active: bool = true) -> bool:
 		party_members.append(character)
 
 	_ensure_save_data(character)
+	member_added.emit(character)
 	return true
 
 

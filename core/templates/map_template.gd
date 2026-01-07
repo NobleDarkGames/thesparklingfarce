@@ -415,8 +415,7 @@ func _setup_party_followers() -> void:
 	# SF2-AUTHENTIC: Check if we should show party followers
 	# Followers appear in towns (caravan_visible = false)
 	# On overworld (caravan_visible = true), only hero + caravan are shown
-	var map_meta: MapMetadata = _get_current_map_metadata()
-	if map_meta and map_meta.caravan_visible:
+	if _is_overworld_map():
 		_debug_print("MapTemplate: Overworld map - party followers hidden (caravan mode)")
 		return
 
@@ -442,6 +441,10 @@ func _setup_party_followers() -> void:
 		_debug_print("  Follower %d: %s" % [formation_index, char_data.character_name])
 
 	_debug_print("MapTemplate: Created %d party followers" % num_followers)
+
+	# Connect to PartyManager signal for dynamic follower spawning
+	if PartyManager and not PartyManager.member_added.is_connected(_on_party_member_added):
+		PartyManager.member_added.connect(_on_party_member_added)
 
 
 ## Creates a single follower node from CharacterData.
@@ -485,6 +488,48 @@ func _create_follower(index: int, char_data: CharacterData) -> CharacterBody2D:
 	follower.add_child(collision)
 
 	return follower
+
+
+## Called when a new party member is added during gameplay.
+## Dynamically spawns a follower for the new member so they appear immediately.
+func _on_party_member_added(character: CharacterData) -> void:
+	# Skip if in backdrop mode (visual-only cinematic loading)
+	if _is_backdrop_mode():
+		return
+
+	# Skip if no hero (shouldn't happen but be safe)
+	if not hero:
+		return
+
+	# Skip if on overworld (caravan mode - no party followers shown)
+	if _is_overworld_map():
+		_debug_print("MapTemplate: Skipping follower spawn - overworld map (caravan mode)")
+		return
+
+	# Skip if we've hit the maximum visible followers
+	if party_followers.size() >= MAX_VISIBLE_FOLLOWERS:
+		_debug_print("MapTemplate: Skipping follower spawn - max followers reached (%d)" % MAX_VISIBLE_FOLLOWERS)
+		return
+
+	# Skip if this character is already represented as a follower
+	for existing_follower: CharacterBody2D in party_followers:
+		if existing_follower.name == "Follower_%s" % character.character_name:
+			_debug_print("MapTemplate: Follower for %s already exists" % character.character_name)
+			return
+
+	# Calculate formation index (followers are 1-indexed, after hero at 0)
+	var formation_index: int = party_followers.size() + 1
+
+	# Create and add the follower
+	var follower: CharacterBody2D = _create_follower(party_followers.size(), character)
+	followers_container.add_child(follower)
+	party_followers.append(follower)
+
+	# Initialize with hero reference - follower will position relative to hero
+	follower.initialize(hero, formation_index)
+	follower.visible = true
+
+	_debug_print("MapTemplate: Dynamically spawned follower %d: %s" % [formation_index, character.character_name])
 
 
 # =============================================================================
@@ -712,6 +757,23 @@ func _get_current_map_metadata() -> MapMetadata:
 			return map_meta
 
 	return null
+
+
+## Check if this is an overworld map (caravan mode - no party followers).
+## Checks scene's map_type property first, then falls back to registry metadata.
+func _is_overworld_map() -> bool:
+	# Priority 1: Check scene's own map_type property (subclass may define it)
+	if "map_type" in self:
+		var scene_map_type: String = self.map_type
+		if scene_map_type == "OVERWORLD":
+			return true
+
+	# Priority 2: Check registry MapMetadata for caravan_visible flag
+	var map_meta: MapMetadata = _get_current_map_metadata()
+	if map_meta and map_meta.caravan_visible:
+		return true
+
+	return false
 
 
 # =============================================================================

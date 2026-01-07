@@ -11,6 +11,10 @@ extends Camera2D
 ## Target to follow (usually the HeroController)
 var follow_target: Node2D = null
 
+## Cinematic override target - when set, camera follows this instead of follow_target
+## Used during exploration cinematics to pan to speaking actors
+var _cinematic_target: Node2D = null
+
 ## Previous target position for calculating movement direction
 var _previous_target_pos: Vector2 = Vector2.ZERO
 
@@ -26,11 +30,13 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not follow_target:
+	# Cinematic target takes priority over normal follow target
+	var active_target: Node2D = _cinematic_target if _cinematic_target else follow_target
+	if not active_target:
 		return
 
 	# Calculate target camera position
-	var target_pos: Vector2 = follow_target.global_position
+	var target_pos: Vector2 = active_target.global_position
 
 	# Add lookahead if enabled
 	if enable_lookahead:
@@ -47,7 +53,7 @@ func _process(delta: float) -> void:
 	global_position = global_position.round()
 
 	# Update previous position
-	_previous_target_pos = follow_target.global_position
+	_previous_target_pos = active_target.global_position
 
 
 ## Set the target to follow.
@@ -71,3 +77,24 @@ func snap_to_target() -> void:
 func move_to_cell(cell_pos: Vector2i, tile_size: int = 32) -> void:
 	var world_pos: Vector2 = Vector2(cell_pos) * tile_size + Vector2(tile_size, tile_size) * 0.5
 	global_position = global_position.lerp(world_pos, follow_speed * get_process_delta_time())
+
+
+# =============================================================================
+# CINEMATIC CONTROL
+# =============================================================================
+
+## Set a temporary target to follow during cinematics.
+## Camera will smoothly pan to and follow this target instead of the hero.
+## Call clear_cinematic_target() to resume hero following.
+func set_cinematic_target(target: Node2D) -> void:
+	_cinematic_target = target
+
+
+## Clear the cinematic target, resuming normal hero following.
+func clear_cinematic_target() -> void:
+	_cinematic_target = null
+
+
+## Check if camera is currently following a cinematic target.
+func has_cinematic_target() -> bool:
+	return _cinematic_target != null
