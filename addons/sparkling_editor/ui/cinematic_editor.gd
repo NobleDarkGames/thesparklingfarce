@@ -1276,6 +1276,72 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			actor_btn.item_selected.connect(_on_actor_param_selected.bind(param_name, actor_btn))
 			control = actor_btn
 
+		"battle":
+			# Battle picker dropdown
+			var battle_btn: OptionButton = OptionButton.new()
+			battle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			battle_btn.add_item("(None)", 0)
+			battle_btn.set_item_metadata(0, "")
+			var selected_idx: int = 0
+			var item_idx: int = 1
+
+			for battle_res: Resource in _battles:
+				if battle_res:
+					var battle_id: String = ""
+					var battle_name: String = ""
+
+					if "battle_id" in battle_res:
+						battle_id = str(battle_res.get("battle_id"))
+					if "battle_name" in battle_res:
+						battle_name = str(battle_res.get("battle_name"))
+
+					if battle_id.is_empty():
+						battle_id = battle_res.resource_path.get_file().get_basename()
+					if battle_name.is_empty():
+						battle_name = battle_id
+
+					var mod_id: String = ""
+					if ModLoader and ModLoader.registry:
+						var resource_id: String = battle_res.resource_path.get_file().get_basename()
+						mod_id = ModLoader.registry.get_resource_source(resource_id)
+
+					var display_name: String = "[%s] %s" % [mod_id, battle_name] if not mod_id.is_empty() else battle_name
+					battle_btn.add_item(display_name, item_idx)
+					battle_btn.set_item_metadata(item_idx, battle_id)
+
+					if battle_id == str(current_value):
+						selected_idx = item_idx
+					item_idx += 1
+
+			battle_btn.select(selected_idx)
+			battle_btn.item_selected.connect(_on_battle_param_selected.bind(param_name, battle_btn))
+			control = battle_btn
+
+		"cinematic":
+			# Cinematic picker dropdown
+			var cine_btn: OptionButton = OptionButton.new()
+			cine_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			cine_btn.add_item("(None)", 0)
+			cine_btn.set_item_metadata(0, "")
+			var selected_idx: int = 0
+			var item_idx: int = 1
+
+			for entry: Dictionary in cinematics:
+				var cinematic_id: String = entry.get("name", "")
+				var mod_id: String = entry.get("mod_id", "")
+
+				var display_name: String = "[%s] %s" % [mod_id, cinematic_id] if not mod_id.is_empty() else cinematic_id
+				cine_btn.add_item(display_name, item_idx)
+				cine_btn.set_item_metadata(item_idx, cinematic_id)
+
+				if cinematic_id == str(current_value):
+					selected_idx = item_idx
+				item_idx += 1
+
+			cine_btn.select(selected_idx)
+			cine_btn.item_selected.connect(_on_cinematic_param_selected.bind(param_name, cine_btn))
+			control = cine_btn
+
 		"choices":
 			# Custom UI for show_choice command - editable list of choices
 			var choices_container: VBoxContainer = VBoxContainer.new()
@@ -1380,6 +1446,16 @@ func _on_map_selected(index: int, param_name: String, option_btn: OptionButton) 
 func _on_actor_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
 	var actor_id: Variant = option_btn.get_item_metadata(index)
 	_on_param_changed(actor_id if actor_id else "", param_name)
+
+
+func _on_battle_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var battle_id: Variant = option_btn.get_item_metadata(index)
+	_on_param_changed(battle_id if battle_id else "", param_name)
+
+
+func _on_cinematic_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
+	var cinematic_id: Variant = option_btn.get_item_metadata(index)
+	_on_param_changed(cinematic_id if cinematic_id else "", param_name)
 
 
 func _on_text_changed(param_name: String, text_edit: TextEdit) -> void:
