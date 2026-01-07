@@ -13,8 +13,8 @@ extends RefCounted
 ##   Slot accepts: ["weapon:*"]
 ##   Match: "bow" is in "weapon" category, slot accepts weapon:* -> SUCCESS
 ##
-## Populated entirely from mod.json files - NO hardcoded defaults.
-## This enables total conversion mods to completely replace the equipment system.
+## Includes SF-standard defaults (sword, axe, spear, staff, ring, etc.).
+## Mods can add new types or use "replace_all": true for total conversions.
 ##
 ## mod.json schema:
 ## {
@@ -49,6 +49,49 @@ var _subtypes: Dictionary = {}
 
 ## Registered categories: {category_id: {display_name, description, source_mod}}
 var _categories: Dictionary = {}
+
+## Whether defaults have been initialized
+var _defaults_initialized: bool = false
+
+# =============================================================================
+# INITIALIZATION
+# =============================================================================
+
+## Initialize with SF-standard equipment types.
+## Called automatically on first use, or can be called explicitly.
+## Mods can override these via register_from_config() with "replace_all": true.
+func init_defaults() -> void:
+	if _defaults_initialized:
+		return
+	_defaults_initialized = true
+
+	# Categories
+	_categories["weapon"] = {
+		"id": "weapon",
+		"display_name": "Weapon",
+		"description": "Equipped in weapon slot",
+		"source_mod": "_core"
+	}
+	_categories["accessory"] = {
+		"id": "accessory",
+		"display_name": "Accessory",
+		"description": "Rings and other accessories",
+		"source_mod": "_core"
+	}
+
+	# Weapon subtypes (SF-standard)
+	_subtypes["sword"] = {"id": "sword", "category": "weapon", "display_name": "Sword", "source_mod": "_core"}
+	_subtypes["axe"] = {"id": "axe", "category": "weapon", "display_name": "Axe", "source_mod": "_core"}
+	_subtypes["spear"] = {"id": "spear", "category": "weapon", "display_name": "Spear", "source_mod": "_core"}
+	_subtypes["staff"] = {"id": "staff", "category": "weapon", "display_name": "Staff", "source_mod": "_core"}
+	_subtypes["knife"] = {"id": "knife", "category": "weapon", "display_name": "Knife", "source_mod": "_core"}
+	_subtypes["bow"] = {"id": "bow", "category": "weapon", "display_name": "Bow", "source_mod": "_core"}
+
+	# Accessory subtypes
+	_subtypes["ring"] = {"id": "ring", "category": "accessory", "display_name": "Ring", "source_mod": "_core"}
+
+	registrations_changed.emit()
+
 
 # =============================================================================
 # REGISTRATION API
@@ -298,10 +341,12 @@ func get_subtypes_grouped_by_category() -> Dictionary:
 # =============================================================================
 
 ## Clear all registrations (called on mod reload)
+## Re-initializes defaults after clearing so mods can build on them
 func clear_mod_registrations() -> void:
 	_subtypes.clear()
 	_categories.clear()
-	registrations_changed.emit()
+	_defaults_initialized = false
+	init_defaults()  # Re-apply defaults so mods can override
 
 
 ## Get registration counts for debugging

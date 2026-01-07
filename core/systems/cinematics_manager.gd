@@ -104,6 +104,11 @@ func _ready() -> void:
 	if DialogManager:
 		DialogManager.dialog_ended.connect(_on_dialog_ended)
 
+	# Connect to SceneManager to clean up on scene transitions
+	# This handles cases where scene changes during a cinematic (e.g., door trigger)
+	if SceneManager:
+		SceneManager.scene_transition_completed.connect(_on_scene_transition)
+
 
 func _process(delta: float) -> void:
 	# Handle wait timer - only when in PLAYING state (not waiting for dialog/shop)
@@ -533,6 +538,19 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 		current_state = State.PLAYING
 		_is_waiting = false  # Clear the waiting flag set by DialogExecutor
 		_command_completed = true
+
+
+## Handle scene transitions - clean up any active cinematic
+## This prevents input from staying disabled when a door trigger fires mid-cinematic
+func _on_scene_transition(_scene_path: String) -> void:
+	# If a cinematic is active, force-end it to clean up state
+	if current_state != State.IDLE:
+		push_warning("CinematicsManager: Scene transition during active cinematic - forcing cleanup")
+		_end_cinematic()
+	# Safety net: if input is disabled but no cinematic active, re-enable it
+	elif _player_input_disabled:
+		push_warning("CinematicsManager: Input disabled with no active cinematic - re-enabling")
+		_enable_player_input()
 
 
 ## End the current cinematic

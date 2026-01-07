@@ -411,10 +411,26 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 
 
 ## Handle CUTSCENE trigger
-func _handle_cutscene_trigger(trigger: Node, _player: Node2D) -> void:
-	var _trigger_data: Dictionary = trigger.get("trigger_data")
-	# TODO: Phase 5 - implement cutscene system
-	pass
+func _handle_cutscene_trigger(trigger: Node, player: Node2D) -> void:
+	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var cinematic_id: String = trigger_data["cinematic_id"] if "cinematic_id" in trigger_data else ""
+
+	if cinematic_id.is_empty():
+		push_warning("TriggerManager: Cutscene trigger missing cinematic_id")
+		return
+
+	# Validate cinematic exists before playing
+	var cinematic_data: CinematicData = ModLoader.registry.get_cinematic(cinematic_id)
+	if not cinematic_data:
+		push_error("TriggerManager: Cinematic '%s' not found in registry" % cinematic_id)
+		return
+
+	# Stop hero movement immediately to prevent walking through the trigger
+	if player.has_method("stop_movement"):
+		player.stop_movement()
+
+	# Play the cinematic (CinematicsManager handles input blocking and async)
+	CinematicsManager.play_cinematic(cinematic_id)
 
 
 ## Handle TRANSITION trigger - teleport within same scene

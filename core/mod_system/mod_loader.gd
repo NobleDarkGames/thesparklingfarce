@@ -116,6 +116,10 @@ func is_loading() -> bool:
 
 
 func _ready() -> void:
+	# Initialize equipment type defaults before mods load
+	# Mods can override these via "replace_all": true in custom_types.equipment_types
+	equipment_type_registry.init_defaults()
+
 	# Initial load is SYNCHRONOUS to ensure all resources are available
 	# before any scenes try to use them. Use reload_mods_async() for
 	# runtime hot-reloading if needed.

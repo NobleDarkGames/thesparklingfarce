@@ -45,3 +45,10 @@ trigger_id = "exit_south"
 one_shot = false
 destination_scene = "uid://cic5vl64gxyim"
 spawn_point = "from_mudford"
+
+[node name="KurtTrigger" parent="." instance=ExtResource("5_86ayf")]
+position = Vector2(175, 571)
+scale = Vector2(4.6400003, 0.4377502)
+trigger_type = 4
+trigger_id = "unlock_kurt"
+cinematic_id = "meet_kurt"

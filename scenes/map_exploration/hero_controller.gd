@@ -544,6 +544,23 @@ func teleport_to_grid(new_grid_pos: Vector2i) -> void:
 		print("[HeroController] Teleported to %s - tile history reset" % grid_position)
 
 
+## Stop any in-progress movement immediately.
+## Snaps hero to current grid position. Used by cutscene triggers to prevent
+## the hero from walking through trigger areas during cinematic startup.
+func stop_movement() -> void:
+	if not is_moving:
+		return
+
+	# Snap to current grid position (not target - stay where we are)
+	global_position = grid_to_world(grid_position)
+	target_position = global_position
+	is_moving = false
+
+	# Stop walk sound and show idle
+	_stop_walk_sound()
+	_play_idle_animation()
+
+
 ## Create a CinematicActor child for cutscene control.
 ## This allows the CinematicsManager to control the hero during cinematics.
 ## The hero is registered with actor_id "hero" for use in cinematic scripts.
