@@ -59,17 +59,24 @@ var _map_node: Node2D = null  # The active Map node (from loaded map scene)
 
 ## Load and integrate the map scene from battle_data
 func _load_map_scene() -> bool:
+	print("[DEBUG] _load_map_scene: START")
 	# Validate map_scene exists
 	if not battle_data.map_scene:
 		push_error("BattleLoader: battle_data.map_scene is not set!")
 		return false
 
+	print("[DEBUG] _load_map_scene: Instantiating map scene: %s" % battle_data.map_scene.resource_path)
 	# Instance the map scene
 	_map_instance = battle_data.map_scene.instantiate()
 	if not _map_instance:
 		push_error("BattleLoader: Failed to instantiate map_scene")
 		return false
-
+	var script_path: String = _map_instance.get_script().resource_path if _map_instance.get_script() else "none"
+	print("[DEBUG] _load_map_scene: Map instance created, type: %s, script: %s" % [_map_instance.get_class(), script_path])
+	var child_names: PackedStringArray = PackedStringArray()
+	for c: Node in _map_instance.get_children():
+		child_names.append(c.name)
+	print("[DEBUG] _load_map_scene: Children: %s" % str(child_names))
 
 	# Find the Map node in the instanced scene
 	var map_node: Node2D = _map_instance.get_node_or_null("Map")
@@ -81,6 +88,7 @@ func _load_map_scene() -> bool:
 			push_error("BattleLoader: map_scene has no 'Map' node or 'GroundLayer'")
 			_map_instance.queue_free()
 			return false
+	print("[DEBUG] _load_map_scene: Found map_node")
 
 	# Find required layers
 	_ground_layer = map_node.get_node_or_null("GroundLayer") as TileMapLayer
@@ -133,9 +141,11 @@ func _ready() -> void:
 	print("[FLOW] BattleLoader: %s" % battle_data.battle_name)
 
 	# Load map from battle_data.map_scene
+	print("[DEBUG] BattleLoader: About to call _load_map_scene()")
 	if not _load_map_scene():
 		push_error("BattleLoader: Failed to load map scene")
 		return
+	print("[DEBUG] BattleLoader: _load_map_scene() completed")
 
 	# Calculate grid size from tilemap used rect
 	var grid_resource: Grid = Grid.new()
@@ -313,7 +323,7 @@ func _ready() -> void:
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData, p_save_data: CharacterSaveData = null) -> Unit:
 	# Use BattleManager's unit scene (supports mod overrides)
-	var unit: Unit = BattleManager._get_unit_scene().instantiate()
+	var unit: Unit = BattleManager._get_cached_scene("unit_scene").instantiate()
 
 	# Initialize with character data (and save data if available for player units)
 	if p_save_data:

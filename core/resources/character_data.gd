@@ -82,8 +82,10 @@ func _init() -> void:
 @export var is_default_party_member: bool = false
 
 ## Default AI behavior for this unit when used as an enemy
-## Can be overridden in BattleData on a per-instance basis
-@export var default_ai_brain: AIBrain = null
+## Assign an AIBehaviorData resource from mods/*/data/ai_behaviors/
+## Can be overridden per-instance in BattleData
+## Edit AI behaviors in the AI Behaviors editor (data-driven, no code required)
+@export var default_ai_behavior: AIBehaviorData = null
 
 @export_group("AI Threat Configuration")
 ## Multiplier applied to this character's calculated threat score.

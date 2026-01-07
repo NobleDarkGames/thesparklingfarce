@@ -60,7 +60,7 @@ var inventory_list_container: VBoxContainer
 var inventory_add_button: Button
 var _current_inventory_items: Array[String] = []  # Item IDs
 
-var available_ai_brains: Array[AIBrain] = []
+var available_ai_behaviors: Array[AIBehaviorData] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 
 # Filter buttons (will be created by _setup_filter_buttons)
@@ -146,10 +146,10 @@ func _load_resource_data() -> void:
 	is_boss_check.button_pressed = character.is_boss
 	is_default_party_member_check.button_pressed = character.is_default_party_member
 
-	# Set default AI brain
-	if character.default_ai_brain:
-		for i: int in range(available_ai_brains.size()):
-			if available_ai_brains[i] == character.default_ai_brain:
+	# Set default AI behavior
+	if character.default_ai_behavior:
+		for i: int in range(available_ai_behaviors.size()):
+			if available_ai_behaviors[i].resource_path == character.default_ai_behavior.resource_path:
 				default_ai_option.select(i + 1)
 				break
 	else:
@@ -204,12 +204,12 @@ func _save_resource_data() -> void:
 	character.is_boss = is_boss_check.button_pressed
 	character.is_default_party_member = is_default_party_member_check.button_pressed
 
-	# Update default AI brain
+	# Update default AI behavior
 	var ai_index: int = default_ai_option.selected - 1
-	if ai_index >= 0 and ai_index < available_ai_brains.size():
-		character.default_ai_brain = available_ai_brains[ai_index]
+	if ai_index >= 0 and ai_index < available_ai_behaviors.size():
+		character.default_ai_behavior = available_ai_behaviors[ai_index]
 	else:
-		character.default_ai_brain = null
+		character.default_ai_behavior = null
 
 	# Update class using ResourcePicker
 	character.character_class = class_picker.get_selected_resource() as ClassData
@@ -485,7 +485,7 @@ func _add_battle_configuration_section() -> void:
 	party_member_container.add_child(is_default_party_member_check)
 	section.add_child(party_member_container)
 
-	# Default AI Brain
+	# Default AI Behavior
 	var ai_container: HBoxContainer = HBoxContainer.new()
 	var ai_label: Label = Label.new()
 	ai_label.text = "Default AI:"
@@ -506,8 +506,8 @@ func _add_battle_configuration_section() -> void:
 
 	detail_panel.add_child(section)
 
-	# Load available AI brains after creating the dropdown
-	_load_available_ai_brains()
+	# Load available AI behaviors after creating the dropdown
+	_load_available_ai_behaviors()
 
 
 func _add_ai_threat_configuration_section() -> void:
@@ -749,23 +749,20 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer, tooltip: Str
 	return spin
 
 
-func _load_available_ai_brains() -> void:
-	available_ai_brains.clear()
+func _load_available_ai_behaviors() -> void:
+	available_ai_behaviors.clear()
 	default_ai_option.clear()
 	default_ai_option.add_item("(None)", 0)
 
-	# Use the AI Brain Registry for discovery (supports mod.json declarations + auto-discovery)
-	if ModLoader and ModLoader.ai_brain_registry:
-		var brains: Array[Dictionary] = ModLoader.ai_brain_registry.get_all_brains()
-		for brain_info: Dictionary in brains:
-			var brain_id: String = DictUtils.get_string(brain_info, "id", "")
-			var instance: Resource = ModLoader.ai_brain_registry.get_brain_instance(brain_id)
-			if instance:
-				var ai_brain: AIBrain = instance as AIBrain
-				if ai_brain:
-					available_ai_brains.append(ai_brain)
-					var display_name: String = DictUtils.get_string(brain_info, "display_name", "Unknown")
-					default_ai_option.add_item(display_name, available_ai_brains.size())
+	# Use ModLoader registry for ai_behavior resources (same as Battle Editor)
+	if ModLoader and ModLoader.registry:
+		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
+		for resource: Resource in behaviors:
+			var ai_behavior: AIBehaviorData = resource as AIBehaviorData
+			if ai_behavior:
+				available_ai_behaviors.append(ai_behavior)
+				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else ai_behavior.behavior_id.capitalize()
+				default_ai_option.add_item(display_name, available_ai_behaviors.size())
 
 
 func _setup_filter_buttons() -> void:

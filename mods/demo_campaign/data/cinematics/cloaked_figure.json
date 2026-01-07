@@ -1,0 +1,28 @@
+{
+	"actors": [],
+	"can_skip": true,
+	"cinematic_id": "cloaked_figure",
+	"cinematic_name": "Cloaked Figure",
+	"commands": [
+		{
+			"params": {
+				"auto_follow": true,
+				"character_id": "npc:cloaky",
+				"emotion": "neutral",
+				"text": "Greetings, {player_name}.  Yes, I know all about you!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"auto_follow": true,
+				"character_id": "rfcd4dp9",
+				"emotion": "neutral",
+				"text": "Whaaaaaaa?"
+			},
+			"type": "dialog_line"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}

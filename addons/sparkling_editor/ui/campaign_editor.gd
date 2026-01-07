@@ -908,6 +908,7 @@ func _create_graph_node(node_data: Dictionary, index: int, starting_id: String) 
 	var is_start: bool = (node_id == starting_id)
 
 	graph_node.name = node_id
+	graph_node.set_meta("node_id", node_id)  # Store node_id reliably (name can be changed by Godot)
 	graph_node.title = display_name
 
 	# Position from stored data or auto-layout
@@ -1050,7 +1051,7 @@ func _create_connections() -> void:
 
 func _on_graph_node_selected(node: Node) -> void:
 	if node is GraphNode:
-		selected_node_id = node.name
+		selected_node_id = node.get_meta("node_id", node.name) as String
 		_populate_node_inspector()
 
 
@@ -1125,7 +1126,8 @@ func _populate_node_inspector() -> void:
 
 	completion_flag_edit.text = str(node_data.get("completion_flag", ""))
 	var completion_npc_id: String = str(node_data.get("completion_npc_id", ""))
-	_select_resource_in_picker(completion_npc_picker, completion_npc_id)
+	# NPC lookup by npc_id property (not resource filename)
+	_select_npc_by_npc_id(completion_npc_picker, completion_npc_id)
 
 	# Update visibility based on node type and completion trigger
 	_update_completion_trigger_visibility(node_type, completion_trigger)
@@ -1217,12 +1219,13 @@ func _on_node_id_changed(new_text: String) -> void:
 	var old_id: String = selected_node_id
 	_update_node_data(old_id, "node_id", new_text)
 
-	# Update graph node name
+	# Update graph node name and metadata
 	if old_id in graph_nodes:
 		var gn_variant: Variant = graph_nodes[old_id]
 		var gn: GraphNode = gn_variant as GraphNode if gn_variant is GraphNode else null
 		if gn:
 			gn.name = new_text
+			gn.set_meta("node_id", new_text)
 			graph_nodes.erase(old_id)
 			graph_nodes[new_text] = gn
 
@@ -1342,8 +1345,15 @@ func _on_post_cinematic_selected(metadata: Dictionary) -> void:
 func _on_completion_npc_selected(metadata: Dictionary) -> void:
 	if _updating_ui:
 		return
-	var resource_id: String = DictUtils.get_string(metadata, "resource_id", "")
-	_update_node_data(selected_node_id, "completion_npc_id", resource_id)
+	# Use the NPC's npc_id property (not the resource filename) for runtime matching
+	var npc_resource: Resource = metadata.get("resource")
+	var npc_id: String = ""
+	if npc_resource and "npc_id" in npc_resource:
+		npc_id = npc_resource.npc_id
+	else:
+		# Fallback to resource_id if npc_id not available
+		npc_id = DictUtils.get_string(metadata, "resource_id", "")
+	_update_node_data(selected_node_id, "completion_npc_id", npc_id)
 
 
 func _on_completion_trigger_changed(index: int) -> void:
@@ -1410,6 +1420,24 @@ func _update_resource_picker_for_node_type(node_type: String) -> void:
 			resource_id_picker.label_text = "Resource:"
 	# Force picker to refresh its dropdown options
 	resource_id_picker.refresh()
+
+
+## Select an NPC in a ResourcePicker by its npc_id property (not resource filename)
+func _select_npc_by_npc_id(picker: ResourcePicker, npc_id: String) -> void:
+	if npc_id.is_empty():
+		picker.select_none()
+		return
+
+	# Search through all NPC resources to find one with matching npc_id
+	if ModLoader and ModLoader.registry:
+		var all_npcs: Array[Resource] = ModLoader.registry.get_all_resources("npc")
+		for npc_res: Resource in all_npcs:
+			if "npc_id" in npc_res and npc_res.npc_id == npc_id:
+				picker.select_resource(npc_res)
+				return
+
+	# Not found - select none
+	picker.select_none()
 
 
 ## Select a resource in a ResourcePicker by its ID (looks up from registry)

@@ -1,0 +1,99 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=16 format=3 uid="uid://c40nyf8i5fwfc"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_ld0t0"]
+[ext_resource type="Resource" uid="uid://b8a8yw15vvqlr" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767747144.tres" id="1_ypq2g"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_mxged"]
+[ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_platform_defaults/data/ai_behaviors/aggressive_melee.tres" id="2_t15sv"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_s7g4s"]
+[ext_resource type="Texture2D" uid="uid://bngbcdqnpfivi" path="res://mods/demo_campaign/assets/sprites/map/archer_spritesheet.png" id="4_by0vw"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ow88t"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_oavgw"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ewk22"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5d878"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fexbm"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uuoye"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xgqb1"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v2xln"]
+atlas = ExtResource("4_by0vw")
+region = Rect2(32, 96, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wcv5u"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ow88t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_oavgw")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ewk22")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5d878")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fexbm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uuoye")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xgqb1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v2xln")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]
+
+[resource]
+script = ExtResource("1_ld0t0")
+character_uid = "4wgr822s"
+character_name = "Big Rat"
+character_class = ExtResource("1_ypq2g")
+base_hp = 20
+base_mp = 10
+sprite_frames = SubResource("SpriteFrames_wcv5u")
+unit_category = "enemy"
+is_unique = false
+default_ai_behavior = ExtResource("2_t15sv")

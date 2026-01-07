@@ -1,0 +1,82 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://yfbtdnnstrik"]
+
+[ext_resource type="Texture2D" uid="uid://bngbcdqnpfivi" path="res://mods/demo_campaign/assets/sprites/map/archer_spritesheet.png" id="1_5xqqv"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ow88t"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_oavgw"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ewk22"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5d878"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fexbm"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uuoye"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xgqb1"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v2xln"]
+atlas = ExtResource("1_5xqqv")
+region = Rect2(32, 96, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ow88t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_oavgw")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ewk22")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5d878")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fexbm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uuoye")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xgqb1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v2xln")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]

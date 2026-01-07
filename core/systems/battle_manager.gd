@@ -233,18 +233,31 @@ func _create_grid_from_tilemap(tilemap: TileMapLayer) -> Grid:
 
 ## Spawn all units from BattleData
 func _spawn_all_units() -> void:
+	print("[DEBUG] BattleManager._spawn_all_units() called")
+	print("[DEBUG] PartyManager.is_empty() = %s" % PartyManager.is_empty())
+	print("[DEBUG] PartyManager.party_members.size() = %d" % PartyManager.party_members.size())
+
 	# Spawn player units from PartyManager
 	if not PartyManager.is_empty():
 		# Get player spawn point from BattleData or use default
 		var player_spawn_point: Vector2i = Vector2i(2, 2)  # Default position
-		if current_battle_data.get("player_spawn_position") != null:
-			player_spawn_point = current_battle_data.player_spawn_position
+		if current_battle_data.get("player_spawn_point") != null:
+			player_spawn_point = current_battle_data.player_spawn_point
+			print("[DEBUG] Using BattleData player_spawn_point: %s" % player_spawn_point)
+		else:
+			print("[DEBUG] Using default player_spawn_point: %s" % player_spawn_point)
 
 		# Get party spawn data from PartyManager
 		var party_spawn_data: Array[Dictionary] = PartyManager.get_battle_spawn_data(player_spawn_point)
+		print("[DEBUG] PartyManager.get_battle_spawn_data() returned %d entries" % party_spawn_data.size())
+		for i: int in range(party_spawn_data.size()):
+			var data: Dictionary = party_spawn_data[i]
+			var char_data: CharacterData = data.get("character") as CharacterData
+			print("[DEBUG]   [%d] %s at %s" % [i, char_data.character_name if char_data else "NULL", data.get("position")])
 
 		# Spawn the party
 		player_units = _spawn_units(party_spawn_data, "player")
+		print("[DEBUG] Spawned %d player units" % player_units.size())
 	else:
 		push_warning("BattleManager: No party members in PartyManager, no player units spawned")
 
@@ -264,9 +277,10 @@ func _spawn_all_units() -> void:
 
 
 ## Spawn units from array of dictionaries
-## Format: [{character: CharacterData, position: Vector2i, ai_brain: AIBehaviorData}, ...]
+## Format: [{character: CharacterData, position: Vector2i, ai_behavior: AIBehaviorData}, ...]
 func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 	var units: Array[Unit] = []
+	print("[DEBUG] _spawn_units called for faction '%s' with %d entries" % [faction, unit_data.size()])
 
 	for data: Variant in unit_data:
 		# Validate data structure
@@ -276,11 +290,13 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 
 		if not "character" in data or not "position" in data:
 			push_warning("BattleManager: Unit data missing character or position")
+			print("[DEBUG]   SKIP: missing character or position. Keys: %s" % str(data.keys()))
 			continue
 
 		var character_data: CharacterData = data.character as CharacterData
 		var grid_pos: Vector2i = data.position
-		var ai_behavior: AIBehaviorData = data.get("ai_brain", null) as AIBehaviorData
+		var ai_behavior: AIBehaviorData = data.get("ai_behavior", null) as AIBehaviorData
+		print("[DEBUG]   Spawning %s at grid %s" % [character_data.character_name if character_data else "NULL", grid_pos])
 
 		# Instantiate unit
 		var unit: Unit = _get_cached_scene("unit_scene").instantiate() as Unit
@@ -296,6 +312,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		# Position unit on grid
 		unit.grid_position = grid_pos
 		unit.position = GridManager.cell_to_world(grid_pos)
+		print("[DEBUG]   Unit world position: %s" % unit.position)
 
 		# Register with GridManager for pathfinding and occupation checks
 		GridManager.set_cell_occupied(grid_pos, unit)
@@ -303,6 +320,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		# Add to scene
 		if units_parent:
 			units_parent.add_child(unit)
+			print("[DEBUG]   Added to units_parent: %s" % units_parent.name)
 		else:
 			push_error("BattleManager: units_parent not set")
 			unit.queue_free()
@@ -317,6 +335,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		units.append(unit)
 		unit_spawned.emit(unit)
 
+	print("[DEBUG] _spawn_units returning %d units" % units.size())
 	return units
 
 

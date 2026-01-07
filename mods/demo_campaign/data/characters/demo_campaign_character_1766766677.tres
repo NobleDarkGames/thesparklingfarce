@@ -17,3 +17,4 @@ base_mp = 10
 portrait = ExtResource("2_0acks")
 sprite_frames = ExtResource("4_g8uwx")
 is_hero = true
+is_default_party_member = true

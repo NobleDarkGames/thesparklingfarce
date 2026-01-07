@@ -1,0 +1,10 @@
+{
+	"author": "The Sparkling Farce Team",
+	"dependencies": [],
+	"description": "Core components like AI brains",
+	"godot_version": "4.5",
+	"id": "_platform_defaults",
+	"load_priority": -1,
+	"name": "Platform Defaults",
+	"version": "1.0.0"
+}

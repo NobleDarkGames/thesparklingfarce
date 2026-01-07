@@ -933,6 +933,10 @@ func _on_confirm_create_map() -> void:
 
 
 func _generate_map_script(p_map_id: String, p_map_name: String, p_map_type: String) -> String:
+	# Battle maps use a minimal script - BattleLoader handles everything
+	if p_map_type == "BATTLE":
+		return _generate_battle_map_script(p_map_id, p_map_name)
+
 	# Build script content with string concatenation to avoid % formatting issues
 	var lines: PackedStringArray = PackedStringArray()
 	lines.append('extends "res://core/templates/map_template.gd"')
@@ -963,6 +967,24 @@ func _generate_map_script(p_map_id: String, p_map_name: String, p_map_type: Stri
 	return "\n".join(lines)
 
 
+## Generate a minimal script for battle maps
+## Battle maps don't need exploration features - BattleLoader handles everything
+func _generate_battle_map_script(p_map_id: String, p_map_name: String) -> String:
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append("extends Node2D")
+	lines.append("")
+	lines.append("## Battle map - minimal script for BattleLoader compatibility")
+	lines.append("## Battle maps don't need exploration features (party followers, camera, etc.)")
+	lines.append("## The BattleLoader handles all battle-specific setup")
+	lines.append("")
+	lines.append('@export var map_id: String = "%s"' % p_map_id)
+	lines.append('@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "BATTLE"')
+	lines.append('@export var display_name: String = "%s"' % p_map_name)
+	lines.append("")
+
+	return "\n".join(lines)
+
+
 func _generate_map_scene(node_name: String, script_path: String, tileset_path: String, map_id: String, map_name: String, map_type: String) -> String:
 	# Capitalize node name
 	var capitalized_name: String = ""
@@ -978,6 +1000,10 @@ func _generate_map_scene(node_name: String, script_path: String, tileset_path: S
 
 	if capitalized_name.is_empty():
 		capitalized_name = "NewMap"
+
+	# Battle maps need a different structure for BattleLoader compatibility
+	if map_type == "BATTLE":
+		return _generate_battle_map_scene(capitalized_name, script_path, tileset_path, map_id, map_name)
 
 	var scene: String = """[gd_scene load_steps=5 format=4]
 
@@ -1012,6 +1038,32 @@ script = ExtResource("3_camera")
 
 [node name="Triggers" type="Node2D" parent="."]
 """ % [script_path, tileset_path, capitalized_name, map_id, map_type, map_name]
+
+	return scene
+
+
+## Generate a battle map scene with BattleLoader-compatible structure
+## Battle maps need: Map/GroundLayer, Map/HighlightLayer for grid-based combat
+func _generate_battle_map_scene(capitalized_name: String, script_path: String, tileset_path: String, map_id: String, map_name: String) -> String:
+	var scene: String = """[gd_scene load_steps=3 format=4]
+
+[ext_resource type="Script" path="%s" id="1_script"]
+[ext_resource type="TileSet" path="%s" id="2_tileset"]
+
+[node name="%s" type="Node2D"]
+script = ExtResource("1_script")
+map_id = "%s"
+map_type = "BATTLE"
+display_name = "%s"
+
+[node name="Map" type="Node2D" parent="."]
+
+[node name="GroundLayer" type="TileMapLayer" parent="Map"]
+tile_set = ExtResource("2_tileset")
+
+[node name="HighlightLayer" type="TileMapLayer" parent="Map"]
+tile_set = ExtResource("2_tileset")
+""" % [script_path, tileset_path, capitalized_name, map_id, map_name]
 
 	return scene
 

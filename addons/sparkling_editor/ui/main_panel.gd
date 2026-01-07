@@ -664,6 +664,7 @@ func _create_mod_wizard_dialog() -> void:
 
 
 func _on_wizard_mod_id_changed(new_id: String) -> void:
+	# Auto-generate display name from ID
 	if wizard_mod_name_edit.text.is_empty() or _is_auto_generated_name(wizard_mod_name_edit.text):
 		var words: PackedStringArray = new_id.split("_")
 		var title_words: Array = []
@@ -671,6 +672,27 @@ func _on_wizard_mod_id_changed(new_id: String) -> void:
 			if not word.is_empty():
 				title_words.append(word.capitalize())
 		wizard_mod_name_edit.text = " ".join(title_words)
+
+	# Real-time validation feedback
+	_validate_wizard_mod_id(new_id)
+
+
+func _validate_wizard_mod_id(mod_id: String) -> bool:
+	wizard_error_label.visible = false
+
+	if mod_id.is_empty():
+		return true  # Don't show error for empty (will catch on submit)
+
+	if not _is_valid_mod_id(mod_id):
+		_show_wizard_error("Mod ID must start with a letter (or _ for platform mods), followed by lowercase letters, numbers, or underscores")
+		return false
+
+	var mod_path: String = "res://mods/" + mod_id + "/"
+	if DirAccess.dir_exists_absolute(mod_path):
+		_show_wizard_error("A mod with ID '%s' already exists" % mod_id)
+		return false
+
+	return true
 
 
 func _is_auto_generated_name(name: String) -> bool:
@@ -695,14 +717,8 @@ func _on_create_mod_confirmed() -> void:
 		_show_wizard_error("Mod ID is required")
 		return
 
-	if not _is_valid_mod_id(mod_id):
-		_show_wizard_error("Mod ID can only contain lowercase letters, numbers, and underscores")
-		return
-
-	var mod_path: String = "res://mods/" + mod_id + "/"
-	if DirAccess.dir_exists_absolute(mod_path):
-		_show_wizard_error("A mod with this ID already exists")
-		return
+	if not _validate_wizard_mod_id(mod_id):
+		return  # Error already shown by validation function
 
 	if mod_name.is_empty():
 		mod_name = mod_id.replace("_", " ").capitalize()
@@ -733,7 +749,8 @@ func _on_create_mod_confirmed() -> void:
 
 func _is_valid_mod_id(mod_id: String) -> bool:
 	var regex: RegEx = RegEx.new()
-	regex.compile("^[a-z][a-z0-9_]*$")
+	# Allow underscore prefix for platform mods (e.g., _platform_defaults, _starter_kit)
+	regex.compile("^_?[a-z][a-z0-9_]*$")
 	return regex.search(mod_id) != null
 
 

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3 uid="uid://b8a8yw15vvqlr"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_bf3vq"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_2k73x"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_rc58i"]
+
+[resource]
+script = ExtResource("3_rc58i")
+display_name = "Basic Mob"

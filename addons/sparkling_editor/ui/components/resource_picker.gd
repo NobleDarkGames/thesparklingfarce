@@ -340,14 +340,11 @@ func get_mods_with_resource(resource_id: String) -> Array:
 
 ## Get the display name from a resource (handles different resource types)
 func _get_display_name(resource: Resource) -> String:
-	# Try common name properties in order of preference
-	if resource.has_method("get_display_name"):
-		return resource.get_display_name()
-
-	# Check for common name properties
+	# Check for common name properties (safer than calling methods on potentially non-tool resources)
 	var name_properties: Array[String] = [
 		"display_name",
 		"character_name",
+		"npc_name",
 		"item_name",
 		"ability_name",
 		"dialogue_id",
