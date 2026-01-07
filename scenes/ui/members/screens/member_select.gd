@@ -18,7 +18,6 @@ var focused_index: int = 0
 
 @onready var header_label: Label = %HeaderLabel
 @onready var char_grid: GridContainer = %CharacterGrid
-@onready var depot_button: Button = %DepotButton
 @onready var back_button: Button = %BackButton
 @onready var info_label: Label = %InfoLabel
 
@@ -29,11 +28,7 @@ func _on_initialized() -> void:
 	_populate_character_grid()
 
 	# Connect buttons
-	depot_button.pressed.connect(_on_depot_pressed)
 	back_button.pressed.connect(_on_back_pressed)
-
-	# Focus navigation for depot/back buttons
-	depot_button.focus_entered.connect(_on_depot_focus_entered)
 	back_button.focus_entered.connect(_on_back_focus_entered)
 
 
@@ -123,22 +118,9 @@ func _update_info_for_character(index: int) -> void:
 		info_label.text = ""
 
 
-func _on_depot_focus_entered() -> void:
-	info_label.text = "Access Caravan Depot"
-	play_sfx("cursor_move")
-
-
 func _on_back_focus_entered() -> void:
 	info_label.text = "Close Members menu"
 	play_sfx("cursor_move")
-
-
-func _on_depot_pressed() -> void:
-	# Go to depot browser (reuses Caravan's screen)
-	if context:
-		context.set_browse_mode()
-	play_sfx("menu_select")
-	push_screen("depot_browser")
 
 
 func _on_back_pressed() -> void:
@@ -146,8 +128,6 @@ func _on_back_pressed() -> void:
 
 
 func _on_screen_exit() -> void:
-	if is_instance_valid(depot_button) and depot_button.pressed.is_connected(_on_depot_pressed):
-		depot_button.pressed.disconnect(_on_depot_pressed)
 	if is_instance_valid(back_button) and back_button.pressed.is_connected(_on_back_pressed):
 		back_button.pressed.disconnect(_on_back_pressed)
 

@@ -13,7 +13,6 @@ extends CanvasLayer
 ## Screen Flow:
 ## member_select -> member_detail (with L/R cycling)
 ##                     -> give_recipient_select (for Give action)
-##                     -> depot_browser (for Depot access, reuses Caravan screen)
 
 # Preload CaravanContext (reused with GIVE mode extensions)
 const CaravanContextClass = preload("res://scenes/ui/caravan/caravan_context.gd")
@@ -37,8 +36,6 @@ const SCREEN_PATHS: Dictionary = {
 	"member_select": "res://scenes/ui/members/screens/member_select.tscn",
 	"member_detail": "res://scenes/ui/members/screens/member_detail.tscn",
 	"give_recipient_select": "res://scenes/ui/members/screens/give_recipient_select.tscn",
-	# Reuse Caravan's depot browser for depot access
-	"depot_browser": "res://scenes/ui/caravan/screens/depot_browser.tscn",
 }
 
 ## Node references
@@ -208,8 +205,6 @@ func _update_hint_for_screen(screen_name: String) -> void:
 			hint_label.text = "A: Select | B: Close"
 		"give_recipient_select":
 			hint_label.text = "A: Give | B: Cancel"
-		"depot_browser":
-			hint_label.text = "A: Select | L/R: Filter | B: Back"
 		_:
 			hint_label.text = ""
 
