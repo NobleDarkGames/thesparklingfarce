@@ -110,6 +110,9 @@ func show_promotion(unit: Unit, old_class: ClassData, new_class: ClassData) -> v
 
 	# Phase 5: Continue prompt
 	_phase_continue_prompt()
+	
+	# Wait for player to dismiss the ceremony
+	await ceremony_dismissed
 
 
 func _setup_character_display(unit: Unit, old_class: ClassData, new_class: ClassData) -> void:

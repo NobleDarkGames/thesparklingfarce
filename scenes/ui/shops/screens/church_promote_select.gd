@@ -161,10 +161,15 @@ func _on_path_selected(target_class: ClassData) -> void:
 
 func _execute_promotion(target_class: ClassData) -> void:
 	var character_uid: String = context.selected_destination
+	var character: CharacterData = _get_character_data(character_uid)
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
+	
+	# Capture old class BEFORE promotion
+	var old_class: ClassData = save_data.get_current_class(character) if save_data else null
+	
 	var result: Dictionary = ShopManager.church_promote(character_uid, target_class)
 
 	if result.get("success", false):
-		var character: CharacterData = _get_character_data(character_uid)
 		var char_name: String = character.character_name if character else "Character"
 
 		context.last_result = {
@@ -177,57 +182,40 @@ func _execute_promotion(target_class: ClassData) -> void:
 			"stat_changes": result.get("stat_changes", {})
 		}
 
-		# Trigger promotion ceremony - it auto-connects to PromotionManager.promotion_completed
-		# The ceremony was already triggered by ShopManager.church_promote() via PromotionManager
-		# We need to show it now
-		_show_promotion_ceremony(character_uid, target_class, result.get("stat_changes", {}))
+		# Show promotion ceremony with captured old class
+		_show_promotion_ceremony(character_uid, old_class, target_class, result.get("stat_changes", {}))
 	else:
 		print("[ChurchPromoteSelect] Promotion failed: %s" % result.get("error", "Unknown error"))
 		# Go back to character select on failure
 		go_back()
 
 
-func _show_promotion_ceremony(character_uid: String, new_class: ClassData, stat_changes: Dictionary) -> void:
+func _show_promotion_ceremony(character_uid: String, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
 	var character: CharacterData = _get_character_data(character_uid)
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
 	if not character or not save_data:
 		push_screen("transaction_result")
 		return
 
-	# Get old class (before promotion - but we already promoted, so get from context or assume)
-	# The promotion already happened, so we need to show the ceremony
-	# PromotionCeremony listens to PromotionManager.promotion_completed which was already emitted
-
-	# Find or create PromotionCeremony
-	var ceremony: PromotionCeremony = _get_or_create_ceremony()
-	if not ceremony:
-		# Fallback to result screen if ceremony can't be created
-		push_screen("transaction_result")
-		return
-
 	# Build unit for ceremony display
 	var unit: Unit = _build_unit_for_query(character, save_data)
 
-	# Get old class from the promotion result (we need to track this)
-	# Since PromotionManager already emitted the signal, the ceremony should have the data
-	# But we called execute_promotion which already triggered it...
+	# Get or create ceremony
+	var ceremony: PromotionCeremony = _get_or_create_ceremony()
+	if not ceremony:
+		push_screen("transaction_result")
+		return
 
-	# The PromotionCeremony auto-connects to PromotionManager.promotion_completed
-	# So the ceremony should already have _stat_changes from that signal
-	# We just need to call show_promotion
-
-	# Get the old class - it's the promotion source
-	# Since promotion already happened, unit.stats.class_data is the NEW class
-	# We need the old class from context or save history
-	# For now, pass null and let ceremony handle it
-	var old_class: ClassData = null  # Already transitioned
-
-	# Wait for ceremony to be added to tree
+	# Add ceremony to tree if needed
 	if not ceremony.is_inside_tree():
 		get_tree().root.add_child(ceremony)
 
+	# Connect dismissal signal and show ceremony
 	ceremony.ceremony_dismissed.connect(_on_ceremony_dismissed, CONNECT_ONE_SHOT)
 	await ceremony.show_promotion_with_stats(unit, old_class, new_class, stat_changes)
+	
+	# CRITICAL: Remove ceremony from tree to stop blocking input
+	ceremony.queue_free()
 
 
 func _get_or_create_ceremony() -> PromotionCeremony:
