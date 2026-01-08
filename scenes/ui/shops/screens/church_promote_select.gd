@@ -233,8 +233,10 @@ func _get_or_create_ceremony() -> PromotionCeremony:
 
 
 func _on_ceremony_dismissed() -> void:
-	# After ceremony, go to transaction result
-	push_screen("transaction_result")
+	# After ceremony, return to church action menu
+	# The ceremony already showed the promotion success, so transaction_result is redundant
+	go_back()
+	go_back()  # Back past character select to church_action_select
 
 
 func _on_button_focus_entered(btn: Button) -> void:
