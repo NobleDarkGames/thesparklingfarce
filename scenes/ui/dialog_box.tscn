@@ -95,14 +95,14 @@ theme_override_constants/separation = 4
 [node name="SpeakerNameLabel" type="Label" parent="ContentMargin/ContentHBox/DialogVBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Speaker Name"
+text = ""
 
 [node name="DialogTextLabel" type="RichTextLabel" parent="ContentMargin/ContentHBox/DialogVBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_font_sizes/normal_font_size = 16
 bbcode_enabled = true
-text = "Dialog text appears here with typewriter effect."
+text = ""
 fit_content = true
 scroll_active = false
 

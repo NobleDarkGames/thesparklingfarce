@@ -658,6 +658,7 @@ func _end_cinematic() -> void:
 
 
 ## Skip the current cinematic
+## Fades to black before cleanup to avoid jarring actor disappearance
 func skip_cinematic() -> void:
 	if current_state == State.IDLE:
 		return
@@ -665,6 +666,12 @@ func skip_cinematic() -> void:
 	if current_cinematic and not current_cinematic.can_skip:
 		push_warning("CinematicsManager: Current cinematic cannot be skipped")
 		return
+
+	# Prevent multiple skip calls during fade
+	if current_state == State.SKIPPING:
+		return
+
+	current_state = State.SKIPPING
 
 	# Interrupt any active async executor to allow cleanup
 	if _current_executor:
@@ -675,6 +682,15 @@ func skip_cinematic() -> void:
 	_next_destination = ""
 
 	cinematic_skipped.emit()
+
+	# Fade to black BEFORE cleanup so actors don't pop out visually
+	# Only fade if not already faded (avoids double-fade)
+	if SceneManager and not SceneManager.is_faded_to_black:
+		await SceneManager.fade_to_black(0.3)
+		# Guard against node being freed during await
+		if not is_instance_valid(self):
+			return
+
 	_end_cinematic()
 
 
