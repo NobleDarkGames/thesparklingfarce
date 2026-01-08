@@ -161,4 +161,7 @@ func _quit_test(success: bool) -> void:
 
 	# Wait a frame before quitting
 	await get_tree().process_frame
+	# Guard against being freed during await
+	if not is_instance_valid(self):
+		return
 	get_tree().quit(0 if success else 1)

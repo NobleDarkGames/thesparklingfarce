@@ -147,6 +147,9 @@ func _request_ui_controller() -> void:
 func _request_ui_controller_async() -> void:
 	for attempt: int in range(10):
 		await get_tree().process_frame
+		# Guard against being freed during await
+		if not is_instance_valid(self):
+			return
 		if not ExplorationUIManager:
 			return
 		var controller: Node = ExplorationUIManager.get_controller()

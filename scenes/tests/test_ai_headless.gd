@@ -11,7 +11,6 @@ const UnitScript = preload("res://core/components/unit.gd")
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
 var _test_complete: bool = false
-var _turn_count: int = 0
 var _max_turns: int = 10
 
 
@@ -104,6 +103,11 @@ func _on_player_turn_started(unit: Unit) -> void:
 
 	# Auto-end player turn (we're testing AI, not player input)
 	await get_tree().create_timer(0.1).timeout
+	# Guard against being freed during await
+	if not is_instance_valid(self):
+		return
+	if not is_instance_valid(unit):
+		return
 	print("  -> Ending player turn automatically")
 	TurnManager.end_unit_turn(unit)
 
@@ -139,8 +143,25 @@ func _on_battle_ended(victory: bool) -> void:
 
 	_test_complete = true
 	await get_tree().create_timer(0.5).timeout
+	# Guard against being freed during await
+	if not is_instance_valid(self):
+		return
 	print("\n=== AI Test Complete ===")
 	get_tree().quit()
+
+
+func _exit_tree() -> void:
+	# Disconnect signals to prevent callbacks on freed node
+	if TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
+		TurnManager.enemy_turn_started.disconnect(_on_enemy_turn_started)
+	if TurnManager.player_turn_started.is_connected(_on_player_turn_started):
+		TurnManager.player_turn_started.disconnect(_on_player_turn_started)
+	if TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
+		TurnManager.unit_turn_ended.disconnect(_on_unit_turn_ended)
+	if TurnManager.battle_ended.is_connected(_on_battle_ended):
+		TurnManager.battle_ended.disconnect(_on_battle_ended)
+	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
+		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
 
 
 func _process(_delta: float) -> void:

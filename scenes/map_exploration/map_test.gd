@@ -53,6 +53,9 @@ func _ready() -> void:
 
 		# Wait one frame for hero to be fully initialized
 		await get_tree().process_frame
+		# Guard against being freed during await
+		if not is_instance_valid(self):
+			return
 
 		if hero and hero.has_method("teleport_to_grid"):
 			hero.teleport_to_grid(return_pos)
@@ -158,3 +161,12 @@ func _input(event: InputEvent) -> void:
 			if hero:
 				_debug_print("MapTest: Teleporting hero to center")
 				hero.teleport_to_grid(Vector2i(5, 5))
+
+
+func _exit_tree() -> void:
+	# Disconnect hero signals to prevent callbacks on freed node
+	if hero:
+		if hero.moved_to_tile.is_connected(_on_hero_moved):
+			hero.moved_to_tile.disconnect(_on_hero_moved)
+		if hero.interaction_requested.is_connected(_on_hero_interaction):
+			hero.interaction_requested.disconnect(_on_hero_interaction)

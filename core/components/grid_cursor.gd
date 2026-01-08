@@ -49,6 +49,11 @@ func _ready() -> void:
 	_start_idle_animation()
 
 
+func _exit_tree() -> void:
+	# Kill all tweens to prevent callbacks on freed node
+	_stop_all_animations()
+
+
 ## Set cursor mode with appropriate visual style
 ## mode: The cursor mode (ACTIVE_UNIT, READY_TO_ACT, TARGETING)
 ## is_ally: For TARGETING mode, whether target is ally (green) or enemy (red)

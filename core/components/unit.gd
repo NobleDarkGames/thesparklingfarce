@@ -784,3 +784,13 @@ func initialize_from_save_data(
 	# Hide selection indicator by default
 	if selection_indicator:
 		selection_indicator.visible = false
+
+
+func _exit_tree() -> void:
+	# Kill any active tweens to prevent callbacks on freed node
+	if _movement_tween and _movement_tween.is_valid():
+		_movement_tween.kill()
+		_movement_tween = null
+	if _health_bar_tween and _health_bar_tween.is_valid():
+		_health_bar_tween.kill()
+		_health_bar_tween = null
