@@ -595,22 +595,45 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 func _find_npc_at_position(grid_pos: Vector2i) -> Node:
 	# Get all nodes in the "npcs" group
 	var npcs: Array[Node] = get_tree().get_nodes_in_group("npcs")
+	
+	print("[MapTemplate] Looking for NPC at grid position: %s" % grid_pos)
+	print("[MapTemplate] Found %d NPCs in 'npcs' group" % npcs.size())
 
 	for npc: Node in npcs:
+		var npc_grid_pos: Vector2i = Vector2i.ZERO
+		var npc_world_pos: Vector2 = Vector2.ZERO
+		
 		# Check if NPC has grid_position property or method
 		if npc.has_method("is_at_grid_position"):
+			if "grid_position" in npc:
+				npc_grid_pos = npc.grid_position
+			if "global_position" in npc:
+				npc_world_pos = npc.global_position
+			print("[MapTemplate] NPC '%s' at grid %s (world %s) - checking via is_at_grid_position()" % [npc.name, npc_grid_pos, npc_world_pos])
 			if npc.is_at_grid_position(grid_pos):
+				print("[MapTemplate] ✓ Match found!")
 				return npc
 		elif "grid_position" in npc:
+			npc_grid_pos = npc.grid_position
+			if "global_position" in npc:
+				npc_world_pos = npc.global_position
+			print("[MapTemplate] NPC '%s' at grid %s (world %s) - checking via grid_position property" % [npc.name, npc_grid_pos, npc_world_pos])
 			if npc.grid_position == grid_pos:
+				print("[MapTemplate] ✓ Match found!")
 				return npc
 		else:
 			# Fallback: convert world position to grid
 			if "global_position" in npc:
-				var npc_grid: Vector2i = GridManager.world_to_cell(npc.global_position)
-				if npc_grid == grid_pos:
+				npc_world_pos = npc.global_position
+				npc_grid_pos = GridManager.world_to_cell(npc_world_pos)
+				print("[MapTemplate] NPC '%s' at grid %s (world %s) - checking via world_to_cell conversion" % [npc.name, npc_grid_pos, npc_world_pos])
+				if npc_grid_pos == grid_pos:
+					print("[MapTemplate] ✓ Match found!")
 					return npc
+		
+		print("[MapTemplate]   ✗ No match (target: %s, npc: %s)" % [grid_pos, npc_grid_pos])
 
+	print("[MapTemplate] No NPC found at position %s" % grid_pos)
 	return null
 
 

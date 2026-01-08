@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ShopData" load_steps=2 format=3 uid="uid://56ry7d04eowo"]
+
+[ext_resource type="Script" uid="uid://w7muf3bfxjk2" path="res://core/resources/shop_data.gd" id="1_bl2ah"]
+
+[resource]
+script = ExtResource("1_bl2ah")
+shop_id = "base_church_shop"
+shop_name = "base_church_shop"
+shop_type = 2
+can_sell = false
+can_store_to_caravan = false
+can_sell_from_caravan = false

@@ -111,6 +111,8 @@ func _snap_to_grid() -> void:
 
 func _update_grid_position() -> void:
 	grid_position = GridManager.world_to_cell(global_position)
+	var npc_id: String = npc_data.npc_id if npc_data else "unknown"
+	print("[NPCNode] '%s' (%s) positioned at world %s -> grid %s" % [name, npc_id, global_position, grid_position])
 
 
 ## Ensure this NPC has a collision shape for Area2D detection
@@ -321,6 +323,8 @@ func get_actor_id() -> String:
 ## Called when the player interacts with this NPC
 ## player: The HeroController or similar player node
 func interact(player: Node2D) -> void:
+	print("[NPCNode] interact() called on '%s' (npc_id='%s', npc_role=%d, shop_id='%s')" % [name, npc_data.npc_id if npc_data else "null", npc_data.npc_role if npc_data else -1, npc_data.shop_id if npc_data else "null"])
+	
 	if not npc_data:
 		push_warning("NPCNode: Cannot interact - no npc_data set")
 		return
@@ -334,11 +338,13 @@ func interact(player: Node2D) -> void:
 
 	# Get the appropriate cinematic based on game state
 	var cinematic_id: String = npc_data.get_cinematic_id_for_state()
+	print("[NPCNode] Generated cinematic_id: '%s'" % cinematic_id)
 
 	# Set interaction context so other systems can identify this NPC
 	CinematicsManager.set_interaction_context({"npc_id": npc_data.npc_id})
 
 	if cinematic_id.is_empty():
+		print("[NPCNode] Cinematic ID is empty - aborting interaction")
 		# No cinematic - emit signal and clean up
 		CinematicsManager.cinematic_ended.emit("")
 		CinematicsManager.clear_interaction_context()
@@ -346,7 +352,9 @@ func interact(player: Node2D) -> void:
 		return
 
 	# Play the cinematic
+	print("[NPCNode] Calling CinematicsManager.play_cinematic('%s')" % cinematic_id)
 	var success: bool = CinematicsManager.play_cinematic(cinematic_id)
+	print("[NPCNode] play_cinematic() returned: %s" % success)
 
 	if not success:
 		push_error("NPCNode: Failed to play cinematic '%s' for NPC '%s'" % [cinematic_id, npc_data.npc_id])

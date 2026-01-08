@@ -510,3 +510,9 @@ func invalidate_party_level_cache() -> void:
 ## @return: Base XP value
 func get_base_xp_from_level_diff(level_diff: int) -> int:
 	return config.get_base_xp_from_level_diff(level_diff)
+
+
+## Get the promotion configuration for promotion bonuses.
+## @return: Current ExperienceConfig for promotion system
+func get_promotion_config() -> ExperienceConfig:
+	return config

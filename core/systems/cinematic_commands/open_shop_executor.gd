@@ -23,14 +23,18 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
 	var shop_id: String = params.get("shop_id", "")
 
+	print("[OpenShopExecutor] execute() called with shop_id='%s'" % shop_id)
+
 	if shop_id.is_empty():
 		push_error("OpenShopExecutor: shop_id is required")
 		return true  # Complete immediately on error
 
-	# Look up the shop in ModRegistry
-	var shop_data: ShopData = ModLoader.registry.get_shop(shop_id)
+	# Look up the shop in ModRegistry by shop_id property (not filename)
+	print("[OpenShopExecutor] Looking up shop by shop_id property...")
+	var shop_data: ShopData = ModLoader.registry.get_shop_by_id(shop_id)
+	print("[OpenShopExecutor] Shop lookup returned: %s" % ("ShopData" if shop_data else "null"))
 	if not shop_data:
-		push_error("OpenShopExecutor: Shop '%s' not found in ModRegistry" % shop_id)
+		push_error("OpenShopExecutor: Shop with shop_id '%s' not found in ModRegistry" % shop_id)
 		return true  # Complete immediately on error
 
 	# Validate the shop

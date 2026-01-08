@@ -11,6 +11,8 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 # Basic Info
 var id_edit: LineEdit
 var name_edit: LineEdit
+var id_lock_btn: Button
+var _id_locked: bool = false
 var shop_type_option: OptionButton
 
 # Presentation
@@ -98,9 +100,24 @@ func _load_resource_data() -> void:
 		return
 
 	# Basic info
-	id_edit.text = shop.shop_id
-	name_edit.text = shop.shop_name
-	shop_type_option.selected = shop.shop_type
+	if name_edit:
+		name_edit.text = shop.shop_name
+	if id_edit:
+		id_edit.text = shop.shop_id
+	if shop_type_option:
+		shop_type_option.selected = shop.shop_type
+	
+	# Check if ID was manually set (doesn't match auto-generated from name)
+	if id_edit and name_edit:
+		var auto_id: String = _generate_id_from_name(shop.shop_name)
+		_id_locked = (shop.shop_id != auto_id and not shop.shop_id.is_empty())
+		if id_lock_btn:
+			if _id_locked:
+				id_lock_btn.text = "🔒"
+				id_lock_btn.tooltip_text = "ID is locked - click to unlock auto-generation"
+			else:
+				id_lock_btn.text = "🔓"
+				id_lock_btn.tooltip_text = "ID auto-generates from name - click to lock"
 
 	# Presentation
 	greeting_edit.text = shop.greeting_text
@@ -262,13 +279,26 @@ func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.add_section("Basic Information")
 
-	id_edit = form.add_text_field("Shop ID:", "e.g., my_mod_weapon_shop",
-		"Unique ID for referencing this shop. Use snake_case, e.g., 'my_mod_weapon_shop'.")
-	id_edit.text_changed.connect(_mark_dirty)
-
+	# Shop Name (primary field - triggers ID auto-generation)
 	name_edit = form.add_text_field("Shop Name:", "e.g., Granseal Weapon Shop",
 		"Display name shown to the player in menus and when entering the shop.")
-	name_edit.text_changed.connect(_mark_dirty)
+	name_edit.text_changed.connect(_on_name_changed)
+
+	# Shop ID with lock button (matches NPC Editor pattern)
+	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("Shop ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, form.container)
+	id_edit = LineEdit.new()
+	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	id_edit.placeholder_text = "(auto-generated from name)"
+	id_edit.tooltip_text = "Unique ID for referencing this shop in NPCs and scripts. Auto-generates from name."
+	id_edit.text_changed.connect(_on_id_manually_changed)
+	id_row.add_child(id_edit)
+
+	id_lock_btn = Button.new()
+	id_lock_btn.text = "🔓"
+	id_lock_btn.tooltip_text = "Click to lock/unlock ID auto-generation"
+	id_lock_btn.custom_minimum_size.x = 40
+	id_lock_btn.pressed.connect(_on_id_lock_toggled)
+	id_row.add_child(id_lock_btn)
 
 	# Shop Type - custom dropdown with specific IDs
 	shop_type_option = OptionButton.new()
@@ -717,3 +747,59 @@ func _parse_flags(text: String) -> Array[String]:
 func refresh() -> void:
 	_refresh_caches()
 	super.refresh()
+
+
+## Auto-generate shop_id from shop_name (if unlocked)
+func _on_name_changed(new_name: String) -> void:
+	_mark_dirty()
+	
+	# Auto-generate ID from name if not locked
+	if not _id_locked and id_edit:
+		var generated_id: String = _generate_id_from_name(new_name)
+		id_edit.text = generated_id
+
+
+## User manually typed in ID field - lock auto-generation
+func _on_id_manually_changed(new_id: String) -> void:
+	_mark_dirty()
+	_id_locked = true
+	if id_lock_btn:
+		id_lock_btn.text = "🔒"
+		id_lock_btn.tooltip_text = "ID is locked - click to unlock auto-generation"
+
+
+## Toggle ID lock button
+func _on_id_lock_toggled() -> void:
+	_id_locked = not _id_locked
+	if id_lock_btn:
+		if _id_locked:
+			id_lock_btn.text = "🔒"
+			id_lock_btn.tooltip_text = "ID is locked - click to unlock auto-generation"
+		else:
+			id_lock_btn.text = "🔓"
+			id_lock_btn.tooltip_text = "ID auto-generates from name - click to lock"
+			# Re-generate ID from current name when unlocking
+			if name_edit and id_edit:
+				id_edit.text = _generate_id_from_name(name_edit.text)
+
+
+## Generate a snake_case ID from a display name
+func _generate_id_from_name(display_name: String) -> String:
+	var id: String = display_name.to_lower()
+	id = id.strip_edges()
+	# Replace spaces and special characters with underscores
+	id = id.replace(" ", "_")
+	id = id.replace("-", "_")
+	# Remove any characters that aren't alphanumeric or underscore
+	var clean_id: String = ""
+	for i in range(id.length()):
+		var c: String = id[i]
+		# Keep alphanumeric and underscore characters only
+		if (c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == "_":
+			clean_id += c
+	# Remove consecutive underscores
+	while "__" in clean_id:
+		clean_id = clean_id.replace("__", "_")
+	# Remove leading/trailing underscores
+	clean_id = clean_id.trim_prefix("_").trim_suffix("_")
+	return clean_id

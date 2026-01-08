@@ -80,6 +80,8 @@ var _save_data: SaveData = null
 ## @param shop_data: ShopData resource to open
 ## @param save_data: Current SaveData (for gold access)
 func open_shop(shop_data: ShopData, save_data: SaveData = null) -> void:
+	print("[ShopManager] open_shop() called with shop_id='%s', shop_name='%s', shop_type=%d" % [shop_data.shop_id if shop_data else "null", shop_data.shop_name if shop_data else "null", shop_data.shop_type if shop_data else -1])
+	
 	if not shop_data:
 		push_error("ShopManager: Cannot open null shop")
 		return
@@ -90,6 +92,7 @@ func open_shop(shop_data: ShopData, save_data: SaveData = null) -> void:
 
 	current_shop = shop_data
 	_save_data = save_data
+	print("[ShopManager] Emitting shop_opened signal for shop '%s'" % shop_data.shop_id)
 	shop_opened.emit(shop_data)
 
 
@@ -632,6 +635,131 @@ func church_uncurse(character_uid: String, slot_id: String) -> Dictionary:
 	gold_changed.emit(old_gold, old_gold - cost)
 
 	return {success = true, error = "", cost = cost}
+
+
+## Promote a character at a church
+## @param character_uid: Character to promote
+## @param target_class: ClassData to promote to
+## @return: Dictionary {success: bool, error: String, cost: int, stat_changes: Dictionary}
+func church_promote(character_uid: String, target_class: ClassData) -> Dictionary:
+	if not current_shop:
+		return {success = false, error = "No shop is open", cost = 0, stat_changes = {}}
+
+	if current_shop.shop_type != ShopData.ShopType.CHURCH:
+		return {success = false, error = "Not a church", cost = 0, stat_changes = {}}
+
+	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
+	if not save_data:
+		return {success = false, error = "Character not found", cost = 0, stat_changes = {}}
+
+	if not target_class:
+		return {success = false, error = "Invalid promotion target", cost = 0, stat_changes = {}}
+
+	# Build a Unit for PromotionManager (it needs Unit, not CharacterSaveData)
+	var unit: Unit = _build_unit_for_promotion(character_uid, save_data)
+	if not unit:
+		return {success = false, error = "Failed to build unit for promotion", cost = 0, stat_changes = {}}
+
+	# Check if promotion is valid via PromotionManager
+	if not PromotionManager.can_promote(unit):
+		unit.queue_free()
+		return {success = false, error = "Character cannot promote", cost = 0, stat_changes = {}}
+
+	var available_promotions: Array[ClassData] = PromotionManager.get_available_promotions(unit)
+	if target_class not in available_promotions:
+		unit.queue_free()
+		return {success = false, error = "Invalid promotion path", cost = 0, stat_changes = {}}
+
+	# Calculate cost: level * 100 (SF2-authentic formula)
+	var cost: int = _get_promotion_cost(save_data.level)
+	if _get_gold() < cost:
+		unit.queue_free()
+		return {success = false, error = "Not enough gold", cost = cost, stat_changes = {}}
+
+	# Execute promotion
+	var stat_changes: Dictionary = PromotionManager.execute_promotion(unit, target_class)
+
+	# Deduct gold
+	var old_gold: int = _get_gold()
+	_set_gold(old_gold - cost)
+	gold_changed.emit(old_gold, old_gold - cost)
+
+	# Clean up temporary unit
+	unit.queue_free()
+
+	return {success = true, error = "", cost = cost, stat_changes = stat_changes}
+
+
+## Get characters eligible for promotion
+## @return: Array of character_uid strings for promotable characters
+func get_promotable_characters() -> Array[String]:
+	var result: Array[String] = []
+
+	for character: CharacterData in PartyManager.party_members:
+		var uid: String = character.character_uid
+		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
+		if not save_data:
+			continue
+
+		# Must be alive
+		if not save_data.is_alive:
+			continue
+
+		# Build temporary unit to check promotion eligibility
+		var unit: Unit = _build_unit_for_promotion(uid, save_data)
+		if not unit:
+			continue
+
+		if PromotionManager.can_promote(unit):
+			result.append(uid)
+
+		unit.queue_free()
+
+	return result
+
+
+## Calculate promotion cost based on character level
+## SF2-authentic: level * 100 gold
+func _get_promotion_cost(level: int) -> int:
+	return level * 100
+
+
+## Build a temporary Unit node for PromotionManager operations
+## PromotionManager requires Unit with stats and character_data
+func _build_unit_for_promotion(character_uid: String, save_data: CharacterSaveData) -> Unit:
+	# Get CharacterData from PartyManager
+	var character_data: CharacterData = null
+	for character: CharacterData in PartyManager.party_members:
+		if character.character_uid == character_uid:
+			character_data = character
+			break
+
+	if not character_data:
+		return null
+
+	# Create a temporary Unit
+	var unit: Unit = Unit.new()
+	unit.character_data = character_data
+
+	# Create UnitStats from save data
+	var stats: UnitStats = UnitStats.new()
+	stats.level = save_data.level
+	stats.current_hp = save_data.current_hp
+	stats.max_hp = save_data.max_hp
+	stats.current_mp = save_data.current_mp
+	stats.max_mp = save_data.max_mp
+	stats.strength = save_data.strength
+	stats.defense = save_data.defense
+	stats.agility = save_data.agility
+	stats.intelligence = save_data.intelligence
+	stats.luck = save_data.luck
+
+	# Get current class from save data
+	stats.class_data = save_data.get_current_class(character_data)
+
+	unit.stats = stats
+
+	return unit
 
 
 # ============================================================================

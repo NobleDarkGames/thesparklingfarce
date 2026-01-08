@@ -43,6 +43,7 @@ const SCREEN_PATHS: Dictionary = {
 	"church_action_select": "res://scenes/ui/shops/screens/church_action_select.tscn",
 	"church_char_select": "res://scenes/ui/shops/screens/church_char_select.tscn",
 	"church_slot_select": "res://scenes/ui/shops/screens/church_slot_select.tscn",
+	"church_promote_select": "res://scenes/ui/shops/screens/church_promote_select.tscn",
 	# Crafter screens
 	"crafter_action_select": "res://scenes/ui/shops/screens/crafter_action_select.tscn",
 	"crafter_recipe_browser": "res://scenes/ui/shops/screens/crafter_recipe_browser.tscn",
@@ -95,6 +96,8 @@ func _on_shop_manager_closed() -> void:
 
 ## Open shop with given ShopData
 func open_shop(shop_data: ShopData, save_data: SaveData) -> void:
+	print("[ShopController] open_shop() called - shop_type=%d, visible=%s" % [shop_data.shop_type, visible])
+	
 	context.initialize(shop_data, save_data)
 
 	# Set shop name
@@ -103,13 +106,18 @@ func open_shop(shop_data: ShopData, save_data: SaveData) -> void:
 	update_gold_display()
 	show_queue_panel(false)
 	show()
+	
+	print("[ShopController] ShopController.show() called, visible=%s" % visible)
 
 	# Start with appropriate action select based on shop type
 	if shop_data.shop_type == ShopData.ShopType.CHURCH:
+		print("[ShopController] Pushing church_action_select screen")
 		push_screen("church_action_select")
 	elif shop_data.shop_type == ShopData.ShopType.CRAFTER:
+		print("[ShopController] Pushing crafter_action_select screen")
 		push_screen("crafter_action_select")
 	else:
+		print("[ShopController] Pushing action_select screen")
 		push_screen("action_select")
 
 

@@ -1,8 +1,8 @@
 # Editor Gap Fixes Implementation Plan
 
 **Created:** 2025-12-19
-**Updated:** 2025-12-20
-**Status:** Approved, pending implementation (deprioritized during code consolidation)
+**Updated:** 2026-01-07
+**Status:** Partially implemented, documentation updated for current state
 **Reviewed by:** Lt. Claudbrain (planning), Commander Claudius (authenticity)
 
 ## Overview
@@ -10,6 +10,19 @@
 The Sparkling Editor is missing UI for several existing resource properties, forcing modders to edit code/JSON directly. This plan addresses those gaps to enable full total conversion support through the editor.
 
 **Key Finding:** All properties already exist in the data classes. We're exposing existing functionality, not adding features.
+
+## Current Status Update (2026-01-07)
+
+**✅ COMPLETED:**
+- **Class Editor - Combat Rates** (lines 22-29 in ClassData) ✓ Implemented
+- **NewGameConfig Editor - Story Flags** (lines 82-85 in NewGameConfigData) ✓ Already existed
+
+**🔄 STILL NEEDED:**
+- **Battle Editor - Item Rewards** (line 86 in BattleData) - Missing UI
+- **Character Editor - Unique Abilities** (line 51 in CharacterData) - Missing UI
+
+**🚫 REMOVED:**
+- **Campaign Editor - Flag Management** - Campaign system removed 2026-01-06 (commit 4c4ebdb)
 
 ---
 
@@ -29,72 +42,47 @@ The Sparkling Editor is missing UI for several existing resource properties, for
 
 ## Phase 1: Quick Wins
 
-### 1. Class Editor - Combat Rates
+### 1. Class Editor - Combat Rates ✅ COMPLETED
 
 **File:** `addons/sparkling_editor/ui/class_editor.gd`
 **Resource:** `core/resources/class_data.gd` (lines 22-29)
 **Complexity:** Low (~30-40 lines)
 
-**Properties to expose:**
+**Properties exposed:**
 ```gdscript
 @export_range(0, 50) var counter_rate: int = 12
 @export_range(0, 50) var double_attack_rate: int = 6
 @export_range(0, 50) var crit_rate_bonus: int = 0
 ```
 
-**Implementation:**
-1. Add member variables after line 26:
-   ```gdscript
-   var counter_rate_spin: SpinBox
-   var double_attack_rate_spin: SpinBox
-   var crit_rate_bonus_spin: SpinBox
-   ```
-
-2. Add section function `_add_combat_rates_section()`:
-   - Use FormBuilder pattern
-   - Three SpinBox fields with ranges 0-50
-   - Help text referencing SF2 values
-
-3. Call from `_create_detail_form()` after equipment section
-
-4. Update `_load_resource_data()` and `_save_resource_data()`
+**Implementation (Completed 2026-01-07):**
+- Added member variables for SpinBox controls
+- Created `_add_combat_rates_section()` with FormBuilder pattern
+- Added to `_create_detail_form()` after equipment section
+- Updated `_load_resource_data()` and `_save_resource_data()`
+- Added help text referencing SF2 authentic values (25=1/4, 12=1/8, 6=1/16, 3=1/32)
 
 ---
 
-### 2. Campaign Editor - Flag Management
+### 2. NewGameConfig Editor - Story Flag Management ✅ ALREADY EXISTS
 
-**File:** `addons/sparkling_editor/ui/campaign_editor.gd`
-**Resource:** `core/resources/campaign_node.gd` (lines 88-99)
+**File:** `addons/sparkling_editor/ui/new_game_config_editor.gd`
+**Resource:** `core/resources/new_game_config_data.gd` (lines 82-85)
 **Complexity:** Medium (~150-200 lines)
 
-**Properties to expose:**
+**Properties exposed:**
 ```gdscript
-@export var on_enter_flags: Dictionary = {}
-@export var on_complete_flags: Dictionary = {}
-@export var required_flags: Array[String] = []
-@export var forbidden_flags: Array[String] = []
+@export var starting_story_flags: Dictionary = {}
 ```
 
-**Implementation:**
-1. Add member variables for containers and buttons
+**Implementation (Already existed as of 2025-12-20):**
+- Member variables: `story_flags_container` (line 57), `story_flags_list` (line 58)
+- `_add_story_flags_section()` function exists (line 595)
+- `_load_resource_data()` and `_save_resource_data()` handle flags (lines 175-220)
+- UI includes: LineEdit (key) + CheckBox (value) + Remove button
+- "Add Story Flag" button functionality present
 
-2. Create `_setup_flags_section()` after branches section:
-   - For Dictionary fields (on_enter_flags, on_complete_flags):
-     - VBoxContainer with rows: LineEdit (key) + CheckBox (value) + Remove
-     - "Add Flag" button
-   - For Array[String] fields (required_flags, forbidden_flags):
-     - VBoxContainer with rows: LineEdit (flag name) + Remove
-     - "Add Flag" button
-
-3. Add helper functions:
-   - `_rebuild_flags_ui()`
-   - `_add_enter_flag_row()`, `_add_complete_flag_row()`
-   - `_add_required_flag_row()`, `_add_forbidden_flag_row()`
-   - Remove handlers for each
-
-4. Update `_populate_node_inspector()` and `_clear_node_inspector()`
-
-5. Only show flags section for relevant node types (hide for choice nodes that use branches)
+**Note:** Campaign system removed 2026-01-06. This replaces the planned campaign flag management.
 
 ---
 
@@ -278,14 +266,18 @@ The Sparkling Editor is missing UI for several existing resource properties, for
 
 ## Summary
 
-| Phase | Item | File | Est. Lines |
-|-------|------|------|------------|
-| 1 | Combat rates | class_editor.gd | 30-40 |
-| 1 | Campaign flags | campaign_editor.gd | 150-200 |
-| 1 | Item rewards | battle_editor.gd | 80-100 |
-| 1 | Unique abilities | character_editor.gd | 100-130 |
-| 2 | Battle music | battle_editor.gd | 60-80 |
-| 2 | Turn dialogues | battle_editor.gd | 90-110 |
-| - | Combat formula | TBD | Deferred |
+## Updated Implementation Summary
 
-**Total estimated:** ~510-660 lines across 4 files
+| Phase | Item | File | Status | Lines |
+|-------|------|------|--------|-------|
+| 1 | Combat rates | class_editor.gd | ✅ COMPLETED | 40 |
+| 1 | Story flags | new_game_config_editor.gd | ✅ ALREADY EXISTS | N/A |
+| 1 | Item rewards | battle_editor.gd | 🔄 NEEDED | 80-100 |
+| 1 | Unique abilities | character_editor.gd | 🔄 NEEDED | 100-130 |
+| 2 | Battle music | battle_editor.gd | 🔄 NEEDED | 60-80 |
+| 2 | Turn dialogues | battle_editor.gd | 🔄 NEEDED | 90-110 |
+| - | Combat formula | TBD | DEFERRED | - |
+
+**Remaining work:** ~330-420 lines across 3 files (battle_editor.gd, character_editor.gd)
+
+**NOTE:** Campaign system removed on 2026-01-06 (commit 4c4ebdb). Plan updated for current state.

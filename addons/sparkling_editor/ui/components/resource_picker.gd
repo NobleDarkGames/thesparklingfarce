@@ -243,6 +243,13 @@ func refresh() -> void:
 	# Restore previous selection if possible
 	if not _current_metadata.is_empty():
 		_select_by_metadata(_current_metadata)
+	elif not allow_none and _option_button.item_count > 0:
+		# When allow_none is false and no previous selection, auto-select first item
+		# This ensures _current_metadata is set to match what the user sees
+		_option_button.select(0)
+		var first_metadata: Variant = _option_button.get_item_metadata(0)
+		if first_metadata is Dictionary:
+			_current_metadata = first_metadata
 
 	picker_refreshed.emit()
 
@@ -350,7 +357,8 @@ func _get_display_name(resource: Resource) -> String:
 		"dialogue_id",
 		"party_name",
 		"battle_name",
-		"class_name"  # Note: ClassData uses display_name, but this is a fallback
+		"class_name",  # Note: ClassData uses display_name, but this is a fallback
+		"shop_name"
 	]
 
 	for prop: String in name_properties:
@@ -476,6 +484,9 @@ func _try_select_by_metadata(metadata: Dictionary) -> bool:
 			if item_metadata.get("mod_id", "") == target_mod_id:
 				if item_metadata.get("resource_id", "") == target_resource_id:
 					_option_button.select(i)
+					# Update cached metadata with fresh resource from dropdown
+					# This ensures get_selected_resource() returns the current version, not stale data
+					_current_metadata = item_metadata
 					return true
 
 	# Resource not found - might have been removed or mod unloaded
@@ -592,9 +603,15 @@ func select_by_id(mod_id: String, resource_id: String) -> void:
 
 
 ## Select "(None)" option
+## Note: When allow_none is false, this function does nothing - there is no "none" to select
 func select_none() -> void:
+	if not allow_none:
+		# When allow_none is false, there is no "none" option to select.
+		# Clearing _current_metadata would desync from the visible dropdown state.
+		# The caller should use select_resource() or select_by_id() instead.
+		return
 	_current_metadata = {}
-	if allow_none and _option_button:
+	if _option_button:
 		_option_button.select(0)
 
 

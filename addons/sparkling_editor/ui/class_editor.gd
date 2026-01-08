@@ -11,6 +11,11 @@ var promotion_level_spin: SpinBox
 var promotion_resets_level_check: CheckBox
 var consume_promotion_item_check: CheckBox
 
+# Combat rates UI
+var counter_rate_spin: SpinBox
+var double_attack_rate_spin: SpinBox
+var crit_rate_bonus_spin: SpinBox
+
 # Promotion paths UI
 var promotion_paths_container: VBoxContainer
 var add_promotion_path_button: Button
@@ -58,6 +63,9 @@ func _create_detail_form() -> void:
 	# Equipment section
 	_add_equipment_section()
 
+	# Combat rates section
+	_add_combat_rates_section()
+
 	# Promotion section
 	_add_promotion_section()
 
@@ -80,6 +88,11 @@ func _load_resource_data() -> void:
 	promotion_level_spin.value = class_data.promotion_level
 	promotion_resets_level_check.button_pressed = class_data.promotion_resets_level
 	consume_promotion_item_check.button_pressed = class_data.consume_promotion_item
+
+	# Set combat rates
+	counter_rate_spin.value = class_data.counter_rate
+	double_attack_rate_spin.value = class_data.double_attack_rate
+	crit_rate_bonus_spin.value = class_data.crit_rate_bonus
 
 	# Set growth rates
 	hp_growth_slider.value = class_data.hp_growth
@@ -116,6 +129,11 @@ func _save_resource_data() -> void:
 	class_data.promotion_level = int(promotion_level_spin.value)
 	class_data.promotion_resets_level = promotion_resets_level_check.button_pressed
 	class_data.consume_promotion_item = consume_promotion_item_check.button_pressed
+
+	# Update combat rates
+	class_data.counter_rate = int(counter_rate_spin.value)
+	class_data.double_attack_rate = int(double_attack_rate_spin.value)
+	class_data.crit_rate_bonus = int(crit_rate_bonus_spin.value)
 
 	# Update growth rates
 	class_data.hp_growth = int(hp_growth_slider.value)
@@ -229,6 +247,16 @@ func _add_equipment_section() -> void:
 	var weapon_types: Array[String] = _get_weapon_types_from_registry()
 	_add_equipment_type_checkboxes(weapon_types_container, weapon_types)
 	form.container.add_child(weapon_types_container)
+
+
+func _add_combat_rates_section() -> void:
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.add_section("Combat Rates (%)")
+	form.add_help_text("SF2-authentic combat rates. 25 = 1/4 (25%), 12 = 1/8 (~12.5%), 6 = 1/16 (~6%), 3 = 1/32 (~3%)")
+
+	counter_rate_spin = form.add_number_field("Counter Rate:", 0, 50, 12, "Chance to counterattack when attacked. SF2 classes: 3, 6, 12, or 25.")
+	double_attack_rate_spin = form.add_number_field("Double Attack Rate:", 0, 50, 6, "Chance for second attack in same turn. SF2 classes: 3, 6, 12, or 25.")
+	crit_rate_bonus_spin = form.add_number_field("Crit Rate Bonus:", 0, 50, 0, "Bonus to critical hit chance. Added to base calculation.")
 
 
 ## Get weapon types from ModLoader's equipment registry (with fallback)

@@ -58,6 +58,11 @@ var defeat_dialogue_picker: ResourcePicker
 var experience_reward_spin: SpinBox
 var gold_reward_spin: SpinBox
 
+# Item rewards
+var item_rewards_section: CollapseSection
+var item_rewards_container: VBoxContainer
+var item_rewards_list: Array[Dictionary] = []  # Track item reward UI elements
+
 # AI Behavior tracking
 var available_ai_behaviors: Array[AIBehaviorData] = []  # Track loaded AI behavior resources
 
@@ -68,9 +73,9 @@ func _ready() -> void:
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 
 	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
-	# Note: ResourcePickers for character, party, dialogue auto-refresh via EditorEventBus
+	# Note: ResourcePickers for character, party, dialogue, item auto-refresh via EditorEventBus
 	# This declaration is for completeness and documents the editor's dependencies
-	resource_dependencies = ["character", "party", "dialogue"]
+	resource_dependencies = ["character", "party", "dialogue", "item"]
 
 	super._ready()
 
@@ -336,7 +341,28 @@ func _add_rewards_section() -> void:
 	gold_reward_spin = form.add_number_field("Gold Reward:", 0, 10000, 0,
 		"Gold received upon victory. Added to party funds.", 10)
 
-	form.add_help_text("Item rewards: Coming soon")
+	form.add_help_text("Items granted to the player's depot after victory. Use Add Item button to add rewards.")
+
+	# Item rewards (collapsible section)
+	item_rewards_section = CollapseSection.new()
+	item_rewards_section.title = "Item Rewards"
+	item_rewards_section.start_collapsed = true
+	detail_panel.add_child(item_rewards_section)
+
+	var item_help_label: Label = Label.new()
+	item_help_label.text = "Add item rewards that will be granted to the player's depot after victory"
+	item_help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	item_rewards_section.add_content_child(item_help_label)
+
+	item_rewards_container = VBoxContainer.new()
+	item_rewards_container.add_theme_constant_override("separation", 4)
+	item_rewards_section.add_content_child(item_rewards_container)
+
+	var add_item_button: Button = Button.new()
+	add_item_button.text = "Add Item Reward"
+	add_item_button.pressed.connect(_on_add_item_reward)
+	item_rewards_section.add_content_child(add_item_button)
+
 	form.add_separator()
 
 
@@ -893,6 +919,10 @@ func _load_resource_data() -> void:
 	experience_reward_spin.value = battle.experience_reward
 	gold_reward_spin.value = battle.gold_reward
 
+	# Load item rewards (convert from ItemData array to our UI format)
+	_clear_item_rewards_ui()
+	_load_item_rewards_from_array(battle.item_rewards)
+
 
 ## Clear enemies UI
 func _clear_enemies_ui() -> void:
@@ -908,6 +938,104 @@ func _clear_neutrals_ui() -> void:
 		neutrals_container.remove_child(neutral_ui.panel)
 		neutral_ui.panel.queue_free()
 	neutrals_list.clear()
+
+
+## =============================================================================
+## ITEM REWARDS UI
+## =============================================================================
+
+## Add item reward UI element
+func _on_add_item_reward() -> void:
+	_add_item_reward_ui()
+
+
+func _add_item_reward_ui(item_data: ItemData = null) -> void:
+	var entry_container: HBoxContainer = HBoxContainer.new()
+	entry_container.add_theme_constant_override("separation", 4)
+
+	# Item picker - use ResourcePicker for cross-mod support
+	var item_picker: ResourcePicker = ResourcePicker.new()
+	item_picker.resource_type = "item"
+	item_picker.allow_none = true
+	item_picker.none_text = "(Select Item)"
+	item_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	entry_container.add_child(item_picker)
+
+	# Quantity label and spinner
+	var qty_label: Label = Label.new()
+	qty_label.text = "x"
+	entry_container.add_child(qty_label)
+
+	var qty_spin: SpinBox = SpinBox.new()
+	qty_spin.min_value = 1
+	qty_spin.max_value = 99
+	qty_spin.value = 1
+	qty_spin.custom_minimum_size.x = 60
+	qty_spin.tooltip_text = "Quantity of this item to grant"
+	entry_container.add_child(qty_spin)
+
+	# Remove button
+	var remove_btn: Button = Button.new()
+	remove_btn.text = "X"
+	remove_btn.tooltip_text = "Remove this item reward"
+	remove_btn.custom_minimum_size.x = 30
+	remove_btn.pressed.connect(_on_remove_item_reward.bind(entry_container))
+	entry_container.add_child(remove_btn)
+
+	item_rewards_container.add_child(entry_container)
+
+	# Track UI elements
+	var item_reward_ui: Dictionary = {
+		"container": entry_container,
+		"item_picker": item_picker,
+		"quantity_spin": qty_spin
+	}
+	item_rewards_list.append(item_reward_ui)
+
+	# Set item if provided
+	if item_data:
+		item_picker.select_resource(item_data)
+
+
+## Remove item reward entry
+func _on_remove_item_reward(container: HBoxContainer) -> void:
+	# Find and remove from list
+	for i in range(item_rewards_list.size()):
+		if item_rewards_list[i].container == container:
+			item_rewards_list.remove_at(i)
+			break
+
+	# Remove from UI
+	item_rewards_container.remove_child(container)
+	container.queue_free()
+
+
+## Load item rewards from ItemData array
+func _load_item_rewards_from_array(items: Array[ItemData]) -> void:
+	for item: ItemData in items:
+		if item:
+			_add_item_reward_ui(item)
+
+
+## Collect item rewards as ItemData array (for BattleData)
+func _collect_item_rewards_as_itemdata() -> Array[ItemData]:
+	var result: Array[ItemData] = []
+	for item_ui in item_rewards_list:
+		var item: ItemData = item_ui.item_picker.get_selected_resource() as ItemData
+		if item:
+			# BattleData stores ItemData directly with quantity managed by duplicates
+			var quantity: int = int(item_ui.quantity_spin.value)
+			for i: int in range(quantity):
+				result.append(item)
+	return result
+
+
+## Clear item rewards UI
+func _clear_item_rewards_ui() -> void:
+	for item_ui in item_rewards_list:
+		item_rewards_container.remove_child(item_ui.container)
+		item_ui.container.queue_free()
+	item_rewards_list.clear()
 
 
 ## Override: Save UI data to resource
@@ -1005,6 +1133,9 @@ func _save_resource_data() -> void:
 	# Rewards
 	battle.experience_reward = int(experience_reward_spin.value)
 	battle.gold_reward = int(gold_reward_spin.value)
+
+	# Item rewards (convert from our UI format to ItemData array)
+	battle.item_rewards = _collect_item_rewards_as_itemdata()
 
 
 ## Override: Validate resource before saving

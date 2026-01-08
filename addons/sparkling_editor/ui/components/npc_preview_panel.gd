@@ -248,11 +248,11 @@ func _update_sprite_preview() -> void:
 
 	var sprite_tex: Texture2D = null
 
-	# Try character data first
+	# Try character data first (uses sprite_frames, not map_sprite)
 	if is_instance_valid(character_picker_source) and character_picker_source.has_selection():
 		var char_data: CharacterData = character_picker_source.get_selected_resource() as CharacterData
-		if char_data and char_data.map_sprite:
-			sprite_tex = char_data.map_sprite
+		if char_data and char_data.sprite_frames:
+			sprite_tex = SpriteUtils.extract_texture_from_sprite_frames(char_data.sprite_frames)
 
 	# Fall back to direct sprite path
 	if not sprite_tex and is_instance_valid(sprite_path_source):

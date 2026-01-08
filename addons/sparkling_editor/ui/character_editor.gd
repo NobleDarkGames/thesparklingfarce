@@ -60,6 +60,12 @@ var inventory_list_container: VBoxContainer
 var inventory_add_button: Button
 var _current_inventory_items: Array[String] = []  # Item IDs
 
+# Unique Abilities section (collapsible)
+var unique_abilities_section: CollapseSection
+var unique_abilities_container: VBoxContainer
+var unique_abilities_add_button: Button
+var _current_unique_abilities: Array[Dictionary] = []
+
 var available_ai_behaviors: Array[AIBehaviorData] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 
@@ -73,9 +79,9 @@ func _ready() -> void:
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 
 	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
-	# Note: class_picker uses ResourcePicker which auto-refreshes via EditorEventBus
+	# Note: ResourcePickers auto-refresh via EditorEventBus
 	# This declaration is for completeness and documents the editor's dependencies
-	resource_dependencies = ["class"]
+	resource_dependencies = ["class", "ability"]
 
 	super._ready()
 	_setup_filter_buttons()
@@ -114,6 +120,9 @@ func _create_detail_form() -> void:
 
 	# Starting Inventory section (items character carries but doesn't equip)
 	_add_inventory_section()
+
+	# Unique Abilities section (character-specific abilities that bypass class restrictions)
+	_add_unique_abilities_section()
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
@@ -176,6 +185,9 @@ func _load_resource_data() -> void:
 	# Load starting inventory items
 	_load_inventory_from_character(character)
 
+	# Load unique abilities
+	_load_unique_abilities(character)
+
 	# Load appearance assets
 	_load_appearance_from_character(character)
 
@@ -228,6 +240,9 @@ func _save_resource_data() -> void:
 
 	# Update starting inventory from list
 	_save_inventory_to_character(character)
+
+	# Update unique abilities from list
+	_save_unique_abilities(character)
 
 	# Update appearance assets from pickers
 	_save_appearance_to_character(character)
@@ -1396,3 +1411,155 @@ func _save_ai_threat_configuration(character: CharacterData) -> void:
 		for tag: String in _current_threat_tags:
 			new_tags.append(tag)
 		character.ai_threat_tags = new_tags
+
+
+# =============================================================================
+# UNIQUE ABILITIES SECTION
+# =============================================================================
+
+## Add the unique abilities section with an ability list and add button
+func _add_unique_abilities_section() -> void:
+	unique_abilities_section = CollapseSection.new()
+	unique_abilities_section.title = "Unique Abilities"
+	unique_abilities_section.start_collapsed = true
+
+	var help_label: Label = Label.new()
+	help_label.text = "Character-specific abilities that bypass class restrictions"
+	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
+	unique_abilities_section.add_content_child(help_label)
+
+	# Container for the list of unique abilities
+	unique_abilities_container = VBoxContainer.new()
+	unique_abilities_container.add_theme_constant_override("separation", 4)
+	unique_abilities_section.add_content_child(unique_abilities_container)
+
+	# Add Unique Ability button
+	var button_container: HBoxContainer = HBoxContainer.new()
+	unique_abilities_add_button = Button.new()
+	unique_abilities_add_button.text = "+ Add Unique Ability"
+	unique_abilities_add_button.tooltip_text = "Add a character-specific ability that bypasses class restrictions"
+	unique_abilities_add_button.pressed.connect(_on_add_unique_ability)
+	button_container.add_child(unique_abilities_add_button)
+	unique_abilities_section.add_content_child(button_container)
+
+	detail_panel.add_child(unique_abilities_section)
+
+
+## Load unique abilities from CharacterData into the list
+func _load_unique_abilities(character: CharacterData) -> void:
+	_current_unique_abilities.clear()
+
+	if character and not character.unique_abilities.is_empty():
+		for ability: AbilityData in character.unique_abilities:
+			if ability:
+				_current_unique_abilities.append({"ability": ability})
+
+	_refresh_unique_abilities_display()
+
+
+## Save unique abilities from list to CharacterData
+func _save_unique_abilities(character: CharacterData) -> void:
+	var new_unique_abilities: Array[AbilityData] = []
+	for ability_dict: Dictionary in _current_unique_abilities:
+		var ability: AbilityData = ability_dict.get("ability", null) as AbilityData
+		if ability:
+			new_unique_abilities.append(ability)
+	character.unique_abilities = new_unique_abilities
+
+
+## Handle Add Unique Ability button press - opens a ResourcePicker dialog
+func _on_add_unique_ability() -> void:
+	# Create a popup dialog with a ResourcePicker
+	var dialog: AcceptDialog = AcceptDialog.new()
+	dialog.title = "Add Unique Ability"
+	dialog.min_size = Vector2(400, 100)
+
+	var picker: ResourcePicker = ResourcePicker.new()
+	picker.resource_type = "ability"
+	picker.label_text = "Ability:"
+	picker.label_min_width = 60
+	picker.allow_none = false
+
+	dialog.add_child(picker)
+
+	# Store reference for the confirmation callback
+	dialog.set_meta("picker", picker)
+
+	dialog.confirmed.connect(_on_add_unique_ability_confirmed.bind(dialog))
+	dialog.canceled.connect(dialog.queue_free)
+
+	# Add to editor and show
+	EditorInterface.popup_dialog_centered(dialog)
+
+
+## Handle confirmation of adding a unique ability
+func _on_add_unique_ability_confirmed(dialog: AcceptDialog) -> void:
+	var picker: ResourcePicker = dialog.get_meta("picker") as ResourcePicker
+	if not picker:
+		dialog.queue_free()
+		return
+
+	var ability: AbilityData = picker.get_selected_resource() as AbilityData
+	dialog.queue_free()
+
+	if not ability:
+		return
+
+	# Check if already added
+	for existing_dict: Dictionary in _current_unique_abilities:
+		var existing_ability: AbilityData = existing_dict.get("ability", null) as AbilityData
+		if existing_ability and existing_ability.ability_id == ability.ability_id:
+			_show_error_message("Ability already added")
+			return
+
+	# Add the ability
+	_current_unique_abilities.append({"ability": ability})
+	_refresh_unique_abilities_display()
+	_mark_dirty()
+
+
+## Remove a unique ability from the list
+func _on_remove_unique_ability(ability_dict: Dictionary) -> void:
+	_current_unique_abilities.erase(ability_dict)
+	_refresh_unique_abilities_display()
+	_mark_dirty()
+
+
+## Refresh the display of unique abilities
+func _refresh_unique_abilities_display() -> void:
+	# Clear existing rows
+	for child: Node in unique_abilities_container.get_children():
+		child.queue_free()
+
+	if _current_unique_abilities.is_empty():
+		var empty_label: Label = Label.new()
+		empty_label.text = "(No unique abilities)"
+		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+		unique_abilities_container.add_child(empty_label)
+		return
+
+	# Create a row for each ability
+	for ability_dict: Dictionary in _current_unique_abilities:
+		var ability: AbilityData = ability_dict.get("ability", null) as AbilityData
+		if not ability:
+			continue
+
+		var row: HBoxContainer = HBoxContainer.new()
+
+		# Ability name
+		var name_label: Label = Label.new()
+		name_label.text = ability.display_name if ability.display_name else ability.ability_id.capitalize()
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.tooltip_text = ability.ability_id
+		row.add_child(name_label)
+
+		# Remove button
+		var remove_btn: Button = Button.new()
+		remove_btn.text = "x"
+		remove_btn.tooltip_text = "Remove unique ability"
+		remove_btn.custom_minimum_size.x = 24
+		remove_btn.pressed.connect(_on_remove_unique_ability.bind(ability_dict))
+		row.add_child(remove_btn)
+
+		unique_abilities_container.add_child(row)

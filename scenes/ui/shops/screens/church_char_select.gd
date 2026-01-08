@@ -43,6 +43,8 @@ func _update_header() -> void:
 			header_label.text = "WHO SHALL BE REVIVED?"
 		ShopContextScript.Mode.UNCURSE:
 			header_label.text = "WHO BEARS A CURSED ITEM?"
+		ShopContextScript.Mode.PROMOTION:
+			header_label.text = "WHO SEEKS PROMOTION?"
 		_:
 			header_label.text = "SELECT CHARACTER"
 
@@ -87,6 +89,8 @@ func _populate_character_grid() -> void:
 				empty_label.text = "No fallen party members."
 			ShopContextScript.Mode.UNCURSE:
 				empty_label.text = "No one bears cursed equipment."
+			ShopContextScript.Mode.PROMOTION:
+				empty_label.text = "No one is ready for promotion."
 
 
 func _should_show_character(save_data: CharacterSaveData) -> bool:
@@ -100,6 +104,9 @@ func _should_show_character(save_data: CharacterSaveData) -> bool:
 		ShopContextScript.Mode.UNCURSE:
 			# Show if has any cursed equipment
 			return _has_cursed_equipment(save_data)
+		ShopContextScript.Mode.PROMOTION:
+			# Show if alive and can promote (uses ShopManager helper)
+			return save_data.is_alive and _can_character_promote(save_data)
 		_:
 			return false
 
@@ -121,6 +128,26 @@ func _get_cursed_slots(save_data: CharacterSaveData) -> Array[String]:
 	return cursed
 
 
+## Check if character can promote using ShopManager's promotable list
+func _can_character_promote(save_data: CharacterSaveData) -> bool:
+	# Get the character_uid from the save_data by searching party members
+	for character: CharacterData in PartyManager.party_members:
+		var uid: String = character.character_uid
+		var member_save: CharacterSaveData = PartyManager.get_member_save_data(uid)
+		if member_save == save_data:
+			var promotable: Array[String] = ShopManager.get_promotable_characters()
+			return uid in promotable
+	return false
+
+
+## Get display name of character's current class
+func _get_character_class_name(character: CharacterData, save_data: CharacterSaveData) -> String:
+	var current_class: ClassData = save_data.get_current_class(character)
+	if current_class:
+		return current_class.display_name
+	return "Unknown"
+
+
 func _create_character_button(character: CharacterData, save_data: CharacterSaveData) -> Button:
 	var button: Button = Button.new()
 	button.custom_minimum_size = Vector2(180, 60)
@@ -130,14 +157,14 @@ func _create_character_button(character: CharacterData, save_data: CharacterSave
 	var can_afford: bool = _get_gold() >= cost
 
 	var status_line: String = ""
-	match context.mode:
-		ShopContextScript.Mode.HEAL:
-			status_line = "HP: %d/%d  MP: %d/%d" % [save_data.current_hp, save_data.max_hp, save_data.current_mp, save_data.max_mp]
-		ShopContextScript.Mode.REVIVE:
-			status_line = "FALLEN"
-		ShopContextScript.Mode.UNCURSE:
-			var cursed_slots: Array[String] = _get_cursed_slots(save_data)
-			status_line = "Cursed: %s" % ", ".join(cursed_slots)
+	if context.mode == ShopContextScript.Mode.HEAL:
+		status_line = "HP: %d/%d  MP: %d/%d" % [save_data.current_hp, save_data.max_hp, save_data.current_mp, save_data.max_mp]
+	elif context.mode == ShopContextScript.Mode.REVIVE:
+		status_line = "FALLEN"
+	elif context.mode == ShopContextScript.Mode.UNCURSE:
+		status_line = "Cursed: " + ",".join(PackedStringArray(_get_cursed_slots(save_data)))
+	elif context.mode == ShopContextScript.Mode.PROMOTION:
+		status_line = "Lv%d %s" % [save_data.level, _get_character_class_name(character, save_data)]
 
 	button.text = "%s\n%s\n%d G" % [character.character_name, status_line, cost]
 
@@ -156,6 +183,9 @@ func _get_service_cost(save_data: CharacterSaveData) -> int:
 			return context.shop.get_revival_cost(save_data.level)
 		ShopContextScript.Mode.UNCURSE:
 			return context.shop.uncurse_base_cost
+		ShopContextScript.Mode.PROMOTION:
+			# Promotion cost: level * 100 (matches ShopManager._get_promotion_cost)
+			return save_data.level * 100
 		_:
 			return 0
 
@@ -174,6 +204,8 @@ func _on_character_selected(character_uid: String) -> void:
 			_perform_revive(character_uid)
 		ShopContextScript.Mode.UNCURSE:
 			_start_uncurse(character_uid)
+		ShopContextScript.Mode.PROMOTION:
+			_start_promote(character_uid)
 
 
 func _perform_heal(character_uid: String) -> void:
@@ -209,6 +241,12 @@ func _start_uncurse(character_uid: String) -> void:
 	# Store selected character for slot selection
 	context.selected_destination = character_uid
 	push_screen("church_slot_select")
+
+
+func _start_promote(character_uid: String) -> void:
+	# Store selected character for promotion path selection
+	context.selected_destination = character_uid
+	push_screen("church_promote_select")
 
 
 func _on_button_focus_entered(btn: Button) -> void:

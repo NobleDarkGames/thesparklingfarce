@@ -253,8 +253,11 @@ func _save_resource_data() -> void:
 	if npc_role_option:
 		npc.npc_role = npc_role_option.selected as NPCData.NPCRole
 	if shop_id_picker:
+		# Get the selected shop resource
 		var selected_shop: Resource = shop_id_picker.get_selected_resource()
-		if selected_shop and "shop_id" in selected_shop:
+		if selected_shop and selected_shop is ShopData:
+			# Save the shop's shop_id property
+			# This matches what the runtime lookup (get_shop_by_id) expects
 			npc.shop_id = selected_shop.shop_id
 		else:
 			npc.shop_id = ""

@@ -176,6 +176,7 @@ Node-graph campaign structure, chapter boundaries, animated title cards, save pr
 
 ### Minor UI Polish
 - ✅ Terrain panel now updates during unit movement (December 16, 2025)
+- ✅ Class Editor combat rates UI added (January 7, 2026)
 
 ---
 
@@ -251,6 +252,23 @@ ModLoader, GameState, SaveManager, StorageManager, SceneManager, TriggerManager,
 
 **Mod Restructure:**
 - Replaced `_base_game` and `_sandbox` with `demo_campaign`
+
+---
+
+## Session (January 6, 2026)
+
+**Major Refactor - Campaign System Removal (~4,400 lines deleted):**
+- **Campaign system completely removed**: CampaignManager, CampaignLoader, CampaignData, CampaignNode
+- **Campaign editor deleted**: addons/sparkling_editor/ui/campaign_editor.gd (1,810 lines)
+- **Updated to scene-based starting**: NewGameConfig now uses starting_scene_path instead of campaigns
+- **Battle return flow improved**: TriggerManager properly handles hero position on battle completion
+- **Dialog cancel handling**: Fixed input lock when backing out of NPC choice menus
+
+**Impact:**
+- Simplified game flow - now uses direct scene transitions instead of campaign nodes
+- Reduced complexity by removing node-graph campaign system
+- Starting state defined per-mod via NewGameConfig resources
+- Cleaner separation between content (scenes) and progression logic
 
 ---
 

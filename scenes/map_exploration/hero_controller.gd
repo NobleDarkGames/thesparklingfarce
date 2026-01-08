@@ -385,6 +385,7 @@ func _check_tile_triggers() -> void:
 func _try_interact() -> void:
 	var dir_vec: Vector2i = FacingUtils.string_to_direction(facing_direction)
 	var interaction_pos: Vector2i = grid_position + dir_vec
+	print("[HeroController] Interaction requested - Hero at grid %s facing '%s' (direction %s) -> target position %s" % [grid_position, facing_direction, dir_vec, interaction_pos])
 	interaction_requested.emit(interaction_pos)
 
 

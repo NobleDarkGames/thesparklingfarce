@@ -719,6 +719,9 @@ func _on_create_new() -> void:
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
+		# Update resource_id properties to match filename for registry consistency
+		_sync_resource_id_to_filename(new_resource, full_path)
+		
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
 		# Wait a frame for the scan to complete, then refresh
@@ -934,13 +937,32 @@ func _show_success_message(message: String) -> void:
 	# Apply success panel style
 	var success_style: StyleBoxFlat = SparklingEditorUtils.create_success_panel_style()
 	error_panel.add_theme_stylebox_override("panel", success_style)
-
+	
 	# Insert error panel just before button_container (where user's attention is)
 	if error_panel.get_parent() != detail_panel:
 		detail_panel.add_child(error_panel)
 	var button_index: int = button_container.get_index()
 	detail_panel.move_child(error_panel, button_index)
+	
+	error_panel.show()
 
+## Show an error message (styled, auto-dismisses)
+func _show_error_message(message: String) -> void:
+	if not error_label or not error_panel:
+		return
+	
+	error_label.text = "[color=#ff6666][b]Error:[/b] %s[/color]" % message
+	
+	# Apply error panel style
+	var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
+	error_panel.add_theme_stylebox_override("panel", error_style)
+	
+	# Insert error panel just before button_container (where user's attention is)
+	if error_panel.get_parent() != detail_panel:
+		detail_panel.add_child(error_panel)
+	var button_index: int = button_container.get_index()
+	detail_panel.move_child(error_panel, button_index)
+	
 	error_panel.show()
 
 	# Auto-dismiss after 2 seconds
@@ -1673,3 +1695,30 @@ func _clear_current_resource() -> void:
 	current_resource_source_mod = ""
 	is_dirty = false
 	_is_loading = false
+
+
+## Sync resource ID properties to match filename for registry consistency
+## This ensures that shop_id, npc_id, etc. match the filename that ModLoader uses as the registry key
+func _sync_resource_id_to_filename(resource: Resource, file_path: String) -> void:
+	var filename_id: String = file_path.get_file().get_basename()
+	
+	# Update ID property based on resource type
+	if "shop_id" in resource:
+		resource.shop_id = filename_id
+		# Re-save to persist the updated ID
+		ResourceSaver.save(resource, file_path)
+	elif "npc_id" in resource:
+		resource.npc_id = filename_id
+		ResourceSaver.save(resource, file_path)
+	elif "character_uid" in resource:
+		resource.character_uid = filename_id
+		ResourceSaver.save(resource, file_path)
+	elif "class_id" in resource:
+		resource.class_id = filename_id
+		ResourceSaver.save(resource, file_path)
+	elif "item_id" in resource:
+		resource.item_id = filename_id
+		ResourceSaver.save(resource, file_path)
+	elif "spell_id" in resource:
+		resource.spell_id = filename_id
+		ResourceSaver.save(resource, file_path)

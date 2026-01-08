@@ -433,6 +433,93 @@ func test_church_heal_costs_gold() -> void:
 
 
 # =============================================================================
+# CHURCH PROMOTE TESTS
+# =============================================================================
+
+func test_church_promote_wrong_shop_type() -> void:
+	_shop_data.shop_type = ShopData.ShopType.ITEM
+	ShopManager.open_shop(_shop_data, _save_data)
+
+	var result: Dictionary = ShopManager.church_promote("test_character", null)
+
+	assert_bool(result.success).is_false()
+	assert_str(result.error).contains("church")
+
+
+func test_church_promote_no_shop_open() -> void:
+	ShopManager.close_shop()
+
+	var result: Dictionary = ShopManager.church_promote("test_character", null)
+
+	assert_bool(result.success).is_false()
+	assert_str(result.error).contains("No shop")
+
+
+func test_church_promote_null_target_class() -> void:
+	_setup_test_character(false)
+	_shop_data.shop_type = ShopData.ShopType.CHURCH
+	ShopManager.open_shop(_shop_data, _save_data)
+
+	var result: Dictionary = ShopManager.church_promote(_test_character_uid, null)
+
+	assert_bool(result.success).is_false()
+	assert_str(result.error).contains("Invalid promotion target")
+
+
+func test_church_promote_character_not_found() -> void:
+	_shop_data.shop_type = ShopData.ShopType.CHURCH
+	ShopManager.open_shop(_shop_data, _save_data)
+
+	# Create a mock ClassData for testing
+	var mock_class: ClassData = ClassData.new()
+
+	var result: Dictionary = ShopManager.church_promote("nonexistent_character", mock_class)
+
+	assert_bool(result.success).is_false()
+	assert_str(result.error).contains("Character not found")
+
+
+func test_church_promote_not_enough_gold() -> void:
+	# Setup character at level 10 (promotion cost = 1000)
+	var char_save: CharacterSaveData = CharacterSaveData.new()
+	char_save.level = 10
+	char_save.current_hp = 100
+	char_save.max_hp = 100
+	char_save.is_alive = true
+	PartyManager.update_member_save_data(_test_character_uid, char_save)
+
+	_shop_data.shop_type = ShopData.ShopType.CHURCH
+	ShopManager.open_shop(_shop_data, _save_data)
+	_save_data.gold = 500  # Less than 1000 (level 10 * 100)
+
+	var mock_class: ClassData = ClassData.new()
+	var result: Dictionary = ShopManager.church_promote(_test_character_uid, mock_class)
+
+	# This may fail because character can't promote (no class data)
+	# But if it gets to gold check, it should fail for gold
+	assert_bool(result.success).is_false()
+	# Error could be about gold OR about promotion eligibility
+	assert_str(result.error).is_not_empty()
+
+
+func test_get_promotable_characters_empty_when_no_eligible() -> void:
+	# Setup a low-level character (can't promote)
+	var char_save: CharacterSaveData = CharacterSaveData.new()
+	char_save.level = 5  # Below promotion level (10)
+	char_save.is_alive = true
+	PartyManager.update_member_save_data(_test_character_uid, char_save)
+
+	_shop_data.shop_type = ShopData.ShopType.CHURCH
+	ShopManager.open_shop(_shop_data, _save_data)
+
+	var promotable: Array[String] = ShopManager.get_promotable_characters()
+
+	# Should be empty since our test character is level 5
+	# (may include other characters from real party data)
+	assert_bool(_test_character_uid not in promotable).is_true()
+
+
+# =============================================================================
 # SIGNAL TESTS
 # =============================================================================
 

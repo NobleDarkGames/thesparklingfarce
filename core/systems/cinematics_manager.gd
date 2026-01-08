@@ -398,12 +398,15 @@ func _find_camera_recursive(node: Node) -> Camera2D:
 ## Supports auto-generated cinematics for Quick Setup NPCs (ID starts with "__auto__")
 ## and interactables (ID starts with "__auto_interactable__")
 func play_cinematic(cinematic_id: String) -> bool:
+	print("[CinematicsManager] play_cinematic() called with ID: '%s', current_state=%d" % [cinematic_id, current_state])
+	
 	if current_state != State.IDLE:
 		push_warning("CinematicsManager: Cannot play cinematic '%s' - cinematic already active" % cinematic_id)
 		return false
 
 	# Check for auto-generated interactable cinematic
 	if cinematic_id.begins_with("__auto_interactable__"):
+		print("[CinematicsManager] Detected auto-interactable cinematic")
 		var auto_cinematic: CinematicData = _generate_interactable_auto_cinematic(cinematic_id)
 		if auto_cinematic:
 			return play_cinematic_from_resource(auto_cinematic)
@@ -412,7 +415,9 @@ func play_cinematic(cinematic_id: String) -> bool:
 
 	# Check for auto-generated NPC cinematic (Quick Setup NPC system)
 	if cinematic_id.begins_with("__auto__"):
+		print("[CinematicsManager] Detected auto-cinematic, generating...")
 		var auto_cinematic: CinematicData = _generate_auto_cinematic(cinematic_id)
+		print("[CinematicsManager] _generate_auto_cinematic() returned: %s" % ("CinematicData" if auto_cinematic else "null"))
 		if auto_cinematic:
 			return play_cinematic_from_resource(auto_cinematic)
 		push_error("CinematicsManager: Failed to generate auto-cinematic for '%s'" % cinematic_id)
@@ -753,21 +758,31 @@ const AUTO_FAREWELLS: Dictionary = {
 ## Uses :: delimiter to avoid conflicts with underscores in IDs
 ## Returns null if generation fails
 func _generate_auto_cinematic(cinematic_id: String) -> CinematicData:
+	print("[CinematicsManager] _generate_auto_cinematic() called with: '%s'" % cinematic_id)
+	
 	# Parse the auto-cinematic ID
 	# Format: __auto__{npc_id}::{shop_id}
 	var content: String = cinematic_id.substr(8)  # Skip "__auto__"
 	var delimiter_pos: int = content.find("::")
+	print("[CinematicsManager] Parsed content: '%s', delimiter_pos: %d" % [content, delimiter_pos])
+	
 	if delimiter_pos <= 0:
 		push_error("CinematicsManager: Invalid auto-cinematic ID format: %s" % cinematic_id)
 		return null
 
 	var npc_id: String = content.substr(0, delimiter_pos)
 	var shop_id: String = content.substr(delimiter_pos + 2)  # Skip "::"
+	print("[CinematicsManager] Extracted npc_id='%s', shop_id='%s'" % [npc_id, shop_id])
 
-	# Look up the NPC data
-	var npc_data: NPCData = ModLoader.registry.get_npc(npc_id)
+	# Look up the NPC data BY PROPERTY (not filename)
+	# Auto-cinematics use the npc_id property from NPCData
+	print("[CinematicsManager] Looking up NPC by npc_id property '%s'..." % npc_id)
+	var npc_data: NPCData = ModLoader.registry.get_npc_by_id(npc_id)
+	print("[CinematicsManager] NPC lookup returned: %s (role=%d)" % ["NPCData" if npc_data else "null", npc_data.npc_role if npc_data else -1])
 	if not npc_data:
-		push_error("CinematicsManager: NPC '%s' not found for auto-cinematic" % npc_id)
+		var error_msg: String = "CinematicsManager: NPC with npc_id '%s' not found. Make sure the NPCData resource has npc_id property set to '%s'." % [npc_id, npc_id]
+		print("[ERROR] " + error_msg)
+		push_error(error_msg)
 		return null
 
 	# Build the cinematic based on the NPC's role
@@ -796,6 +811,17 @@ func _generate_auto_cinematic(cinematic_id: String) -> CinematicData:
 	# Build cinematic commands based on role
 	match npc_data.npc_role:
 		NPCData.NPCRole.SHOPKEEPER, NPCData.NPCRole.PRIEST, NPCData.NPCRole.INNKEEPER, NPCData.NPCRole.CRAFTER:
+			# Validate shop exists before generating cinematic
+			# Use property-based lookup since NPCData.shop_id is a property value, not a filename
+			print("[CinematicsManager] Looking up shop by shop_id property '%s'..." % shop_id)
+			var shop_data: ShopData = ModLoader.registry.get_shop_by_id(shop_id)
+			print("[CinematicsManager] Shop lookup returned: %s" % ("ShopData" if shop_data else "null"))
+			if not shop_data:
+				var error_msg: String = "CinematicsManager: Cannot generate auto-cinematic for NPC '%s' - shop with shop_id '%s' not found. Make sure the ShopData resource has shop_id property set to '%s'." % [npc_id, shop_id, shop_id]
+				print("[ERROR] " + error_msg)
+				push_error(error_msg)
+				return null
+			
 			# Standard flow: greeting -> shop -> farewell
 			cinematic.add_dialog_line(speaker_name, greeting)
 			cinematic.add_open_shop(shop_id)

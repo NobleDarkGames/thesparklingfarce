@@ -56,9 +56,15 @@ func _display_result() -> void:
 			_show_placement_cancelled(result)
 		"sell_complete":
 			_show_sell_complete(result)
+		"promotion_complete":
+			_show_promotion_complete(result)
 		_:
-			result_label.text = "TRANSACTION COMPLETE"
-			details_label.text = ""
+			# Fallback for church services without explicit type
+			if result.get("success", false):
+				_show_generic_success(result)
+			else:
+				result_label.text = "TRANSACTION COMPLETE"
+				details_label.text = ""
 
 
 func _show_purchase_success(result: Dictionary) -> void:
@@ -116,10 +122,35 @@ func _show_sell_complete(result: Dictionary) -> void:
 	details_label.text = "Sold %d items.\nEarned %dG" % [items_sold, earned]
 
 
+func _show_promotion_complete(result: Dictionary) -> void:
+	var message: String = result.get("message", "Promotion complete!")
+	var cost: int = result.get("gold_spent", 0)
+
+	result_label.text = "PROMOTION COMPLETE!"
+	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	details_label.text = "%s\nSpent %dG" % [message, cost]
+
+
+func _show_generic_success(result: Dictionary) -> void:
+	var message: String = result.get("message", "Service complete!")
+	var cost: int = result.get("gold_spent", 0)
+
+	result_label.text = "SERVICE COMPLETE!"
+	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	if cost > 0:
+		details_label.text = "%s\nSpent %dG" % [message, cost]
+	else:
+		details_label.text = message
+
+
 ## Determine where to return based on result type (SF2-style defaults)
 func _get_return_destination() -> String:
 	var result: Dictionary = context.last_result
 	var result_type: String = result.get("type", "unknown")
+
+	# Promotion: return to action menu (character likely can't promote again)
+	if result_type == "promotion_complete":
+		return "church_action_select"
 
 	# Church modes: return to character selection (heal more characters)
 	if _is_church_mode():
@@ -149,7 +180,7 @@ func _on_auto_return() -> void:
 func _is_church_mode() -> bool:
 	if not context:
 		return false
-	return context.mode in [ShopContextScript.Mode.HEAL, ShopContextScript.Mode.REVIVE, ShopContextScript.Mode.UNCURSE]
+	return context.mode in [ShopContextScript.Mode.HEAL, ShopContextScript.Mode.REVIVE, ShopContextScript.Mode.UNCURSE, ShopContextScript.Mode.PROMOTION]
 
 
 func _is_crafter_mode() -> bool:

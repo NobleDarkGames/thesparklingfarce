@@ -17,7 +17,7 @@
 
 | Command | Arguments | Status | Description |
 |---------|-----------|--------|-------------|
-| `hero.give_gold` | `<amount>` | 🔸 | Add gold to party. PartyManager doesn't track gold yet. |
+| `hero.give_gold` | `<amount>` | ✅ | Add gold to party via SaveManager. |
 | `hero.set_level` | `<level>` | 🔸 | Set hero level directly. Level system doesn't support direct setting. |
 | `hero.heal` | (none) | ✅ | Fully heal hero's HP and MP via CharacterSaveData. |
 | `hero.give_item` | `<item_id> [count]` | ✅ | Add item(s) to hero's inventory. Validates item exists in registry. |

@@ -471,6 +471,24 @@ func get_shop(shop_id: String) -> ShopData:
 	return null
 
 
+## Get a shop by their shop_id property (semantic lookup)
+## This does a linear search through all shops to find one with matching shop_id
+## Returns null if no shop with that ID exists
+func get_shop_by_id(shop_id: String) -> ShopData:
+	if shop_id.is_empty():
+		return null
+	
+	if "shop" not in _resources_by_type:
+		return null
+	
+	var shop_dict: Dictionary = _resources_by_type["shop"]
+	for shop: ShopData in shop_dict.values():
+		if shop and shop.shop_id == shop_id:
+			return shop
+	
+	return null
+
+
 ## Get a crafter by ID (type-safe)
 func get_crafter(crafter_id: String) -> CrafterData:
 	var resource: Resource = get_resource("crafter", crafter_id)

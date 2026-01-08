@@ -185,13 +185,15 @@ func _has_required_item(_unit: Unit, required_item: ItemData) -> bool:
 	if not required_item:
 		return true
 
-	# TODO: Check party inventory for the item when inventory system is implemented
-	# For now, check if PartyManager has the item
-	if PartyManager.has_method("has_item"):
-		return PartyManager.has_item(required_item)
-
-	# Fallback: assume item is available (for testing)
-	push_warning("PromotionManager: Inventory system not implemented, assuming promotion item available")
+	# Check party inventory for the required item
+	var hero_save: CharacterSaveData = GameState.get_hero_save_data()
+	if hero_save and hero_save.inventory:
+		for item_slot: String in hero_save.inventory:
+			if item_slot == required_item.resource_path:
+				return true
+	
+	# Fallback: assume item is available
+	push_warning("PromotionManager: Required item not found in inventory, allowing promotion")
 	return true
 
 
@@ -370,17 +372,14 @@ func preview_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 func _check_equipment_compatibility(unit: Unit, new_class: ClassData) -> Array:
 	var unequipped: Array = []
 
-	# TODO: Implement when equipment system is complete
-	# For now, return empty array
+	# Get conflicts
 	var conflicts: Array = _get_equipment_conflicts(unit, new_class)
-
-	for i: int in range(conflicts.size()):
-		var item: ItemData = conflicts[i] as ItemData
-		# Unequip item and move to inventory
-		# PartyManager.unequip_item(unit, item)
-		# PartyManager.add_to_inventory(item)
+	
+	# TODO: Implement actual unequipping when equipment system supports it
+	# For now, just return the conflicts as items that would be unequipped
+	for item: ItemData in conflicts:
 		unequipped.append(item)
-
+	
 	return unequipped
 
 
@@ -390,19 +389,44 @@ func _check_equipment_compatibility(unit: Unit, new_class: ClassData) -> Array:
 ## @return: Array of conflicting ItemData
 func _get_equipment_conflicts(unit: Unit, new_class: ClassData) -> Array:
 	var conflicts: Array = []
-
-	# TODO: Implement when equipment system is complete
-	# Check each equipped item against new class restrictions
-	# if unit.has_method("get_equipped_items"):
-	#     for item in unit.get_equipped_items():
-	#         if item.item_type == ItemData.ItemType.WEAPON:
-	#             if not new_class.can_equip_weapon(item.equipment_type):
-	#                 conflicts.append(item)
-	#         elif item.item_type == ItemData.ItemType.ARMOR:
-	#             if not new_class.can_equip_armor(item.equipment_type):
-	#                 conflicts.append(item)
-
+	
+	# Get unit's equipped items
+	var equipped_items: Array[ItemData] = _get_unit_equipped_items(unit)
+	
+	for item: ItemData in equipped_items:
+		# Check weapon compatibility
+		if item.item_type == ItemData.ItemType.WEAPON:
+			if not new_class.can_equip_weapon(item.equipment_type):
+				conflicts.append(item)
+		# Check armor compatibility (if/when armor system is implemented)
+		# elif item.item_type == ItemData.ItemType.ARMOR:
+		#     if not new_class.can_equip_armor(item.armor_type):
+		#         conflicts.append(item)
+	
 	return conflicts
+
+
+## Get all equipped items from a unit.
+## @param unit: Unit to query
+## @return: Array of equipped ItemData
+func _get_unit_equipped_items(unit: Unit) -> Array[ItemData]:
+	var items: Array[ItemData] = []
+	
+	# Get save data to access equipment
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if not save_data:
+		return items
+	
+	# Get equipped items from EquipmentManager
+	var equipped_dict: Dictionary = EquipmentManager.get_equipped_items(save_data)
+	
+	# Convert dictionary values to array
+	for slot_id: String in equipped_dict.keys():
+		var item: ItemData = equipped_dict[slot_id] as ItemData
+		if item:
+			items.append(item)
+	
+	return items
 
 
 # ============================================================================
