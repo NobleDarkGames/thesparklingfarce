@@ -71,6 +71,9 @@ var _original_all_units: Array[Unit] = []
 var _original_turn_number: int = 0
 var _original_battle_active: bool = false
 
+# Signal connection tracking for cleanup
+var _connected_signals: Array[Dictionary] = []
+
 
 func before_test() -> void:
 	# Save original TurnManager state
@@ -89,6 +92,14 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# Disconnect any signals that were connected during the test
+	for connection: Dictionary in _connected_signals:
+		var sig: Signal = connection.signal_ref
+		var callable: Callable = connection.callable
+		if sig.is_connected(callable):
+			sig.disconnect(callable)
+	_connected_signals.clear()
+
 	# Restore original TurnManager state
 	TurnManager.all_units = _original_all_units
 	TurnManager.turn_number = _original_turn_number
@@ -101,6 +112,12 @@ func after_test() -> void:
 			unit.queue_free()
 	_mock_units.clear()
 	_mock_battle_data = null
+
+
+## Helper to connect a signal and track it for cleanup
+func _connect_signal(sig: Signal, callable: Callable) -> void:
+	sig.connect(callable)
+	_connected_signals.append({"signal_ref": sig, "callable": callable})
 
 
 ## Helper to create and register a mock unit
@@ -548,7 +565,7 @@ func _reset_signal_tracking() -> void:
 
 func test_victory_signal_emitted() -> void:
 	_reset_signal_tracking()
-	TurnManager.victory_condition_check.connect(_on_victory_condition_check)
+	_connect_signal(TurnManager.victory_condition_check, _on_victory_condition_check)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	player1.set_hero(true)
@@ -562,13 +579,12 @@ func test_victory_signal_emitted() -> void:
 	assert_bool(_victory_signal_received).is_true()
 	assert_bool("enemy_count" in _last_victory_context).is_true()
 	assert_bool("turn_number" in _last_victory_context).is_true()
-
-	TurnManager.victory_condition_check.disconnect(_on_victory_condition_check)
+	# Signal cleanup handled by after_test()
 
 
 func test_defeat_signal_emitted() -> void:
 	_reset_signal_tracking()
-	TurnManager.defeat_condition_check.connect(_on_defeat_condition_check)
+	_connect_signal(TurnManager.defeat_condition_check, _on_defeat_condition_check)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	player1.set_hero(true)
@@ -582,13 +598,12 @@ func test_defeat_signal_emitted() -> void:
 	assert_bool(_defeat_signal_received).is_true()
 	assert_bool("player_count" in _last_defeat_context).is_true()
 	assert_bool("turn_number" in _last_defeat_context).is_true()
-
-	TurnManager.defeat_condition_check.disconnect(_on_defeat_condition_check)
+	# Signal cleanup handled by after_test()
 
 
 func test_mod_can_override_victory() -> void:
 	_reset_signal_tracking()
-	TurnManager.victory_condition_check.connect(_on_victory_override)
+	_connect_signal(TurnManager.victory_condition_check, _on_victory_override)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	var enemy1: MockUnit = _create_mock_unit("enemy", true)  # Enemy still alive
@@ -601,13 +616,12 @@ func test_mod_can_override_victory() -> void:
 
 	# Assert - mod forced victory
 	assert_str(result).is_equal("victory")
-
-	TurnManager.victory_condition_check.disconnect(_on_victory_override)
+	# Signal cleanup handled by after_test()
 
 
 func test_mod_can_override_defeat() -> void:
 	_reset_signal_tracking()
-	TurnManager.defeat_condition_check.connect(_on_defeat_override)
+	_connect_signal(TurnManager.defeat_condition_check, _on_defeat_override)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	var enemy1: MockUnit = _create_mock_unit("enemy", true)
@@ -620,8 +634,7 @@ func test_mod_can_override_defeat() -> void:
 
 	# Assert - mod forced defeat
 	assert_str(result).is_equal("defeat")
-
-	TurnManager.defeat_condition_check.disconnect(_on_defeat_override)
+	# Signal cleanup handled by after_test()
 
 
 # =============================================================================

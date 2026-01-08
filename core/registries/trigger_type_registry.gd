@@ -133,19 +133,36 @@ func get_all_trigger_scripts() -> Dictionary:
 	return _trigger_scripts.duplicate()
 
 
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	_rebuild_cache_if_dirty()
+	return {
+		"trigger_type_count": _all_trigger_types.size(),
+		"trigger_types": _all_trigger_types.duplicate()
+	}
+
+
 ## Rebuild the cached merged array
 func _rebuild_cache_if_dirty() -> void:
 	if not _cache_dirty:
 		return
 
+	# Use Dictionary for O(1) deduplication
+	var type_set: Dictionary = {}
+	
 	# Start with defaults
-	_all_trigger_types = DEFAULT_TRIGGER_TYPES.duplicate()
+	for trigger_type: String in DEFAULT_TRIGGER_TYPES:
+		type_set[trigger_type] = true
 
-	# Add mod types (avoiding duplicates)
+	# Add mod types (O(1) lookup for duplicates)
 	for mod_id: String in _mod_trigger_types:
 		var trigger_types: Array = _mod_trigger_types[mod_id]
 		for trigger_type: String in trigger_types:
-			if trigger_type not in _all_trigger_types:
-				_all_trigger_types.append(trigger_type)
+			type_set[trigger_type] = true
+
+	# Convert back to array
+	_all_trigger_types.clear()
+	for trigger_type: String in type_set.keys():
+		_all_trigger_types.append(trigger_type)
 
 	_cache_dirty = false

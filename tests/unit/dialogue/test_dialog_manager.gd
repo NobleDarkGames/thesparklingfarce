@@ -10,6 +10,10 @@ extends GdUnitTestSuite
 # TEST FIXTURES
 # =============================================================================
 
+# Signal connection tracking for cleanup
+var _connected_signals: Array[Dictionary] = []
+
+
 ## Create a valid DialogueData for testing
 func _create_test_dialogue(id: String = "test_dialogue", line_count: int = 3) -> DialogueData:
 	var dialogue: DialogueData = DialogueData.new()
@@ -37,6 +41,30 @@ func _create_dialogue_with_choices(id: String = "choice_dialogue") -> DialogueDa
 ## Reset DialogManager state before each test
 func before_test() -> void:
 	# Reset the singleton to idle state
+	_reset_dialog_manager_state()
+
+
+## Ensure DialogManager is reset after each test (even on failure)
+func after_test() -> void:
+	# Disconnect any signals that were connected during the test
+	for connection: Dictionary in _connected_signals:
+		var sig: Signal = connection.signal_ref
+		var callable: Callable = connection.callable
+		if sig.is_connected(callable):
+			sig.disconnect(callable)
+	_connected_signals.clear()
+
+	_reset_dialog_manager_state()
+
+
+## Helper to connect a signal and track it for cleanup
+func _connect_signal(sig: Signal, callable: Callable) -> void:
+	sig.connect(callable)
+	_connected_signals.append({"signal_ref": sig, "callable": callable})
+
+
+## Helper to reset DialogManager to a clean state
+func _reset_dialog_manager_state() -> void:
 	if DialogManager:
 		# Force end any active dialog
 		DialogManager.current_state = DialogManager.State.IDLE
@@ -268,18 +296,18 @@ func _on_choices_ready(choices: Array) -> void:
 
 func test_dialog_started_signal() -> void:
 	_reset_signal_flags()
-	DialogManager.dialog_started.connect(_on_dialog_started)
+	_connect_signal(DialogManager.dialog_started, _on_dialog_started)
 
 	var dialogue: DialogueData = _create_test_dialogue()
 	DialogManager.start_dialog_from_resource(dialogue)
 
 	assert_bool(_dialog_started_emitted).is_true()
-	DialogManager.dialog_started.disconnect(_on_dialog_started)
+	# Signal cleanup handled by after_test()
 
 
 func test_dialog_ended_signal() -> void:
 	_reset_signal_flags()
-	DialogManager.dialog_ended.connect(_on_dialog_ended)
+	_connect_signal(DialogManager.dialog_ended, _on_dialog_ended)
 
 	var dialogue: DialogueData = _create_test_dialogue("test", 1)
 	DialogManager.start_dialog_from_resource(dialogue)
@@ -287,25 +315,24 @@ func test_dialog_ended_signal() -> void:
 	DialogManager.advance_dialog()
 
 	assert_bool(_dialog_ended_emitted).is_true()
-	DialogManager.dialog_ended.disconnect(_on_dialog_ended)
+	# Signal cleanup handled by after_test()
 
 
 func test_line_changed_signal() -> void:
 	_reset_signal_flags()
-	DialogManager.line_changed.connect(_on_line_changed)
+	_connect_signal(DialogManager.line_changed, _on_line_changed)
 
 	var dialogue: DialogueData = _create_test_dialogue("test", 2)
 	DialogManager.start_dialog_from_resource(dialogue)
 
 	assert_bool(_line_changed_emitted).is_true()
 	assert_int(_last_line_index).is_equal(0)
-
-	DialogManager.line_changed.disconnect(_on_line_changed)
+	# Signal cleanup handled by after_test()
 
 
 func test_line_changed_signal_on_advance() -> void:
 	_reset_signal_flags()
-	DialogManager.line_changed.connect(_on_line_changed)
+	_connect_signal(DialogManager.line_changed, _on_line_changed)
 
 	var dialogue: DialogueData = _create_test_dialogue("test", 3)
 	DialogManager.start_dialog_from_resource(dialogue)
@@ -316,13 +343,12 @@ func test_line_changed_signal_on_advance() -> void:
 
 	assert_bool(_line_changed_emitted).is_true()
 	assert_int(_last_line_index).is_equal(1)
-
-	DialogManager.line_changed.disconnect(_on_line_changed)
+	# Signal cleanup handled by after_test()
 
 
 func test_choices_ready_signal() -> void:
 	_reset_signal_flags()
-	DialogManager.choices_ready.connect(_on_choices_ready)
+	_connect_signal(DialogManager.choices_ready, _on_choices_ready)
 
 	var dialogue: DialogueData = _create_dialogue_with_choices()
 	DialogManager.start_dialog_from_resource(dialogue)
@@ -331,8 +357,7 @@ func test_choices_ready_signal() -> void:
 
 	assert_bool(_choices_ready_emitted).is_true()
 	assert_int(_last_choices.size()).is_equal(2)
-
-	DialogManager.choices_ready.disconnect(_on_choices_ready)
+	# Signal cleanup handled by after_test()
 
 
 # =============================================================================

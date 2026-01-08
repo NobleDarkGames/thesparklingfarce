@@ -170,7 +170,7 @@ func _get_return_destination() -> String:
 
 ## Auto-return after timer expires
 func _on_auto_return() -> void:
-	if not is_inside_tree():
+	if not is_instance_valid(self) or not is_inside_tree():
 		return
 	# Use replace_with so transaction_result isn't in history
 	# This prevents the loop when user presses back on item_browser
@@ -200,7 +200,9 @@ func _get_character_name(uid: String) -> String:
 
 ## B button skips directly to action menu (escape hatch)
 func _on_back_requested() -> void:
-	# Cancel the auto-return timer if still pending
+	# Cancel the auto-return timer callback to prevent double navigation
+	if _auto_return_timer and _auto_return_timer.timeout.is_connected(_on_auto_return):
+		_auto_return_timer.timeout.disconnect(_on_auto_return)
 	_auto_return_timer = null
 	# Use replace_with to avoid history loop
 	if _is_church_mode():

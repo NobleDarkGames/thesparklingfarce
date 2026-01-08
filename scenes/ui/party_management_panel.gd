@@ -71,14 +71,59 @@ var _hint_label: Label = null
 var _active_slots: Array[PanelContainer] = []
 var _reserve_slots: Array[PanelContainer] = []
 
+## Pre-created StyleBoxFlat variants for slot states (avoids duplication on every selection change)
+var _style_empty: StyleBoxFlat
+var _style_filled: StyleBoxFlat
+var _style_hero: StyleBoxFlat
+var _style_selected: StyleBoxFlat
+var _style_swap_source: StyleBoxFlat
+var _style_normal_border: StyleBoxFlat
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
 
 func _ready() -> void:
+	_create_slot_styles()
 	_build_ui()
 	visible = false
 	set_process_input(false)
+
+
+func _create_slot_styles() -> void:
+	## Pre-create all slot style variants to avoid duplication during selection changes
+	# Base style template
+	var base: StyleBoxFlat = StyleBoxFlat.new()
+	base.set_border_width_all(2)
+	base.border_color = Color(0.3, 0.3, 0.35, 0.8)
+	base.set_corner_radius_all(2)
+
+	# Empty slot style
+	_style_empty = base.duplicate() as StyleBoxFlat
+	_style_empty.bg_color = COLOR_SLOT_EMPTY
+
+	# Filled slot style
+	_style_filled = base.duplicate() as StyleBoxFlat
+	_style_filled.bg_color = COLOR_SLOT_FILLED
+
+	# Hero slot style
+	_style_hero = base.duplicate() as StyleBoxFlat
+	_style_hero.bg_color = COLOR_SLOT_HERO
+
+	# Selected slot style (thicker border)
+	_style_selected = base.duplicate() as StyleBoxFlat
+	_style_selected.bg_color = COLOR_SLOT_FILLED
+	_style_selected.border_color = COLOR_SLOT_SELECTED
+	_style_selected.set_border_width_all(3)
+
+	# Swap source style (yellow border)
+	_style_swap_source = base.duplicate() as StyleBoxFlat
+	_style_swap_source.bg_color = COLOR_SLOT_FILLED
+	_style_swap_source.border_color = COLOR_TEXT_SELECTED
+
+	# Normal border style (for resetting)
+	_style_normal_border = base.duplicate() as StyleBoxFlat
+	_style_normal_border.bg_color = COLOR_SLOT_FILLED
 
 
 func _input(event: InputEvent) -> void:
@@ -385,14 +430,13 @@ func _create_reserve_slot(index: int, character: CharacterData) -> PanelContaine
 
 
 func _set_slot_style(slot: PanelContainer, is_empty: bool, is_hero: bool) -> void:
-	var style: StyleBoxFlat = slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+	## Apply pre-created style based on slot state (no duplication)
 	if is_hero:
-		style.bg_color = COLOR_SLOT_HERO
+		slot.add_theme_stylebox_override("panel", _style_hero)
 	elif is_empty:
-		style.bg_color = COLOR_SLOT_EMPTY
+		slot.add_theme_stylebox_override("panel", _style_empty)
 	else:
-		style.bg_color = COLOR_SLOT_FILLED
-	slot.add_theme_stylebox_override("panel", style)
+		slot.add_theme_stylebox_override("panel", _style_filled)
 
 
 func _truncate_name(name: String, max_len: int) -> String:
@@ -455,32 +499,28 @@ func _move_selection(direction: Vector2i) -> void:
 
 
 func _update_selection_visual() -> void:
-	# Reset all slot borders
+	## Update slot visuals using pre-created styles (no duplication)
+	# Reset all slot borders to normal
 	for slot: PanelContainer in _active_slots:
-		var style: StyleBoxFlat = slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-		style.border_color = Color(0.3, 0.3, 0.35, 0.8)
-		slot.add_theme_stylebox_override("panel", style)
+		var idx: int = _active_slots.find(slot)
+		var character: Variant = slot.get_meta("character") if slot.has_meta("character") else null
+		var is_hero: bool = idx == 0 and character != null
+		var is_empty: bool = character == null
+		_set_slot_style(slot, is_empty, is_hero)
 
 	for slot: PanelContainer in _reserve_slots:
-		var style: StyleBoxFlat = slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-		style.border_color = Color(0.3, 0.3, 0.35, 0.8)
-		slot.add_theme_stylebox_override("panel", style)
+		slot.add_theme_stylebox_override("panel", _style_filled)
 
 	# Highlight swap source if set
 	if not _swap_source.is_empty():
 		var source_slot: PanelContainer = _get_slot(_swap_source)
 		if source_slot:
-			var style: StyleBoxFlat = source_slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-			style.border_color = COLOR_TEXT_SELECTED
-			source_slot.add_theme_stylebox_override("panel", style)
+			source_slot.add_theme_stylebox_override("panel", _style_swap_source)
 
 	# Highlight current selection
 	var selected_slot: PanelContainer = _get_slot(_selection)
 	if selected_slot:
-		var style: StyleBoxFlat = selected_slot.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-		style.border_color = COLOR_SLOT_SELECTED
-		style.set_border_width_all(3)
-		selected_slot.add_theme_stylebox_override("panel", style)
+		selected_slot.add_theme_stylebox_override("panel", _style_selected)
 
 
 func _get_slot(sel: Dictionary) -> PanelContainer:

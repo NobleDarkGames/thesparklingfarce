@@ -24,6 +24,12 @@ const DEFAULT_SLOTS: Array[Dictionary] = [
 var _slots: Array[Dictionary] = []
 var _slot_source_mod: String = ""
 
+## O(1) lookup cache: {slot_id: Dictionary}
+var _slot_by_id: Dictionary = {}
+
+## Emitted when registrations change (for editor refresh)
+signal registrations_changed()
+
 
 ## Register a complete slot layout from a mod
 ## Higher priority mods completely replace lower priority layouts
@@ -50,6 +56,8 @@ func register_slot_layout(mod_id: String, slots: Array) -> void:
 	if not typed_slots.is_empty():
 		_slots = typed_slots
 		_slot_source_mod = mod_id
+		_rebuild_slot_cache()
+		registrations_changed.emit()
 
 
 ## Get the active slot layout (defaults if none registered)
@@ -59,30 +67,56 @@ func get_slots() -> Array[Dictionary]:
 	return _slots.duplicate(true)
 
 
-## Get slot count
+## Get slot count (O(1) - no deep copy)
 func get_slot_count() -> int:
-	return get_slots().size()
+	if _slots.is_empty():
+		return DEFAULT_SLOTS.size()
+	return _slots.size()
 
 
-## Get slot by ID
+## Get slot by ID (O(1) lookup via cache)
 ## Returns empty Dictionary if not found
 func get_slot(slot_id: String) -> Dictionary:
 	var lower_id: String = slot_id.to_lower()
-	for slot: Dictionary in get_slots():
+	# Use cache if slots are registered
+	if not _slots.is_empty():
+		if lower_id in _slot_by_id:
+			var slot: Dictionary = _slot_by_id[lower_id]
+			return slot.duplicate()
+		return {}
+	# Fall back to defaults
+	for slot: Dictionary in DEFAULT_SLOTS:
 		if slot.get("id", "") == lower_id:
 			return slot.duplicate()
 	return {}
 
 
-## Check if a slot ID is valid
+## Check if a slot ID is valid (O(1) lookup)
 func is_valid_slot(slot_id: String) -> bool:
-	return not get_slot(slot_id).is_empty()
+	var lower_id: String = slot_id.to_lower()
+	if not _slots.is_empty():
+		return lower_id in _slot_by_id
+	# Check defaults
+	for slot: Dictionary in DEFAULT_SLOTS:
+		if slot.get("id", "") == lower_id:
+			return true
+	return false
 
 
-## Check if an item type can go in a slot
+## Check if an item type can go in a slot (O(1) slot lookup)
 ## Supports category wildcards via EquipmentTypeRegistry (e.g., "weapon:*" matches any weapon subtype)
 func slot_accepts_type(slot_id: String, item_type: String) -> bool:
-	var slot: Dictionary = get_slot(slot_id)
+	var lower_id: String = slot_id.to_lower()
+	var slot: Dictionary = {}
+	# Use cache for O(1) lookup
+	if not _slots.is_empty():
+		if lower_id in _slot_by_id:
+			slot = _slot_by_id[lower_id]
+	else:
+		for default_slot: Dictionary in DEFAULT_SLOTS:
+			if default_slot.get("id", "") == lower_id:
+				slot = default_slot
+				break
 	if slot.is_empty():
 		return false
 
@@ -141,7 +175,36 @@ func get_source_mod() -> String:
 	return _slot_source_mod
 
 
+## Unregister slot layout from a specific mod
+func unregister_mod(mod_id: String) -> void:
+	if _slot_source_mod == mod_id:
+		_slots.clear()
+		_slot_by_id.clear()
+		_slot_source_mod = ""
+		registrations_changed.emit()
+
+
 ## Clear mod registrations (called on full mod reload)
 func clear_mod_registrations() -> void:
 	_slots.clear()
+	_slot_by_id.clear()
 	_slot_source_mod = ""
+	registrations_changed.emit()
+
+
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	return {
+		"slot_count": get_slot_count(),
+		"slot_ids": get_slot_ids(),
+		"source_mod": get_source_mod()
+	}
+
+
+## Rebuild the slot lookup cache
+func _rebuild_slot_cache() -> void:
+	_slot_by_id.clear()
+	for slot: Dictionary in _slots:
+		var slot_id: String = slot.get("id", "")
+		if not slot_id.is_empty():
+			_slot_by_id[slot_id] = slot

@@ -92,6 +92,10 @@ const BASE_PHASE_TRANSITION_PAUSE: float = 0.4  ## Pause between phases (role sw
 ## Speed multiplier (set by BattleManager based on GameJuice settings)
 var _speed_multiplier: float = 1.0
 
+## Tween pool for reuse (avoids creating 20+ tweens per combat)
+var _tween_pool: Array[Tween] = []
+const TWEEN_POOL_SIZE: int = 4
+
 
 ## Set animation speed multiplier (called by BattleManager)
 func set_speed_multiplier(multiplier: float) -> void:
@@ -117,6 +121,29 @@ func _ready() -> void:
 	background.modulate.a = 0.0
 	damage_label.visible = false
 	combat_log.text = ""
+
+	# Pre-create tween pool
+	for i: int in range(TWEEN_POOL_SIZE):
+		_tween_pool.append(create_tween())
+		_tween_pool[i].kill()  # Start killed so they're ready for reuse
+
+
+## Get a pooled tween, killing any existing animation on it
+func _get_pooled_tween() -> Tween:
+	# Find a finished/killed tween in the pool
+	for tween: Tween in _tween_pool:
+		if not tween.is_valid() or not tween.is_running():
+			# Recreate if invalid
+			if not tween.is_valid():
+				var idx: int = _tween_pool.find(tween)
+				_tween_pool[idx] = create_tween()
+				return _tween_pool[idx]
+			# Kill and return if just finished
+			tween.kill()
+			return create_tween()  # Must create new after kill
+
+	# All tweens busy - create a new one (fallback, shouldn't happen often)
+	return create_tween()
 
 
 # =============================================================================
@@ -147,7 +174,7 @@ func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 	_left_sprite = await _setup_combatant_and_return_sprite(_left_unit, defender_container, defender_name, defender_hp_bar)
 
 	# Fade in background and contents
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
 	await tween.finished
 
@@ -198,7 +225,7 @@ func finish_session() -> void:
 	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
 
 	# Fade out everything
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(background, "modulate:a", 0.0, _get_duration(BASE_FADE_OUT_DURATION))
 	await tween.finished
 
@@ -268,11 +295,11 @@ func _execute_phase(phase: CombatPhase) -> void:
 		await _play_hit_animation(phase.damage, phase.defender)
 
 	# Check for death after this phase
-	if phase.defender == _initial_attacker:
+	if phase.defender == _initial_attacker and _initial_attacker:
 		_initial_attacker_died = _initial_attacker.is_dead() if _initial_attacker.has_method("is_dead") else _initial_attacker.stats.current_hp <= 0
 		if _initial_attacker_died:
 			await _play_death_animation()
-	elif phase.defender == _initial_defender:
+	elif phase.defender == _initial_defender and _initial_defender:
 		_initial_defender_died = _initial_defender.is_dead() if _initial_defender.has_method("is_dead") else _initial_defender.stats.current_hp <= 0
 		if _initial_defender_died:
 			await _play_death_animation()
@@ -513,7 +540,7 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 	var direction: float = _get_attack_direction()
 
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * direction), move_duration)
 	await tween.finished
 
@@ -526,10 +553,10 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	_show_damage_number(damage, false)
 
 	# Update defender HP bar
-	var hp_tween: Tween = create_tween()
+	var hp_tween: Tween = _get_pooled_tween()
 	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
-	tween = create_tween()
+	tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
@@ -546,7 +573,7 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	var move_duration: float = _get_duration(BASE_ATTACK_MOVE_DURATION)
 	var direction: float = _get_attack_direction()
 
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * 1.5 * direction), move_duration)
 	await tween.finished
 
@@ -558,12 +585,12 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	_flash_sprite(def_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
 	_show_damage_number(damage, true)
 
-	var hp_tween: Tween = create_tween()
+	var hp_tween: Tween = _get_pooled_tween()
 	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 
 	await get_tree().create_timer(_get_pause(BASE_CRIT_PAUSE_DURATION)).timeout
 
-	tween = create_tween()
+	tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
 
@@ -582,11 +609,11 @@ func _play_miss_animation() -> void:
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 	var direction: float = _get_attack_direction()
 
-	var attack_tween: Tween = create_tween()
+	var attack_tween: Tween = _get_pooled_tween()
 	attack_tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * direction), move_duration)
 
 	# Defender dodges away from attacker (opposite direction)
-	var dodge_tween: Tween = create_tween()
+	var dodge_tween: Tween = _get_pooled_tween()
 	dodge_tween.tween_property(def_sprite, "position:x", defender_start_pos.x - (30 * direction), move_duration)
 
 	await attack_tween.finished
@@ -597,12 +624,12 @@ func _play_miss_animation() -> void:
 	damage_label.visible = true
 	damage_label.modulate.a = 1.0
 
-	var fade_tween: Tween = create_tween()
+	var fade_tween: Tween = _get_pooled_tween()
 	fade_tween.set_parallel(true)
 	fade_tween.tween_property(damage_label, "position:y", damage_label.position.y - DAMAGE_FLOAT_DISTANCE, float_duration)
 	fade_tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
 
-	var return_tween: Tween = create_tween()
+	var return_tween: Tween = _get_pooled_tween()
 	return_tween.set_parallel(true)
 	return_tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	return_tween.tween_property(def_sprite, "position", defender_start_pos, move_duration)
@@ -629,7 +656,7 @@ func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 	_show_heal_number(actual_heal)
 
 	# Update defender HP bar (HP goes UP - target.stats.current_hp now has new value)
-	var hp_tween: Tween = create_tween()
+	var hp_tween: Tween = _get_pooled_tween()
 	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
 	# Brief pause
@@ -673,7 +700,7 @@ func _show_heal_number(heal_amount: int) -> void:
 	damage_label.modulate.a = 1.0
 
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.set_parallel(true)
 	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, float_duration)
 	tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
@@ -693,7 +720,7 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.modulate.a = 1.0
 
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.set_parallel(true)
 	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, float_duration)
 	tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
@@ -745,7 +772,7 @@ func show_custom_banner(text: String, color: Color) -> void:
 	banner_label.position.y -= 40
 	banner_label.modulate = Color(1.5, 1.5, 1.5, 0.0)  # Bright but invisible
 
-	var tween: Tween = create_tween()
+	var tween: Tween = _get_pooled_tween()
 	tween.set_parallel(true)
 	# Slide down into position
 	tween.tween_property(banner_label, "position:y", target_pos.y, _get_duration(0.2)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
@@ -757,7 +784,7 @@ func show_custom_banner(text: String, color: Color) -> void:
 
 	await get_tree().create_timer(_get_pause(0.4)).timeout
 
-	tween = create_tween()
+	tween = _get_pooled_tween()
 	tween.tween_property(banner_label, "modulate:a", 0.0, _get_duration(0.2))
 	await tween.finished
 
@@ -826,7 +853,7 @@ func _play_death_animation() -> void:
 
 	await get_tree().create_timer(_get_pause(0.2)).timeout
 
-	var death_tween: Tween = create_tween()
+	var death_tween: Tween = _get_pooled_tween()
 	death_tween.set_parallel(true)
 	death_tween.tween_property(def_sprite, "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
 	death_tween.tween_property(def_sprite, "position:y", def_sprite.position.y + 30, _get_duration(BASE_DEATH_ANIMATION_DURATION))
@@ -929,7 +956,7 @@ func _display_xp_entries() -> void:
 
 	await get_tree().create_timer(_get_pause(BASE_XP_DISPLAY_DURATION)).timeout
 
-	var fade_tween: Tween = create_tween()
+	var fade_tween: Tween = _get_pooled_tween()
 	fade_tween.tween_property(xp_panel, "modulate:a", 0.0, _get_duration(0.3))
 	await fade_tween.finished
 
@@ -998,7 +1025,7 @@ func _create_xp_panel() -> PanelContainer:
 	var start_offset: float = panel.offset_top
 	panel.offset_top = start_offset + 10
 
-	var fade_tween: Tween = create_tween()
+	var fade_tween: Tween = _get_pooled_tween()
 	fade_tween.set_parallel(true)
 	fade_tween.tween_property(panel, "modulate:a", 1.0, _get_duration(0.2))
 	fade_tween.tween_property(panel, "offset_top", start_offset, _get_duration(0.25)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)

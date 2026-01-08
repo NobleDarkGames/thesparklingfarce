@@ -724,6 +724,10 @@ func _start_drop_confirmation(item_id: String, item_data: ItemData) -> void:
 		"Discard %s?" % item_data.item_name
 	)
 
+	# Guard: check if we're still valid after await
+	if not is_instance_valid(self) or not visible:
+		return
+
 	if confirmed:
 		_execute_drop(item_id)
 	else:

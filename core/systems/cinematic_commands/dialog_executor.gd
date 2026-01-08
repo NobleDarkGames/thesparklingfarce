@@ -158,7 +158,7 @@ func _auto_follow_character(character_id: String, manager: Node) -> void:
 
 	# Get actor's parent entity position
 	var entity: Node2D = actor.parent_entity
-	if not entity:
+	if not is_instance_valid(entity):
 		return
 
 	# Try CameraController first (battle/cinematic stages)

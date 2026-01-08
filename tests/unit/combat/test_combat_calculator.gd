@@ -117,6 +117,37 @@ func test_physical_damage_equal_stats() -> void:
 		assert_int(damage).is_equal(1)
 
 
+func test_physical_damage_zero_strength() -> void:
+	# STR 0 vs DEF 10 = -10 base, minimum 1
+	var attacker: UnitStats = _create_test_stats(0, 5, 10, 10, 5)
+	var defender: UnitStats = _create_test_stats(10, 10, 10, 10, 5)
+
+	for i in range(10):
+		var damage: int = CombatCalculator.calculate_physical_damage(attacker, defender)
+		assert_int(damage).is_equal(1)
+
+
+func test_physical_damage_zero_defense() -> void:
+	# STR 20 vs DEF 0 = 20 base damage
+	# With variance: 18 to 22
+	var attacker: UnitStats = _create_test_stats(20, 5, 10, 10, 5)
+	var defender: UnitStats = _create_test_stats(10, 0, 10, 10, 5)
+
+	for i in range(20):
+		var damage: int = CombatCalculator.calculate_physical_damage(attacker, defender)
+		assert_int(damage).is_between(18, 22)
+
+
+func test_physical_damage_both_zero() -> void:
+	# STR 0 vs DEF 0 = 0 base, minimum 1
+	var attacker: UnitStats = _create_test_stats(0, 5, 10, 10, 5)
+	var defender: UnitStats = _create_test_stats(10, 0, 10, 10, 5)
+
+	for i in range(10):
+		var damage: int = CombatCalculator.calculate_physical_damage(attacker, defender)
+		assert_int(damage).is_equal(1)
+
+
 # =============================================================================
 # HIT CHANCE TESTS
 # =============================================================================

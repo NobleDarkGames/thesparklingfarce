@@ -64,14 +64,10 @@ var _is_hovered: bool = false
 var _border_rect: ColorRect = null
 var _background_rect: ColorRect = null
 var _icon_texture: TextureRect = null
-var _tooltip_label: Label = null
 var _slot_label: Label = null
 
 ## Slot label text (shown when empty, e.g., "Weapon", "Ring 1")
 var _slot_label_text: String = ""
-
-## Placeholder texture for empty slots (drawn as simple shape)
-var _empty_placeholder: Texture2D = null
 
 # =============================================================================
 # LIFECYCLE

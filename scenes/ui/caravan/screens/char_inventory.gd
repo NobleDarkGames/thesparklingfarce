@@ -37,7 +37,7 @@ func _on_initialized() -> void:
 		character_uid = context.selected_character_uid
 
 	# Get character name
-	var char_data: CharacterData = _get_character_data(character_uid)
+	var char_data: CharacterData = get_character_data(character_uid)
 	if char_data:
 		character_name = char_data.character_name
 	else:
@@ -262,15 +262,6 @@ func _show_result(message: String, success: bool) -> void:
 	else:
 		result_label.add_theme_color_override("font_color", COLOR_ERROR)
 		play_sfx("menu_error")
-
-
-func _get_character_data(uid: String) -> CharacterData:
-	if not PartyManager:
-		return null
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == uid:
-			return character
-	return null
 
 
 func _on_back_pressed() -> void:

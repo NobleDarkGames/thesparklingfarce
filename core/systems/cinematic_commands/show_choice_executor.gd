@@ -310,7 +310,7 @@ func _on_shop_closed() -> void:
 
 
 func _complete() -> void:
-	if _manager:
+	if is_instance_valid(_manager):
 		_manager.current_state = _manager.State.PLAYING
 		_manager._command_completed = true
 	_cleanup()

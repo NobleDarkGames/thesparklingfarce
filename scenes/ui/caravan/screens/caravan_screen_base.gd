@@ -51,3 +51,27 @@ func get_depot_size() -> int:
 	if StorageManager:
 		return StorageManager.get_depot_size()
 	return 0
+
+
+## Get CharacterData for a given UID
+func get_character_data(uid: String) -> CharacterData:
+	if not PartyManager:
+		return null
+	for character: CharacterData in PartyManager.party_members:
+		if character.character_uid == uid:
+			return character
+	return null
+
+
+## Show result message with success/error styling
+## Subclasses must have a result_label: Label node
+func _show_result_on_label(label: Label, message: String, success: bool) -> void:
+	label.text = message
+	if success:
+		label.add_theme_color_override("font_color", UIColors.RESULT_SUCCESS)
+		if not message.is_empty():
+			play_sfx("menu_confirm")
+	else:
+		label.add_theme_color_override("font_color", UIColors.RESULT_ERROR)
+		if not message.is_empty():
+			play_sfx("menu_error")

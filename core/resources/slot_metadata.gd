@@ -99,14 +99,12 @@ func _check_mod_compatibility(saved_mods: Array[Dictionary]) -> bool:
 		var is_loaded: bool = false
 		for manifest: ModManifest in ModLoader.loaded_mods:
 			if manifest.mod_id == mod_id:
-				is_loaded = true
-
 				# Check version mismatch (optional - may be too strict)
 				if "version" in mod_dict:
 					var saved_version: String = DictUtils.get_string(mod_dict, "version", "")
 					if manifest.version != saved_version:
 						return true  # Version mismatch
-
+				is_loaded = true
 				break
 
 		# If mod is critical and not loaded, mark as mismatch

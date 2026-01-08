@@ -1,4 +1,3 @@
-@tool
 class_name StatusEffectRegistry
 extends RefCounted
 
@@ -29,6 +28,10 @@ var _effects: Dictionary = {}
 ## Track which mod registered each effect
 var _effect_sources: Dictionary = {}  # {effect_id: mod_id}
 
+## Cached sorted effect IDs for editor performance
+var _cached_effect_ids: Array[String] = []
+var _cache_dirty: bool = true
+
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -39,6 +42,10 @@ var _effect_sources: Dictionary = {}  # {effect_id: mod_id}
 func register_effect(effect: StatusEffectData, mod_id: String) -> void:
 	if not effect:
 		push_error("StatusEffectRegistry: Cannot register null effect")
+		return
+
+	if effect.effect_id == null:
+		push_error("StatusEffectRegistry: Effect has null effect_id from mod '%s'" % mod_id)
 		return
 
 	var id_lower: String = effect.effect_id.to_lower().strip_edges()
@@ -60,6 +67,7 @@ func register_effect(effect: StatusEffectData, mod_id: String) -> void:
 
 	_effects[id_lower] = effect
 	_effect_sources[id_lower] = mod_id
+	_cache_dirty = true
 
 
 ## Register multiple effects from a mod (called by ModLoader during discovery)
@@ -90,13 +98,10 @@ func has_effect(effect_id: String) -> bool:
 	return effect_id.to_lower() in _effects
 
 
-## Get all registered effect IDs
+## Get all registered effect IDs (cached for editor performance)
 func get_all_effect_ids() -> Array[String]:
-	var result: Array[String] = []
-	for effect_id: String in _effects.keys():
-		result.append(effect_id)
-	result.sort()
-	return result
+	_rebuild_cache_if_dirty()
+	return _cached_effect_ids.duplicate()
 
 
 ## Get all registered effects
@@ -129,11 +134,43 @@ func get_display_name(effect_id: String) -> String:
 # UTILITY API
 # =============================================================================
 
+## Unregister all effects from a specific mod
+func unregister_mod(mod_id: String) -> void:
+	var changed: bool = false
+	var to_remove: Array[String] = []
+	
+	for effect_id: String in _effect_sources.keys():
+		if _effect_sources[effect_id] == mod_id:
+			to_remove.append(effect_id)
+	
+	for effect_id: String in to_remove:
+		_effects.erase(effect_id)
+		_effect_sources.erase(effect_id)
+		changed = true
+	
+	if changed:
+		_cache_dirty = true
+		registrations_changed.emit()
+
+
 ## Clear all registrations (called on mod reload)
 func clear_mod_registrations() -> void:
 	_effects.clear()
 	_effect_sources.clear()
+	_cache_dirty = true
 	registrations_changed.emit()
+
+
+## Rebuild cached sorted array if dirty
+func _rebuild_cache_if_dirty() -> void:
+	if not _cache_dirty:
+		return
+	
+	_cached_effect_ids.clear()
+	for effect_id: String in _effects.keys():
+		_cached_effect_ids.append(effect_id)
+	_cached_effect_ids.sort()
+	_cache_dirty = false
 
 
 ## Get registration counts for debugging

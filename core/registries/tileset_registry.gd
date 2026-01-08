@@ -42,6 +42,10 @@ signal registrations_changed()
 ## Registered tilesets: {tileset_id: {path, display_name, description, source_mod, resource}}
 var _tilesets: Dictionary = {}
 
+## Cached sorted tileset metadata for editor performance
+var _cached_all_tilesets: Array[Dictionary] = []
+var _cache_dirty: bool = true
+
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -56,6 +60,7 @@ func register_from_config(mod_id: String, config: Dictionary, mod_directory: Str
 		if tileset_data is Dictionary:
 			_register_tileset(mod_id, tileset_id, tileset_data, mod_directory)
 
+	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -143,6 +148,7 @@ func discover_from_directory(mod_id: String, mod_directory: String) -> int:
 	dir.list_dir_end()
 
 	if count > 0:
+		_cache_dirty = true
 		registrations_changed.emit()
 
 	return count
@@ -161,19 +167,13 @@ func get_all_tileset_ids() -> Array[String]:
 	return result
 
 
-## Get all registered tilesets as dictionaries with metadata
+## Get all registered tilesets as dictionaries with metadata (cached for editor performance)
 ## Returns: Array of {id, display_name, description, path, source_mod}
 func get_all_tilesets() -> Array[Dictionary]:
+	_rebuild_cache_if_dirty()
 	var result: Array[Dictionary] = []
-	for tileset_id: String in _tilesets.keys():
-		var entry: Dictionary = _tilesets[tileset_id]
-		var data: Dictionary = entry.duplicate()
-		data.erase("resource")  # Don't include the cached resource
-		result.append(data)
-	# Sort by display name for consistent UI ordering
-	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a.get("display_name", "") < b.get("display_name", "")
-	)
+	for entry: Dictionary in _cached_all_tilesets:
+		result.append(entry.duplicate())
 	return result
 
 
@@ -263,9 +263,29 @@ func get_all_tileset_paths() -> Array[String]:
 # UTILITY API
 # =============================================================================
 
+## Unregister all tilesets from a specific mod
+func unregister_mod(mod_id: String) -> void:
+	var changed: bool = false
+	var to_remove: Array[String] = []
+	
+	for tileset_id: String in _tilesets.keys():
+		var entry: Dictionary = _tilesets[tileset_id]
+		if entry.get("source_mod", "") == mod_id:
+			to_remove.append(tileset_id)
+	
+	for tileset_id: String in to_remove:
+		_tilesets.erase(tileset_id)
+		changed = true
+	
+	if changed:
+		_cache_dirty = true
+		registrations_changed.emit()
+
+
 ## Clear all registrations (called on mod reload)
 func clear_mod_registrations() -> void:
 	_tilesets.clear()
+	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -274,3 +294,21 @@ func get_stats() -> Dictionary:
 	return {
 		"tileset_count": _tilesets.size()
 	}
+
+
+## Rebuild cached sorted array if dirty
+func _rebuild_cache_if_dirty() -> void:
+	if not _cache_dirty:
+		return
+	
+	_cached_all_tilesets.clear()
+	for tileset_id: String in _tilesets.keys():
+		var entry: Dictionary = _tilesets[tileset_id]
+		var data: Dictionary = entry.duplicate()
+		data.erase("resource")  # Don't include the cached resource
+		_cached_all_tilesets.append(data)
+	# Sort by display name for consistent UI ordering
+	_cached_all_tilesets.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.get("display_name", "") < b.get("display_name", "")
+	)
+	_cache_dirty = false

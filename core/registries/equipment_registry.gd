@@ -140,26 +140,50 @@ func get_armor_type_source(armor_type: String) -> String:
 	return ""
 
 
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	_rebuild_cache_if_dirty()
+	return {
+		"weapon_type_count": _all_weapon_types.size(),
+		"armor_type_count": _all_armor_types.size(),
+		"weapon_types": _all_weapon_types.duplicate(),
+		"armor_types": _all_armor_types.duplicate()
+	}
+
+
 ## Rebuild the cached merged arrays
 func _rebuild_cache_if_dirty() -> void:
 	if not _cache_dirty:
 		return
 
+	# Use Dictionary for O(1) deduplication
+	var weapon_set: Dictionary = {}
+	var armor_set: Dictionary = {}
+	
 	# Start with defaults
-	_all_weapon_types = DEFAULT_WEAPON_TYPES.duplicate()
-	_all_armor_types = DEFAULT_ARMOR_TYPES.duplicate()
+	for weapon_type: String in DEFAULT_WEAPON_TYPES:
+		weapon_set[weapon_type] = true
+	for armor_type: String in DEFAULT_ARMOR_TYPES:
+		armor_set[armor_type] = true
 
-	# Add mod types (avoiding duplicates)
+	# Add mod types (O(1) lookup for duplicates)
 	for mod_id: String in _mod_weapon_types:
 		var weapon_types: Array = _mod_weapon_types[mod_id]
 		for weapon_type: String in weapon_types:
-			if weapon_type not in _all_weapon_types:
-				_all_weapon_types.append(weapon_type)
+			weapon_set[weapon_type] = true
 
 	for mod_id: String in _mod_armor_types:
 		var armor_types: Array = _mod_armor_types[mod_id]
 		for armor_type: String in armor_types:
-			if armor_type not in _all_armor_types:
-				_all_armor_types.append(armor_type)
+			armor_set[armor_type] = true
+
+	# Convert back to arrays
+	_all_weapon_types.clear()
+	for weapon_type: String in weapon_set.keys():
+		_all_weapon_types.append(weapon_type)
+	
+	_all_armor_types.clear()
+	for armor_type: String in armor_set.keys():
+		_all_armor_types.append(armor_type)
 
 	_cache_dirty = false

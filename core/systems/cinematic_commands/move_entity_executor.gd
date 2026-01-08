@@ -28,7 +28,13 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var waypoints: Array[Vector2i] = []
 	for pos: Variant in path:
 		if pos is Array and pos.size() >= 2:
-			waypoints.append(Vector2i(pos[0], pos[1]))
+			var x_val: Variant = pos[0]
+			var y_val: Variant = pos[1]
+			if (x_val is int or x_val is float) and (y_val is int or y_val is float):
+				waypoints.append(Vector2i(int(x_val), int(y_val)))
+			else:
+				push_error("MoveEntityExecutor: Path position elements must be numeric: %s" % str(pos))
+				continue
 		elif pos is Vector2:
 			waypoints.append(Vector2i(pos))
 		elif pos is Vector2i:

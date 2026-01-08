@@ -174,7 +174,7 @@ func _evaluate_condition(condition: Dictionary) -> bool:
 	if not and_flags.is_empty():
 		has_any_condition = true
 		for flag_variant: Variant in and_flags:
-			var flag_name: String = str(flag_variant) if flag_variant is String else ""
+			var flag_name: String = flag_variant as String if flag_variant is String else ""
 			if not flag_name.is_empty() and not GameState.has_flag(flag_name):
 				all_conditions_pass = false
 				break
@@ -185,7 +185,7 @@ func _evaluate_condition(condition: Dictionary) -> bool:
 		has_any_condition = true
 		var any_or_flag_set: bool = false
 		for flag_variant: Variant in or_flags:
-			var flag_name: String = str(flag_variant) if flag_variant is String else ""
+			var flag_name: String = flag_variant as String if flag_variant is String else ""
 			if not flag_name.is_empty() and GameState.has_flag(flag_name):
 				any_or_flag_set = true
 				break

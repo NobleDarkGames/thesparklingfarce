@@ -727,7 +727,7 @@ func _on_create_new() -> void:
 		# Wait a frame for the scan to complete, then refresh
 		await get_tree().process_frame
 		# Safety check: node may have been freed during await
-		if not is_inside_tree():
+		if not is_instance_valid(self) or not is_inside_tree():
 			return
 		_refresh_list()
 
@@ -809,7 +809,7 @@ func _on_duplicate_resource() -> void:
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
 		# Safety check: node may have been freed during await
-		if not is_inside_tree():
+		if not is_instance_valid(self) or not is_inside_tree():
 			return
 		_refresh_list()
 
@@ -1089,6 +1089,9 @@ func _on_copy_to_mod() -> void:
 		# Refresh and select the new resource
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
+		# Safety check: node may have been freed during await
+		if not is_instance_valid(self) or not is_inside_tree():
+			return
 		_refresh_list()
 
 		# Register with ModLoader.registry so it's immediately available in pickers

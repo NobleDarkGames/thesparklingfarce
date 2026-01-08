@@ -286,8 +286,16 @@ func deserialize_from_dict(data: Dictionary) -> void:
 func _deserialize_equipped_items(data: Dictionary) -> void:
 	if "equipped_items" not in data:
 		return
+	var items_data: Variant = data.equipped_items
+	if not items_data is Array:
+		push_warning("CharacterSaveData: equipped_items is not an Array, skipping")
+		return
 	equipped_items.clear()
-	for item_dict: Dictionary in data.equipped_items:
+	for item_entry: Variant in items_data:
+		if not item_entry is Dictionary:
+			push_warning("CharacterSaveData: equipped_items entry is not a Dictionary, skipping")
+			continue
+		var item_dict: Dictionary = item_entry
 		if "curse_broken" not in item_dict:
 			item_dict["curse_broken"] = false
 		equipped_items.append(item_dict)
@@ -307,8 +315,16 @@ func _deserialize_inventory(data: Dictionary) -> void:
 func _deserialize_learned_abilities(data: Dictionary) -> void:
 	if "learned_abilities" not in data:
 		return
+	var abilities_data: Variant = data.learned_abilities
+	if not abilities_data is Array:
+		push_warning("CharacterSaveData: learned_abilities is not an Array, skipping")
+		return
 	learned_abilities.clear()
-	for ability_dict: Dictionary in data.learned_abilities:
+	for ability_entry: Variant in abilities_data:
+		if not ability_entry is Dictionary:
+			push_warning("CharacterSaveData: learned_abilities entry is not a Dictionary, skipping")
+			continue
+		var ability_dict: Dictionary = ability_entry
 		learned_abilities.append(ability_dict)
 
 

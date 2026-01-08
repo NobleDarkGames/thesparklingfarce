@@ -170,13 +170,15 @@ func serialize_to_dict() -> Dictionary:
 	# Serialize party members
 	var party_array: Array[Dictionary] = []
 	for char_save: CharacterSaveData in party_members:
-		party_array.append(char_save.serialize_to_dict())
+		if char_save != null:
+			party_array.append(char_save.serialize_to_dict())
 	data["party_members"] = party_array
 
 	# Serialize reserve members
 	var reserve_array: Array[Dictionary] = []
 	for char_save: CharacterSaveData in reserve_members:
-		reserve_array.append(char_save.serialize_to_dict())
+		if char_save != null:
+			reserve_array.append(char_save.serialize_to_dict())
 	data["reserve_members"] = reserve_array
 
 	return data

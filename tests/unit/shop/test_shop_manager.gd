@@ -15,6 +15,9 @@ var _shop_data: ShopData
 var _save_data: SaveData
 var _test_character_uid: String = "test_character"
 
+# Signal connection tracking for cleanup
+var _connected_signals: Array[Dictionary] = []
+
 
 ## Helper to create and register a test character with PartyManager
 func _setup_test_character(needs_healing: bool = true) -> void:
@@ -61,12 +64,26 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# Disconnect any signals that were connected during the test
+	for connection: Dictionary in _connected_signals:
+		var sig: Signal = connection.signal_ref
+		var callable: Callable = connection.callable
+		if sig.is_connected(callable):
+			sig.disconnect(callable)
+	_connected_signals.clear()
+
 	if ShopManager:
 		ShopManager.close_shop()
 	if StorageManager:
 		StorageManager.clear_depot()
 	_shop_data = null
 	_save_data = null
+
+
+## Helper to connect a signal and track it for cleanup
+func _connect_signal(sig: Signal, callable: Callable) -> void:
+	sig.connect(callable)
+	_connected_signals.append({"signal_ref": sig, "callable": callable})
 
 
 # =============================================================================
@@ -184,7 +201,11 @@ func test_buy_item_not_in_stock() -> void:
 	assert_bool(result.success).is_false()
 	# Note: If ItemData isn't in ModLoader, we get "Item not found" first
 	# This is expected - the item lookup happens before stock check
-	assert_str(result.error).is_not_empty()
+	assert_bool(
+		result.error.contains("not found") or
+		result.error.contains("stock") or
+		result.error.contains("Not in stock")
+	).is_true()
 
 
 func test_buy_item_not_enough_gold() -> void:
@@ -197,7 +218,11 @@ func test_buy_item_not_enough_gold() -> void:
 	assert_bool(result.success).is_false()
 	# Note: If ItemData isn't in ModLoader, we get "Item not found" first
 	# This is expected - the item lookup happens before gold check
-	assert_str(result.error).is_not_empty()
+	assert_bool(
+		result.error.contains("not found") or
+		result.error.contains("gold") or
+		result.error.contains("afford")
+	).is_true()
 
 
 # =============================================================================
@@ -214,15 +239,16 @@ func test_buy_item_to_caravan() -> void:
 
 	var result: Dictionary = ShopManager.buy_item("healing_herb", 1, "caravan")
 
-	# Buy may fail if ItemData lookup fails
+	# Buy may fail if ItemData lookup fails - both outcomes are valid
 	if result.success:
 		assert_int(StorageManager.get_depot_size()).is_equal(initial_depot_size + 1)
 		assert_bool(StorageManager.has_item("healing_herb")).is_true()
 		# Gold should be deducted (healing_herb costs 10)
 		assert_int(_save_data.gold).is_less(1000)
 	else:
-		# ItemData not found - verify error message
-		assert_str(result.error).is_not_empty()
+		# ItemData not found - this is expected in unit tests without full mod loading
+		# Verify we got a meaningful error, not a silent failure
+		assert_bool(result.error.contains("not found")).is_true()
 
 
 func test_buy_multiple_to_caravan() -> void:
@@ -232,12 +258,13 @@ func test_buy_multiple_to_caravan() -> void:
 
 	var result: Dictionary = ShopManager.buy_item("healing_herb", 5, "caravan")
 
+	# Both outcomes are valid - verify the appropriate behavior for each
 	if result.success:
 		assert_int(StorageManager.get_depot_size()).is_equal(initial_depot_size + 5)
 		assert_int(StorageManager.get_item_count("healing_herb")).is_greater_equal(5)
 	else:
-		# ItemData not found
-		assert_str(result.error).is_not_empty()
+		# ItemData not found - expected in unit tests without full mod loading
+		assert_bool(result.error.contains("not found")).is_true()
 
 
 func test_buy_depletes_limited_stock() -> void:
@@ -247,12 +274,14 @@ func test_buy_depletes_limited_stock() -> void:
 
 	var result: Dictionary = ShopManager.buy_item("power_ring", 1, "caravan")
 
-	# Stock should only decrease if purchase succeeded
+	# Both outcomes are valid - verify the appropriate behavior for each
 	if result.success:
+		# Stock should decrease on successful purchase
 		assert_int(_shop_data.get_item_stock("power_ring")).is_equal(2)
 	else:
-		# Stock unchanged if purchase failed
+		# Stock unchanged if purchase failed (ItemData not found in unit tests)
 		assert_int(_shop_data.get_item_stock("power_ring")).is_equal(3)
+		assert_bool(result.error.contains("not found")).is_true()
 
 
 # =============================================================================
@@ -572,74 +601,72 @@ func _on_gold_changed(_old: int, _new: int) -> void:
 
 func test_shop_opened_signal() -> void:
 	_reset_signal_flags()
-	ShopManager.shop_opened.connect(_on_shop_opened)
+	_connect_signal(ShopManager.shop_opened, _on_shop_opened)
 
 	ShopManager.open_shop(_shop_data, _save_data)
 
 	assert_bool(_shop_opened_received).is_true()
-	ShopManager.shop_opened.disconnect(_on_shop_opened)
+	# Signal cleanup handled by after_test()
 
 
 func test_shop_closed_signal() -> void:
 	_reset_signal_flags()
 	ShopManager.open_shop(_shop_data, _save_data)
-	ShopManager.shop_closed.connect(_on_shop_closed)
+	_connect_signal(ShopManager.shop_closed, _on_shop_closed)
 
 	ShopManager.close_shop()
 
 	assert_bool(_shop_closed_received).is_true()
-	ShopManager.shop_closed.disconnect(_on_shop_closed)
+	# Signal cleanup handled by after_test()
 
 
 func test_purchase_completed_signal() -> void:
 	_reset_signal_flags()
 	ShopManager.open_shop(_shop_data, _save_data)
 	_save_data.gold = 1000
-	ShopManager.purchase_completed.connect(_on_purchase_completed)
-	ShopManager.purchase_failed.connect(_on_purchase_failed)
+	_connect_signal(ShopManager.purchase_completed, _on_purchase_completed)
+	_connect_signal(ShopManager.purchase_failed, _on_purchase_failed)
 
 	ShopManager.buy_item("healing_herb", 1, "caravan")
 
 	# Either completed or failed, but one signal should fire
 	assert_bool(_purchase_completed_received or _purchase_failed_received).is_true()
-	ShopManager.purchase_completed.disconnect(_on_purchase_completed)
-	ShopManager.purchase_failed.disconnect(_on_purchase_failed)
+	# Signal cleanup handled by after_test()
 
 
 func test_purchase_failed_signal_no_gold() -> void:
 	_reset_signal_flags()
 	ShopManager.open_shop(_shop_data, _save_data)
 	_save_data.gold = 0  # No gold
-	ShopManager.purchase_failed.connect(_on_purchase_failed)
+	_connect_signal(ShopManager.purchase_failed, _on_purchase_failed)
 
 	ShopManager.buy_item("healing_herb", 1, "caravan")
 
 	# Should fail - either due to no gold or item not found
 	assert_bool(_purchase_failed_received).is_true()
-	ShopManager.purchase_failed.disconnect(_on_purchase_failed)
+	# Signal cleanup handled by after_test()
 
 
 func test_sale_completed_signal() -> void:
 	_reset_signal_flags()
 	ShopManager.open_shop(_shop_data, _save_data)
 	StorageManager.add_to_depot("healing_herb")
-	ShopManager.sale_completed.connect(_on_sale_completed)
-	ShopManager.sale_failed.connect(_on_sale_failed)
+	_connect_signal(ShopManager.sale_completed, _on_sale_completed)
+	_connect_signal(ShopManager.sale_failed, _on_sale_failed)
 
 	ShopManager.sell_item("healing_herb", "caravan", 1)
 
 	# Either completed or failed, but one signal should fire
 	assert_bool(_sale_completed_received or _sale_failed_received).is_true()
-	ShopManager.sale_completed.disconnect(_on_sale_completed)
-	ShopManager.sale_failed.disconnect(_on_sale_failed)
+	# Signal cleanup handled by after_test()
 
 
 func test_gold_changed_signal() -> void:
 	_reset_signal_flags()
 	ShopManager.open_shop(_shop_data, _save_data)
 	_save_data.gold = 1000
-	ShopManager.gold_changed.connect(_on_gold_changed)
-	ShopManager.purchase_failed.connect(_on_purchase_failed)
+	_connect_signal(ShopManager.gold_changed, _on_gold_changed)
+	_connect_signal(ShopManager.purchase_failed, _on_purchase_failed)
 
 	ShopManager.buy_item("healing_herb", 1, "caravan")
 
@@ -649,5 +676,4 @@ func test_gold_changed_signal() -> void:
 		pass  # No gold change expected on failure
 	else:
 		assert_bool(_gold_changed_received).is_true()
-	ShopManager.gold_changed.disconnect(_on_gold_changed)
-	ShopManager.purchase_failed.disconnect(_on_purchase_failed)
+	# Signal cleanup handled by after_test()

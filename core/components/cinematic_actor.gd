@@ -171,6 +171,12 @@ func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true) -> 
 func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 	is_moving = true
 
+	# Validate parent_entity is still valid (could be freed during async operations)
+	if not is_instance_valid(parent_entity):
+		push_error("CinematicActor: Parent entity was freed for %s" % actor_id)
+		movement_completed.emit()
+		return
+
 	# Delegate waypoint expansion to GridManager (Phase 3 refactor)
 	var current_pos: Vector2i = GridManager.world_to_cell(parent_entity.global_position)
 	var complete_path: Array[Vector2i] = GridManager.expand_waypoint_path(waypoints, 0, current_pos)
@@ -260,6 +266,9 @@ func _await_parent_movement(complete_path: Array[Vector2i]) -> void:
 		var path_length: float = complete_path.size() * GridManager.get_tile_size()
 		var estimated_duration: float = path_length / (default_speed * GridManager.get_tile_size())
 		await get_tree().create_timer(estimated_duration).timeout
+		# Validity check after await - actor could be freed during movement
+		if not is_instance_valid(self):
+			return
 		_stop_movement()
 
 

@@ -54,6 +54,8 @@ func _on_initialized() -> void:
 
 	# Grab focus on first character button or caravan
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	if character_buttons.size() > 0:
 		character_buttons[0].grab_focus()
 	elif caravan_button.visible:

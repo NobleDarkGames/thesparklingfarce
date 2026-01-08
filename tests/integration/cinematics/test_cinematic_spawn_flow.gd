@@ -50,23 +50,39 @@ func _ready() -> void:
 	_run_all_tests_with_timeout()
 
 
+# Timeout timer reference for cleanup
+var _timeout_timer: Timer = null
+
+
 ## Run tests with overall timeout
 func _run_all_tests_with_timeout() -> void:
 	# Set a global timeout for all tests
-	var timeout_timer: Timer = Timer.new()
-	timeout_timer.wait_time = 10.0  # 10 second max for all tests
-	timeout_timer.one_shot = true
-	timeout_timer.timeout.connect(_on_timeout)
-	add_child(timeout_timer)
-	timeout_timer.start()
+	_timeout_timer = Timer.new()
+	_timeout_timer.wait_time = 10.0  # 10 second max for all tests
+	_timeout_timer.one_shot = true
+	_timeout_timer.timeout.connect(_on_timeout)
+	add_child(_timeout_timer)
+	_timeout_timer.start()
 
 	await _run_all_tests()
+
+	# Clean up timer after tests complete normally
+	_cleanup_timeout_timer()
 
 
 func _on_timeout() -> void:
 	print("\n[TIMEOUT] Tests exceeded maximum time limit!")
 	print("[INFO] Some tests may not have completed in headless mode")
+	_cleanup_timeout_timer()
 	_print_results()
+
+
+## Clean up the timeout timer
+func _cleanup_timeout_timer() -> void:
+	if is_instance_valid(_timeout_timer):
+		_timeout_timer.stop()
+		_timeout_timer.queue_free()
+		_timeout_timer = null
 
 
 func _run_all_tests() -> void:

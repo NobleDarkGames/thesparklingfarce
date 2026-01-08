@@ -22,7 +22,12 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var grid_pos: Vector2i = Vector2i.ZERO
 	var pos_param: Variant = params.get("position", [0, 0])
 	if pos_param is Array and pos_param.size() >= 2:
-		grid_pos = Vector2i(int(pos_param[0]), int(pos_param[1]))
+		var x_val: Variant = pos_param[0]
+		var y_val: Variant = pos_param[1]
+		if (x_val is int or x_val is float) and (y_val is int or y_val is float):
+			grid_pos = Vector2i(int(x_val), int(y_val))
+		else:
+			push_warning("SpawnEntityExecutor: Position array elements must be numeric")
 	elif pos_param is Vector2:
 		grid_pos = Vector2i(pos_param)
 	elif pos_param is Vector2i:

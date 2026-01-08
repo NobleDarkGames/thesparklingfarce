@@ -23,7 +23,7 @@ var mod_info_label: Label
 
 # Two-tier category navigation
 var category_bar: HBoxContainer
-var category_buttons: Dictionary = {}  # category_id -> Button
+var category_buttons: Dictionary[String, Button] = {}  # category_id -> Button
 var current_category: String = "content"  # Default to Content category
 
 # Mod Creation Wizard

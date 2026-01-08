@@ -120,9 +120,13 @@ func validate() -> bool:
 
 	# Validate stat_modifiers keys
 	var valid_stats: Array[String] = ["strength", "defense", "agility", "intelligence", "luck", "max_hp", "max_mp"]
-	for key: String in stat_modifiers.keys():
-		if key not in valid_stats:
-			push_warning("StatusEffectData '%s': Unknown stat modifier '%s'" % [effect_id, key])
+	for key: Variant in stat_modifiers.keys():
+		if not key is String:
+			push_warning("StatusEffectData '%s': stat_modifier key is not a String" % effect_id)
+			continue
+		var key_str: String = key
+		if key_str not in valid_stats:
+			push_warning("StatusEffectData '%s': Unknown stat modifier '%s'" % [effect_id, key_str])
 
 	return true
 
@@ -144,5 +148,12 @@ func has_stat_modifiers() -> bool:
 ## Get a specific stat modifier value (returns 0 if not present)
 func get_stat_modifier(stat_name: String) -> int:
 	if stat_name in stat_modifiers:
-		return int(stat_modifiers[stat_name])
+		var value: Variant = stat_modifiers[stat_name]
+		if value is int:
+			return value
+		elif value is float:
+			return int(value)
+		else:
+			push_warning("StatusEffectData '%s': stat_modifier '%s' has non-numeric value, returning 0" % [effect_id, stat_name])
+			return 0
 	return 0

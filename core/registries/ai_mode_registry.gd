@@ -61,6 +61,9 @@ var _mod_modes: Dictionary = {}
 var _all_modes: Dictionary = {}
 var _cache_dirty: bool = true
 
+## Cached sorted array for get_all_modes() (editor performance)
+var _cached_all_modes_sorted: Array[Dictionary] = []
+
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -144,18 +147,13 @@ func get_mode_ids() -> Array[String]:
 	return result
 
 
-## Get all registered modes as dictionaries with metadata
+## Get all registered modes as dictionaries with metadata (cached for editor performance)
 ## Returns: Array of {id, display_name, description, source_mod}
 func get_all_modes() -> Array[Dictionary]:
 	_rebuild_cache_if_dirty()
 	var result: Array[Dictionary] = []
-	for mode_id: String in _all_modes.keys():
-		var entry: Dictionary = _all_modes[mode_id]
+	for entry: Dictionary in _cached_all_modes_sorted:
 		result.append(entry.duplicate())
-	# Sort by display name for consistent UI ordering
-	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a.get("display_name", "") < b.get("display_name", "")
-	)
 	return result
 
 
@@ -238,6 +236,15 @@ func _rebuild_cache_if_dirty() -> void:
 	for mode_id: String in _mod_modes.keys():
 		var entry: Dictionary = _mod_modes[mode_id]
 		_all_modes[mode_id] = entry.duplicate()
+
+	# Build sorted array for get_all_modes()
+	_cached_all_modes_sorted.clear()
+	for mode_id: String in _all_modes.keys():
+		var entry: Dictionary = _all_modes[mode_id]
+		_cached_all_modes_sorted.append(entry.duplicate())
+	_cached_all_modes_sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.get("display_name", "") < b.get("display_name", "")
+	)
 
 	_cache_dirty = false
 

@@ -8,7 +8,7 @@ extends RefCounted
 ## Get a unit's display name safely
 ## Works with any object that has a get_display_name() method
 static func get_display_name(unit: Variant, fallback: String = "Unknown") -> String:
-	if unit == null:
+	if unit == null or (unit is Object and not is_instance_valid(unit)):
 		return fallback
 	if unit is Object:
 		var obj: Object = unit
@@ -20,7 +20,7 @@ static func get_display_name(unit: Variant, fallback: String = "Unknown") -> Str
 
 ## Get a unit's grid position safely
 static func get_grid_position(unit: Variant, fallback: Vector2i = Vector2i.ZERO) -> Vector2i:
-	if unit == null:
+	if unit == null or (unit is Object and not is_instance_valid(unit)):
 		return fallback
 	if unit is Object:
 		var obj: Object = unit
@@ -33,7 +33,7 @@ static func get_grid_position(unit: Variant, fallback: Vector2i = Vector2i.ZERO)
 
 ## Check if a unit is alive safely
 static func is_alive(unit: Variant) -> bool:
-	if unit == null:
+	if unit == null or (unit is Object and not is_instance_valid(unit)):
 		return false
 	if unit is Object:
 		var obj: Object = unit
@@ -46,7 +46,7 @@ static func is_alive(unit: Variant) -> bool:
 
 ## Get a unit's character data safely
 static func get_character_data(unit: Variant) -> Variant:
-	if unit == null:
+	if unit == null or (unit is Object and not is_instance_valid(unit)):
 		return null
 	if unit is Object:
 		var obj: Object = unit

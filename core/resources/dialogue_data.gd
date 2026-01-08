@@ -24,29 +24,6 @@ enum Emotion {
 	THINKING
 }
 
-## A single line of dialogue
-class DialogueLine:
-	var speaker_name: String = ""
-	var portrait: Texture2D = null
-	var text: String = ""
-	var emotion: String = "neutral"  ## For portrait variants
-	var voice_clip: AudioStream = null
-
-	func _init(p_speaker: String = "", p_text: String = "", p_portrait: Texture2D = null) -> void:
-		speaker_name = p_speaker
-		text = p_text
-		portrait = p_portrait
-
-## A choice option for branching dialogue
-class DialogueChoice:
-	var choice_text: String = ""
-	var next_dialogue: DialogueData = null
-	var condition_script: GDScript = null  ## Optional condition to show this choice
-
-	func _init(p_text: String = "", p_next: DialogueData = null) -> void:
-		choice_text = p_text
-		next_dialogue = p_next
-
 
 @export var dialogue_id: String = ""
 @export var dialogue_title: String = ""

@@ -238,8 +238,8 @@ func get_description() -> String:
 		PhaseType.SPELL_HEAL:
 			type_str = "Spell Heal"
 
-	var attacker_name: String = str(attacker.call("get_display_name")) if attacker and attacker.has_method("get_display_name") else "Unknown"
-	var defender_name: String = str(defender.call("get_display_name")) if defender and defender.has_method("get_display_name") else "Unknown"
+	var attacker_name: String = _get_unit_display_name(attacker)
+	var defender_name: String = _get_unit_display_name(defender)
 	var action_str: String = " with %s" % action_name if not action_name.is_empty() else ""
 
 	# Handle status phases
@@ -271,8 +271,8 @@ func get_description() -> String:
 ##   Spell Heal: "Name cast SPELL - Recovered X HP!"
 ##   Miss:    "Name missed!" or "Name's counter missed!"
 func get_result_text() -> String:
-	var attacker_name: String = str(attacker.call("get_display_name")) if attacker and attacker.has_method("get_display_name") else "Unknown"
-	var defender_name: String = str(defender.call("get_display_name")) if defender and defender.has_method("get_display_name") else "Unknown"
+	var attacker_name: String = _get_unit_display_name(attacker)
+	var defender_name: String = _get_unit_display_name(defender)
 
 	# Handle healing phases first (before miss check - heals don't miss)
 	if phase_type == PhaseType.ITEM_HEAL:
@@ -356,3 +356,14 @@ func get_result_text() -> String:
 				return "%s hit with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
 			else:
 				return "%s hit for %s!" % [attacker_name, damage_str]
+
+
+## Helper to safely get a unit's display name
+## Returns "Unknown" if unit is null or method returns non-String
+func _get_unit_display_name(unit: Unit) -> String:
+	if not unit or not unit.has_method("get_display_name"):
+		return "Unknown"
+	var result: Variant = unit.call("get_display_name")
+	if result is String:
+		return result
+	return "Unknown"

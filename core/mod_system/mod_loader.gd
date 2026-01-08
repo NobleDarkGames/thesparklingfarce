@@ -406,6 +406,10 @@ func _wait_for_threaded_loads(paths: Array[String]) -> void:
 
 		# Yield to allow other processing (don't block the main thread)
 		if not pending.is_empty():
+			# Guard against being removed from tree mid-load
+			if not get_tree():
+				push_warning("ModLoader: Removed from tree during async load, aborting wait")
+				return
 			await get_tree().process_frame
 
 
@@ -1045,7 +1049,13 @@ func reload_mods() -> void:
 
 ## Reload all mods asynchronously (useful for runtime hot-reloading)
 ## Does not block - emits mods_loaded signal when complete
-## WARNING: Scenes should wait for mods_loaded before accessing mod resources
+##
+## WARNING: Race condition hazard! This function clears all registries immediately,
+## then awaits async loading. During this window, registry access returns empty results.
+## Callers MUST either:
+##   1. Check is_loading() before accessing registry, OR
+##   2. Await the mods_loaded signal before accessing mod resources
+## Failure to do so will result in missing resources during the reload window.
 func reload_mods_async() -> void:
 	loaded_mods.clear()
 	registry.clear()

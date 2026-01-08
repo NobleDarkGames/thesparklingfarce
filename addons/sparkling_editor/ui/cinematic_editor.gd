@@ -103,6 +103,18 @@ func _ready() -> void:
 			event_bus.resource_created.connect(_on_resource_changed)
 
 
+func _exit_tree() -> void:
+	# Clean up EditorEventBus signal connections to prevent memory leaks
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
+			event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
+		if event_bus.resource_saved.is_connected(_on_resource_changed):
+			event_bus.resource_saved.disconnect(_on_resource_changed)
+		if event_bus.resource_created.is_connected(_on_resource_changed):
+			event_bus.resource_created.disconnect(_on_resource_changed)
+
+
 ## Called when mods are reloaded via Refresh Mods button
 func _on_mods_reloaded() -> void:
 	_refresh_characters()

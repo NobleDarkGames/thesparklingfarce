@@ -6,6 +6,8 @@
 class_name GridCursor
 extends Node2D
 
+const UIColors = preload("res://core/utils/ui_colors.gd")
+
 ## Cursor mode determines visual style and animation
 enum CursorMode {
 	ACTIVE_UNIT,     ## Yellow pulsing - "this unit's turn is starting"
@@ -27,11 +29,11 @@ var current_mode: CursorMode = CursorMode.READY_TO_ACT
 @export var bob_duration: float = 0.6    ## Full cycle duration in seconds (SF2-authentic: ~0.6s)
 @export var pulse_scale: float = 1.2     ## Scale multiplier on pulse
 
-## Mode-specific colors
-const COLOR_ACTIVE_UNIT: Color = Color(1.0, 1.0, 0.5, 1.0)   ## Yellow-gold for active unit
-const COLOR_READY_TO_ACT: Color = Color(1.0, 1.0, 1.0, 1.0)  ## White for action selection
-const COLOR_TARGET_ENEMY: Color = Color(1.0, 0.4, 0.4, 1.0)  ## Red for enemy targeting
-const COLOR_TARGET_ALLY: Color = Color(0.4, 1.0, 0.4, 1.0)   ## Green for ally targeting
+## Mode-specific colors (exported for modders, defaults from UIColors)
+@export var color_active_unit: Color = UIColors.CURSOR_ACTIVE_UNIT
+@export var color_ready_to_act: Color = UIColors.CURSOR_READY_TO_ACT
+@export var color_target_enemy: Color = UIColors.CURSOR_TARGET_ENEMY
+@export var color_target_ally: Color = UIColors.CURSOR_TARGET_ALLY
 
 ## Animation state
 var _idle_tween: Tween = null
@@ -62,13 +64,13 @@ func set_cursor_mode(mode: CursorMode, is_ally: bool = false) -> void:
 	# Apply mode-specific color and animation
 	match mode:
 		CursorMode.ACTIVE_UNIT:
-			cursor_sprite.modulate = COLOR_ACTIVE_UNIT
+			cursor_sprite.modulate = color_active_unit
 			_start_scale_pulse_animation()  # Slow pulse for "your turn"
 		CursorMode.READY_TO_ACT:
-			cursor_sprite.modulate = COLOR_READY_TO_ACT
+			cursor_sprite.modulate = color_ready_to_act
 			_start_idle_animation()  # Standard SF2-style bounce
 		CursorMode.TARGETING:
-			cursor_sprite.modulate = COLOR_TARGET_ALLY if is_ally else COLOR_TARGET_ENEMY
+			cursor_sprite.modulate = color_target_ally if is_ally else color_target_enemy
 			_start_idle_animation()  # Bounce for targeting
 
 
@@ -92,7 +94,7 @@ func _stop_all_animations() -> void:
 
 ## Start scale pulse animation (for ACTIVE_UNIT mode - slow gentle pulse)
 func _start_scale_pulse_animation() -> void:
-	if not GameJuice.animate_cursor:
+	if not GameJuice or not GameJuice.animate_cursor:
 		return
 
 	if not cursor_sprite:
@@ -121,7 +123,7 @@ func _start_scale_pulse_animation() -> void:
 
 ## Start or restart the idle bob animation (SF2-authentic "hop" pattern)
 func _start_idle_animation() -> void:
-	if not GameJuice.animate_cursor:
+	if not GameJuice or not GameJuice.animate_cursor:
 		return
 
 	if not cursor_sprite:

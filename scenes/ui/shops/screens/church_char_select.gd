@@ -218,8 +218,11 @@ func _perform_heal(character_uid: String) -> void:
 		}
 		push_screen("transaction_result")
 	else:
-		# Show error (could push to a result screen or just print)
-		print("[ChurchCharSelect] Heal failed: %s" % result.get("error", "Unknown error"))
+		context.last_result = {
+			"success": false,
+			"message": result.get("error", "Healing failed")
+		}
+		push_screen("transaction_result")
 
 
 func _perform_revive(character_uid: String) -> void:
@@ -234,7 +237,11 @@ func _perform_revive(character_uid: String) -> void:
 		}
 		push_screen("transaction_result")
 	else:
-		print("[ChurchCharSelect] Revive failed: %s" % result.get("error", "Unknown error"))
+		context.last_result = {
+			"success": false,
+			"message": result.get("error", "Revival failed")
+		}
+		push_screen("transaction_result")
 
 
 func _start_uncurse(character_uid: String) -> void:

@@ -114,7 +114,11 @@ func _on_slot_selected(slot_id: String) -> void:
 		}
 		push_screen("transaction_result")
 	else:
-		print("[ChurchSlotSelect] Uncurse failed: %s" % result.get("error", "Unknown error"))
+		context.last_result = {
+			"success": false,
+			"message": result.get("error", "Uncurse failed")
+		}
+		push_screen("transaction_result")
 
 
 func _on_button_focus_entered(btn: Button) -> void:

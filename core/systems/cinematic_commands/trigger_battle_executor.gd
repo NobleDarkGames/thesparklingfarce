@@ -99,20 +99,24 @@ func _on_battle_ended(victory: bool) -> void:
 	# Determine follow-up cinematic
 	var follow_up_cinematic: String = _on_victory_cinematic if victory else _on_defeat_cinematic
 
+	# Capture manager reference BEFORE _complete() nulls it
+	var manager_ref: Node = _manager
+
 	# Complete this command first
 	_complete()
 
 	# Play follow-up cinematic if specified, otherwise return to map
 	if not follow_up_cinematic.is_empty():
 		# Defer to next frame to ensure clean state after battle cleanup
-		_manager.call_deferred("play_cinematic", follow_up_cinematic)
+		if is_instance_valid(manager_ref):
+			manager_ref.call_deferred("play_cinematic", follow_up_cinematic)
 	else:
 		# No follow-up cinematic - return to the map we came from
 		TriggerManager.call_deferred("return_to_map")
 
 
 func _complete() -> void:
-	if _manager:
+	if is_instance_valid(_manager):
 		_manager.current_state = _manager.State.PLAYING
 		_manager._command_completed = true
 	_cleanup()

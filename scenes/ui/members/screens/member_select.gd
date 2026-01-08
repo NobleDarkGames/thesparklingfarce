@@ -13,6 +13,10 @@ const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 ## Character button references
 var char_buttons: Array[Button] = []
 
+## Stored bound callables for proper disconnection
+var _pressed_callables: Array[Callable] = []
+var _focus_callables: Array[Callable] = []
+
 ## Currently focused button index
 var focused_index: int = 0
 
@@ -37,6 +41,8 @@ func _populate_character_grid() -> void:
 	for child: Node in char_grid.get_children():
 		child.queue_free()
 	char_buttons.clear()
+	_pressed_callables.clear()
+	_focus_callables.clear()
 
 	if not PartyManager:
 		return
@@ -67,8 +73,12 @@ func _populate_character_grid() -> void:
 		char_buttons.append(button)
 
 		var captured_index: int = i
-		button.pressed.connect(_on_char_pressed.bind(captured_index))
-		button.focus_entered.connect(_on_char_focus_entered.bind(captured_index))
+		var pressed_callable: Callable = _on_char_pressed.bind(captured_index)
+		var focus_callable: Callable = _on_char_focus_entered.bind(captured_index)
+		button.pressed.connect(pressed_callable)
+		button.focus_entered.connect(focus_callable)
+		_pressed_callables.append(pressed_callable)
+		_focus_callables.append(focus_callable)
 
 	# Handle no characters
 	if char_buttons.is_empty():
@@ -131,11 +141,12 @@ func _on_screen_exit() -> void:
 	if is_instance_valid(back_button) and back_button.pressed.is_connected(_on_back_pressed):
 		back_button.pressed.disconnect(_on_back_pressed)
 
+	# Disconnect using stored callables (ensures exact match)
 	for i: int in range(char_buttons.size()):
 		var btn: Button = char_buttons[i]
 		if not is_instance_valid(btn):
 			continue
-		if btn.pressed.is_connected(_on_char_pressed):
-			btn.pressed.disconnect(_on_char_pressed.bind(i))
-		if btn.focus_entered.is_connected(_on_char_focus_entered):
-			btn.focus_entered.disconnect(_on_char_focus_entered.bind(i))
+		if i < _pressed_callables.size() and btn.pressed.is_connected(_pressed_callables[i]):
+			btn.pressed.disconnect(_pressed_callables[i])
+		if i < _focus_callables.size() and btn.focus_entered.is_connected(_focus_callables[i]):
+			btn.focus_entered.disconnect(_focus_callables[i])

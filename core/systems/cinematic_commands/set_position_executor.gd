@@ -21,7 +21,13 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if position_raw is Vector2:
 		pos_vec = position_raw
 	elif position_raw is Array and position_raw.size() >= 2:
-		pos_vec = Vector2(position_raw[0], position_raw[1])
+		var x_val: Variant = position_raw[0]
+		var y_val: Variant = position_raw[1]
+		if (x_val is int or x_val is float) and (y_val is int or y_val is float):
+			pos_vec = Vector2(x_val, y_val)
+		else:
+			push_error("SetPositionExecutor: Position array elements must be numeric for actor '%s'" % target)
+			return true
 	else:
 		push_error("SetPositionExecutor: Invalid position for actor '%s'" % target)
 		return true

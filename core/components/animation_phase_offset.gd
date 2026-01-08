@@ -45,6 +45,11 @@ func _ready() -> void:
 
 	# Wait a frame to ensure the sprite is fully initialized
 	await get_tree().process_frame
+
+	# Validate after await - node or sprite may have been freed
+	if not is_instance_valid(self) or not is_instance_valid(target_sprite):
+		return
+
 	_apply_phase_offset()
 
 	# Optionally track animation changes
@@ -142,6 +147,13 @@ func _get_world_position() -> Vector2:
 		return parent.global_position
 
 	return Vector2.ZERO
+
+
+func _exit_tree() -> void:
+	# Disconnect signal to prevent callbacks after removal
+	if track_animation_changes and is_instance_valid(target_sprite):
+		if target_sprite.animation_changed.is_connected(_on_animation_changed):
+			target_sprite.animation_changed.disconnect(_on_animation_changed)
 
 
 func _on_animation_changed() -> void:

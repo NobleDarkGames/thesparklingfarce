@@ -185,9 +185,11 @@ func _execute_promotion(target_class: ClassData) -> void:
 		# Show promotion ceremony with captured old class
 		_show_promotion_ceremony(character_uid, old_class, target_class, result.get("stat_changes", {}))
 	else:
-		print("[ChurchPromoteSelect] Promotion failed: %s" % result.get("error", "Unknown error"))
-		# Go back to character select on failure
-		go_back()
+		context.last_result = {
+			"success": false,
+			"message": result.get("error", "Promotion failed")
+		}
+		push_screen("transaction_result")
 
 
 func _show_promotion_ceremony(character_uid: String, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
@@ -213,6 +215,12 @@ func _show_promotion_ceremony(character_uid: String, old_class: ClassData, new_c
 	# Connect dismissal signal and show ceremony
 	ceremony.ceremony_dismissed.connect(_on_ceremony_dismissed, CONNECT_ONE_SHOT)
 	await ceremony.show_promotion_with_stats(unit, old_class, new_class, stat_changes)
+	
+	# Guard: check if we're still valid after await
+	if not is_instance_valid(self):
+		if is_instance_valid(ceremony):
+			ceremony.queue_free()
+		return
 	
 	# CRITICAL: Remove ceremony from tree to stop blocking input
 	ceremony.queue_free()

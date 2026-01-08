@@ -403,6 +403,8 @@ func _update_selection_visual() -> void:
 func _position_menu() -> void:
 	# Wait a frame for panel size to be calculated
 	await get_tree().process_frame
+	if not is_instance_valid(self) or not visible:
+		return
 
 	var desired_pos: Vector2 = _hero_screen_position + MENU_OFFSET
 

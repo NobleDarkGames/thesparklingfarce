@@ -166,6 +166,25 @@ func _connect_to_target() -> void:
 				hero_signal.connect(_on_hero_moved_for_follower)
 
 
+func _disconnect_from_target() -> void:
+	# Disconnect from follow target's signal
+	if is_instance_valid(_follow_target) and _follow_target.has_signal("moved_to_tile"):
+		var signal_obj: Signal = Signal(_follow_target, "moved_to_tile")
+		if signal_obj.is_connected(_on_target_moved):
+			signal_obj.disconnect(_on_target_moved)
+
+	# Disconnect from hero signal if we were following a PartyFollower
+	var hero: Node2D = _find_hero()
+	if is_instance_valid(hero) and hero.has_signal("moved_to_tile"):
+		var hero_signal: Signal = Signal(hero, "moved_to_tile")
+		if hero_signal.is_connected(_on_hero_moved_for_follower):
+			hero_signal.disconnect(_on_hero_moved_for_follower)
+
+
+func _exit_tree() -> void:
+	_disconnect_from_target()
+
+
 func _find_hero() -> Node2D:
 	var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
 	if heroes.is_empty():
@@ -186,12 +205,17 @@ func _on_target_moved(_target_tile: Vector2i) -> void:
 ## Called when following a PartyFollower (hero moved, so follower will move)
 func _on_hero_moved_for_follower(_hero_tile: Vector2i) -> void:
 	# Wait a frame for the PartyFollower to update its position
+	if not get_tree():
+		return
 	await get_tree().process_frame
+	# Validity check after await - self or follow target could be freed
+	if not is_instance_valid(self) or not is_instance_valid(_follow_target):
+		return
 	_update_movement_from_target()
 
 
 func _update_movement_from_target() -> void:
-	if not _follow_target:
+	if not is_instance_valid(_follow_target):
 		return
 
 	# Get historical position from target if it supports it
@@ -307,8 +331,12 @@ func _load_directional_sprites() -> void:
 	if _config.wagon_sprite:
 		base_path = _config.wagon_sprite.resource_path.get_base_dir()
 	else:
-		# Default path for base game
-		base_path = "res://mods/_base_game/assets/sprites"
+		# Use active mod's asset path instead of hardcoding a specific mod
+		var mod_path: String = ModLoader.get_active_mod_path()
+		if mod_path.is_empty():
+			push_warning("CaravanFollower: No active mod path available for sprite lookup")
+			return
+		base_path = mod_path.path_join("assets/sprites")
 
 	# Look for directional sprites in caravan subdirectory
 	var caravan_dir: String = base_path.path_join("caravan")

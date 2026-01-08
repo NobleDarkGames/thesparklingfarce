@@ -59,6 +59,9 @@ func get_neutral_units(context: Dictionary) -> Array[Unit]:
 
 ## Helper: Find nearest target unit to this unit
 func find_nearest_target(unit: Unit, targets: Array[Unit]) -> Unit:
+	if not GridManager or not GridManager.grid:
+		return null
+
 	var nearest: Unit = null
 	var nearest_distance: int = 9999
 
@@ -82,6 +85,8 @@ func find_nearest_target(unit: Unit, targets: Array[Unit]) -> Unit:
 ## Uses unit's equipped weapon range (min/max) to support ranged weapons and dead zones
 func is_in_attack_range(unit: Unit, target: Unit) -> bool:
 	if not unit or not target:
+		return false
+	if not GridManager or not GridManager.grid:
 		return false
 
 	var distance: int = GridManager.grid.get_manhattan_distance(
@@ -146,6 +151,8 @@ func move_toward_target(unit: Unit, target_position: Vector2i) -> bool:
 
 ## Helper: Find best unoccupied adjacent cell to target
 func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: int) -> Vector2i:
+	if not GridManager or not GridManager.grid:
+		return Vector2i(-1, -1)
 	var adjacent_cells: Array[Vector2i] = GridManager.grid.get_neighbors(target)
 	var best_cell: Vector2i = Vector2i(-1, -1)
 	var best_distance: int = 9999
@@ -160,7 +167,7 @@ func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: i
 		if terrain_cost >= GridManager.MAX_TERRAIN_COST:
 			continue
 
-		# Find closest to our current position
+		# Find closest to our current position (grid null check done at function start)
 		var distance: int = GridManager.grid.get_manhattan_distance(from, cell)
 		if distance < best_distance:
 			best_distance = distance

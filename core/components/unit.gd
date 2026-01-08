@@ -6,11 +6,9 @@ class_name Unit
 extends Node2D
 
 const FacingUtils = preload("res://core/utils/facing_utils.gd")
-
-# Faction visual colors (placeholder until sprites are implemented)
-const COLOR_PLAYER: Color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
-const COLOR_ENEMY: Color = Color(1.0, 0.2, 0.2, 1.0)  # Bright red
-const COLOR_NEUTRAL: Color = Color(1.0, 1.0, 0.2, 1.0)  # Bright yellow
+const UnitStatsScript: GDScript = preload("res://core/components/unit_stats.gd")
+const UIColors = preload("res://core/utils/ui_colors.gd")
+const DEBUG_MODE: bool = false
 
 # Faction tint colors for character sprites
 const TINT_PLAYER: Color = Color(1.0, 1.0, 1.0, 1.0)  # No tint
@@ -41,7 +39,7 @@ var _movement_tween: Tween = null
 
 ## Health bar animation
 var _health_bar_tween: Tween = null
-const HEALTH_BAR_TWEEN_DURATION: float = 0.3
+@export var health_bar_tween_duration: float = 0.3
 
 ## Grid position
 var grid_position: Vector2i = Vector2i.ZERO
@@ -95,8 +93,7 @@ func initialize(
 	ai_behavior = p_ai_behavior
 
 	# Create stats
-	var UnitStatsClass: GDScript = load("res://core/components/unit_stats.gd")
-	stats = UnitStatsClass.new()
+	stats = UnitStatsScript.new()
 	stats.owner_unit = self  # Set reference for level-up callbacks
 	stats.calculate_from_character(character_data)
 
@@ -218,18 +215,19 @@ func _update_health_bar(animate: bool = true) -> void:
 	var should_animate: bool = animate and is_inside_tree()
 	if should_animate:
 		# Try to check GameJuice setting (may not be available during initialization)
-		if Engine.has_singleton("GameJuice") or get_node_or_null("/root/GameJuice"):
-			should_animate = GameJuice.animate_stat_bars
+		var game_juice: Node = get_node_or_null("/root/GameJuice")
+		if game_juice:
+			should_animate = game_juice.animate_stat_bars
 
 	if should_animate:
 		# Kill existing health bar tween
 		if _health_bar_tween and _health_bar_tween.is_valid():
 			_health_bar_tween.kill()
 
-		var duration: float = HEALTH_BAR_TWEEN_DURATION
+		var duration: float = health_bar_tween_duration
 		# Try to get adjusted duration from GameJuice
 		if get_node_or_null("/root/GameJuice"):
-			duration = GameJuice.get_adjusted_duration(HEALTH_BAR_TWEEN_DURATION)
+			duration = GameJuice.get_adjusted_duration(health_bar_tween_duration)
 
 		_health_bar_tween = create_tween()
 		_health_bar_tween.tween_property(health_bar, "value", float(stats.current_hp), duration)
@@ -451,19 +449,11 @@ func _check_effects_removed_on_damage() -> void:
 				# Check removal chance
 				if randi_range(1, 100) <= effect_data.removal_on_damage_chance:
 					effects_to_remove.append(effect_type)
-					print("[Unit] %s: %s removed by damage!" % [get_display_name(), effect_data.display_name])
+					if DEBUG_MODE:
+						print("[Unit] %s: %s removed by damage!" % [get_display_name(), effect_data.display_name])
 		else:
-			# Legacy fallback for hardcoded effects not yet in registry
-			if effect_type == "sleep":
-				# Sleep always breaks on damage (SF2-authentic)
-				effects_to_remove.append("sleep")
-				print("[Unit] %s woke up from damage!" % get_display_name())
-			elif effect_type == "confusion":
-				# Confusion has 50% chance to break when hit (SF2-authentic)
-				var break_roll: int = randi_range(1, 100)
-				if break_roll <= 50:
-					effects_to_remove.append("confusion")
-					print("[Unit] %s snapped out of confusion from being hit!" % get_display_name())
+			# Effect not found in registry - this should be fixed by adding the effect to a mod
+			push_warning("Unit: Status effect '%s' not found in registry. Add it via StatusEffectData resource." % effect_type)
 
 	# Remove flagged effects
 	for effect_type: String in effects_to_remove:
@@ -609,10 +599,11 @@ func _get_faction_modulate(has_character_sprite: bool) -> Color:
 			"enemy": return TINT_ENEMY
 			_: return TINT_NEUTRAL
 	else:
+		# Use centralized UIColors for placeholder sprites
 		match faction:
-			"player": return COLOR_PLAYER
-			"enemy": return COLOR_ENEMY
-			_: return COLOR_NEUTRAL
+			"player": return UIColors.FACTION_ALLY
+			"enemy": return UIColors.FACTION_ENEMY
+			_: return UIColors.FACTION_NEUTRAL
 
 
 ## Get unit display name (for UI)
@@ -756,8 +747,7 @@ func initialize_from_save_data(
 	ai_behavior = p_ai_behavior
 
 	# Create stats
-	var UnitStatsClass: GDScript = load("res://core/components/unit_stats.gd")
-	stats = UnitStatsClass.new()
+	stats = UnitStatsScript.new()
 	stats.owner_unit = self
 
 	# Load base stats from save data instead of character data

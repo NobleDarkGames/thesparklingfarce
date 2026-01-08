@@ -113,9 +113,10 @@ func get_available_recipes(crafter: CrafterData = null) -> Array[CraftingRecipeD
 	var available: Array[CraftingRecipeData] = []
 	var all_recipes: Array = ModLoader.registry.get_all_resources("crafting_recipe")
 
-	for recipe: CraftingRecipeData in all_recipes:
-		if not recipe:
+	for resource: Resource in all_recipes:
+		if not resource is CraftingRecipeData:
 			continue
+		var recipe: CraftingRecipeData = resource as CraftingRecipeData
 
 		# Check crafter capability if specified
 		if crafter and not crafter.can_craft_recipe(recipe.required_crafter_type, recipe.required_crafter_skill):

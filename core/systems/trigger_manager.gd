@@ -170,11 +170,21 @@ func _handle_modded_trigger(trigger: Node, player: Node2D, type_name: String) ->
 		# Load the custom trigger script
 		var script: GDScript = load(script_path) as GDScript
 		if script:
-			# Call the static handle_trigger function directly on the script
-			# Note: We can't use has_method() on GDScript class itself, so we call directly
-			# and let GDScript handle the error if the method doesn't exist
-			script.handle_trigger(trigger, player, self)
-			return
+			# Verify the static handle_trigger method exists by checking script method list
+			# Note: has_method() checks instance methods, not static methods
+			# For static methods, we check the script's method_list directly
+			var has_static_handler: bool = false
+			for method_info: Dictionary in script.get_script_method_list():
+				if method_info.get("name", "") == "handle_trigger":
+					has_static_handler = true
+					break
+			
+			if has_static_handler:
+				script.handle_trigger(trigger, player, self)
+				return
+			else:
+				push_error("TriggerManager: Script '%s' is missing static handle_trigger() method" % script_path)
+				return
 		else:
 			push_error("TriggerManager: Failed to load trigger script: %s" % script_path)
 

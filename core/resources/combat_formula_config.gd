@@ -58,7 +58,7 @@ func get_formula_calculator() -> CombatFormulaBase:
 		push_error("CombatFormulaConfig: Script must extend CombatFormulaBase: %s" % formula_script_path)
 		return null
 
-	_formula_instance = instance
+	_formula_instance = instance as CombatFormulaBase
 	return _formula_instance
 
 

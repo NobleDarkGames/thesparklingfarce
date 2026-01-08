@@ -340,30 +340,24 @@ func _pulse_selected_item() -> void:
 
 ## Confirm current selection
 func _confirm_selection() -> void:
-	print("[ACTION_MENU DEBUG] _confirm_selection() called")
 	# DEFENSE IN DEPTH: Multiple safety checks before emitting signal
 
 	# Safety check 1: Don't emit if input processing is disabled
 	if not is_processing_input():
-		print("[ACTION_MENU DEBUG] BLOCKED: Not processing input")
 		return
 
 	# Safety check 2: Don't emit signals if menu is not visible
 	if not visible:
-		print("[ACTION_MENU DEBUG] BLOCKED: Not visible")
 		return
 
 	# Safety check 3: Don't emit if no actions available (stale state)
 	if available_actions.is_empty():
-		print("[ACTION_MENU DEBUG] BLOCKED: No actions available")
 		return
 
 	var selected_action: String = _item_actions[selected_index]
-	print("[ACTION_MENU DEBUG] Selected action: '%s', session: %d" % [selected_action, _menu_session_id])
 
 	# Safety check 4: Don't emit if selected action is not in available list
 	if selected_action not in available_actions:
-		print("[ACTION_MENU DEBUG] BLOCKED: Action not in available list")
 		_play_error_sound()
 		return
 
@@ -373,9 +367,7 @@ func _confirm_selection() -> void:
 	# CRITICAL: Capture session ID and emit signal BEFORE hide_menu()
 	# This prevents any state changes from affecting the emission
 	var emit_session_id: int = _menu_session_id
-	print("[ACTION_MENU DEBUG] Emitting action_selected('%s', %d)" % [selected_action, emit_session_id])
 	action_selected.emit(selected_action, emit_session_id)
-	print("[ACTION_MENU DEBUG] Signal emitted, calling hide_menu()")
 	hide_menu()
 
 

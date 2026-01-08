@@ -167,7 +167,15 @@ func _select_current_choice() -> void:
 
 ## Clear all choice labels
 func _clear_choices() -> void:
-	for label: Label in choice_labels:
+	for i: int in range(choice_labels.size()):
+		var label: Label = choice_labels[i]
+		# Disconnect bound mouse signals before freeing to prevent stale callbacks
+		var bound_mouse_entered: Callable = _on_choice_mouse_entered.bind(i)
+		var bound_gui_input: Callable = _on_choice_gui_input.bind(i)
+		if label.mouse_entered.is_connected(bound_mouse_entered):
+			label.mouse_entered.disconnect(bound_mouse_entered)
+		if label.gui_input.is_connected(bound_gui_input):
+			label.gui_input.disconnect(bound_gui_input)
 		label.queue_free()
 	choice_labels.clear()
 

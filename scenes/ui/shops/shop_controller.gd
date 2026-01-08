@@ -96,8 +96,6 @@ func _on_shop_manager_closed() -> void:
 
 ## Open shop with given ShopData
 func open_shop(shop_data: ShopData, save_data: SaveData) -> void:
-	print("[ShopController] open_shop() called - shop_type=%d, visible=%s" % [shop_data.shop_type, visible])
-	
 	context.initialize(shop_data, save_data)
 
 	# Set shop name
@@ -106,18 +104,13 @@ func open_shop(shop_data: ShopData, save_data: SaveData) -> void:
 	update_gold_display()
 	show_queue_panel(false)
 	show()
-	
-	print("[ShopController] ShopController.show() called, visible=%s" % visible)
 
 	# Start with appropriate action select based on shop type
 	if shop_data.shop_type == ShopData.ShopType.CHURCH:
-		print("[ShopController] Pushing church_action_select screen")
 		push_screen("church_action_select")
 	elif shop_data.shop_type == ShopData.ShopType.CRAFTER:
-		print("[ShopController] Pushing crafter_action_select screen")
 		push_screen("crafter_action_select")
 	else:
-		print("[ShopController] Pushing action_select screen")
 		push_screen("action_select")
 
 

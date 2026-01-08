@@ -74,7 +74,7 @@ static func from_current_scene(hero: Node2D) -> TransitionContext:
 				context.hero_facing = facing_val
 
 	# Get caravan position if available
-	if CaravanController and CaravanController.is_spawned():
+	if CaravanController and CaravanController.is_spawned() and CaravanController.has_method("get_grid_position"):
 		context.caravan_grid_position = CaravanController.get_grid_position()
 		context.has_caravan_position = true
 

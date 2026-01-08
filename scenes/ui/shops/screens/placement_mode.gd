@@ -37,7 +37,8 @@ func _on_initialized() -> void:
 	_setup_caravan_button()
 	_update_display()
 
-	cancel_button.pressed.connect(_on_cancel_pressed)
+	if not cancel_button.pressed.is_connected(_on_cancel_pressed):
+		cancel_button.pressed.connect(_on_cancel_pressed)
 
 
 func _setup_character_buttons() -> void:
@@ -265,3 +266,12 @@ func _show_error(message: String) -> void:
 ## Override back behavior - show cancel confirmation
 func _on_back_requested() -> void:
 	_on_cancel_pressed()
+
+
+func _on_screen_exit() -> void:
+	# Disconnect signals to prevent stale callbacks
+	if is_instance_valid(cancel_button) and cancel_button.pressed.is_connected(_on_cancel_pressed):
+		cancel_button.pressed.disconnect(_on_cancel_pressed)
+	if is_instance_valid(caravan_button) and caravan_button.pressed.is_connected(_on_caravan_clicked):
+		caravan_button.pressed.disconnect(_on_caravan_clicked)
+	# Character button signals are cleaned up when buttons are freed in _setup_character_buttons

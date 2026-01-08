@@ -31,11 +31,11 @@ var _fallback_terrain: TerrainData = null
 ## Register a TerrainData resource from a mod
 func register_terrain(terrain: TerrainData, mod_id: String) -> void:
 	if not terrain:
-		push_warning("TerrainRegistry: Cannot register null terrain")
+		push_error("TerrainRegistry: Cannot register null terrain")
 		return
 
-	if terrain.terrain_id.is_empty():
-		push_warning("TerrainRegistry: Cannot register terrain with empty terrain_id")
+	if terrain.terrain_id == null or terrain.terrain_id.is_empty():
+		push_error("TerrainRegistry: Cannot register terrain with null or empty terrain_id")
 		return
 
 	_terrain_data[terrain.terrain_id] = terrain
@@ -81,12 +81,47 @@ func get_all_terrain() -> Array[TerrainData]:
 	return result
 
 
+## Unregister all terrain from a specific mod
+func unregister_mod(mod_id: String) -> void:
+	var changed: bool = false
+	var to_remove: Array[String] = []
+	
+	for terrain_id: String in _terrain_sources.keys():
+		if _terrain_sources[terrain_id] == mod_id:
+			to_remove.append(terrain_id)
+	
+	for terrain_id: String in to_remove:
+		_terrain_data.erase(terrain_id)
+		_terrain_sources.erase(terrain_id)
+		changed = true
+	
+	if changed:
+		registrations_changed.emit()
+
+
 ## Clear all mod registrations (called on mod reload)
 func clear_mod_registrations() -> void:
 	_terrain_data.clear()
 	_terrain_sources.clear()
 	# Don't clear fallback - it's a static safety net
 	registrations_changed.emit()
+
+
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	return {
+		"terrain_count": _terrain_data.size(),
+		"terrain_ids": get_all_terrain_ids()
+	}
+
+
+## Get display name for a terrain type
+func get_display_name(terrain_id: String) -> String:
+	if terrain_id in _terrain_data:
+		var terrain: TerrainData = _terrain_data[terrain_id]
+		if terrain.display_name and not terrain.display_name.is_empty():
+			return terrain.display_name
+	return terrain_id.capitalize()
 
 
 ## Get or create the fallback plains terrain

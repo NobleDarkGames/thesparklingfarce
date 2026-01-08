@@ -133,11 +133,6 @@ func get_available_active_slots() -> int:
 ## @param characters: Array of CharacterData resources
 ## Note: Roster size is unlimited. First MAX_ACTIVE_SIZE are active (battle), rest are reserve.
 func set_party(characters: Array[CharacterData]) -> void:
-	print("[DEBUG] PartyManager.set_party() called with %d characters" % characters.size())
-	for i: int in range(characters.size()):
-		var c: CharacterData = characters[i]
-		print("[DEBUG]   [%d] %s (is_hero=%s)" % [i, c.character_name if c else "NULL", c.is_hero if c else "N/A"])
-
 	party_members = characters.duplicate()
 
 	# Ensure hero is always first
@@ -146,8 +141,6 @@ func set_party(characters: Array[CharacterData]) -> void:
 	# Create save data for all party members
 	for character: CharacterData in party_members:
 		_ensure_save_data(character)
-
-	print("[DEBUG] PartyManager now has %d members" % party_members.size())
 
 
 ## Add a character to the party (roster)

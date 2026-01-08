@@ -318,6 +318,13 @@ func _on_cinematic_ended(_cinematic_id: String) -> void:
 	_complete_interaction()
 
 
+## Cleanup signal connections when node is freed
+func _exit_tree() -> void:
+	# Disconnect from CinematicsManager to prevent dangling signal connections
+	if CinematicsManager and CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
+		CinematicsManager.cinematic_ended.disconnect(_on_cinematic_ended)
+
+
 ## Get the display name for this interactable
 func get_display_name() -> String:
 	if interactable_data:

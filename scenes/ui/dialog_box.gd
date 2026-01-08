@@ -51,8 +51,9 @@ func _exit_tree() -> void:
 	# Clear any stale text content to prevent flicker on first show
 	_clear_all_content()
 
-	# Ensure continue indicator starts hidden
-	continue_indicator.hide()
+	# Ensure continue indicator starts hidden (guard against early exit before _ready)
+	if continue_indicator:
+		continue_indicator.hide()
 
 	# Set mouse filter to block clicks to battle map
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -311,8 +312,8 @@ func _update_text_reveal(delta: float) -> void:
 		var current_char: String = full_text[new_visible - 1]
 		if current_char in [".", "!", "?"]:
 			await get_tree().create_timer(PUNCTUATION_PAUSE).timeout
-			# Guard: if reveal was skipped/cancelled during await, don't continue
-			if not is_revealing_text:
+			# Guard: if node freed or reveal was skipped/cancelled during await, don't continue
+			if not is_instance_valid(self) or not is_revealing_text:
 				return
 
 	text_label.visible_characters = new_visible

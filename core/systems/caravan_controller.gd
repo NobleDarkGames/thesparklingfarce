@@ -113,6 +113,9 @@ var _main_menu: CaravanMainMenu = null
 ## The party management panel instance
 var _party_panel: PartyManagementPanel = null
 
+## Saved pause state before opening menu (to restore correctly on close)
+var _previous_pause_state: bool = false
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
@@ -120,6 +123,13 @@ var _party_panel: PartyManagementPanel = null
 func _ready() -> void:
 	# Defer initialization to ensure other autoloads are ready
 	call_deferred("_initialize")
+
+
+func _exit_tree() -> void:
+	# Clean up UI layer to prevent orphaned nodes
+	if _ui_layer and is_instance_valid(_ui_layer):
+		_ui_layer.queue_free()
+		_ui_layer = null
 
 
 # NOTE: Caravan interaction is now handled via hero's interaction_requested signal,
@@ -338,6 +348,7 @@ func _on_custom_service_requested(service_id: String, scene_path: String) -> voi
 	var instance: Control = instantiated if instantiated is Control else null
 	if not instance:
 		push_error("CaravanController: Custom service scene is not a Control: %s" % scene_path)
+		instantiated.queue_free()  # Free orphaned node to prevent memory leak
 		return
 
 	# Hide main menu while custom service is active
@@ -394,6 +405,10 @@ func _show_access_denied_notification(message: String) -> void:
 # =============================================================================
 
 func _on_scene_transition_started(_from_scene: String, _to_scene: String) -> void:
+	# Close menu if open to prevent stale state after scene change
+	if _menu_open:
+		close_menu()
+	
 	# Save position before transition if we have a caravan
 	if _caravan_instance:
 		_save_caravan_position()
@@ -780,7 +795,8 @@ func open_menu() -> void:
 
 	_menu_open = true
 
-	# Pause the game tree to stop player movement
+	# Save previous pause state and pause the game tree to stop player movement
+	_previous_pause_state = get_tree().paused
 	get_tree().paused = true
 
 	# Configure disabled options based on caravan config
@@ -812,8 +828,8 @@ func close_menu() -> void:
 	if _main_menu and _main_menu.has_method("hide_menu"):
 		_main_menu.hide_menu()
 
-	# Unpause the game tree
-	get_tree().paused = false
+	# Restore previous pause state
+	get_tree().paused = _previous_pause_state
 
 	menu_closed.emit()
 

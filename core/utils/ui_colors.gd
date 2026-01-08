@@ -92,3 +92,19 @@ const XP_KILL: Color = Color(1.0, 0.85, 0.3)
 
 ## Soft blue for formation bonuses
 const XP_FORMATION: Color = Color(0.5, 0.7, 0.9)
+
+# =============================================================================
+# CURSOR COLORS (Battle Grid)
+# =============================================================================
+
+## Yellow-gold for active unit indicator
+const CURSOR_ACTIVE_UNIT: Color = Color(1.0, 1.0, 0.5, 1.0)
+
+## White for action selection mode
+const CURSOR_READY_TO_ACT: Color = Color(1.0, 1.0, 1.0, 1.0)
+
+## Red for enemy targeting
+const CURSOR_TARGET_ENEMY: Color = Color(1.0, 0.4, 0.4, 1.0)
+
+## Green for ally targeting
+const CURSOR_TARGET_ALLY: Color = Color(0.4, 1.0, 0.4, 1.0)

@@ -164,7 +164,7 @@ func _on_char_pressed(uid: String, button: Button) -> void:
 		if item_data and item_data.is_equippable():
 			if ShopManager and not ShopManager.can_character_equip(uid, item_id):
 				# Show warning - character can't equip this
-				var char_data: CharacterData = _get_character_data(uid)
+				var char_data: CharacterData = get_character_data(uid)
 				var char_name: String = char_data.character_name if char_data else uid
 				_show_warning("%s can't equip this! Select again to give anyway." % char_name)
 				_pending_warning_uid = uid
@@ -217,7 +217,7 @@ func _execute_take() -> void:
 	# Success!
 	var item_data: ItemData = get_item_data(item_id)
 	var item_name: String = item_data.item_name if item_data else item_id
-	var char_data: CharacterData = _get_character_data(selected_uid)
+	var char_data: CharacterData = get_character_data(selected_uid)
 	var char_name: String = char_data.character_name if char_data else selected_uid
 
 	_show_result("%s received %s!" % [char_name, item_name], true)
@@ -251,15 +251,6 @@ func _show_warning(message: String) -> void:
 	result_label.text = message
 	result_label.add_theme_color_override("font_color", COLOR_WARNING)
 	play_sfx("menu_error")
-
-
-func _get_character_data(uid: String) -> CharacterData:
-	if not PartyManager:
-		return null
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == uid:
-			return character
-	return null
 
 
 func _on_back_pressed() -> void:

@@ -113,7 +113,8 @@ func test_track_spawned_actor_adds_to_list() -> void:
 	assert_int(CinematicsManager._spawned_actor_nodes.size()).is_equal(1)
 	assert_bool(test_node in CinematicsManager._spawned_actor_nodes).is_true()
 
-	test_node.queue_free()
+	if is_instance_valid(test_node):
+		test_node.queue_free()
 
 
 func test_track_spawned_actor_prevents_duplicates() -> void:
@@ -125,7 +126,8 @@ func test_track_spawned_actor_prevents_duplicates() -> void:
 	# Should only have one entry
 	assert_int(CinematicsManager._spawned_actor_nodes.size()).is_equal(1)
 
-	test_node.queue_free()
+	if is_instance_valid(test_node):
+		test_node.queue_free()
 
 
 func test_track_spawned_actor_ignores_null() -> void:
@@ -276,7 +278,8 @@ func test_register_actor_makes_findable() -> void:
 	assert_object(found).is_not_null()
 	assert_str(found.actor_id).is_equal("registered_actor")
 
-	parent.queue_free()
+	if is_instance_valid(parent):
+		parent.queue_free()
 
 
 func test_unregister_actor_removes_from_registry() -> void:
@@ -294,7 +297,8 @@ func test_unregister_actor_removes_from_registry() -> void:
 	CinematicsManager.unregister_actor("to_unregister")
 	assert_object(CinematicsManager.get_actor("to_unregister")).is_null()
 
-	parent.queue_free()
+	if is_instance_valid(parent):
+		parent.queue_free()
 
 
 func test_register_null_actor_is_ignored() -> void:
@@ -318,7 +322,8 @@ func test_register_actor_with_empty_id_is_ignored() -> void:
 	# Empty ID actor should not be registered
 	assert_object(CinematicsManager.get_actor("")).is_null()
 
-	parent.queue_free()
+	if is_instance_valid(parent):
+		parent.queue_free()
 
 
 # =============================================================================
@@ -453,4 +458,5 @@ func test_warns_on_duplicate_actor_in_actors_array() -> void:
 	# We can't easily test push_warning output, so we verify no crash
 	assert_object(CinematicsManager.get_actor("already_exists")).is_not_null()
 
-	parent.queue_free()
+	if is_instance_valid(parent):
+		parent.queue_free()

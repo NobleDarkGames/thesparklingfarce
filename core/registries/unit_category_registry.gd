@@ -87,19 +87,41 @@ func get_category_source(category: String) -> String:
 	return ""
 
 
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	_rebuild_cache_if_dirty()
+	return {
+		"category_count": _all_categories.size(),
+		"categories": _all_categories.duplicate()
+	}
+
+
+## Get display name for a category
+func get_display_name(category: String) -> String:
+	return category.capitalize()
+
+
 ## Rebuild the cached merged array
 func _rebuild_cache_if_dirty() -> void:
 	if not _cache_dirty:
 		return
 
+	# Use Dictionary for O(1) deduplication
+	var category_set: Dictionary = {}
+	
 	# Start with defaults
-	_all_categories = DEFAULT_CATEGORIES.duplicate()
+	for category: String in DEFAULT_CATEGORIES:
+		category_set[category] = true
 
-	# Add mod categories (avoiding duplicates)
+	# Add mod categories (O(1) lookup for duplicates)
 	for mod_id: String in _mod_categories:
 		var mod_cats: Array = _mod_categories[mod_id]
 		for category: String in mod_cats:
-			if category not in _all_categories:
-				_all_categories.append(category)
+			category_set[category] = true
+
+	# Convert back to array
+	_all_categories.clear()
+	for category: String in category_set.keys():
+		_all_categories.append(category)
 
 	_cache_dirty = false

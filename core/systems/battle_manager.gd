@@ -400,30 +400,7 @@ func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 		# Look up effect data from registry
 		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
 
-		if effect_data:
-			# Data-driven action modifier
-			if effect_data.action_modifier == StatusEffectData.ActionModifier.NONE:
-				continue
-
-			# Check if modifier triggers this action
-			if randi_range(1, 100) > effect_data.action_modifier_chance:
-				continue  # Modifier didn't trigger this time
-
-			match effect_data.action_modifier:
-				StatusEffectData.ActionModifier.RANDOM_TARGET:
-					var random_target: Unit = _get_random_unit_except_self(unit)
-					return random_target
-
-				StatusEffectData.ActionModifier.ATTACK_ALLIES:
-					var ally_target: Unit = _get_random_ally(unit)
-					if ally_target:
-						return ally_target
-
-				StatusEffectData.ActionModifier.CANNOT_USE_MAGIC, StatusEffectData.ActionModifier.CANNOT_USE_ITEMS:
-					# These modifiers are checked elsewhere (spell/item menus)
-					pass
-
-		else:
+		if effect_data == null:
 			# Legacy fallback for hardcoded effects not yet in registry
 			if effect_type == "confusion":
 				var confusion_roll: int = randi_range(1, 100)
@@ -431,6 +408,29 @@ func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 					# Confused! Attack a random unit (friend or foe, including self)
 					var random_target: Unit = _get_random_confusion_target(unit)
 					return random_target
+			continue
+
+		# Data-driven action modifier
+		if effect_data.action_modifier == StatusEffectData.ActionModifier.NONE:
+			continue
+
+		# Check if modifier triggers this action
+		if randi_range(1, 100) > effect_data.action_modifier_chance:
+			continue  # Modifier didn't trigger this time
+
+		match effect_data.action_modifier:
+			StatusEffectData.ActionModifier.RANDOM_TARGET:
+				var random_target: Unit = _get_random_unit_except_self(unit)
+				return random_target
+
+			StatusEffectData.ActionModifier.ATTACK_ALLIES:
+				var ally_target: Unit = _get_random_ally(unit)
+				if ally_target:
+					return ally_target
+
+			StatusEffectData.ActionModifier.CANNOT_USE_MAGIC, StatusEffectData.ActionModifier.CANNOT_USE_ITEMS:
+				# These modifiers are checked elsewhere (spell/item menus)
+				pass
 
 	return intended_target
 
@@ -688,9 +688,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 					if safe_location.is_empty():
 						push_error("BattleManager: Cannot cast Egress - no safe location set!")
 						# Refund MP since spell couldn't execute
-						var stats: Node = caster.get_node_or_null("Stats")
-						if stats and "current_mp" in stats:
-							stats.current_mp += ability.mp_cost
+						caster.stats.current_mp += ability.mp_cost
 						InputManager.refresh_stats_panel()
 						InputManager.reset_to_waiting()
 						TurnManager.end_unit_turn(caster)
@@ -1054,7 +1052,7 @@ func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase
 	# PHASE 1: Initial Attack
 	# =========================================================================
 	var initial_phase: CombatPhase = _calculate_attack_phase(
-		attacker, defender, terrain_defense, terrain_evasion, false, false
+		attacker, defender, terrain_defense, terrain_evasion, false
 	)
 	phases.append(initial_phase)
 
@@ -1073,7 +1071,7 @@ func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase
 		var should_double_attack: bool = _check_double_attack(attacker)
 		if should_double_attack:
 			var double_phase: CombatPhase = _calculate_attack_phase(
-				attacker, defender, terrain_defense, terrain_evasion, false, true
+				attacker, defender, terrain_defense, terrain_evasion, true
 			)
 			phases.append(double_phase)
 
@@ -1129,7 +1127,6 @@ func _calculate_attack_phase(
 	defender: Unit,
 	terrain_defense: int,
 	terrain_evasion: int,
-	is_counter: bool,
 	is_double: bool
 ) -> CombatPhase:
 	var attacker_stats: UnitStats = attacker.stats
@@ -1488,6 +1485,8 @@ func _check_double_attack(attacker: Unit) -> bool:
 
 ## Get weapon minimum attack range for a unit (1 for melee, 2+ for ranged with dead zone)
 func _get_unit_weapon_min_range(unit: Unit) -> int:
+	if not unit:
+		return 1
 	if unit.stats and unit.stats.cached_weapon:
 		return unit.stats.get_weapon_min_range()
 	if "weapon_min_range" in unit:
@@ -1497,6 +1496,8 @@ func _get_unit_weapon_min_range(unit: Unit) -> int:
 
 ## Get weapon maximum attack range for a unit (default 1 for melee)
 func _get_unit_weapon_max_range(unit: Unit) -> int:
+	if not unit:
+		return 1
 	if unit.stats and unit.stats.cached_weapon:
 		return unit.stats.get_weapon_max_range()
 	if "weapon_range" in unit:
@@ -1698,9 +1699,9 @@ func _process_level_up_queue() -> void:
 	_showing_level_up = true
 	var data: Dictionary = _pending_level_ups.pop_front()
 
-	# Skip visual in headless mode
+	# Skip visual in headless mode - use call_deferred to avoid stack overflow
 	if TurnManager.is_headless:
-		_process_level_up_queue()
+		call_deferred("_process_level_up_queue")
 		return
 
 	# Instantiate and show level-up celebration

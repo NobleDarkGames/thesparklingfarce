@@ -104,7 +104,10 @@ func _populate_item_list() -> void:
 	if item_buttons.size() > 0:
 		_select_item(item_ids[0], item_buttons[0])
 		await get_tree().process_frame
-		item_buttons[0].grab_focus()
+		if not is_instance_valid(self):
+			return
+		if item_buttons.size() > 0 and is_instance_valid(item_buttons[0]):
+			item_buttons[0].grab_focus()
 
 
 func _create_item_button(item_id: String, item_data: ItemData) -> Button:

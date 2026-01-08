@@ -80,8 +80,6 @@ var _save_data: SaveData = null
 ## @param shop_data: ShopData resource to open
 ## @param save_data: Current SaveData (for gold access)
 func open_shop(shop_data: ShopData, save_data: SaveData = null) -> void:
-	print("[ShopManager] open_shop() called with shop_id='%s', shop_name='%s', shop_type=%d" % [shop_data.shop_id if shop_data else "null", shop_data.shop_name if shop_data else "null", shop_data.shop_type if shop_data else -1])
-	
 	if not shop_data:
 		push_error("ShopManager: Cannot open null shop")
 		return
@@ -92,7 +90,6 @@ func open_shop(shop_data: ShopData, save_data: SaveData = null) -> void:
 
 	current_shop = shop_data
 	_save_data = save_data
-	print("[ShopManager] Emitting shop_opened signal for shop '%s'" % shop_data.shop_id)
 	shop_opened.emit(shop_data)
 
 
@@ -741,8 +738,12 @@ func _build_unit_for_promotion(character_uid: String, save_data: CharacterSaveDa
 	var unit: Unit = Unit.new()
 	unit.character_data = character_data
 
-	# Create UnitStats from save data
+	# Create UnitStats from save data - wrap in try to ensure cleanup on error
 	var stats: UnitStats = UnitStats.new()
+	if not stats:
+		unit.queue_free()
+		return null
+
 	stats.level = save_data.level
 	stats.current_hp = save_data.current_hp
 	stats.max_hp = save_data.max_hp

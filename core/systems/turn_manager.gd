@@ -45,10 +45,6 @@ var battle_active: bool = false
 ## Guard flag to prevent re-entry during async turn advancement
 var _advancing_turn: bool = false
 
-## Victory/defeat conditions (from BattleData)
-var victory_condition: int = -1
-var defeat_condition: int = -1
-
 ## Turn transition delay (allows camera pan, animations, stats panels to settle)
 ## This delay occurs AFTER unit_turn_ended and BEFORE next unit's turn starts
 @export var turn_transition_delay: float = 0.6  # Slightly longer than camera movement_duration

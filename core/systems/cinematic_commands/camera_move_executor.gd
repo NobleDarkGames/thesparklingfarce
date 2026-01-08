@@ -25,6 +25,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	# Convert grid position to world position if needed
 	var world_pos: Vector2 = target_pos
 	if params.get("is_grid", false):
+		if GridManager.grid == null:
+			push_error("CameraMoveExecutor: GridManager.grid not initialized for grid position conversion")
+			return true
 		world_pos = GridManager.cell_to_world(Vector2i(target_pos))
 
 	# Calculate duration based on speed (speed is tiles per second)

@@ -38,6 +38,9 @@ var _original_save: Resource = null
 var _original_gold: int = 0
 var _original_depot_items: Array = []
 
+# Signal connection tracking for cleanup
+var _connected_signals: Array[Dictionary] = []
+
 
 func before_test() -> void:
 	# Save original state
@@ -61,6 +64,14 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# Disconnect any signals that were connected during the test
+	for connection: Dictionary in _connected_signals:
+		var sig: Signal = connection.signal_ref
+		var callable: Callable = connection.callable
+		if sig.is_connected(callable):
+			sig.disconnect(callable)
+	_connected_signals.clear()
+
 	# Restore original state
 	BattleManager.current_battle_data = _original_battle_data
 	if _original_save:
@@ -68,6 +79,12 @@ func after_test() -> void:
 		SaveManager.current_save.gold = _original_gold
 		SaveManager.current_save.depot_items = _original_depot_items
 	_mock_battle_data = null
+
+
+## Helper to connect a signal and track it for cleanup
+func _connect_signal(sig: Signal, callable: Callable) -> void:
+	sig.connect(callable)
+	_connected_signals.append({"signal_ref": sig, "callable": callable})
 
 
 # =============================================================================
@@ -245,7 +262,7 @@ func _reset_signal_tracking() -> void:
 
 func test_pre_battle_rewards_signal_emitted() -> void:
 	_reset_signal_tracking()
-	GameEventBus.pre_battle_rewards.connect(_on_pre_battle_rewards)
+	_connect_signal(GameEventBus.pre_battle_rewards, _on_pre_battle_rewards)
 
 	_mock_battle_data.gold_reward = 100
 
@@ -256,13 +273,12 @@ func test_pre_battle_rewards_signal_emitted() -> void:
 	assert_bool(_pre_rewards_received).is_true()
 	assert_object(_last_pre_battle_data).is_equal(_mock_battle_data)
 	assert_int(_last_pre_rewards.gold).is_equal(100)
-
-	GameEventBus.pre_battle_rewards.disconnect(_on_pre_battle_rewards)
+	# Signal cleanup handled by after_test()
 
 
 func test_post_battle_rewards_signal_emitted() -> void:
 	_reset_signal_tracking()
-	GameEventBus.post_battle_rewards.connect(_on_post_battle_rewards)
+	_connect_signal(GameEventBus.post_battle_rewards, _on_post_battle_rewards)
 
 	_mock_battle_data.gold_reward = 250
 
@@ -273,8 +289,7 @@ func test_post_battle_rewards_signal_emitted() -> void:
 	assert_bool(_post_rewards_received).is_true()
 	assert_object(_last_post_battle_data).is_equal(_mock_battle_data)
 	assert_int(_last_post_rewards.gold).is_equal(250)
-
-	GameEventBus.post_battle_rewards.disconnect(_on_post_battle_rewards)
+	# Signal cleanup handled by after_test()
 
 
 func test_mod_can_modify_gold_via_pre_signal() -> void:
@@ -282,7 +297,7 @@ func test_mod_can_modify_gold_via_pre_signal() -> void:
 	var modifier_callback: Callable = func(_battle_data: Resource, rewards: Dictionary) -> void:
 		rewards.gold = rewards.gold * 2
 
-	GameEventBus.pre_battle_rewards.connect(modifier_callback)
+	_connect_signal(GameEventBus.pre_battle_rewards, modifier_callback)
 
 	_mock_battle_data.gold_reward = 100
 	SaveManager.current_save.gold = 0
@@ -295,8 +310,7 @@ func test_mod_can_modify_gold_via_pre_signal() -> void:
 
 	# Assert - modifications should be applied to save
 	assert_int(SaveManager.current_save.gold).is_equal(200)
-
-	GameEventBus.pre_battle_rewards.disconnect(modifier_callback)
+	# Signal cleanup handled by after_test()
 
 
 func test_mod_can_add_bonus_items_via_pre_signal() -> void:
@@ -304,7 +318,7 @@ func test_mod_can_add_bonus_items_via_pre_signal() -> void:
 	var modifier_callback: Callable = func(_battle_data: Resource, rewards: Dictionary) -> void:
 		rewards.items.append("bonus_item_from_mod")
 
-	GameEventBus.pre_battle_rewards.connect(modifier_callback)
+	_connect_signal(GameEventBus.pre_battle_rewards, modifier_callback)
 
 	_mock_battle_data.gold_reward = 50
 
@@ -316,8 +330,7 @@ func test_mod_can_add_bonus_items_via_pre_signal() -> void:
 
 	# Assert - item should be in depot
 	assert_bool("bonus_item_from_mod" in SaveManager.current_save.depot_items).is_true()
-
-	GameEventBus.pre_battle_rewards.disconnect(modifier_callback)
+	# Signal cleanup handled by after_test()
 
 
 func test_mod_can_zero_out_gold() -> void:
@@ -325,7 +338,7 @@ func test_mod_can_zero_out_gold() -> void:
 	var punish_callback: Callable = func(_battle_data: Resource, rewards: Dictionary) -> void:
 		rewards.gold = 0
 
-	GameEventBus.pre_battle_rewards.connect(punish_callback)
+	_connect_signal(GameEventBus.pre_battle_rewards, punish_callback)
 
 	_mock_battle_data.gold_reward = 1000
 	SaveManager.current_save.gold = 500
@@ -336,8 +349,7 @@ func test_mod_can_zero_out_gold() -> void:
 	# Assert
 	assert_int(rewards.gold).is_equal(0)
 	assert_int(SaveManager.current_save.gold).is_equal(500)  # Unchanged
-
-	GameEventBus.pre_battle_rewards.disconnect(punish_callback)
+	# Signal cleanup handled by after_test()
 
 
 func test_signals_order_pre_before_post() -> void:
@@ -350,8 +362,8 @@ func test_signals_order_pre_before_post() -> void:
 	var post_callback: Callable = func(_bd: Resource, _r: Dictionary) -> void:
 		call_order.append("post")
 
-	GameEventBus.pre_battle_rewards.connect(pre_callback)
-	GameEventBus.post_battle_rewards.connect(post_callback)
+	_connect_signal(GameEventBus.pre_battle_rewards, pre_callback)
+	_connect_signal(GameEventBus.post_battle_rewards, post_callback)
 
 	_mock_battle_data.gold_reward = 50
 
@@ -362,9 +374,7 @@ func test_signals_order_pre_before_post() -> void:
 	assert_int(call_order.size()).is_equal(2)
 	assert_str(call_order[0]).is_equal("pre")
 	assert_str(call_order[1]).is_equal("post")
-
-	GameEventBus.pre_battle_rewards.disconnect(pre_callback)
-	GameEventBus.post_battle_rewards.disconnect(post_callback)
+	# Signal cleanup handled by after_test()
 
 
 func test_pre_signal_modifications_reflected_in_post_signal() -> void:
@@ -374,8 +384,8 @@ func test_pre_signal_modifications_reflected_in_post_signal() -> void:
 		rewards.items.append("special_reward")
 
 	_reset_signal_tracking()
-	GameEventBus.pre_battle_rewards.connect(pre_callback)
-	GameEventBus.post_battle_rewards.connect(_on_post_battle_rewards)
+	_connect_signal(GameEventBus.pre_battle_rewards, pre_callback)
+	_connect_signal(GameEventBus.post_battle_rewards, _on_post_battle_rewards)
 
 	_mock_battle_data.gold_reward = 100
 
@@ -385,9 +395,7 @@ func test_pre_signal_modifications_reflected_in_post_signal() -> void:
 	# Assert - post signal should have the modified values
 	assert_int(_last_post_rewards.gold).is_equal(9999)
 	assert_bool("special_reward" in _last_post_rewards.items).is_true()
-
-	GameEventBus.pre_battle_rewards.disconnect(pre_callback)
-	GameEventBus.post_battle_rewards.disconnect(_on_post_battle_rewards)
+	# Signal cleanup handled by after_test()
 
 
 # =============================================================================

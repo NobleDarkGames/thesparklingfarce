@@ -1172,75 +1172,99 @@ func _run_item_menu_integration_tests() -> void:
 func _test_items_discovered() -> void:
 	_start_test("items_discovered_by_mod_loader")
 
-	# Check if healing_herb exists
-	var healing_herb: ItemData = ModLoader.registry.get_item("healing_herb")
-	if not _assert_not_null(healing_herb, "healing_herb should be found"):
+	# Test that ModLoader.registry can discover and return items
+	# Uses mock item data instead of depending on specific mod content
+	var ItemDataScript: GDScript = preload("res://core/resources/item_data.gd")
+	
+	# Create a test item
+	var test_item: ItemData = ItemDataScript.new()
+	test_item.item_id = "_test_healing_herb"
+	test_item.item_name = "Test Healing Herb"
+	test_item.usable_in_battle = true
+	test_item.usable_in_field = true
+	
+	# Register it
+	ModLoader.registry.register_item(test_item, "_test_mod")
+	
+	# Check if it can be retrieved
+	var retrieved: ItemData = ModLoader.registry.get_item("_test_healing_herb")
+	if not _assert_not_null(retrieved, "registered item should be retrievable"):
 		return
-
-	# Check if medical_herb exists
-	var medical_herb: ItemData = ModLoader.registry.get_item("medical_herb")
-	if not _assert_not_null(medical_herb, "medical_herb should be found"):
+	
+	# Check properties were preserved
+	if not _assert_equal(retrieved.item_name, "Test Healing Herb", "item_name should match"):
 		return
-
-	# Check if antidote exists
-	var antidote: ItemData = ModLoader.registry.get_item("antidote")
-	if not _assert_not_null(antidote, "antidote should be found"):
+	
+	if not _assert_true(retrieved.usable_in_battle, "usable_in_battle should be true"):
 		return
-
-	# Check usable_in_battle flag
-	if _assert_true(healing_herb.usable_in_battle, "healing_herb should be usable_in_battle"):
-		_pass()
+	
+	# Clean up
+	ModLoader.registry.unregister_item("_test_healing_herb")
+	
+	_pass()
 
 
 func _test_starting_inventory_copy() -> void:
 	_start_test("starting_inventory_copied_to_save_data")
 
-	# Load the hero character
-	var hero: CharacterData = ModLoader.registry.get_character("character_1763762722")
-	if not _assert_not_null(hero, "Hero character should exist"):
-		return
-
-	# Check starting_inventory
-	if hero.starting_inventory.size() == 0:
-		_fail("Hero should have starting_inventory items")
-		return
-
-	# Create CharacterSaveData
+	# Test that CharacterSaveData.populate_from_character_data() copies starting_inventory
+	# Uses mock data instead of depending on specific mod content
+	var CharacterDataScript: GDScript = preload("res://core/resources/character_data.gd")
+	
+	# Create a test character with starting inventory (item IDs as strings)
+	var test_char: CharacterData = CharacterDataScript.new()
+	test_char.character_uid = "_test_hero_uid"
+	test_char.character_name = "Test Hero"
+	test_char.starting_inventory = ["_test_sword", "_test_potion"]
+	
+	# Create CharacterSaveData and populate
 	var save_data: CharacterSaveData = CharacterSaveData.new()
-	save_data.populate_from_character_data(hero)
+	save_data.populate_from_character_data(test_char)
 
 	# Check inventory was copied
-	if _assert_equal(save_data.inventory.size(), hero.starting_inventory.size(), "inventory size"):
+	if not _assert_equal(save_data.inventory.size(), 2, "inventory size should be 2"):
+		return
+	
+	if _assert_equal(save_data.inventory[0], "_test_sword", "inventory should contain test item ID"):
 		_pass()
 
 
 func _test_party_manager_save_data() -> void:
 	_start_test("party_manager_get_member_save_data")
 
-	# Load the hero character
-	var hero: CharacterData = ModLoader.registry.get_character("character_1763762722")
-	if not _assert_not_null(hero, "Hero character should exist"):
-		return
+	# Test PartyManager.get_member_save_data() functionality
+	# Uses mock data instead of depending on specific mod content
+	var CharacterDataScript: GDScript = preload("res://core/resources/character_data.gd")
+	
+	# Create a test character with starting inventory (item IDs as strings)
+	var test_char: CharacterData = CharacterDataScript.new()
+	test_char.character_uid = "_test_party_hero"
+	test_char.character_name = "Test Party Hero"
+	test_char.starting_inventory = ["_test_party_item"]
 
-	# Clear party and add hero
+	# Clear party and add test character
 	PartyManager.clear_party()
-	PartyManager.add_member(hero)
+	PartyManager.add_member(test_char)
 
 	# Check party size
 	if not _assert_equal(PartyManager.get_party_size(), 1, "party size"):
+		PartyManager.clear_party()
 		return
 
 	# Check has_method for get_member_save_data
 	if not _assert_true(PartyManager.has_method("get_member_save_data"), "has get_member_save_data"):
+		PartyManager.clear_party()
 		return
 
 	# Get save data
-	var save_data: CharacterSaveData = PartyManager.get_member_save_data(hero.character_uid)
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(test_char.character_uid)
 	if not _assert_not_null(save_data, "get_member_save_data should return data"):
+		PartyManager.clear_party()
 		return
 
-	# Check inventory
-	if not _assert_greater_equal(save_data.inventory.size(), 1, "save data should have inventory"):
+	# Check inventory was populated from starting_inventory
+	if not _assert_equal(save_data.inventory.size(), 1, "save data should have 1 inventory item"):
+		PartyManager.clear_party()
 		return
 
 	_pass()

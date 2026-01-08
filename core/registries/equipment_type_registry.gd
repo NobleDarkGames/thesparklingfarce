@@ -50,6 +50,14 @@ var _subtypes: Dictionary = {}
 ## Registered categories: {category_id: {display_name, description, source_mod}}
 var _categories: Dictionary = {}
 
+## Reverse index: {category_id: Array[String] of subtype_ids}
+var _subtypes_by_category: Dictionary = {}
+
+## Cached sorted arrays for editor methods
+var _cached_categories: Array[String] = []
+var _cached_subtypes: Array[String] = []
+var _cache_dirty: bool = true
+
 ## Whether defaults have been initialized
 var _defaults_initialized: bool = false
 
@@ -90,6 +98,8 @@ func init_defaults() -> void:
 	# Accessory subtypes
 	_subtypes["ring"] = {"id": "ring", "category": "accessory", "display_name": "Ring", "source_mod": "_core"}
 
+	_rebuild_reverse_index()
+	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -124,6 +134,8 @@ func register_from_config(mod_id: String, config: Dictionary) -> void:
 			if subtype_data is Dictionary:
 				_register_subtype(mod_id, subtype_id, subtype_data)
 
+	_rebuild_reverse_index()
+	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -244,33 +256,28 @@ func is_valid_category(category: String) -> bool:
 	return category.to_lower() in _categories
 
 
-## Get all subtypes that belong to a category
+## Get all subtypes that belong to a category (O(1) lookup via reverse index)
 func get_subtypes_for_category(category: String) -> Array[String]:
-	var result: Array[String] = []
 	var lower_category: String = category.to_lower()
+	if lower_category in _subtypes_by_category:
+		var subtypes: Array = _subtypes_by_category[lower_category]
+		var result: Array[String] = []
+		for subtype_id: Variant in subtypes:
+			result.append(str(subtype_id))
+		return result
+	return []
 
-	for subtype_id: String in _subtypes.keys():
-		var entry: Dictionary = _subtypes[subtype_id]
-		if entry.get("category", "") == lower_category:
-			result.append(subtype_id)
 
-	return result
-
-
-## Get all registered categories
+## Get all registered categories (cached for editor performance)
 func get_all_categories() -> Array[String]:
-	var result: Array[String] = []
-	for cat_id: String in _categories.keys():
-		result.append(cat_id)
-	return result
+	_rebuild_cache_if_dirty()
+	return _cached_categories.duplicate()
 
 
-## Get all registered subtypes
+## Get all registered subtypes (cached for editor performance)
 func get_all_subtypes() -> Array[String]:
-	var result: Array[String] = []
-	for subtype_id: String in _subtypes.keys():
-		result.append(subtype_id)
-	return result
+	_rebuild_cache_if_dirty()
+	return _cached_subtypes.duplicate()
 
 
 ## Get display name for a subtype
@@ -340,11 +347,43 @@ func get_subtypes_grouped_by_category() -> Dictionary:
 # UTILITY API
 # =============================================================================
 
+## Unregister all types from a specific mod
+func unregister_mod(mod_id: String) -> void:
+	var changed: bool = false
+	
+	# Remove subtypes from this mod
+	var subtypes_to_remove: Array[String] = []
+	for subtype_id: String in _subtypes.keys():
+		var entry: Dictionary = _subtypes[subtype_id]
+		if entry.get("source_mod", "") == mod_id:
+			subtypes_to_remove.append(subtype_id)
+	for subtype_id: String in subtypes_to_remove:
+		_subtypes.erase(subtype_id)
+		changed = true
+	
+	# Remove categories from this mod
+	var categories_to_remove: Array[String] = []
+	for cat_id: String in _categories.keys():
+		var entry: Dictionary = _categories[cat_id]
+		if entry.get("source_mod", "") == mod_id:
+			categories_to_remove.append(cat_id)
+	for cat_id: String in categories_to_remove:
+		_categories.erase(cat_id)
+		changed = true
+	
+	if changed:
+		_rebuild_reverse_index()
+		_cache_dirty = true
+		registrations_changed.emit()
+
+
 ## Clear all registrations (called on mod reload)
 ## Re-initializes defaults after clearing so mods can build on them
 func clear_mod_registrations() -> void:
 	_subtypes.clear()
 	_categories.clear()
+	_subtypes_by_category.clear()
+	_cache_dirty = true
 	_defaults_initialized = false
 	init_defaults()  # Re-apply defaults so mods can override
 
@@ -379,6 +418,9 @@ func validate_equipment_type(equipment_type: String) -> Dictionary:
 
 ## Find similar subtype names (for typo suggestions)
 func _find_similar_subtypes(query: String) -> Array[String]:
+	if query.is_empty():
+		return []
+
 	var suggestions: Array[String] = []
 
 	for subtype_id: String in _subtypes.keys():
@@ -389,3 +431,35 @@ func _find_similar_subtypes(query: String) -> Array[String]:
 				break
 
 	return suggestions
+
+
+## Rebuild the reverse index mapping categories to subtypes
+func _rebuild_reverse_index() -> void:
+	_subtypes_by_category.clear()
+	for subtype_id: String in _subtypes.keys():
+		var entry: Dictionary = _subtypes[subtype_id]
+		var category: String = entry.get("category", "")
+		if category.is_empty():
+			continue
+		if category not in _subtypes_by_category:
+			_subtypes_by_category[category] = []
+		var cat_list: Array = _subtypes_by_category[category]
+		cat_list.append(subtype_id)
+
+
+## Rebuild cached sorted arrays if dirty
+func _rebuild_cache_if_dirty() -> void:
+	if not _cache_dirty:
+		return
+	
+	_cached_categories.clear()
+	for cat_id: String in _categories.keys():
+		_cached_categories.append(cat_id)
+	_cached_categories.sort()
+	
+	_cached_subtypes.clear()
+	for subtype_id: String in _subtypes.keys():
+		_cached_subtypes.append(subtype_id)
+	_cached_subtypes.sort()
+	
+	_cache_dirty = false

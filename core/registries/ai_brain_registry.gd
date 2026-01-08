@@ -57,6 +57,10 @@ var _brain_instances: Dictionary = {}
 ## Used to evict least recently used entries when cache exceeds MAX_CACHED_INSTANCES
 var _lru_order: Array[String] = []
 
+## Cached sorted brain metadata for editor performance
+var _cached_all_brains: Array[Dictionary] = []
+var _cache_dirty: bool = true
+
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -71,6 +75,7 @@ func register_from_config(mod_id: String, config: Dictionary, mod_directory: Str
 		if brain_data is Dictionary:
 			_register_brain(mod_id, brain_id, brain_data, mod_directory)
 
+	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -157,6 +162,7 @@ func discover_from_directory(mod_id: String, mod_directory: String) -> int:
 	dir.list_dir_end()
 
 	if count > 0:
+		_cache_dirty = true
 		registrations_changed.emit()
 
 	return count
@@ -175,17 +181,13 @@ func get_all_brain_ids() -> Array[String]:
 	return result
 
 
-## Get all registered AI brains as dictionaries with metadata
+## Get all registered AI brains as dictionaries with metadata (cached for editor performance)
 ## Returns: Array of {id, display_name, description, path, source_mod}
 func get_all_brains() -> Array[Dictionary]:
+	_rebuild_cache_if_dirty()
 	var result: Array[Dictionary] = []
-	for brain_id: String in _brains.keys():
-		var entry: Dictionary = _brains[brain_id]
+	for entry: Dictionary in _cached_all_brains:
 		result.append(entry.duplicate())
-	# Sort by display name for consistent UI ordering
-	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a.get("display_name", "") < b.get("display_name", "")
-	)
 	return result
 
 
@@ -264,6 +266,10 @@ func get_brain_instance(brain_id: String) -> Resource:
 		push_warning("AIBrainRegistry: Failed to load brain script: %s" % path)
 		return null
 
+	if not script.can_instantiate():
+		push_warning("AIBrainRegistry: Brain script cannot be instantiated (check for errors): %s" % path)
+		return null
+
 	var instance: Resource = script.new()
 	if not instance:
 		push_warning("AIBrainRegistry: Failed to instantiate brain: %s" % path)
@@ -310,12 +316,54 @@ func get_all_brain_instances() -> Array[Resource]:
 # UTILITY API
 # =============================================================================
 
+## Unregister all brains from a specific mod
+func unregister_mod(mod_id: String) -> void:
+	var changed: bool = false
+	var to_remove: Array[String] = []
+	
+	for brain_id: String in _brains.keys():
+		var entry: Dictionary = _brains[brain_id]
+		if entry.get("source_mod", "") == mod_id:
+			to_remove.append(brain_id)
+	
+	for brain_id: String in to_remove:
+		_brains.erase(brain_id)
+		# Also clear cached instance
+		if brain_id in _brain_instances:
+			_brain_instances.erase(brain_id)
+			var lru_idx: int = _lru_order.find(brain_id)
+			if lru_idx >= 0:
+				_lru_order.remove_at(lru_idx)
+		changed = true
+	
+	if changed:
+		_cache_dirty = true
+		registrations_changed.emit()
+
+
 ## Clear all registrations (called on mod reload)
 func clear_mod_registrations() -> void:
 	_brains.clear()
 	_brain_instances.clear()
 	_lru_order.clear()
+	_cache_dirty = true
 	registrations_changed.emit()
+
+
+## Rebuild cached sorted array if dirty
+func _rebuild_cache_if_dirty() -> void:
+	if not _cache_dirty:
+		return
+	
+	_cached_all_brains.clear()
+	for brain_id: String in _brains.keys():
+		var entry: Dictionary = _brains[brain_id]
+		_cached_all_brains.append(entry.duplicate())
+	# Sort by display name for consistent UI ordering
+	_cached_all_brains.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.get("display_name", "") < b.get("display_name", "")
+	)
+	_cache_dirty = false
 
 
 ## Get registration counts for debugging

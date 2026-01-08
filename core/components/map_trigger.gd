@@ -185,12 +185,12 @@ func can_trigger() -> bool:
 
 ## Activate the trigger (called when player enters and conditions met)
 func activate(player: Node2D) -> void:
-	# Emit signal for handling (TriggerManager listens)
-	triggered.emit(self, player)
-
-	# Mark as completed for one-shot triggers
+	# Mark as completed BEFORE emitting signal to prevent race condition on fast re-entry
 	if one_shot and not trigger_id.is_empty():
 		GameState.set_trigger_completed(trigger_id)
+
+	# Emit signal for handling (TriggerManager listens)
+	triggered.emit(self, player)
 
 
 ## Get human-readable reason why trigger failed to activate

@@ -132,9 +132,8 @@ static func calculate_offset(method: OffsetMethod, position: Vector2 = Vector2.Z
 		OffsetMethod.CLUSTERED:
 			return randf_range(0.2, 0.4)
 		OffsetMethod.POSITION_BASED:
-			# Deterministic hash based on position
-			var hash_val: float = fmod(position.x * 0.1 + position.y * 0.07, 1.0)
-			return absf(hash_val)
+			# Deterministic hash based on position (fposmod ensures [0, 1) range)
+			return fposmod(position.x * 0.1 + position.y * 0.07, 1.0)
 		OffsetMethod.INSTANCE_ID:
 			# Deterministic based on instance ID
 			return fmod(float(instance_id) * 0.001, 1.0)
@@ -142,18 +141,35 @@ static func calculate_offset(method: OffsetMethod, position: Vector2 = Vector2.Z
 			return 0.0
 
 
+## Get registration stats for debugging
+func get_stats() -> Dictionary:
+	_rebuild_cache_if_dirty()
+	return {
+		"offset_type_count": _all_offset_types.size(),
+		"offset_types": _all_offset_types.duplicate()
+	}
+
+
 ## Rebuild the cached merged array
 func _rebuild_cache_if_dirty() -> void:
 	if not _cache_dirty:
 		return
 
+	# Use Dictionary for O(1) deduplication
+	var type_set: Dictionary = {}
+	
 	# Start with defaults
-	_all_offset_types = DEFAULT_OFFSET_TYPES.duplicate()
+	for offset_type: String in DEFAULT_OFFSET_TYPES:
+		type_set[offset_type] = true
 
-	# Add mod types (avoiding duplicates)
+	# Add mod types (O(1) lookup for duplicates)
 	for mod_id: String in _mod_offset_types:
 		for offset_type: String in _mod_offset_types[mod_id]:
-			if offset_type not in _all_offset_types:
-				_all_offset_types.append(offset_type)
+			type_set[offset_type] = true
+
+	# Convert back to array
+	_all_offset_types.clear()
+	for offset_type: String in type_set.keys():
+		_all_offset_types.append(offset_type)
 
 	_cache_dirty = false
