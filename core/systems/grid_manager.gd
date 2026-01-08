@@ -632,6 +632,11 @@ func clear_grid() -> void:
 	# Stop highlight pulse animation
 	_stop_highlight_pulse()
 
+	# Clean up AoE border container (free the Node2D and all its children)
+	if _aoe_border_container:
+		_aoe_border_container.queue_free()
+		_aoe_border_container = null
+
 	grid = null
 	tilemap = null
 	_astar = null

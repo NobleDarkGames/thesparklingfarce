@@ -4,6 +4,9 @@
 class_name MoveEntityExecutor
 extends CinematicCommandExecutor
 
+## Reference to active actor for interrupt cleanup
+var _active_actor: CinematicActor = null
+
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var target: String = command.get("target", "")
@@ -13,6 +16,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if actor == null:
 		push_error("MoveEntityExecutor: Actor '%s' not found" % target)
 		return true  # Complete immediately on error
+
+	# Store actor reference for interrupt cleanup
+	_active_actor = actor
 
 	var path: Array = params.get("path", [])
 	var speed: float = params.get("speed", -1.0)
@@ -72,3 +78,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		actor.move_along_path(path_array, speed, true)
 
 	return not should_wait  # Return true if non-blocking, false if waiting
+
+
+func interrupt() -> void:
+	# Stop active actor movement
+	if _active_actor and is_instance_valid(_active_actor):
+		_active_actor.stop()
+	_active_actor = null

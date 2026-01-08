@@ -187,30 +187,35 @@ func craft_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null, choic
 			craft_failed.emit(recipe, result.error)
 			return result
 
-	# === EXECUTE TRANSACTION ===
-	# This is the point of no return - we commit to the transaction
+	# === EXECUTE TRANSACTION (ATOMIC) ===
+	# Verify output can be stored BEFORE consuming anything
+	
+	# 1. Pre-flight check: Ensure we can add the output item
+	if not _can_add_item_to_caravan(output_item_id):
+		result.error = "Caravan storage is full"
+		craft_failed.emit(recipe, result.error)
+		return result
 
-	# 1. Deduct gold
+	# 2. Deduct gold (safe to proceed now)
 	_deduct_gold(modified_cost)
 	result.gold_spent = modified_cost
 
-	# 2. Deduct materials
+	# 3. Deduct materials
 	for input: Dictionary in recipe.inputs:
 		var material_id: String = input.get("material_id", "")
 		var qty: int = input.get("quantity", 1)
 		_remove_materials(material_id, qty)
 
-	# 3. For UPGRADE mode, also remove the base item
+	# 4. For UPGRADE mode, also remove the base item
 	if recipe.output_mode == CraftingRecipeData.OutputMode.UPGRADE:
 		_remove_materials(recipe.upgrade_base_item_id, 1)
 
-	# 4. Grant output item (to caravan)
+	# 5. Grant output item (to caravan) - should always succeed after pre-flight
 	var add_success: bool = _add_item_to_caravan(output_item_id)
 	if not add_success:
-		# Caravan full is unlikely (infinite storage), but handle it
+		# This should never happen after pre-flight check, but log if it does
+		push_error("CraftingManager: _add_item_to_caravan failed after pre-flight check passed")
 		result.error = "Failed to store crafted item"
-		# Note: We've already deducted materials - this is a problem state
-		# In a production system we'd want rollback, but per spec we keep it simple
 		craft_failed.emit(recipe, result.error)
 		return result
 
@@ -298,6 +303,17 @@ func _remove_materials(material_id: String, quantity: int) -> void:
 			for i: int in range(to_remove):
 				save_data.remove_item_from_inventory(material_id)
 			remaining -= to_remove
+
+
+## Check if an item can be added to caravan storage (pre-flight check)
+## @param item_id: ID of the item to add
+## @return: true if the item can be added
+func _can_add_item_to_caravan(item_id: String) -> bool:
+	if item_id.is_empty():
+		return false
+	if not StorageManager:
+		return false
+	return not StorageManager.is_full()
 
 
 ## Add an item to caravan storage

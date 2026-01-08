@@ -31,3 +31,6 @@ mono_crash.*.json
 mods-bak/
 docs/announcements/
 docs/plans/ignored/
+
+# Local untracked docs
+.local/

@@ -233,31 +233,18 @@ func _create_grid_from_tilemap(tilemap: TileMapLayer) -> Grid:
 
 ## Spawn all units from BattleData
 func _spawn_all_units() -> void:
-	print("[DEBUG] BattleManager._spawn_all_units() called")
-	print("[DEBUG] PartyManager.is_empty() = %s" % PartyManager.is_empty())
-	print("[DEBUG] PartyManager.party_members.size() = %d" % PartyManager.party_members.size())
-
 	# Spawn player units from PartyManager
 	if not PartyManager.is_empty():
 		# Get player spawn point from BattleData or use default
 		var player_spawn_point: Vector2i = Vector2i(2, 2)  # Default position
 		if current_battle_data.get("player_spawn_point") != null:
 			player_spawn_point = current_battle_data.player_spawn_point
-			print("[DEBUG] Using BattleData player_spawn_point: %s" % player_spawn_point)
-		else:
-			print("[DEBUG] Using default player_spawn_point: %s" % player_spawn_point)
 
 		# Get party spawn data from PartyManager
 		var party_spawn_data: Array[Dictionary] = PartyManager.get_battle_spawn_data(player_spawn_point)
-		print("[DEBUG] PartyManager.get_battle_spawn_data() returned %d entries" % party_spawn_data.size())
-		for i: int in range(party_spawn_data.size()):
-			var data: Dictionary = party_spawn_data[i]
-			var char_data: CharacterData = data.get("character") as CharacterData
-			print("[DEBUG]   [%d] %s at %s" % [i, char_data.character_name if char_data else "NULL", data.get("position")])
 
 		# Spawn the party
 		player_units = _spawn_units(party_spawn_data, "player")
-		print("[DEBUG] Spawned %d player units" % player_units.size())
 	else:
 		push_warning("BattleManager: No party members in PartyManager, no player units spawned")
 
@@ -280,7 +267,6 @@ func _spawn_all_units() -> void:
 ## Format: [{character: CharacterData, position: Vector2i, ai_behavior: AIBehaviorData}, ...]
 func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 	var units: Array[Unit] = []
-	print("[DEBUG] _spawn_units called for faction '%s' with %d entries" % [faction, unit_data.size()])
 
 	for data: Variant in unit_data:
 		# Validate data structure
@@ -290,13 +276,11 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 
 		if not "character" in data or not "position" in data:
 			push_warning("BattleManager: Unit data missing character or position")
-			print("[DEBUG]   SKIP: missing character or position. Keys: %s" % str(data.keys()))
 			continue
 
 		var character_data: CharacterData = data.character as CharacterData
 		var grid_pos: Vector2i = data.position
 		var ai_behavior: AIBehaviorData = data.get("ai_behavior", null) as AIBehaviorData
-		print("[DEBUG]   Spawning %s at grid %s" % [character_data.character_name if character_data else "NULL", grid_pos])
 
 		# Instantiate unit
 		var unit: Unit = _get_cached_scene("unit_scene").instantiate() as Unit
@@ -312,7 +296,6 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		# Position unit on grid
 		unit.grid_position = grid_pos
 		unit.position = GridManager.cell_to_world(grid_pos)
-		print("[DEBUG]   Unit world position: %s" % unit.position)
 
 		# Register with GridManager for pathfinding and occupation checks
 		GridManager.set_cell_occupied(grid_pos, unit)
@@ -320,7 +303,6 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		# Add to scene
 		if units_parent:
 			units_parent.add_child(unit)
-			print("[DEBUG]   Added to units_parent: %s" % units_parent.name)
 		else:
 			push_error("BattleManager: units_parent not set")
 			unit.queue_free()
@@ -335,7 +317,6 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		units.append(unit)
 		unit_spawned.emit(unit)
 
-	print("[DEBUG] _spawn_units returning %d units" % units.size())
 	return units
 
 
@@ -986,6 +967,48 @@ func execute_ai_spell(caster: Unit, ability_id: String, target: Unit) -> bool:
 			_award_spell_xp(caster, spell_target, ability)
 
 	return any_effect_applied
+
+
+## Execute item use from AI (called by AIBrain)
+## This is the public API for AI brains to use items
+## @param user: The unit using the item
+## @param item_id: The item ID to use
+## @param target: The target unit for the item effect
+## @return: True if item was used successfully
+func execute_ai_item_use(user: Unit, item_id: String, target: Unit) -> bool:
+	if not user or not user.is_alive():
+		push_warning("BattleManager: AI item user invalid")
+		return false
+
+	if item_id.is_empty():
+		push_warning("BattleManager: AI item_id is empty")
+		return false
+
+	# Get the item data from registry
+	var item: ItemData = ModLoader.registry.get_item(item_id)
+
+	if not item:
+		push_warning("BattleManager: AI item '%s' not found in registry" % item_id)
+		return false
+
+	if not item.effect or not item.effect is AbilityData:
+		push_warning("BattleManager: AI item '%s' has no effect ability" % item_id)
+		return false
+
+	# Validate target for non-self-targeting items
+	var ability: AbilityData = item.effect as AbilityData
+	if ability.ability_type == AbilityData.AbilityType.ATTACK:
+		if not target or not target.is_alive():
+			push_warning("BattleManager: AI item target invalid for attack item")
+			return false
+	elif ability.ability_type == AbilityData.AbilityType.HEAL:
+		# Healing items default to self if no target
+		if not target:
+			target = user
+
+	# Delegate to the internal handler (handles inventory, animation, XP, turn end)
+	await _on_item_use_requested(user, item_id, target)
+	return true
 
 
 # =============================================================================

@@ -59,6 +59,9 @@ var battle_camera: Camera2D = null
 ## Timing tracking for debug
 var _timing_start_ms: int = 0
 
+## Active popup labels (for cleanup on battle exit)
+var _active_popup_labels: Array[Label] = []
+
 
 func _ready() -> void:
 	# Detect headless mode for automated testing (skips visual delays)
@@ -473,10 +476,11 @@ func _show_terrain_popup(unit: Unit, message: String, color: Color) -> void:
 
 	if unit.get_parent():
 		unit.get_parent().add_child(label)
+		_active_popup_labels.append(label)
 		var tween: Tween = label.create_tween()
 		tween.tween_property(label, "position:y", label.position.y - 30, 0.8)
 		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)
-		tween.tween_callback(label.queue_free)
+		tween.tween_callback(_remove_popup_label.bind(label))
 
 
 ## Process status effects for a unit at the start of their turn
@@ -667,12 +671,13 @@ func _show_status_popup(unit: Unit, message: String, color: Color) -> void:
 
 	if unit.get_parent():
 		unit.get_parent().add_child(label)
+		_active_popup_labels.append(label)
 
 		# Animate and remove
 		var tween: Tween = label.create_tween()
 		tween.tween_property(label, "position:y", label.position.y - 20, 0.6)
 		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.6)
-		tween.tween_callback(label.queue_free)
+		tween.tween_callback(_remove_popup_label.bind(label))
 
 
 ## Helper to get unit display name safely
@@ -680,6 +685,13 @@ func _get_unit_name(unit: Unit) -> String:
 	if unit.has_method("get_display_name"):
 		return unit.get_display_name()
 	return "Unknown"
+
+
+## Remove a popup label from tracking and free it
+func _remove_popup_label(label: Label) -> void:
+	_active_popup_labels.erase(label)
+	if is_instance_valid(label):
+		label.queue_free()
 
 
 ## Clear battle state (call when exiting battle)
@@ -690,3 +702,10 @@ func clear_battle() -> void:
 	turn_number = 0
 	battle_active = false
 	_advancing_turn = false
+
+	# Clean up any active popup labels (freeing label also kills its bound tweens)
+	# Tweens created via label.create_tween() are bound to the label's lifetime
+	for label: Label in _active_popup_labels:
+		if is_instance_valid(label):
+			label.queue_free()
+	_active_popup_labels.clear()

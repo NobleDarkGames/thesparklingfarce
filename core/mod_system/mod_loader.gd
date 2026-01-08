@@ -1214,25 +1214,20 @@ func get_total_conversion_mods() -> Array[ModManifest]:
 ## Default party members are collected from all loaded mods.
 func get_default_party() -> Array[CharacterData]:
 	var party: Array[CharacterData] = []
-	print("[DEBUG] ModLoader.get_default_party() called")
 
 	# 1. Find the hero (highest priority mod wins)
 	var hero: CharacterData = _find_hero_character()
 	if not hero:
 		push_error("CRITICAL: No hero character found! A character with is_hero=true is required for the game to function. Check that at least one mod defines a hero character.")
 		return party
-	print("[DEBUG] Found hero: %s (is_hero=%s, unit_category=%s)" % [hero.character_name, hero.is_hero, hero.unit_category])
 	party.append(hero)
 
 	# 2. Find default party members
 	var members: Array[CharacterData] = _find_default_party_members()
-	print("[DEBUG] Found %d default party members" % members.size())
 	for member: CharacterData in members:
 		if member != hero:  # Don't duplicate hero
-			print("[DEBUG]   - Adding member: %s" % member.character_name)
 			party.append(member)
 
-	print("[DEBUG] Final party size: %d" % party.size())
 	return party
 
 
@@ -1241,25 +1236,20 @@ func get_default_party() -> Array[CharacterData]:
 func _find_hero_character() -> CharacterData:
 	# Get all characters from registry
 	var all_characters: Array[Resource] = registry.get_all_resources("character")
-	print("[DEBUG] _find_hero_character: Searching %d characters" % all_characters.size())
 
 	# Build a lookup of character resource_id -> CharacterData for heroes
 	var hero_candidates: Array[Dictionary] = []
 	for character: CharacterData in all_characters:
 		if not character:
 			continue
-		print("[DEBUG]   Checking: %s (is_hero=%s, unit_category=%s)" % [character.character_name, character.is_hero, character.unit_category])
 		if character.is_hero and character.unit_category == "player":
 			# Get the resource ID from the resource path
 			var resource_id: String = character.resource_path.get_file().get_basename()
 			var source_mod: String = registry.get_resource_source(resource_id, "character")
-			print("[DEBUG]   -> HERO CANDIDATE from mod '%s'" % source_mod)
 			hero_candidates.append({
 				"character": character,
 				"mod_id": source_mod
 			})
-
-	print("[DEBUG] Found %d hero candidates" % hero_candidates.size())
 	if hero_candidates.is_empty():
 		return null
 

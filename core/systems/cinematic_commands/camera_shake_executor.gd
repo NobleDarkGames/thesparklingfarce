@@ -4,6 +4,9 @@
 class_name CameraShakeExecutor
 extends CinematicCommandExecutor
 
+## Reference to camera for interrupt cleanup
+var _active_camera: CameraController = null
+
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
@@ -17,6 +20,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if not camera:
 		return true  # Complete immediately - warning already logged
 
+	# Store camera reference for interrupt cleanup
+	_active_camera = camera
+
 	# Delegate shake to CameraController
 	camera.shake(intensity, duration, frequency)
 
@@ -29,3 +35,12 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		return false  # Async - wait for signal
 
 	return true  # Sync - continue immediately
+
+
+func interrupt() -> void:
+	# Stop active camera shake
+	if _active_camera and is_instance_valid(_active_camera):
+		_active_camera._is_shaking = false
+		_active_camera._shake_time_remaining = 0.0
+		_active_camera.offset = Vector2.ZERO
+	_active_camera = null

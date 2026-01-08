@@ -9,6 +9,16 @@ class_name ConfigurableAIBrain
 ##
 ## Unlike script-based AIBrains, this allows modders to create AI behaviors
 ## through data files without writing GDScript.
+##
+## DETERMINISM: All decisions use purely calculated threat scores with NO
+## randomization. Given identical game state, AI will always make identical
+## choices. This is intentional:
+##   - Enables reproducible testing and debugging
+##   - Supports deterministic replay systems
+##   - Makes AI behavior predictable for players to learn and counter
+##
+## If randomization is ever needed (e.g., tie-breaking between equal scores),
+## use RandomManager.ai_rng to maintain save/replay compatibility.
 
 ## Singleton instance for use by AIController
 static var _instance: AIBrain = null  # Use base class type to avoid self-reference issue
@@ -270,6 +280,7 @@ func _execute_retreat(unit: Unit, enemies: Array[Unit], context: Dictionary) -> 
 
 
 ## Find best target based on threat weights and calculated unit threat
+## NOTE: Deterministic - highest score wins with no randomization.
 func _find_best_target(unit: Unit, targets: Array[Unit], behavior: AIBehaviorData) -> Unit:
 	if targets.is_empty():
 		return null
@@ -308,6 +319,7 @@ func _find_best_target(unit: Unit, targets: Array[Unit], behavior: AIBehaviorDat
 
 ## Calculate unit's threat score based on their abilities and character data
 ## Uses AbilityType enum for categorization (NO custom taxonomies)
+## NOTE: Deterministic - no RNG in scoring. Enables predictable, testable AI.
 ## @param unit: Target unit to evaluate
 ## @param behavior: AI behavior providing threat weights
 ## @return: Calculated threat score (higher = more threatening)
@@ -798,10 +810,10 @@ func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
 		if ability.ability_type != ability_type:
 			continue
 
-		# Found a matching item - use it
+		# Found a matching item - use it via public API
 		await _apply_delay(unit, _get_delay(context, "before_attack"))
-		await BattleManager._on_item_use_requested(unit, item_id, target)
-		return true
+		var success: bool = await BattleManager.execute_ai_item_use(unit, item_id, target)
+		return success
 
 	return false
 

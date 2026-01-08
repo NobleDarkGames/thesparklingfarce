@@ -4,6 +4,9 @@
 class_name CameraMoveExecutor
 extends CinematicCommandExecutor
 
+## Reference to camera for interrupt cleanup
+var _active_camera: CameraController = null
+
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
@@ -15,6 +18,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var camera: CameraController = manager.get_camera_controller()
 	if not camera:
 		return true  # Complete immediately - warning already logged
+
+	# Store camera reference for interrupt cleanup
+	_active_camera = camera
 
 	# Convert grid position to world position if needed
 	var world_pos: Vector2 = target_pos
@@ -38,3 +44,12 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		return false  # Async - wait for signal
 
 	return true  # Sync - continue immediately
+
+
+func interrupt() -> void:
+	# Kill active camera movement tween
+	if _active_camera and is_instance_valid(_active_camera):
+		if _active_camera._movement_tween and _active_camera._movement_tween.is_valid():
+			_active_camera._movement_tween.kill()
+			_active_camera._movement_tween = null
+	_active_camera = null
