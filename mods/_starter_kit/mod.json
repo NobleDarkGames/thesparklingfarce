@@ -1,7 +1,7 @@
 {
 	"author": "The Sparkling Farce Team",
 	"dependencies": [],
-	"description": "Core terrain types and starter content for The Sparkling Farce platform. Provides sensible defaults that mods can override.",
+	"description": "Core AI behaviors, terrain types, and starter content for The Sparkling Farce platform. Provides sensible defaults that mods can override.",
 	"godot_version": "4.5",
 	"id": "_starter_kit",
 	"load_priority": -1,
