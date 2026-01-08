@@ -22,6 +22,9 @@ func _enter_tree() -> void:
 
 	# Instantiate the main panel from scene
 	main_panel = MainPanelScene.instantiate()
+	if not main_panel:
+		push_error("SparklingEditor: Failed to instantiate main panel")
+		return
 
 	# Add as a bottom panel (Godot manages the sizing)
 	add_control_to_bottom_panel(main_panel, "Sparkling Editor")

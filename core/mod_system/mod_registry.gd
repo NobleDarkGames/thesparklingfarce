@@ -82,8 +82,6 @@ func register_resource(resource: Resource, resource_type: String, resource_id: S
 ## Get a mod's priority (helper for conflict detection)
 ## Returns 0 if mod not found
 func _get_mod_priority(mod_id: String) -> int:
-	if Engine.has_singleton("ModLoader"):
-		return 0  # Can't access priority from singleton
 	# Try to get ModLoader from autoloads
 	var mod_loader: Node = null
 	var main_loop: MainLoop = Engine.get_main_loop()

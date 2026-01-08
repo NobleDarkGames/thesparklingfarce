@@ -101,7 +101,7 @@ var status_effect_registry: StatusEffectRegistry = StatusEffectRegistryClass.new
 
 # Legacy tileset registry for backwards compatibility
 # TODO: Migrate to tileset_registry and remove this
-var _tileset_registry: Dictionary = {}
+var _tileset_registry: Dictionary[String, TileSet] = {}
 
 ## Loading state tracking
 var _is_loading: bool = false
@@ -177,6 +177,9 @@ func _discover_and_load_mods_async() -> void:
 	# Load each mod asynchronously
 	for manifest: ModManifest in resolved_mods:
 		await _load_mod_async(manifest)
+		# Guard against being freed during async load
+		if not is_instance_valid(self):
+			return
 
 	_is_loading = false
 
@@ -411,6 +414,9 @@ func _wait_for_threaded_loads(paths: Array[String]) -> void:
 				push_warning("ModLoader: Removed from tree during async load, aborting wait")
 				return
 			await get_tree().process_frame
+			# Guard against being freed during await
+			if not is_instance_valid(self):
+				return
 
 
 ## Load all .tres and .json resources from a directory
