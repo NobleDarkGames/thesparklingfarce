@@ -418,7 +418,8 @@ func _create_placeholder_sprite(unit: Unit) -> Control:
 	panel.custom_minimum_size = Vector2(180, 180)
 
 	var style_box: StyleBoxFlat = StyleBoxFlat.new()
-	style_box.bg_color = _get_class_color(unit)
+	# Simple faction-based color for placeholder sprites
+	style_box.bg_color = Color(0.2, 0.3, 0.5) if unit.is_player_unit() else Color(0.5, 0.2, 0.2)
 	style_box.border_width_left = 4
 	style_box.border_width_right = 4
 	style_box.border_width_top = 4
@@ -494,24 +495,6 @@ func _create_real_sprite(unit: Unit) -> Control:
 	container.add_child(sprite_wrapper)
 
 	return container
-
-
-## Get color based on character class (use stats.class_data for promoted characters)
-func _get_class_color(unit: Unit) -> Color:
-	var char_class_name: String = unit.stats.class_data.display_name.to_lower() if unit.stats.class_data else "unknown"
-
-	if "warrior" in char_class_name or "knight" in char_class_name or "fighter" in char_class_name:
-		return Color(0.8, 0.2, 0.2)
-	elif "mage" in char_class_name or "wizard" in char_class_name or "sorcerer" in char_class_name:
-		return Color(0.2, 0.2, 0.8)
-	elif "healer" in char_class_name or "priest" in char_class_name or "cleric" in char_class_name:
-		return Color(0.2, 0.8, 0.2)
-	elif "archer" in char_class_name or "ranger" in char_class_name or "bow" in char_class_name:
-		return Color(0.6, 0.4, 0.2)
-	elif "thief" in char_class_name or "rogue" in char_class_name or "ninja" in char_class_name:
-		return Color(0.5, 0.3, 0.7)
-	else:
-		return Color(0.5, 0.5, 0.5)
 
 
 # =============================================================================
