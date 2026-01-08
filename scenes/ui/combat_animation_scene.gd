@@ -496,9 +496,9 @@ func _create_real_sprite(unit: Unit) -> Control:
 	return container
 
 
-## Get color based on character class
+## Get color based on character class (use stats.class_data for promoted characters)
 func _get_class_color(unit: Unit) -> Color:
-	var char_class_name: String = unit.character_data.character_class.display_name.to_lower() if unit.character_data.character_class else "unknown"
+	var char_class_name: String = unit.stats.class_data.display_name.to_lower() if unit.stats.class_data else "unknown"
 
 	if "warrior" in char_class_name or "knight" in char_class_name or "fighter" in char_class_name:
 		return Color(0.8, 0.2, 0.2)

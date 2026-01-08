@@ -55,8 +55,8 @@ func show_unit_stats(unit: Unit) -> void:
 	# Update name
 	unit_name_label.text = unit.character_data.character_name
 
-	# Update class and level
-	class_label.text = unit.character_data.character_class.display_name if unit.character_data.character_class else "Unknown"
+	# Update class and level (use stats.class_data for promoted characters)
+	class_label.text = unit.stats.class_data.display_name if unit.stats.class_data else "Unknown"
 	level_label.text = "Lv %d" % unit.stats.level
 
 	# Show faction (ALLY or ENEMY)
