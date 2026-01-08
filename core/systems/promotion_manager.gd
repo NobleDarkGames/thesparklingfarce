@@ -463,7 +463,12 @@ func _apply_stat_bonuses(unit: Unit, bonuses: Dictionary) -> void:
 
 	for stat_name: String in bonuses.keys():
 		var bonus_variant: Variant = bonuses[stat_name]
-		var bonus: int = bonus_variant if bonus_variant is int else 0
+		# MED-006: Handle float case in bonus conversion
+		var bonus: int = 0
+		if bonus_variant is int:
+			bonus = bonus_variant
+		elif bonus_variant is float:
+			bonus = int(bonus_variant)
 
 		match stat_name:
 			"hp":

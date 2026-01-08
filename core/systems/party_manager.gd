@@ -23,7 +23,7 @@ extends Node
 signal item_transferred(from_uid: String, to_uid: String, item_id: String)
 
 ## Emitted when a party member's inventory changes
-@warning_ignore("unused_signal")
+## MED-002: Signal is now emitted when inventory changes
 signal member_inventory_changed(character_uid: String)
 
 ## Emitted when a party member departs (removed with preserved data)
@@ -655,7 +655,11 @@ func remove_item_from_member(character_uid: String, item_id: String) -> bool:
 		push_warning("PartyManager: Cannot remove item - no save data for character_uid: %s" % character_uid)
 		return false
 
-	return save_data.remove_item_from_inventory(item_id)
+	var result: bool = save_data.remove_item_from_inventory(item_id)
+	# MED-002: Emit signal when inventory changes
+	if result:
+		member_inventory_changed.emit(character_uid)
+	return result
 
 
 ## Add an item to a party member's inventory
@@ -668,7 +672,11 @@ func add_item_to_member(character_uid: String, item_id: String) -> bool:
 		push_warning("PartyManager: Cannot add item - no save data for character_uid: %s" % character_uid)
 		return false
 
-	return save_data.add_item_to_inventory(item_id)
+	var result: bool = save_data.add_item_to_inventory(item_id)
+	# MED-002: Emit signal when inventory changes
+	if result:
+		member_inventory_changed.emit(character_uid)
+	return result
 
 
 ## Transfer an item between two party members
@@ -701,8 +709,11 @@ func transfer_item_between_members(from_uid: String, to_uid: String, item_id: St
 	if not from_save.has_item_in_inventory(item_id):
 		return {"success": false, "error": "Item not in source inventory"}
 
+	# MED-003: Define constant for default max inventory slots
+	const DEFAULT_MAX_INVENTORY_SLOTS: int = 4
+
 	# Check destination has room
-	var max_slots: int = 4
+	var max_slots: int = DEFAULT_MAX_INVENTORY_SLOTS
 	if ModLoader and ModLoader.inventory_config:
 		max_slots = ModLoader.inventory_config.get_max_slots()
 

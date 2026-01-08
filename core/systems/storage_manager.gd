@@ -182,9 +182,14 @@ func get_depot_contents_grouped() -> Dictionary:
 		var item_type_name: String = "unknown"
 
 		if item_data:
-			# Convert enum to string name for grouping
-			var key_name: String = ItemData.ItemType.keys()[item_data.item_type]
-			item_type_name = key_name.to_lower()
+			# MED-005: Add bounds check for enum index access
+			var enum_keys: PackedStringArray = ItemData.ItemType.keys()
+			var type_index: int = item_data.item_type
+			if type_index >= 0 and type_index < enum_keys.size():
+				var key_name: String = enum_keys[type_index]
+				item_type_name = key_name.to_lower()
+			else:
+				push_warning("StorageManager: Invalid item_type index %d for item '%s'" % [type_index, item_id])
 
 		if item_type_name not in grouped:
 			grouped[item_type_name] = []

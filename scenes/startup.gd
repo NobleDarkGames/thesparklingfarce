@@ -14,12 +14,20 @@ extends Node
 
 const SCENE_ID: String = "opening_cinematic"
 const CORE_OPENING_CINEMATIC: String = "res://scenes/cinematics/opening_cinematic_stage.tscn"
+## Timeout for fade wait loop to prevent infinite hangs (in frames, ~5 seconds at 60fps)
+const FADE_WAIT_TIMEOUT_FRAMES: int = 300
+## Duration for fade to black transition (seconds)
+const FADE_TO_BLACK_DURATION: float = 0.5
+## Brief pause before menu transition (seconds)
+const PRE_MENU_PAUSE_DURATION: float = 0.3
 
 var _cinematic_scene: Node = null
 
 
 func _ready() -> void:
-	# Wait for autoloads to initialize
+	# Wait two frames for autoloads to fully initialize.
+	# Frame 1: Autoload _ready() functions complete
+	# Frame 2: Any deferred initialization in autoloads settles
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -45,8 +53,11 @@ func _load_opening_cinematic() -> void:
 
 	# Instantiate and add as child
 	_cinematic_scene = scene_resource.instantiate()
+	if not _cinematic_scene:
+		push_error("Startup: Failed to instantiate cinematic scene")
+		_skip_to_main_menu()
+		return
 	add_child(_cinematic_scene)
-	print("Startup: Loaded opening cinematic from: %s" % cinematic_scene_path)
 
 
 ## Get the path to the opening cinematic scene (mod or core)
@@ -55,28 +66,35 @@ func _get_opening_cinematic_path() -> String:
 	if ModLoader and ModLoader.registry:
 		var mod_scene_path: String = ModLoader.registry.get_scene_path(SCENE_ID)
 		if not mod_scene_path.is_empty() and ResourceLoader.exists(mod_scene_path):
-			print("Startup: Using mod opening cinematic: %s" % mod_scene_path)
 			return mod_scene_path
 
 	# Fall back to core scene
-	print("Startup: Using core opening cinematic")
 	return CORE_OPENING_CINEMATIC
 
 
 ## Handle cinematic completion - transition to main menu
 func _on_cinematic_ended(_cinematic_id: String) -> void:
-	print("Startup: Cinematic complete, transitioning to main menu...")
-
-	# Wait for any pending fade to complete
+	# Wait for any pending fade to complete (with timeout to prevent infinite loop)
+	var frames_waited: int = 0
 	while SceneManager.is_fading:
 		await get_tree().process_frame
+		if not is_instance_valid(self):
+			return
+		frames_waited += 1
+		if frames_waited >= FADE_WAIT_TIMEOUT_FRAMES:
+			push_warning("Startup: Fade wait timed out after %d frames" % frames_waited)
+			break
 
 	# Ensure screen is black before transition
 	if not SceneManager.is_faded_to_black:
-		await SceneManager.fade_to_black(0.5)
+		await SceneManager.fade_to_black(FADE_TO_BLACK_DURATION)
+		if not is_instance_valid(self):
+			return
 
 	# Brief pause
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(PRE_MENU_PAUSE_DURATION).timeout
+	if not is_instance_valid(self):
+		return
 
 	# Transition to main menu
 	SceneManager.goto_main_menu(true)
@@ -89,4 +107,6 @@ func _skip_to_main_menu() -> void:
 	if CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
 		CinematicsManager.cinematic_ended.disconnect(_on_cinematic_ended)
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	SceneManager.goto_main_menu(false)

@@ -715,14 +715,18 @@ func get_promotable_characters() -> Array[String]:
 	return result
 
 
+## LOW-003: Constant for promotion cost formula
+const PROMOTION_COST_PER_LEVEL: int = 100
+
 ## Calculate promotion cost based on character level
 ## SF2-authentic: level * 100 gold
 func _get_promotion_cost(level: int) -> int:
-	return level * 100
+	return level * PROMOTION_COST_PER_LEVEL
 
 
 ## Build a temporary Unit node for PromotionManager operations
 ## PromotionManager requires Unit with stats and character_data
+## HIGH-007: Caller MUST call unit.queue_free() when done to prevent memory leak
 func _build_unit_for_promotion(character_uid: String, save_data: CharacterSaveData) -> Unit:
 	# Get CharacterData from PartyManager
 	var character_data: CharacterData = null
@@ -738,9 +742,10 @@ func _build_unit_for_promotion(character_uid: String, save_data: CharacterSaveDa
 	var unit: Unit = Unit.new()
 	unit.character_data = character_data
 
-	# Create UnitStats from save data - wrap in try to ensure cleanup on error
+	# Create UnitStats from save data
 	var stats: UnitStats = UnitStats.new()
 	if not stats:
+		# HIGH-007: Ensure unit is freed on error path
 		unit.queue_free()
 		return null
 

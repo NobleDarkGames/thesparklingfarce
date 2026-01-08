@@ -134,6 +134,11 @@ func award_combat_xp(attacker: Unit, defender: Unit, damage_dealt: int, got_kill
 	# Calculate attacker's XP
 	var attacker_xp: int = 0
 
+	# HIGH-005: Guard against division by zero with max_hp
+	if defender.stats.max_hp <= 0:
+		push_warning("ExperienceManager: Defender has invalid max_hp <= 0")
+		return
+
 	# Damage XP: proportional to damage dealt, with minimum floor
 	if damage_dealt > 0:
 		var damage_ratio: float = float(damage_dealt) / float(defender.stats.max_hp)
@@ -211,6 +216,10 @@ func _get_units_in_formation_radius(center_unit: Unit) -> Array[Unit]:
 	var all_units: Array = TurnManager.all_units
 
 	for unit: Unit in all_units:
+		# HIGH-004: Validate unit is still valid in iteration loop
+		if not is_instance_valid(unit):
+			continue
+
 		# Skip self
 		if unit == center_unit:
 			continue
@@ -256,6 +265,10 @@ func award_support_xp(supporter: Unit, action_type: String, target: Unit, amount
 	match action_type:
 		"heal":
 			if target == null or target.stats == null:
+				return
+			# HIGH-005: Guard against division by zero with max_hp
+			if target.stats.max_hp <= 0:
+				push_warning("ExperienceManager: Target has invalid max_hp <= 0")
 				return
 			# Base XP + ratio bonus
 			var heal_ratio: float = float(amount) / float(target.stats.max_hp)
@@ -485,6 +498,9 @@ func _get_party_average_level() -> float:
 
 	var all_units: Array = TurnManager.all_units
 	for unit: Unit in all_units:
+		# HIGH-004: Validate unit is still valid in iteration loop
+		if not is_instance_valid(unit):
+			continue
 		if unit.faction == "player" and unit.stats != null and unit.stats.is_alive():
 			total_level += unit.stats.level
 			count += 1

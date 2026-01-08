@@ -105,13 +105,16 @@ func _ready() -> void:
 	_register_built_in_spawnable_types()
 
 	# Connect to DialogManager signals
+	# MED-001: Add is_connected() check before connecting signals
 	if DialogManager:
-		DialogManager.dialog_ended.connect(_on_dialog_ended)
+		if not DialogManager.dialog_ended.is_connected(_on_dialog_ended):
+			DialogManager.dialog_ended.connect(_on_dialog_ended)
 
 	# Connect to SceneManager to clean up on scene transitions
 	# This handles cases where scene changes during a cinematic (e.g., door trigger)
 	if SceneManager:
-		SceneManager.scene_transition_completed.connect(_on_scene_transition)
+		if not SceneManager.scene_transition_completed.is_connected(_on_scene_transition):
+			SceneManager.scene_transition_completed.connect(_on_scene_transition)
 
 
 func _process(delta: float) -> void:

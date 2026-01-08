@@ -192,6 +192,9 @@ func start_unit_turn(unit: Unit) -> void:
 		# Wait for camera pan to complete (signal handlers start the camera movement)
 		if battle_camera:
 			await battle_camera.movement_completed
+			# HIGH-002: Validate unit still valid after await on camera
+			if not is_instance_valid(unit):
+				return
 
 		# Now delegate to AIController
 		await AIController.process_enemy_turn(unit)

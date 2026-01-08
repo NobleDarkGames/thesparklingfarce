@@ -143,7 +143,7 @@ func _initial_activation() -> void:
 		await get_tree().process_frame
 		_try_activate()
 		if _current_hero:
-			print("[ExplorationUIManager] Initial activation via fallback (attempt %d)" % [attempt + 1])
+			# HIGH-001: Remove debug print in production
 			return
 
 	# Not finding a hero immediately is OK - the signal will handle it when ready
@@ -212,7 +212,7 @@ func _connect_to_map_template() -> void:
 func _on_hero_ready(hero_node: Node) -> void:
 	if hero_node and "ui_controller" in hero_node:
 		_activate(hero_node)
-		print("[ExplorationUIManager] Hero ready signal received - input connected")
+		# HIGH-001: Remove debug print in production
 
 
 func _on_battle_started(_battle_data: BattleData) -> void:

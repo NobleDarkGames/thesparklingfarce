@@ -1512,6 +1512,9 @@ func _on_unit_died(unit: Unit) -> void:
 	# Persist death to CharacterSaveData for player units
 	_persist_unit_death(unit)
 
+	# HIGH-006: Invalidate party level cache when units die
+	ExperienceManager.invalidate_party_level_cache()
+
 	# Visual feedback (fade out) - skip in headless mode
 	if "modulate" in unit and not TurnManager.is_headless:
 		var tween: Tween = create_tween()
@@ -1605,7 +1608,9 @@ func _show_victory_screen() -> bool:
 	victory_screen.show_victory(rewards.gold)
 	await victory_screen.result_dismissed
 
-	victory_screen.queue_free()
+	# HIGH-003: Validate state after await on UI signal
+	if is_instance_valid(victory_screen):
+		victory_screen.queue_free()
 	return false
 
 
@@ -1658,7 +1663,10 @@ func _show_defeat_screen() -> bool:
 
 	defeat_screen.show_defeat(hero_name)
 	await defeat_screen.result_dismissed
-	defeat_screen.queue_free()
+
+	# HIGH-003: Validate state after await on UI signal
+	if is_instance_valid(defeat_screen):
+		defeat_screen.queue_free()
 
 	# SF2-authentic: defeat always continues (player revives at last safe location)
 	return false
@@ -1711,7 +1719,9 @@ func _process_level_up_queue() -> void:
 	celebration.show_level_up(data.unit, data.old_level, data.new_level, data.stat_increases)
 	await celebration.celebration_dismissed
 
-	celebration.queue_free()
+	# HIGH-003: Validate state after await on UI signal
+	if is_instance_valid(celebration):
+		celebration.queue_free()
 
 	# Process next in queue
 	_process_level_up_queue()
@@ -1763,7 +1773,9 @@ func _show_combat_results() -> void:
 	results_panel.show_results()
 	await results_panel.results_dismissed
 
-	results_panel.queue_free()
+	# HIGH-003: Validate state after await on UI signal
+	if is_instance_valid(results_panel):
+		results_panel.queue_free()
 
 
 ## Clean up battle

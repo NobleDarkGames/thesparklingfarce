@@ -24,6 +24,10 @@
 ## - Action Menu: Arrow keys to select, Enter to confirm
 extends Node2D
 
+## Grid defaults for maps with empty/invalid used_rect
+const DEFAULT_CELL_SIZE: int = 32
+const DEFAULT_GRID_SIZE: Vector2i = Vector2i(20, 11)
+
 # Preload scenes
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
@@ -55,28 +59,21 @@ var _choice_selector: ChoiceSelector = null
 var _debug_visible: bool = false  # Debug display toggle (F3)
 var _map_instance: Node2D = null  # Instanced map scene
 var _map_node: Node2D = null  # The active Map node (from loaded map scene)
+var _debug_label: Label = null  # Cached debug label reference
 
 
 ## Load and integrate the map scene from battle_data
 func _load_map_scene() -> bool:
-	print("[DEBUG] _load_map_scene: START")
 	# Validate map_scene exists
 	if not battle_data.map_scene:
 		push_error("BattleLoader: battle_data.map_scene is not set!")
 		return false
 
-	print("[DEBUG] _load_map_scene: Instantiating map scene: %s" % battle_data.map_scene.resource_path)
 	# Instance the map scene
 	_map_instance = battle_data.map_scene.instantiate()
 	if not _map_instance:
 		push_error("BattleLoader: Failed to instantiate map_scene")
 		return false
-	var script_path: String = _map_instance.get_script().resource_path if _map_instance.get_script() else "none"
-	print("[DEBUG] _load_map_scene: Map instance created, type: %s, script: %s" % [_map_instance.get_class(), script_path])
-	var child_names: PackedStringArray = PackedStringArray()
-	for c: Node in _map_instance.get_children():
-		child_names.append(c.name)
-	print("[DEBUG] _load_map_scene: Children: %s" % str(child_names))
 
 	# Find the Map node in the instanced scene
 	var map_node: Node2D = _map_instance.get_node_or_null("Map")
@@ -88,7 +85,6 @@ func _load_map_scene() -> bool:
 			push_error("BattleLoader: map_scene has no 'Map' node or 'GroundLayer'")
 			_map_instance.queue_free()
 			return false
-	print("[DEBUG] _load_map_scene: Found map_node")
 
 	# Find required layers
 	_ground_layer = map_node.get_node_or_null("GroundLayer") as TileMapLayer
@@ -138,25 +134,21 @@ func _ready() -> void:
 		push_error("BattleLoader: No battle_data assigned! Set the 'battle_data' export variable in the Inspector.")
 		return
 
-	print("[FLOW] BattleLoader: %s" % battle_data.battle_name)
-
 	# Load map from battle_data.map_scene
-	print("[DEBUG] BattleLoader: About to call _load_map_scene()")
 	if not _load_map_scene():
 		push_error("BattleLoader: Failed to load map scene")
 		return
-	print("[DEBUG] BattleLoader: _load_map_scene() completed")
 
 	# Calculate grid size from tilemap used rect
 	var grid_resource: Grid = Grid.new()
-	grid_resource.cell_size = 32
+	grid_resource.cell_size = DEFAULT_CELL_SIZE
 
 	var used_rect: Rect2i = _ground_layer.get_used_rect()
 	if used_rect.size.x > 0 and used_rect.size.y > 0:
 		grid_resource.grid_size = used_rect.size
 	else:
 		# Fallback for empty maps - use a default size
-		grid_resource.grid_size = Vector2i(20, 11)
+		grid_resource.grid_size = DEFAULT_GRID_SIZE
 
 	GridManager.setup_grid(grid_resource, _ground_layer)
 	GridManager.set_highlight_layer(_highlight_layer)
@@ -217,21 +209,27 @@ func _ready() -> void:
 			var neutral_unit: Unit = _spawn_unit(character, neutral_pos, "neutral", ai_behavior)
 			_neutral_units.append(neutral_unit)
 
-	print("[FLOW] Units: %d player, %d enemy, %d neutral" % [
-		_player_units.size(), _enemy_units.size(), _neutral_units.size()])
-
 	# Setup action menu UI BEFORE starting battle
 	_action_menu = ActionMenuScene.instantiate()
+	if not _action_menu:
+		push_error("BattleLoader: Failed to instantiate ActionMenu")
+		return
 	$UI.add_child(_action_menu)
 	InputManager.set_action_menu(_action_menu)
 
 	# Setup item menu UI
 	_item_menu = ItemMenuScene.instantiate()
+	if not _item_menu:
+		push_error("BattleLoader: Failed to instantiate ItemMenu")
+		return
 	$UI.add_child(_item_menu)
 	InputManager.set_item_menu(_item_menu)
 
 	# Setup spell menu UI
 	_spell_menu = SpellMenuScene.instantiate()
+	if not _spell_menu:
+		push_error("BattleLoader: Failed to instantiate SpellMenu")
+		return
 	$UI.add_child(_spell_menu)
 	InputManager.set_spell_menu(_spell_menu)
 
@@ -248,6 +246,9 @@ func _ready() -> void:
 
 	# Setup grid cursor
 	_grid_cursor = GridCursorScene.instantiate()
+	if not _grid_cursor:
+		push_error("BattleLoader: Failed to instantiate GridCursor")
+		return
 	_map_node.add_child(_grid_cursor)
 	_grid_cursor.hide_cursor()  # Hidden until player turn
 	InputManager.grid_cursor = _grid_cursor
@@ -260,9 +261,18 @@ func _ready() -> void:
 	_terrain_panel = $UI/HUD/TerrainInfoPanel
 	_combat_forecast_panel = $UI/HUD/CombatForecastPanel
 	_turn_order_panel = $UI/HUD/TurnOrderPanel
+	_debug_label = $UI/HUD/DebugLabel
+
+	# Validate required UI panels exist
+	if not _stats_panel or not _terrain_panel or not _combat_forecast_panel or not _turn_order_panel:
+		push_error("BattleLoader: Missing required UI panels in HUD")
+		return
 
 	# Get reference to camera
 	_camera = $Camera
+	if not _camera:
+		push_error("BattleLoader: Missing Camera node")
+		return
 
 	# Set camera reference in InputManager for inspection mode
 	InputManager.camera = _camera
@@ -308,6 +318,9 @@ func _ready() -> void:
 	if battle_data.pre_battle_dialogue:
 		if DialogManager.start_dialog_from_resource(battle_data.pre_battle_dialogue):
 			await DialogManager.dialog_ended
+			# Scene may have been freed during dialogue
+			if not is_instance_valid(self):
+				return
 
 	# Start turn-based battle (this will emit signals immediately)
 	var all_units: Array[Unit] = _player_units + _enemy_units + _neutral_units
@@ -356,9 +369,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var key_event: InputEventKey = event
 		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_F3:
 			_debug_visible = not _debug_visible
-			var debug_label: Label = $UI/HUD/DebugLabel
-			if debug_label:
-				debug_label.visible = _debug_visible
+			if _debug_label:
+				_debug_label.visible = _debug_visible
 
 
 func _process(_delta: float) -> void:
@@ -376,49 +388,49 @@ func _process(_delta: float) -> void:
 				_camera.set_target_position(active_unit.position)
 
 	# Early return if debug label is hidden (optimization)
-	if not _debug_visible:
+	if not _debug_visible or not _debug_label:
 		return
 
 	# Update debug label (visible since we passed the early return check)
-	var debug_label: Label = $UI/HUD/DebugLabel
-	if not debug_label:
-		return
-
-	debug_label.visible = true
+	_debug_label.visible = true
 	var mouse_world: Vector2 = get_global_mouse_position()
 	var mouse_cell: Vector2i = GridManager.world_to_cell(mouse_world)
 
-	debug_label.text = "=== DEBUG (F3) ===\n"
-	debug_label.text += "Battle: %s\n" % battle_data.battle_name
-	debug_label.text += "Cell: %s\n" % mouse_cell
-	debug_label.text += "FPS: %d\n" % Engine.get_frames_per_second()
+	# Build debug text using PackedStringArray to reduce GC pressure
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append("=== DEBUG (F3) ===")
+	lines.append("Battle: %s" % battle_data.battle_name)
+	lines.append("Cell: %s" % mouse_cell)
+	lines.append("FPS: %d" % Engine.get_frames_per_second())
 
 	if active_unit:
-		debug_label.text += "Active: %s\n" % UnitUtils.get_display_name(active_unit)
+		lines.append("Active: %s" % UnitUtils.get_display_name(active_unit))
 
-	debug_label.text += "\n--- Units ---\n"
+	lines.append("")
+	lines.append("--- Units ---")
 	for unit: Unit in _player_units:
 		if unit.is_alive():
-			debug_label.text += "P: %s HP:%d/%d\n" % [
+			lines.append("P: %s HP:%d/%d" % [
 				UnitUtils.get_display_name(unit).left(8),
 				unit.stats.current_hp,
 				unit.stats.max_hp
-			]
+			])
 
 	for unit: Unit in _enemy_units:
 		if unit.is_alive():
-			debug_label.text += "E: %s HP:%d/%d\n" % [
+			lines.append("E: %s HP:%d/%d" % [
 				UnitUtils.get_display_name(unit).left(8),
 				unit.stats.current_hp,
 				unit.stats.max_hp
-			]
+			])
+
+	_debug_label.text = "\n".join(lines)
 
 
 ## TurnManager signal handlers
 
 ## Called when a new turn cycle begins (all units get new turn priorities)
 func _on_turn_cycle_started(turn_number: int) -> void:
-	print("[FLOW] Turn cycle: %d" % turn_number)
 
 	# Show turn order panel on first turn cycle
 	if turn_number == 1:
@@ -426,6 +438,8 @@ func _on_turn_cycle_started(turn_number: int) -> void:
 
 
 func _on_player_turn_started(unit: Unit) -> void:
+	if not is_instance_valid(unit):
+		return
 	unit.show_selection()
 
 	# Move camera to active unit
@@ -449,6 +463,8 @@ func _on_player_turn_started(unit: Unit) -> void:
 
 
 func _on_enemy_turn_started(unit: Unit) -> void:
+	if not is_instance_valid(unit):
+		return
 	unit.show_selection()
 
 	# Move camera to active unit
@@ -468,6 +484,8 @@ func _on_enemy_turn_started(unit: Unit) -> void:
 
 
 func _on_unit_turn_ended(unit: Unit) -> void:
+	if not is_instance_valid(unit):
+		return
 	unit.hide_selection()
 
 	# Disconnect from cell_entered signal
@@ -511,3 +529,25 @@ func _exit_tree() -> void:
 	# Clear DialogManager reference to avoid dangling pointer
 	if DialogManager.dialog_box == _dialog_box:
 		DialogManager.dialog_box = null
+
+	# Disconnect TurnManager signals
+	if TurnManager.turn_cycle_started.is_connected(_on_turn_cycle_started):
+		TurnManager.turn_cycle_started.disconnect(_on_turn_cycle_started)
+	if TurnManager.player_turn_started.is_connected(_on_player_turn_started):
+		TurnManager.player_turn_started.disconnect(_on_player_turn_started)
+	if TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
+		TurnManager.enemy_turn_started.disconnect(_on_enemy_turn_started)
+	if TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
+		TurnManager.unit_turn_ended.disconnect(_on_unit_turn_ended)
+	if TurnManager.battle_ended.is_connected(_on_battle_ended):
+		TurnManager.battle_ended.disconnect(_on_battle_ended)
+
+	# Disconnect BattleManager signals
+	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
+		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Disconnect InputManager signals from BattleManager
+	if InputManager.action_selected.is_connected(BattleManager._on_action_selected):
+		InputManager.action_selected.disconnect(BattleManager._on_action_selected)
+	if InputManager.target_selected.is_connected(BattleManager._on_target_selected):
+		InputManager.target_selected.disconnect(BattleManager._on_target_selected)

@@ -147,18 +147,23 @@ func _initialize() -> void:
 	_load_caravan_config()
 
 	# Connect to scene changes
+	# MED-004: Add is_connected() check before connecting signals
 	if SceneManager:
 		if SceneManager.has_signal("scene_transition_completed"):
-			SceneManager.scene_transition_completed.connect(_on_scene_changed)
+			if not SceneManager.scene_transition_completed.is_connected(_on_scene_changed):
+				SceneManager.scene_transition_completed.connect(_on_scene_changed)
 		if SceneManager.has_signal("scene_transition_started"):
-			SceneManager.scene_transition_started.connect(_on_scene_transition_started)
+			if not SceneManager.scene_transition_started.is_connected(_on_scene_transition_started):
+				SceneManager.scene_transition_started.connect(_on_scene_transition_started)
 
 	# Connect to battle state changes
 	if BattleManager:
 		if BattleManager.has_signal("battle_started"):
-			BattleManager.battle_started.connect(_on_battle_started)
+			if not BattleManager.battle_started.is_connected(_on_battle_started):
+				BattleManager.battle_started.connect(_on_battle_started)
 		if BattleManager.has_signal("battle_ended"):
-			BattleManager.battle_ended.connect(_on_battle_ended)
+			if not BattleManager.battle_ended.is_connected(_on_battle_ended):
+				BattleManager.battle_ended.connect(_on_battle_ended)
 
 	_initialized = true
 
@@ -323,6 +328,9 @@ func _on_rest_requested() -> void:
 		_main_menu.show_message("Party fully healed!")
 		# Delay close to let user see message
 		await get_tree().create_timer(1.0).timeout
+		# CRIT-001: Validate _main_menu still valid after await
+		if not is_instance_valid(_main_menu):
+			return
 	close_menu()
 
 
@@ -449,6 +457,10 @@ func _on_battle_ended(_victory: bool) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame  # Extra frame for safety
 
+	# CRIT-004: Validate state after double await - scene may have changed
+	if not is_inside_tree():
+		return
+
 	# Check if caravan is unlocked
 	if GameState and not GameState.has_flag("caravan_unlocked"):
 		return
@@ -532,7 +544,8 @@ func _despawn_caravan() -> void:
 
 
 func _save_caravan_position() -> void:
-	if _caravan_instance:
+	# MED-007: Use is_instance_valid for proper null check
+	if is_instance_valid(_caravan_instance):
 		_saved_grid_position = _caravan_instance.get_grid_position()
 		_has_saved_position = true
 

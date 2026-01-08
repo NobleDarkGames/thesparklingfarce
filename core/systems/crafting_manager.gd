@@ -197,19 +197,22 @@ func craft_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null, choic
 		craft_failed.emit(recipe, result.error)
 		return result
 
-	# 2. Deduct gold (safe to proceed now)
-	_deduct_gold(modified_cost)
-	result.gold_spent = modified_cost
+	# HIGH-008: Deduct materials FIRST, then gold
+	# This prevents gold loss if material removal fails
 
-	# 3. Deduct materials
+	# 2. Deduct materials
 	for input: Dictionary in recipe.inputs:
 		var material_id: String = input.get("material_id", "")
 		var qty: int = input.get("quantity", 1)
 		_remove_materials(material_id, qty)
 
-	# 4. For UPGRADE mode, also remove the base item
+	# 3. For UPGRADE mode, also remove the base item
 	if recipe.output_mode == CraftingRecipeData.OutputMode.UPGRADE:
 		_remove_materials(recipe.upgrade_base_item_id, 1)
+
+	# 4. Deduct gold (after materials successfully removed)
+	_deduct_gold(modified_cost)
+	result.gold_spent = modified_cost
 
 	# 5. Grant output item (to caravan) - should always succeed after pre-flight
 	var add_success: bool = _add_item_to_caravan(output_item_id)

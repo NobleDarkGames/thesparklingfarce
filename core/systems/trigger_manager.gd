@@ -26,6 +26,15 @@ signal door_transition_completed(spawn_point_id: String)
 ## Preload TransitionContext for door transitions
 const TransitionContext = preload("res://core/resources/transition_context.gd")
 
+## LOW-001: Constants for trigger type strings
+const TRIGGER_TYPE_BATTLE: String = "battle"
+const TRIGGER_TYPE_DIALOG: String = "dialog"
+const TRIGGER_TYPE_CHEST: String = "chest"
+const TRIGGER_TYPE_DOOR: String = "door"
+const TRIGGER_TYPE_CUTSCENE: String = "cutscene"
+const TRIGGER_TYPE_TRANSITION: String = "transition"
+const TRIGGER_TYPE_CUSTOM: String = "custom"
+
 ## Track connected triggers to avoid duplicate connections
 var connected_triggers: Array[Node] = []
 
@@ -45,11 +54,19 @@ func _connect_to_scene_manager() -> void:
 
 ## Called when a scene transition completes
 func _on_scene_changed(_scene_path: String) -> void:
+	# CRIT-002: Store scene path before await to verify it hasn't changed
+	var expected_scene: String = _scene_path
+
 	# Clear old connections
 	_disconnect_all_triggers()
 
 	# Wait one frame for scene to fully initialize
 	await get_tree().process_frame
+
+	# CRIT-002: Verify scene hasn't changed during await
+	var current_scene: Node = get_tree().current_scene
+	if current_scene and current_scene.scene_file_path != expected_scene:
+		return  # Scene changed during await, abort
 
 	# Find and connect to all triggers in the new scene
 	_connect_to_scene_triggers()
@@ -113,20 +130,21 @@ func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
 	var type_name: String = _get_trigger_type_string(trigger)
 
 	# Route to appropriate handler based on type string
+	# LOW-001: Use constants for trigger type strings
 	match type_name:
-		"battle":
+		TRIGGER_TYPE_BATTLE:
 			_handle_battle_trigger(trigger, player)
-		"dialog":
+		TRIGGER_TYPE_DIALOG:
 			_handle_dialog_trigger(trigger, player)
-		"chest":
+		TRIGGER_TYPE_CHEST:
 			_handle_chest_trigger(trigger, player)
-		"door":
+		TRIGGER_TYPE_DOOR:
 			_handle_door_trigger(trigger, player)
-		"cutscene":
+		TRIGGER_TYPE_CUTSCENE:
 			_handle_cutscene_trigger(trigger, player)
-		"transition":
+		TRIGGER_TYPE_TRANSITION:
 			_handle_transition_trigger(trigger, player)
-		"custom":
+		TRIGGER_TYPE_CUSTOM:
 			_handle_custom_trigger(trigger, player)
 		_:
 			# Check for registered custom trigger handler
@@ -198,7 +216,8 @@ func _handle_modded_trigger(trigger: Node, player: Node2D, type_name: String) ->
 ## Handle BATTLE trigger - transition to battle scene
 func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var battle_id: String = trigger_data["battle_id"] if "battle_id" in trigger_data else ""
+	# LOW-002: Use .get() with default instead of ternary pattern
+	var battle_id: String = trigger_data.get("battle_id", "")
 
 	if battle_id.is_empty():
 		push_error("TriggerManager: Battle trigger missing battle_id")
@@ -335,7 +354,11 @@ func return_to_map() -> void:
 	clear_current_battle_data()
 
 	# Transition back to map and wait for completion
-	await SceneManager.change_scene(return_scene)
+	var transition_result: Variant = await SceneManager.change_scene(return_scene)
+
+	# CRIT-003: Verify transition succeeded before emitting signal
+	if transition_result == null or (transition_result is bool and not transition_result):
+		push_warning("TriggerManager: Scene transition may have failed")
 
 	# Signal that we've returned (map scene can connect to this if needed)
 	returned_from_battle.emit()
@@ -344,7 +367,8 @@ func return_to_map() -> void:
 ## Handle DIALOG trigger - show dialogue
 func _handle_dialog_trigger(trigger: Node, _player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var dialog_id: String = trigger_data["dialog_id"] if "dialog_id" in trigger_data else ""
+	# LOW-002: Use .get() with default instead of ternary pattern
+	var dialog_id: String = trigger_data.get("dialog_id", "")
 
 	if dialog_id.is_empty():
 		push_warning("TriggerManager: Dialog trigger missing dialog_id")
@@ -380,11 +404,14 @@ func _handle_chest_trigger(trigger: Node, _player: Node2D) -> void:
 ##   requires_key: String - Item ID if door is locked
 func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var trigger_id: String = trigger.get("trigger_id") if trigger.get("trigger_id") else ""
+	# LOW-002: Use .get() with default or str() for cleaner null handling
+	var trigger_id_val: Variant = trigger.get("trigger_id")
+	var trigger_id: String = str(trigger_id_val) if trigger_id_val else ""
 
 	# Determine destination scene path
 	var destination_scene: String = ""
-	var target_map_id: String = trigger_data["target_map_id"] if "target_map_id" in trigger_data else ""
+	# LOW-002: Use .get() with default instead of ternary pattern
+	var target_map_id: String = trigger_data.get("target_map_id", "")
 
 	if not target_map_id.is_empty():
 		# New style: Look up MapMetadata from registry
