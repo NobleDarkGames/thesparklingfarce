@@ -101,7 +101,7 @@ var status_effect_registry: StatusEffectRegistry = StatusEffectRegistryClass.new
 
 # Legacy tileset registry for backwards compatibility
 # TODO: Migrate to tileset_registry and remove this
-var _tileset_registry: Dictionary[String, TileSet] = {}
+var _tileset_registry: Dictionary = {}
 
 ## Loading state tracking
 var _is_loading: bool = false
