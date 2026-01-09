@@ -77,6 +77,10 @@ var _updating_ui: bool = false
 # Track if ID should auto-generate from name (unlocked = auto-generate)
 var _id_is_locked: bool = false
 
+# Unsaved changes dialog
+var _unsaved_changes_dialog: ConfirmationDialog
+var _pending_cinematic_index: int = -1
+
 # Character, NPC, Shop, Map, Battle, and Interactable caches for pickers
 var _characters: Array[Resource] = []
 var _npcs: Array[Resource] = []
@@ -227,6 +231,9 @@ func _setup_ui() -> void:
 
 	# Right panel - Inspector
 	_setup_inspector_panel(center_hsplit)
+
+	# Create unsaved changes dialog
+	_create_unsaved_changes_dialog()
 
 
 func _setup_file_list_panel(parent: HSplitContainer) -> void:
@@ -698,6 +705,47 @@ func _add_new_command(cmd_type: String) -> void:
 	is_dirty = true
 
 
+# =============================================================================
+# Unsaved Changes Dialog
+# =============================================================================
+
+func _create_unsaved_changes_dialog() -> void:
+	_unsaved_changes_dialog = ConfirmationDialog.new()
+	_unsaved_changes_dialog.title = "Unsaved Changes"
+	_unsaved_changes_dialog.dialog_text = "You have unsaved changes. Do you want to save before switching?"
+	_unsaved_changes_dialog.ok_button_text = "Save"
+	_unsaved_changes_dialog.add_button("Don't Save", true, "discard")
+	_unsaved_changes_dialog.confirmed.connect(_on_unsaved_save_confirmed)
+	_unsaved_changes_dialog.custom_action.connect(_on_unsaved_discard)
+	_unsaved_changes_dialog.canceled.connect(_on_unsaved_canceled)
+	add_child(_unsaved_changes_dialog)
+
+
+func _on_unsaved_save_confirmed() -> void:
+	# Save current, then switch
+	_on_save()
+	if _pending_cinematic_index >= 0:
+		_perform_cinematic_selection(_pending_cinematic_index)
+		_pending_cinematic_index = -1
+
+
+func _on_unsaved_discard(_action: String) -> void:
+	# Discard changes and switch
+	is_dirty = false
+	if _pending_cinematic_index >= 0:
+		_perform_cinematic_selection(_pending_cinematic_index)
+		_pending_cinematic_index = -1
+
+
+func _on_unsaved_canceled() -> void:
+	# Reselect the current cinematic in the list
+	_pending_cinematic_index = -1
+	for i: int in range(cinematics.size()):
+		if cinematics[i].path == current_cinematic_path:
+			cinematic_list.select(i)
+			break
+
+
 ## Public refresh method for standard editor interface
 func refresh() -> void:
 	_refresh_cinematic_list()
@@ -754,6 +802,19 @@ func _scan_mod_cinematics(mod_path: String) -> void:
 
 
 func _on_cinematic_selected(index: int) -> void:
+	if index < 0 or index >= cinematics.size():
+		return
+
+	# Check for unsaved changes before switching
+	if is_dirty and not current_cinematic_path.is_empty():
+		_pending_cinematic_index = index
+		_unsaved_changes_dialog.popup_centered()
+		return
+
+	_perform_cinematic_selection(index)
+
+
+func _perform_cinematic_selection(index: int) -> void:
 	if index < 0 or index >= cinematics.size():
 		return
 
@@ -1167,6 +1228,8 @@ func _on_target_selected(item_index: int) -> void:
 	if _updating_ui or selected_command_index < 0:
 		return
 	var commands: Array = current_cinematic_data.get("commands", [])
+	if selected_command_index >= commands.size():
+		return
 	var actor_id: String = target_field.get_item_metadata(item_index)
 	commands[selected_command_index]["target"] = actor_id
 	is_dirty = true
@@ -1178,6 +1241,8 @@ func _on_param_changed(value: Variant, param_name: String) -> void:
 	if _updating_ui or selected_command_index < 0:
 		return
 	var commands: Array = current_cinematic_data.get("commands", [])
+	if selected_command_index >= commands.size():
+		return
 	if "params" not in commands[selected_command_index]:
 		commands[selected_command_index]["params"] = {}
 	commands[selected_command_index]["params"][param_name] = value

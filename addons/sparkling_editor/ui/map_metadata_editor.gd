@@ -25,6 +25,7 @@ var loaded_maps: Dictionary = {}  # map_id -> path for connection dropdowns
 # Scene Reference section
 var scene_path_edit: LineEdit
 var scene_picker_button: Button
+var scene_file_dialog: EditorFileDialog
 
 # Caravan Settings section
 var caravan_accessible_check: CheckBox
@@ -59,6 +60,10 @@ const MAP_TYPES: Array[String] = ["TOWN", "OVERWORLD", "DUNGEON", "BATTLE", "INT
 
 # Available tilesets for new maps
 var available_tilesets: Array[String] = []
+
+# Confirmation dialog for destructive actions
+var confirmation_dialog: ConfirmationDialog
+var _pending_confirmation_action: Callable
 
 
 func _init() -> void:
@@ -171,6 +176,9 @@ func _setup_ui() -> void:
 	# Create the new map dialog
 	_create_new_map_dialog()
 
+	# Create confirmation dialog for destructive actions
+	_create_confirmation_dialog()
+
 	# Scan for available tilesets
 	_scan_tilesets()
 
@@ -199,6 +207,7 @@ func _create_scene_reference_section() -> void:
 	scene_path_edit = LineEdit.new()
 	scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scene_path_edit.placeholder_text = "res://mods/mod_id/maps/scene.tscn"
+	scene_path_edit.text_changed.connect(_on_form_field_changed)
 	path_container.add_child(scene_path_edit)
 
 	scene_picker_button = Button.new()
@@ -234,10 +243,12 @@ func _create_caravan_settings_section() -> void:
 
 	caravan_accessible_check = CheckBox.new()
 	caravan_accessible_check.text = "Caravan Accessible (can interact with Caravan on this map)"
+	caravan_accessible_check.toggled.connect(_on_form_field_changed)
 	section.add_child(caravan_accessible_check)
 
 	caravan_visible_check = CheckBox.new()
 	caravan_visible_check.text = "Caravan Visible (Caravan sprite appears on map)"
+	caravan_visible_check.toggled.connect(_on_form_field_changed)
 	section.add_child(caravan_visible_check)
 
 	detail_panel.add_child(section)
@@ -281,12 +292,14 @@ func _create_edge_connections_section() -> void:
 	north_container.add_child(north_label)
 	edge_north_map_dropdown = OptionButton.new()
 	edge_north_map_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edge_north_map_dropdown.item_selected.connect(_on_form_field_changed)
 	north_container.add_child(edge_north_map_dropdown)
 	var north_spawn_label: Label = Label.new()
 	north_spawn_label.text = "Spawn:"
 	north_container.add_child(north_spawn_label)
 	edge_north_spawn_edit = LineEdit.new()
 	edge_north_spawn_edit.custom_minimum_size.x = 100
+	edge_north_spawn_edit.text_changed.connect(_on_form_field_changed)
 	north_container.add_child(edge_north_spawn_edit)
 	section.add_child(north_container)
 
@@ -298,12 +311,14 @@ func _create_edge_connections_section() -> void:
 	south_container.add_child(south_label)
 	edge_south_map_dropdown = OptionButton.new()
 	edge_south_map_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edge_south_map_dropdown.item_selected.connect(_on_form_field_changed)
 	south_container.add_child(edge_south_map_dropdown)
 	var south_spawn_label: Label = Label.new()
 	south_spawn_label.text = "Spawn:"
 	south_container.add_child(south_spawn_label)
 	edge_south_spawn_edit = LineEdit.new()
 	edge_south_spawn_edit.custom_minimum_size.x = 100
+	edge_south_spawn_edit.text_changed.connect(_on_form_field_changed)
 	south_container.add_child(edge_south_spawn_edit)
 	section.add_child(south_container)
 
@@ -315,12 +330,14 @@ func _create_edge_connections_section() -> void:
 	east_container.add_child(east_label)
 	edge_east_map_dropdown = OptionButton.new()
 	edge_east_map_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edge_east_map_dropdown.item_selected.connect(_on_form_field_changed)
 	east_container.add_child(edge_east_map_dropdown)
 	var east_spawn_label: Label = Label.new()
 	east_spawn_label.text = "Spawn:"
 	east_container.add_child(east_spawn_label)
 	edge_east_spawn_edit = LineEdit.new()
 	edge_east_spawn_edit.custom_minimum_size.x = 100
+	edge_east_spawn_edit.text_changed.connect(_on_form_field_changed)
 	east_container.add_child(edge_east_spawn_edit)
 	section.add_child(east_container)
 
@@ -332,12 +349,14 @@ func _create_edge_connections_section() -> void:
 	west_container.add_child(west_label)
 	edge_west_map_dropdown = OptionButton.new()
 	edge_west_map_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edge_west_map_dropdown.item_selected.connect(_on_form_field_changed)
 	west_container.add_child(edge_west_map_dropdown)
 	var west_spawn_label: Label = Label.new()
 	west_spawn_label.text = "Spawn:"
 	west_container.add_child(west_spawn_label)
 	edge_west_spawn_edit = LineEdit.new()
 	edge_west_spawn_edit.custom_minimum_size.x = 100
+	edge_west_spawn_edit.text_changed.connect(_on_form_field_changed)
 	west_container.add_child(edge_west_spawn_edit)
 	section.add_child(west_container)
 
@@ -461,6 +480,30 @@ func _create_new_map_dialog() -> void:
 
 
 # =============================================================================
+# Confirmation Dialog
+# =============================================================================
+
+func _create_confirmation_dialog() -> void:
+	confirmation_dialog = ConfirmationDialog.new()
+	confirmation_dialog.title = "Confirm Action"
+	confirmation_dialog.confirmed.connect(_on_confirmation_confirmed)
+	add_child(confirmation_dialog)
+
+
+func _show_confirmation(title: String, message: String, on_confirm: Callable) -> void:
+	confirmation_dialog.title = title
+	confirmation_dialog.dialog_text = message
+	_pending_confirmation_action = on_confirm
+	confirmation_dialog.popup_centered()
+
+
+func _on_confirmation_confirmed() -> void:
+	if _pending_confirmation_action.is_valid():
+		_pending_confirmation_action.call()
+	_pending_confirmation_action = Callable()
+
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 
@@ -478,6 +521,7 @@ func _create_line_edit_field(label_text: String, parent: VBoxContainer, tooltip:
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if tooltip != "":
 		edit.tooltip_text = tooltip
+	edit.text_changed.connect(_on_form_field_changed)
 	container.add_child(edit)
 
 	parent.add_child(container)
@@ -488,6 +532,11 @@ func _add_separator() -> void:
 	var sep: HSeparator = HSeparator.new()
 	sep.custom_minimum_size.y = 10
 	detail_panel.add_child(sep)
+
+
+## Called when any form field changes to mark the editor as dirty
+func _on_form_field_changed(_value: Variant = null) -> void:
+	is_dirty = true
 
 
 # =============================================================================
@@ -698,6 +747,23 @@ func _on_delete() -> void:
 		_show_errors(["No map selected"])
 		return
 
+	var map_id: String = current_map_data.get("map_id", "unknown")
+	var scene_path: String = current_map_data.get("scene_path", "")
+
+	var message: String = "Are you sure you want to delete map '%s'?\n\n" % map_id
+	message += "This will permanently delete:\n"
+	message += "  - Map metadata file (.json)\n"
+	if not scene_path.is_empty() and FileAccess.file_exists(scene_path):
+		message += "  - Map scene file (.tscn)\n"
+		var script_path: String = scene_path.replace(".tscn", ".gd")
+		if FileAccess.file_exists(script_path):
+			message += "  - Map script file (.gd)\n"
+	message += "\nThis action cannot be undone."
+
+	_show_confirmation("Delete Map", message, _perform_delete)
+
+
+func _perform_delete() -> void:
 	# Delete the JSON metadata file
 	var err: Error = DirAccess.remove_absolute(current_map_path)
 	if err != OK:
@@ -717,6 +783,11 @@ func _on_delete() -> void:
 			var script_err: Error = DirAccess.remove_absolute(script_path)
 			if script_err != OK:
 				push_warning("Failed to delete script file: %s" % script_path)
+
+	# Notify that the map was deleted
+	var map_id: String = current_map_data.get("map_id", "")
+	if not map_id.is_empty():
+		notify_resource_deleted(map_id)
 
 	current_map_path = ""
 	current_map_data = {}
@@ -1123,6 +1194,28 @@ func _validate_map_data() -> Array[String]:
 # =============================================================================
 
 func _on_browse_scene() -> void:
-	# In editor context, we cannot easily launch a file dialog
-	# Instead, show a hint about where to find scenes
-	_show_errors(["Browse not available in plugin context. Enter the scene path manually.\nFormat: res://mods/<mod_id>/maps/<scene_name>.tscn"])
+	if not scene_file_dialog:
+		scene_file_dialog = EditorFileDialog.new()
+		scene_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
+		scene_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
+		scene_file_dialog.filters = PackedStringArray(["*.tscn ; Scene Files"])
+		if not scene_file_dialog.file_selected.is_connected(_on_scene_file_selected):
+			scene_file_dialog.file_selected.connect(_on_scene_file_selected)
+		add_child(scene_file_dialog)
+
+	# Default to active mod's maps directory if available
+	var default_path: String = "res://mods/"
+	if ModLoader:
+		var active_mod: ModManifest = ModLoader.get_active_mod()
+		if active_mod:
+			var maps_dir: String = "res://mods/%s/maps/" % active_mod.mod_id
+			if DirAccess.dir_exists_absolute(maps_dir):
+				default_path = maps_dir
+
+	scene_file_dialog.current_dir = default_path
+	scene_file_dialog.popup_centered_ratio(0.7)
+
+
+func _on_scene_file_selected(path: String) -> void:
+	scene_path_edit.text = path
+	is_dirty = true

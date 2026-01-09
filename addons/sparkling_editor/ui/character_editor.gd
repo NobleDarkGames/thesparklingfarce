@@ -258,6 +258,7 @@ func _validate_resource() -> Dictionary:
 		return {valid = false, errors = ["Invalid resource type"]}
 
 	var errors: Array[String] = []
+	var warnings: Array[String] = []
 
 	if character.character_name.strip_edges().is_empty():
 		errors.append("Character name cannot be empty")
@@ -265,7 +266,14 @@ func _validate_resource() -> Dictionary:
 	if character.starting_level < 1 or character.starting_level > 99:
 		errors.append("Starting level must be between 1 and 99")
 
-	return {valid = errors.is_empty(), errors = errors}
+	# Validate class selection - required for playable characters
+	if character.character_class == null:
+		if character.unit_category == "player":
+			errors.append("Player characters must have a class assigned")
+		else:
+			warnings.append("No class assigned - character will have no abilities or stat growth")
+
+	return {valid = errors.is_empty(), errors = errors, warnings = warnings}
 
 
 ## Override: Check for references before deletion
@@ -352,6 +360,7 @@ func _add_basic_info_section() -> void:
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_edit.max_length = 64  # Reasonable limit for UI display
 	name_edit.tooltip_text = "Display name shown in menus and dialogue. Can differ from resource filename."
+	name_edit.text_changed.connect(_on_basic_field_changed)
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
 
@@ -362,6 +371,7 @@ func _add_basic_info_section() -> void:
 	class_picker.label_min_width = 120
 	class_picker.allow_none = true
 	class_picker.tooltip_text = "Determines stat growth, abilities, and equippable weapon types. E.g., Warrior, Mage, Archer."
+	class_picker.resource_selected.connect(_on_class_picker_selected)
 	section.add_child(class_picker)
 
 	# Starting Level
@@ -376,6 +386,7 @@ func _add_basic_info_section() -> void:
 	level_spin.max_value = 99
 	level_spin.value = 1
 	level_spin.tooltip_text = "Level when character joins the party. Higher = stronger starting stats. Typical: 1-5 for early game, 10-20 for late joiners."
+	level_spin.value_changed.connect(_on_basic_field_changed)
 	level_container.add_child(level_spin)
 	section.add_child(level_container)
 
@@ -387,6 +398,7 @@ func _add_basic_info_section() -> void:
 	bio_edit = TextEdit.new()
 	bio_edit.custom_minimum_size.y = 120
 	bio_edit.tooltip_text = "Background story and personality description. Shown in character status screens and recruitment scenes."
+	bio_edit.text_changed.connect(_on_basic_field_changed)
 	section.add_child(bio_edit)
 
 	detail_panel.add_child(section)
@@ -441,6 +453,7 @@ func _add_battle_configuration_section() -> void:
 	for i: int in range(categories.size()):
 		category_option.add_item(categories[i], i)
 	category_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	category_option.item_selected.connect(_on_basic_field_changed)
 	category_container.add_child(category_option)
 	section.add_child(category_container)
 
@@ -455,6 +468,7 @@ func _add_battle_configuration_section() -> void:
 	is_unique_check.button_pressed = true
 	is_unique_check.text = "This is a unique character (not a reusable template)"
 	is_unique_check.tooltip_text = "ON = named character that persists across battles (e.g., Max). OFF = generic template for spawning multiple copies (e.g., Goblin)."
+	is_unique_check.toggled.connect(_on_basic_field_changed)
 	unique_container.add_child(is_unique_check)
 	section.add_child(unique_container)
 
@@ -469,6 +483,7 @@ func _add_battle_configuration_section() -> void:
 	is_hero_check.button_pressed = false
 	is_hero_check.text = "This is the primary Hero/protagonist (only one per party)"
 	is_hero_check.tooltip_text = "The main protagonist. If this character dies, battle is lost. Only one hero per party. Enables special story triggers."
+	is_hero_check.toggled.connect(_on_basic_field_changed)
 	hero_container.add_child(is_hero_check)
 	section.add_child(hero_container)
 
@@ -483,6 +498,7 @@ func _add_battle_configuration_section() -> void:
 	is_boss_check.button_pressed = false
 	is_boss_check.text = "This is a boss enemy (allies will protect)"
 	is_boss_check.tooltip_text = "Mark as a boss enemy. Defensive AI will prioritize protecting this unit, and threat calculations are boosted."
+	is_boss_check.toggled.connect(_on_basic_field_changed)
 	boss_container.add_child(is_boss_check)
 	section.add_child(boss_container)
 
@@ -497,6 +513,7 @@ func _add_battle_configuration_section() -> void:
 	is_default_party_member_check.button_pressed = false
 	is_default_party_member_check.text = "Include in default starting party"
 	is_default_party_member_check.tooltip_text = "If ON, character joins the party at the start of a new game. Use for starting party members."
+	is_default_party_member_check.toggled.connect(_on_basic_field_changed)
 	party_member_container.add_child(is_default_party_member_check)
 	section.add_child(party_member_container)
 
@@ -510,6 +527,7 @@ func _add_battle_configuration_section() -> void:
 	default_ai_option = OptionButton.new()
 	default_ai_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	default_ai_option.tooltip_text = "AI behavior when this character is an enemy. E.g., Aggressive rushes, Cautious stays back, Healer prioritizes allies."
+	default_ai_option.item_selected.connect(_on_basic_field_changed)
 	ai_container.add_child(default_ai_option)
 	section.add_child(ai_container)
 
@@ -758,6 +776,7 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer, tooltip: Str
 	spin.value = 10
 	if not tooltip.is_empty():
 		spin.tooltip_text = tooltip
+	spin.value_changed.connect(_on_basic_field_changed)
 	container.add_child(spin)
 
 	parent.add_child(container)
@@ -1292,6 +1311,20 @@ func _generate_sprite_frames_path(character: CharacterData) -> String:
 	# Generate a unique name based on the character filename
 	var char_filename: String = char_path.get_file().get_basename()
 	return "res://mods/%s/data/sprite_frames/%s_map_sprites.tres" % [mod_name, char_filename]
+
+
+# =============================================================================
+# BASIC FIELD SIGNAL HANDLERS
+# =============================================================================
+
+## Called when any basic form field changes to mark the editor as dirty
+func _on_basic_field_changed(_value: Variant = null) -> void:
+	_mark_dirty()
+
+
+## Called when the class picker selection changes
+func _on_class_picker_selected(_metadata: Dictionary) -> void:
+	_mark_dirty()
 
 
 # =============================================================================

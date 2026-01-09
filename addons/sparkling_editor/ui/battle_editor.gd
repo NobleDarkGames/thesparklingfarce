@@ -75,9 +75,18 @@ func _ready() -> void:
 	# Declare dependencies BEFORE calling super._ready() so base class sets up tracking
 	# Note: ResourcePickers for character, party, dialogue, item auto-refresh via EditorEventBus
 	# This declaration is for completeness and documents the editor's dependencies
-	resource_dependencies = ["character", "party", "dialogue", "item"]
+	# ai_behavior is included so enemy AI dropdowns refresh when new behaviors are created
+	resource_dependencies = ["character", "party", "dialogue", "item", "ai_behavior"]
 
 	super._ready()
+
+
+## Called when a dependent resource type changes
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "ai_behavior":
+		# Clear and reload AI behaviors cache so dropdowns show new behaviors
+		available_ai_behaviors.clear()
+		_load_available_ai_behaviors()
 
 
 ## Override: Create the battle-specific detail form
@@ -694,8 +703,8 @@ func _scan_maps_directory(dir: DirAccess, base_path: String, mod_name: String, s
 			if map_scene:
 				# Display as "mod_name: filename"
 				var display_name: String = "[%s] %s" % [mod_name, file_name]
-				var item_index: int = map_scene_option.item_count
-				map_scene_option.add_item(display_name, item_index - 1)
+				map_scene_option.add_item(display_name)
+				var item_index: int = map_scene_option.item_count - 1
 				map_scene_option.set_item_metadata(item_index, full_path)
 
 		file_name = dir.get_next()
@@ -949,7 +958,7 @@ func _on_add_item_reward() -> void:
 	_add_item_reward_ui()
 
 
-func _add_item_reward_ui(item_data: ItemData = null) -> void:
+func _add_item_reward_ui(item_data: ItemData = null, quantity: int = 1) -> void:
 	var entry_container: HBoxContainer = HBoxContainer.new()
 	entry_container.add_theme_constant_override("separation", 4)
 
@@ -969,7 +978,7 @@ func _add_item_reward_ui(item_data: ItemData = null) -> void:
 	var qty_spin: SpinBox = SpinBox.new()
 	qty_spin.min_value = 1
 	qty_spin.max_value = 99
-	qty_spin.value = 1
+	qty_spin.value = quantity
 	qty_spin.custom_minimum_size.x = 60
 	qty_spin.tooltip_text = "Quantity of this item to grant"
 	entry_container.add_child(qty_spin)
@@ -1011,10 +1020,22 @@ func _on_remove_item_reward(container: HBoxContainer) -> void:
 
 
 ## Load item rewards from ItemData array
+## BattleData stores quantity via duplicates, so we count them and consolidate
 func _load_item_rewards_from_array(items: Array[ItemData]) -> void:
+	# Count duplicates by resource path to consolidate quantity
+	var item_counts: Dictionary = {}  # resource_path -> {item: ItemData, count: int}
 	for item: ItemData in items:
 		if item:
-			_add_item_reward_ui(item)
+			var path: String = item.resource_path
+			if path in item_counts:
+				item_counts[path].count += 1
+			else:
+				item_counts[path] = {item = item, count = 1}
+
+	# Create UI entries with correct quantities
+	for path: String in item_counts.keys():
+		var entry: Dictionary = item_counts[path]
+		_add_item_reward_ui(entry.item, entry.count)
 
 
 ## Collect item rewards as ItemData array (for BattleData)

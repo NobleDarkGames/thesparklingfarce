@@ -790,12 +790,14 @@ func _on_remove_conditional(entry_container: HBoxContainer) -> void:
 			conditional_entries.remove_at(i)
 			break
 	entry_container.queue_free()
+	_mark_dirty()
 
 
 func _on_field_changed(_text: String) -> void:
 	if _updating_ui:
 		return
 	_update_preview()
+	_mark_dirty()
 
 
 func _on_name_changed(new_name: String) -> void:
@@ -804,6 +806,7 @@ func _on_name_changed(new_name: String) -> void:
 	if not _id_is_locked:
 		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_update_preview()
+	_mark_dirty()
 
 
 func _on_id_manually_changed(_text: String) -> void:
@@ -842,6 +845,7 @@ func _on_cinematic_field_changed(text: String, field_type: String) -> void:
 	if _updating_ui:
 		return
 	_validate_cinematic_field(text.strip_edges(), field_type)
+	_mark_dirty()
 
 
 func _validate_cinematic_field(cinematic_id: String, field_type: String) -> void:
@@ -1060,6 +1064,7 @@ func _on_portrait_file_selected(path: String) -> void:
 	portrait_path_edit.text = path
 	_load_portrait_preview(path)
 	_update_preview()
+	_mark_dirty()
 
 
 func _on_portrait_path_changed(new_text: String) -> void:
@@ -1067,6 +1072,7 @@ func _on_portrait_path_changed(new_text: String) -> void:
 		return
 	_load_portrait_preview(new_text)
 	_update_preview()
+	_mark_dirty()
 
 
 func _load_portrait_preview(path: String) -> void:
@@ -1091,6 +1097,7 @@ func _on_clear_portrait() -> void:
 	portrait_preview.texture = null
 	portrait_preview.tooltip_text = "No portrait assigned"
 	_update_preview()
+	_mark_dirty()
 
 
 ## Called when a spritesheet is selected in the MapSpritesheetPicker
@@ -1098,6 +1105,7 @@ func _on_spritesheet_selected(_path: String, _texture: Texture2D) -> void:
 	if _updating_ui:
 		return
 	_update_preview()
+	_mark_dirty()
 
 
 ## Called when SpriteFrames are generated from the selected spritesheet
@@ -1105,6 +1113,7 @@ func _on_sprite_frames_generated(_sprite_frames: SpriteFrames) -> void:
 	if _updating_ui:
 		return
 	_update_preview()
+	_mark_dirty()
 
 
 func _get_default_asset_path(asset_type: String) -> String:

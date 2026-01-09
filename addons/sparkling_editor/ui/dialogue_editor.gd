@@ -47,6 +47,8 @@ func _ready() -> void:
 ## Called when a dependent resource type changes (character created/saved/deleted)
 func _on_dependencies_changed(_changed_type: String) -> void:
 	_refresh_character_cache()
+	# Update existing line pickers to reflect new character list
+	_update_line_character_pickers()
 
 
 ## Refresh the cached list of characters from ModLoader
@@ -54,6 +56,43 @@ func _refresh_character_cache() -> void:
 	_cached_characters.clear()
 	if ModLoader and ModLoader.registry:
 		_cached_characters = ModLoader.registry.get_all_resources("character")
+
+
+## Update all line character pickers with the refreshed character cache
+func _update_line_character_pickers() -> void:
+	for line_ui: Dictionary in lines_list:
+		var picker: OptionButton = line_ui.character_picker
+		if not picker:
+			continue
+
+		# Store current selection (by character UID if selected)
+		var current_char_uid: String = ""
+		var current_index: int = picker.selected
+		if current_index > 0:
+			var char_idx: int = current_index - 1
+			if char_idx >= 0 and char_idx < _cached_characters.size():
+				var char_data: CharacterData = _cached_characters[char_idx] as CharacterData
+				if char_data:
+					current_char_uid = char_data.character_uid
+
+		# Rebuild picker items
+		picker.clear()
+		picker.add_item("(Custom Speaker)", 0)
+		for i: int in range(_cached_characters.size()):
+			var char_data: CharacterData = _cached_characters[i] as CharacterData
+			if char_data:
+				var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
+				picker.add_item(display_name, i + 1)
+
+		# Restore selection by UID
+		if not current_char_uid.is_empty():
+			var new_index: int = _get_character_index_by_uid(current_char_uid)
+			if new_index >= 0:
+				picker.selected = new_index + 1
+			else:
+				picker.selected = 0  # Character was deleted, revert to custom
+		elif current_index == 0:
+			picker.selected = 0
 
 
 ## Get character by UID from cache
@@ -296,9 +335,16 @@ func _add_basic_info_section() -> void:
 
 	dialogue_id_edit = form.add_text_field("Dialogue ID:", "",
 		"Unique ID for referencing this dialogue. Used in triggers and NPC assignments.")
+	dialogue_id_edit.text_changed.connect(_on_field_changed)
 
 	dialogue_title_edit = form.add_text_field("Title:", "",
 		"Human-readable title for organization. Shown in editor dropdowns.")
+	dialogue_title_edit.text_changed.connect(_on_field_changed)
+
+
+## Called when any form field changes to mark the editor as dirty
+func _on_field_changed(_new_value: Variant = null) -> void:
+	_mark_dirty()
 
 
 func _add_lines_section() -> void:
@@ -357,14 +403,17 @@ func _add_flow_control_section() -> void:
 	next_dialogue_option = OptionButton.new()
 	next_dialogue_option.add_item("(None)", 0)
 	next_dialogue_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next_dialogue_option.item_selected.connect(_on_field_changed)
 	form.add_labeled_control("Next Dialogue:", next_dialogue_option,
 		"Dialogue to play after this one (if no choices)")
 
 	auto_advance_check = form.add_standalone_checkbox("Auto-advance dialogue", false,
 		"Automatically progress to next line without player input. Good for cutscenes.")
+	auto_advance_check.toggled.connect(_on_field_changed)
 
 	advance_delay_spin = form.add_float_field("Advance Delay (sec):", 0.1, 10.0, 0.1, 2.0,
 		"Seconds to wait between auto-advancing lines. 2.0 is typical reading pace.")
+	advance_delay_spin.value_changed.connect(_on_field_changed)
 
 
 func _add_audio_section() -> void:
@@ -380,6 +429,7 @@ func _on_add_line_pressed() -> void:
 		"emotion": "neutral"
 	}
 	_add_line_ui(line_dict)
+	_mark_dirty()
 
 
 func _add_line_ui(line_dict: Dictionary) -> void:
@@ -522,6 +572,12 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	var separator: HSeparator = HSeparator.new()
 	line_container.add_child(separator)
 
+	# Connect dirty tracking to line UI elements
+	character_picker.item_selected.connect(_on_field_changed)
+	speaker_edit.text_changed.connect(_on_field_changed)
+	emotion_option.item_selected.connect(_on_field_changed)
+	text_edit.text_changed.connect(_on_field_changed)
+
 	# Store references to UI elements (including new ones)
 	var line_ui: Dictionary = {
 		"container": line_container,
@@ -564,6 +620,7 @@ func _on_remove_line(line_container: VBoxContainer) -> void:
 
 	line_container.queue_free()
 	_update_line_numbers()
+	_mark_dirty()
 
 
 func _on_move_line_up(line_container: VBoxContainer) -> void:
@@ -582,6 +639,7 @@ func _on_move_line_up(line_container: VBoxContainer) -> void:
 		# Move in UI
 		lines_container.move_child(line_container, index - 1)
 		_update_line_numbers()
+		_mark_dirty()
 
 
 func _on_move_line_down(line_container: VBoxContainer) -> void:
@@ -600,6 +658,7 @@ func _on_move_line_down(line_container: VBoxContainer) -> void:
 		# Move in UI
 		lines_container.move_child(line_container, index + 1)
 		_update_line_numbers()
+		_mark_dirty()
 
 
 func _update_line_numbers() -> void:
@@ -622,6 +681,7 @@ func _on_add_choice_pressed() -> void:
 		"choice_text": "New Choice"
 	}
 	_add_choice_ui(choice_dict)
+	_mark_dirty()
 
 
 func _add_choice_ui(choice_dict: Dictionary) -> void:
@@ -684,6 +744,10 @@ func _add_choice_ui(choice_dict: Dictionary) -> void:
 	var separator: HSeparator = HSeparator.new()
 	choice_container.add_child(separator)
 
+	# Connect dirty tracking to choice UI elements
+	text_edit.text_changed.connect(_on_field_changed)
+	next_option.item_selected.connect(_on_field_changed)
+
 	# Store references
 	var choice_ui: Dictionary = {
 		"container": choice_container,
@@ -704,6 +768,7 @@ func _on_remove_choice(choice_container: VBoxContainer) -> void:
 
 	choice_container.queue_free()
 	_update_choice_numbers()
+	_mark_dirty()
 
 
 func _update_choice_numbers() -> void:
