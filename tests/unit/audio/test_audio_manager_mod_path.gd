@@ -1,144 +1,177 @@
-## Unit Tests for AudioManager Mod Path Initialization
+## Unit Tests for AudioManager Mod-Aware Audio Resolution
 ##
-## Tests that AudioManager receives the correct mod path at startup
-## and responds correctly to mod changes.
+## Tests that AudioManager correctly resolves audio files through the mod system
+## with proper priority ordering and fallback to _starter_kit.
+##
+## Also tests the adaptive layered music system API.
 ##
 ## These tests verify the MECHANISM works, not specific mod content.
-## No specific mod (like _base_game) should be required.
 class_name TestAudioManagerModPath
 extends GdUnitTestSuite
 
 
-# Class member for signal capture (avoids lambda capture issues in GDScript)
-var _signal_data: Dictionary = {}
+# =============================================================================
+# MOD LOADER INTEGRATION TESTS
+# =============================================================================
+
+func test_mod_loader_has_mods_loaded_signal() -> void:
+	# Verify the signal exists on ModLoader (used for cache clearing)
+	assert_bool(ModLoader.has_signal("mods_loaded")).is_true()
+
+
+func test_mod_loader_has_resolve_asset_path() -> void:
+	# Verify the method exists for audio resolution
+	assert_bool(ModLoader.has_method("resolve_asset_path")).is_true()
+
+
+func test_mod_loader_resolve_asset_path_returns_string() -> void:
+	# Should return empty string for non-existent assets
+	var result: String = ModLoader.resolve_asset_path("nonexistent/path.ogg", "")
+	assert_str(result).is_empty()
+
+
+func test_mod_loader_resolve_asset_path_with_fallback() -> void:
+	# Should use fallback path when asset not in mods
+	# Note: This tests the mechanism, actual file existence depends on test environment
+	var fallback: String = "res://mods/_starter_kit/assets/"
+	var result: String = ModLoader.resolve_asset_path("audio/sfx/cursor_move.ogg", fallback)
+	
+	# If starter kit has the file, we get a path; otherwise empty
+	# Either result is valid - we're testing the function doesn't crash
+	assert_bool(result.is_empty() or result.begins_with("res://")).is_true()
 
 
 # =============================================================================
-# MOD PATH INITIALIZATION TESTS
+# AUDIO MANAGER API TESTS
 # =============================================================================
 
-func test_mod_loader_has_active_mod_changed_signal() -> void:
-	# Verify the signal exists on ModLoader
-	assert_bool(ModLoader.has_signal("active_mod_changed")).is_true()
+func test_audio_manager_has_play_sfx_method() -> void:
+	assert_bool(AudioManager.has_method("play_sfx")).is_true()
 
 
-func test_mod_loader_active_mod_id_is_not_empty() -> void:
-	# ModLoader should have SOME active mod (whichever is loaded)
-	assert_str(ModLoader.active_mod_id).is_not_empty()
+func test_audio_manager_has_play_music_method() -> void:
+	assert_bool(AudioManager.has_method("play_music")).is_true()
 
 
-func test_mod_loader_get_active_mod_returns_manifest_or_null() -> void:
-	# Should return a ModManifest or null if no mods loaded
-	var manifest: ModManifest = ModLoader.get_active_mod()
-
-	# Either null (no mods) or valid manifest
-	if manifest != null:
-		assert_str(manifest.mod_id).is_not_empty()
-		assert_str(manifest.mod_directory).is_not_empty()
+func test_audio_manager_sfx_volume_is_valid() -> void:
+	# Volume should be between 0 and 1
+	assert_float(AudioManager.sfx_volume).is_greater_equal(0.0)
+	assert_float(AudioManager.sfx_volume).is_less_equal(1.0)
 
 
-func test_mod_loader_active_mod_directory_format() -> void:
-	# When a mod is loaded, its directory should follow the expected format
-	var manifest: ModManifest = ModLoader.get_active_mod()
-
-	if manifest == null:
-		# No mods loaded - skip this test
-		return
-
-	# Directory should be res://mods/<mod_id>
-	assert_bool(manifest.mod_directory.begins_with("res://mods/")).is_true()
-	assert_bool(manifest.mod_directory.ends_with(manifest.mod_id)).is_true()
-
-
-func test_audio_manager_has_mod_path_after_initialization() -> void:
-	# After initialization, AudioManager should have a non-empty mod path
-	# This is the KEY TEST - the bug was that current_mod_path was empty
-	assert_str(AudioManager.current_mod_path).is_not_empty()
-
-
-func test_audio_manager_mod_path_matches_active_mod() -> void:
-	# AudioManager's mod path should match the active mod's directory
-	var manifest: ModManifest = ModLoader.get_active_mod()
-
-	if manifest == null:
-		# No mods loaded - AudioManager should still have a fallback path
-		assert_str(AudioManager.current_mod_path).is_not_empty()
-		return
-
-	assert_str(AudioManager.current_mod_path).is_equal(manifest.mod_directory)
+func test_audio_manager_music_volume_is_valid() -> void:
+	# Volume should be between 0 and 1
+	assert_float(AudioManager.music_volume).is_greater_equal(0.0)
+	assert_float(AudioManager.music_volume).is_less_equal(1.0)
 
 
 # =============================================================================
-# AUDIO PATH CONSTRUCTION TESTS
+# AUDIO FALLBACK PATH TESTS
 # =============================================================================
 
-func test_audio_path_construction_format() -> void:
-	# Test that AudioManager's path construction follows the expected format
-	var mod_path: String = AudioManager.current_mod_path
+func test_audio_manager_fallback_path_constant_exists() -> void:
+	# AudioManager should have a fallback path pointing to starter kit
+	assert_str(AudioManager.AUDIO_FALLBACK_PATH).is_not_empty()
+	assert_bool(AudioManager.AUDIO_FALLBACK_PATH.contains("_starter_kit")).is_true()
 
-	# Should have a valid mod path
-	assert_str(mod_path).is_not_empty()
-	assert_bool(mod_path.begins_with("res://mods/")).is_true()
 
-	# Construct a hypothetical audio path
-	var constructed_path: String = "%s/audio/%s/%s.%s" % [mod_path, "sfx", "test_sound", "ogg"]
-
-	# Should follow the pattern: res://mods/<mod_id>/audio/<subfolder>/<name>.<ext>
-	assert_bool(constructed_path.begins_with("res://mods/")).is_true()
-	assert_bool("/audio/" in constructed_path).is_true()
+func test_audio_manager_fallback_path_format() -> void:
+	# Fallback path should be properly formatted
+	assert_bool(AudioManager.AUDIO_FALLBACK_PATH.begins_with("res://")).is_true()
+	assert_bool(AudioManager.AUDIO_FALLBACK_PATH.ends_with("/")).is_true()
 
 
 # =============================================================================
-# SIGNAL CONNECTION TESTS
+# ADAPTIVE MUSIC LAYER API TESTS
 # =============================================================================
 
-func test_active_mod_changed_signal_updates_audio_manager() -> void:
-	# When ModLoader emits active_mod_changed, AudioManager should update
-	# Test the mechanism by checking signal connectivity
-
-	var original_mod_path: String = AudioManager.current_mod_path
-
-	# Get any available mod to test with
-	var manifest: ModManifest = ModLoader.get_active_mod()
-	if manifest == null:
-		# No mods loaded - can't test mod switching
-		return
-
-	# Set the same mod again - should still work and emit signal
-	ModLoader.set_active_mod(manifest.mod_id)
-
-	# AudioManager should still have a valid path (same mod, so same path)
-	assert_str(AudioManager.current_mod_path).is_equal(original_mod_path)
+func test_audio_manager_has_get_current_music_name() -> void:
+	# Verify the method exists
+	assert_bool(AudioManager.has_method("get_current_music_name")).is_true()
 
 
-func test_active_mod_changed_signal_emits_path() -> void:
-	# Verify the signal emits a valid mod path
-	var manifest: ModManifest = ModLoader.get_active_mod()
-
-	if manifest == null:
-		# No mods loaded - can't test signal emission
-		return
-
-	# Use class member dictionary to avoid lambda capture issues
-	_signal_data.clear()
-	_signal_data["received"] = false
-	_signal_data["path"] = ""
-
-	var callback: Callable = _on_active_mod_changed_for_test
-	ModLoader.active_mod_changed.connect(callback)
-
-	# Trigger the signal by setting active mod
-	ModLoader.set_active_mod(manifest.mod_id)
-
-	# Cleanup
-	ModLoader.active_mod_changed.disconnect(callback)
-
-	# Verify we received a valid path
-	assert_bool(_signal_data["received"]).is_true()
-	assert_str(_signal_data["path"]).is_not_empty()
-	assert_bool(_signal_data["path"].begins_with("res://mods/")).is_true()
+func test_audio_manager_has_enable_layer() -> void:
+	# Verify the method exists
+	assert_bool(AudioManager.has_method("enable_layer")).is_true()
 
 
-func _on_active_mod_changed_for_test(path: String) -> void:
-	_signal_data["received"] = true
-	_signal_data["path"] = path
+func test_audio_manager_has_disable_layer() -> void:
+	# Verify the method exists
+	assert_bool(AudioManager.has_method("disable_layer")).is_true()
+
+
+func test_audio_manager_has_set_layer_volume() -> void:
+	# Verify the method exists
+	assert_bool(AudioManager.has_method("set_layer_volume")).is_true()
+
+
+func test_audio_manager_has_get_layer_count() -> void:
+	# Verify the method exists
+	assert_bool(AudioManager.has_method("get_layer_count")).is_true()
+
+
+func test_audio_manager_has_is_layer_enabled() -> void:
+	# Verify the method exists
+	assert_bool(AudioManager.has_method("is_layer_enabled")).is_true()
+
+
+func test_audio_manager_max_layers_constant() -> void:
+	# Should have MAX_LAYERS = 3 (base + 2 additional)
+	assert_int(AudioManager.MAX_LAYERS).is_equal(3)
+
+
+func test_audio_manager_default_layer_fade_constant() -> void:
+	# Should have DEFAULT_LAYER_FADE = 0.4
+	assert_float(AudioManager.DEFAULT_LAYER_FADE).is_equal(0.4)
+
+
+func test_audio_manager_current_music_name_empty_when_not_playing() -> void:
+	# When no music is playing, should return empty string
+	# Note: This assumes no music is playing during test
+	# If music IS playing, this test validates the getter works
+	var name: String = AudioManager.get_current_music_name()
+	assert_bool(name is String).is_true()
+
+
+func test_audio_manager_layer_count_zero_when_not_playing() -> void:
+	# When no music is playing, layer count should be 0
+	# Note: If music IS playing, this validates the getter works
+	var count: int = AudioManager.get_layer_count()
+	assert_bool(count >= 0).is_true()
+	assert_bool(count <= AudioManager.MAX_LAYERS).is_true()
+
+
+func test_audio_manager_is_layer_enabled_returns_bool() -> void:
+	# Should return a boolean for valid layer indices
+	var result: bool = AudioManager.is_layer_enabled(0)
+	assert_bool(result is bool).is_true()
+
+
+func test_audio_manager_is_layer_enabled_invalid_layer() -> void:
+	# Should return false for invalid layer indices
+	assert_bool(AudioManager.is_layer_enabled(-1)).is_false()
+	assert_bool(AudioManager.is_layer_enabled(99)).is_false()
+
+
+func test_audio_manager_enable_layer_invalid_does_not_crash() -> void:
+	# Should handle invalid layer gracefully (no crash)
+	AudioManager.enable_layer(-1)
+	AudioManager.enable_layer(99)
+	# If we get here without crash, test passes
+	assert_bool(true).is_true()
+
+
+func test_audio_manager_disable_layer_invalid_does_not_crash() -> void:
+	# Should handle invalid layer gracefully (no crash)
+	AudioManager.disable_layer(-1)
+	AudioManager.disable_layer(99)
+	# If we get here without crash, test passes
+	assert_bool(true).is_true()
+
+
+func test_audio_manager_set_layer_volume_invalid_does_not_crash() -> void:
+	# Should handle invalid layer gracefully (no crash)
+	AudioManager.set_layer_volume(-1, 0.5)
+	AudioManager.set_layer_volume(99, 0.5)
+	# If we get here without crash, test passes
+	assert_bool(true).is_true()

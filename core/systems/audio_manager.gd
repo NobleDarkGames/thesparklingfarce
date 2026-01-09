@@ -1,13 +1,30 @@
 ## AudioManager
-## Central audio playback system that loads sounds from the active mod
+## Central audio playback system with mod-aware resource resolution
 ##
 ## Provides a simple API for playing sound effects and music throughout the game.
-## All audio files are stored in mods, not in the core engine.
+## Audio files are resolved through the mod system with proper priority/fallback:
+## - Higher priority mods can override sounds from lower priority mods
+## - Falls back to _starter_kit for default sounds
+##
+## ADAPTIVE MUSIC SYSTEM:
+## Supports layered music tracks for dynamic audio:
+## - Layer 0 (base): Always plays during music playback
+## - Layer 1 (attack): Fades in during combat animations
+## - Layer 2 (boss): Plays throughout boss battles
+##
+## Layer files are discovered automatically using naming conventions:
+##   battle_theme.ogg        # Base layer
+##   battle_theme_layer1.ogg # Attack layer (or _l1.ogg)
+##   battle_theme_layer2.ogg # Boss layer (or _l2.ogg)
+##
+## IMPORTANT: All layer files must be identical length for proper synchronization.
 ##
 ## Usage:
 ##   AudioManager.play_sfx("cursor_move")
 ##   AudioManager.play_sfx("attack_hit")
 ##   AudioManager.play_music("battle_theme")
+##   AudioManager.enable_layer(1)   # Fade in attack layer
+##   AudioManager.disable_layer(1)  # Fade out attack layer
 
 extends Node
 
@@ -20,16 +37,39 @@ enum SFXCategory {
 	CEREMONY,  ## Promotion ceremonies, special events
 }
 
-## Current mod's audio path (set by ModLoader or BattleManager)
-var current_mod_path: String = ""
+## Fallback path for audio assets (starter kit provides default sounds)
+const AUDIO_FALLBACK_PATH: String = "res://mods/_starter_kit/assets/"
 
 ## Audio buses (configured in project settings)
 const SFX_BUS: String = "SFX"
 const MUSIC_BUS: String = "Music"
 
+## Maximum number of music layers (base + 2 additional)
+const MAX_LAYERS: int = 3
+
+## Default fade duration for layer transitions
+const DEFAULT_LAYER_FADE: float = 0.4
+
 ## Audio player pools
 var _sfx_players: Array[AudioStreamPlayer] = []
-var _music_player: AudioStreamPlayer = null
+
+## Layered music system - array of AudioStreamPlayers (index = layer number)
+var _music_layers: Array[AudioStreamPlayer] = []
+
+## Track which layers are currently enabled (target volume > 0)
+var _layer_enabled: Array[bool] = [true, false, false]
+
+## Current layer volumes (0.0 to 1.0, relative to music_volume)
+var _layer_volumes: Array[float] = [1.0, 0.0, 0.0]
+
+## Active tweens for layer fades (to cancel if new fade requested)
+var _layer_tweens: Array[Tween] = [null, null, null]
+
+## Current music track name (without extension)
+var _current_music_name: String = ""
+
+## Number of layers available for current track
+var _current_layer_count: int = 0
 
 ## Cache for loaded audio streams (prevents repeated disk reads)
 var _audio_cache: Dictionary = {}
@@ -47,38 +87,24 @@ func _ready() -> void:
 		add_child(player)
 		_sfx_players.append(player)
 
-	# Create music player (single looping track)
-	_music_player = AudioStreamPlayer.new()
-	_music_player.bus = MUSIC_BUS
-	add_child(_music_player)
+	# Create layered music players
+	for i: int in range(MAX_LAYERS):
+		var player: AudioStreamPlayer = AudioStreamPlayer.new()
+		player.bus = MUSIC_BUS
+		player.name = "MusicLayer%d" % i
+		add_child(player)
+		_music_layers.append(player)
 
 	# Apply volume settings
 	_update_volumes()
 
-	# Connect to ModLoader's active_mod_changed signal for runtime mod switches
-	ModLoader.active_mod_changed.connect(_on_active_mod_changed)
-
-	# Initialize mod path from ModLoader's current active mod
-	# ModLoader runs before AudioManager in autoload order, so it's already loaded
-	var active_mod: ModManifest = ModLoader.get_active_mod()
-	if active_mod:
-		set_active_mod(active_mod.mod_directory)
-	else:
-		# Fallback: construct path from active_mod_id when manifest unavailable
-		# This can happen if mods directory wasn't accessible during startup
-		var fallback_path: String = "res://mods/".path_join(ModLoader.active_mod_id)
-		set_active_mod(fallback_path)
+	# Clear audio cache when mods are reloaded
+	ModLoader.mods_loaded.connect(_on_mods_loaded)
 
 
-## Called when ModLoader's active mod changes
-func _on_active_mod_changed(mod_path: String) -> void:
-	set_active_mod(mod_path)
-
-
-## Set the current mod for audio loading
-func set_active_mod(mod_path: String) -> void:
-	current_mod_path = mod_path
-	_audio_cache.clear()  # Clear cache when switching mods
+## Called when mods are reloaded - clear cache to pick up new/changed audio
+func _on_mods_loaded() -> void:
+	_audio_cache.clear()
 
 
 ## Play a sound effect from the current mod
@@ -100,59 +126,278 @@ func play_sfx(sfx_name: String, _category: SFXCategory = SFXCategory.SYSTEM) -> 
 	player.play()
 
 
-## Play background music from the current mod (loops automatically)
+# =============================================================================
+# LAYERED MUSIC SYSTEM
+# =============================================================================
+
+## Play background music with automatic layer discovery
+## If the same track is already playing, returns without restarting (track continuation)
 ## @param music_name: Name of the music file (without extension)
 ## @param fade_in_duration: Duration of fade-in effect in seconds (default: 0.5)
 func play_music(music_name: String, fade_in_duration: float = 0.5) -> void:
-	var stream: AudioStream = _load_audio(music_name, "music")
-	if not stream:
+	# Track continuation: don't restart if same track already playing
+	if music_name == _current_music_name and _music_layers[0].playing:
+		return
+
+	# Load base layer
+	var base_stream: AudioStream = _load_audio(music_name, "music")
+	if not base_stream:
 		return  # Music file not found, fail silently
 
 	# Stop current music if playing
-	if _music_player.playing:
+	if _music_layers[0].playing:
 		stop_music(fade_in_duration * 0.5)  # Fade out faster than fade in
 		await get_tree().create_timer(fade_in_duration * 0.5).timeout
 
-	# Set up new music
-	_music_player.stream = stream
-	_music_player.volume_db = linear_to_db(0.0)  # Start silent for fade-in
-	_music_player.play()
+	# Store current track name
+	_current_music_name = music_name
+
+	# Discover and load additional layers
+	var layer_streams: Array[AudioStream] = [base_stream]
+	layer_streams.append(_discover_layer(music_name, 1))
+	layer_streams.append(_discover_layer(music_name, 2))
+
+	# Count available layers
+	_current_layer_count = 1
+	for i: int in range(1, MAX_LAYERS):
+		if layer_streams[i] != null:
+			_current_layer_count = i + 1
+
+	# Reset layer states
+	_layer_enabled = [true, false, false]
+	_layer_volumes = [1.0, 0.0, 0.0]
+
+	# Set up all layer players
+	for i: int in range(MAX_LAYERS):
+		var player: AudioStreamPlayer = _music_layers[i]
+		player.stream = layer_streams[i]
+
+		if layer_streams[i]:
+			# Start silent for fade-in (base layer) or disabled (other layers)
+			if i == 0:
+				player.volume_db = linear_to_db(0.0)
+			else:
+				player.volume_db = linear_to_db(0.0)  # Additional layers start silent
+
+	# Start all layers simultaneously for sync
+	for i: int in range(MAX_LAYERS):
+		if _music_layers[i].stream:
+			_music_layers[i].play()
+
 	_music_has_played = true
 	_is_paused = false
 
-	# Fade in
+	# Fade in base layer
 	if fade_in_duration > 0.0:
 		var tween: Tween = create_tween()
 		tween.tween_method(
-			func(vol: float) -> void: _music_player.volume_db = linear_to_db(vol),
+			func(vol: float) -> void:
+				_layer_volumes[0] = vol
+				_update_layer_volume(0),
 			0.0,
-			music_volume,
+			1.0,
 			fade_in_duration
 		)
 	else:
-		_music_player.volume_db = linear_to_db(music_volume)
+		_layer_volumes[0] = 1.0
+		_update_layer_volume(0)
 
 
-## Stop the currently playing music
+## Discover a layer file for a music track
+## Checks both _layerN and _lN naming conventions
+## @param music_name: Base music track name
+## @param layer_num: Layer number (1 or 2)
+## @return: AudioStream if found, null otherwise
+func _discover_layer(music_name: String, layer_num: int) -> AudioStream:
+	# Try full naming convention first: track_layer1.ogg
+	var full_name: String = "%s_layer%d" % [music_name, layer_num]
+	var stream: AudioStream = _load_audio(full_name, "music")
+	if stream:
+		return stream
+
+	# Try short naming convention: track_l1.ogg
+	var short_name: String = "%s_l%d" % [music_name, layer_num]
+	stream = _load_audio(short_name, "music")
+	if stream:
+		return stream
+
+	return null
+
+
+## Stop the currently playing music (all layers)
 ## @param fade_out_duration: Duration of fade-out effect in seconds (default: 1.0)
 func stop_music(fade_out_duration: float = 1.0) -> void:
-	if not _music_player.playing:
+	if not _music_layers[0].playing:
 		return
+
+	# Cancel any active layer tweens
+	for i: int in range(MAX_LAYERS):
+		if _layer_tweens[i] and _layer_tweens[i].is_valid():
+			_layer_tweens[i].kill()
+			_layer_tweens[i] = null
 
 	if fade_out_duration > 0.0:
 		var tween: Tween = create_tween()
 		tween.tween_method(
-			func(vol: float) -> void: _music_player.volume_db = linear_to_db(vol),
-			music_volume,
+			func(vol: float) -> void:
+				for i: int in range(MAX_LAYERS):
+					if _music_layers[i].stream:
+						_music_layers[i].volume_db = linear_to_db(vol * _layer_volumes[i] * music_volume),
+			1.0,
 			0.0,
 			fade_out_duration
 		)
-		tween.tween_callback(_music_player.stop)
+		tween.tween_callback(_stop_all_layers)
 	else:
-		_music_player.stop()
+		_stop_all_layers()
 
 
-## Load an audio stream from the current mod's audio directory
+## Stop all music layer players and clear track name
+func _stop_all_layers() -> void:
+	for player: AudioStreamPlayer in _music_layers:
+		player.stop()
+	_current_music_name = ""
+	_current_layer_count = 0
+
+
+## Get the name of the currently playing music track
+## @return: Track name (without extension) or empty string if not playing
+func get_current_music_name() -> String:
+	return _current_music_name
+
+
+## Get the number of layers available for the current track
+## @return: Number of layers (1-3), or 0 if no music playing
+func get_layer_count() -> int:
+	return _current_layer_count
+
+
+## Check if a specific layer is currently enabled
+## @param layer: Layer number (0 = base, 1 = attack, 2 = boss)
+## @return: True if layer is enabled (fading in or at full volume)
+func is_layer_enabled(layer: int) -> bool:
+	if layer < 0 or layer >= MAX_LAYERS:
+		return false
+	return _layer_enabled[layer]
+
+
+## Enable a music layer (fade in)
+## @param layer: Layer number (1 = attack, 2 = boss). Layer 0 is always enabled.
+## @param fade_duration: Duration of fade-in effect (default: 0.4)
+func enable_layer(layer: int, fade_duration: float = DEFAULT_LAYER_FADE) -> void:
+	if layer <= 0 or layer >= MAX_LAYERS:
+		if layer != 0:
+			push_warning("AudioManager: Invalid layer %d (valid: 1-%d)" % [layer, MAX_LAYERS - 1])
+		return
+
+	if not _music_layers[layer].stream:
+		# No layer file available for this track
+		return
+
+	if _layer_enabled[layer]:
+		return  # Already enabled
+
+	_layer_enabled[layer] = true
+
+	# Cancel existing tween for this layer
+	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
+		_layer_tweens[layer].kill()
+
+	# Fade in
+	var tween: Tween = create_tween()
+	_layer_tweens[layer] = tween
+	tween.tween_method(
+		func(vol: float) -> void:
+			_layer_volumes[layer] = vol
+			_update_layer_volume(layer),
+		_layer_volumes[layer],
+		1.0,
+		fade_duration
+	)
+
+
+## Disable a music layer (fade out)
+## @param layer: Layer number (1 = attack, 2 = boss). Layer 0 cannot be disabled.
+## @param fade_duration: Duration of fade-out effect (default: 0.4)
+func disable_layer(layer: int, fade_duration: float = DEFAULT_LAYER_FADE) -> void:
+	if layer <= 0 or layer >= MAX_LAYERS:
+		if layer == 0:
+			push_warning("AudioManager: Cannot disable base layer (0)")
+		else:
+			push_warning("AudioManager: Invalid layer %d (valid: 1-%d)" % [layer, MAX_LAYERS - 1])
+		return
+
+	if not _layer_enabled[layer]:
+		return  # Already disabled
+
+	_layer_enabled[layer] = false
+
+	# Cancel existing tween for this layer
+	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
+		_layer_tweens[layer].kill()
+
+	# Fade out
+	var tween: Tween = create_tween()
+	_layer_tweens[layer] = tween
+	tween.tween_method(
+		func(vol: float) -> void:
+			_layer_volumes[layer] = vol
+			_update_layer_volume(layer),
+		_layer_volumes[layer],
+		0.0,
+		fade_duration
+	)
+
+
+## Set the volume of a specific layer
+## @param layer: Layer number (0-2)
+## @param volume: Target volume (0.0 to 1.0)
+## @param fade_duration: Duration of fade effect (0.0 for instant)
+func set_layer_volume(layer: int, volume: float, fade_duration: float = 0.0) -> void:
+	if layer < 0 or layer >= MAX_LAYERS:
+		push_warning("AudioManager: Invalid layer %d" % layer)
+		return
+
+	volume = clampf(volume, 0.0, 1.0)
+
+	# Cancel existing tween for this layer
+	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
+		_layer_tweens[layer].kill()
+		_layer_tweens[layer] = null
+
+	if fade_duration > 0.0:
+		var tween: Tween = create_tween()
+		_layer_tweens[layer] = tween
+		tween.tween_method(
+			func(vol: float) -> void:
+				_layer_volumes[layer] = vol
+				_update_layer_volume(layer),
+			_layer_volumes[layer],
+			volume,
+			fade_duration
+		)
+	else:
+		_layer_volumes[layer] = volume
+		_update_layer_volume(layer)
+
+	# Update enabled state based on target volume
+	_layer_enabled[layer] = volume > 0.0
+
+
+## Update the actual volume_db of a layer player
+## Combines layer volume with master music_volume
+func _update_layer_volume(layer: int) -> void:
+	if layer < 0 or layer >= MAX_LAYERS:
+		return
+	if not _music_layers[layer].stream:
+		return
+
+	var final_volume: float = _layer_volumes[layer] * music_volume
+	_music_layers[layer].volume_db = linear_to_db(final_volume)
+
+
+## Load an audio stream using mod-aware asset resolution
+## Checks mods in priority order, falls back to _starter_kit for defaults
 ## @param audio_name: Name of the audio file (without extension)
 ## @param subfolder: Subfolder within audio/ (e.g., "sfx", "music")
 ## @return AudioStream or null if not found
@@ -166,16 +411,31 @@ func _load_audio(audio_name: String, subfolder: String) -> AudioStream:
 	var extensions: Array[String] = ["ogg", "wav", "mp3"]
 
 	for ext: String in extensions:
-		var audio_path: String = "%s/audio/%s/%s.%s" % [current_mod_path, subfolder, audio_name, ext]
+		var relative_path: String = "audio/%s/%s.%s" % [subfolder, audio_name, ext]
+		var resolved_path: String = ModLoader.resolve_asset_path(relative_path, AUDIO_FALLBACK_PATH)
 
-		if ResourceLoader.exists(audio_path):
-			var stream: AudioStream = load(audio_path) as AudioStream
+		if not resolved_path.is_empty():
+			var stream: AudioStream = load(resolved_path) as AudioStream
 			if stream:
+				# Enable looping for music tracks
+				if subfolder == "music":
+					_enable_stream_looping(stream)
 				_audio_cache[cache_key] = stream
 				return stream
 
 	# Audio not found - this is expected for optional sounds
 	return null
+
+
+## Enable looping on an audio stream (for music)
+## Handles different stream types appropriately
+func _enable_stream_looping(stream: AudioStream) -> void:
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	elif stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	elif stream is AudioStreamWAV:
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 
 
 ## Find an available (not playing) SFX player
@@ -223,10 +483,12 @@ func set_sfx_volume(volume: float) -> void:
 
 
 ## Set music volume (0.0 to 1.0)
+## Updates all active music layers to reflect new volume
 func set_music_volume(volume: float) -> void:
 	music_volume = clampf(volume, 0.0, 1.0)
-	if _music_player and _music_player.playing:
-		_music_player.volume_db = linear_to_db(music_volume)
+	# Update all layer volumes
+	for i: int in range(MAX_LAYERS):
+		_update_layer_volume(i)
 
 
 # ============================================================================
@@ -244,6 +506,7 @@ var _paused_position: float = 0.0
 
 
 ## Pause currently playing music (safe - ignores if not playing or never played)
+## Pauses all layers simultaneously to maintain sync
 func pause_music() -> void:
 	# Guard: Don't pause if we've never played or already paused
 	if not _music_has_played:
@@ -253,15 +516,20 @@ func pause_music() -> void:
 		push_warning("AudioManager: Music already paused, ignoring duplicate pause")
 		return
 
-	if not _music_player.playing:
+	if not _music_layers[0].playing:
 		return
 
-	_paused_position = _music_player.get_playback_position()
-	_music_player.stop()
+	_paused_position = _music_layers[0].get_playback_position()
+
+	# Stop all layers
+	for player: AudioStreamPlayer in _music_layers:
+		player.stop()
+
 	_is_paused = true
 
 
 ## Resume previously paused music (safe - ignores if not paused)
+## Resumes all layers at the same position to maintain sync
 func resume_music() -> void:
 	# Guard: Don't resume if we've never played
 	if not _music_has_played:
@@ -274,13 +542,17 @@ func resume_music() -> void:
 		return
 
 	# Guard: Ensure we have a stream to resume
-	if not _music_player.stream:
+	if not _music_layers[0].stream:
 		push_warning("AudioManager: No music stream to resume")
 		_is_paused = false
 		return
 
-	_music_player.play(_paused_position)
-	_music_player.volume_db = linear_to_db(music_volume)
+	# Resume all layers at the same position
+	for i: int in range(MAX_LAYERS):
+		if _music_layers[i].stream:
+			_music_layers[i].play(_paused_position)
+			_update_layer_volume(i)
+
 	_is_paused = false
 
 
@@ -291,4 +563,4 @@ func is_music_paused() -> bool:
 
 ## Check if music is currently playing (not paused, not stopped)
 func is_music_playing() -> bool:
-	return _music_player.playing and not _is_paused
+	return _music_layers[0].playing and not _is_paused
