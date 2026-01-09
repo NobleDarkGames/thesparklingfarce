@@ -1196,11 +1196,15 @@ func _update_lock_button() -> void:
 
 
 func _on_check_changed(_pressed: bool) -> void:
-	pass
+	if _updating_ui:
+		return
+	_mark_dirty()
 
 
 func _on_option_changed(_index: int) -> void:
-	pass
+	if _updating_ui:
+		return
+	_mark_dirty()
 
 
 func _on_template_selected(index: int) -> void:
