@@ -590,13 +590,13 @@ func _load_walk_sound() -> void:
 	if not _walk_audio_player:
 		return
 
-	# Try common audio formats (same logic as AudioManager)
+	# Try common audio formats using mod-aware resolution
 	var extensions: Array[String] = ["ogg", "wav", "mp3"]
-	var mod_path: String = AudioManager.current_mod_path
 
 	for ext: String in extensions:
-		var audio_path: String = "%s/audio/sfx/walk.%s" % [mod_path, ext]
-		if ResourceLoader.exists(audio_path):
+		var relative_path: String = "audio/sfx/walk.%s" % ext
+		var audio_path: String = ModLoader.resolve_asset_path(relative_path, "res://mods/_starter_kit/assets/")
+		if not audio_path.is_empty():
 			var stream: AudioStream = load(audio_path)
 			if stream:
 				# Enable looping on the stream if it's an OggVorbis

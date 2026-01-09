@@ -226,9 +226,14 @@ func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
 	move_tween.set_trans(Tween.TRANS_LINEAR)
 	move_tween.set_ease(Tween.EASE_IN_OUT)
 
+	var prev_pos: Vector2 = parent_entity.global_position
 	for target_pos: Vector2 in world_path:
+		var direction: Vector2 = target_pos - prev_pos
 		var duration: float = 1.0 / movement_speed  # Each cell takes consistent time
+		# Update facing before each movement segment
+		move_tween.tween_callback(_update_facing_from_direction.bind(direction))
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
+		prev_pos = target_pos
 
 	move_tween.tween_callback(func() -> void: _stop_movement())
 
@@ -281,8 +286,11 @@ func _tween_through_world_path(world_path: Array[Vector2], tiles_per_second: flo
 	for i: int in range(world_path.size()):
 		var target_pos: Vector2 = world_path[i]
 		var start_pos: Vector2 = world_path[i - 1] if i > 0 else parent_entity.global_position
+		var direction: Vector2 = target_pos - start_pos
 		var distance: float = start_pos.distance_to(target_pos)
 		var duration: float = distance / (tiles_per_second * GridManager.get_tile_size())
+		# Update facing before each movement segment
+		move_tween.tween_callback(_update_facing_from_direction.bind(direction))
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
 
 	move_tween.tween_callback(_stop_movement)

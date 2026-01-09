@@ -46,6 +46,16 @@ const DEBUG_VERBOSE: bool = false
 ## Number of party followers to display (0-3 recommended for performance)
 const MAX_VISIBLE_FOLLOWERS: int = 3
 
+## Map type to default music mapping
+## Maps without explicit music_id in metadata will use these defaults
+const DEFAULT_MUSIC_BY_TYPE: Dictionary = {
+	MapMetadata.MapType.TOWN: "town_theme",
+	MapMetadata.MapType.OVERWORLD: "overworld_theme",
+	MapMetadata.MapType.DUNGEON: "dungeon_theme",
+	MapMetadata.MapType.INTERIOR: "",  # Interiors inherit from parent map
+	MapMetadata.MapType.BATTLE: "",    # Battle music handled by BattleManager
+}
+
 
 # =============================================================================
 # PRELOADED SCRIPTS
@@ -141,6 +151,9 @@ func _ready() -> void:
 	_connect_hero_signals()
 
 	_debug_print("MapTemplate: Ready! Arrow keys to move, Space/Enter to interact")
+
+	# Start map music based on type or metadata
+	_play_map_music()
 
 	# Emit hero_ready signal so ExplorationUIManager can connect input
 	# CRITICAL: Wait one frame to ensure ExplorationUIManager has connected to the signal.
@@ -761,6 +774,30 @@ func _register_safe_location() -> void:
 	if is_safe:
 		GameState.set_last_safe_location(scene_file_path)
 		_debug_print("MapTemplate: Registered as safe location: %s" % scene_file_path)
+
+
+# =============================================================================
+# MAP MUSIC
+# =============================================================================
+
+## Play appropriate music for this map based on metadata or type defaults
+## Priority: 1) MapMetadata.music_id, 2) DEFAULT_MUSIC_BY_TYPE, 3) No music
+func _play_map_music() -> void:
+	var metadata: MapMetadata = _get_current_map_metadata()
+	var music_id: String = ""
+
+	if metadata:
+		# Priority 1: Explicit music_id in metadata
+		if not metadata.music_id.is_empty():
+			music_id = metadata.music_id
+		# Priority 2: Default music for map type
+		elif metadata.map_type in DEFAULT_MUSIC_BY_TYPE:
+			music_id = DEFAULT_MUSIC_BY_TYPE[metadata.map_type]
+
+	# Play music if we have a track ID
+	if not music_id.is_empty():
+		AudioManager.play_music(music_id, 1.0)
+		_debug_print("MapTemplate: Playing map music: %s" % music_id)
 
 
 # =============================================================================

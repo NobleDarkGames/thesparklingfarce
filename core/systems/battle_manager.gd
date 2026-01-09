@@ -119,28 +119,28 @@ func _validate_battle_data(data: BattleData) -> bool:
 	return true
 
 
-## Initialize audio system with mod path from battle data
+## Initialize audio system for battle
+## Plays appropriate music based on whether this is a boss battle
 func _initialize_audio() -> void:
-	# Extract mod path from battle data resource path
-	# Example: "res://mods/_sandbox/data/battles/battle_name.tres"
-	var battle_path: String = current_battle_data.resource_path
+	# Determine if this is a boss battle
+	var is_boss_battle: bool = _battle_has_boss()
 
-	# Extract mod directory (format: res://mods/<mod_name>/)
-	var mod_path: String = "res://mods/_sandbox"  # Default fallback
+	# Play appropriate music
+	if is_boss_battle:
+		AudioManager.play_music("boss_theme", 1.0)
+		# Enable boss layer immediately for boss battles
+		AudioManager.enable_layer(2, 0.4)
+	else:
+		AudioManager.play_music("battle_theme", 1.0)
 
-	if battle_path.begins_with("res://mods/"):
-		var path_parts: PackedStringArray = battle_path.split("/")
-		if path_parts.size() >= 3:
-			# path_parts[0] = "res:"
-			# path_parts[1] = ""
-			# path_parts[2] = "mods"
-			# path_parts[3] = "<mod_name>"
-			mod_path = "res://mods/" + path_parts[3]
 
-	AudioManager.set_active_mod(mod_path)
-
-	# Start battle music
-	AudioManager.play_music("battle_theme", 1.0)
+## Check if any enemy unit in this battle is a boss
+## @return: True if at least one enemy has is_boss = true
+func _battle_has_boss() -> bool:
+	for unit: Unit in enemy_units:
+		if unit.character_data and unit.character_data.is_boss:
+			return true
+	return false
 
 
 ## Load and instantiate map scene from BattleData
@@ -1283,6 +1283,9 @@ func _execute_combat_session(
 					defender_died = died
 		combat_anim_instance.damage_applied.connect(damage_handler)
 
+		# ADAPTIVE MUSIC: Enable attack layer during combat animation
+		AudioManager.enable_layer(1, 0.4)
+
 		# Start the session (fade in ONCE)
 		await combat_anim_instance.start_session(initial_attacker, initial_defender)
 
@@ -1311,6 +1314,9 @@ func _execute_combat_session(
 
 		# Finish session (display XP, fade out ONCE)
 		await combat_anim_instance.finish_session()
+
+		# ADAPTIVE MUSIC: Disable attack layer after combat animation
+		AudioManager.disable_layer(1, 0.4)
 
 		# Disconnect handlers
 		if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
