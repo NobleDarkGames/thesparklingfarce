@@ -10,6 +10,8 @@ extends JsonEditorBase
 
 const DialogLinePopupScript = preload("res://addons/sparkling_editor/ui/components/dialog_line_popup.gd")
 
+# Widget context for the new widget system
+var _widget_context: EditorWidgetContext
 
 # UI Components - Left panel (file list)
 var cinematic_list: ItemList
@@ -152,6 +154,58 @@ func _refresh_characters() -> void:
 	# Update actor picker dropdown if it exists
 	if actor_entity_picker:
 		_populate_actor_entity_picker()
+
+	# Invalidate widget context so it gets rebuilt
+	_widget_context = null
+
+
+## Build or refresh the widget context for the new widget system
+## This context provides resource caches to widgets so they can populate dropdowns
+func _build_widget_context() -> void:
+	if not _widget_context:
+		_widget_context = EditorWidgetContext.new()
+
+	_widget_context.populate_from_editor_caches(
+		_characters,
+		_npcs_as_resources(),
+		_shops_as_resources(),
+		_battles_as_resources(),
+		_maps_as_resources(),
+		cinematics,
+		_get_current_actor_ids()
+	)
+
+
+## Convert typed NPC array to untyped for context helper
+func _npcs_as_resources() -> Array[Resource]:
+	var result: Array[Resource] = []
+	for npc: Resource in _npcs:
+		result.append(npc)
+	return result
+
+
+## Convert typed shops array to untyped for context helper
+func _shops_as_resources() -> Array[Resource]:
+	var result: Array[Resource] = []
+	for shop: Resource in _shops:
+		result.append(shop)
+	return result
+
+
+## Convert typed battles array to untyped for context helper
+func _battles_as_resources() -> Array[Resource]:
+	var result: Array[Resource] = []
+	for battle: Resource in _battles:
+		result.append(battle)
+	return result
+
+
+## Convert typed maps array to untyped for context helper
+func _maps_as_resources() -> Array[Resource]:
+	var result: Array[Resource] = []
+	for map_res: Resource in _maps:
+		result.append(map_res)
+	return result
 
 
 func _setup_ui() -> void:
@@ -969,6 +1023,73 @@ func _build_inspector_for_command(index: int) -> void:
 
 
 func _create_param_field(param_name: String, param_def: Dictionary, current_value: Variant) -> void:
+	var param_type: String = param_def.get("type", "string")
+
+	# Ensure context is ready
+	_build_widget_context()
+
+	# Try widget factory first
+	var widget: EditorWidgetBase = ParamWidgetFactory.create_widget(param_type, param_def, _widget_context)
+
+	if widget:
+		# Special handling for command_array - set param name for accent color
+		if widget is CommandArrayWidget:
+			var cmd_widget: CommandArrayWidget = widget as CommandArrayWidget
+			cmd_widget.set_param_name(param_name)
+
+		# Command array gets full width, no label row
+		if param_type == "command_array":
+			widget.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			widget.set_value(current_value)
+			widget.value_changed.connect(_on_widget_value_changed.bind(param_name))
+			inspector_panel.add_child(widget)
+			inspector_fields[param_name] = widget
+			return
+
+		# Create row with label for other widget types
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		inspector_panel.add_child(row)
+
+		var label: Label = Label.new()
+		label.text = param_name.replace("_", " ").capitalize() + ":"
+		label.custom_minimum_size.x = 130
+		label.tooltip_text = param_def.get("hint", "")
+		row.add_child(label)
+
+		# Set value and connect signal
+		widget.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		widget.set_value(current_value)
+		widget.value_changed.connect(_on_widget_value_changed.bind(param_name))
+		row.add_child(widget)
+
+		inspector_fields[param_name] = widget
+		return
+
+	# Fallback for unsupported types (path, variant, color, or unknown)
+	_create_fallback_param_field(param_name, param_def, current_value)
+
+
+## Handle value changes from the new widget system
+func _on_widget_value_changed(new_value: Variant, param_name: String) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+	var commands: Array = current_cinematic_data.get("commands", [])
+	if selected_command_index >= commands.size():
+		return
+	var cmd: Dictionary = commands[selected_command_index]
+	if "params" not in cmd:
+		cmd["params"] = {}
+	cmd["params"][param_name] = new_value
+	is_dirty = true
+	_rebuild_command_list()  # Update summary in list
+	command_list.select(selected_command_index)
+
+
+## Fallback for param types not yet supported by the widget system
+func _create_fallback_param_field(param_name: String, param_def: Dictionary, current_value: Variant) -> void:
+	var param_type: String = param_def.get("type", "string")
+
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	inspector_panel.add_child(row)
@@ -979,150 +1100,9 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 	label.tooltip_text = param_def.get("hint", "")
 	row.add_child(label)
 
-	var param_type: String = param_def.get("type", "string")
 	var control: Control
 
 	match param_type:
-		"float":
-			var spin: SpinBox = SpinBox.new()
-			spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			spin.min_value = param_def.get("min", 0.0)
-			spin.max_value = param_def.get("max", 100.0)
-			spin.step = 0.1
-			var float_default: float = DictUtils.get_float(param_def, "default", 0.0)
-			spin.value = _variant_to_float(current_value, float_default)
-			spin.value_changed.connect(_on_param_changed.bind(param_name))
-			control = spin
-
-		"bool":
-			var check: CheckBox = CheckBox.new()
-			var bool_default: bool = DictUtils.get_bool(param_def, "default", false)
-			check.button_pressed = _variant_to_bool(current_value, bool_default)
-			check.toggled.connect(_on_param_changed.bind(param_name))
-			control = check
-
-		"enum":
-			var option: OptionButton = OptionButton.new()
-			option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			var options: Array = param_def.get("options", [])
-			for i: int in range(options.size()):
-				option.add_item(options[i])
-				if options[i] == str(current_value):
-					option.select(i)
-			option.item_selected.connect(_on_enum_changed.bind(param_name, options))
-			control = option
-
-		"character":
-			var char_btn: OptionButton = OptionButton.new()
-			char_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			char_btn.add_item("(None)", 0)
-			char_btn.set_item_metadata(0, {"type": "none", "id": ""})
-			var selected_idx: int = 0
-			var item_idx: int = 1
-
-			# Add characters first
-			for i: int in range(_characters.size()):
-				var char_res: Resource = _characters[i]
-				if char_res:
-					# Use get() for safe property access in editor context
-					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
-					# Get character_uid - try direct access, then get(), then fallback to filename
-					var char_uid: String = ""
-					if char_res is CharacterData:
-						char_uid = (char_res as CharacterData).character_uid
-					if char_uid.is_empty() and char_res.get("character_uid") != null:
-						char_uid = str(char_res.get("character_uid"))
-					if char_uid.is_empty():
-						# Fallback: use filename as identifier (resource ID)
-						char_uid = char_res.resource_path.get_file().get_basename()
-					char_btn.add_item(display_name, item_idx)
-					char_btn.set_item_metadata(item_idx, {"type": "character", "id": char_uid})
-					if char_uid == str(current_value):
-						selected_idx = item_idx
-					item_idx += 1
-
-			# Add NPCs (with visual separator via different format)
-			for i: int in range(_npcs.size()):
-				var npc_res: Resource = _npcs[i]
-				if npc_res:
-					# Get display name with fallbacks for different loading states
-					var display_name: String = ""
-					var npc_id: String = ""
-
-					# Try direct property access first (works when script is attached)
-					if "npc_name" in npc_res and not str(npc_res.get("npc_name")).is_empty():
-						display_name = str(npc_res.get("npc_name"))
-					if "npc_id" in npc_res:
-						npc_id = str(npc_res.get("npc_id"))
-
-					# Fallback to filename
-					if display_name.is_empty():
-						display_name = npc_res.resource_path.get_file().get_basename()
-					if npc_id.is_empty():
-						npc_id = npc_res.resource_path.get_file().get_basename()
-
-					# Get source mod
-					var mod_id: String = ""
-					if ModLoader and ModLoader.registry:
-						var resource_id: String = npc_res.resource_path.get_file().get_basename()
-						mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-					var full_display: String = "[%s] %s (NPC)" % [mod_id, display_name] if not mod_id.is_empty() else "%s (NPC)" % display_name
-					char_btn.add_item(full_display, item_idx)
-					char_btn.set_item_metadata(item_idx, {"type": "npc", "id": npc_id})
-					# Check if this NPC is selected (stored as "npc:npc_id")
-					if str(current_value) == "npc:" + npc_id:
-						selected_idx = item_idx
-					item_idx += 1
-
-			char_btn.select(selected_idx)
-			char_btn.item_selected.connect(_on_character_or_npc_selected.bind(param_name, char_btn))
-			control = char_btn
-
-		"text":
-			var text_edit: TextEdit = TextEdit.new()
-			text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			text_edit.custom_minimum_size.y = 60
-			text_edit.text = str(current_value) if current_value != null else ""
-			text_edit.placeholder_text = param_def.get("hint", "")
-			text_edit.text_changed.connect(_on_text_changed.bind(param_name, text_edit))
-			control = text_edit
-
-		"vector2":
-			var vec_container: HBoxContainer = HBoxContainer.new()
-			vec_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-			var x_spin: SpinBox = SpinBox.new()
-			x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			x_spin.min_value = -10000
-			x_spin.max_value = 10000
-			var x_label: Label = Label.new()
-			x_label.text = "X:"
-			vec_container.add_child(x_label)
-			vec_container.add_child(x_spin)
-
-			var y_spin: SpinBox = SpinBox.new()
-			y_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			y_spin.min_value = -10000
-			y_spin.max_value = 10000
-			var y_label: Label = Label.new()
-			y_label.text = "Y:"
-			vec_container.add_child(y_label)
-			vec_container.add_child(y_spin)
-
-			# Parse current value
-			if current_value is Array and current_value.size() >= 2:
-				x_spin.value = current_value[0]
-				y_spin.value = current_value[1]
-			elif current_value is Vector2:
-				x_spin.value = current_value.x
-				y_spin.value = current_value.y
-
-			x_spin.value_changed.connect(_on_vector_changed.bind(param_name, 0, y_spin))
-			y_spin.value_changed.connect(_on_vector_changed.bind(param_name, 1, x_spin))
-
-			control = vec_container
-
 		"color":
 			var color_btn: ColorPickerButton = ColorPickerButton.new()
 			color_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1157,236 +1137,17 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 			var_edit.text_changed.connect(_on_variant_changed.bind(param_name))
 			control = var_edit
 
-		"shop":
-			# Shop picker dropdown
-			var shop_btn: OptionButton = OptionButton.new()
-			shop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			shop_btn.add_item("(None)", 0)
-			shop_btn.set_item_metadata(0, "")
-			var selected_idx: int = 0
-			var item_idx: int = 1
-
-			for shop_res: Resource in _shops:
-				if shop_res:
-					var shop_id: String = ""
-					var shop_name: String = ""
-
-					if "shop_id" in shop_res:
-						shop_id = str(shop_res.get("shop_id"))
-					if "shop_name" in shop_res:
-						shop_name = str(shop_res.get("shop_name"))
-
-					if shop_id.is_empty():
-						shop_id = shop_res.resource_path.get_file().get_basename()
-					if shop_name.is_empty():
-						shop_name = shop_id
-
-					# Get source mod
-					var mod_id: String = ""
-					if ModLoader and ModLoader.registry:
-						var resource_id: String = shop_res.resource_path.get_file().get_basename()
-						mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-					var display_name: String = "[%s] %s" % [mod_id, shop_name] if not mod_id.is_empty() else shop_name
-					shop_btn.add_item(display_name, item_idx)
-					shop_btn.set_item_metadata(item_idx, shop_id)
-
-					if shop_id == str(current_value):
-						selected_idx = item_idx
-					item_idx += 1
-
-			shop_btn.select(selected_idx)
-			shop_btn.item_selected.connect(_on_shop_selected.bind(param_name, shop_btn))
-			control = shop_btn
-
-		"scene_id":
-			# Scene ID picker dropdown (from registered scenes in mod.json)
-			var scene_btn: OptionButton = OptionButton.new()
-			scene_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			scene_btn.add_item("(None)", 0)
-			scene_btn.set_item_metadata(0, "")
-			var selected_idx: int = 0
-			var item_idx: int = 1
-
-			if ModLoader and ModLoader.registry:
-				var scene_ids: Array[String] = ModLoader.registry.get_scene_ids()
-				for scene_id: String in scene_ids:
-					var scene_path: String = ModLoader.registry.get_scene_path(scene_id)
-					var mod_id: String = ModLoader.registry.get_scene_source(scene_id)
-					var display_name: String = "[%s] %s" % [mod_id, scene_id] if not mod_id.is_empty() else scene_id
-					scene_btn.add_item(display_name, item_idx)
-					scene_btn.set_item_metadata(item_idx, scene_id)
-
-					if scene_id == str(current_value):
-						selected_idx = item_idx
-					item_idx += 1
-
-			scene_btn.select(selected_idx)
-			scene_btn.item_selected.connect(_on_scene_selected.bind(param_name, scene_btn))
-			control = scene_btn
-
-		"map_id":
-			# Map ID picker dropdown - iterate by resource ID since JSON-loaded maps lack resource_path
-			var map_btn: OptionButton = OptionButton.new()
-			map_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			map_btn.add_item("(None)", 0)
-			map_btn.set_item_metadata(0, "")
-			var selected_idx: int = 0
-			var item_idx: int = 1
-
-			if ModLoader and ModLoader.registry:
-				var map_ids: Array[String] = ModLoader.registry.get_resource_ids("map")
-				for resource_id: String in map_ids:
-					var map_res: MapMetadata = ModLoader.registry.get_map(resource_id)
-					if not map_res:
-						continue
-
-					# Get map_id from resource, fall back to resource_id (filename)
-					var map_id: String = ""
-					var map_name: String = ""
-
-					if "map_id" in map_res and not str(map_res.get("map_id")).is_empty():
-						map_id = str(map_res.get("map_id"))
-					else:
-						map_id = resource_id
-
-					if "display_name" in map_res and not str(map_res.get("display_name")).is_empty():
-						map_name = str(map_res.get("display_name"))
-					else:
-						map_name = map_id
-
-					# Get source mod
-					var mod_id: String = ModLoader.registry.get_resource_source(resource_id)
-
-					var display_text: String = "[%s] %s" % [mod_id, map_name] if not mod_id.is_empty() else map_name
-					map_btn.add_item(display_text, item_idx)
-					map_btn.set_item_metadata(item_idx, map_id)
-
-					if map_id == str(current_value):
-						selected_idx = item_idx
-					item_idx += 1
-
-			map_btn.select(selected_idx)
-			map_btn.item_selected.connect(_on_map_selected.bind(param_name, map_btn))
-			control = map_btn
-
-		"actor":
-			# Actor ID picker dropdown - shows actors from current cinematic
-			var actor_btn: OptionButton = OptionButton.new()
-			actor_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			actor_btn.add_item("(None)", 0)
-			actor_btn.set_item_metadata(0, "")
-			var selected_idx: int = 0
-			var item_idx: int = 1
-			for actor_id: String in _get_current_actor_ids():
-				actor_btn.add_item(actor_id, item_idx)
-				actor_btn.set_item_metadata(item_idx, actor_id)
-				if actor_id == str(current_value):
-					selected_idx = item_idx
-				item_idx += 1
-			actor_btn.select(selected_idx)
-			actor_btn.item_selected.connect(_on_actor_param_selected.bind(param_name, actor_btn))
-			control = actor_btn
-
-		"battle":
-			# Battle picker dropdown
-			var battle_btn: OptionButton = OptionButton.new()
-			battle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			battle_btn.add_item("(None)", 0)
-			battle_btn.set_item_metadata(0, "")
-			var selected_idx: int = 0
-			var item_idx: int = 1
-
-			for battle_res: Resource in _battles:
-				if battle_res:
-					var battle_id: String = ""
-					var battle_name: String = ""
-
-					if "battle_id" in battle_res:
-						battle_id = str(battle_res.get("battle_id"))
-					if "battle_name" in battle_res:
-						battle_name = str(battle_res.get("battle_name"))
-
-					if battle_id.is_empty():
-						battle_id = battle_res.resource_path.get_file().get_basename()
-					if battle_name.is_empty():
-						battle_name = battle_id
-
-					var mod_id: String = ""
-					if ModLoader and ModLoader.registry:
-						var resource_id: String = battle_res.resource_path.get_file().get_basename()
-						mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-					var display_name: String = "[%s] %s" % [mod_id, battle_name] if not mod_id.is_empty() else battle_name
-					battle_btn.add_item(display_name, item_idx)
-					battle_btn.set_item_metadata(item_idx, battle_id)
-
-					if battle_id == str(current_value):
-						selected_idx = item_idx
-					item_idx += 1
-
-			battle_btn.select(selected_idx)
-			battle_btn.item_selected.connect(_on_battle_param_selected.bind(param_name, battle_btn))
-			control = battle_btn
-
-		"cinematic":
-			# Cinematic picker dropdown
-			var cine_btn: OptionButton = OptionButton.new()
-			cine_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			cine_btn.add_item("(None)", 0)
-			cine_btn.set_item_metadata(0, "")
-			var selected_idx: int = 0
-			var item_idx: int = 1
-
-			for entry: Dictionary in cinematics:
-				var cinematic_id: String = entry.get("name", "")
-				var mod_id: String = entry.get("mod_id", "")
-
-				var display_name: String = "[%s] %s" % [mod_id, cinematic_id] if not mod_id.is_empty() else cinematic_id
-				cine_btn.add_item(display_name, item_idx)
-				cine_btn.set_item_metadata(item_idx, cinematic_id)
-
-				if cinematic_id == str(current_value):
-					selected_idx = item_idx
-				item_idx += 1
-
-			cine_btn.select(selected_idx)
-			cine_btn.item_selected.connect(_on_cinematic_param_selected.bind(param_name, cine_btn))
-			control = cine_btn
-
-		"choices":
-			# Custom UI for show_choice command - editable list of choices
-			var choices_container: VBoxContainer = VBoxContainer.new()
-			choices_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			choices_container.add_theme_constant_override("separation", 4)
-
-			# Convert current_value to array
-			var choices_array: Array = []
-			if current_value is Array:
-				choices_array = current_value
-
-			# Build existing choices
-			for i: int in range(choices_array.size()):
-				var choice_dict: Variant = choices_array[i]
-				if choice_dict is Dictionary:
-					var choice_row: Control = _create_choice_row(i, choice_dict, param_name, choices_container)
-					choices_container.add_child(choice_row)
-
-			# Add button
-			var add_btn: Button = Button.new()
-			add_btn.text = "+ Add Choice"
-			add_btn.pressed.connect(_on_add_choice.bind(param_name, choices_container))
-			choices_container.add_child(add_btn)
-
-			control = choices_container
-
-		_:  # string and unknown types
-			var line_edit: LineEdit = LineEdit.new()
-			line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			line_edit.text = str(current_value) if current_value != null else ""
-			line_edit.placeholder_text = param_def.get("hint", "")
-			line_edit.text_changed.connect(_on_param_changed.bind(param_name))
-			control = line_edit
+		_:  # Unknown types - JSON fallback
+			var json_edit: TextEdit = TextEdit.new()
+			json_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			json_edit.custom_minimum_size.y = 60
+			json_edit.text = JSON.stringify(current_value, "  ") if current_value != null else ""
+			json_edit.text_changed.connect(func() -> void:
+				var parsed: Variant = JSON.parse_string(json_edit.text)
+				if parsed != null:
+					_on_widget_value_changed(parsed, param_name)
+			)
+			control = json_edit
 
 	row.add_child(control)
 	inspector_fields[param_name] = control
@@ -1416,73 +1177,7 @@ func _on_param_changed(value: Variant, param_name: String) -> void:
 	command_list.select(selected_command_index)
 
 
-func _on_enum_changed(index: int, param_name: String, options: Array) -> void:
-	if index >= 0 and index < options.size():
-		_on_param_changed(options[index], param_name)
-
-
-func _on_character_or_npc_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var metadata: Variant = option_btn.get_item_metadata(index)
-	if metadata is Dictionary:
-		var meta_dict: Dictionary = metadata
-		var item_type: String = meta_dict.get("type", "none")
-		var item_id: String = meta_dict.get("id", "")
-
-		if item_type == "none" or item_id.is_empty():
-			_on_param_changed("", param_name)
-		elif item_type == "character":
-			# Character: store the character_uid directly
-			_on_param_changed(item_id, param_name)
-		elif item_type == "npc":
-			# NPC: store with "npc:" prefix so runtime can distinguish
-			_on_param_changed("npc:" + item_id, param_name)
-	else:
-		_on_param_changed("", param_name)
-
-
-func _on_shop_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var shop_id: Variant = option_btn.get_item_metadata(index)
-	_on_param_changed(shop_id if shop_id else "", param_name)
-
-
-func _on_scene_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var scene_id: Variant = option_btn.get_item_metadata(index)
-	_on_param_changed(scene_id if scene_id else "", param_name)
-
-
-func _on_map_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var map_id: Variant = option_btn.get_item_metadata(index)
-	_on_param_changed(map_id if map_id else "", param_name)
-
-
-func _on_actor_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var actor_id: Variant = option_btn.get_item_metadata(index)
-	_on_param_changed(actor_id if actor_id else "", param_name)
-
-
-func _on_battle_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var battle_id: Variant = option_btn.get_item_metadata(index)
-	_on_param_changed(battle_id if battle_id else "", param_name)
-
-
-func _on_cinematic_param_selected(index: int, param_name: String, option_btn: OptionButton) -> void:
-	var cinematic_id: Variant = option_btn.get_item_metadata(index)
-	_on_param_changed(cinematic_id if cinematic_id else "", param_name)
-
-
-func _on_text_changed(param_name: String, text_edit: TextEdit) -> void:
-	_on_param_changed(text_edit.text, param_name)
-
-
-func _on_vector_changed(value: float, param_name: String, component: int, other_spin: SpinBox) -> void:
-	var vec: Array = [0, 0]
-	if component == 0:
-		vec = [value, other_spin.value]
-	else:
-		vec = [other_spin.value, value]
-	_on_param_changed(vec, param_name)
-
-
+# Legacy handlers for fallback param types (color, path, variant)
 func _on_color_changed(color: Color, param_name: String) -> void:
 	_on_param_changed([color.r, color.g, color.b, color.a], param_name)
 

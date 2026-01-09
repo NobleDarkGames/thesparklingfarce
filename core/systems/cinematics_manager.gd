@@ -261,6 +261,7 @@ func _register_built_in_commands() -> void:
 	const ShowChoiceExecutor = preload("res://core/systems/cinematic_commands/show_choice_executor.gd")
 	const TriggerBattleExecutor = preload("res://core/systems/cinematic_commands/trigger_battle_executor.gd")
 	const CheckFlagExecutor = preload("res://core/systems/cinematic_commands/check_flag_executor.gd")
+	const CheckFlagsExecutor = preload("res://core/systems/cinematic_commands/check_flags_executor.gd")
 
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
@@ -290,6 +291,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("show_choice", ShowChoiceExecutor.new())
 	register_command_executor("trigger_battle", TriggerBattleExecutor.new())
 	register_command_executor("check_flag", CheckFlagExecutor.new())
+	register_command_executor("check_flags", CheckFlagsExecutor.new())
 
 
 ## Register all built-in spawnable entity types
