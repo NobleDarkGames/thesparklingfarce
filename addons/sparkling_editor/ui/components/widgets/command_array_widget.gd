@@ -257,37 +257,39 @@ func _build_json_fallback() -> void:
 		_add_menu_btn.visible = false
 
 
-## Setup the add command menu with categories
+## Setup the add command menu with category submenus (matches main editor)
 func _setup_add_menu() -> void:
 	var popup: PopupMenu = _add_menu_btn.get_popup()
 	popup.clear()
 	
+	# Clean up old submenus
+	for child: Node in popup.get_children():
+		child.queue_free()
+	
 	var definitions: Dictionary = CinematicCommandDefs.get_merged_definitions()
 	var categories: Dictionary = CinematicCommandDefs.build_categories(definitions)
 	
-	var item_id: int = 0
-	for category: String in categories:
-		# Add category header (disabled)
-		popup.add_item("-- %s --" % category, -1)
-		popup.set_item_disabled(popup.item_count - 1, true)
+	# Create submenus for each category
+	for category: String in categories.keys():
+		var submenu: PopupMenu = PopupMenu.new()
+		submenu.name = category + "_submenu"
 		
-		# Add commands in this category
-		var cmd_types: Array = categories[category]
-		for cmd_type: Variant in cmd_types:
-			var cmd_str: String = str(cmd_type)
-			popup.add_item(cmd_str, item_id)
-			popup.set_item_metadata(item_id, cmd_str)
-			item_id += 1
+		var idx: int = 0
+		for cmd_type: String in categories[category]:
+			if cmd_type in definitions:
+				var def: Dictionary = definitions[cmd_type]
+				var desc: String = def.get("description", cmd_type)
+				submenu.add_item(cmd_type + " - " + desc.substr(0, 35), idx)
+				submenu.set_item_metadata(idx, cmd_type)
+				idx += 1
 		
-		# Add separator between categories
-		popup.add_separator()
-	
-	popup.id_pressed.connect(_on_add_menu_item_selected)
+		submenu.id_pressed.connect(_on_submenu_command_selected.bind(submenu))
+		popup.add_child(submenu)
+		popup.add_submenu_item(category, submenu.name)
 
 
-func _on_add_menu_item_selected(id: int) -> void:
-	var popup: PopupMenu = _add_menu_btn.get_popup()
-	var cmd_type: String = popup.get_item_metadata(popup.get_item_index(id))
+func _on_submenu_command_selected(id: int, submenu: PopupMenu) -> void:
+	var cmd_type: String = submenu.get_item_metadata(id)
 	if not cmd_type.is_empty():
 		_on_add_command_selected(cmd_type)
 
@@ -299,7 +301,7 @@ func _on_add_command_selected(command_type: String) -> void:
 	value_changed.emit(_commands)
 
 
-## Create a default command of the given type
+## Create a default command of the given type (matches main editor logic)
 func _create_default_command(command_type: String) -> Dictionary:
 	var cmd: Dictionary = {
 		"type": command_type,
@@ -310,11 +312,14 @@ func _create_default_command(command_type: String) -> Dictionary:
 	var definitions: Dictionary = CinematicCommandDefs.get_merged_definitions()
 	if command_type in definitions:
 		var def: Dictionary = definitions[command_type]
+		# Add target field if command has_target
+		if def.get("has_target", false):
+			cmd["target"] = ""
+		# Add default param values
 		var params_def: Dictionary = def.get("params", {})
 		for param_name: String in params_def:
 			var param_def: Dictionary = params_def[param_name]
-			if "default" in param_def:
-				cmd["params"][param_name] = param_def["default"]
+			cmd["params"][param_name] = param_def.get("default", "")
 	
 	return cmd
 

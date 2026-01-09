@@ -51,17 +51,21 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	_on_victory_cinematic = params.get("on_victory_cinematic", "")
 	_on_defeat_cinematic = params.get("on_defeat_cinematic", "")
 
-	# Parse flag arrays
+	# Parse flag arrays (accept string or array)
 	_on_victory_flags.clear()
 	var victory_flags: Variant = params.get("on_victory_flags", [])
-	if victory_flags is Array:
+	if victory_flags is String and not victory_flags.is_empty():
+		_on_victory_flags.append(victory_flags)
+	elif victory_flags is Array:
 		for flag: Variant in victory_flags:
 			if flag is String and not flag.is_empty():
 				_on_victory_flags.append(flag)
 
 	_on_defeat_flags.clear()
 	var defeat_flags: Variant = params.get("on_defeat_flags", [])
-	if defeat_flags is Array:
+	if defeat_flags is String and not defeat_flags.is_empty():
+		_on_defeat_flags.append(defeat_flags)
+	elif defeat_flags is Array:
 		for flag: Variant in defeat_flags:
 			if flag is String and not flag.is_empty():
 				_on_defeat_flags.append(flag)

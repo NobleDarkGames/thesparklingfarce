@@ -317,10 +317,13 @@ func get_external_choice_value(choice_index: int) -> String:
 
 
 ## Clear external choice state
+## Emits dialog_ended so UI components (ChoiceSelector, DialogBox) know to hide
 func clear_external_choices() -> void:
 	_external_choices.clear()
 	if current_state == State.WAITING_FOR_CHOICE:
 		current_state = State.IDLE
+		# Emit dialog_ended so ChoiceSelector and DialogBox hide themselves
+		dialog_ended.emit(null)
 
 
 ## Check if a dialog is currently active

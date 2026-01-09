@@ -88,9 +88,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if not DialogManager.choice_selected.is_connected(_on_choice_selected):
 		DialogManager.choice_selected.connect(_on_choice_selected)
 
-	# Connect to dialog_cancelled to handle player backing out
-	if not DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
-		DialogManager.dialog_cancelled.connect(_on_dialog_cancelled)
+	# SF2-authentic: Choices cannot be cancelled - player must pick one.
+	# Content authors should include a "Never mind" option (action: "none") when appropriate.
 
 	# Show choices via DialogManager's external choice API
 	if not DialogManager.show_choices(_choices):
@@ -107,8 +106,6 @@ func _on_choice_selected(choice_index: int, _next_dialogue: DialogueData) -> voi
 	# Disconnect immediately to avoid duplicate calls
 	if DialogManager.choice_selected.is_connected(_on_choice_selected):
 		DialogManager.choice_selected.disconnect(_on_choice_selected)
-	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
-		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 
 	# Get the selected choice
 	if choice_index < 0 or choice_index >= _choices.size():
@@ -123,21 +120,6 @@ func _on_choice_selected(choice_index: int, _next_dialogue: DialogueData) -> voi
 
 	# Execute the action (pass full choice for action-specific options)
 	_execute_action(choice)
-
-
-func _on_dialog_cancelled() -> void:
-	# Player backed out of the choice menu
-	if DialogManager.choice_selected.is_connected(_on_choice_selected):
-		DialogManager.choice_selected.disconnect(_on_choice_selected)
-	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
-		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
-
-	# Clear external choices from DialogManager
-	DialogManager.clear_external_choices()
-
-	# End the cinematic (player chose to cancel)
-	CinematicsManager.skip_cinematic()
-	_cleanup()
 
 
 func _execute_action(choice: Dictionary) -> void:
@@ -181,17 +163,21 @@ func _action_battle(choice: Dictionary) -> void:
 	_on_victory_cinematic = choice.get("on_victory_cinematic", "")
 	_on_defeat_cinematic = choice.get("on_defeat_cinematic", "")
 
-	# Parse flag arrays
+	# Parse flag arrays (accept string or array)
 	_on_victory_flags.clear()
 	var victory_flags: Variant = choice.get("on_victory_flags", [])
-	if victory_flags is Array:
+	if victory_flags is String and not victory_flags.is_empty():
+		_on_victory_flags.append(victory_flags)
+	elif victory_flags is Array:
 		for flag: Variant in victory_flags:
 			if flag is String and not flag.is_empty():
 				_on_victory_flags.append(flag)
 
 	_on_defeat_flags.clear()
 	var defeat_flags: Variant = choice.get("on_defeat_flags", [])
-	if defeat_flags is Array:
+	if defeat_flags is String and not defeat_flags.is_empty():
+		_on_defeat_flags.append(defeat_flags)
+	elif defeat_flags is Array:
 		for flag: Variant in defeat_flags:
 			if flag is String and not flag.is_empty():
 				_on_defeat_flags.append(flag)
@@ -329,8 +315,6 @@ func interrupt() -> void:
 	# Clean up signal connections if cinematic is skipped
 	if DialogManager.choice_selected.is_connected(_on_choice_selected):
 		DialogManager.choice_selected.disconnect(_on_choice_selected)
-	if DialogManager.dialog_cancelled.is_connected(_on_dialog_cancelled):
-		DialogManager.dialog_cancelled.disconnect(_on_dialog_cancelled)
 	if ShopManager.shop_closed.is_connected(_on_shop_closed):
 		ShopManager.shop_closed.disconnect(_on_shop_closed)
 	if BattleManager.battle_ended.is_connected(_on_battle_ended):

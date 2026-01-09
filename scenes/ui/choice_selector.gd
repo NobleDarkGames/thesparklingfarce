@@ -55,8 +55,8 @@ func _input(event: InputEvent) -> void:
 		_select_current_choice()
 		get_viewport().set_input_as_handled()
 
-	# Cancel not allowed for choices - player must pick one
-	# (Can add optional cancel support later if needed)
+	# SF2-authentic: Choices cannot be cancelled - player must pick one.
+	# Content authors should include a "Never mind" option (action: "none") when appropriate.
 
 
 ## Called when DialogManager shows choices

@@ -157,7 +157,6 @@ func _populate_type_picker() -> void:
 	_type_picker.clear()
 	
 	var categories: Dictionary = CinematicCommandDefs.build_categories(_definitions)
-	var item_idx: int = 0
 	
 	for category: String in categories:
 		# Add category separator (disabled item)
@@ -168,8 +167,10 @@ func _populate_type_picker() -> void:
 		for cmd_type: Variant in cmd_types:
 			var cmd_str: String = str(cmd_type)
 			_type_picker.add_item(cmd_str)
-			_type_picker.set_item_metadata(item_idx, cmd_str)
-			item_idx += 1
+			# Use actual item count - 1 to get the index of the just-added item
+			# This correctly accounts for separators taking up index slots
+			var actual_idx: int = _type_picker.item_count - 1
+			_type_picker.set_item_metadata(actual_idx, cmd_str)
 
 
 ## Refresh UI from current command data
@@ -341,7 +342,7 @@ func _create_json_fallback_row(param_name: String, param_def: Dictionary, curren
 	_param_widgets[param_name] = json_edit
 
 
-## Handle type picker change
+## Handle type picker change (matches main editor logic)
 func _on_type_changed(index: int) -> void:
 	var new_type: String = _type_picker.get_item_metadata(index)
 	if new_type.is_empty():
@@ -355,20 +356,26 @@ func _on_type_changed(index: int) -> void:
 	_command["type"] = new_type
 	_command["params"] = {}
 	
-	# Populate default params
+	# Populate default params and handle target field
 	if new_type in _definitions:
 		var def: Dictionary = _definitions[new_type]
+		# Add or remove target field based on has_target
+		if def.get("has_target", false):
+			if "target" not in _command:
+				_command["target"] = ""
+		else:
+			_command.erase("target")
+		# Add default param values
 		var params_def: Dictionary = def.get("params", {})
 		for param_name: String in params_def:
 			var param_def: Dictionary = params_def[param_name]
-			if "default" in param_def:
-				_command["params"][param_name] = param_def["default"]
-	
-	# Clear target if new type doesn't have it
-	_update_target_visibility(new_type)
-	if not _target_row.visible:
+			_command["params"][param_name] = param_def.get("default", "")
+	else:
 		_command.erase("target")
-		_target_edit.text = ""
+	
+	# Update target row visibility and text
+	_update_target_visibility(new_type)
+	_target_edit.text = _command.get("target", "")
 	
 	# Rebuild params UI
 	_build_params_ui()

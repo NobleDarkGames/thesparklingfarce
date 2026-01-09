@@ -82,6 +82,12 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 
+	# SF2-authentic: Don't handle input when waiting for choice.
+	# Choices cannot be cancelled - player must select one of the options.
+	# Content authors should provide a "Never mind" choice when backing out is appropriate.
+	if DialogManager.current_state == DialogManager.State.WAITING_FOR_CHOICE:
+		return
+
 	# Skip text reveal or advance dialog
 	if event.is_action_pressed("sf_confirm"):
 		if is_revealing_text:
@@ -92,7 +98,7 @@ func _input(event: InputEvent) -> void:
 			DialogManager.advance_dialog()
 		get_viewport().set_input_as_handled()
 
-	# Cancel dialog
+	# Cancel dialog (only during normal dialog, not choices)
 	elif event.is_action_pressed("sf_cancel"):
 		DialogManager.cancel_dialog()
 		get_viewport().set_input_as_handled()
