@@ -15,10 +15,6 @@ var id_lock_btn: Button
 var _id_locked: bool = false
 var shop_type_option: OptionButton
 
-# Presentation
-var greeting_edit: TextEdit
-var farewell_edit: LineEdit
-
 # Inventory
 var inventory_container: VBoxContainer
 var inventory_list: ItemList
@@ -80,7 +76,6 @@ func _create_detail_form() -> void:
 	_refresh_caches()
 
 	_add_basic_info_section()
-	_add_presentation_section()
 	_add_inventory_section()
 	_add_deals_section()
 	_add_economy_section()
@@ -118,10 +113,6 @@ func _load_resource_data() -> void:
 			else:
 				id_lock_btn.text = "🔓"
 				id_lock_btn.tooltip_text = "ID auto-generates from name - click to lock"
-
-	# Presentation
-	greeting_edit.text = shop.greeting_text
-	farewell_edit.text = shop.farewell_text
 
 	# Inventory
 	_current_inventory = shop.inventory.duplicate(true)
@@ -175,10 +166,6 @@ func _save_resource_data() -> void:
 	shop.shop_id = id_edit.text.strip_edges()
 	shop.shop_name = name_edit.text.strip_edges()
 	shop.shop_type = shop_type_option.selected
-
-	# Presentation
-	shop.greeting_text = greeting_edit.text
-	shop.farewell_text = farewell_edit.text.strip_edges()
 
 	# Inventory
 	shop.inventory = _current_inventory.duplicate(true)
@@ -255,8 +242,6 @@ func _create_new_resource() -> Resource:
 	new_shop.shop_id = "new_shop_%d" % Time.get_unix_time_from_system()
 	new_shop.shop_name = "New Shop"
 	new_shop.shop_type = ShopData.ShopType.ITEM
-	new_shop.greeting_text = "Welcome!"
-	new_shop.farewell_text = "Come again!"
 	new_shop.can_sell = true
 	new_shop.can_store_to_caravan = true
 	new_shop.can_sell_from_caravan = true
@@ -311,20 +296,6 @@ func _add_basic_info_section() -> void:
 	shop_type_option.item_selected.connect(_on_shop_type_changed)
 	form.add_labeled_control("Shop Type:", shop_type_option,
 		"Weapon = equipment, Item = consumables, Church = heal/revive, Crafter = forging, Special = unique.")
-
-
-func _add_presentation_section() -> void:
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
-	form.add_section("Presentation")
-
-	greeting_edit = form.add_text_area("Greeting Text:", 60,
-		"Message displayed when player enters the shop. Multi-line supported.")
-	greeting_edit.placeholder_text = "Welcome to my shop!"
-	greeting_edit.text_changed.connect(_mark_dirty)
-
-	farewell_edit = form.add_text_field("Farewell Text:", "Come again!",
-		"Message displayed when player leaves the shop.")
-	farewell_edit.text_changed.connect(_mark_dirty)
 
 
 func _add_inventory_section() -> void:

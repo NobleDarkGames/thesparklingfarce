@@ -14,39 +14,15 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Component Architecture:
 ## - NPCPreviewPanel: Live preview rendering (extracted)
 ## - MapPlacementHelper: Scene modification for "Place on Map" (extracted)
-## - QuickDialogGenerator: Cinematic creation from quick dialog (extracted)
 
 # UI field references - Basic Information
 var npc_id_edit: LineEdit
 var npc_id_lock_btn: Button
 var npc_name_edit: LineEdit
 var character_picker: ResourcePicker
-var template_option: OptionButton
 
 # Track if ID should auto-generate from name
 var _id_is_locked: bool = false
-
-# Quick Setup section (new simplified NPC role system)
-var quick_setup_section: VBoxContainer
-var npc_role_option: OptionButton
-var shop_id_row: HBoxContainer
-var shop_id_edit: LineEdit
-var shop_id_picker: ResourcePicker
-var greeting_text_edit: TextEdit
-var farewell_text_edit: TextEdit
-var quick_setup_status: Label
-
-# NPC Templates - preset configurations for common NPC types
-const NPC_TEMPLATES: Dictionary = {
-	"custom": {"label": "Custom NPC", "name": "", "dialog": "", "face_player": true},
-	"town_guard": {"label": "Town Guard", "name": "Town Guard", "dialog": "Move along, citizen.\nNo trouble here.", "face_player": true},
-	"shopkeeper": {"label": "Shopkeeper", "name": "Shopkeeper", "dialog": "Welcome to my shop!\nTake a look around.", "face_player": true},
-	"elder": {"label": "Village Elder", "name": "Elder", "dialog": "Greetings, young one.\nI have lived many years in this village.\nPerhaps I can offer some wisdom.", "face_player": true},
-	"villager": {"label": "Villager", "name": "Villager", "dialog": "What a lovely day!\nI hope nothing bad happens.", "face_player": true},
-	"innkeeper": {"label": "Innkeeper", "name": "Innkeeper", "dialog": "Welcome, weary traveler!\nWould you like to rest here?", "face_player": true},
-	"mysterious": {"label": "Mysterious Figure", "name": "???", "dialog": "...\n...Who are you?", "face_player": false, "facing": "down"},
-	"child": {"label": "Child", "name": "Child", "dialog": "Hey mister!\nWanna play?", "face_player": true}
-}
 
 # Appearance Fallback section
 var appearance_section: VBoxContainer
@@ -54,12 +30,6 @@ var portrait_path_edit: LineEdit
 var portrait_preview: TextureRect
 var portrait_file_dialog: EditorFileDialog
 var map_spritesheet_picker: MapSpritesheetPicker
-
-# Quick Dialog section
-var quick_dialog_section: VBoxContainer
-var quick_dialog_status: Label
-var quick_dialog_text: TextEdit
-var create_dialog_btn: Button
 
 # Interaction section
 var interaction_cinematic_edit: LineEdit
@@ -91,7 +61,6 @@ var place_position_y: SpinBox
 # Extracted Components
 var preview_panel: NPCPreviewPanel
 var map_placement_helper: MapPlacementHelper
-var quick_dialog_generator: QuickDialogGenerator
 
 # Track conditional entries for dynamic UI
 var conditional_entries: Array[Dictionary] = []
@@ -107,7 +76,6 @@ func _ready() -> void:
 
 	# Initialize helper components
 	map_placement_helper = MapPlacementHelper.new()
-	quick_dialog_generator = QuickDialogGenerator.new()
 
 	# Connect to EditorEventBus for refresh notifications
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
@@ -149,14 +117,13 @@ func _create_detail_form() -> void:
 	detail_panel = form_container
 
 	_add_basic_info_section()
-	_add_quick_setup_section()
-	_add_quick_dialog_section()
 	_add_place_on_map_section()
 	_add_advanced_options_section()
 
 	# Bind preview panel to data sources
 	# Note: sprite_path is null since we now use MapSpritesheetPicker (which has its own preview)
-	preview_panel.bind_sources(npc_name_edit, quick_dialog_text, character_picker, portrait_path_edit, null)
+	# Note: dialog_text is null since Quick Dialog was removed - preview shows name/portrait only
+	preview_panel.bind_sources(npc_name_edit, null, character_picker, portrait_path_edit, null)
 
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
@@ -169,9 +136,6 @@ func _load_resource_data() -> void:
 	var npc: NPCData = current_resource
 
 	_updating_ui = true
-
-	if template_option:
-		template_option.select(0)
 
 	npc_name_edit.text = npc.npc_name
 	npc_id_edit.text = npc.npc_id
@@ -187,24 +151,6 @@ func _load_resource_data() -> void:
 
 	_update_appearance_section_visibility()
 
-	# Load Quick Setup fields
-	if npc_role_option:
-		npc_role_option.select(int(npc.npc_role))
-	if shop_id_picker and not npc.shop_id.is_empty():
-		# Try to find and select the shop resource
-		var shop_res: ShopData = ModLoader.registry.get_shop(npc.shop_id) if ModLoader and ModLoader.registry else null
-		if shop_res:
-			shop_id_picker.select_resource(shop_res)
-		else:
-			shop_id_picker.select_none()
-	elif shop_id_picker:
-		shop_id_picker.select_none()
-	if greeting_text_edit:
-		greeting_text_edit.text = npc.greeting_text
-	if farewell_text_edit:
-		farewell_text_edit.text = npc.farewell_text
-	_update_quick_setup_visibility()
-
 	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
 	portrait_path_edit.text = portrait_path
 	_load_portrait_preview(portrait_path)
@@ -219,13 +165,6 @@ func _load_resource_data() -> void:
 	interaction_cinematic_edit.text = npc.interaction_cinematic_id
 	fallback_cinematic_edit.text = npc.fallback_cinematic_id
 
-	# Load Quick Dialog text using extracted component
-	var cinematics_dir: String = _get_active_mod_cinematics_path()
-	var dialog_text: String = QuickDialogGenerator.load_dialog_text_from_cinematic(
-		cinematics_dir, npc.interaction_cinematic_id, npc.npc_id
-	)
-	quick_dialog_text.text = dialog_text
-
 	_load_conditional_cinematics(npc.conditional_cinematics)
 
 	face_player_check.button_pressed = npc.face_player_on_interact
@@ -234,7 +173,6 @@ func _load_resource_data() -> void:
 	_updating_ui = false
 
 	call_deferred("_update_cinematic_warnings")
-	call_deferred("_update_quick_dialog_status")
 	call_deferred("_update_preview")
 
 
@@ -248,23 +186,6 @@ func _save_resource_data() -> void:
 	npc.npc_name = npc_name_edit.text.strip_edges()
 	var char_res: Resource = character_picker.get_selected_resource()
 	npc.character_data = char_res if char_res is CharacterData else null
-
-	# Save Quick Setup fields
-	if npc_role_option:
-		npc.npc_role = npc_role_option.selected as NPCData.NPCRole
-	if shop_id_picker:
-		# Get the selected shop resource
-		var selected_shop: Resource = shop_id_picker.get_selected_resource()
-		if selected_shop and selected_shop is ShopData:
-			# Save the shop's shop_id property
-			# This matches what the runtime lookup (get_shop_by_id) expects
-			npc.shop_id = selected_shop.shop_id
-		else:
-			npc.shop_id = ""
-	if greeting_text_edit:
-		npc.greeting_text = greeting_text_edit.text.strip_edges()
-	if farewell_text_edit:
-		npc.farewell_text = farewell_text_edit.text.strip_edges()
 
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
 	npc.portrait = _load_texture(portrait_path)
@@ -301,24 +222,15 @@ func _validate_resource() -> Dictionary:
 	if npc_id.is_empty():
 		errors.append("NPC ID is required")
 
-	# Check Quick Setup validity
-	var has_quick_setup: bool = _has_valid_quick_setup()
-
 	var primary_id: String = interaction_cinematic_edit.text.strip_edges()
 	var fallback_id: String = fallback_cinematic_edit.text.strip_edges()
 	var has_primary: bool = not primary_id.is_empty()
 	var has_fallback: bool = not fallback_id.is_empty()
 	var has_conditional: bool = _has_valid_conditional()
 
-	# Quick Setup validation - require shop_id for non-caravan roles
-	var selected_role: int = npc_role_option.selected if npc_role_option else 0
-	if selected_role > 0 and selected_role != 4:  # Role set but not CARAVAN_DEPOT
-		if not shop_id_picker or not shop_id_picker.has_selection():
-			errors.append("Quick Setup: Shop must be selected for this role")
-
-	# No dialog is allowed if using Quick Setup (decorative NPCs, dialog added later, etc.)
-	if not has_primary and not has_fallback and not has_conditional and not has_quick_setup:
-		warnings.append("NPC has no dialog - interacting will do nothing")
+	# Warn if NPC has no dialog configured
+	if not has_primary and not has_fallback and not has_conditional:
+		warnings.append("NPC has no cinematic - interacting will do nothing")
 
 	var cinematics_dir: String = _get_active_mod_cinematics_path()
 	if has_primary and not QuickDialogGenerator.cinematic_exists(cinematics_dir, primary_id):
@@ -371,11 +283,6 @@ func _create_new_resource() -> Resource:
 	new_npc.interaction_cinematic_id = ""
 	new_npc.fallback_cinematic_id = ""
 	# Note: conditional_cinematics defaults to empty Array[Dictionary] - don't reassign
-	# Quick Setup defaults
-	new_npc.npc_role = NPCData.NPCRole.NONE
-	new_npc.shop_id = ""
-	new_npc.greeting_text = ""
-	new_npc.farewell_text = ""
 
 	# Set default placeholder portrait (from core, always available)
 	if ResourceLoader.exists(DEFAULT_NPC_PORTRAIT):
@@ -404,22 +311,6 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 func _add_basic_info_section() -> void:
 	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
-
-	# Template selector
-	var template_row: HBoxContainer = SparklingEditorUtils.create_field_row("Start from:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	template_option = OptionButton.new()
-	template_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var idx: int = 0
-	for key: String in NPC_TEMPLATES.keys():
-		var template: Dictionary = NPC_TEMPLATES[key]
-		var template_label: String = DictUtils.get_string(template, "label", key)
-		template_option.add_item(template_label, idx)
-		template_option.set_item_metadata(idx, key)
-		idx += 1
-	template_option.item_selected.connect(_on_template_selected)
-	template_row.add_child(template_option)
-
-	SparklingEditorUtils.create_help_label("Choose a template to pre-fill common NPC types", section)
 
 	# NPC Name
 	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Display Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
@@ -461,82 +352,6 @@ func _add_basic_info_section() -> void:
 	section.add_child(character_picker)
 
 	SparklingEditorUtils.create_help_label("If set, portrait and sprite come from the character. Otherwise use fallback below.", section)
-
-
-func _add_quick_setup_section() -> void:
-	quick_setup_section = SparklingEditorUtils.create_section("Quick Setup (Shop/Service NPCs)", detail_panel)
-
-	# Status label for Quick Setup state
-	quick_setup_status = Label.new()
-	quick_setup_status.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	quick_setup_status.visible = false
-	quick_setup_section.add_child(quick_setup_status)
-
-	# NPC Role dropdown
-	var role_row: HBoxContainer = SparklingEditorUtils.create_field_row("NPC Role:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, quick_setup_section)
-	npc_role_option = OptionButton.new()
-	npc_role_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_role_option.tooltip_text = "Set a role to auto-generate shop/service behavior. Leave as 'None' for custom dialog NPCs."
-	npc_role_option.add_item("None (Custom Dialog)", 0)
-	npc_role_option.add_item("Shopkeeper", 1)
-	npc_role_option.add_item("Priest", 2)
-	npc_role_option.add_item("Innkeeper", 3)
-	npc_role_option.add_item("Caravan Depot", 4)
-	npc_role_option.add_item("Crafter", 5)
-	npc_role_option.item_selected.connect(_on_npc_role_changed)
-	role_row.add_child(npc_role_option)
-
-	SparklingEditorUtils.create_help_label("Select a role to simplify shop/church NPC creation", quick_setup_section)
-
-	# Shop ID field (uses ResourcePicker for shop selection)
-	shop_id_row = HBoxContainer.new()
-	shop_id_row.visible = false  # Hidden until role is selected
-	quick_setup_section.add_child(shop_id_row)
-
-	shop_id_picker = ResourcePicker.new()
-	shop_id_picker.resource_type = "shop"
-	shop_id_picker.label_text = "Shop:"
-	shop_id_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	shop_id_picker.allow_none = false
-	shop_id_picker.tooltip_text = "The shop this NPC will open. Must be created in the Shop Editor first."
-	shop_id_picker.resource_selected.connect(_on_shop_selected)
-	shop_id_row.add_child(shop_id_picker)
-
-	# Greeting text field
-	var greeting_container: VBoxContainer = VBoxContainer.new()
-	greeting_container.visible = false
-	greeting_container.name = "GreetingContainer"
-	quick_setup_section.add_child(greeting_container)
-
-	var greeting_label: Label = Label.new()
-	greeting_label.text = "Custom Greeting (optional):"
-	greeting_container.add_child(greeting_label)
-
-	greeting_text_edit = TextEdit.new()
-	greeting_text_edit.placeholder_text = "(Uses default for role)"
-	greeting_text_edit.custom_minimum_size.y = 50
-	greeting_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	greeting_text_edit.scroll_fit_content_height = true
-	greeting_text_edit.tooltip_text = "Custom greeting when player talks to this NPC. Leave empty for role default."
-	greeting_container.add_child(greeting_text_edit)
-
-	# Farewell text field
-	var farewell_container: VBoxContainer = VBoxContainer.new()
-	farewell_container.visible = false
-	farewell_container.name = "FarewellContainer"
-	quick_setup_section.add_child(farewell_container)
-
-	var farewell_label: Label = Label.new()
-	farewell_label.text = "Custom Farewell (optional):"
-	farewell_container.add_child(farewell_label)
-
-	farewell_text_edit = TextEdit.new()
-	farewell_text_edit.placeholder_text = "(Uses default for role)"
-	farewell_text_edit.custom_minimum_size.y = 50
-	farewell_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	farewell_text_edit.scroll_fit_content_height = true
-	farewell_text_edit.tooltip_text = "Custom farewell when player exits the shop. Leave empty for role default."
-	farewell_container.add_child(farewell_text_edit)
 
 
 func _add_appearance_fallback_section_to(parent: Control) -> void:
@@ -588,32 +403,6 @@ func _add_appearance_fallback_section_to(parent: Control) -> void:
 	appearance_section.add_child(map_spritesheet_picker)
 
 	SparklingEditorUtils.create_help_label("64x128 spritesheet with 4 directions × 2 frames", appearance_section)
-
-
-func _add_quick_dialog_section() -> void:
-	quick_dialog_section = SparklingEditorUtils.create_section("What does this NPC say?", detail_panel)
-
-	quick_dialog_status = Label.new()
-	quick_dialog_status.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	quick_dialog_status.visible = false
-	quick_dialog_section.add_child(quick_dialog_status)
-
-	quick_dialog_text = TextEdit.new()
-	quick_dialog_text.placeholder_text = "Welcome to our village!\nFeel free to look around."
-	quick_dialog_text.custom_minimum_size.y = 100
-	quick_dialog_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	quick_dialog_text.scroll_fit_content_height = true
-	quick_dialog_text.tooltip_text = "What the NPC says when interacted with. Each line is a separate dialog box."
-	quick_dialog_text.text_changed.connect(_on_quick_dialog_changed)
-	quick_dialog_section.add_child(quick_dialog_text)
-
-	create_dialog_btn = Button.new()
-	create_dialog_btn.text = "Create Dialog"
-	create_dialog_btn.tooltip_text = "Generate a cinematic from this dialog and link it to this NPC"
-	create_dialog_btn.pressed.connect(_on_create_dialog_cinematic)
-	quick_dialog_section.add_child(create_dialog_btn)
-
-	SparklingEditorUtils.create_help_label("For most NPCs, just type their dialog above and click Create!", quick_dialog_section)
 
 
 func _add_place_on_map_section() -> void:
@@ -1018,118 +807,9 @@ func _has_valid_conditional() -> bool:
 	return false
 
 
-## Check if Quick Setup is validly configured
-func _has_valid_quick_setup() -> bool:
-	if not npc_role_option:
-		return false
-	var role: int = npc_role_option.selected
-	if role == 0:  # NONE
-		return false
-	if role == 4:  # CARAVAN_DEPOT doesn't need shop_id
-		return true
-	# Other roles need a shop selected
-	return shop_id_picker and shop_id_picker.has_selection()
-
-
-## Update Quick Setup UI visibility based on selected role
-func _update_quick_setup_visibility() -> void:
-	if not npc_role_option:
-		return
-
-	var role: int = npc_role_option.selected
-	var is_role_selected: bool = role > 0  # Anything except NONE
-	var needs_shop: bool = role > 0 and role != 4  # Anything except NONE and CARAVAN_DEPOT
-
-	# Show/hide shop picker row
-	if shop_id_row:
-		shop_id_row.visible = needs_shop
-
-	# Show/hide greeting/farewell containers
-	var greeting_container: Control = quick_setup_section.get_node_or_null("GreetingContainer") if quick_setup_section else null
-	var farewell_container: Control = quick_setup_section.get_node_or_null("FarewellContainer") if quick_setup_section else null
-
-	if greeting_container:
-		greeting_container.visible = is_role_selected
-	if farewell_container:
-		farewell_container.visible = is_role_selected
-
-	# Update placeholder text based on role
-	_update_greeting_farewell_placeholders(role)
-
-	# Update status message
-	_update_quick_setup_status(role)
-
-
-## Update placeholder text for greeting/farewell based on role
-func _update_greeting_farewell_placeholders(role: int) -> void:
-	var greeting_default: String = "(Uses default for role)"
-	var farewell_default: String = "(Uses default for role)"
-
-	match role:
-		1:  # SHOPKEEPER
-			greeting_default = "Default: Welcome to my shop!"
-			farewell_default = "Default: Come again!"
-		2:  # PRIEST
-			greeting_default = "Default: Welcome, weary traveler. How may I serve you?"
-			farewell_default = "Default: May light guide your path..."
-		3:  # INNKEEPER
-			greeting_default = "Default: Welcome, traveler. Looking for a place to rest?"
-			farewell_default = "Default: Rest well!"
-		4:  # CARAVAN_DEPOT
-			greeting_default = "Default: The caravan is ready for your storage needs."
-			farewell_default = "Default: Safe travels!"
-		5:  # CRAFTER
-			greeting_default = "Default: Looking to craft something?"
-			farewell_default = "Default: Come back when you need more crafted!"
-
-	if greeting_text_edit:
-		greeting_text_edit.placeholder_text = greeting_default
-	if farewell_text_edit:
-		farewell_text_edit.placeholder_text = farewell_default
-
-
-## Update Quick Setup status message
-func _update_quick_setup_status(role: int) -> void:
-	if not quick_setup_status:
-		return
-
-	if role == 0:
-		quick_setup_status.visible = false
-		return
-
-	quick_setup_status.visible = true
-	var role_names: Array[String] = ["None", "Shopkeeper", "Priest", "Innkeeper", "Caravan Depot", "Crafter"]
-	var role_name: String = role_names[role] if role < role_names.size() else "Unknown"
-
-	if role == 4:  # CARAVAN_DEPOT
-		quick_setup_status.text = "Using Quick Setup: %s - will open caravan storage" % role_name
-		quick_setup_status.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
-	elif shop_id_picker and shop_id_picker.has_selection():
-		quick_setup_status.text = "Using Quick Setup: %s - will auto-generate cinematic" % role_name
-		quick_setup_status.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
-	else:
-		quick_setup_status.text = "Quick Setup: Select a shop for this %s" % role_name
-		quick_setup_status.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
-
-
 # =============================================================================
 # UI Event Handlers
 # =============================================================================
-
-## Handler for NPC Role dropdown change
-func _on_npc_role_changed(_index: int) -> void:
-	if _updating_ui:
-		return
-	_update_quick_setup_visibility()
-
-
-## Handler for Shop selection
-func _on_shop_selected(_metadata: Dictionary) -> void:
-	if _updating_ui:
-		return
-	var role: int = npc_role_option.selected if npc_role_option else 0
-	_update_quick_setup_status(role)
-
 
 func _on_add_conditional() -> void:
 	_add_conditional_entry()
@@ -1147,12 +827,6 @@ func _on_character_selected(_metadata: Dictionary) -> void:
 	if _updating_ui:
 		return
 	_update_appearance_section_visibility()
-	_update_preview()
-
-
-func _on_quick_dialog_changed() -> void:
-	if _updating_ui:
-		return
 	_update_preview()
 
 
@@ -1207,37 +881,6 @@ func _on_option_changed(_index: int) -> void:
 	_mark_dirty()
 
 
-func _on_template_selected(index: int) -> void:
-	if _updating_ui:
-		return
-	var template_key: String = template_option.get_item_metadata(index)
-	if template_key.is_empty() or template_key == "custom":
-		return
-	var template: Dictionary = NPC_TEMPLATES.get(template_key, {})
-	if template.is_empty():
-		return
-
-	_updating_ui = true
-	var template_name: String = DictUtils.get_string(template, "name", "")
-	if not template_name.is_empty():
-		npc_name_edit.text = template_name
-		if not _id_is_locked:
-			npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(template_name)
-	var template_dialog: String = DictUtils.get_string(template, "dialog", "")
-	if not template_dialog.is_empty() and quick_dialog_text:
-		quick_dialog_text.text = template_dialog
-	if "face_player" in template and face_player_check:
-		var face_player: bool = DictUtils.get_bool(template, "face_player", true)
-		face_player_check.button_pressed = face_player
-	if "facing" in template and facing_override_option:
-		var facing: String = DictUtils.get_string(template, "facing", "")
-		_set_facing_dropdown(facing)
-	_updating_ui = false
-
-	var template_label: String = DictUtils.get_string(template, "label", template_key)
-	_show_quick_dialog_status("Applied '%s' template - customize as needed!" % template_label, Color(0.5, 0.8, 1.0))
-
-
 func _on_cinematic_field_changed(text: String, field_type: String) -> void:
 	if _updating_ui:
 		return
@@ -1264,66 +907,8 @@ func _update_cinematic_warnings() -> void:
 	_validate_cinematic_field(fallback_cinematic_edit.text.strip_edges() if fallback_cinematic_edit else "", "fallback")
 
 
-# =============================================================================
-# Quick Dialog Creation (using QuickDialogGenerator)
-# =============================================================================
-
-func _on_create_dialog_cinematic() -> void:
-	var dialog_text: String = quick_dialog_text.text.strip_edges()
-	if dialog_text.is_empty():
-		_show_error("Please enter dialog text first.")
-		return
-
-	var npc_id: String = npc_id_edit.text.strip_edges()
-	if npc_id.is_empty():
-		_show_error("Please set an NPC ID first.")
-		return
-
-	var speaker_name: String = npc_name_edit.text.strip_edges()
-	var cinematics_dir: String = _get_active_mod_cinematics_path()
-	if cinematics_dir.is_empty():
-		_show_error("Could not determine active mod path.")
-		return
-
-	var cinematic_id: String = quick_dialog_generator.create_dialog_cinematic(npc_id, speaker_name, dialog_text, cinematics_dir)
-	if cinematic_id.is_empty():
-		_show_error("Failed to create cinematic.")
-		return
-
-	interaction_cinematic_edit.text = cinematic_id
-	if current_resource is NPCData:
-		var npc_res: NPCData = current_resource
-		npc_res.interaction_cinematic_id = cinematic_id
-
-	_show_quick_dialog_status("Created '%s' - Dialog is now attached!" % cinematic_id, Color(0.4, 0.9, 0.4))
-	call_deferred("_update_cinematic_warnings")
-
-
-func _show_quick_dialog_status(message: String, color: Color) -> void:
-	if quick_dialog_status:
-		quick_dialog_status.text = message
-		quick_dialog_status.add_theme_color_override("font_color", color)
-		quick_dialog_status.visible = true
-
-
-func _update_quick_dialog_status() -> void:
-	if not quick_dialog_status:
-		return
-	var primary_id: String = interaction_cinematic_edit.text.strip_edges() if interaction_cinematic_edit else ""
-	if primary_id.is_empty():
-		quick_dialog_status.visible = false
-		return
-	var npc_id: String = npc_id_edit.text.strip_edges() if npc_id_edit else ""
-	var expected_quick_id: String = QuickDialogGenerator.get_quick_dialog_id(npc_id)
-	if primary_id == expected_quick_id:
-		_show_quick_dialog_status("Using Quick Dialog: '%s'" % primary_id, Color(0.4, 0.9, 0.4))
-	else:
-		_show_quick_dialog_status("Using cinematic: '%s' (edit below)" % primary_id, Color(0.6, 0.8, 1.0))
-
-
 func _show_error(message: String) -> void:
 	push_error("NPC Editor: " + message)
-	_show_quick_dialog_status(message, Color(1.0, 0.4, 0.4))
 
 
 # =============================================================================
@@ -1386,9 +971,9 @@ func _on_place_confirmed() -> void:
 		map_selection_popup.hide()
 		var scene_is_open: bool = MapPlacementHelper.is_scene_open(map_path)
 		if scene_is_open:
-			_show_quick_dialog_status("NPC added to scene - save to keep changes!", Color(0.4, 0.9, 0.4))
+			print("NPC Editor: NPC added to scene - save to keep changes!")
 		else:
-			_show_quick_dialog_status("NPC placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y], Color(0.4, 0.9, 0.4))
+			print("NPC Editor: NPC placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y])
 	else:
 		_show_error("Failed to place NPC on map. Check the output for details.")
 

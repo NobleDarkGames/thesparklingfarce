@@ -1,12 +1,10 @@
-[gd_scene load_steps=8 format=4 uid="uid://q0bifik47wc8"]
+[gd_scene load_steps=6 format=4 uid="uid://q0bifik47wc8"]
 
 [ext_resource type="Script" uid="uid://owf5xru7b1bm" path="res://mods/demo_campaign/maps/mudford.gd" id="1_script"]
 [ext_resource type="TileSet" uid="uid://dy2k670qtyfeq" path="res://core/defaults/tilesets/default_tileset.tres" id="2_tileset"]
 [ext_resource type="Script" uid="uid://iijt33alqt3j" path="res://scenes/map_exploration/map_camera.gd" id="3_camera"]
 [ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="4_spawn"]
 [ext_resource type="PackedScene" uid="uid://ds6el5acnlojt" path="res://core/components/map_trigger.tscn" id="5_86ayf"]
-[ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_du2nu"]
-[ext_resource type="Resource" uid="uid://cko5awad3wmky" path="res://mods/demo_campaign/data/npcs/demo_campaign_npc_1767843231.tres" id="7_an5td"]
 
 [node name="Mudford" type="Node2D"]
 script = ExtResource("1_script")
@@ -56,8 +54,3 @@ trigger_id = "unlock_kurt"
 cinematic_id = "meet_kurt"
 
 [node name="NPCs" type="Node2D" parent="."]
-
-[node name="PastorLarry" type="Area2D" parent="NPCs"]
-position = Vector2(656, -112)
-script = ExtResource("6_du2nu")
-npc_data = ExtResource("7_an5td")

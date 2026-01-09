@@ -132,8 +132,8 @@ func _create_mod_structure() -> bool:
 		"assets/icons/items",
 		"assets/icons/abilities",
 		"assets/tilesets",
-		"assets/music",
-		"assets/sfx",
+		"assets/audio/music",
+		"assets/audio/sfx",
 		"maps",
 		"scenes",
 		"tilesets",
@@ -709,8 +709,6 @@ func _create_shops() -> void:
 	shop.shop_id = "test_weapon_shop"
 	shop.shop_name = "Test Weapon Shop"
 	shop.shop_type = "generic"
-	shop.greeting_text = "Welcome to my shop!"
-	shop.farewell_text = "Come again!"
 	shop.inventory_items = [
 		MOD_ID + ":test_sword",
 		MOD_ID + ":test_armor"

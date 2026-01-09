@@ -400,8 +400,7 @@ func _find_camera_recursive(node: Node) -> Camera2D:
 
 
 ## Play a cinematic by ID (looks up in ModRegistry)
-## Supports auto-generated cinematics for Quick Setup NPCs (ID starts with "__auto__")
-## and interactables (ID starts with "__auto_interactable__")
+## Supports auto-generated cinematics for interactables (ID starts with "__auto_interactable__")
 func play_cinematic(cinematic_id: String) -> bool:
 	if current_state != State.IDLE:
 		push_warning("CinematicsManager: Cannot play cinematic '%s' - cinematic already active" % cinematic_id)
@@ -413,14 +412,6 @@ func play_cinematic(cinematic_id: String) -> bool:
 		if auto_cinematic:
 			return play_cinematic_from_resource(auto_cinematic)
 		push_error("CinematicsManager: Failed to generate auto-interactable cinematic for '%s'" % cinematic_id)
-		return false
-
-	# Check for auto-generated NPC cinematic (Quick Setup NPC system)
-	if cinematic_id.begins_with("__auto__"):
-		var auto_cinematic: CinematicData = _generate_auto_cinematic(cinematic_id)
-		if auto_cinematic:
-			return play_cinematic_from_resource(auto_cinematic)
-		push_error("CinematicsManager: Failed to generate auto-cinematic for '%s'" % cinematic_id)
 		return false
 
 	# Look up cinematic in ModRegistry
@@ -744,120 +735,6 @@ func get_interaction_context() -> Dictionary:
 ## Called when cinematic ends or interaction completes
 func clear_interaction_context() -> void:
 	_interaction_context.clear()
-
-
-# =============================================================================
-# AUTO-CINEMATIC GENERATION (Quick Setup NPC System)
-# =============================================================================
-
-## Default greetings per NPC role
-const AUTO_GREETINGS: Dictionary = {
-	"SHOPKEEPER": "Welcome to my shop!",
-	"PRIEST": "Welcome, weary traveler. How may I serve you?",
-	"INNKEEPER": "Welcome, traveler. Looking for a place to rest?",
-	"CARAVAN_DEPOT": "The caravan is ready for your storage needs.",
-	"CRAFTER": "Welcome! What can I craft for you today?"
-}
-
-## Default farewells per NPC role
-const AUTO_FAREWELLS: Dictionary = {
-	"SHOPKEEPER": "Come again!",
-	"PRIEST": "May light guide your path...",
-	"INNKEEPER": "Rest well!",
-	"CARAVAN_DEPOT": "Safe travels!",
-	"CRAFTER": "May your new gear serve you well!"
-}
-
-
-## Generate a CinematicData at runtime for Quick Setup NPCs
-## Auto-cinematic IDs have format: __auto__{npc_id}::{shop_id}
-## Uses :: delimiter to avoid conflicts with underscores in IDs
-## Returns null if generation fails
-func _generate_auto_cinematic(cinematic_id: String) -> CinematicData:
-	# Parse the auto-cinematic ID
-	# Format: __auto__{npc_id}::{shop_id}
-	var content: String = cinematic_id.substr(8)  # Skip "__auto__"
-	var delimiter_pos: int = content.find("::")
-
-	if delimiter_pos <= 0:
-		push_error("CinematicsManager: Invalid auto-cinematic ID format: %s" % cinematic_id)
-		return null
-
-	var npc_id: String = content.substr(0, delimiter_pos)
-	var shop_id: String = content.substr(delimiter_pos + 2)  # Skip "::"
-
-	# Look up the NPC data BY PROPERTY (not filename)
-	# Auto-cinematics use the npc_id property from NPCData
-	var npc_data: NPCData = ModLoader.registry.get_npc_by_id(npc_id)
-	if not npc_data:
-		push_error("CinematicsManager: NPC with npc_id '%s' not found. Make sure the NPCData resource has npc_id property set to '%s'." % [npc_id, npc_id])
-		return null
-
-	# Build the cinematic based on the NPC's role
-	var cinematic: CinematicData = CinematicData.new()
-	cinematic.cinematic_id = cinematic_id
-	cinematic.cinematic_name = "Auto: %s" % npc_id
-	cinematic.disable_player_input = true
-	cinematic.can_skip = false  # Can't skip shop interactions
-
-	# Get role name for lookup
-	var role_name: String = _get_role_name(npc_data.npc_role)
-
-	# Get greeting text (custom or default)
-	var greeting: String = npc_data.greeting_text
-	if greeting.is_empty():
-		greeting = AUTO_GREETINGS.get(role_name, "Hello!")
-
-	# Get farewell text (custom or default)
-	var farewell: String = npc_data.farewell_text
-	if farewell.is_empty():
-		farewell = AUTO_FAREWELLS.get(role_name, "Goodbye!")
-
-	# Get speaker name
-	var speaker_name: String = npc_data.get_display_name()
-
-	# Build cinematic commands based on role
-	match npc_data.npc_role:
-		NPCData.NPCRole.SHOPKEEPER, NPCData.NPCRole.PRIEST, NPCData.NPCRole.INNKEEPER, NPCData.NPCRole.CRAFTER:
-			# Validate shop exists before generating cinematic
-			# Use property-based lookup since NPCData.shop_id is a property value, not a filename
-			var shop_data: ShopData = ModLoader.registry.get_shop_by_id(shop_id)
-			if not shop_data:
-				push_error("CinematicsManager: Cannot generate auto-cinematic for NPC '%s' - shop with shop_id '%s' not found. Make sure the ShopData resource has shop_id property set to '%s'." % [npc_id, shop_id, shop_id])
-				return null
-
-			# Standard flow: greeting -> shop -> farewell
-			cinematic.add_dialog_line(speaker_name, greeting)
-			cinematic.add_open_shop(shop_id)
-			cinematic.add_dialog_line(speaker_name, farewell)
-
-		NPCData.NPCRole.CARAVAN_DEPOT:
-			# Caravan flow: greeting -> caravan interface -> farewell
-			# Note: We use open_shop with special "caravan" type handling
-			# (requires CaravanController integration in open_shop_executor or separate executor)
-			cinematic.add_dialog_line(speaker_name, greeting)
-			# For now, caravan depot NPCs need a special shop type or custom handling
-			# This is a placeholder - the actual caravan opening would need integration
-			push_warning("CinematicsManager: CARAVAN_DEPOT auto-cinematic - caravan interface integration pending")
-			cinematic.add_dialog_line(speaker_name, farewell)
-
-		_:
-			push_error("CinematicsManager: Cannot generate auto-cinematic for role: %s" % role_name)
-			return null
-
-	return cinematic
-
-
-## Convert NPCRole enum to string name for dictionary lookup
-func _get_role_name(role: NPCData.NPCRole) -> String:
-	match role:
-		NPCData.NPCRole.NONE: return "NONE"
-		NPCData.NPCRole.SHOPKEEPER: return "SHOPKEEPER"
-		NPCData.NPCRole.PRIEST: return "PRIEST"
-		NPCData.NPCRole.INNKEEPER: return "INNKEEPER"
-		NPCData.NPCRole.CARAVAN_DEPOT: return "CARAVAN_DEPOT"
-		NPCData.NPCRole.CRAFTER: return "CRAFTER"
-	return "NONE"
 
 
 ## Disable player input

@@ -326,7 +326,7 @@ func get_actor_id() -> String:
 ## player: The HeroController or similar player node
 func interact(player: Node2D) -> void:
 	if DEBUG_MODE:
-		print("[NPCNode] interact() called on '%s' (npc_id='%s', npc_role=%d, shop_id='%s')" % [name, npc_data.npc_id if npc_data else "null", npc_data.npc_role if npc_data else -1, npc_data.shop_id if npc_data else "null"])
+		print("[NPCNode] interact() called on '%s' (npc_id='%s')" % [name, npc_data.npc_id if npc_data else "null"])
 
 	if not npc_data:
 		push_warning("NPCNode: Cannot interact - no npc_data set")

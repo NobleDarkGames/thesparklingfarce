@@ -378,8 +378,6 @@ func test_create_shop_via_editor_pattern() -> void:
 	new_shop.shop_id = "gut_weapon_shop_%d" % Time.get_unix_time_from_system()
 	new_shop.shop_name = "GUT Weapon Shop"
 	new_shop.shop_type = 0  # ITEM enum
-	new_shop.greeting_text = "Welcome!"
-	new_shop.farewell_text = "Come again!"
 	new_shop.can_sell = true
 	new_shop.can_store_to_caravan = true
 	new_shop.can_sell_from_caravan = true

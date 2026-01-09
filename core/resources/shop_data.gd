@@ -44,20 +44,6 @@ enum ShopType {
 @export var shop_type: ShopType = ShopType.ITEM
 
 # ============================================================================
-# PRESENTATION
-# ============================================================================
-
-@export_group("Presentation")
-
-## Greeting text when entering shop
-## Example: "Welcome to the weapon shop!"
-@export var greeting_text: String = "Welcome!"
-
-## Farewell text when exiting shop
-## Example: "Come again!"
-@export var farewell_text: String = "Come again!"
-
-# ============================================================================
 # INVENTORY
 # ============================================================================
 
