@@ -42,6 +42,9 @@ func _ready() -> void:
 	# Focus the first button after animation
 	new_game_button.grab_focus()
 
+	# Start main menu music
+	AudioManager.play_music("main_menu_theme", 1.0)
+
 
 ## Position sparkle particles at screen center for full-screen starfield effect
 func _position_sparkle_particles() -> void:

@@ -29,6 +29,16 @@
 				50.0,
 				7.0
 			]
+		},
+		{
+			"actor_id": "villager",
+			"entity_id": "demo_campaign_character_1767900325",
+			"entity_type": "character",
+			"facing": "down",
+			"position": [
+				-20.0,
+				-20.0
+			]
 		}
 	],
 	"can_skip": true,
@@ -110,7 +120,7 @@
 				"auto_follow": false,
 				"character_id": "wnc45s25",
 				"emotion": "neutral",
-				"text": "𝅘𝅥𝅮 The days are long and the work is hard, but my mud brings all the boys to the - 𝅘𝅥𝅮 Oh what's this?"
+				"text": "𝅘𝅥𝅮 The days are long and the work is hard, but my mud brings all the boys to the - oh what's this?"
 			},
 			"type": "dialog_line"
 		},
@@ -262,9 +272,33 @@
 			"params": {
 				"character_id": "wnc45s25",
 				"emotion": "neutral",
-				"text": "What harm could he do? I've got  socks older than this kid!"
+				"text": "What harm could he do? I've got socks older than this kid!"
 			},
 			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"continuous": true,
+				"duration": 0.5,
+				"speed": 8.0,
+				"wait": false
+			},
+			"target": "intro_hero",
+			"type": "camera_follow"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						6.0,
+						4.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "intro_hero",
+			"type": "move_entity"
 		},
 		{
 			"params": {
@@ -374,9 +408,99 @@
 			"params": {
 				"character_id": "bymdrjkx",
 				"emotion": "neutral",
-				"text": "EVERY TIME a protagonist shows up, farmland gets trampled, local shops get cleaned out of potions, property value plummets from the constant villains revenge attacks, and we lose half our infrastructure to poorly aimed AoE spells!"
+				"text": "EVERY TIME a protagonist shows up, farmland gets trampled, local shops get cleaned out of potions, and property value PLUMMETS! THEN the revenge attacks start, and we lose half our infrastructure to poorly aimed AoE spells!"
 			},
 			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"facing": "up",
+				"position": [
+					5.0,
+					10.0
+				]
+			},
+			"target": "villager",
+			"type": "set_position"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						5.0,
+						6.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "villager",
+			"type": "move_entity"
+		},
+		{
+			"params": {
+				"auto_follow": true,
+				"character_id": "demo_campaign_character_1767900325",
+				"emotion": "neutral",
+				"text": "Mayor King!  Come quickly!  The rains have come, and threaten to ruin the mud harvest!"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"auto_follow": true,
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "Look, kid, I've got business to attend to. Mud doesn't farm itself.  I expect you out of town before I return."
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"continuous": true,
+				"duration": 0.5,
+				"speed": 8.0,
+				"wait": false
+			},
+			"target": "intro_hero",
+			"type": "camera_follow"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						4.0,
+						8.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "intro_mayor",
+			"type": "move_entity"
+		},
+		{
+			"params": {
+				"auto_follow": false,
+				"character_id": "bymdrjkx",
+				"emotion": "neutral",
+				"text": "(mumbling) Far too many \"chosen ones\" nowadays..."
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"path": [
+					[
+						4.0,
+						12.0
+					]
+				],
+				"speed": 3.0,
+				"wait": true
+			},
+			"target": "intro_mayor",
+			"type": "move_entity"
 		}
 	],
 	"description": "",

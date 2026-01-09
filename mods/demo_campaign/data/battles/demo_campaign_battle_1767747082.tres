@@ -4,16 +4,18 @@
 [ext_resource type="Resource" uid="uid://c40nyf8i5fwfc" path="res://mods/demo_campaign/data/characters/demo_campaign_character_1767747174.tres" id="1_uoqjm"]
 [ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="2_6pcfb"]
 [ext_resource type="PackedScene" uid="uid://beguibdtaqvk0" path="res://mods/demo_campaign/maps/first_battle_map.tscn" id="2_dodtd"]
-[ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_platform_defaults/data/ai_behaviors/aggressive_melee.tres" id="2_isyrl"]
+[ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres" id="2_isyrl"]
 
 [resource]
 script = ExtResource("2_6pcfb")
 battle_name = "Battle #1"
 battle_description = "First battle"
 map_scene = ExtResource("2_dodtd")
-player_spawn_point = Vector2i(0, 3)
+player_spawn_point = Vector2i(2, 3)
 enemies = Array[Dictionary]([{
 "ai_behavior": ExtResource("2_isyrl"),
 "character": ExtResource("1_uoqjm"),
 "position": Vector2i(9, 10)
 }])
+experience_reward = 100
+gold_reward = 100
