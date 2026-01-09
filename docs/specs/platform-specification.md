@@ -29,13 +29,20 @@ core/                    # Platform code ONLY
     tilesets/            # terrain_default.tres
 
 mods/                    # ALL game content
-  demo_campaign/         # Demo content (priority 0)
+  demo_campaign/         # Demo content (priority 100)
     mod.json             # Manifest
     data/                # Resources by type (see Resource Types)
-    ai_brains/           # AI behavior scripts
-    assets/              # Art, icons, portraits
+    assets/              # Portraits, sprites, icons
+      portraits/         # 128x128 PNG portraits
+      sprites/map/       # 64x128 map spritesheets
+      sprites/battle/    # Combat animation frames
+      icons/items/       # 16x16 or 32x32 item icons
     audio/sfx/, music/   # Sound
+    maps/                # Map scene files
     tilesets/            # TileSet resources
+  _starter_kit/          # Core defaults (priority 0, set as -1 in mod.json)
+    data/                # AI behaviors, terrain types
+    assets/              # Fallback/placeholder sprites
 
 scenes/                  # Engine scenes
   startup.tscn           # Main entry point (coordinator)
@@ -46,8 +53,8 @@ scenes/                  # Engine scenes
     shops/               # SF2-authentic shop interface
     caravan/             # SF2-authentic depot interface
     components/          # Reusable UI components
-tests/                   # gdUnit4 tests (at project root)
-addons/                  # gdUnit4, sparkling_editor (20 visual editors)
+tests/                   # Automated test suite (at project root)
+addons/                  # sparkling_editor (20+ visual editors)
 templates/               # Code templates
 ```
 
@@ -244,8 +251,9 @@ Backward compatibility: `character_id` maps to `entity_type: "character"`.
 ### Load Priority
 | Range | Purpose |
 |-------|---------|
-| 0-99 | Official core (`demo_campaign` = 0) |
-| 100-8999 | User mods |
+| 0 | Platform defaults (`_starter_kit`, clamped from -1) |
+| 1-99 | Reserved for official content |
+| 100-8999 | User mods, campaigns (`demo_campaign` = 100) |
 | 9000-9999 | Total conversions |
 
 ### Registry Access (REQUIRED PATTERN)

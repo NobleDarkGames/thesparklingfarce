@@ -50,7 +50,7 @@ The Sparkling Editor lets you create content without writing code. Here's how to
 ### Step 2: Select Your Mod
 
 1. At the top of the Sparkling Editor, find the **"Active Mod"** dropdown
-2. Select **`_sandbox`** (the development playground)
+2. Select **`demo_campaign`** (the demo content mod)
 3. Or click **"Create New Mod"** to make your own
 
 ### Step 3: Create a Weapon
@@ -63,7 +63,7 @@ The Sparkling Editor lets you create content without writing code. Here's how to
    - **Equipment Type**: sword
    - **Equipment Slot**: Weapon
    - **Attack Power**: 5
-   - **Icon**: Browse to `mods/_sandbox/art/placeholder/items/sword.png`
+   - **Icon**: Browse to `mods/demo_campaign/assets/icons/items/` or use the picker
 4. Click **"Save Changes"**
 
 ### Step 4: Create a Class
@@ -87,18 +87,19 @@ The Sparkling Editor lets you create content without writing code. Here's how to
    - **Class**: Select "Squire" (the class you just made)
    - **Starting Level**: 1
    - **Unit Category**: player
-   - **Portrait**: Browse to `mods/_sandbox/art/placeholder/portraits/knight.png`
-   - **Map Spritesheet**: Browse to `mods/_sandbox/art/placeholder/sprites/knight_spritesheet.png`
+   - **Portrait**: Browse to `mods/demo_campaign/assets/portraits/` or use the picker
+   - **Map Spritesheet**: Browse to `mods/demo_campaign/assets/sprites/map/` or use the picker
    - **Starting Weapon**: Select "Rusty Sword"
 4. Click **"Save Changes"**
 
-### Step 6: Add to Party
+### Step 6: Add to Starting Party
 
-1. Click the **"Party Templates"** tab
-2. Select an existing party or click **"New"**
-3. Click **"+ Add Member"**
-4. Select your character from the dropdown
-5. Click **"Save Changes"**
+1. Click the **"Characters"** tab
+2. Select your character
+3. Check **"Include in default starting party"** in the Battle Configuration section
+4. Click **"Save Changes"**
+
+Alternatively, use the **"Parties"** tab to create custom party configurations.
 
 ### Step 7: Play!
 
@@ -108,13 +109,15 @@ The Sparkling Editor lets you create content without writing code. Here's how to
 
 **Total time:** Under 5 minutes
 
-### Placeholder Art Available
+### Asset Locations
 
-| Type | Location | Examples |
-|------|----------|----------|
-| Portraits | `mods/_sandbox/art/placeholder/portraits/` | hero, warrior, mage, knight, healer |
-| Map Sprites | `mods/_sandbox/art/placeholder/sprites/` | `*_spritesheet.png` (64x128, 4 directions) |
-| Item Icons | `mods/_sandbox/art/placeholder/items/` | sword, axe, staff, potion, herb |
+| Type | Location | Notes |
+|------|----------|-------|
+| Portraits | `mods/demo_campaign/assets/portraits/` | 128x128 PNG |
+| Map Sprites | `mods/demo_campaign/assets/sprites/map/` | 64x128 spritesheet (2 frames x 4 directions) |
+| Battle Sprites | `mods/demo_campaign/assets/sprites/battle/` | Combat animation frames |
+| Item Icons | `mods/demo_campaign/assets/icons/items/` | 16x16 or 32x32 PNG |
+| Starter Kit | `mods/_starter_kit/assets/` | Fallback/placeholder assets |
 
 ### Editor Shortcuts
 
@@ -142,8 +145,9 @@ The platform is in active development with these systems **implemented and funct
 
 ### Core Platform
 - **Full mod system** - Priority-based loading, resource overrides, total conversion support
-- **16 resource types** - Characters, classes, items, abilities, battles, campaigns, maps, terrain, shops, NPCs, and more
+- **20+ resource types** - Characters, classes, items, abilities, battles, maps, terrain, shops, NPCs, AI behaviors, and more
 - **Type registries** - Add weapon types, equipment slots, terrain types via JSON (no code)
+- **30+ autoload singletons** - Comprehensive system managers for all game systems
 - **Dependency system** - Mods can require other mods
 
 ### Combat (SF2-Authentic)
@@ -171,13 +175,14 @@ The platform is in active development with these systems **implemented and funct
 - System messages with customization
 - NPC conditional dialogs with AND/OR flag logic
 
-### Editor Tooling (15+ Editors)
+### Editor Tooling (20+ Editors)
 - Character, Class, Item, Ability editors
-- Battle editor with enemy placement
-- Campaign editor (visual node graph)
-- Cinematic editor (19 command types)
-- Dialogue editor with branching
-- Shop, NPC, Terrain, Map editors
+- Battle editor with enemy placement and AI assignment
+- Cinematic editor (25+ command types)
+- Dialogue editor with branching and character picker
+- Shop, NPC, Terrain, Map metadata editors
+- AI Brain editor for custom enemy behaviors
+- Experience config, Status effect, Crafting editors
 - Save file debug editor
 
 [Full feature list in the announcement](docs/announcements/reddit-announcement-draft.md)
@@ -201,23 +206,28 @@ We believe in honest assessments:
 sparklingfarce/
   core/                 # Platform code (never game content)
     mod_system/         # ModLoader, ModRegistry
-    resources/          # Resource class definitions
-    systems/            # Autoload singletons (BattleManager, etc.)
+    resources/          # Resource class definitions (20+)
+    systems/            # Autoload singletons (30+ managers)
     components/         # Reusable node components
+    registries/         # Type registries for weapons, terrain, etc.
+    utils/              # Utility scripts
+    defaults/           # Default configurations
 
   mods/                 # ALL game content lives here
-    _base_game/         # Official content (priority 0)
-      data/             # Characters, classes, items, battles...
-      ai_brains/        # AI behavior scripts
-      tilesets/         # TileSet resources
-    _sandbox/           # Your development mod (priority 100)
+    demo_campaign/      # Demo content (priority 100)
+      data/             # Characters, classes, items, battles, NPCs...
+      assets/           # Portraits, sprites, icons, audio
+      maps/             # Map scene files
+    _starter_kit/       # Core defaults and fallbacks (priority 0)
+      data/             # AI behaviors, terrain types
+      assets/           # Placeholder sprites
 
   scenes/               # UI scenes, exploration, tests
-  addons/               # Sparkling Editor, gdUnit4
-  tests/                # Automated tests
+  addons/               # Sparkling Editor plugin
+  tests/                # Automated test suite
 ```
 
-**Key principle:** The game is just a mod. Everything in `_base_game` uses the same systems your mod will use. Override any resource by creating one with the same ID at higher priority.
+**Key principle:** The game is just a mod. Everything in `demo_campaign` uses the same systems your mod will use. Override any resource by creating one with the same ID at higher priority.
 
 [Full architecture details](docs/specs/platform-specification.md)
 
@@ -259,8 +269,9 @@ sparklingfarce/
 
 | Range | Purpose |
 |-------|---------|
-| 0-99 | Official core content |
-| 100-8999 | User mods, expansions |
+| 0 | Platform defaults (`_starter_kit`) |
+| 1-99 | Reserved for future official content |
+| 100-8999 | User mods, expansions, campaigns (`demo_campaign` = 100) |
 | 9000-9999 | Total conversions |
 
 Higher priority overrides same-ID resources from lower priority mods.
@@ -288,7 +299,7 @@ Check [existing issues](https://github.com/[PLACEHOLDER]/sparklingfarce/issues) 
    - Strict typing required (`var x: int = 5`, not `var x := 5`)
    - Use `if "key" in dict:` not `dict.has("key")`
    - See [GDScript style guide](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_styleguide.html)
-4. Run tests: `godot --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd`
+4. Run tests: `./test_headless.sh`
 5. Open a pull request
 
 ---
