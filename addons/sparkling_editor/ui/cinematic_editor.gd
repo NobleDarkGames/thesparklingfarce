@@ -906,7 +906,9 @@ func _get_character_name(character_uid: String) -> String:
 func _on_command_selected(index: int) -> void:
 	selected_command_index = index
 	_update_command_buttons()
-	_build_inspector_for_command(index)
+	# Skip inspector rebuild if we're just updating the UI (e.g., from widget value changes)
+	if not _updating_ui:
+		_build_inspector_for_command(index)
 
 
 func _select_command(index: int) -> void:
@@ -1082,8 +1084,15 @@ func _on_widget_value_changed(new_value: Variant, param_name: String) -> void:
 		cmd["params"] = {}
 	cmd["params"][param_name] = new_value
 	is_dirty = true
-	_rebuild_command_list()  # Update summary in list
-	command_list.select(selected_command_index)
+	# Update command list display but preserve selection without triggering inspector rebuild.
+	# Set _updating_ui to prevent _on_command_selected from rebuilding the inspector,
+	# which would destroy the widget that emitted this signal mid-callback.
+	var prev_selection: int = selected_command_index
+	_updating_ui = true
+	_rebuild_command_list()
+	if prev_selection >= 0 and prev_selection < command_list.item_count:
+		command_list.select(prev_selection)
+	_updating_ui = false
 
 
 ## Fallback for param types not yet supported by the widget system

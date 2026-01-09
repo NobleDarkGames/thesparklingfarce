@@ -196,13 +196,12 @@ func _update_header_text() -> void:
 
 ## Rebuild command rows from data
 func _rebuild_command_rows() -> void:
-	# Clear existing rows
+	# Clear existing rows - rows are direct children of _rows_container
 	for row: CommandRowWidget in _command_rows:
-		if row.get_parent():
-			row.get_parent().queue_free()  # Remove the container too
+		row.queue_free()
 	_command_rows.clear()
 	
-	# Clear container (in case there's JSON fallback)
+	# Clear any other children (e.g., JSON fallback widgets)
 	for child: Node in _rows_container.get_children():
 		child.queue_free()
 	
