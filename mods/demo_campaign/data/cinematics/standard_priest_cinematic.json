@@ -1,0 +1,16 @@
+{
+	"actors": [],
+	"can_skip": true,
+	"cinematic_id": "standard_priest_cinematic",
+	"cinematic_name": "standard_priest_cinematic",
+	"commands": [
+		{
+			"params": {
+				"shop_id": "base_church_shop"
+			},
+			"type": "open_shop"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}
