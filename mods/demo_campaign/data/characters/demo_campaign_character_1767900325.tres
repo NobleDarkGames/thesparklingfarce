@@ -1,0 +1,98 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=16 format=3 uid="uid://ciywleopo033k"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_pp6ls"]
+[ext_resource type="Resource" uid="uid://8nla4ftir3rx" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767750454.tres" id="1_vb5fu"]
+[ext_resource type="Texture2D" uid="uid://c442mghm0qluv" path="res://mods/demo_campaign/assets/portraits/Villager.png" id="2_pk881"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_ywjm7"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_eykb1"]
+[ext_resource type="Texture2D" uid="uid://1ijgeip4076c" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="4_icjbl"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i4u7f"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lbx5n"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_av55q"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nv7ml"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8j1cq"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_346sh"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wat3p"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7n2fn"]
+atlas = ExtResource("4_icjbl")
+region = Rect2(32, 96, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_3hece"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i4u7f")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lbx5n")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_av55q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nv7ml")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8j1cq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_346sh")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wat3p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7n2fn")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]
+
+[resource]
+script = ExtResource("1_pp6ls")
+character_uid = "demo_campaign_character_1767900325"
+character_name = "Villager"
+character_class = ExtResource("1_vb5fu")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_pk881")
+sprite_frames = SubResource("SpriteFrames_3hece")
+is_unique = false
