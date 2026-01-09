@@ -565,10 +565,7 @@ func _show_success_message(message: String) -> void:
 		error_panel.add_theme_stylebox_override("panel", success_style)
 
 		# Insert error panel just before button_container
-		if error_panel.get_parent() != detail_panel:
-			detail_panel.add_child(error_panel)
-		var button_index: int = button_container.get_index()
-		detail_panel.move_child(error_panel, button_index)
+		_position_error_panel_before_buttons()
 
 		error_panel.show()
 

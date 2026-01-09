@@ -91,12 +91,6 @@ static func get_already_opened_message(type: InteractableType) -> String:
 ## Gold amount to grant when searched
 @export var gold_reward: int = 0
 
-@export_group("Interaction - Simple")
-## Direct text content for simple messages (signs, bookshelves)
-## If set and no interaction_cinematic_id, auto-generates dialog
-## For chests with items, this is shown AFTER "Found [item]!" messages
-@export_multiline var dialog_text: String = ""
-
 @export_group("Interaction - Cinematic")
 ## Explicit cinematic to play on interaction (overrides auto-generation)
 ## Leave empty for default behavior based on interactable_type
@@ -277,16 +271,17 @@ func validate() -> bool:
 		return false
 
 	# Must have some form of interaction defined
+	# Interactables should either have rewards OR an explicit cinematic
+	# For text-only objects (signs, bookshelves), use an explicit cinematic
 	var has_interaction: bool = (
 		not interaction_cinematic_id.is_empty() or
 		not fallback_cinematic_id.is_empty() or
 		not conditional_cinematics.is_empty() or
-		not dialog_text.is_empty() or
 		has_rewards()
 	)
 
 	if not has_interaction:
-		push_error("InteractableData: Must have rewards, dialog_text, or a cinematic defined")
+		push_error("InteractableData: Must have rewards or a cinematic defined")
 		return false
 
 	return true

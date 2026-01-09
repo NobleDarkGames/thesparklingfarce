@@ -115,10 +115,6 @@ var _item_reward_entries: Array[Dictionary] = []
 # UI FIELD REFERENCES - Interaction
 # =============================================================================
 
-var simple_interaction_section: VBoxContainer
-var dialog_text_edit: TextEdit
-var dialog_status_label: Label
-
 var advanced_section: VBoxContainer
 var advanced_toggle_btn: Button
 var advanced_content: VBoxContainer
@@ -146,6 +142,18 @@ var forbidden_flags_edit: LineEdit
 var completion_flag_edit: LineEdit
 
 # =============================================================================
+# UI FIELD REFERENCES - Place on Map
+# =============================================================================
+
+var place_on_map_btn: Button
+var map_selection_popup: PopupPanel
+var map_list: ItemList
+var place_confirm_btn: Button
+var place_position_x: SpinBox
+var place_position_y: SpinBox
+var map_placement_helper: MapPlacementHelper
+
+# =============================================================================
 # STATE TRACKING
 # =============================================================================
 
@@ -159,6 +167,9 @@ func _ready() -> void:
 	# Depend on items for the reward picker
 	resource_dependencies = ["item"]
 	super._ready()
+
+	# Initialize helper components
+	map_placement_helper = MapPlacementHelper.new()
 
 	# Connect to EditorEventBus for refresh notifications
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
@@ -190,7 +201,7 @@ func _create_detail_form() -> void:
 	_add_basic_info_section()
 	_add_appearance_section()
 	_add_rewards_section()
-	_add_simple_interaction_section()
+	_add_place_on_map_section()
 	_add_advanced_options_section()
 
 	# Add the button container at the end (with separator for visual clarity)
@@ -373,24 +384,77 @@ func _add_rewards_section() -> void:
 	rewards_section.add_child(item_rewards_container)
 
 
-func _add_simple_interaction_section() -> void:
-	simple_interaction_section = SparklingEditorUtils.create_section("What does it say?", detail_panel)
+func _add_place_on_map_section() -> void:
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Place on Map", detail_panel)
 
-	dialog_status_label = Label.new()
-	dialog_status_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	dialog_status_label.visible = false
-	simple_interaction_section.add_child(dialog_status_label)
+	var pos_row: HBoxContainer = SparklingEditorUtils.create_field_row("Grid Position:", 100, section)
+	var x_label: Label = Label.new()
+	x_label.text = "X:"
+	pos_row.add_child(x_label)
 
-	dialog_text_edit = TextEdit.new()
-	dialog_text_edit.placeholder_text = "The bookshelf is filled with dusty tomes.\nNothing catches your eye."
-	dialog_text_edit.custom_minimum_size.y = 80
-	dialog_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dialog_text_edit.scroll_fit_content_height = true
-	dialog_text_edit.tooltip_text = "Text shown when interacted with. Each line is a separate dialog box. For chests with items, this shows AFTER 'Found [item]!' messages."
-	dialog_text_edit.text_changed.connect(_on_dialog_text_changed)
-	simple_interaction_section.add_child(dialog_text_edit)
+	place_position_x = SpinBox.new()
+	place_position_x.min_value = -100
+	place_position_x.max_value = 100
+	place_position_x.value = 5
+	place_position_x.custom_minimum_size.x = 70
+	place_position_x.tooltip_text = "X grid coordinate where interactable will be placed on the map."
+	pos_row.add_child(place_position_x)
 
-	SparklingEditorUtils.create_help_label("For signs/bookshelves: just type the message. For chests: optional message after finding items.", simple_interaction_section)
+	var y_label: Label = Label.new()
+	y_label.text = "Y:"
+	pos_row.add_child(y_label)
+
+	place_position_y = SpinBox.new()
+	place_position_y.min_value = -100
+	place_position_y.max_value = 100
+	place_position_y.value = 5
+	place_position_y.custom_minimum_size.x = 70
+	place_position_y.tooltip_text = "Y grid coordinate where interactable will be placed on the map."
+	pos_row.add_child(place_position_y)
+
+	place_on_map_btn = Button.new()
+	place_on_map_btn.text = "Place on Map..."
+	place_on_map_btn.tooltip_text = "Add this interactable to a map in the current mod"
+	place_on_map_btn.pressed.connect(_on_place_on_map_pressed)
+	section.add_child(place_on_map_btn)
+
+	SparklingEditorUtils.create_help_label("Save the interactable first, then click to add it to a map", section)
+	_create_map_selection_popup()
+
+
+func _create_map_selection_popup() -> void:
+	map_selection_popup = PopupPanel.new()
+	map_selection_popup.title = "Select Map"
+
+	var popup_content: VBoxContainer = VBoxContainer.new()
+	popup_content.custom_minimum_size = Vector2(400, 300)
+
+	var popup_label: Label = Label.new()
+	popup_label.text = "Select a map to place the interactable on:"
+	popup_content.add_child(popup_label)
+
+	map_list = ItemList.new()
+	map_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_list.custom_minimum_size.y = 200
+	map_list.item_activated.connect(_on_map_double_clicked)
+	popup_content.add_child(map_list)
+
+	var btn_container: HBoxContainer = HBoxContainer.new()
+	btn_container.alignment = BoxContainer.ALIGNMENT_END
+
+	var cancel_btn: Button = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.pressed.connect(func(): map_selection_popup.hide())
+	btn_container.add_child(cancel_btn)
+
+	place_confirm_btn = Button.new()
+	place_confirm_btn.text = "Place Interactable"
+	place_confirm_btn.pressed.connect(_on_place_confirmed)
+	btn_container.add_child(place_confirm_btn)
+
+	popup_content.add_child(btn_container)
+	map_selection_popup.add_child(popup_content)
+	add_child(map_selection_popup)
 
 
 func _add_advanced_options_section() -> void:
@@ -421,8 +485,8 @@ func _add_cinematic_section_to(parent: Control) -> void:
 	var primary_row: HBoxContainer = SparklingEditorUtils.create_field_row("Interaction Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	interaction_cinematic_edit = LineEdit.new()
 	interaction_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	interaction_cinematic_edit.placeholder_text = "cinematic_id (overrides dialog_text)"
-	interaction_cinematic_edit.tooltip_text = "Explicit cinematic to play. Overrides auto-generated dialog if set."
+	interaction_cinematic_edit.placeholder_text = "cinematic_id"
+	interaction_cinematic_edit.tooltip_text = "Explicit cinematic to play. Use for signs/bookshelves with text, or complex interactions."
 	interaction_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("primary"))
 	primary_row.add_child(interaction_cinematic_edit)
 
@@ -432,7 +496,7 @@ func _add_cinematic_section_to(parent: Control) -> void:
 	interaction_warning_label.visible = false
 	section.add_child(interaction_warning_label)
 
-	SparklingEditorUtils.create_help_label("Leave empty to auto-generate from dialog_text and rewards", section)
+	SparklingEditorUtils.create_help_label("Leave empty to auto-generate 'Found X!' from rewards. Use for text/complex interactions.", section)
 
 	var fallback_row: HBoxContainer = SparklingEditorUtils.create_field_row("Fallback Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	fallback_cinematic_edit = LineEdit.new()
@@ -546,8 +610,7 @@ func _load_resource_data() -> void:
 	gold_reward_spin.value = interactable.gold_reward
 	_load_item_rewards(interactable.item_rewards)
 
-	# Interaction
-	dialog_text_edit.text = interactable.dialog_text
+	# Interaction (cinematics only - dialog_text removed)
 	interaction_cinematic_edit.text = interactable.interaction_cinematic_id
 	fallback_cinematic_edit.text = interactable.fallback_cinematic_id
 	_load_conditional_cinematics(interactable.conditional_cinematics)
@@ -561,7 +624,6 @@ func _load_resource_data() -> void:
 	_updating_ui = false
 
 	call_deferred("_update_cinematic_warnings")
-	call_deferred("_update_dialog_status")
 
 
 ## Override: Save UI data to resource
@@ -586,8 +648,7 @@ func _save_resource_data() -> void:
 	interactable.gold_reward = int(gold_reward_spin.value)
 	interactable.item_rewards = _collect_item_rewards()
 
-	# Interaction
-	interactable.dialog_text = dialog_text_edit.text
+	# Interaction (cinematics only - dialog_text removed)
 	interactable.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
 	interactable.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
 	interactable.conditional_cinematics = _collect_conditional_cinematics()
@@ -610,13 +671,12 @@ func _validate_resource() -> Dictionary:
 
 	# Check if there's some form of interaction defined
 	var has_rewards: bool = gold_reward_spin.value > 0 or not _item_reward_entries.is_empty()
-	var has_dialog: bool = not dialog_text_edit.text.strip_edges().is_empty()
 	var has_cinematic: bool = not interaction_cinematic_edit.text.strip_edges().is_empty()
 	var has_fallback: bool = not fallback_cinematic_edit.text.strip_edges().is_empty()
 	var has_conditional: bool = _has_valid_conditional()
 
-	if not has_rewards and not has_dialog and not has_cinematic and not has_fallback and not has_conditional:
-		warnings.append("Interactable has no rewards, dialog, or cinematic - interaction will do nothing")
+	if not has_rewards and not has_cinematic and not has_fallback and not has_conditional:
+		warnings.append("Interactable has no rewards or cinematic - interaction will do nothing")
 
 	# Check cinematic existence
 	var cinematics_dir: String = _get_active_mod_cinematics_path()
@@ -640,7 +700,6 @@ func _create_new_resource() -> Resource:
 	new_interactable.interactable_type = InteractableData.InteractableType.CHEST
 	new_interactable.one_shot = true
 	new_interactable.gold_reward = 0
-	new_interactable.dialog_text = ""
 	new_interactable.interaction_cinematic_id = ""
 	new_interactable.fallback_cinematic_id = ""
 	new_interactable.completion_flag = ""
@@ -1012,14 +1071,8 @@ func _on_template_selected(index: int) -> void:
 	var template_one_shot: bool = template.get("one_shot", true)
 	one_shot_check.button_pressed = template_one_shot
 
-	var template_dialog: String = template.get("dialog", "")
-	if not template_dialog.is_empty():
-		dialog_text_edit.text = template_dialog
-
 	_updating_ui = false
-
-	var template_label: String = template.get("label", template_key)
-	_show_dialog_status("Applied '%s' template - customize as needed!" % template_label, Color(0.5, 0.8, 1.0))
+	_mark_dirty()
 
 
 func _on_name_changed(new_name: String) -> void:
@@ -1069,49 +1122,6 @@ func _update_section_visibility() -> void:
 	]
 	rewards_section.visible = show_rewards
 
-	# Dialog section is useful for everything
-	# But update placeholder text based on type
-	match interactable_type:
-		InteractableData.InteractableType.BOOKSHELF:
-			dialog_text_edit.placeholder_text = "The bookshelf is filled with dusty tomes.\nNothing catches your eye."
-		InteractableData.InteractableType.SIGN:
-			dialog_text_edit.placeholder_text = "Welcome to our village!"
-		InteractableData.InteractableType.CHEST, InteractableData.InteractableType.BARREL:
-			dialog_text_edit.placeholder_text = "(Optional message after finding items)"
-		InteractableData.InteractableType.LEVER:
-			dialog_text_edit.placeholder_text = "You pull the lever..."
-		_:
-			dialog_text_edit.placeholder_text = "What happens when interacted with?"
-
-
-func _on_dialog_text_changed() -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-	_update_dialog_status()
-
-
-func _update_dialog_status() -> void:
-	if not dialog_status_label:
-		return
-
-	var has_dialog: bool = not dialog_text_edit.text.strip_edges().is_empty()
-	var has_cinematic: bool = not interaction_cinematic_edit.text.strip_edges().is_empty()
-
-	if has_cinematic:
-		_show_dialog_status("Using explicit cinematic - dialog_text will be ignored", Color(0.6, 0.8, 1.0))
-	elif has_dialog:
-		_show_dialog_status("Dialog will auto-generate cinematic at runtime", Color(0.4, 0.9, 0.4))
-	else:
-		dialog_status_label.visible = false
-
-
-func _show_dialog_status(message: String, color: Color) -> void:
-	if dialog_status_label:
-		dialog_status_label.text = message
-		dialog_status_label.add_theme_color_override("font_color", color)
-		dialog_status_label.visible = true
-
 
 func _on_advanced_toggle() -> void:
 	advanced_content.visible = not advanced_content.visible
@@ -1123,7 +1133,6 @@ func _on_cinematic_field_changed(text: String, field_type: String) -> void:
 		return
 	_mark_dirty()
 	_validate_cinematic_field(text.strip_edges(), field_type)
-	_update_dialog_status()
 
 
 func _validate_cinematic_field(cinematic_id: String, field_type: String) -> void:
@@ -1248,6 +1257,77 @@ func _load_texture(path: String) -> Texture2D:
 		return null
 	var loaded: Resource = load(path)
 	return loaded if loaded is Texture2D else null
+
+
+# =============================================================================
+# PLACE ON MAP (using MapPlacementHelper)
+# =============================================================================
+
+func _show_error(message: String) -> void:
+	_show_errors([message])
+
+
+func _on_place_on_map_pressed() -> void:
+	if not current_resource or not current_resource.resource_path or current_resource.resource_path.is_empty():
+		_show_error("Please save the interactable first before placing on a map.")
+		return
+	_populate_map_list()
+	map_selection_popup.popup_centered()
+
+
+func _populate_map_list() -> void:
+	if not map_list:
+		return
+	map_list.clear()
+	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
+	if mod_path.is_empty():
+		map_list.add_item("(No active mod selected)")
+		return
+	var maps: Array[Dictionary] = MapPlacementHelper.get_available_maps(mod_path)
+	if maps.is_empty():
+		map_list.add_item("(No maps found)")
+		return
+	for map_info: Dictionary in maps:
+		var display_name: String = DictUtils.get_string(map_info, "display_name", "Unknown")
+		var map_path: String = DictUtils.get_string(map_info, "path", "")
+		map_list.add_item(display_name)
+		map_list.set_item_metadata(map_list.item_count - 1, map_path)
+
+
+func _on_map_double_clicked(index: int) -> void:
+	map_list.select(index)
+	_on_place_confirmed()
+
+
+func _on_place_confirmed() -> void:
+	if not map_list:
+		return
+	var selected_items: PackedInt32Array = map_list.get_selected_items()
+	if selected_items.is_empty():
+		_show_error("Please select a map first.")
+		return
+	var selected_index: int = selected_items[0]
+	var map_path: String = map_list.get_item_metadata(selected_index)
+	if map_path.is_empty() or not FileAccess.file_exists(map_path):
+		_show_error("Invalid map selection.")
+		return
+
+	var interactable_path: String = current_resource.resource_path
+	var grid_x: int = int(place_position_x.value)
+	var grid_y: int = int(place_position_y.value)
+	var interactable_id: String = interactable_id_edit.text.strip_edges()
+	var node_name: String = interactable_id.to_pascal_case() if not interactable_id.is_empty() else "Interactable"
+
+	var success: bool = map_placement_helper.place_interactable_on_map(map_path, interactable_path, node_name, Vector2i(grid_x, grid_y))
+	if success:
+		map_selection_popup.hide()
+		var scene_is_open: bool = MapPlacementHelper.is_scene_open(map_path)
+		if scene_is_open:
+			print("Interactable Editor: Interactable added to scene - save to keep changes!")
+		else:
+			print("Interactable Editor: Interactable placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y])
+	else:
+		_show_error("Failed to place interactable on map. Check the output for details.")
 
 
 # =============================================================================

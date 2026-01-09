@@ -1257,44 +1257,7 @@ func _load_appearance_from_character(character: CharacterData) -> void:
 		_portrait_picker.clear()
 
 	# Sprite Frames (consolidated: used for both map and battle grid)
-	if character.sprite_frames:
-		# Try to load from the SpriteFrames resource
-		# The MapSpritesheetPicker needs the source spritesheet path
-		# We can try to reconstruct it from the SpriteFrames if it was saved with metadata
-		_load_sprite_frames_from_character(character.sprite_frames)
-	else:
-		_sprite_frames_picker.clear()
-
-
-## Try to load sprite frames information from an existing SpriteFrames resource
-func _load_sprite_frames_from_character(sprite_frames: SpriteFrames) -> void:
-	# Clear picker first
-	_sprite_frames_picker.clear()
-
-	if not sprite_frames:
-		return
-
-	# Get the SpriteFrames path (may be empty if saved as SubResource)
-	var frames_path: String = sprite_frames.resource_path
-
-	# Try to extract the source spritesheet path from one of the animations
-	# The atlas texture's atlas property should point to the original spritesheet
-	var spritesheet_path: String = ""
-
-	for anim_name: String in sprite_frames.get_animation_names():
-		if sprite_frames.get_frame_count(anim_name) > 0:
-			var frame_texture: Texture2D = sprite_frames.get_frame_texture(anim_name, 0)
-			if frame_texture is AtlasTexture:
-				var atlas: AtlasTexture = frame_texture as AtlasTexture
-				if atlas.atlas:
-					spritesheet_path = atlas.atlas.resource_path
-					break
-
-	# If we found the source spritesheet, load it into the picker
-	if not spritesheet_path.is_empty():
-		_sprite_frames_picker.set_sprite_frames_path(spritesheet_path, frames_path)
-		# Also store the existing SpriteFrames so it's preserved on save
-		_sprite_frames_picker.set_existing_sprite_frames(sprite_frames)
+	_sprite_frames_picker.load_from_sprite_frames(character.sprite_frames)
 
 
 ## Save appearance assets from pickers to CharacterData
@@ -1303,28 +1266,8 @@ func _save_appearance_to_character(character: CharacterData) -> void:
 	character.portrait = _portrait_picker.get_texture()
 
 	# Sprite Frames (consolidated: used for both map and battle grid)
-	# IMPORTANT: SpriteFrames must have a valid resource_path to be saved as ExtResource.
-	# If no path, Godot embeds it as SubResource (duplicating data in character file).
-	if _sprite_frames_picker.has_generated_sprite_frames():
-		var sprite_frames: SpriteFrames = _sprite_frames_picker.get_generated_sprite_frames()
-		# Ensure sprite_frames is saved to disk (not embedded as SubResource)
-		if sprite_frames and sprite_frames.resource_path.is_empty():
-			var output_path: String = _generate_sprite_frames_path(character)
-			if _sprite_frames_picker.generate_sprite_frames(output_path):
-				# Use in-memory reference (avoids Godot resource cache returning stale data)
-				sprite_frames = _sprite_frames_picker.get_generated_sprite_frames()
-		character.sprite_frames = sprite_frames
-	elif _sprite_frames_picker.is_valid() and _sprite_frames_picker.get_texture() != null:
-		# Valid spritesheet selected but no SpriteFrames generated yet
-		# Auto-generate SpriteFrames when saving
-		var output_path: String = _generate_sprite_frames_path(character)
-		if _sprite_frames_picker.generate_sprite_frames(output_path):
-			# Use in-memory reference (avoids Godot resource cache returning stale data)
-			character.sprite_frames = _sprite_frames_picker.get_generated_sprite_frames()
-	else:
-		# No valid spritesheet - clear the sprite_frames if picker is empty
-		if _sprite_frames_picker.get_texture_path().is_empty():
-			character.sprite_frames = null
+	var output_path: String = _generate_sprite_frames_path(character)
+	character.sprite_frames = _sprite_frames_picker.get_or_generate_sprite_frames(output_path)
 
 
 ## Generate an appropriate output path for SpriteFrames based on character resource path

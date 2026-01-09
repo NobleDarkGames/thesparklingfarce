@@ -265,6 +265,34 @@ func has_generated_sprite_frames() -> bool:
 	return _generated_sprite_frames != null
 
 
+func get_or_generate_sprite_frames(output_path: String) -> SpriteFrames:
+	## Get existing SpriteFrames, or generate and save if a valid spritesheet is selected.
+	## This is the recommended method to call when saving - it handles all cases:
+	## 1. Already has generated SpriteFrames with path -> returns it
+	## 2. Already has generated SpriteFrames without path -> saves to output_path, returns it
+	## 3. Valid spritesheet selected but no SpriteFrames -> generates, saves, returns it
+	## 4. No valid spritesheet -> returns null
+	##
+	## output_path: Where to save the .tres file if generation is needed
+	## Returns: SpriteFrames resource (loaded from disk for proper ExtResource reference), or null
+	
+	# Case 1 & 2: Already have SpriteFrames
+	if _generated_sprite_frames:
+		if _generated_sprite_frames.resource_path.is_empty():
+			# Save to disk so it's an ExtResource, not SubResource
+			if generate_sprite_frames(output_path):
+				return load(output_path) as SpriteFrames
+		return _generated_sprite_frames
+	
+	# Case 3: Valid spritesheet selected, need to generate
+	if _is_valid and _current_texture:
+		if generate_sprite_frames(output_path):
+			return load(output_path) as SpriteFrames
+	
+	# Case 4: No valid spritesheet
+	return null
+
+
 func get_sprite_frames_path() -> String:
 	## Get the path where SpriteFrames was saved.
 	## Returns empty string if not saved.
@@ -289,8 +317,52 @@ func set_sprite_frames_path(spritesheet_path: String, frames_path: String) -> vo
 func set_existing_sprite_frames(sprite_frames: SpriteFrames) -> void:
 	## Set an existing SpriteFrames resource directly (e.g., when loading from a SubResource).
 	## This preserves the SpriteFrames for saving without requiring regeneration.
+	## DEPRECATED: Use load_from_sprite_frames() instead for full UI support.
 	if sprite_frames:
 		_generated_sprite_frames = sprite_frames
+
+
+func load_from_sprite_frames(sprite_frames: SpriteFrames) -> void:
+	## Load an existing SpriteFrames resource, extracting and displaying its source spritesheet.
+	## This is the preferred method for loading saved data - it:
+	## 1. Extracts the source spritesheet texture from the SpriteFrames
+	## 2. Displays the spritesheet in the picker UI
+	## 3. Preserves the SpriteFrames for saving without regeneration
+	clear()
+	
+	if not sprite_frames:
+		return
+	
+	var frames_path: String = sprite_frames.resource_path
+	
+	# Extract the source spritesheet path from the atlas textures
+	var spritesheet_path: String = _extract_spritesheet_path(sprite_frames)
+	
+	# If we found the source spritesheet, load it into the picker
+	if not spritesheet_path.is_empty():
+		set_sprite_frames_path(spritesheet_path, frames_path)
+	
+	# Always store the existing SpriteFrames so it's preserved on save
+	# (This must come AFTER set_sprite_frames_path which may clear it)
+	_generated_sprite_frames = sprite_frames
+	if not frames_path.is_empty():
+		_sprite_frames_path = frames_path
+
+
+func _extract_spritesheet_path(sprite_frames: SpriteFrames) -> String:
+	## Extract the source spritesheet texture path from a SpriteFrames resource.
+	## Returns empty string if extraction fails.
+	if not sprite_frames:
+		return ""
+	
+	for anim_name: String in sprite_frames.get_animation_names():
+		if sprite_frames.get_frame_count(anim_name) > 0:
+			var frame_texture: Texture2D = sprite_frames.get_frame_texture(anim_name, 0)
+			if frame_texture is AtlasTexture:
+				var atlas: AtlasTexture = frame_texture as AtlasTexture
+				if atlas.atlas and not atlas.atlas.resource_path.is_empty():
+					return atlas.atlas.resource_path
+	return ""
 
 
 # =============================================================================

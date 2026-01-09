@@ -267,6 +267,7 @@ func _register_built_in_commands() -> void:
 	register_command_executor("wait", WaitExecutor.new())
 	register_command_executor("set_variable", SetVariableExecutor.new())
 	register_command_executor("show_dialog", DialogExecutor.new())
+	register_command_executor("dialog", DialogExecutor.new())  # Alias for inline cinematics
 	register_command_executor("dialog_line", DialogExecutor.new())  # Single-line dialog from Cinematic Editor
 	register_command_executor("move_entity", MoveEntityExecutor.new())
 	register_command_executor("set_facing", SetFacingExecutor.new())
@@ -991,7 +992,8 @@ func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicDat
 	cinematic.disable_player_input = true
 	cinematic.can_skip = true
 
-	# Grant items/gold if present
+	# Grant items/gold if present (shows "Found X!" messages)
+	# Auto-cinematics are rewards-only. For text (signs, bookshelves), use explicit cinematics.
 	if interactable.has_rewards():
 		cinematic.commands.append({
 			"type": "grant_items",
@@ -999,16 +1001,6 @@ func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicDat
 				"items": interactable.item_rewards,
 				"gold": interactable.gold_reward,
 				"show_message": true
-			}
-		})
-
-	# Show dialog text if present
-	var dialog_text: String = interactable.dialog_text
-	if not dialog_text.is_empty():
-		cinematic.commands.append({
-			"type": "dialog",
-			"params": {
-				"text": dialog_text
 			}
 		})
 

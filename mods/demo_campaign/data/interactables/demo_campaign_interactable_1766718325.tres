@@ -9,3 +9,8 @@ interactable_id = "plaht_device"
 display_name = "Plaht Device"
 sprite_closed = ExtResource("2_jndgj")
 sprite_opened = ExtResource("2_jndgj")
+item_rewards = Array[Dictionary]([{
+"item_id": "demo_campaign_item_1767742764",
+"quantity": 1
+}])
+gold_reward = 200

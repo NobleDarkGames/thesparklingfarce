@@ -6,7 +6,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ##
 ## NPCs are interactable entities on maps that trigger cinematics when the player
 ## interacts with them. They can have:
-## - Optional CharacterData for appearance (portrait, sprite)
+## - Portrait and map spritesheet for appearance
 ## - Primary interaction cinematic
 ## - Fallback cinematic
 ## - Conditional cinematics that trigger based on game flags
@@ -19,7 +19,6 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 var npc_id_edit: LineEdit
 var npc_id_lock_btn: Button
 var npc_name_edit: LineEdit
-var character_picker: ResourcePicker
 
 # Track if ID should auto-generate from name
 var _id_is_locked: bool = false
@@ -117,13 +116,14 @@ func _create_detail_form() -> void:
 	detail_panel = form_container
 
 	_add_basic_info_section()
+	_add_appearance_fallback_section()
 	_add_place_on_map_section()
 	_add_advanced_options_section()
 
 	# Bind preview panel to data sources
 	# Note: sprite_path is null since we now use MapSpritesheetPicker (which has its own preview)
 	# Note: dialog_text is null since Quick Dialog was removed - preview shows name/portrait only
-	preview_panel.bind_sources(npc_name_edit, null, character_picker, portrait_path_edit, null)
+	preview_panel.bind_sources(npc_name_edit, null, null, portrait_path_edit, null)
 
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
@@ -144,23 +144,13 @@ func _load_resource_data() -> void:
 	_id_is_locked = (npc.npc_id != expected_auto_id) and not npc.npc_id.is_empty()
 	_update_lock_button()
 
-	if npc.character_data:
-		character_picker.select_resource(npc.character_data)
-	else:
-		character_picker.select_none()
-
-	_update_appearance_section_visibility()
-
 	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
 	portrait_path_edit.text = portrait_path
 	_load_portrait_preview(portrait_path)
 
 	# Load sprite_frames using MapSpritesheetPicker
 	if map_spritesheet_picker:
-		if npc.sprite_frames:
-			map_spritesheet_picker.set_existing_sprite_frames(npc.sprite_frames)
-		else:
-			map_spritesheet_picker.clear()
+		map_spritesheet_picker.load_from_sprite_frames(npc.sprite_frames)
 
 	interaction_cinematic_edit.text = npc.interaction_cinematic_id
 	fallback_cinematic_edit.text = npc.fallback_cinematic_id
@@ -184,27 +174,14 @@ func _save_resource_data() -> void:
 
 	npc.npc_id = npc_id_edit.text.strip_edges()
 	npc.npc_name = npc_name_edit.text.strip_edges()
-	var char_res: Resource = character_picker.get_selected_resource()
-	npc.character_data = char_res if char_res is CharacterData else null
 
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
 	npc.portrait = _load_texture(portrait_path)
 
 	# Save sprite_frames from MapSpritesheetPicker
-	# IMPORTANT: SpriteFrames must have a valid resource_path to be saved as ExtResource.
-	# If no path, Godot embeds it as SubResource (duplicating data in NPC file).
 	if map_spritesheet_picker:
-		var sprite_frames: SpriteFrames = map_spritesheet_picker.get_generated_sprite_frames()
-		if sprite_frames:
-			# Ensure sprite_frames is saved to disk (not embedded as SubResource)
-			if sprite_frames.resource_path.is_empty():
-				var output_path: String = _generate_sprite_frames_path(npc)
-				if map_spritesheet_picker.generate_sprite_frames(output_path):
-					# Reload from disk to ensure it's an external reference
-					sprite_frames = load(output_path) as SpriteFrames
-			npc.sprite_frames = sprite_frames
-		else:
-			npc.sprite_frames = null
+		var output_path: String = _generate_sprite_frames_path(npc)
+		npc.sprite_frames = map_spritesheet_picker.get_or_generate_sprite_frames(output_path)
 
 	npc.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
 	npc.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
@@ -340,23 +317,16 @@ func _add_basic_info_section() -> void:
 
 	SparklingEditorUtils.create_help_label("ID auto-generates from name. Click lock to set custom ID.", section)
 
-	# Character Data picker
-	character_picker = ResourcePicker.new()
-	character_picker.resource_type = "character"
-	character_picker.label_text = "Character Data:"
-	character_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	character_picker.allow_none = true
-	character_picker.none_text = "(Use fallback appearance)"
-	character_picker.tooltip_text = "Link to a character for portrait/sprite. If empty, use manual fallback appearance below."
-	character_picker.resource_selected.connect(_on_character_selected)
-	section.add_child(character_picker)
 
-	SparklingEditorUtils.create_help_label("If set, portrait and sprite come from the character. Otherwise use fallback below.", section)
+
+
+func _add_appearance_fallback_section() -> void:
+	## Add appearance fallback section to the main detail panel
+	_add_appearance_fallback_section_to(detail_panel)
 
 
 func _add_appearance_fallback_section_to(parent: Control) -> void:
-	appearance_section = SparklingEditorUtils.create_section("Appearance (Fallback)", parent)
-	SparklingEditorUtils.create_help_label("Used when no Character Data is assigned", appearance_section)
+	appearance_section = SparklingEditorUtils.create_section("Appearance", parent)
 
 	# Portrait row with preview and browse button
 	var portrait_row: HBoxContainer = SparklingEditorUtils.create_field_row("Portrait:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
@@ -493,7 +463,6 @@ func _add_advanced_options_section() -> void:
 	advanced_content.visible = false
 	advanced_section.add_child(advanced_content)
 
-	_add_appearance_fallback_section_to(advanced_content)
 	_add_interaction_section_to(advanced_content)
 	_add_conditional_cinematics_section_to(advanced_content)
 	_add_behavior_section_to(advanced_content)
@@ -823,18 +792,6 @@ func _on_remove_conditional(entry_container: HBoxContainer) -> void:
 	entry_container.queue_free()
 
 
-func _on_character_selected(_metadata: Dictionary) -> void:
-	if _updating_ui:
-		return
-	_update_appearance_section_visibility()
-	_update_preview()
-
-
-func _update_appearance_section_visibility() -> void:
-	var has_character: bool = character_picker.has_selection()
-	appearance_section.visible = not has_character
-
-
 func _on_field_changed(_text: String) -> void:
 	if _updating_ui:
 		return
@@ -1092,7 +1049,7 @@ func _on_clear_portrait() -> void:
 
 
 ## Called when a spritesheet is selected in the MapSpritesheetPicker
-func _on_spritesheet_selected(_path: String) -> void:
+func _on_spritesheet_selected(_path: String, _texture: Texture2D) -> void:
 	if _updating_ui:
 		return
 	_update_preview()

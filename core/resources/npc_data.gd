@@ -40,15 +40,10 @@ const SpriteUtils = preload("res://core/utils/sprite_utils.gd")
 ## Display name shown in dialogs and UI
 @export var npc_name: String = ""
 
-## Character data for portrait and sprite (optional)
-## If set, the NPC's portrait and sprite come from this character.
-## If null, use the fallback portrait/sprite exports below.
-@export var character_data: CharacterData
-
-@export_group("Appearance (Fallback)")
-## Portrait to show in dialogs (used if character_data is null)
+@export_group("Appearance")
+## Portrait to show in dialogs
 @export var portrait: Texture2D
-## Animated sprite frames for map display (used if character_data is null)
+## Animated sprite frames for map display
 ## SF2-authentic: should contain walk_up, walk_down, walk_left, walk_right animations
 @export var sprite_frames: SpriteFrames
 
@@ -161,35 +156,22 @@ func _evaluate_condition(condition: Dictionary) -> bool:
 
 
 ## Get the display name for this NPC
-## Uses character_data.character_name if available, otherwise npc_name
 func get_display_name() -> String:
-	if character_data and not character_data.character_name.is_empty():
-		return character_data.character_name
 	return npc_name
 
 
 ## Get the portrait texture for this NPC
-## Uses character_data.portrait if available, otherwise the fallback portrait
 func get_portrait() -> Texture2D:
-	if character_data and character_data.portrait:
-		return character_data.portrait
 	return portrait
 
 
 ## Get the sprite frames for this NPC (animated directional sprites)
-## Priority: character_data.sprite_frames > sprite_frames > null
 func get_sprite_frames() -> SpriteFrames:
-	if character_data and character_data.sprite_frames:
-		return character_data.sprite_frames
 	return sprite_frames
 
 
 ## Get a static texture for this NPC (for UI previews, etc.)
-## Priority: character_data.get_display_texture() > extract from sprite_frames
 func get_map_sprite() -> Texture2D:
-	if character_data:
-		return character_data.get_display_texture()
-	# Extract first frame from sprite_frames if available
 	return SpriteUtils.extract_texture_from_sprite_frames(sprite_frames)
 
 

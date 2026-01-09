@@ -6,8 +6,10 @@ extends EditorPlugin
 const MainPanelScene: PackedScene = preload("res://addons/sparkling_editor/ui/main_panel.tscn")
 const EditorEventBus = preload("res://addons/sparkling_editor/editor_event_bus.gd")
 const TileSetAutoGenerator = preload("res://core/tools/tileset_auto_generator.gd")
+const ResourceInspectorPlugin = preload("res://addons/sparkling_editor/inspector/resource_inspector_plugin.gd")
 
 var main_panel: Control
+var _resource_inspector_plugin: EditorInspectorPlugin
 
 
 func _enter_tree() -> void:
@@ -28,6 +30,10 @@ func _enter_tree() -> void:
 
 	# Add as a bottom panel (Godot manages the sizing)
 	add_control_to_bottom_panel(main_panel, "Sparkling Editor")
+
+	# Register custom inspector plugin for mod-aware resource pickers
+	_resource_inspector_plugin = ResourceInspectorPlugin.new()
+	add_inspector_plugin(_resource_inspector_plugin)
 
 
 ## Scan for tilesets and auto-discover new textures
@@ -98,3 +104,7 @@ func _exit_tree() -> void:
 
 	# Remove the event bus autoload
 	remove_autoload_singleton("EditorEventBus")
+
+	# Remove inspector plugin
+	if _resource_inspector_plugin:
+		remove_inspector_plugin(_resource_inspector_plugin)

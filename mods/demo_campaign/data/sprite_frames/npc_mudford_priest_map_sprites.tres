@@ -1,0 +1,82 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://6rdh6j8s67db"]
+
+[ext_resource type="Texture2D" uid="uid://bjt76kdo4ysla" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_5.png" id="1_3vfvs"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pjqce"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n7e2g"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xisam"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5yfgx"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_leltd"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xwlwh"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8au2q"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_shcb0"]
+atlas = ExtResource("1_3vfvs")
+region = Rect2(32, 96, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pjqce")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n7e2g")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xisam")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5yfgx")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_leltd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xwlwh")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8au2q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_shcb0")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]

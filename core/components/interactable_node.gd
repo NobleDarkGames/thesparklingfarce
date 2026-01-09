@@ -187,6 +187,7 @@ func interact(player: Node2D) -> void:
 
 	# Check if interaction is allowed
 	var check: Dictionary = interactable_data.can_interact()
+
 	if not check.get("can_interact", false):
 		var reason: String = check.get("reason", "")
 		if reason == "already_opened":
@@ -242,11 +243,12 @@ func interact(player: Node2D) -> void:
 
 
 ## Play auto-generated cinematic for default behavior
+## Auto-cinematics are rewards-only. For text (signs, bookshelves), use explicit cinematics.
 func _play_auto_cinematic() -> void:
 	# Build and execute inline cinematic commands
 	var commands: Array[Dictionary] = []
 
-	# Grant rewards first (grant_items command)
+	# Grant rewards if present (shows "Found X!" messages)
 	if interactable_data.has_rewards():
 		commands.append({
 			"type": "grant_items",
@@ -257,16 +259,7 @@ func _play_auto_cinematic() -> void:
 			}
 		})
 
-	# Show dialog text if present
-	if not interactable_data.dialog_text.is_empty():
-		commands.append({
-			"type": "dialog",
-			"params": {
-				"text": interactable_data.dialog_text
-			}
-		})
-
-	# If no commands (empty object), show type-specific default message
+	# If no rewards (shouldn't happen with proper validation), show type-specific default
 	if commands.is_empty():
 		var default_msg: String = _get_default_empty_message()
 		commands.append({
@@ -320,6 +313,10 @@ func _on_cinematic_ended(_cinematic_id: String) -> void:
 
 ## Cleanup signal connections when node is freed
 func _exit_tree() -> void:
+	# Skip cleanup in editor mode
+	if Engine.is_editor_hint():
+		return
+
 	# Disconnect from CinematicsManager to prevent dangling signal connections
 	if CinematicsManager and CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
 		CinematicsManager.cinematic_ended.disconnect(_on_cinematic_ended)
@@ -410,10 +407,14 @@ func _get_editor_state_color() -> Color:
 	if not interactable_data:
 		return Color.RED  # No data
 
-	if not interactable_data.validate():
+	# Guard against placeholder instances in editor
+	if not interactable_data.get_script():
+		return Color.ORANGE
+
+	if interactable_data.has_method("validate") and not interactable_data.validate():
 		return Color.ORANGE  # Invalid config
 
-	if interactable_data.has_rewards():
+	if interactable_data.has_method("has_rewards") and interactable_data.has_rewards():
 		return Color.GOLD  # Has loot
 
 	return Color.CYAN  # Valid, no rewards

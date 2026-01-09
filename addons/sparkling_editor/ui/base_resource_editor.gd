@@ -906,10 +906,7 @@ func _show_errors(errors: Array) -> void:
 	error_label.text = error_text
 
 	# Insert error panel just before button_container (where user's attention is)
-	if error_panel.get_parent() != detail_panel:
-		detail_panel.add_child(error_panel)
-	var button_index: int = button_container.get_index()
-	detail_panel.move_child(error_panel, button_index)
+	_position_error_panel_before_buttons()
 
 	error_panel.show()
 
@@ -923,6 +920,28 @@ func _show_errors(errors: Array) -> void:
 func _hide_errors() -> void:
 	error_panel.hide()
 	error_label.text = ""
+
+
+## Position error_panel just before button_container in the correct parent.
+## Handles cases where button_container may be in a different container than detail_panel
+## (e.g., NPC editor uses a form_container inside a split view).
+func _position_error_panel_before_buttons() -> void:
+	# Get the actual parent of button_container (may not be detail_panel)
+	var button_parent: Node = button_container.get_parent()
+	if not button_parent:
+		return
+	
+	var button_index: int = button_container.get_index()
+	
+	# Ensure error_panel is in the same parent as button_container
+	var current_parent: Node = error_panel.get_parent()
+	if current_parent != button_parent:
+		if current_parent:
+			current_parent.remove_child(error_panel)
+		button_parent.add_child(error_panel)
+	
+	# Move error_panel to just before button_container
+	button_parent.move_child(error_panel, button_index)
 
 
 ## Show a success message (auto-dismisses after 2 seconds)
@@ -939,10 +958,7 @@ func _show_success_message(message: String) -> void:
 	error_panel.add_theme_stylebox_override("panel", success_style)
 	
 	# Insert error panel just before button_container (where user's attention is)
-	if error_panel.get_parent() != detail_panel:
-		detail_panel.add_child(error_panel)
-	var button_index: int = button_container.get_index()
-	detail_panel.move_child(error_panel, button_index)
+	_position_error_panel_before_buttons()
 	
 	error_panel.show()
 
@@ -958,10 +974,7 @@ func _show_error_message(message: String) -> void:
 	error_panel.add_theme_stylebox_override("panel", error_style)
 	
 	# Insert error panel just before button_container (where user's attention is)
-	if error_panel.get_parent() != detail_panel:
-		detail_panel.add_child(error_panel)
-	var button_index: int = button_container.get_index()
-	detail_panel.move_child(error_panel, button_index)
+	_position_error_panel_before_buttons()
 	
 	error_panel.show()
 
@@ -1338,11 +1351,8 @@ func _show_info_message(title: String, message: String) -> void:
 	# Use a different color for info messages
 	error_label.text = "[color=#6699cc][b]%s:[/b] %s[/color]" % [title, message]
 
-	# Insert error panel if not already there
-	if error_panel.get_parent() != detail_panel:
-		var button_index: int = button_container.get_index()
-		detail_panel.add_child(error_panel)
-		detail_panel.move_child(error_panel, button_index)
+	# Insert error panel just before button_container (where user's attention is)
+	_position_error_panel_before_buttons()
 
 	# Use info styling (blue instead of red)
 	var style: StyleBoxFlat = error_panel.get_theme_stylebox("panel") as StyleBoxFlat

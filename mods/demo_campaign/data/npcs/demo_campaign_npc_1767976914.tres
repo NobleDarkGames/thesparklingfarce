@@ -1,11 +1,13 @@
-[gd_resource type="Resource" script_class="NPCData" load_steps=3 format=3 uid="uid://dkt0p7nje7rxl"]
+[gd_resource type="Resource" script_class="NPCData" load_steps=4 format=3 uid="uid://dkt0p7nje7rxl"]
 
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="1_c7ghe"]
 [ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="1_modwq"]
+[ext_resource type="SpriteFrames" uid="uid://6rdh6j8s67db" path="res://mods/demo_campaign/data/sprite_frames/npc_mudford_priest_map_sprites.tres" id="3_8njs0"]
 
 [resource]
 script = ExtResource("1_c7ghe")
 npc_id = "mudford_priest"
 npc_name = "Mudford Priest"
 portrait = ExtResource("1_modwq")
+sprite_frames = ExtResource("3_8njs0")
 interaction_cinematic_id = "standard_priest_cinematic"
