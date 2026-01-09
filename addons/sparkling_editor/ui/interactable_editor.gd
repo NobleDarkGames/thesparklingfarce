@@ -1268,9 +1268,54 @@ func _show_error(message: String) -> void:
 
 
 func _on_place_on_map_pressed() -> void:
-	if not current_resource or not current_resource.resource_path or current_resource.resource_path.is_empty():
-		_show_error("Please save the interactable first before placing on a map.")
+	if not current_resource:
+		_show_error("No interactable selected.")
 		return
+
+	# Auto-save if resource is unsaved or has pending changes
+	var needs_save: bool = current_resource.resource_path.is_empty() or is_dirty
+	if needs_save:
+		# Show brief saving feedback
+		_show_success_message("Saving...")
+
+		# Validate before saving
+		var validation: Dictionary = _validate_resource()
+		if not validation.valid:
+			_show_errors(validation.errors)
+			return
+
+		# Perform the save
+		_save_resource_data()
+
+		# Determine save path for new resources
+		var save_path: String = current_resource.resource_path
+		if save_path.is_empty():
+			var save_dir: String = ""
+			if resource_type_id != "" and ModLoader:
+				var active_mod: ModManifest = ModLoader.get_active_mod()
+				if active_mod:
+					var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+					if resource_type_id in resource_dirs:
+						save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
+			if save_dir.is_empty():
+				_show_error("No save directory available. Please set an active mod.")
+				return
+			var interactable_id: String = interactable_id_edit.text.strip_edges()
+			var filename: String = interactable_id + ".tres" if not interactable_id.is_empty() else "new_interactable_%d.tres" % Time.get_unix_time_from_system()
+			save_path = save_dir.path_join(filename)
+
+		var err: Error = ResourceSaver.save(current_resource, save_path)
+		if err != OK:
+			_show_error("Failed to save interactable: " + str(err))
+			return
+
+		# Update resource path and clear dirty flag
+		current_resource.take_over_path(save_path)
+		current_resource_path = save_path
+		is_dirty = false
+		_hide_errors()
+		_refresh_list()
+
 	_populate_map_list()
 	map_selection_popup.popup_centered()
 
