@@ -1101,7 +1101,7 @@ func _on_id_lock_toggled() -> void:
 
 func _update_lock_button() -> void:
 	interactable_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
-	interactable_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "ID auto-generates from name. Click to lock."
+	interactable_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Lock ID to prevent auto-generation"
 
 
 func _on_type_changed(_index: int) -> void:

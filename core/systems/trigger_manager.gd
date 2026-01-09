@@ -55,7 +55,12 @@ func _connect_to_scene_manager() -> void:
 ## Called when a scene transition completes
 func _on_scene_changed(_scene_path: String) -> void:
 	# CRIT-002: Store scene path before await to verify it hasn't changed
+	# Resolve UID to path for consistent comparison (UIDs don't match scene_file_path)
 	var expected_scene: String = _scene_path
+	if expected_scene.begins_with("uid://"):
+		var resolved: String = ResourceUID.get_id_path(ResourceUID.text_to_id(expected_scene))
+		if not resolved.is_empty():
+			expected_scene = resolved
 
 	# Clear old connections
 	_disconnect_all_triggers()
@@ -65,7 +70,9 @@ func _on_scene_changed(_scene_path: String) -> void:
 
 	# CRIT-002: Verify scene hasn't changed during await
 	var current_scene: Node = get_tree().current_scene
-	if current_scene and current_scene.scene_file_path != expected_scene:
+	var current_path: String = current_scene.scene_file_path if current_scene else ""
+	
+	if current_scene and current_path != expected_scene:
 		return  # Scene changed during await, abort
 
 	# Find and connect to all triggers in the new scene

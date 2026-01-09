@@ -100,6 +100,13 @@ signal triggered(trigger: MapTrigger, player: Node2D)
 signal activation_failed(trigger: MapTrigger, reason: String)
 
 
+## Track if initial overlap check is pending (prevents body_entered race)
+var _initial_check_pending: bool = true
+
+## Debug logging for trigger issues (set to true to diagnose trigger problems)
+const DEBUG_TRIGGERS: bool = false
+
+
 func _ready() -> void:
 	# Ensure collision layer is set correctly (layer 2 for triggers)
 	collision_layer = 2
@@ -113,8 +120,65 @@ func _ready() -> void:
 	if trigger_id.is_empty():
 		trigger_id = name.to_snake_case()
 
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] _ready: %s (id=%s, type=%s, one_shot=%s)" % [name, trigger_id, get_trigger_type_name(), one_shot])
+		print("[MapTrigger]   position=%s, collision_layer=%d, collision_mask=%d" % [global_position, collision_layer, collision_mask])
+
 	# Populate trigger_data from convenience fields (if set)
 	_populate_trigger_data()
+
+	# Check for bodies already overlapping on scene load
+	# CRITICAL: Must wait for physics frame, not just deferred call!
+	# Physics server needs to process before get_overlapping_bodies() works.
+	# Also need to wait for MapTemplate to finish positioning the hero.
+	_check_initial_overlaps_async()
+
+
+## Check for bodies already inside the trigger when scene loads.
+## This fixes re-entry issues where body_entered doesn't fire because
+## the hero was inside the trigger during scene transition.
+##
+## TIMING: Waits for physics frame to ensure collision detection is updated,
+## plus an extra process frame to let MapTemplate finish hero positioning.
+func _check_initial_overlaps_async() -> void:
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: _check_initial_overlaps_async START" % trigger_id)
+	
+	# Wait for physics server to process collisions
+	await get_tree().physics_frame
+	
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: after physics_frame" % trigger_id)
+	
+	# Extra frame to let MapTemplate._handle_transition_context() complete
+	# (it uses await internally for hero positioning)
+	await get_tree().process_frame
+	
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: after process_frame" % trigger_id)
+	
+	# Guard against being freed during await (scene changed, etc.)
+	if not is_instance_valid(self):
+		if DEBUG_TRIGGERS:
+			print("[MapTrigger] %s: ABORTED - instance no longer valid" % trigger_id)
+		return
+	
+	# Clear pending flag - body_entered can now work normally
+	_initial_check_pending = false
+	
+	var overlapping: Array[Node2D] = get_overlapping_bodies()
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: _initial_check_pending=false, overlapping bodies=%d" % [trigger_id, overlapping.size()])
+		for body: Node2D in overlapping:
+			print("[MapTrigger]   - %s (groups: %s)" % [body.name, body.get_groups()])
+	
+	for body: Node2D in overlapping:
+		if body.is_in_group("hero"):
+			if DEBUG_TRIGGERS:
+				print("[MapTrigger] %s: Hero found in overlap, can_trigger=%s" % [trigger_id, can_trigger()])
+			if can_trigger():
+				activate(body)
+			break
 
 
 ## Populate trigger_data dictionary from convenience @export fields.
@@ -151,15 +215,30 @@ func _populate_trigger_data() -> void:
 
 ## Called when a body enters the trigger area
 func _on_body_entered(body: Node2D) -> void:
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: body_entered - %s (is_hero=%s, pending=%s)" % [trigger_id, body.name, body.is_in_group("hero"), _initial_check_pending])
+	
 	# Only activate for hero character
 	if not body.is_in_group("hero"):
+		return
+	
+	# Skip if initial overlap check is still pending
+	# This prevents race conditions where body_entered fires before
+	# the hero is fully positioned by MapTemplate
+	if _initial_check_pending:
+		if DEBUG_TRIGGERS:
+			print("[MapTrigger] %s: SKIPPED - initial check pending" % trigger_id)
 		return
 
 	# Check if trigger can activate
 	if can_trigger():
+		if DEBUG_TRIGGERS:
+			print("[MapTrigger] %s: ACTIVATING" % trigger_id)
 		activate(body)
 	else:
 		var reason: String = _get_failure_reason()
+		if DEBUG_TRIGGERS:
+			print("[MapTrigger] %s: BLOCKED - %s" % [trigger_id, reason])
 		activation_failed.emit(self, reason)
 
 
@@ -185,12 +264,18 @@ func can_trigger() -> bool:
 
 ## Activate the trigger (called when player enters and conditions met)
 func activate(player: Node2D) -> void:
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: activate() called, emitting triggered signal" % trigger_id)
+	
 	# Mark as completed BEFORE emitting signal to prevent race condition on fast re-entry
 	if one_shot and not trigger_id.is_empty():
 		GameState.set_trigger_completed(trigger_id)
 
 	# Emit signal for handling (TriggerManager listens)
 	triggered.emit(self, player)
+	
+	if DEBUG_TRIGGERS:
+		print("[MapTrigger] %s: triggered signal emitted" % trigger_id)
 
 
 ## Get human-readable reason why trigger failed to activate

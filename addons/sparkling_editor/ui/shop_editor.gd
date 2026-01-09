@@ -104,15 +104,9 @@ func _load_resource_data() -> void:
 	
 	# Check if ID was manually set (doesn't match auto-generated from name)
 	if id_edit and name_edit:
-		var auto_id: String = _generate_id_from_name(shop.shop_name)
+		var auto_id: String = SparklingEditorUtils.generate_id_from_name(shop.shop_name)
 		_id_locked = (shop.shop_id != auto_id and not shop.shop_id.is_empty())
-		if id_lock_btn:
-			if _id_locked:
-				id_lock_btn.text = "🔒"
-				id_lock_btn.tooltip_text = "ID is locked - click to unlock auto-generation"
-			else:
-				id_lock_btn.text = "🔓"
-				id_lock_btn.tooltip_text = "ID auto-generates from name - click to lock"
+		_update_lock_button()
 
 	# Inventory
 	_current_inventory = shop.inventory.duplicate(true)
@@ -279,9 +273,9 @@ func _add_basic_info_section() -> void:
 	id_row.add_child(id_edit)
 
 	id_lock_btn = Button.new()
-	id_lock_btn.text = "🔓"
-	id_lock_btn.tooltip_text = "Click to lock/unlock ID auto-generation"
-	id_lock_btn.custom_minimum_size.x = 40
+	id_lock_btn.text = "Unlock"
+	id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	id_lock_btn.custom_minimum_size.x = 60
 	id_lock_btn.pressed.connect(_on_id_lock_toggled)
 	id_row.add_child(id_lock_btn)
 
@@ -726,51 +720,28 @@ func _on_name_changed(new_name: String) -> void:
 	
 	# Auto-generate ID from name if not locked
 	if not _id_locked and id_edit:
-		var generated_id: String = _generate_id_from_name(new_name)
-		id_edit.text = generated_id
+		id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 
 
 ## User manually typed in ID field - lock auto-generation
-func _on_id_manually_changed(new_id: String) -> void:
+func _on_id_manually_changed(_new_id: String) -> void:
 	_mark_dirty()
-	_id_locked = true
-	if id_lock_btn:
-		id_lock_btn.text = "🔒"
-		id_lock_btn.tooltip_text = "ID is locked - click to unlock auto-generation"
+	if not _id_locked and id_edit.has_focus():
+		_id_locked = true
+		_update_lock_button()
 
 
 ## Toggle ID lock button
 func _on_id_lock_toggled() -> void:
 	_id_locked = not _id_locked
-	if id_lock_btn:
-		if _id_locked:
-			id_lock_btn.text = "🔒"
-			id_lock_btn.tooltip_text = "ID is locked - click to unlock auto-generation"
-		else:
-			id_lock_btn.text = "🔓"
-			id_lock_btn.tooltip_text = "ID auto-generates from name - click to lock"
-			# Re-generate ID from current name when unlocking
-			if name_edit and id_edit:
-				id_edit.text = _generate_id_from_name(name_edit.text)
+	_update_lock_button()
+	if not _id_locked and name_edit and id_edit:
+		id_edit.text = SparklingEditorUtils.generate_id_from_name(name_edit.text)
 
 
-## Generate a snake_case ID from a display name
-func _generate_id_from_name(display_name: String) -> String:
-	var id: String = display_name.to_lower()
-	id = id.strip_edges()
-	# Replace spaces and special characters with underscores
-	id = id.replace(" ", "_")
-	id = id.replace("-", "_")
-	# Remove any characters that aren't alphanumeric or underscore
-	var clean_id: String = ""
-	for i in range(id.length()):
-		var c: String = id[i]
-		# Keep alphanumeric and underscore characters only
-		if (c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == "_":
-			clean_id += c
-	# Remove consecutive underscores
-	while "__" in clean_id:
-		clean_id = clean_id.replace("__", "_")
-	# Remove leading/trailing underscores
-	clean_id = clean_id.trim_prefix("_").trim_suffix("_")
-	return clean_id
+## Update lock button text and tooltip to reflect current state
+func _update_lock_button() -> void:
+	if not id_lock_btn:
+		return
+	id_lock_btn.text = "Lock" if _id_locked else "Unlock"
+	id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_locked else "Lock ID to prevent auto-generation"
