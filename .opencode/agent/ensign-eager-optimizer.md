@@ -1,7 +1,6 @@
 ---
 description: Optimize Godot 4.5 performance, profile bottlenecks, implement async/concurrent operations, or improve frame rates on Linux/Windows. Use for performance issues, pre-optimization reviews, or designing resource-heavy features safely.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.2
 ---
 

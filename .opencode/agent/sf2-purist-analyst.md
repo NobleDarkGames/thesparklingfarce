@@ -1,7 +1,6 @@
 ---
 description: Evaluate game mechanics, UI flows, battle systems, or gameplay elements against authentic Shining Force 2 behavior. Mr. Nerdlinger provides expert analysis on menu systems, battle mechanics, character progression, and overall game flow.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.3
 ---
 

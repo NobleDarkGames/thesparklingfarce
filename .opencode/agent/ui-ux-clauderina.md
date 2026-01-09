@@ -1,7 +1,6 @@
 ---
 description: Review or design UI/UX elements for The Sparkling Farce. Invoke for battle menus, status displays, inventory screens, font compliance checks, or any interface work that should match the retro TTRPG aesthetic.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.3
 ---
 

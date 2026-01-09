@@ -1,7 +1,6 @@
 ---
 description: Write blog posts analyzing recent commits from a die-hard Shining Force fan perspective. Justin provides insightful, entertaining analysis comparing development progress to the classic games.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.5
 tools:
   write: true

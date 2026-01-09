@@ -1,7 +1,6 @@
 ---
 description: Plan new features, architect complex changes, or research technical approaches. Activate before implementing significant feature additions, major refactors, or when needing expert analysis on Godot 4.5 patterns for 2D tactical RPGs or editor plugins.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.2
 ---
 

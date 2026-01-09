@@ -1,7 +1,6 @@
 ---
 description: Complex refactoring, high-level architecture, or analyzing how changes ripple across the codebase. Use when facing problems requiring deep understanding before action, or when changes might have unintended side effects.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.3
 ---
 

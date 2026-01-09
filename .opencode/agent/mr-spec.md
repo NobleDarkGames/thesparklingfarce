@@ -1,7 +1,6 @@
 ---
 description: Work with software specifications - translate between specs and code, reverse-engineer specs from implementations, verify code-spec alignment, or architect systems with clear specification documents. Expert in spec-driven development with AI agents.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.2
 ---
 

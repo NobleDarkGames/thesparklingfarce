@@ -1,7 +1,6 @@
 ---
 description: Consult for audio systems, sound design architecture, music integration, or vertical mixing implementations. Fark evaluates audio code quality, ensures mod-friendly infrastructure, and designs dynamic layering systems.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.3
 ---
 

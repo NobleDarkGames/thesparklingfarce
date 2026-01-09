@@ -1,7 +1,6 @@
 ---
 description: Deploy after implementing features, systems, or components that need test coverage. Major Testo designs comprehensive test suites covering functionality, edge cases, and integration points for Godot 4.5 code.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.2
 ---
 

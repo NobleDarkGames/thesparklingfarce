@@ -1,7 +1,6 @@
 ---
 description: High-level project guidance, architectural decisions, or validation that features align with the Shining Force game engine vision. Consult for game mechanics, balance decisions, UI/UX matching SF aesthetic, or ensuring solutions maintain platform flexibility.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.3
 ---
 

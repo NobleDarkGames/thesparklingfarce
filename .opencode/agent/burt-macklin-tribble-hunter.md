@@ -1,7 +1,6 @@
 ---
 description: Preventative debugging and root cause analysis. Burt finds edge cases, race conditions, uncaught exceptions, input validation gaps, and potential bugs before they manifest. Use after completing code chunks or when suspecting hidden issues.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.2
 ---
 

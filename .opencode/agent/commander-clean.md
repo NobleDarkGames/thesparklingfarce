@@ -1,7 +1,6 @@
 ---
 description: Review code for efficiency, redundancy, and cleanliness. Call after completing features, refactors, or bug fixes to identify optimization and cleanup opportunities.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.2
 ---
 

@@ -1,7 +1,6 @@
 ---
 description: Insights about Shining Force fandom preferences, community sentiment, modding scene, or player expectations for SF/Fire Emblem style tactical RPGs. Consult for feature reception, fan-favorite mechanics, or controversial design decisions.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.4
 ---
 

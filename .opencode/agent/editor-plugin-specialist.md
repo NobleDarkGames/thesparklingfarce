@@ -1,7 +1,6 @@
 ---
 description: Godot editor plugin development for The Sparkling Farce modding tools. Consult for inspector plugins, dock panels, resource editors, property editors, or making mod creation accessible to non-coders through the Godot editor.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.3
 ---
 

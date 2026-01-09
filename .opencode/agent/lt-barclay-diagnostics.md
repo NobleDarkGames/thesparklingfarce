@@ -1,7 +1,6 @@
 ---
 description: Deploy for difficult-to-diagnose bugs, unexpected behavior, performance issues, or complex problems spanning multiple components. Excels at methodical root cause analysis when standard debugging fails.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.2
 ---
 

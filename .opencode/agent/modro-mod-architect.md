@@ -1,7 +1,6 @@
 ---
 description: Review completed features for modding capabilities, evaluate design decisions for mod flexibility, or assess code touching modder-facing systems. Use for mod isolation, conflicts, compatibility, new APIs, or extension points.
 mode: subagent
-model: anthropic/claude-opus-4-5-20250514
 temperature: 0.3
 ---
 

@@ -1,7 +1,6 @@
 ---
 description: Deploy after writing or modifying Godot code for thorough review ensuring best practices, proper typing, and clean architecture. Use before staging commits, after implementing new classes/scenes, or when refactoring game systems.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.2
 ---
 

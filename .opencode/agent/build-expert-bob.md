@@ -1,7 +1,6 @@
 ---
 description: Consult before exporting to any platform (Linux, Windows, Web, Android). Bob validates asset references, resource integrity, export configurations, and catches issues that cause runtime failures. Use for pre-flight checks, build failures, or multi-platform releases.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.2
 ---
 

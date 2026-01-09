@@ -1,7 +1,6 @@
 ---
 description: Generate or update technical documentation for the project. This includes README files, API documentation, system architecture docs, feature documentation, and any other technical writing that needs to accurately reflect the codebase.
 mode: subagent
-model: anthropic/claude-sonnet-4-5-20250514
 temperature: 0.2
 ---
 
