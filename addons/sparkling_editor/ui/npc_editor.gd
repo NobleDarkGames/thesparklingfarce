@@ -30,10 +30,10 @@ var portrait_preview: TextureRect
 var portrait_file_dialog: EditorFileDialog
 var map_spritesheet_picker: MapSpritesheetPicker
 
-# Interaction section
-var interaction_cinematic_edit: LineEdit
+# Interaction section - using ResourcePicker for mod-aware cinematic selection
+var interaction_cinematic_picker: ResourcePicker
 var interaction_warning: Label
-var fallback_cinematic_edit: LineEdit
+var fallback_cinematic_picker: ResourcePicker
 var fallback_warning: Label
 
 # Conditional cinematics section
@@ -71,25 +71,11 @@ var _updating_ui: bool = false
 func _ready() -> void:
 	resource_type_name = "NPC"
 	resource_type_id = "npc"
+	# Cinematic pickers auto-refresh via EditorEventBus when cinematics change
 	super._ready()
 
 	# Initialize helper components
 	map_placement_helper = MapPlacementHelper.new()
-
-	# Connect to EditorEventBus for refresh notifications
-	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus and not event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
-		event_bus.mods_reloaded.connect(_on_mods_reloaded)
-
-
-func _exit_tree() -> void:
-	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-	if event_bus and event_bus.mods_reloaded.is_connected(_on_mods_reloaded):
-		event_bus.mods_reloaded.disconnect(_on_mods_reloaded)
-
-
-func _on_mods_reloaded() -> void:
-	_refresh_list()
 
 
 ## Override: Create the NPC-specific detail form
@@ -152,8 +138,17 @@ func _load_resource_data() -> void:
 	if map_spritesheet_picker:
 		map_spritesheet_picker.load_from_sprite_frames(npc.sprite_frames)
 
-	interaction_cinematic_edit.text = npc.interaction_cinematic_id
-	fallback_cinematic_edit.text = npc.fallback_cinematic_id
+	# Load cinematics using ResourcePicker (deferred to ensure pickers are ready)
+	if interaction_cinematic_picker:
+		if npc.interaction_cinematic_id.is_empty():
+			interaction_cinematic_picker.call_deferred("select_none")
+		else:
+			interaction_cinematic_picker.call_deferred("select_by_id", "", npc.interaction_cinematic_id)
+	if fallback_cinematic_picker:
+		if npc.fallback_cinematic_id.is_empty():
+			fallback_cinematic_picker.call_deferred("select_none")
+		else:
+			fallback_cinematic_picker.call_deferred("select_by_id", "", npc.fallback_cinematic_id)
 
 	_load_conditional_cinematics(npc.conditional_cinematics)
 
@@ -162,7 +157,6 @@ func _load_resource_data() -> void:
 
 	_updating_ui = false
 
-	call_deferred("_update_cinematic_warnings")
 	call_deferred("_update_preview")
 
 
@@ -183,8 +177,9 @@ func _save_resource_data() -> void:
 		var output_path: String = _generate_sprite_frames_path(npc)
 		npc.sprite_frames = map_spritesheet_picker.get_or_generate_sprite_frames(output_path)
 
-	npc.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
-	npc.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
+	# Save cinematics from ResourcePickers
+	npc.interaction_cinematic_id = interaction_cinematic_picker.get_selected_resource_id() if interaction_cinematic_picker else ""
+	npc.fallback_cinematic_id = fallback_cinematic_picker.get_selected_resource_id() if fallback_cinematic_picker else ""
 	npc.conditional_cinematics = _collect_conditional_cinematics()
 	npc.face_player_on_interact = face_player_check.button_pressed
 	npc.facing_override = _get_facing_from_dropdown()
@@ -199,8 +194,9 @@ func _validate_resource() -> Dictionary:
 	if npc_id.is_empty():
 		errors.append("NPC ID is required")
 
-	var primary_id: String = interaction_cinematic_edit.text.strip_edges()
-	var fallback_id: String = fallback_cinematic_edit.text.strip_edges()
+	# Get cinematic IDs from pickers (ResourcePicker validates existence via registry)
+	var primary_id: String = interaction_cinematic_picker.get_selected_resource_id() if interaction_cinematic_picker else ""
+	var fallback_id: String = fallback_cinematic_picker.get_selected_resource_id() if fallback_cinematic_picker else ""
 	var has_primary: bool = not primary_id.is_empty()
 	var has_fallback: bool = not fallback_id.is_empty()
 	var has_conditional: bool = _has_valid_conditional()
@@ -209,11 +205,8 @@ func _validate_resource() -> Dictionary:
 	if not has_primary and not has_fallback and not has_conditional:
 		warnings.append("NPC has no cinematic - interacting will do nothing")
 
-	var cinematics_dir: String = _get_active_mod_cinematics_path()
-	if has_primary and not QuickDialogGenerator.cinematic_exists(cinematics_dir, primary_id):
-		warnings.append("Primary cinematic '%s' not found in loaded mods" % primary_id)
-	if has_fallback and not QuickDialogGenerator.cinematic_exists(cinematics_dir, fallback_id):
-		warnings.append("Fallback cinematic '%s' not found in loaded mods" % fallback_id)
+	# Note: ResourcePicker only shows valid cinematics from the registry,
+	# so we don't need to validate existence here
 
 	for i: int in range(conditional_entries.size()):
 		var entry: Dictionary = conditional_entries[i]
@@ -221,26 +214,21 @@ func _validate_resource() -> Dictionary:
 		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
 		var or_val: Variant = entry.get("or_flags_edit")
 		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var cine_val: Variant = entry.get("cinematic_edit")
-		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
-
-		if not cinematic_edit:
-			continue
+		var picker_val: Variant = entry.get("cinematic_picker")
+		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
 		var and_text: String = and_flags_edit.text.strip_edges() if and_flags_edit else ""
 		var or_text: String = or_flags_edit.text.strip_edges() if or_flags_edit else ""
-		var cine_text: String = cinematic_edit.text.strip_edges()
+		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
 
 		var has_any_flags: bool = not and_text.is_empty() or not or_text.is_empty()
-		var has_cinematic: bool = not cine_text.is_empty()
+		var has_cinematic: bool = not cine_id.is_empty()
 
 		# Validate: must have either both (flags and cinematic) or neither
 		if has_any_flags and not has_cinematic:
-			errors.append("Conditional entry %d: Cinematic ID is required when flags are specified" % (i + 1))
+			errors.append("Conditional entry %d: Cinematic is required when flags are specified" % (i + 1))
 		elif has_cinematic and not has_any_flags:
 			errors.append("Conditional entry %d: At least one flag (ALL of or ANY of) is required" % (i + 1))
-		elif has_cinematic and not QuickDialogGenerator.cinematic_exists(cinematics_dir, cine_text):
-			warnings.append("Conditional cinematic '%s' not found in loaded mods" % cine_text)
 
 	return {valid = errors.is_empty(), errors = errors, warnings = warnings}
 
@@ -309,8 +297,8 @@ func _add_basic_info_section() -> void:
 	id_row.add_child(npc_id_edit)
 
 	npc_id_lock_btn = Button.new()
-	npc_id_lock_btn.text = "Unlock"
-	npc_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	npc_id_lock_btn.text = "Lock"
+	npc_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
 	npc_id_lock_btn.custom_minimum_size.x = 60
 	npc_id_lock_btn.pressed.connect(_on_id_lock_toggled)
 	id_row.add_child(npc_id_lock_btn)
@@ -476,14 +464,16 @@ func _on_advanced_toggle() -> void:
 
 
 func _add_interaction_section_to(parent: Control) -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Manual Cinematic Assignment", parent)
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Cinematic Assignment", parent)
 
 	var primary_row: HBoxContainer = SparklingEditorUtils.create_field_row("Primary Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	interaction_cinematic_edit = LineEdit.new()
-	interaction_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	interaction_cinematic_edit.placeholder_text = "cinematic_id"
-	interaction_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("primary"))
-	primary_row.add_child(interaction_cinematic_edit)
+	interaction_cinematic_picker = ResourcePicker.new()
+	interaction_cinematic_picker.resource_type = "cinematic"
+	interaction_cinematic_picker.allow_none = true
+	interaction_cinematic_picker.none_text = "(None)"
+	interaction_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	interaction_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("primary"))
+	primary_row.add_child(interaction_cinematic_picker)
 
 	interaction_warning = Label.new()
 	interaction_warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
@@ -494,11 +484,13 @@ func _add_interaction_section_to(parent: Control) -> void:
 	SparklingEditorUtils.create_help_label("Default cinematic when player interacts (if no conditionals match)", section)
 
 	var fallback_row: HBoxContainer = SparklingEditorUtils.create_field_row("Fallback Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	fallback_cinematic_edit = LineEdit.new()
-	fallback_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fallback_cinematic_edit.placeholder_text = "fallback_cinematic_id"
-	fallback_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("fallback"))
-	fallback_row.add_child(fallback_cinematic_edit)
+	fallback_cinematic_picker = ResourcePicker.new()
+	fallback_cinematic_picker.resource_type = "cinematic"
+	fallback_cinematic_picker.allow_none = true
+	fallback_cinematic_picker.none_text = "(None)"
+	fallback_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fallback_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("fallback"))
+	fallback_row.add_child(fallback_cinematic_picker)
 
 	fallback_warning = Label.new()
 	fallback_warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
@@ -641,7 +633,7 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	or_flags_edit.text_changed.connect(_on_field_changed)
 	or_row.add_child(or_flags_edit)
 
-	# Row 3: Cinematic ID and controls
+	# Row 3: Cinematic picker and controls
 	var cinematic_row: HBoxContainer = HBoxContainer.new()
 	cinematic_row.add_theme_constant_override("separation", 4)
 	panel_content.add_child(cinematic_row)
@@ -657,14 +649,18 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	arrow.text = "->"
 	cinematic_row.add_child(arrow)
 
-	var cinematic_edit: LineEdit = LineEdit.new()
-	cinematic_edit.placeholder_text = "cinematic_id"
-	cinematic_edit.text = cinematic_id
-	cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_edit.custom_minimum_size.x = 150
-	cinematic_edit.tooltip_text = "The cinematic to play when this condition is met"
-	cinematic_edit.text_changed.connect(_on_field_changed)
-	cinematic_row.add_child(cinematic_edit)
+	var cinematic_picker: ResourcePicker = ResourcePicker.new()
+	cinematic_picker.resource_type = "cinematic"
+	cinematic_picker.allow_none = true
+	cinematic_picker.none_text = "(None)"
+	cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cinematic_picker.tooltip_text = "The cinematic to play when this condition is met"
+	cinematic_picker.resource_selected.connect(_on_conditional_cinematic_changed)
+	cinematic_row.add_child(cinematic_picker)
+
+	# Set initial value if provided (deferred to ensure picker is ready)
+	if not cinematic_id.is_empty():
+		cinematic_picker.call_deferred("select_by_id", "", cinematic_id)
 
 	var remove_btn: Button = Button.new()
 	remove_btn.text = "X"
@@ -679,7 +675,7 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 		"and_flags_edit": and_flags_edit,
 		"or_flags_edit": or_flags_edit,
 		"negate_check": negate_check,
-		"cinematic_edit": cinematic_edit
+		"cinematic_picker": cinematic_picker
 	})
 
 
@@ -701,13 +697,11 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
 		var negate_val: Variant = entry.get("negate_check")
 		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
-		var cine_val: Variant = entry.get("cinematic_edit")
-		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
+		var picker_val: Variant = entry.get("cinematic_picker")
+		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
-		if not cinematic_edit:
-			continue
-
-		var cine_text: String = cinematic_edit.text.strip_edges()
+		# Get cinematic ID from picker
+		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
 
 		# Parse AND flags (comma-separated)
 		var and_flags: Array[String] = []
@@ -730,11 +724,11 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 						or_flags.append(clean_flag)
 
 		# Skip entries with no flags and no cinematic
-		if and_flags.is_empty() and or_flags.is_empty() and cine_text.is_empty():
+		if and_flags.is_empty() and or_flags.is_empty() and cine_id.is_empty():
 			continue
 
 		# Build the condition dictionary
-		var cond_dict: Dictionary = {"cinematic_id": cine_text}
+		var cond_dict: Dictionary = {"cinematic_id": cine_id}
 
 		# Use "flags" array for AND logic (new format)
 		if not and_flags.is_empty():
@@ -757,14 +751,12 @@ func _has_valid_conditional() -> bool:
 		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
 		var or_val: Variant = entry.get("or_flags_edit")
 		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var cine_val: Variant = entry.get("cinematic_edit")
-		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
+		var picker_val: Variant = entry.get("cinematic_picker")
+		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
-		if not cinematic_edit:
-			continue
-
-		var cine_text: String = cinematic_edit.text.strip_edges()
-		if cine_text.is_empty():
+		# Get cinematic ID from picker
+		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+		if cine_id.is_empty():
 			continue
 
 		# Check if there are any flags defined (AND or OR)
@@ -815,6 +807,7 @@ func _on_id_manually_changed(_text: String) -> void:
 	if not _id_is_locked and npc_id_edit.has_focus():
 		_id_is_locked = true
 		_update_lock_button()
+	_mark_dirty()
 
 
 func _on_id_lock_toggled() -> void:
@@ -825,8 +818,8 @@ func _on_id_lock_toggled() -> void:
 
 
 func _update_lock_button() -> void:
-	npc_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
-	npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Lock ID to prevent auto-generation"
+	npc_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
+	npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
 
 
 func _on_check_changed(_pressed: bool) -> void:
@@ -841,31 +834,24 @@ func _on_option_changed(_index: int) -> void:
 	_mark_dirty()
 
 
-func _on_cinematic_field_changed(text: String, field_type: String) -> void:
+## Called when primary or fallback cinematic picker selection changes
+func _on_cinematic_picker_changed(_metadata: Dictionary, _field_type: String) -> void:
 	if _updating_ui:
 		return
-	_validate_cinematic_field(text.strip_edges(), field_type)
+	# ResourcePicker only shows valid cinematics, so no validation warnings needed
+	# Hide any legacy warnings
+	if interaction_warning:
+		interaction_warning.visible = false
+	if fallback_warning:
+		fallback_warning.visible = false
 	_mark_dirty()
 
 
-func _validate_cinematic_field(cinematic_id: String, field_type: String) -> void:
-	var warning_label: Label = interaction_warning if field_type == "primary" else fallback_warning if field_type == "fallback" else null
-	if not warning_label:
+## Called when a conditional cinematic picker selection changes
+func _on_conditional_cinematic_changed(_metadata: Dictionary) -> void:
+	if _updating_ui:
 		return
-	if cinematic_id.is_empty():
-		warning_label.visible = false
-		return
-	var cinematics_dir: String = _get_active_mod_cinematics_path()
-	if QuickDialogGenerator.cinematic_exists(cinematics_dir, cinematic_id):
-		warning_label.visible = false
-	else:
-		warning_label.text = "Cinematic '%s' not found in any loaded mod" % cinematic_id
-		warning_label.visible = true
-
-
-func _update_cinematic_warnings() -> void:
-	_validate_cinematic_field(interaction_cinematic_edit.text.strip_edges() if interaction_cinematic_edit else "", "primary")
-	_validate_cinematic_field(fallback_cinematic_edit.text.strip_edges() if fallback_cinematic_edit else "", "fallback")
+	_mark_dirty()
 
 
 func _show_error(message: String) -> void:
