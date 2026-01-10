@@ -892,6 +892,10 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 		else:
 			# Fallback to entity_id if character not found
 			cinematic_actor.character_uid = entity_id
+	elif entity_type == "npc" and not entity_id.is_empty():
+		# For NPCs, use the "npc:" prefix format that matches what dialog_line stores
+		# This allows auto_follow to find NPC actors when they speak
+		cinematic_actor.character_uid = "npc:" + entity_id
 	entity.add_child(cinematic_actor)
 
 	# Add to scene tree (use cinematic stage if available, otherwise current scene)
