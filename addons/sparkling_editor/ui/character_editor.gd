@@ -260,15 +260,21 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
 
-	if character.character_name.strip_edges().is_empty():
+	# Validate UI state (not resource state) since validation runs before _save_resource_data()
+	var char_name: String = name_edit.text.strip_edges() if name_edit else ""
+	var level: int = int(level_spin.value) if level_spin else 1
+	var selected_class: ClassData = class_picker.get_selected_resource() as ClassData if class_picker else null
+	var unit_cat: String = category_option.get_item_text(category_option.selected) if category_option and category_option.selected >= 0 else "player"
+
+	if char_name.is_empty():
 		errors.append("Character name cannot be empty")
 
-	if character.starting_level < 1 or character.starting_level > 99:
+	if level < 1 or level > 99:
 		errors.append("Starting level must be between 1 and 99")
 
 	# Validate class selection - required for playable characters
-	if character.character_class == null:
-		if character.unit_category == "player":
+	if selected_class == null:
+		if unit_cat == "player":
 			errors.append("Player characters must have a class assigned")
 		else:
 			warnings.append("No class assigned - character will have no abilities or stat growth")
