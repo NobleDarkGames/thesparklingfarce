@@ -35,10 +35,10 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"description": "Show a single dialog line with character portrait",
 		"icon": "RichTextLabel",
 		"params": {
-			"character_id": {"type": "character", "default": "", "hint": "Character UID"},
+			"speaker": {"type": "speaker", "default": "", "hint": "Actor ID, npc:id, or character UID"},
 			"text": {"type": "text", "default": "", "hint": "Variables: {player_name}, {char:id}, {gold}, {party_count}, {flag:name}, {var:key}"},
 			"emotion": {"type": "enum", "default": "neutral", "options": ["neutral", "happy", "sad", "angry", "worried", "surprised", "determined", "thinking"], "hint": "Character emotion"},
-			"auto_follow": {"type": "bool", "default": true, "hint": "Auto-follow speaker with camera"}
+			"auto_follow": {"type": "bool", "default": true, "hint": "Auto-follow speaker with camera (ignored for virtual actors)"}
 		}
 	},
 	"show_dialog": {

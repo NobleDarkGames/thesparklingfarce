@@ -22,7 +22,7 @@
 							"choices": [
 								{
 									"action": "battle",
-									"label": "Battle 1",
+									"label": "Battle 1: Proving Grounds",
 									"on_victory_flags": [
 										"battle1_victory"
 									],
@@ -30,7 +30,12 @@
 								},
 								{
 									"action": "none",
-									"label": "Whatever, wierdo...",
+									"label": "Battle 2: Grounds are Proven",
+									"value": ""
+								},
+								{
+									"action": "none",
+									"label": "Whatever, weirdo...",
 									"value": ""
 								}
 							]

@@ -412,8 +412,8 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	id_row.add_child(cinematic_id_edit)
 
 	cinematic_id_lock_btn = Button.new()
-	cinematic_id_lock_btn.text = "Unlock"
-	cinematic_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	cinematic_id_lock_btn.text = "Lock"
+	cinematic_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
 	cinematic_id_lock_btn.custom_minimum_size.x = 60
 	cinematic_id_lock_btn.pressed.connect(_on_id_lock_toggled)
 	id_row.add_child(cinematic_id_lock_btn)
@@ -511,13 +511,15 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 
 	actor_entity_type_picker = OptionButton.new()
 	actor_entity_type_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actor_entity_type_picker.tooltip_text = "Type of entity to spawn"
+	actor_entity_type_picker.tooltip_text = "Character: Playable characters with stats and portraits\nInteractable: Objects like chests, signs, doors\nNPC: Non-playable characters for dialog\nVirtual: Off-screen actors for dialog_line speakers that don't need map sprites"
 	actor_entity_type_picker.add_item("Character", 0)
 	actor_entity_type_picker.add_item("Interactable", 1)
 	actor_entity_type_picker.add_item("NPC", 2)
+	actor_entity_type_picker.add_item("Virtual (Off-Screen)", 3)
 	actor_entity_type_picker.set_item_metadata(0, "character")
 	actor_entity_type_picker.set_item_metadata(1, "interactable")
 	actor_entity_type_picker.set_item_metadata(2, "npc")
+	actor_entity_type_picker.set_item_metadata(3, "virtual")
 	actor_entity_type_picker.item_selected.connect(_on_actor_entity_type_changed)
 	type_row.add_child(actor_entity_type_picker)
 
@@ -1433,6 +1435,9 @@ func _on_save() -> void:
 		_show_errors(["No cinematic loaded"])
 		return
 
+	# Auto-migrate legacy format before saving
+	_migrate_legacy_format()
+
 	# Collect metadata
 	var new_id: String = cinematic_id_edit.text.strip_edges()
 	current_cinematic_data["cinematic_id"] = new_id
@@ -1481,6 +1486,35 @@ func _validate_cinematic() -> Array[String]:
 	if current_cinematic_data.get("cinematic_id", "").is_empty():
 		errors.append("Cinematic ID is required")
 
+	# Validate actors for empty and duplicate actor_ids, plus entity_id references
+	var actors: Array = current_cinematic_data.get("actors", [])
+	var seen_actor_ids: Dictionary = {}
+	for i: int in range(actors.size()):
+		var actor: Dictionary = actors[i] if actors[i] is Dictionary else {}
+		var actor_id: String = actor.get("actor_id", "")
+		if actor_id.is_empty():
+			errors.append("Actor %d: actor_id is required" % (i + 1))
+		elif actor_id in seen_actor_ids:
+			errors.append("Actor %d: duplicate actor_id '%s' (first used by Actor %d)" % [i + 1, actor_id, seen_actor_ids[actor_id]])
+		else:
+			seen_actor_ids[actor_id] = i + 1
+
+		# Validate entity_id reference exists in the appropriate registry
+		var entity_type: String = actor.get("entity_type", "character")
+		var entity_id: String = actor.get("entity_id", "")
+		if entity_type != "virtual" and not entity_id.is_empty():
+			var entity_exists: bool = false
+			if ModLoader and ModLoader.registry:
+				match entity_type:
+					"character":
+						entity_exists = ModLoader.registry.get_character(entity_id) != null
+					"npc":
+						entity_exists = ModLoader.registry.get_npc(entity_id) != null
+					"interactable":
+						entity_exists = ModLoader.registry.get_interactable(entity_id) != null
+			if not entity_exists:
+				errors.append("Actor %d ('%s'): %s '%s' not found in registry" % [i + 1, actor_id, entity_type, entity_id])
+
 	var commands: Array = current_cinematic_data.get("commands", [])
 	for i: int in range(commands.size()):
 		var cmd: Dictionary = commands[i]
@@ -1508,6 +1542,35 @@ func _validate_cinematic() -> Array[String]:
 					errors.append("Command %d (set_variable): Variable name is required" % (i + 1))
 
 	return errors
+
+
+# =============================================================================
+# Legacy Format Migration
+# =============================================================================
+
+## Migrate legacy format to current format before saving
+## Converts character_id → speaker in dialog_line commands
+func _migrate_legacy_format() -> void:
+	var commands: Array = current_cinematic_data.get("commands", [])
+	var migrated_count: int = 0
+
+	for cmd: Variant in commands:
+		if cmd is Dictionary:
+			var cmd_dict: Dictionary = cmd
+			var cmd_type: String = cmd_dict.get("type", "")
+
+			# Migrate dialog_line: character_id → speaker
+			if cmd_type == "dialog_line":
+				var params: Variant = cmd_dict.get("params", {})
+				if params is Dictionary:
+					var params_dict: Dictionary = params
+					if "character_id" in params_dict and "speaker" not in params_dict:
+						params_dict["speaker"] = params_dict["character_id"]
+						params_dict.erase("character_id")
+						migrated_count += 1
+
+	if migrated_count > 0:
+		print("CinematicEditor: Migrated %d dialog_line commands (character_id → speaker)" % migrated_count)
 
 
 # =============================================================================
@@ -1543,8 +1606,8 @@ func _on_id_lock_toggled() -> void:
 
 ## Update the lock button appearance
 func _update_lock_button() -> void:
-	cinematic_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
-	cinematic_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Lock ID to prevent auto-generation"
+	cinematic_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
+	cinematic_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
 
 
 func _get_active_mod() -> String:
@@ -1589,6 +1652,7 @@ func _rebuild_actors_list() -> void:
 				"character": type_abbrev = "char"
 				"interactable": type_abbrev = "obj"
 				"npc": type_abbrev = "npc"
+				"virtual": type_abbrev = "virtual"
 				_: type_abbrev = entity_type
 			display += " [%s: %s]" % [type_abbrev, entity_id]
 		actors_list.add_item(display)
@@ -1638,6 +1702,28 @@ func _populate_actor_entity_picker() -> void:
 						npc_id = npc_res.resource_path.get_file().get_basename()
 					actor_entity_picker.add_item(display_name, idx)
 					actor_entity_picker.set_item_metadata(idx, npc_id)
+					idx += 1
+		"virtual":
+			# Virtual actors reference existing NPCs or characters for their display data
+			# Add NPCs first (most common virtual actor source)
+			for npc_res: Resource in _npcs:
+				if npc_res:
+					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(npc_res, "npc_name")
+					var npc_id: String = ""
+					if npc_res.resource_path:
+						npc_id = npc_res.resource_path.get_file().get_basename()
+					actor_entity_picker.add_item("[NPC] " + display_name, idx)
+					actor_entity_picker.set_item_metadata(idx, "npc:" + npc_id)
+					idx += 1
+			# Add characters
+			for char_res: Resource in _characters:
+				if char_res:
+					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
+					var char_id: String = ""
+					if char_res.resource_path:
+						char_id = char_res.resource_path.get_file().get_basename()
+					actor_entity_picker.add_item("[Char] " + display_name, idx)
+					actor_entity_picker.set_item_metadata(idx, char_id)
 					idx += 1
 
 
@@ -1770,6 +1856,7 @@ func _on_actor_selected(index: int) -> void:
 		"character": type_idx = 0
 		"interactable": type_idx = 1
 		"npc": type_idx = 2
+		"virtual": type_idx = 3
 	actor_entity_type_picker.select(type_idx)
 
 	# Populate entity picker for this type
@@ -1868,6 +1955,13 @@ func _on_actor_entity_changed(index: int) -> void:
 	selected_actor["entity_id"] = entity_id if entity_id else ""
 	# Remove legacy character_id if present
 	selected_actor.erase("character_id")
+
+	# Auto-generate actor_id from entity_id if it starts with default "actor_" prefix
+	var current_actor_id: String = selected_actor.get("actor_id", "")
+	if current_actor_id.begins_with("actor_") and entity_id:
+		var new_actor_id: String = str(entity_id)
+		selected_actor["actor_id"] = new_actor_id
+		actor_id_edit.text = new_actor_id
 
 	_rebuild_actors_list()
 	actors_list.select(selected_actor_index)

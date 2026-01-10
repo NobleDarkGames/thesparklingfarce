@@ -43,6 +43,11 @@ var _command_queue: Array[Dictionary] = []
 ## Actor registry (actor_id -> CinematicActor)
 var _registered_actors: Dictionary = {}
 
+## Actor display data cache (actor_id -> {display_name, portrait, entity_ref})
+## Stores display info for all actors including virtual ones
+## Virtual actors have no CinematicActor but still have display data
+var _actor_display_data: Dictionary = {}
+
 ## Cinematic chain tracking (prevents circular references)
 var _cinematic_chain_stack: Array[String] = []
 const MAX_CINEMATIC_CHAIN_DEPTH: int = 5
@@ -170,6 +175,93 @@ func get_actor_by_character_uid(character_uid: String) -> CinematicActor:
 		if actor and actor.character_uid == character_uid:
 			return actor
 	return null
+
+
+## Get display data for an actor (works for both real and virtual actors)
+## Returns: {display_name: String, portrait: Texture2D, entity_ref: String, is_virtual: bool}
+## Returns empty dict if actor not found
+func get_actor_display_data(actor_id: String) -> Dictionary:
+	if actor_id.is_empty():
+		return {}
+	return _actor_display_data.get(actor_id, {})
+
+
+## Find an entity node on the current map by entity reference
+## Supports formats: "npc:entity_id", character_uid, or actor_id
+## Returns the entity's Node2D or null if not found
+func find_entity_node(entity_ref: String) -> Node2D:
+	if entity_ref.is_empty():
+		return null
+
+	# First check if it's a registered actor
+	var actor: CinematicActor = get_actor(entity_ref)
+	if actor and actor.parent_entity:
+		return actor.parent_entity
+
+	# Check by character_uid (for spawned actors)
+	actor = get_actor_by_character_uid(entity_ref)
+	if actor and actor.parent_entity:
+		return actor.parent_entity
+
+	# Search for existing NPC on map
+	if entity_ref.begins_with("npc:"):
+		var npc_id: String = entity_ref.substr(4)
+		return _find_npc_on_map(npc_id)
+
+	# Search for character on map (party member or spawned character)
+	return _find_character_on_map(entity_ref)
+
+
+## Find an NPC node on the current map by npc_id
+func _find_npc_on_map(npc_id: String) -> Node2D:
+	var scene_root: Node = get_tree().current_scene
+	if not scene_root:
+		return null
+
+	# Search for NPC nodes - they typically have npc_id property or are in "npcs" group
+	var npcs: Array[Node] = scene_root.get_tree().get_nodes_in_group("npcs")
+	for npc: Node in npcs:
+		if npc is Node2D:
+			# Check for npc_id property
+			if "npc_id" in npc and npc.npc_id == npc_id:
+				return npc as Node2D
+			# Check node name as fallback
+			if npc.name.to_lower() == npc_id.to_lower():
+				return npc as Node2D
+	return null
+
+
+## Find a character node on the current map by character_uid
+func _find_character_on_map(character_uid: String) -> Node2D:
+	var scene_root: Node = get_tree().current_scene
+	if not scene_root:
+		return null
+
+	# Search for character nodes - typically in "characters" or "party" group
+	for group_name: String in ["characters", "party", "units"]:
+		var nodes: Array[Node] = scene_root.get_tree().get_nodes_in_group(group_name)
+		for node: Node in nodes:
+			if node is Node2D:
+				# Check for character_uid property
+				if "character_uid" in node and node.character_uid == character_uid:
+					return node as Node2D
+	return null
+
+
+## Cache display data for an actor
+## Called during actor spawning to store name/portrait for dialog lookups
+func _cache_actor_display_data(actor_id: String, entity_ref: String, display_name: String = "", portrait: Texture2D = null, is_virtual: bool = false) -> void:
+	_actor_display_data[actor_id] = {
+		"display_name": display_name,
+		"portrait": portrait,
+		"entity_ref": entity_ref,
+		"is_virtual": is_virtual
+	}
+
+
+## Clear actor display data cache (called at cinematic end)
+func _clear_actor_display_cache() -> void:
+	_actor_display_data.clear()
 
 
 ## Register a command executor for a specific command type
@@ -301,10 +393,12 @@ func _register_built_in_spawnable_types() -> void:
 	const CharacterSpawnHandler = preload("res://core/systems/cinematic_spawners/character_spawn_handler.gd")
 	const InteractableSpawnHandler = preload("res://core/systems/cinematic_spawners/interactable_spawn_handler.gd")
 	const NPCSpawnHandler = preload("res://core/systems/cinematic_spawners/npc_spawn_handler.gd")
+	const VirtualSpawnHandler = preload("res://core/systems/cinematic_spawners/virtual_spawn_handler.gd")
 
 	register_spawnable_type(CharacterSpawnHandler.new())
 	register_spawnable_type(InteractableSpawnHandler.new())
 	register_spawnable_type(NPCSpawnHandler.new())
+	register_spawnable_type(VirtualSpawnHandler.new())
 
 
 ## Register a spawnable entity handler
@@ -612,8 +706,9 @@ func _end_cinematic() -> void:
 		var map_camera: MapCamera = _active_camera as MapCamera
 		map_camera.clear_cinematic_target()
 
-	# Clean up spawned actors
+	# Clean up spawned actors and display cache
 	_cleanup_spawned_actors()
+	_clear_actor_display_cache()
 
 	# DEFENSIVE: Ensure DialogManager is reset to IDLE
 	# This catches edge cases where dialog might still be active
@@ -811,6 +906,7 @@ func _spawn_actors_from_data(cinematic: CinematicData) -> void:
 
 ## Spawn a single actor from a definition dictionary
 ## Format: {actor_id, entity_type, entity_id, position: [x, y], facing}
+## Virtual actors: {actor_id, entity_type: "virtual", display_source: "npc:id" or character_uid}
 ## Legacy format also supported: {actor_id, character_id, ...} maps to entity_type="character"
 func _spawn_single_actor(actor_def: Dictionary) -> void:
 	var actor_id: String = actor_def.get("actor_id", "")
@@ -821,6 +917,26 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	# Check for existing actor with this ID
 	if get_actor(actor_id) != null:
 		push_warning("CinematicsManager: Actor '%s' already exists from actors array" % actor_id)
+
+	# Determine entity type and ID (with backward compatibility for character_id)
+	var entity_type: String = actor_def.get("entity_type", "")
+	var entity_id: String = actor_def.get("entity_id", "")
+
+	# Backward compatibility: character_id maps to entity_type="character"
+	if entity_type.is_empty() and entity_id.is_empty():
+		var character_id: String = actor_def.get("character_id", "")
+		if not character_id.is_empty():
+			entity_type = "character"
+			entity_id = character_id
+
+	# Default to "character" if still empty (unless virtual)
+	if entity_type.is_empty():
+		entity_type = "character"
+
+	# Handle virtual actors - no sprite, no node, just cache display data
+	if entity_type == "virtual":
+		_spawn_virtual_actor(actor_id, actor_def)
+		return
 
 	# Parse position (grid coordinates)
 	var grid_pos: Vector2i = Vector2i.ZERO
@@ -836,21 +952,6 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	var facing: String = str(actor_def.get("facing", "down")).to_lower()
 	if facing not in ["up", "down", "left", "right"]:
 		facing = "down"
-
-	# Determine entity type and ID (with backward compatibility for character_id)
-	var entity_type: String = actor_def.get("entity_type", "")
-	var entity_id: String = actor_def.get("entity_id", "")
-
-	# Backward compatibility: character_id maps to entity_type="character"
-	if entity_type.is_empty() and entity_id.is_empty():
-		var character_id: String = actor_def.get("character_id", "")
-		if not character_id.is_empty():
-			entity_type = "character"
-			entity_id = character_id
-
-	# Default to "character" if still empty
-	if entity_type.is_empty():
-		entity_type = "character"
 
 	# Create the spawned entity structure
 	var entity: CharacterBody2D = CharacterBody2D.new()
@@ -883,20 +984,39 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	cinematic_actor.name = "CinematicActor"
 	cinematic_actor.actor_id = actor_id
 	cinematic_actor.sprite_node = sprite_node
-	# Track character UID for auto_follow in dialogs
-	# Must look up the actual CharacterData to get its character_uid property
+
+	# Track character UID for auto_follow in dialogs and cache display data
+	var entity_ref: String = ""
+	var display_name: String = ""
+	var portrait: Texture2D = null
+
 	if entity_type == "character" and not entity_id.is_empty():
 		var char_data: CharacterData = ModLoader.registry.get_character(entity_id) as CharacterData
-		if char_data and "character_uid" in char_data:
-			cinematic_actor.character_uid = str(char_data.get("character_uid"))
+		if char_data:
+			if "character_uid" in char_data:
+				cinematic_actor.character_uid = str(char_data.get("character_uid"))
+				entity_ref = cinematic_actor.character_uid
+			else:
+				cinematic_actor.character_uid = entity_id
+				entity_ref = entity_id
+			display_name = char_data.character_name if char_data.character_name else entity_id
+			portrait = char_data.portrait
 		else:
-			# Fallback to entity_id if character not found
 			cinematic_actor.character_uid = entity_id
+			entity_ref = entity_id
 	elif entity_type == "npc" and not entity_id.is_empty():
 		# For NPCs, use the "npc:" prefix format that matches what dialog_line stores
-		# This allows auto_follow to find NPC actors when they speak
 		cinematic_actor.character_uid = "npc:" + entity_id
+		entity_ref = cinematic_actor.character_uid
+		var npc_data: NPCData = ModLoader.registry.get_npc(entity_id) as NPCData
+		if npc_data:
+			display_name = npc_data.get_display_name()
+			portrait = npc_data.get_portrait()
+
 	entity.add_child(cinematic_actor)
+
+	# Cache display data for dialog lookups
+	_cache_actor_display_data(actor_id, entity_ref, display_name, portrait, false)
 
 	# Add to scene tree (use cinematic stage if available, otherwise current scene)
 	var actor_parent: Node = _find_actor_parent()
@@ -906,6 +1026,39 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	else:
 		push_error("CinematicsManager: No scene to add actor to")
 		entity.queue_free()
+
+
+## Spawn a virtual actor (off-screen speaker)
+## Virtual actors have no node in the scene tree - only display data for dialogs
+func _spawn_virtual_actor(actor_id: String, actor_def: Dictionary) -> void:
+	# Virtual actors use display_source to reference an existing entity for portrait/name
+	var display_source: String = actor_def.get("display_source", "")
+	var display_name: String = ""
+	var portrait: Texture2D = null
+
+	if not display_source.is_empty():
+		# Resolve display data from the source entity
+		if display_source.begins_with("npc:"):
+			var npc_id: String = display_source.substr(4)
+			var npc_data: NPCData = ModLoader.registry.get_npc(npc_id) as NPCData
+			if npc_data:
+				display_name = npc_data.get_display_name()
+				portrait = npc_data.get_portrait()
+			else:
+				push_warning("CinematicsManager: Virtual actor '%s' references unknown NPC '%s'" % [actor_id, npc_id])
+				display_name = npc_id
+		else:
+			# Assume it's a character UID
+			var char_data: CharacterData = ModLoader.registry.get_character_by_uid(display_source) as CharacterData
+			if char_data:
+				display_name = char_data.character_name
+				portrait = char_data.portrait
+			else:
+				push_warning("CinematicsManager: Virtual actor '%s' references unknown character '%s'" % [actor_id, display_source])
+				display_name = display_source
+
+	# Cache display data - virtual actors have no entity_ref (can't be followed)
+	_cache_actor_display_data(actor_id, "", display_name, portrait, true)
 
 
 ## Track a spawned actor node for cleanup

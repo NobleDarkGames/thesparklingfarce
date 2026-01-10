@@ -31,7 +31,7 @@
 				"auto_follow": true,
 				"character_id": "6djr4fap",
 				"emotion": "neutral",
-				"text": "Wait!"
+				"text": "Hey!"
 			},
 			"type": "dialog_line"
 		},
@@ -62,7 +62,7 @@
 					4.0,
 					8.0
 				],
-				"text": "Hey, {player_name}. I'm Kurt.  "
+				"text": "I'm Kurt.  "
 			},
 			"type": "dialog_line"
 		},

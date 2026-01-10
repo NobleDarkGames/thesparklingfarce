@@ -20,8 +20,9 @@ var copy_button: Button
 var cancel_button: Button
 var result_preview: TextEdit
 
-# Character cache
+# Character and NPC cache
 var _characters: Array[Resource] = []
+var _npcs: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -38,8 +39,10 @@ func _ready() -> void:
 
 func _refresh_characters() -> void:
 	_characters.clear()
+	_npcs.clear()
 	if ModLoader and ModLoader.registry:
 		_characters = ModLoader.registry.get_all_resources("character")
+		_npcs = ModLoader.registry.get_all_resources("npc")
 
 
 func _setup_ui() -> void:
@@ -86,7 +89,16 @@ func _setup_ui() -> void:
 			var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
 			var item_idx: int = character_picker.item_count
 			character_picker.add_item(display_name, i + 1)
-			character_picker.set_item_metadata(item_idx, char_data)
+			character_picker.set_item_metadata(item_idx, {"type": "character", "resource": char_data})
+	# Add NPCs with [NPC] prefix
+	for i: int in range(_npcs.size()):
+		var npc_data: Resource = _npcs[i]
+		if npc_data:
+			var npc_name: String = str(npc_data.get("npc_name")) if "npc_name" in npc_data else "Unknown NPC"
+			var display_name: String = "[NPC] " + npc_name
+			var item_idx: int = character_picker.item_count
+			character_picker.add_item(display_name)
+			character_picker.set_item_metadata(item_idx, {"type": "npc", "resource": npc_data})
 	character_picker.item_selected.connect(_on_character_selected)
 	char_vbox.add_child(character_picker)
 
@@ -149,11 +161,23 @@ func _setup_ui() -> void:
 
 
 func _on_character_selected(index: int) -> void:
-	var char_data: CharacterData = character_picker.get_item_metadata(index) as CharacterData
-	if char_data and char_data.portrait:
-		portrait_preview.texture = char_data.portrait
-	else:
-		portrait_preview.texture = null
+	var metadata: Variant = character_picker.get_item_metadata(index)
+	portrait_preview.texture = null
+
+	if metadata is Dictionary:
+		var resource: Resource = metadata.get("resource")
+		var entity_type: String = metadata.get("type", "")
+		if resource:
+			if entity_type == "character":
+				var char_data: CharacterData = resource as CharacterData
+				if char_data and char_data.portrait:
+					portrait_preview.texture = char_data.portrait
+			elif entity_type == "npc":
+				# NPCs may have a portrait property
+				if "portrait" in resource:
+					var portrait: Texture2D = resource.get("portrait") as Texture2D
+					if portrait:
+						portrait_preview.texture = portrait
 
 	_update_preview()
 
@@ -171,18 +195,32 @@ func _update_preview() -> void:
 func _build_command_dict() -> Dictionary:
 	var params: Dictionary = {}
 
-	# Character - use metadata instead of index arithmetic
+	# Character/NPC - use metadata instead of index arithmetic
 	var selected_idx: int = character_picker.selected
-	var char_data: CharacterData = character_picker.get_item_metadata(selected_idx) as CharacterData
-	if char_data:
-		# Use get() for safe property access in editor context
-		var char_uid: String = ""
-		if "character_uid" in char_data:
-			char_uid = str(char_data.get("character_uid"))
-		params["character_id"] = char_uid
+	var metadata: Variant = character_picker.get_item_metadata(selected_idx)
+
+	if metadata is Dictionary:
+		var resource: Resource = metadata.get("resource")
+		var entity_type: String = metadata.get("type", "")
+		if resource:
+			if entity_type == "character":
+				# Use get() for safe property access in editor context
+				var char_uid: String = ""
+				if "character_uid" in resource:
+					char_uid = str(resource.get("character_uid"))
+				params["speaker"] = char_uid
+			elif entity_type == "npc":
+				# NPCs use "npc:" prefix
+				var npc_uid: String = ""
+				if "npc_uid" in resource:
+					npc_uid = str(resource.get("npc_uid"))
+				params["speaker"] = "npc:" + npc_uid
+		else:
+			# Custom speaker - user needs to fill in manually
+			params["speaker"] = "REPLACE_WITH_SPEAKER_ID"
 	else:
 		# Custom speaker - user needs to fill in manually
-		params["character_id"] = "REPLACE_WITH_CHARACTER_UID"
+		params["speaker"] = "REPLACE_WITH_SPEAKER_ID"
 
 	# Text
 	var dialog_text: String = text_edit.text.strip_edges()
@@ -217,14 +255,14 @@ func _on_cancel() -> void:
 	hide()
 
 
-## Show the popup, optionally pre-selecting a character
-func show_popup(preselect_character_uid: String = "") -> void:
+## Show the popup, optionally pre-selecting a character or NPC
+func show_popup(preselect_speaker: String = "") -> void:
 	_refresh_characters()
 
 	# Rebuild character list with metadata
 	character_picker.clear()
 	character_picker.add_item("(Custom Speaker)", 0)
-	character_picker.set_item_metadata(0, null)  # No character for custom speaker
+	character_picker.set_item_metadata(0, null)  # No character/NPC for custom speaker
 	for i: int in range(_characters.size()):
 		var char_res: Resource = _characters[i]
 		if char_res:
@@ -232,20 +270,40 @@ func show_popup(preselect_character_uid: String = "") -> void:
 			var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
 			var item_idx: int = character_picker.item_count
 			character_picker.add_item(display_name, i + 1)
-			character_picker.set_item_metadata(item_idx, char_res)
+			character_picker.set_item_metadata(item_idx, {"type": "character", "resource": char_res})
+
+	# Add NPCs with [NPC] prefix
+	for i: int in range(_npcs.size()):
+		var npc_res: Resource = _npcs[i]
+		if npc_res:
+			var npc_name: String = str(npc_res.get("npc_name")) if "npc_name" in npc_res else "Unknown NPC"
+			var display_name: String = "[NPC] " + npc_name
+			var item_idx: int = character_picker.item_count
+			character_picker.add_item(display_name)
+			character_picker.set_item_metadata(item_idx, {"type": "npc", "resource": npc_res})
 
 	# Preselect if provided - search by metadata instead of index
-	if not preselect_character_uid.is_empty():
+	if not preselect_speaker.is_empty():
+		var is_npc: bool = preselect_speaker.begins_with("npc:")
+		var search_uid: String = preselect_speaker.trim_prefix("npc:") if is_npc else preselect_speaker
+
 		for item_idx: int in range(character_picker.item_count):
-			var char_data: CharacterData = character_picker.get_item_metadata(item_idx) as CharacterData
-			if char_data:
-				var char_uid: String = ""
-				if "character_uid" in char_data:
-					char_uid = str(char_data.get("character_uid"))
-				if char_uid == preselect_character_uid:
-					character_picker.selected = item_idx
-					_on_character_selected(item_idx)
-					break
+			var metadata: Variant = character_picker.get_item_metadata(item_idx)
+			if metadata is Dictionary:
+				var resource: Resource = metadata.get("resource")
+				var entity_type: String = metadata.get("type", "")
+				if resource:
+					var uid: String = ""
+					if entity_type == "character" and not is_npc:
+						if "character_uid" in resource:
+							uid = str(resource.get("character_uid"))
+					elif entity_type == "npc" and is_npc:
+						if "npc_uid" in resource:
+							uid = str(resource.get("npc_uid"))
+					if uid == search_uid:
+						character_picker.selected = item_idx
+						_on_character_selected(item_idx)
+						break
 	else:
 		character_picker.selected = 0
 		portrait_preview.texture = null
