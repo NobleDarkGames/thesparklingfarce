@@ -112,7 +112,7 @@ const COMMAND_DEFINITIONS: Dictionary = {
 			"intensity": {"type": "float", "default": 2.0, "min": 0.5, "max": 20.0, "hint": "Shake intensity (pixels)"},
 			"duration": {"type": "float", "default": 0.5, "min": 0.1, "max": 5.0, "hint": "Shake duration"},
 			"frequency": {"type": "float", "default": 30.0, "min": 5.0, "max": 60.0, "hint": "Shake frequency"},
-			"wait": {"type": "bool", "default": false, "hint": "Wait for shake to complete"}
+			"wait": {"type": "bool", "default": true, "hint": "Wait for shake to complete"}
 		}
 	},
 	"fade_screen": {

@@ -13,7 +13,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var intensity: float = params.get("intensity", 2.0)
 	var duration: float = params.get("duration", 0.5)
 	var frequency: float = params.get("frequency", 30.0)
-	var should_wait: bool = params.get("wait", false)
+	var should_wait: bool = params.get("wait", true)
 
 	# Get validated CameraController from manager
 	var camera: CameraController = manager.get_camera_controller()
