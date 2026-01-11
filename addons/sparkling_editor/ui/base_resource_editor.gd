@@ -706,9 +706,19 @@ func _on_create_new() -> void:
 		save_dir = resource_directory
 
 	if save_dir == "":
-		push_error("No save directory available for " + resource_type_name.to_lower())
+		_show_errors(["No save directory available for " + resource_type_name.to_lower(),
+					  "Please ensure an active mod is selected."])
 		_operation_in_progress = false
 		return
+
+	# Ensure save directory exists (fixes issue where empty dirs aren't tracked by git)
+	if not DirAccess.dir_exists_absolute(save_dir):
+		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
+		if mkdir_err != OK:
+			_show_errors(["Failed to create directory: " + save_dir,
+						  "Error: " + error_string(mkdir_err)])
+			_operation_in_progress = false
+			return
 
 	# Generate unique filename with mod prefix to avoid conflicts
 	var timestamp: int = Time.get_unix_time_from_system()
@@ -788,6 +798,14 @@ func _on_duplicate_resource() -> void:
 		_show_errors(["No save directory available for duplicating " + resource_type_name.to_lower()])
 		_operation_in_progress = false
 		return
+
+	# Ensure save directory exists
+	if not DirAccess.dir_exists_absolute(save_dir):
+		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
+		if mkdir_err != OK:
+			_show_errors(["Failed to create directory: " + save_dir])
+			_operation_in_progress = false
+			return
 
 	# Create a duplicate resource
 	var new_resource: Resource = current_resource.duplicate(true)
@@ -1083,6 +1101,14 @@ func _on_copy_to_mod() -> void:
 		_operation_in_progress = false
 		return
 
+	# Ensure save directory exists
+	if not DirAccess.dir_exists_absolute(save_dir):
+		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
+		if mkdir_err != OK:
+			_show_errors(["Failed to create directory: " + save_dir])
+			_operation_in_progress = false
+			return
+
 	# Generate unique filename with timestamp
 	var timestamp: int = Time.get_unix_time_from_system()
 	var original_name: String = _get_resource_display_name(current_resource)
@@ -1188,6 +1214,15 @@ func _perform_create_override(override_path: String) -> void:
 	if _operation_in_progress:
 		return
 	_operation_in_progress = true
+
+	# Ensure save directory exists
+	var save_dir: String = override_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(save_dir):
+		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
+		if mkdir_err != OK:
+			_show_errors(["Failed to create directory: " + save_dir])
+			_operation_in_progress = false
+			return
 
 	# Create a duplicate resource (keep all data including any internal IDs)
 	var override_resource: Resource = current_resource.duplicate(true)
