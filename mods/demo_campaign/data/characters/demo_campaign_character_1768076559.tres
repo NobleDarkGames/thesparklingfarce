@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=6 format=3 uid="uid://bdjm2p1e3j5b3"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_6oc6g"]
+[ext_resource type="Resource" uid="uid://b8a8yw15vvqlr" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767747144.tres" id="1_y70op"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_ecvb8"]
+[ext_resource type="SpriteFrames" uid="uid://cm3rxn04s1psp" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1768076559_map_sprites.tres" id="3_wlvkr"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_y70op"]
+
+[resource]
+script = ExtResource("1_6oc6g")
+character_uid = "demo_campaign_character_1768076559"
+character_name = "Henchman"
+character_class = ExtResource("1_y70op")
+base_hp = 25
+base_mp = 1
+base_strength = 6
+base_agility = 3
+base_intelligence = 2
+base_luck = 3
+sprite_frames = ExtResource("3_wlvkr")
+unit_category = "enemy"
+is_unique = false

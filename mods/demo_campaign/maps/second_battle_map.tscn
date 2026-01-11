@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=4 uid="uid://crtm622a60c3y"]
 
-[ext_resource type="Script" uid="uid://dgwjmh2o4g84f" path="res://mods/demo_campaign/maps/second_battle_map.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bsxb67ynpkhm6" path="res://mods/demo_campaign/maps/second_battle_map.gd" id="1_script"]
 [ext_resource type="TileSet" uid="uid://dy2k670qtyfeq" path="res://core/defaults/tilesets/default_tileset.tres" id="2_tileset"]
 [ext_resource type="TileSet" uid="uid://c8kv3jx2wr7pb" path="res://assets/tilesets/highlight_tileset.tres" id="3_highlight"]
 

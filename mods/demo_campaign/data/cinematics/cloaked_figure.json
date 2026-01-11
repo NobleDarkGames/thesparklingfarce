@@ -10,6 +10,16 @@
 				"if_false": [
 					{
 						"params": {
+							"character_id": "6djr4fap",
+							"custom_message": "",
+							"recruitment_chapter": "",
+							"show_message": true,
+							"to_active": true
+						},
+						"type": "add_party_member"
+					},
+					{
+						"params": {
 							"auto_follow": true,
 							"character_id": "npc:cloaky",
 							"emotion": "neutral",
@@ -29,9 +39,10 @@
 									"value": "demo_campaign_battle_1767747082"
 								},
 								{
-									"action": "none",
+									"action": "battle",
 									"label": "Battle 2: Grounds are Proven",
-									"value": ""
+									"on_victory_flags": "battle2_victory",
+									"value": "demo_campaign_battle_1768074988"
 								},
 								{
 									"action": "none",
