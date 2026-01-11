@@ -5,6 +5,8 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Allows browsing and editing AbilityData resources
 
 var name_edit: LineEdit
+var ability_id_edit: LineEdit
+var ability_id_lock_btn: Button
 var ability_type_option: OptionButton
 var target_type_option: OptionButton
 var description_edit: TextEdit
@@ -30,6 +32,9 @@ var effect_chance_spin: SpinBox
 
 # Track selected status effects
 var _selected_effects: Array[String] = []
+
+# Track if ID should auto-generate from name
+var _id_is_locked: bool = false
 
 # Animation and Audio
 var animation_edit: LineEdit
@@ -76,6 +81,13 @@ func _load_resource_data() -> void:
 		return
 
 	name_edit.text = ability.ability_name
+	ability_id_edit.text = ability.ability_id
+
+	# Determine if ID is locked (custom ID different from auto-generated)
+	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(ability.ability_name)
+	_id_is_locked = (ability.ability_id != expected_auto_id) and not ability.ability_id.is_empty()
+	_update_lock_button()
+
 	ability_type_option.selected = ability.ability_type
 	target_type_option.selected = ability.target_type
 	description_edit.text = ability.description
@@ -115,13 +127,10 @@ func _save_resource_data() -> void:
 
 	# Update ability data from UI
 	ability.ability_name = name_edit.text
+	ability.ability_id = ability_id_edit.text.strip_edges()
 	ability.ability_type = ability_type_option.selected
 	ability.target_type = target_type_option.selected
 	ability.description = description_edit.text
-
-	# Auto-generate ability_id from name if empty
-	if ability.ability_id.is_empty() and not ability.ability_name.is_empty():
-		ability.ability_id = ability.ability_name.to_lower().replace(" ", "_")
 
 	# Range and area
 	ability.min_range = int(min_range_spin.value)
@@ -238,6 +247,28 @@ func _add_basic_info_section() -> void:
 
 	name_edit = form.add_text_field("Ability Name:", "",
 		"Display name shown in battle menus. E.g., Blaze, Heal, Bolt.")
+	name_edit.text_changed.connect(_on_name_changed)
+
+	# Ability ID row with lock button
+	var id_container: HBoxContainer = HBoxContainer.new()
+	id_container.add_theme_constant_override("separation", 4)
+
+	ability_id_edit = LineEdit.new()
+	ability_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ability_id_edit.placeholder_text = "(auto-generated from name)"
+	ability_id_edit.tooltip_text = "Unique ID for referencing this ability in scripts. Auto-generates from name."
+	ability_id_edit.text_changed.connect(_on_id_manually_changed)
+	id_container.add_child(ability_id_edit)
+
+	ability_id_lock_btn = Button.new()
+	ability_id_lock_btn.text = "Lock"
+	ability_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
+	ability_id_lock_btn.custom_minimum_size.x = 60
+	ability_id_lock_btn.pressed.connect(_on_id_lock_toggled)
+	id_container.add_child(ability_id_lock_btn)
+
+	form.add_labeled_control("Ability ID:", id_container,
+		"Unique ID for referencing this ability. Auto-generates from name. Click lock to set custom ID.")
 
 	description_edit = form.add_text_area("Description:", 80,
 		"Tooltip text shown when hovering over ability in menus. Describe what it does.")
@@ -437,3 +468,39 @@ func _refresh_menu_checkboxes() -> void:
 		var effect_id: String = popup.get_item_metadata(i)
 		if not effect_id.is_empty():
 			popup.set_item_checked(i, effect_id in _selected_effects)
+
+
+# =============================================================================
+# ID AUTO-GENERATION HANDLERS
+# =============================================================================
+
+## Called when the ability name changes - auto-generates ID if not locked
+func _on_name_changed(new_name: String) -> void:
+	if not _id_is_locked:
+		ability_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
+	_mark_dirty()
+
+
+## Called when the ID field is manually edited
+func _on_id_manually_changed(_text: String) -> void:
+	# If user is editing the ID field directly, lock it
+	if not _id_is_locked and ability_id_edit.has_focus():
+		_id_is_locked = true
+		_update_lock_button()
+	_mark_dirty()
+
+
+## Called when the lock/unlock button is pressed
+func _on_id_lock_toggled() -> void:
+	_id_is_locked = not _id_is_locked
+	_update_lock_button()
+	# If unlocking, regenerate the ID from current name
+	if not _id_is_locked:
+		ability_id_edit.text = SparklingEditorUtils.generate_id_from_name(name_edit.text)
+	_mark_dirty()
+
+
+## Update the lock button text and tooltip based on lock state
+func _update_lock_button() -> void:
+	ability_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
+	ability_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"

@@ -12,7 +12,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 var id_edit: LineEdit
 var name_edit: LineEdit
 var id_lock_btn: Button
-var _id_locked: bool = false
+var _id_is_locked: bool = false
 var shop_type_option: OptionButton
 
 # Inventory
@@ -105,7 +105,7 @@ func _load_resource_data() -> void:
 	# Check if ID was manually set (doesn't match auto-generated from name)
 	if id_edit and name_edit:
 		var auto_id: String = SparklingEditorUtils.generate_id_from_name(shop.shop_name)
-		_id_locked = (shop.shop_id != auto_id and not shop.shop_id.is_empty())
+		_id_is_locked = (shop.shop_id != auto_id and not shop.shop_id.is_empty())
 		_update_lock_button()
 
 	# Inventory
@@ -273,8 +273,8 @@ func _add_basic_info_section() -> void:
 	id_row.add_child(id_edit)
 
 	id_lock_btn = Button.new()
-	id_lock_btn.text = "Unlock"
-	id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	id_lock_btn.text = "Lock"
+	id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
 	id_lock_btn.custom_minimum_size.x = 60
 	id_lock_btn.pressed.connect(_on_id_lock_toggled)
 	id_row.add_child(id_lock_btn)
@@ -719,23 +719,23 @@ func _on_name_changed(new_name: String) -> void:
 	_mark_dirty()
 	
 	# Auto-generate ID from name if not locked
-	if not _id_locked and id_edit:
+	if not _id_is_locked and id_edit:
 		id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 
 
 ## User manually typed in ID field - lock auto-generation
 func _on_id_manually_changed(_new_id: String) -> void:
 	_mark_dirty()
-	if not _id_locked and id_edit.has_focus():
-		_id_locked = true
+	if not _id_is_locked and id_edit.has_focus():
+		_id_is_locked = true
 		_update_lock_button()
 
 
 ## Toggle ID lock button
 func _on_id_lock_toggled() -> void:
-	_id_locked = not _id_locked
+	_id_is_locked = not _id_is_locked
 	_update_lock_button()
-	if not _id_locked and name_edit and id_edit:
+	if not _id_is_locked and name_edit and id_edit:
 		id_edit.text = SparklingEditorUtils.generate_id_from_name(name_edit.text)
 
 
@@ -743,5 +743,5 @@ func _on_id_lock_toggled() -> void:
 func _update_lock_button() -> void:
 	if not id_lock_btn:
 		return
-	id_lock_btn.text = "Lock" if _id_locked else "Unlock"
-	id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_locked else "Lock ID to prevent auto-generation"
+	id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
+	id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"

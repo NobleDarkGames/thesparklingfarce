@@ -267,6 +267,7 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Basic Information")
 
 	# Name
@@ -334,6 +335,7 @@ func _add_basic_info_section() -> void:
 	equipment_slot_option = OptionButton.new()
 	equipment_slot_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_populate_equipment_slot_options()
+	equipment_slot_option.item_selected.connect(_on_equipment_slot_changed)
 	form.add_labeled_control("Equipment Slot:", equipment_slot_option,
 		"Which character slot this item occupies. Weapon = main hand. Ring/Accessory = accessory slots.")
 
@@ -346,6 +348,7 @@ func _add_basic_info_section() -> void:
 
 func _add_stat_modifiers_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Stat Modifiers")
 
 	hp_mod_spin = form.add_number_field("HP:", -999, 999, 0,
@@ -367,6 +370,7 @@ func _add_stat_modifiers_section() -> void:
 func _add_weapon_section() -> void:
 	weapon_section = VBoxContainer.new()
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(weapon_section)
+	form.on_change(_mark_dirty)
 	form.add_section("Weapon Properties")
 
 	attack_power_spin = form.add_number_field("Attack Power:", 0, 999, 10,
@@ -394,6 +398,7 @@ func _add_weapon_section() -> void:
 func _add_consumable_section() -> void:
 	consumable_section = VBoxContainer.new()
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(consumable_section)
+	form.on_change(_mark_dirty)
 	form.add_section("Consumable Properties")
 
 	usable_battle_check = form.add_standalone_checkbox("Usable in Battle", false,
@@ -409,6 +414,7 @@ func _add_consumable_section() -> void:
 	effect_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	effect_picker.allow_none = true
 	effect_picker.none_text = "(No Effect)"
+	effect_picker.resource_selected.connect(_on_effect_selected)
 	form.add_labeled_control("", effect_picker,
 		"Ability that activates when used. Create abilities for healing, buffs, damage, etc.")
 
@@ -419,6 +425,7 @@ func _add_consumable_section() -> void:
 
 func _add_economy_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Economy")
 
 	buy_price_spin = form.add_number_field("Buy Price:", 0, 999999, 100,
@@ -430,6 +437,7 @@ func _add_economy_section() -> void:
 
 func _add_item_management_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Item Management")
 
 	is_crafting_material_check = form.add_standalone_checkbox("Is Crafting Material", false,
@@ -451,11 +459,13 @@ func _on_item_type_changed(index: int) -> void:
 		item_type == ItemData.ItemType.ACCESSORY
 	)
 	curse_section.visible = is_equippable
+	_mark_dirty()
 
 
 func _add_curse_section() -> void:
 	curse_section = VBoxContainer.new()
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(curse_section)
+	form.on_change(_mark_dirty)
 	form.add_section("Curse Properties")
 
 	is_cursed_check = form.add_standalone_checkbox("Is Cursed (cannot be unequipped normally)", false,
@@ -601,6 +611,7 @@ func _on_clear_icon() -> void:
 	icon_path_edit.text = ""
 	icon_preview.texture = null
 	icon_preview.tooltip_text = "No icon assigned"
+	_mark_dirty()
 
 
 # =============================================================================
@@ -619,3 +630,13 @@ func _on_max_range_changed(value: float) -> void:
 	if min_attack_range_spin and value < min_attack_range_spin.value:
 		# Decrease min to match max
 		min_attack_range_spin.value = value
+
+
+## Called when equipment slot dropdown changes
+func _on_equipment_slot_changed(_index: int) -> void:
+	_mark_dirty()
+
+
+## Called when effect picker selection changes
+func _on_effect_selected(_resource_id: String) -> void:
+	_mark_dirty()
