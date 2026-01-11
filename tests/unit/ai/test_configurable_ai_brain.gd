@@ -249,7 +249,7 @@ func test_aggressive_mode_is_default() -> void:
 
 func test_support_behavior_configuration() -> void:
 	# Load the actual smart_healer behavior to verify configuration
-	var healer_behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/smart_healer.tres")
+	var healer_behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres")
 
 	if healer_behavior:
 		assert_str(healer_behavior.get_effective_role()).is_equal("support")
@@ -363,7 +363,7 @@ func test_phase_changes_disable_retreat() -> void:
 # =============================================================================
 
 func test_aggressive_melee_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres")
+	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres")
 	if behavior:
 		assert_str(behavior.behavior_id).is_equal("aggressive_melee")
 		assert_str(behavior.get_effective_role()).is_equal("aggressive")
@@ -372,7 +372,7 @@ func test_aggressive_melee_behavior_loads() -> void:
 
 
 func test_smart_healer_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/smart_healer.tres")
+	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres")
 	if behavior:
 		assert_str(behavior.behavior_id).is_equal("smart_healer")
 		assert_str(behavior.get_effective_role()).is_equal("support")
@@ -381,7 +381,7 @@ func test_smart_healer_behavior_loads() -> void:
 
 
 func test_defensive_tank_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/defensive_tank.tres")
+	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/defensive_tank.tres")
 	if behavior:
 		assert_str(behavior.behavior_id).is_equal("defensive_tank")
 		assert_str(behavior.get_effective_role()).is_equal("defensive")
@@ -389,7 +389,7 @@ func test_defensive_tank_behavior_loads() -> void:
 
 
 func test_opportunistic_archer_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/opportunistic_archer.tres")
+	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres")
 	if behavior:
 		assert_str(behavior.behavior_id).is_equal("opportunistic_archer")
 		# Opportunistic archers retreat and target wounded
@@ -397,7 +397,7 @@ func test_opportunistic_archer_behavior_loads() -> void:
 
 
 func test_stationary_guard_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/stationary_guard.tres")
+	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/stationary_guard.tres")
 	if behavior:
 		assert_str(behavior.behavior_id).is_equal("stationary_guard")
 		assert_str(behavior.get_effective_role()).is_equal("defensive")
@@ -409,7 +409,7 @@ func test_stationary_guard_behavior_loads() -> void:
 
 
 func test_tactical_mage_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/tactical_mage.tres")
+	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/tactical_mage.tres")
 	if behavior:
 		assert_str(behavior.behavior_id).is_equal("tactical_mage")
 		assert_str(behavior.get_effective_role()).is_equal("tactical")
@@ -513,12 +513,12 @@ func test_empty_role_defaults_to_aggressive() -> void:
 
 func test_all_base_behaviors_valid() -> void:
 	var behavior_paths: Array[String] = [
-		"res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres",
-		"res://mods/_base_game/data/ai_behaviors/smart_healer.tres",
-		"res://mods/_base_game/data/ai_behaviors/defensive_tank.tres",
-		"res://mods/_base_game/data/ai_behaviors/opportunistic_archer.tres",
-		"res://mods/_base_game/data/ai_behaviors/stationary_guard.tres",
-		"res://mods/_base_game/data/ai_behaviors/tactical_mage.tres"
+		"res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/defensive_tank.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/stationary_guard.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/tactical_mage.tres"
 	]
 
 	for path: String in behavior_paths:
@@ -530,12 +530,12 @@ func test_all_base_behaviors_valid() -> void:
 
 func test_base_behaviors_have_unique_ids() -> void:
 	var behavior_paths: Array[String] = [
-		"res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres",
-		"res://mods/_base_game/data/ai_behaviors/smart_healer.tres",
-		"res://mods/_base_game/data/ai_behaviors/defensive_tank.tres",
-		"res://mods/_base_game/data/ai_behaviors/opportunistic_archer.tres",
-		"res://mods/_base_game/data/ai_behaviors/stationary_guard.tres",
-		"res://mods/_base_game/data/ai_behaviors/tactical_mage.tres"
+		"res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/defensive_tank.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/stationary_guard.tres",
+		"res://mods/_starter_kit/data/ai_behaviors/tactical_mage.tres"
 	]
 
 	var seen_ids: Dictionary = {}

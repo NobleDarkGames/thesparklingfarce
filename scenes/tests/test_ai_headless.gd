@@ -35,7 +35,7 @@ func _ready() -> void:
 	var enemy_character: CharacterData = _create_character("Goblin", 15, 5, 8, 6, 6)
 
 	# Load AI behavior (new data-driven system)
-	var aggressive_ai: AIBehaviorData = load("res://mods/_base_game/data/ai_behaviors/aggressive_melee.tres")
+	var aggressive_ai: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres")
 	if not aggressive_ai:
 		# Fallback: create minimal aggressive behavior for testing
 		aggressive_ai = AIBehaviorData.new()
