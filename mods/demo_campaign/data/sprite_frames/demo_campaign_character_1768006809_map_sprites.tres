@@ -1,0 +1,82 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://c4w38yb7ncptq"]
+
+[ext_resource type="Texture2D" uid="uid://1ijgeip4076c" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="1_k435d"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x26j5"]
+atlas = ExtResource("1_k435d")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aetso"]
+atlas = ExtResource("1_k435d")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1lgng"]
+atlas = ExtResource("1_k435d")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rmqwg"]
+atlas = ExtResource("1_k435d")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vbcox"]
+atlas = ExtResource("1_k435d")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4q5mn"]
+atlas = ExtResource("1_k435d")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5lju5"]
+atlas = ExtResource("1_k435d")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_36fk8"]
+atlas = ExtResource("1_k435d")
+region = Rect2(32, 96, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x26j5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aetso")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1lgng")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rmqwg")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vbcox")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4q5mn")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5lju5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_36fk8")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]

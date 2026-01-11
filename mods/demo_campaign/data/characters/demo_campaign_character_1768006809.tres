@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://cx12vknaw0xjy"]
+
+[ext_resource type="Resource" uid="uid://cu5mlkannxgko" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766710340.tres" id="1_y3yov"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_yxaot"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_rtbsn"]
+[ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="2_s6jjw"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_fbwxv"]
+[ext_resource type="SpriteFrames" uid="uid://c4w38yb7ncptq" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1768006809_map_sprites.tres" id="4_njykt"]
+
+[resource]
+script = ExtResource("1_yxaot")
+character_uid = "demo_campaign_character_1768006809"
+character_name = "Jimbo"
+character_class = ExtResource("1_y3yov")
+base_hp = 20
+base_mp = 10
+portrait = ExtResource("2_s6jjw")
+sprite_frames = ExtResource("4_njykt")
+unit_category = "neutral"

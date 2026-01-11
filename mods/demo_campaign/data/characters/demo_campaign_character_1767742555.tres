@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_igxgf"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_07tfd"]
 [ext_resource type="Texture2D" uid="uid://dm2y7kdv1dbtl" path="res://mods/demo_campaign/assets/portraits/Kurt.png" id="2_mfycq"]
-[ext_resource type="Script" uid="uid://c6pk5al0d3gpq" path="res://core/resources/promotion_path.gd" id="2_rl78p"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_rl78p"]
 [ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_7hd45"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_dg7wo"]
 [ext_resource type="Resource" uid="uid://ckthfm6d41jgh" path="res://mods/demo_campaign/data/items/demo_campaign_item_1767742764.tres" id="6_mfycq"]
