@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_tactical_debuff"]
+
+[ext_resource type="Script" path="res://tests/integration/ai/test_tactical_debuff.gd" id="1_test"]
+
+[node name="TestTacticalDebuff" type="Node2D"]
+script = ExtResource("1_test")
