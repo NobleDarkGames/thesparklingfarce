@@ -429,14 +429,31 @@ func apply_level_up(unit: Unit) -> Dictionary:
 
 ## Calculate stat increase based on growth rate.
 ##
-## Shining Force style: growth_rate is percentage (0-100).
-## Roll 0-99, if less than growth_rate, stat increases by 1.
+## Enhanced Shining Force-style system:
+##   0-99:  Percentage chance of +1 (e.g., 50 = 50% chance of +1)
+##   100+:  Guaranteed floor + remainder% chance of +1 more
+##          (e.g., 150 = +1 guaranteed, 50% chance of +2)
 ##
-## @param growth_rate: Percentage chance (0-100)
-## @return: 1 if stat increases, 0 otherwise
+## A 5% "lucky roll" can grant +1 extra for rates >= 50,
+## creating the memorable "great level-up!" moments SF fans love.
+##
+## @param growth_rate: Growth rate (0-200+, typically 30-150)
+## @return: Stat increase (0, 1, 2, or rarely 3+)
 func _calculate_stat_increase(growth_rate: int) -> int:
-	var roll: int = randi() % 100
-	return 1 if roll < growth_rate else 0
+	# Base calculation: guaranteed gains from rate / 100
+	var guaranteed: int = growth_rate / 100
+	var remainder: int = growth_rate % 100
+
+	# Roll for the remainder portion
+	var bonus: int = 1 if (randi() % 100) < remainder else 0
+	var result: int = guaranteed + bonus
+
+	# Lucky roll: 5% chance of +1 extra for growth rates >= 50
+	# Creates the "amazing level!" moments players remember
+	if growth_rate >= 50 and (randi() % 100) < 5:
+		result += 1
+
+	return result
 
 
 ## Check if unit learns abilities at this level.

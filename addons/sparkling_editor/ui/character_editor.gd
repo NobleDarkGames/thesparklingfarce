@@ -5,6 +5,8 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Allows browsing and editing CharacterData resources
 
 var name_edit: LineEdit
+var uid_edit: LineEdit
+var uid_copy_btn: Button
 var class_picker: ResourcePicker  # Use ResourcePicker for cross-mod class selection
 var level_spin: SpinBox
 var bio_edit: TextEdit
@@ -135,6 +137,7 @@ func _load_resource_data() -> void:
 		return
 
 	name_edit.text = character.character_name
+	uid_edit.text = character.character_uid
 	level_spin.value = character.starting_level
 	bio_edit.text = character.biography
 
@@ -328,8 +331,8 @@ func _create_new_resource() -> Resource:
 	var new_character: CharacterData = CharacterData.new()
 	new_character.character_name = "New Character"
 	new_character.starting_level = 1
-	new_character.base_hp = 20
-	new_character.base_mp = 10
+	new_character.base_hp = 12
+	new_character.base_mp = 8
 	new_character.base_strength = 5
 	new_character.base_defense = 5
 	new_character.base_agility = 5
@@ -369,6 +372,31 @@ func _add_basic_info_section() -> void:
 	name_edit.text_changed.connect(_on_basic_field_changed)
 	name_container.add_child(name_edit)
 	section.add_child(name_container)
+
+	# Character UID (read-only, for referencing in cinematics/dialogs)
+	var uid_container: HBoxContainer = HBoxContainer.new()
+	uid_container.add_theme_constant_override("separation", 4)
+
+	var uid_label: Label = Label.new()
+	uid_label.text = "Character UID:"
+	uid_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	uid_container.add_child(uid_label)
+
+	uid_edit = LineEdit.new()
+	uid_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	uid_edit.editable = false
+	uid_edit.tooltip_text = "Unique ID for referencing this character in cinematics and dialogs.\nAuto-generated and immutable. Use this instead of name for stable references."
+	uid_edit.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	uid_container.add_child(uid_edit)
+
+	uid_copy_btn = Button.new()
+	uid_copy_btn.text = "Copy"
+	uid_copy_btn.tooltip_text = "Copy UID to clipboard"
+	uid_copy_btn.custom_minimum_size.x = 50
+	uid_copy_btn.pressed.connect(_on_uid_copy_pressed)
+	uid_container.add_child(uid_copy_btn)
+
+	section.add_child(uid_container)
 
 	# Class - use ResourcePicker for cross-mod class selection
 	class_picker = ResourcePicker.new()
@@ -1331,6 +1359,17 @@ func _on_basic_field_changed(_value: Variant = null) -> void:
 ## Called when the class picker selection changes
 func _on_class_picker_selected(_metadata: Dictionary) -> void:
 	_mark_dirty()
+
+
+## Called when the UID copy button is pressed
+func _on_uid_copy_pressed() -> void:
+	DisplayServer.clipboard_set(uid_edit.text)
+	# Brief visual feedback
+	var original_text: String = uid_copy_btn.text
+	uid_copy_btn.text = "Copied!"
+	await get_tree().create_timer(1.0).timeout
+	if is_instance_valid(uid_copy_btn):
+		uid_copy_btn.text = original_text
 
 
 # =============================================================================

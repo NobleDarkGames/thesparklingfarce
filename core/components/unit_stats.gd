@@ -93,6 +93,11 @@ func calculate_from_character(character: CharacterData) -> void:
 	intelligence = character.base_intelligence
 	luck = character.base_luck
 
+	# Apply stat growth for starting levels above 1
+	# Simulates leveling up from 1 to starting_level with random growth rolls
+	if level > 1 and class_data != null:
+		_apply_starting_level_growth(class_data, level)
+
 	# Apply equipment bonuses and cache weapon
 	for item: ItemData in character.starting_equipment:
 		if item != null:
@@ -443,6 +448,63 @@ func get_stats_string() -> String:
 		level, current_hp, max_hp, current_mp, max_mp,
 		strength, defense, agility, intelligence, luck
 	]
+
+
+# ============================================================================
+# STARTING LEVEL STAT GROWTH
+# ============================================================================
+
+## Apply stat growth for characters starting above level 1.
+## Simulates leveling up from level 1 to target_level with random growth rolls.
+## Uses the same enhanced growth system as in-game level-ups.
+##
+## @param p_class_data: ClassData containing growth rates
+## @param target_level: The starting level to grow stats to
+func _apply_starting_level_growth(p_class_data: ClassData, target_level: int) -> void:
+	if p_class_data == null or target_level <= 1:
+		return
+
+	# Simulate each level-up from 2 to target_level
+	var levels_to_simulate: int = target_level - 1
+
+	for _i: int in range(levels_to_simulate):
+		# Roll for each stat using enhanced growth rates
+		max_hp += _calculate_growth(p_class_data.hp_growth)
+		max_mp += _calculate_growth(p_class_data.mp_growth)
+		strength += _calculate_growth(p_class_data.strength_growth)
+		defense += _calculate_growth(p_class_data.defense_growth)
+		agility += _calculate_growth(p_class_data.agility_growth)
+		intelligence += _calculate_growth(p_class_data.intelligence_growth)
+		luck += _calculate_growth(p_class_data.luck_growth)
+
+
+## Calculate stat increase based on growth rate.
+##
+## Enhanced Shining Force-style system:
+##   0-99:  Percentage chance of +1 (e.g., 50 = 50% chance of +1)
+##   100+:  Guaranteed floor + remainder% chance of +1 more
+##          (e.g., 150 = +1 guaranteed, 50% chance of +2)
+##
+## A 5% "lucky roll" can grant +1 extra for rates >= 50,
+## creating the memorable "great level-up!" moments SF fans love.
+##
+## @param growth_rate: Growth rate (0-200+, typically 30-150)
+## @return: Stat increase (0, 1, 2, or rarely 3+)
+func _calculate_growth(growth_rate: int) -> int:
+	# Base calculation: guaranteed gains from rate / 100
+	var guaranteed: int = growth_rate / 100
+	var remainder: int = growth_rate % 100
+
+	# Roll for the remainder portion
+	var bonus: int = 1 if (randi() % 100) < remainder else 0
+	var result: int = guaranteed + bonus
+
+	# Lucky roll: 5% chance of +1 extra for growth rates >= 50
+	# Creates the "amazing level!" moments players remember
+	if growth_rate >= 50 and (randi() % 100) < 5:
+		result += 1
+
+	return result
 
 
 # ============================================================================
