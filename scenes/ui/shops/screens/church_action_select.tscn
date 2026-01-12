@@ -55,6 +55,14 @@ focus_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "PROMOTE"
 
+[node name="RecordButton" type="Button" parent="CenterContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+focus_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "RECORD"
+
 [node name="ExitButton" type="Button" parent="CenterContainer/VBoxContainer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 40)

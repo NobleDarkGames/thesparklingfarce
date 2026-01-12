@@ -44,6 +44,7 @@ const SCREEN_PATHS: Dictionary = {
 	"church_char_select": "res://scenes/ui/shops/screens/church_char_select.tscn",
 	"church_slot_select": "res://scenes/ui/shops/screens/church_slot_select.tscn",
 	"church_promote_select": "res://scenes/ui/shops/screens/church_promote_select.tscn",
+	"church_save_confirm": "res://scenes/ui/shops/screens/church_save_confirm.tscn",
 	# Crafter screens
 	"crafter_action_select": "res://scenes/ui/shops/screens/crafter_action_select.tscn",
 	"crafter_recipe_browser": "res://scenes/ui/shops/screens/crafter_recipe_browser.tscn",

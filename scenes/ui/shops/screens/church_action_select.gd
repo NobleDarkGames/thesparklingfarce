@@ -18,6 +18,7 @@ var selected_index: int = 0
 @onready var revive_button: Button = %ReviveButton
 @onready var uncurse_button: Button = %UncurseButton
 @onready var promote_button: Button = %PromoteButton
+@onready var record_button: Button = %RecordButton
 @onready var exit_button: Button = %ExitButton
 
 
@@ -28,6 +29,7 @@ func _on_initialized() -> void:
 	menu_items.append(revive_button)
 	menu_items.append(uncurse_button)
 	menu_items.append(promote_button)
+	menu_items.append(record_button)
 	menu_items.append(exit_button)
 
 	# Connect button signals
@@ -35,6 +37,7 @@ func _on_initialized() -> void:
 	revive_button.pressed.connect(_on_revive_pressed)
 	uncurse_button.pressed.connect(_on_uncurse_pressed)
 	promote_button.pressed.connect(_on_promote_pressed)
+	record_button.pressed.connect(_on_record_pressed)
 	exit_button.pressed.connect(_on_exit_pressed)
 
 	# Connect focus signals for visual feedback
@@ -129,6 +132,11 @@ func _on_promote_pressed() -> void:
 	push_screen("church_char_select")
 
 
+func _on_record_pressed() -> void:
+	context.mode = ShopContextScript.Mode.SAVE
+	push_screen("church_save_confirm")
+
+
 func _on_exit_pressed() -> void:
 	_do_exit()
 
@@ -154,6 +162,8 @@ func _on_screen_exit() -> void:
 		uncurse_button.pressed.disconnect(_on_uncurse_pressed)
 	if is_instance_valid(promote_button) and promote_button.pressed.is_connected(_on_promote_pressed):
 		promote_button.pressed.disconnect(_on_promote_pressed)
+	if is_instance_valid(record_button) and record_button.pressed.is_connected(_on_record_pressed):
+		record_button.pressed.disconnect(_on_record_pressed)
 	if is_instance_valid(exit_button) and exit_button.pressed.is_connected(_on_exit_pressed):
 		exit_button.pressed.disconnect(_on_exit_pressed)
 
