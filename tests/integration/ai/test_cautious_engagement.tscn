@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_cautious_engagement"]
+
+[ext_resource type="Script" path="res://tests/integration/ai/test_cautious_engagement.gd" id="1_test"]
+
+[node name="TestCautiousEngagement" type="Node2D"]
+script = ExtResource("1_test")

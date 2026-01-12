@@ -39,7 +39,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		return true  # Complete immediately on error
 
 
-## Execute a single dialog_line command (character_id, text, emotion in params directly)
+## Execute a single dialog_line command (speaker/character_id, text, emotion in params)
+## Supports both new "speaker" field (actor_id or entity ref) and legacy "character_id"
 func _execute_single_line(params: Dictionary, manager: Node) -> bool:
 	var text: String = params.get("text", "")
 	if text.is_empty():
@@ -52,18 +53,25 @@ func _execute_single_line(params: Dictionary, manager: Node) -> bool:
 		"emotion": params.get("emotion", "neutral")
 	}
 
-	# Resolve character_id to speaker_name and portrait if present
-	var character_id: String = params.get("character_id", "")
-	if not character_id.is_empty():
-		var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(character_id)
-		line_dict["speaker_name"] = char_data["name"]
-		if char_data["portrait"] != null:
-			line_dict["portrait"] = char_data["portrait"]
+	# Resolve speaker - supports actor_id, "npc:id", or character UID
+	# Priority: "speaker" field > "character_id" fallback
+	var speaker_ref: String = params.get("speaker", "")
+	if speaker_ref.is_empty():
+		speaker_ref = params.get("character_id", "")  # Backward compatibility
+
+	if not speaker_ref.is_empty():
+		var speaker_data: Dictionary = _resolve_speaker_data(speaker_ref, manager)
+		line_dict["speaker_name"] = speaker_data.get("display_name", "")
+		var portrait: Texture2D = speaker_data.get("portrait", null)
+		if portrait != null:
+			line_dict["portrait"] = portrait
 
 		# Auto-follow: move camera to speaker if enabled (default true)
+		# Virtual actors (is_virtual=true) skip auto-follow
 		var auto_follow: bool = params.get("auto_follow", true)
-		if auto_follow:
-			_auto_follow_character(character_id, manager)
+		var is_virtual: bool = speaker_data.get("is_virtual", false)
+		if auto_follow and not is_virtual:
+			_auto_follow_speaker(speaker_ref, manager)
 	else:
 		line_dict["speaker_name"] = ""
 
@@ -86,20 +94,41 @@ func _execute_single_line(params: Dictionary, manager: Node) -> bool:
 		return true
 
 
+## Resolve speaker display data (name, portrait) from speaker reference
+## Checks actor display cache first, then falls back to direct entity lookup
+## Returns: {display_name: String, portrait: Texture2D, is_virtual: bool}
+func _resolve_speaker_data(speaker_ref: String, manager: Node) -> Dictionary:
+	# First check if it's a cached actor (from cinematic's actors array)
+	var actor_data: Dictionary = manager.get_actor_display_data(speaker_ref)
+	if not actor_data.is_empty():
+		return actor_data
+
+	# Fall back to direct entity lookup (for existing map NPCs/characters)
+	var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(speaker_ref)
+	return {
+		"display_name": char_data.get("name", ""),
+		"portrait": char_data.get("portrait", null),
+		"is_virtual": false
+	}
+
+
 func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 	var lines: Array = params.get("lines", [])
 	if lines.is_empty():
 		push_error("DialogExecutor: Inline dialog has no lines")
 		return true
 
-	# Auto-follow: check first line's character for camera follow
+	# Auto-follow: check first line's speaker for camera follow
 	var auto_follow: bool = params.get("auto_follow", true)
 	if auto_follow and lines.size() > 0:
 		var first_line: Variant = lines[0]
 		if first_line is Dictionary:
-			var first_char_id: String = str(first_line.get("character_id", ""))
-			if not first_char_id.is_empty():
-				_auto_follow_character(first_char_id, manager)
+			# Support both "speaker" and legacy "character_id"
+			var first_speaker: String = str(first_line.get("speaker", first_line.get("character_id", "")))
+			if not first_speaker.is_empty():
+				var speaker_data: Dictionary = _resolve_speaker_data(first_speaker, manager)
+				if not speaker_data.get("is_virtual", false):
+					_auto_follow_speaker(first_speaker, manager)
 
 	# Create temporary DialogueData
 	var dialogue: DialogueData = DialogueData.new()
@@ -111,19 +140,26 @@ func _execute_inline_dialog(params: Dictionary, manager: Node) -> bool:
 		_inline_dialog_counter
 	]
 
-	# Copy lines into the DialogueData, resolving character_id if present
+	# Copy lines into the DialogueData, resolving speaker/character_id if present
 	for line_data: Variant in lines:
 		if line_data is Dictionary:
 			var line_dict: Dictionary = line_data.duplicate()
 
-			# Resolve character_id to speaker_name and portrait if present
-			if "character_id" in line_dict and not "speaker_name" in line_dict:
-				var char_id: String = str(line_dict["character_id"])
-				var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(char_id)
-				line_dict["speaker_name"] = char_data["name"]
-				if char_data["portrait"] != null:
-					line_dict["portrait"] = char_data["portrait"]
+			# Resolve speaker or character_id to speaker_name and portrait
+			var speaker_ref: String = ""
+			if "speaker" in line_dict:
+				speaker_ref = str(line_dict["speaker"])
+				line_dict.erase("speaker")
+			elif "character_id" in line_dict:
+				speaker_ref = str(line_dict["character_id"])
 				line_dict.erase("character_id")
+
+			if not speaker_ref.is_empty() and "speaker_name" not in line_dict:
+				var speaker_data: Dictionary = _resolve_speaker_data(speaker_ref, manager)
+				line_dict["speaker_name"] = speaker_data.get("display_name", "")
+				var portrait: Texture2D = speaker_data.get("portrait", null)
+				if portrait != null:
+					line_dict["portrait"] = portrait
 
 			dialogue.lines.append(line_dict)
 
@@ -148,16 +184,12 @@ func interrupt() -> void:
 		DialogManager.end_dialog()
 
 
-## Auto-follow: move camera to the speaking character before dialog
+## Auto-follow: move camera to the speaker before dialog
+## Supports spawned actors, existing map NPCs, and characters
 ## Does NOT wait for completion - camera catches up while dialog shows
-func _auto_follow_character(character_id: String, manager: Node) -> void:
-	# Find actor by character UID
-	var actor: CinematicActor = manager.get_actor_by_character_uid(character_id)
-	if actor == null:
-		return
-
-	# Get actor's parent entity position
-	var entity: Node2D = actor.parent_entity
+func _auto_follow_speaker(speaker_ref: String, manager: Node) -> void:
+	# Find entity node - works for spawned actors and existing map entities
+	var entity: Node2D = manager.find_entity_node(speaker_ref)
 	if not is_instance_valid(entity):
 		return
 

@@ -427,3 +427,9 @@ func teleport_to(position: Vector2, is_grid: bool = true) -> void:
 		parent_entity.global_position = GridManager.cell_to_world(Vector2i(position))
 	else:
 		parent_entity.global_position = position
+
+	# Sync physics collider for CharacterBody2D entities
+	if parent_entity is CharacterBody2D:
+		var body: CharacterBody2D = parent_entity as CharacterBody2D
+		body.velocity = Vector2.ZERO
+		body.move_and_slide()

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3 uid="uid://djqgpmsyq3575"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_sfysr"]
+[ext_resource type="Script" uid="uid://c6pk5al0d3gpq" path="res://core/resources/promotion_path.gd" id="2_33nbw"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_ikjae"]
+
+[resource]
+script = ExtResource("3_ikjae")
+display_name = "Archer"
+movement_range = 5
+hp_growth = 30
+mp_growth = 0
+strength_growth = 60
+defense_growth = 30
+agility_growth = 60
+intelligence_growth = 30
+luck_growth = 60
+equippable_weapon_types = Array[String](["bow"])

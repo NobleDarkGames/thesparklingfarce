@@ -51,6 +51,11 @@ load("res://mods/_base_game/data/characters/max.tres")  # WRONG
 ### User Commands
 - `SNS` / `SNS2` / `SNS3` — View newest screenshot(s) from `~/Pictures/Screenshots`
 - `diagnostics` - Phrases such as "run level 1 diagnostics" means running the full unit test suite
+
+### Environment
+- **Godot Binary**: `~/Downloads/Godot_v4.5.1-stable_linux.x86_64/Godot_v4.5.1-stable_linux.x86_64`
+- Set `GODOT_BIN` or use full path when running tests
+
 ---
 
 ## Tool Preferences

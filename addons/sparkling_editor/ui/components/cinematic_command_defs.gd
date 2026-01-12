@@ -35,10 +35,10 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"description": "Show a single dialog line with character portrait",
 		"icon": "RichTextLabel",
 		"params": {
-			"character_id": {"type": "character", "default": "", "hint": "Character UID"},
+			"speaker": {"type": "speaker", "default": "", "hint": "Actor ID, npc:id, or character UID"},
 			"text": {"type": "text", "default": "", "hint": "Variables: {player_name}, {char:id}, {gold}, {party_count}, {flag:name}, {var:key}"},
 			"emotion": {"type": "enum", "default": "neutral", "options": ["neutral", "happy", "sad", "angry", "worried", "surprised", "determined", "thinking"], "hint": "Character emotion"},
-			"auto_follow": {"type": "bool", "default": true, "hint": "Auto-follow speaker with camera"}
+			"auto_follow": {"type": "bool", "default": true, "hint": "Auto-follow speaker with camera (ignored for virtual actors)"}
 		}
 	},
 	"show_dialog": {
@@ -112,7 +112,7 @@ const COMMAND_DEFINITIONS: Dictionary = {
 			"intensity": {"type": "float", "default": 2.0, "min": 0.5, "max": 20.0, "hint": "Shake intensity (pixels)"},
 			"duration": {"type": "float", "default": 0.5, "min": 0.1, "max": 5.0, "hint": "Shake duration"},
 			"frequency": {"type": "float", "default": 30.0, "min": 5.0, "max": 60.0, "hint": "Shake frequency"},
-			"wait": {"type": "bool", "default": false, "hint": "Wait for shake to complete"}
+			"wait": {"type": "bool", "default": true, "hint": "Wait for shake to complete"}
 		}
 	},
 	"fade_screen": {

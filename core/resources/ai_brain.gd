@@ -176,6 +176,80 @@ func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: i
 	return best_cell
 
 
+## Helper: Move unit into attack range of target
+## Respects weapon min/max range (avoids dead zones for ranged weapons)
+## Returns true if movement succeeded
+func move_into_attack_range(unit: Unit, target: Unit) -> bool:
+	if not unit or not target:
+		return false
+
+	var unit_class: ClassData = unit.get_current_class()
+	if not unit_class:
+		return false
+
+	# Get weapon range band
+	var min_range: int = 1
+	var max_range: int = 1
+	if unit.stats:
+		min_range = unit.stats.get_weapon_min_range()
+		max_range = unit.stats.get_weapon_max_range()
+
+	var movement_range: int = unit_class.movement_range
+	var reachable: Array[Vector2i] = GridManager.get_walkable_cells(
+		unit.grid_position, movement_range, unit_class.movement_type, unit.faction
+	)
+
+	# Find best cell that puts us in weapon range of target
+	var best_cell: Vector2i = unit.grid_position
+	var best_score: float = -999.0
+	var target_pos: Vector2i = target.grid_position
+
+	for cell: Vector2i in reachable:
+		# Skip occupied cells (except our current position)
+		if cell != unit.grid_position and GridManager.is_cell_occupied(cell):
+			continue
+
+		var dist_to_target: int = GridManager.grid.get_manhattan_distance(cell, target_pos)
+
+		# Check if this cell is within valid attack range
+		var in_range: bool = dist_to_target >= min_range and dist_to_target <= max_range
+
+		if in_range:
+			# Prefer cells that minimize movement (conserve position)
+			var movement_cost: int = GridManager.grid.get_manhattan_distance(unit.grid_position, cell)
+			var score: float = 100.0 - movement_cost  # In range, minimize movement
+
+			# For ranged units, slightly prefer staying at max range (safer)
+			if max_range > 1:
+				score += (dist_to_target - min_range) * 0.5
+
+			if score > best_score:
+				best_score = score
+				best_cell = cell
+		elif best_score < 0:
+			# Not in range yet, but track closest approach
+			var dist_to_range: int = dist_to_target - max_range if dist_to_target > max_range else min_range - dist_to_target
+			var score: float = -dist_to_range  # Negative score, closer is better
+			if score > best_score:
+				best_score = score
+				best_cell = cell
+
+	# Don't move if already at best position
+	if best_cell == unit.grid_position:
+		return false
+
+	# Find path to best cell and move
+	var path: Array[Vector2i] = GridManager.find_path(
+		unit.grid_position, best_cell, unit_class.movement_type, unit.faction
+	)
+
+	if path.is_empty():
+		return false
+
+	unit.move_along_path(path)
+	return true
+
+
 ## Helper: Attack target unit
 ## Signals BattleManager to execute the attack
 func attack_target(unit: Unit, target: Unit) -> void:

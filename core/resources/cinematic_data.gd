@@ -182,7 +182,7 @@ func add_camera_follow(actor_id: String) -> void:
 ## duration: How long the shake lasts in seconds
 ## frequency: Oscillation frequency (higher = faster shaking)
 ## wait: If true, cinematic waits for shake to complete before continuing
-func add_camera_shake(intensity: float = 6.0, duration: float = 0.5, frequency: float = 30.0, wait: bool = false) -> void:
+func add_camera_shake(intensity: float = 6.0, duration: float = 0.5, frequency: float = 30.0, wait: bool = true) -> void:
 	var command: Dictionary = {
 		"type": "camera_shake",
 		"params": {

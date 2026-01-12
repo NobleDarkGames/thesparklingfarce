@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=4 uid="uid://q0bifik47wc8"]
 
-[ext_resource type="Script" uid="uid://7nlcrien4f8v" path="res://mods/demo_campaign/maps/mudford.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://owf5xru7b1bm" path="res://mods/demo_campaign/maps/mudford.gd" id="1_script"]
 [ext_resource type="TileSet" uid="uid://dy2k670qtyfeq" path="res://core/defaults/tilesets/default_tileset.tres" id="2_tileset"]
 [ext_resource type="Script" uid="uid://iijt33alqt3j" path="res://scenes/map_exploration/map_camera.gd" id="3_camera"]
 [ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="4_spawn"]
@@ -8,7 +8,7 @@
 [ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_du2nu"]
 [ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="7_ig6fl"]
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="8_1m5rn"]
-[ext_resource type="Script" uid="uid://dntio2k10itcw" path="res://core/components/interactable_node.gd" id="9_ig6fl"]
+[ext_resource type="Script" uid="uid://i5nu3buy36ri" path="res://core/components/interactable_node.gd" id="9_ig6fl"]
 [ext_resource type="Resource" uid="uid://be1hxdo6tvi28" path="res://mods/demo_campaign/data/interactables/demo_campaign_interactable_1766718325.tres" id="10_interactable"]
 
 [sub_resource type="Resource" id="Resource_c7sri"]

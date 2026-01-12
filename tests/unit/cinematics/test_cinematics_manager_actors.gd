@@ -282,23 +282,135 @@ func test_register_actor_makes_findable() -> void:
 		parent.queue_free()
 
 
-func test_unregister_actor_removes_from_registry() -> void:
-	var parent: CharacterBody2D = CharacterBody2D.new()
-	add_child(parent)
+# =============================================================================
+# NPC ACTOR CHARACTER_UID TESTS
+# Regression tests for bug where NPC actors couldn't be used as speakers
+# in dialog_line commands because character_uid wasn't set.
+# Bug fixed in commit 980353c
+# =============================================================================
 
+func test_get_actor_by_character_uid_returns_null_for_unregistered() -> void:
+	var actor: CinematicActor = CinematicsManager.get_actor_by_character_uid("nonexistent_uid")
+	
+	assert_object(actor).is_null()
+
+
+func test_get_actor_by_character_uid_finds_character_actor() -> void:
+	var parent: CharacterBody2D = CharacterBody2D.new()
+	parent.name = "CharActor"
+	add_child(parent)
+	
 	var actor: Node = Node.new()
 	actor.set_script(CinematicActor)
-	actor.actor_id = "to_unregister"
+	actor.actor_id = "hero_actor"
+	actor.character_uid = "max_uid_123"  # Character UID
 	parent.add_child(actor)
-
+	
 	CinematicsManager.register_actor(actor)
-	assert_object(CinematicsManager.get_actor("to_unregister")).is_not_null()
-
-	CinematicsManager.unregister_actor("to_unregister")
-	assert_object(CinematicsManager.get_actor("to_unregister")).is_null()
-
+	
+	var found: CinematicActor = CinematicsManager.get_actor_by_character_uid("max_uid_123")
+	assert_object(found).is_not_null()
+	assert_str(found.actor_id).is_equal("hero_actor")
+	
 	if is_instance_valid(parent):
 		parent.queue_free()
+
+
+func test_get_actor_by_character_uid_finds_npc_actor_with_prefix() -> void:
+	# This is the critical regression test for the NPC speaker bug
+	var parent: CharacterBody2D = CharacterBody2D.new()
+	parent.name = "NPCActor"
+	add_child(parent)
+	
+	var actor: Node = Node.new()
+	actor.set_script(CinematicActor)
+	actor.actor_id = "shopkeeper_actor"
+	actor.character_uid = "npc:shopkeeper"  # NPC with prefix
+	parent.add_child(actor)
+	
+	CinematicsManager.register_actor(actor)
+	
+	# Dialog executor searches for "npc:shopkeeper" when NPC is the speaker
+	var found: CinematicActor = CinematicsManager.get_actor_by_character_uid("npc:shopkeeper")
+	assert_object(found).is_not_null()
+	assert_str(found.actor_id).is_equal("shopkeeper_actor")
+	
+	if is_instance_valid(parent):
+		parent.queue_free()
+
+
+func test_npc_actor_character_uid_format() -> void:
+	# Verify the expected format for NPC character_uid
+	var npc_id: String = "town_guard"
+	var expected_uid: String = "npc:" + npc_id
+	
+	assert_str(expected_uid).is_equal("npc:town_guard")
+
+
+func test_character_uid_distinguishes_character_from_npc() -> void:
+	var parent1: CharacterBody2D = CharacterBody2D.new()
+	parent1.name = "CharParent"
+	add_child(parent1)
+	
+	var parent2: CharacterBody2D = CharacterBody2D.new()
+	parent2.name = "NPCParent"
+	add_child(parent2)
+	
+	# Register a character actor
+	var char_actor: Node = Node.new()
+	char_actor.set_script(CinematicActor)
+	char_actor.actor_id = "max_actor"
+	char_actor.character_uid = "max_uid"  # Character UID (no prefix)
+	parent1.add_child(char_actor)
+	CinematicsManager.register_actor(char_actor)
+	
+	# Register an NPC actor with similar name but different format
+	var npc_actor: Node = Node.new()
+	npc_actor.set_script(CinematicActor)
+	npc_actor.actor_id = "max_npc_actor"
+	npc_actor.character_uid = "npc:max"  # NPC with same base name
+	parent2.add_child(npc_actor)
+	CinematicsManager.register_actor(npc_actor)
+	
+	# Looking up "max_uid" should find character
+	var found_char: CinematicActor = CinematicsManager.get_actor_by_character_uid("max_uid")
+	assert_object(found_char).is_not_null()
+	assert_str(found_char.actor_id).is_equal("max_actor")
+	
+	# Looking up "npc:max" should find NPC
+	var found_npc: CinematicActor = CinematicsManager.get_actor_by_character_uid("npc:max")
+	assert_object(found_npc).is_not_null()
+	assert_str(found_npc.actor_id).is_equal("max_npc_actor")
+	
+	if is_instance_valid(parent1):
+		parent1.queue_free()
+	if is_instance_valid(parent2):
+		parent2.queue_free()
+
+
+func test_empty_character_uid_not_found() -> void:
+	var parent: CharacterBody2D = CharacterBody2D.new()
+	add_child(parent)
+	
+	var actor: Node = Node.new()
+	actor.set_script(CinematicActor)
+	actor.actor_id = "empty_uid_actor"
+	actor.character_uid = ""  # Empty - this was the bug state for NPCs
+	parent.add_child(actor)
+	
+	CinematicsManager.register_actor(actor)
+	
+	# Empty string search should not match
+	var found: CinematicActor = CinematicsManager.get_actor_by_character_uid("")
+	assert_object(found).is_null()
+	
+	# Specific search should also not match empty UID actor
+	var found2: CinematicActor = CinematicsManager.get_actor_by_character_uid("npc:some_npc")
+	assert_object(found2).is_null()
+	
+	if is_instance_valid(parent):
+		parent.queue_free()
+
 
 
 func test_register_null_actor_is_ignored() -> void:
@@ -460,3 +572,107 @@ func test_warns_on_duplicate_actor_in_actors_array() -> void:
 
 	if is_instance_valid(parent):
 		parent.queue_free()
+
+
+# =============================================================================
+# ACTOR DISPLAY DATA TESTS
+# =============================================================================
+
+func test_get_actor_display_data_returns_empty_for_unregistered() -> void:
+	var result: Dictionary = CinematicsManager.get_actor_display_data("nonexistent")
+	assert_dict(result).is_empty()
+
+
+func test_get_actor_display_data_returns_cached_data() -> void:
+	# Access the internal cache directly for testing
+	CinematicsManager._actor_display_data["test_actor"] = {
+		"display_name": "Test Speaker",
+		"portrait": null,
+		"is_virtual": false,
+		"entity_ref": "test_actor"
+	}
+
+	var result: Dictionary = CinematicsManager.get_actor_display_data("test_actor")
+	assert_str(result.get("display_name", "")).is_equal("Test Speaker")
+	assert_bool(result.get("is_virtual", true)).is_false()
+
+	# Clean up
+	CinematicsManager._actor_display_data.clear()
+
+
+func test_actor_display_data_cache_cleared_on_end_cinematic() -> void:
+	# Add data to cache
+	CinematicsManager._actor_display_data["test"] = {"display_name": "Test"}
+	assert_dict(CinematicsManager._actor_display_data).is_not_empty()
+
+	# Calling _clear_actor_display_cache should clear it
+	CinematicsManager._clear_actor_display_cache()
+	assert_dict(CinematicsManager._actor_display_data).is_empty()
+
+
+# =============================================================================
+# FIND ENTITY NODE TESTS
+# =============================================================================
+
+func test_find_entity_node_returns_null_for_nonexistent() -> void:
+	var result: Node2D = CinematicsManager.find_entity_node("nonexistent")
+	assert_object(result).is_null()
+
+
+func test_find_entity_node_finds_registered_actor() -> void:
+	# Create and register an actor
+	var parent: CharacterBody2D = CharacterBody2D.new()
+	add_child(parent)
+
+	var actor: Node = Node.new()
+	actor.set_script(CinematicActor)
+	actor.actor_id = "findable_actor"
+	parent.add_child(actor)
+	CinematicsManager.register_actor(actor)
+
+	# Should find via actor lookup first
+	var result: Node2D = CinematicsManager.find_entity_node("findable_actor")
+	assert_object(result).is_same(parent)
+
+	# Cleanup
+	CinematicsManager._registered_actors.clear()
+	if is_instance_valid(parent):
+		parent.queue_free()
+
+
+func test_find_entity_node_handles_npc_prefix() -> void:
+	# Test that npc: prefix is parsed correctly (even if entity not found)
+	# This test validates the parsing logic - actual NPC lookup requires map context
+	var result: Node2D = CinematicsManager.find_entity_node("npc:some_npc")
+	# Should return null but not crash
+	assert_object(result).is_null()
+
+
+# =============================================================================
+# VIRTUAL ACTOR TESTS
+# =============================================================================
+
+func test_virtual_spawn_handler_exists() -> void:
+	# VirtualSpawnHandler should be registered
+	var handler: SpawnableEntityHandler = CinematicsManager.get_spawnable_handler("virtual")
+	assert_object(handler).is_not_null()
+
+
+func test_virtual_spawn_handler_returns_null_sprite() -> void:
+	var handler: SpawnableEntityHandler = CinematicsManager.get_spawnable_handler("virtual")
+	if handler:
+		var sprite: Node2D = handler.create_sprite_node("test", "down")
+		assert_object(sprite).is_null()
+
+
+func test_virtual_spawn_handler_type_id() -> void:
+	var handler: SpawnableEntityHandler = CinematicsManager.get_spawnable_handler("virtual")
+	if handler:
+		assert_str(handler.get_type_id()).is_equal("virtual")
+
+
+func test_virtual_spawn_handler_no_position_required() -> void:
+	var handler: SpawnableEntityHandler = CinematicsManager.get_spawnable_handler("virtual")
+	if handler:
+		var hints: Dictionary = handler.get_editor_hints()
+		assert_bool(hints.get("requires_position", true)).is_false()

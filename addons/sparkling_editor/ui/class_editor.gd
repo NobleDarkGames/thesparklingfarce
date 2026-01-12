@@ -444,8 +444,8 @@ func _create_growth_editor(label_text: String, parent: VBoxContainer, tooltip: S
 
 	var slider: HSlider = HSlider.new()
 	slider.min_value = 0
-	slider.max_value = 100
-	slider.value = 50
+	slider.max_value = 200
+	slider.value = 80
 	slider.step = 5
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if not tooltip.is_empty():
@@ -453,7 +453,7 @@ func _create_growth_editor(label_text: String, parent: VBoxContainer, tooltip: S
 	container.add_child(slider)
 
 	var value_label: Label = Label.new()
-	value_label.text = "50%"
+	value_label.text = "80%"
 	value_label.custom_minimum_size.x = 50
 	slider.value_changed.connect(func(value: float) -> void: value_label.text = str(int(value)) + "%")
 	container.add_child(value_label)

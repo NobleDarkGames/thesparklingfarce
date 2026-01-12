@@ -95,11 +95,20 @@
 		{
 			"params": {
 				"auto_follow": false,
-				"character_id": "wnc45s25",
 				"emotion": "neutral",
+				"speaker": "wnc45s25",
 				"text": "𝅘𝅥𝅮 Oh the mud farmin life is the life for me! A mud farmer's life is a life of glee! 𝅘𝅥𝅮 "
 			},
 			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"duration": 0.5,
+				"frequency": 30.0,
+				"intensity": 2.0,
+				"wait": true
+			},
+			"type": "camera_shake"
 		},
 		{
 			"params": {
@@ -118,8 +127,8 @@
 		{
 			"params": {
 				"auto_follow": false,
-				"character_id": "wnc45s25",
 				"emotion": "neutral",
+				"speaker": "wnc45s25",
 				"text": "𝅘𝅥𝅮 The days are long and the work is hard, but my mud brings all the boys to the - oh what's this?"
 			},
 			"type": "dialog_line"
@@ -134,8 +143,8 @@
 		{
 			"params": {
 				"auto_follow": false,
-				"character_id": "wnc45s25",
 				"emotion": "neutral",
+				"speaker": "wnc45s25",
 				"text": "Another stranger washed up on the beach, eh?  Better get you to the Mayor!"
 			},
 			"type": "dialog_line"
@@ -254,24 +263,24 @@
 		},
 		{
 			"params": {
-				"character_id": "wnc45s25",
 				"emotion": "neutral",
+				"speaker": "wnc45s25",
 				"text": "..and so I dragged him here to see you!"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "We DO NOT need this right now!"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "wnc45s25",
 				"emotion": "neutral",
+				"speaker": "wnc45s25",
 				"text": "What harm could he do? I've got socks older than this kid!"
 			},
 			"type": "dialog_line"
@@ -302,112 +311,112 @@
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "Wh... where am I?"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "You're in Mudford, but not for long!  I want you out NOW!  You hear me!?"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "Why?  What did I do?"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "You're a PROTAGONIST!  Admit it!"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "A... a what?"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "A Main Character!  An indespensible plot point!  I've seen dozens of you, don't try to fool me!"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "No... no I'm not-"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "I bet you've got amnesia too, don't you?"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "I... uh..."
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "Boyishly handsome? Check.\nMysterious arrival? Check.\nAmnesia? CHECK.\nYou're a protagonist. I'd bet my pension on it."
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "Look, I don't want any-"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "WANT? I know exactly what your type WANT. All the healing herbs in town! All the strongest of our townsfolk to join you on some idiotic quest! Admit it!"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "rfcd4dp9",
 				"emotion": "neutral",
+				"speaker": "rfcd4dp9",
 				"text": "I don't know what you're talking about, but I think we got off on the wrong-"
 			},
 			"type": "dialog_line"
 		},
 		{
 			"params": {
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "EVERY TIME a protagonist shows up, farmland gets trampled, local shops get cleaned out of potions, and property value PLUMMETS! THEN the revenge attacks start, and we lose half our infrastructure to poorly aimed AoE spells!"
 			},
 			"type": "dialog_line"
@@ -440,8 +449,8 @@
 		{
 			"params": {
 				"auto_follow": true,
-				"character_id": "demo_campaign_character_1767900325",
 				"emotion": "neutral",
+				"speaker": "demo_campaign_character_1767900325",
 				"text": "Mayor King!  Come quickly!  The rains have come, and threaten to ruin the mud harvest!"
 			},
 			"type": "dialog_line"
@@ -449,8 +458,8 @@
 		{
 			"params": {
 				"auto_follow": true,
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "Look, kid, I've got business to attend to. Mud doesn't farm itself.  I expect you out of town before I return."
 			},
 			"type": "dialog_line"
@@ -482,8 +491,8 @@
 		{
 			"params": {
 				"auto_follow": false,
-				"character_id": "bymdrjkx",
 				"emotion": "neutral",
+				"speaker": "bymdrjkx",
 				"text": "(mumbling) Far too many \"chosen ones\" nowadays..."
 			},
 			"type": "dialog_line"

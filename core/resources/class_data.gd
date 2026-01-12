@@ -29,15 +29,19 @@ enum MovementType {
 @export_range(0, 50) var crit_rate_bonus: int = 0
 
 @export_group("Growth Rates")
-## Stat growth rates determine how stats increase on level up (0-100%)
-## These rates define the class's growth pattern, matching Shining Force mechanics
-@export_range(0, 100) var hp_growth: int = 50
-@export_range(0, 100) var mp_growth: int = 50
-@export_range(0, 100) var strength_growth: int = 50
-@export_range(0, 100) var defense_growth: int = 50
-@export_range(0, 100) var agility_growth: int = 50
-@export_range(0, 100) var intelligence_growth: int = 50
-@export_range(0, 100) var luck_growth: int = 50
+## Stat growth rates determine how stats increase on level up.
+## Enhanced Shining Force-style system:
+##   0-99:  Percentage chance of +1 (e.g., 50 = 50% chance of +1)
+##   100+:  Guaranteed +1, remainder% chance of +2 (e.g., 150 = +1 always, 50% for +2)
+## A 5% "lucky roll" can grant +1 extra for rates >= 50, creating memorable level-ups.
+## Typical ranges: HP 80-150, MP 30-80, combat stats 40-100
+@export_range(0, 200) var hp_growth: int = 100
+@export_range(0, 200) var mp_growth: int = 60
+@export_range(0, 200) var strength_growth: int = 80
+@export_range(0, 200) var defense_growth: int = 80
+@export_range(0, 200) var agility_growth: int = 70
+@export_range(0, 200) var intelligence_growth: int = 70
+@export_range(0, 200) var luck_growth: int = 50
 
 @export_group("Equipment")
 ## Weapon types this class can equip (e.g., "sword", "axe", "bow")

@@ -46,7 +46,6 @@ func test_validation_requires_interactable_id() -> void:
 func test_validation_requires_interaction_content() -> void:
 	_interactable.gold_reward = 0
 	_interactable.item_rewards = []
-	_interactable.dialog_text = ""
 	_interactable.interaction_cinematic_id = ""
 	_interactable.fallback_cinematic_id = ""
 	_interactable.conditional_cinematics = []
@@ -73,9 +72,9 @@ func test_validation_passes_with_item_rewards() -> void:
 	assert_bool(result).is_true()
 
 
-func test_validation_passes_with_dialog_text() -> void:
+func test_validation_passes_with_fallback_cinematic() -> void:
 	_interactable.gold_reward = 0
-	_interactable.dialog_text = "This is a sign."
+	_interactable.fallback_cinematic_id = "sign_cinematic"
 
 	var result: bool = _interactable.validate()
 

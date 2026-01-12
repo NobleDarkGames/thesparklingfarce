@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="BattleData" load_steps=9 format=3 uid="uid://vckbkxi5iy7g"]
+
+[ext_resource type="Resource" uid="uid://ds752fatpb3eb" path="res://mods/demo_campaign/data/characters/demo_campaign_character_1768075284.tres" id="1_6e05v"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_m82wt"]
+[ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="2_3py63"]
+[ext_resource type="Script" uid="uid://u7b836tt381x" path="res://core/resources/ai_behavior_data.gd" id="2_lea4o"]
+[ext_resource type="PackedScene" uid="uid://crtm622a60c3y" path="res://mods/demo_campaign/maps/second_battle_map.tscn" id="2_nu1gg"]
+[ext_resource type="Resource" uid="uid://bdjm2p1e3j5b3" path="res://mods/demo_campaign/data/characters/demo_campaign_character_1768076559.tres" id="3_6e05v"]
+[ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres" id="4_m7xbp"]
+
+[sub_resource type="Resource" id="Resource_8un10"]
+script = ExtResource("2_lea4o")
+behavior_id = "opportunistic_archer"
+display_name = "Opportunistic Archer"
+description = "Targets wounded enemies for finishing blows. Maintains range and retreats if enemies get too close. Prefers high ground for terrain bonuses."
+behavior_mode = "opportunistic"
+threat_weights = {
+"damage_dealer": 0.8,
+"debuffer": 1.0,
+"healer": 1.5,
+"high_attack": 0.8,
+"low_defense": 1.8,
+"proximity": 0.3,
+"support": 0.5,
+"wounded_target": 2.0
+}
+retreat_hp_threshold = 60
+prioritize_boss_heals = false
+use_status_effects = false
+alert_range = 12
+engagement_range = 8
+max_idle_turns = 5
+
+[resource]
+script = ExtResource("2_3py63")
+battle_name = "Battle #2"
+battle_description = "Henchmen and Glass Archers"
+map_scene = ExtResource("2_nu1gg")
+player_spawn_point = Vector2i(41, 19)
+enemies = Array[Dictionary]([{
+"ai_behavior": SubResource("Resource_8un10"),
+"character": ExtResource("1_6e05v"),
+"position": Vector2i(22, 14)
+}, {
+"ai_behavior": SubResource("Resource_8un10"),
+"character": ExtResource("1_6e05v"),
+"position": Vector2i(22, 13)
+}, {
+"ai_behavior": ExtResource("4_m7xbp"),
+"character": ExtResource("3_6e05v"),
+"position": Vector2i(23, 13)
+}])

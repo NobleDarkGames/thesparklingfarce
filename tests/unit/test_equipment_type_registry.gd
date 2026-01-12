@@ -323,19 +323,35 @@ func test_validate_equipment_type_invalid() -> void:
 # =============================================================================
 
 func test_clear_mod_registrations() -> void:
+	# clear_mod_registrations() clears all registrations and re-initializes
+	# defaults (for mod reload scenarios). This means core defaults like
+	# "sword" and "weapon" will be restored, but custom mod types will be gone.
+
+	# First, initialize defaults (simulates normal runtime behavior)
+	_registry.init_defaults()
+
+	# Now register a custom type from a test mod
 	var config: Dictionary = {
-		"categories": {"weapon": {"display_name": "Weapon"}},
-		"subtypes": {"sword": {"category": "weapon"}}
+		"categories": {"custom_cat": {"display_name": "Custom Category"}},
+		"subtypes": {"laser_rifle": {"category": "custom_cat"}}
 	}
 	_registry.register_from_config("test_mod", config)
 
-	assert_bool(_registry.is_valid_subtype("sword")).is_true()
-	assert_bool(_registry.is_valid_category("weapon")).is_true()
+	# Verify both custom and default types exist
+	assert_bool(_registry.is_valid_subtype("laser_rifle")).is_true()
+	assert_bool(_registry.is_valid_category("custom_cat")).is_true()
+	assert_bool(_registry.is_valid_subtype("sword")).is_true()  # Default
+	assert_bool(_registry.is_valid_category("weapon")).is_true()  # Default
 
 	_registry.clear_mod_registrations()
 
-	assert_bool(_registry.is_valid_subtype("sword")).is_false()
-	assert_bool(_registry.is_valid_category("weapon")).is_false()
+	# Custom mod types should be gone
+	assert_bool(_registry.is_valid_subtype("laser_rifle")).is_false()
+	assert_bool(_registry.is_valid_category("custom_cat")).is_false()
+
+	# Defaults should be restored (clear_mod_registrations re-initializes defaults)
+	assert_bool(_registry.is_valid_subtype("sword")).is_true()
+	assert_bool(_registry.is_valid_category("weapon")).is_true()
 
 
 func test_get_stats() -> void:

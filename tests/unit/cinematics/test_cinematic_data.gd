@@ -344,7 +344,7 @@ func test_add_camera_shake_defaults() -> void:
 	assert_float(cmd.params.intensity).is_equal(6.0)
 	assert_float(cmd.params.duration).is_equal(0.5)
 	assert_float(cmd.params.frequency).is_equal(30.0)
-	assert_bool(cmd.params.wait).is_false()
+	assert_bool(cmd.params.wait).is_true()
 
 
 # =============================================================================

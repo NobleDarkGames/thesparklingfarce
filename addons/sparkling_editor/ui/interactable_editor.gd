@@ -119,9 +119,10 @@ var advanced_section: VBoxContainer
 var advanced_toggle_btn: Button
 var advanced_content: VBoxContainer
 
-var interaction_cinematic_edit: LineEdit
+# Cinematic pickers - using ResourcePicker for mod-aware selection
+var interaction_cinematic_picker: ResourcePicker
 var interaction_warning_label: Label
-var fallback_cinematic_edit: LineEdit
+var fallback_cinematic_picker: ResourcePicker
 var fallback_warning_label: Label
 
 # =============================================================================
@@ -246,8 +247,8 @@ func _add_basic_info_section() -> void:
 	id_row.add_child(interactable_id_edit)
 
 	interactable_id_lock_btn = Button.new()
-	interactable_id_lock_btn.text = "Unlock"
-	interactable_id_lock_btn.tooltip_text = "Lock ID to prevent auto-generation"
+	interactable_id_lock_btn.text = "Lock"
+	interactable_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
 	interactable_id_lock_btn.custom_minimum_size.x = 60
 	interactable_id_lock_btn.pressed.connect(_on_id_lock_toggled)
 	id_row.add_child(interactable_id_lock_btn)
@@ -480,15 +481,17 @@ func _add_advanced_options_section() -> void:
 
 
 func _add_cinematic_section_to(parent: Control) -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Manual Cinematic Assignment", parent)
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Cinematic Assignment", parent)
 
 	var primary_row: HBoxContainer = SparklingEditorUtils.create_field_row("Interaction Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	interaction_cinematic_edit = LineEdit.new()
-	interaction_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	interaction_cinematic_edit.placeholder_text = "cinematic_id"
-	interaction_cinematic_edit.tooltip_text = "Explicit cinematic to play. Use for signs/bookshelves with text, or complex interactions."
-	interaction_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("primary"))
-	primary_row.add_child(interaction_cinematic_edit)
+	interaction_cinematic_picker = ResourcePicker.new()
+	interaction_cinematic_picker.resource_type = "cinematic"
+	interaction_cinematic_picker.allow_none = true
+	interaction_cinematic_picker.none_text = "(None)"
+	interaction_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	interaction_cinematic_picker.tooltip_text = "Explicit cinematic to play. Use for signs/bookshelves with text, or complex interactions."
+	interaction_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("primary"))
+	primary_row.add_child(interaction_cinematic_picker)
 
 	interaction_warning_label = Label.new()
 	interaction_warning_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
@@ -499,12 +502,14 @@ func _add_cinematic_section_to(parent: Control) -> void:
 	SparklingEditorUtils.create_help_label("Leave empty to auto-generate 'Found X!' from rewards. Use for text/complex interactions.", section)
 
 	var fallback_row: HBoxContainer = SparklingEditorUtils.create_field_row("Fallback Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	fallback_cinematic_edit = LineEdit.new()
-	fallback_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fallback_cinematic_edit.placeholder_text = "fallback_cinematic_id"
-	fallback_cinematic_edit.tooltip_text = "Cinematic to play if no conditions match and no primary cinematic set."
-	fallback_cinematic_edit.text_changed.connect(_on_cinematic_field_changed.bind("fallback"))
-	fallback_row.add_child(fallback_cinematic_edit)
+	fallback_cinematic_picker = ResourcePicker.new()
+	fallback_cinematic_picker.resource_type = "cinematic"
+	fallback_cinematic_picker.allow_none = true
+	fallback_cinematic_picker.none_text = "(None)"
+	fallback_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fallback_cinematic_picker.tooltip_text = "Cinematic to play if no conditions match and no primary cinematic set."
+	fallback_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("fallback"))
+	fallback_row.add_child(fallback_cinematic_picker)
 
 	fallback_warning_label = Label.new()
 	fallback_warning_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
@@ -610,9 +615,17 @@ func _load_resource_data() -> void:
 	gold_reward_spin.value = interactable.gold_reward
 	_load_item_rewards(interactable.item_rewards)
 
-	# Interaction (cinematics only - dialog_text removed)
-	interaction_cinematic_edit.text = interactable.interaction_cinematic_id
-	fallback_cinematic_edit.text = interactable.fallback_cinematic_id
+	# Interaction (cinematics via ResourcePicker)
+	if interaction_cinematic_picker:
+		if interactable.interaction_cinematic_id.is_empty():
+			interaction_cinematic_picker.call_deferred("select_none")
+		else:
+			interaction_cinematic_picker.call_deferred("select_by_id", "", interactable.interaction_cinematic_id)
+	if fallback_cinematic_picker:
+		if interactable.fallback_cinematic_id.is_empty():
+			fallback_cinematic_picker.call_deferred("select_none")
+		else:
+			fallback_cinematic_picker.call_deferred("select_by_id", "", interactable.fallback_cinematic_id)
 	_load_conditional_cinematics(interactable.conditional_cinematics)
 
 	# Behavior
@@ -622,8 +635,6 @@ func _load_resource_data() -> void:
 	completion_flag_edit.text = interactable.completion_flag
 
 	_updating_ui = false
-
-	call_deferred("_update_cinematic_warnings")
 
 
 ## Override: Save UI data to resource
@@ -648,9 +659,9 @@ func _save_resource_data() -> void:
 	interactable.gold_reward = int(gold_reward_spin.value)
 	interactable.item_rewards = _collect_item_rewards()
 
-	# Interaction (cinematics only - dialog_text removed)
-	interactable.interaction_cinematic_id = interaction_cinematic_edit.text.strip_edges()
-	interactable.fallback_cinematic_id = fallback_cinematic_edit.text.strip_edges()
+	# Interaction (cinematics from ResourcePickers)
+	interactable.interaction_cinematic_id = interaction_cinematic_picker.get_selected_resource_id() if interaction_cinematic_picker else ""
+	interactable.fallback_cinematic_id = fallback_cinematic_picker.get_selected_resource_id() if fallback_cinematic_picker else ""
 	interactable.conditional_cinematics = _collect_conditional_cinematics()
 
 	# Behavior
@@ -669,25 +680,21 @@ func _validate_resource() -> Dictionary:
 	if res_id.is_empty():
 		errors.append("Interactable ID is required")
 
+	# Get cinematic IDs from pickers (ResourcePicker validates existence via registry)
+	var primary_id: String = interaction_cinematic_picker.get_selected_resource_id() if interaction_cinematic_picker else ""
+	var fallback_id: String = fallback_cinematic_picker.get_selected_resource_id() if fallback_cinematic_picker else ""
+
 	# Check if there's some form of interaction defined
 	var has_rewards: bool = gold_reward_spin.value > 0 or not _item_reward_entries.is_empty()
-	var has_cinematic: bool = not interaction_cinematic_edit.text.strip_edges().is_empty()
-	var has_fallback: bool = not fallback_cinematic_edit.text.strip_edges().is_empty()
+	var has_cinematic: bool = not primary_id.is_empty()
+	var has_fallback: bool = not fallback_id.is_empty()
 	var has_conditional: bool = _has_valid_conditional()
 
 	if not has_rewards and not has_cinematic and not has_fallback and not has_conditional:
 		warnings.append("Interactable has no rewards or cinematic - interaction will do nothing")
 
-	# Check cinematic existence
-	var cinematics_dir: String = _get_active_mod_cinematics_path()
-	var primary_id: String = interaction_cinematic_edit.text.strip_edges()
-	var fallback_id: String = fallback_cinematic_edit.text.strip_edges()
-
-	if not primary_id.is_empty() and not _cinematic_exists(cinematics_dir, primary_id):
-		warnings.append("Interaction cinematic '%s' not found in loaded mods" % primary_id)
-
-	if not fallback_id.is_empty() and not _cinematic_exists(cinematics_dir, fallback_id):
-		warnings.append("Fallback cinematic '%s' not found in loaded mods" % fallback_id)
+	# Note: ResourcePicker only shows valid cinematics from the registry,
+	# so we don't need to validate existence here
 
 	return {valid = errors.is_empty(), errors = errors, warnings = warnings}
 
@@ -917,7 +924,7 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	or_flags_edit.text_changed.connect(_on_field_changed)
 	or_row.add_child(or_flags_edit)
 
-	# Cinematic row
+	# Cinematic picker row
 	var cinematic_row: HBoxContainer = HBoxContainer.new()
 	cinematic_row.add_theme_constant_override("separation", 4)
 	panel_content.add_child(cinematic_row)
@@ -933,14 +940,18 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	arrow.text = "->"
 	cinematic_row.add_child(arrow)
 
-	var cinematic_edit: LineEdit = LineEdit.new()
-	cinematic_edit.placeholder_text = "cinematic_id"
-	cinematic_edit.text = cinematic_id
-	cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_edit.custom_minimum_size.x = 150
-	cinematic_edit.tooltip_text = "The cinematic to play when this condition is met"
-	cinematic_edit.text_changed.connect(_on_field_changed)
-	cinematic_row.add_child(cinematic_edit)
+	var cinematic_picker: ResourcePicker = ResourcePicker.new()
+	cinematic_picker.resource_type = "cinematic"
+	cinematic_picker.allow_none = true
+	cinematic_picker.none_text = "(None)"
+	cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cinematic_picker.tooltip_text = "The cinematic to play when this condition is met"
+	cinematic_picker.resource_selected.connect(_on_conditional_cinematic_changed)
+	cinematic_row.add_child(cinematic_picker)
+
+	# Set initial value if provided (deferred to ensure picker is ready)
+	if not cinematic_id.is_empty():
+		cinematic_picker.call_deferred("select_by_id", "", cinematic_id)
 
 	var remove_btn: Button = Button.new()
 	remove_btn.text = "X"
@@ -955,7 +966,7 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 		"and_flags_edit": and_flags_edit,
 		"or_flags_edit": or_flags_edit,
 		"negate_check": negate_check,
-		"cinematic_edit": cinematic_edit
+		"cinematic_picker": cinematic_picker
 	})
 
 
@@ -977,21 +988,19 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
 		var negate_val: Variant = entry.get("negate_check")
 		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
-		var cine_val: Variant = entry.get("cinematic_edit")
-		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
+		var picker_val: Variant = entry.get("cinematic_picker")
+		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
-		if not cinematic_edit:
-			continue
-
-		var cine_text: String = cinematic_edit.text.strip_edges()
+		# Get cinematic ID from picker
+		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
 
 		var and_flags: Array[String] = _parse_flag_list(and_flags_edit.text if and_flags_edit else "")
 		var or_flags: Array[String] = _parse_flag_list(or_flags_edit.text if or_flags_edit else "")
 
-		if and_flags.is_empty() and or_flags.is_empty() and cine_text.is_empty():
+		if and_flags.is_empty() and or_flags.is_empty() and cine_id.is_empty():
 			continue
 
-		var cond_dict: Dictionary = {"cinematic_id": cine_text}
+		var cond_dict: Dictionary = {"cinematic_id": cine_id}
 
 		if not and_flags.is_empty():
 			cond_dict["flags"] = and_flags
@@ -1011,14 +1020,12 @@ func _has_valid_conditional() -> bool:
 		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
 		var or_val: Variant = entry.get("or_flags_edit")
 		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var cine_val: Variant = entry.get("cinematic_edit")
-		var cinematic_edit: LineEdit = cine_val if cine_val is LineEdit else null
+		var picker_val: Variant = entry.get("cinematic_picker")
+		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
-		if not cinematic_edit:
-			continue
-
-		var cine_text: String = cinematic_edit.text.strip_edges()
-		if cine_text.is_empty():
+		# Get cinematic ID from picker
+		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+		if cine_id.is_empty():
 			continue
 
 		var has_and_flags: bool = and_flags_edit and not and_flags_edit.text.strip_edges().is_empty()
@@ -1100,8 +1107,8 @@ func _on_id_lock_toggled() -> void:
 
 
 func _update_lock_button() -> void:
-	interactable_id_lock_btn.text = "Lock" if _id_is_locked else "Unlock"
-	interactable_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Lock ID to prevent auto-generation"
+	interactable_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
+	interactable_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
 
 
 func _on_type_changed(_index: int) -> void:
@@ -1128,31 +1135,24 @@ func _on_advanced_toggle() -> void:
 	advanced_toggle_btn.text = "Advanced Options (expanded)" if advanced_content.visible else "Advanced Options"
 
 
-func _on_cinematic_field_changed(text: String, field_type: String) -> void:
+## Called when primary or fallback cinematic picker selection changes
+func _on_cinematic_picker_changed(_metadata: Dictionary, _field_type: String) -> void:
+	if _updating_ui:
+		return
+	# ResourcePicker only shows valid cinematics, so no validation warnings needed
+	# Hide any legacy warnings
+	if interaction_warning_label:
+		interaction_warning_label.visible = false
+	if fallback_warning_label:
+		fallback_warning_label.visible = false
+	_mark_dirty()
+
+
+## Called when a conditional cinematic picker selection changes
+func _on_conditional_cinematic_changed(_metadata: Dictionary) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()
-	_validate_cinematic_field(text.strip_edges(), field_type)
-
-
-func _validate_cinematic_field(cinematic_id: String, field_type: String) -> void:
-	var warning_label: Label = interaction_warning_label if field_type == "primary" else fallback_warning_label if field_type == "fallback" else null
-	if not warning_label:
-		return
-	if cinematic_id.is_empty():
-		warning_label.visible = false
-		return
-	var cinematics_dir: String = _get_active_mod_cinematics_path()
-	if _cinematic_exists(cinematics_dir, cinematic_id):
-		warning_label.visible = false
-	else:
-		warning_label.text = "Cinematic '%s' not found in any loaded mod" % cinematic_id
-		warning_label.visible = true
-
-
-func _update_cinematic_warnings() -> void:
-	_validate_cinematic_field(interaction_cinematic_edit.text.strip_edges() if interaction_cinematic_edit else "", "primary")
-	_validate_cinematic_field(fallback_cinematic_edit.text.strip_edges() if fallback_cinematic_edit else "", "fallback")
 
 
 func _on_field_changed(_value: Variant = null) -> void:
@@ -1392,31 +1392,6 @@ func _parse_flag_list(text: String) -> Array[String]:
 			flags.append(trimmed)
 
 	return flags
-
-
-func _get_active_mod_cinematics_path() -> String:
-	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
-	if mod_path.is_empty():
-		return ""
-	return mod_path.path_join("data/cinematics/")
-
-
-func _cinematic_exists(cinematics_dir: String, cinematic_id: String) -> bool:
-	if cinematic_id.is_empty():
-		return false
-
-	# Check active mod first
-	var local_path: String = cinematics_dir.path_join(cinematic_id + ".tres")
-	if FileAccess.file_exists(local_path):
-		return true
-
-	# Check all loaded mods via registry
-	if ModLoader and ModLoader.registry:
-		var cinematic: CinematicData = ModLoader.registry.get_cinematic(cinematic_id)
-		if cinematic:
-			return true
-
-	return false
 
 
 func _get_default_asset_path(asset_type: String) -> String:

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_opportunistic_targeting"]
+
+[ext_resource type="Script" path="res://tests/integration/ai/test_opportunistic_targeting.gd" id="1_test"]
+
+[node name="TestOpportunisticTargeting" type="Node2D"]
+script = ExtResource("1_test")

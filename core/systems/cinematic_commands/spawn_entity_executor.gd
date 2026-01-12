@@ -102,6 +102,44 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	cinematic_actor.sprite_node = sprite_node
 	entity.add_child(cinematic_actor)
 
+	# Set character_uid and cache display data based on entity_type
+	var entity_ref: String = ""
+	var display_name: String = ""
+	var portrait: Texture2D = null
+
+	if entity_type == "character" and not entity_id.is_empty():
+		var char_data: CharacterData = ModLoader.registry.get_character(entity_id) as CharacterData
+		if char_data:
+			if "character_uid" in char_data:
+				cinematic_actor.character_uid = str(char_data.get("character_uid"))
+				entity_ref = cinematic_actor.character_uid
+			else:
+				cinematic_actor.character_uid = entity_id
+				entity_ref = entity_id
+			display_name = char_data.character_name if char_data.character_name else entity_id
+			portrait = char_data.portrait
+		else:
+			cinematic_actor.character_uid = entity_id
+			entity_ref = entity_id
+	elif entity_type == "npc" and not entity_id.is_empty():
+		# For NPCs, use the "npc:" prefix format that matches what dialog_line stores
+		cinematic_actor.character_uid = "npc:" + entity_id
+		entity_ref = cinematic_actor.character_uid
+		var npc_data: NPCData = ModLoader.registry.get_npc(entity_id) as NPCData
+		if npc_data:
+			display_name = npc_data.get_display_name()
+			portrait = npc_data.get_portrait()
+	elif entity_type == "interactable" and not entity_id.is_empty():
+		cinematic_actor.character_uid = entity_id
+		entity_ref = entity_id
+		var interactable_data: InteractableData = ModLoader.registry.get_interactable(entity_id) as InteractableData
+		if interactable_data:
+			display_name = interactable_data.interactable_name if interactable_data.interactable_name else entity_id
+
+	# Cache display data for dialog_line lookups
+	if not entity_ref.is_empty():
+		CinematicsManager._cache_actor_display_data(actor_id, entity_ref, display_name, portrait, false)
+
 	# Add to scene tree (use cinematic stage if available, otherwise current scene)
 	var actor_parent: Node = CinematicsManager._find_actor_parent() if CinematicsManager else null
 	if actor_parent:
