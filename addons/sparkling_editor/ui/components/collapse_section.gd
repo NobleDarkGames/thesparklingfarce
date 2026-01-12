@@ -70,6 +70,12 @@ func _ready() -> void:
 		_update_content_visibility()
 
 
+func _exit_tree() -> void:
+	# Clean up signal connections from dynamically created controls
+	if _header_button and _header_button.pressed.is_connected(_on_header_pressed):
+		_header_button.pressed.disconnect(_on_header_pressed)
+
+
 func _setup_ui() -> void:
 	# Create header button (clickable area)
 	_header_button = Button.new()

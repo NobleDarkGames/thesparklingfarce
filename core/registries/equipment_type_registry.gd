@@ -53,11 +53,6 @@ var _categories: Dictionary = {}
 ## Reverse index: {category_id: Array[String] of subtype_ids}
 var _subtypes_by_category: Dictionary = {}
 
-## Cached sorted arrays for editor methods
-var _cached_categories: Array[String] = []
-var _cached_subtypes: Array[String] = []
-var _cache_dirty: bool = true
-
 ## Whether defaults have been initialized
 var _defaults_initialized: bool = false
 
@@ -99,7 +94,6 @@ func init_defaults() -> void:
 	_subtypes["ring"] = {"id": "ring", "category": "accessory", "display_name": "Ring", "source_mod": "_core"}
 
 	_rebuild_reverse_index()
-	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -135,7 +129,6 @@ func register_from_config(mod_id: String, config: Dictionary) -> void:
 				_register_subtype(mod_id, subtype_id, subtype_data)
 
 	_rebuild_reverse_index()
-	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -268,16 +261,22 @@ func get_subtypes_for_category(category: String) -> Array[String]:
 	return []
 
 
-## Get all registered categories (cached for editor performance)
+## Get all registered categories
 func get_all_categories() -> Array[String]:
-	_rebuild_cache_if_dirty()
-	return _cached_categories.duplicate()
+	var result: Array[String] = []
+	for cat_id: String in _categories.keys():
+		result.append(cat_id)
+	result.sort()
+	return result
 
 
-## Get all registered subtypes (cached for editor performance)
+## Get all registered subtypes
 func get_all_subtypes() -> Array[String]:
-	_rebuild_cache_if_dirty()
-	return _cached_subtypes.duplicate()
+	var result: Array[String] = []
+	for subtype_id: String in _subtypes.keys():
+		result.append(subtype_id)
+	result.sort()
+	return result
 
 
 ## Get display name for a subtype
@@ -373,7 +372,6 @@ func unregister_mod(mod_id: String) -> void:
 	
 	if changed:
 		_rebuild_reverse_index()
-		_cache_dirty = true
 		registrations_changed.emit()
 
 
@@ -383,7 +381,6 @@ func clear_mod_registrations() -> void:
 	_subtypes.clear()
 	_categories.clear()
 	_subtypes_by_category.clear()
-	_cache_dirty = true
 	_defaults_initialized = false
 	init_defaults()  # Re-apply defaults so mods can override
 
@@ -445,21 +442,3 @@ func _rebuild_reverse_index() -> void:
 			_subtypes_by_category[category] = []
 		var cat_list: Array = _subtypes_by_category[category]
 		cat_list.append(subtype_id)
-
-
-## Rebuild cached sorted arrays if dirty
-func _rebuild_cache_if_dirty() -> void:
-	if not _cache_dirty:
-		return
-	
-	_cached_categories.clear()
-	for cat_id: String in _categories.keys():
-		_cached_categories.append(cat_id)
-	_cached_categories.sort()
-	
-	_cached_subtypes.clear()
-	for subtype_id: String in _subtypes.keys():
-		_cached_subtypes.append(subtype_id)
-	_cached_subtypes.sort()
-	
-	_cache_dirty = false

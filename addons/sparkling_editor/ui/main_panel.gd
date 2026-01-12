@@ -45,6 +45,29 @@ func _ready() -> void:
 	pass
 
 
+func _exit_tree() -> void:
+	# Clean up signal connections to prevent memory leaks
+	# Note: Most signals connect to child nodes that will be freed anyway,
+	# but explicit cleanup is good practice and prevents warnings
+
+	# Clean up mod selector signals
+	if is_instance_valid(mod_selector) and mod_selector.item_selected.is_connected(_on_mod_selected):
+		mod_selector.item_selected.disconnect(_on_mod_selected)
+
+	# Clean up wizard dialog signals
+	if is_instance_valid(create_mod_dialog) and create_mod_dialog.confirmed.is_connected(_on_create_mod_confirmed):
+		create_mod_dialog.confirmed.disconnect(_on_create_mod_confirmed)
+
+	if is_instance_valid(wizard_mod_id_edit) and wizard_mod_id_edit.text_changed.is_connected(_on_wizard_mod_id_changed):
+		wizard_mod_id_edit.text_changed.disconnect(_on_wizard_mod_id_changed)
+
+	# Clean up category button signals
+	for category: String in category_buttons.keys():
+		var button: Button = category_buttons[category]
+		if is_instance_valid(button) and button.pressed.is_connected(_on_category_button_pressed):
+			button.pressed.disconnect(_on_category_button_pressed.bind(category))
+
+
 func _setup_ui() -> void:
 	# Get the TabContainer from the scene
 	tab_container = get_node("TabContainer")

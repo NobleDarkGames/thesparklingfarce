@@ -56,9 +56,7 @@ var uncurse_cost_spin: SpinBox
 var crafter_section: VBoxContainer
 var crafter_picker: ResourcePicker
 
-# Cached data
-var _items_cache: Array[Resource] = []
-var _npcs_cache: Array[Resource] = []
+# Current form state (not caches - these track user edits)
 var _current_inventory: Array[Dictionary] = []
 var _current_deals: Array[String] = []
 
@@ -73,8 +71,6 @@ func _ready() -> void:
 
 ## Override: Create the shop-specific detail form
 func _create_detail_form() -> void:
-	_refresh_caches()
-
 	_add_basic_info_section()
 	_add_inventory_section()
 	_add_deals_section()
@@ -579,13 +575,19 @@ func _on_remove_deal_item() -> void:
 
 
 var _adding_to_deals: bool = false
+var _picker_items: Array[Resource] = []  # Temporary for popup selection
 
 func _show_item_picker(for_deals: bool) -> void:
 	_adding_to_deals = for_deals
 	item_picker_popup.clear()
+	_picker_items.clear()
 
-	for i in range(_items_cache.size()):
-		var item: ItemData = _items_cache[i] as ItemData
+	# Query registry fresh each time
+	if ModLoader and ModLoader.registry:
+		_picker_items = ModLoader.registry.get_all_resources("item")
+
+	for i: int in range(_picker_items.size()):
+		var item: ItemData = _picker_items[i] as ItemData
 		if item:
 			var label: String = "%s (%dG)" % [item.item_name, item.buy_price]
 			item_picker_popup.add_item(label, i)
@@ -598,10 +600,10 @@ func _show_item_picker(for_deals: bool) -> void:
 
 
 func _on_item_picker_selected(id: int) -> void:
-	if id < 0 or id >= _items_cache.size():
+	if id < 0 or id >= _picker_items.size():
 		return
 
-	var item: ItemData = _items_cache[id] as ItemData
+	var item: ItemData = _picker_items[id] as ItemData
 	if not item:
 		return
 
@@ -634,19 +636,12 @@ func _on_item_picker_selected(id: int) -> void:
 # HELPERS
 # =============================================================================
 
-func _refresh_caches() -> void:
-	_items_cache.clear()
-	_npcs_cache.clear()
-
-	if ModLoader and ModLoader.registry:
-		_items_cache = ModLoader.registry.get_all_resources("item")
-		_npcs_cache = ModLoader.registry.get_all_resources("npc")
-
-
 ## Override: Called when dependent resource types change (via base class)
-## Refreshes caches when items are created/saved/deleted in other tabs
+## No local cache to refresh - registry is queried directly when needed
 func _on_dependencies_changed(_changed_type: String) -> void:
-	_refresh_caches()
+	# Refresh UI lists to reflect any item changes
+	_refresh_inventory_list()
+	_refresh_deals_list()
 
 
 func _refresh_inventory_list() -> void:
@@ -674,11 +669,11 @@ func _refresh_deals_list() -> void:
 
 
 func _get_item_name(item_id: String) -> String:
-	for item_data: ItemData in _items_cache:
-		if item_data:
-			var res_id: String = _get_item_id(item_data)
-			if res_id == item_id:
-				return item_data.item_name
+	# Query registry directly for item name
+	if ModLoader and ModLoader.registry:
+		var item: ItemData = ModLoader.registry.get_item(item_id)
+		if item:
+			return item.item_name
 	return item_id  # Fallback to ID
 
 
@@ -690,11 +685,9 @@ func _get_item_id(item: ItemData) -> String:
 
 
 func _item_exists(item_id: String) -> bool:
-	for item_data: ItemData in _items_cache:
-		if item_data:
-			var res_id: String = _get_item_id(item_data)
-			if res_id == item_id:
-				return true
+	# Query registry directly
+	if ModLoader and ModLoader.registry:
+		return ModLoader.registry.has_resource("item", item_id)
 	return false
 
 
@@ -708,9 +701,10 @@ func _parse_flags(text: String) -> Array[String]:
 	return flags
 
 
-## Override refresh to also refresh caches
+## Override refresh - no local cache, but refresh ResourcePickers
 func refresh() -> void:
-	_refresh_caches()
+	if crafter_picker:
+		crafter_picker.refresh()
 	super.refresh()
 
 

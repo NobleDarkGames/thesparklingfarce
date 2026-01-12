@@ -246,6 +246,7 @@ func _save_resource_data() -> void:
 
 
 ## Override: Validate resource before saving
+## Reads from UI state (not resource) since validation runs before _save_resource_data()
 func _validate_resource() -> Dictionary:
 	var dialogue: DialogueData = current_resource as DialogueData
 	if not dialogue:
@@ -253,16 +254,20 @@ func _validate_resource() -> Dictionary:
 
 	var errors: Array[String] = []
 
-	if dialogue.dialogue_id.strip_edges().is_empty():
+	# Validate dialogue ID from UI
+	var dialogue_id: String = dialogue_id_edit.text.strip_edges() if dialogue_id_edit else ""
+	if dialogue_id.is_empty():
 		errors.append("Dialogue ID cannot be empty")
 
-	if dialogue.lines.is_empty():
+	# Validate lines from UI state
+	if lines_list.is_empty():
 		errors.append("Dialogue must have at least one line")
 
-	# Validate each line has text
-	for i in range(dialogue.lines.size()):
-		var line: Dictionary = dialogue.lines[i]
-		if not "text" in line or line["text"].strip_edges().is_empty():
+	# Validate each line has text (from UI)
+	for i in range(lines_list.size()):
+		var line_ui: Dictionary = lines_list[i]
+		var text_edit: TextEdit = line_ui.get("text_edit") as TextEdit
+		if text_edit and text_edit.text.strip_edges().is_empty():
 			errors.append("Line " + str(i + 1) + " must have text")
 
 	return {valid = errors.is_empty(), errors = errors}

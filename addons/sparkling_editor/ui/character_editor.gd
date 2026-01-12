@@ -68,11 +68,13 @@ var unique_abilities_container: VBoxContainer
 var unique_abilities_add_button: Button
 var _current_unique_abilities: Array[Dictionary] = []
 
-var available_ai_behaviors: Array[AIBehaviorData] = []
 var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 
 # Filter buttons (will be created by _setup_filter_buttons)
 var filter_buttons: Dictionary = {}  # {category: Button}
+
+# Flag to prevent signal feedback loops during UI updates
+var _updating_ui: bool = false
 
 
 func _ready() -> void:
@@ -98,6 +100,37 @@ func _refresh_list() -> void:
 	_apply_filter()
 
 	# Note: class_picker auto-refreshes via EditorEventBus mods_reloaded signal
+
+
+## Override: Handle dependency resource changes (class or ability saved/modified)
+## This invalidates stale references when a class is edited and saved
+func _on_dependencies_changed(changed_type: String) -> void:
+	var character: CharacterData = current_resource as CharacterData
+	if not character:
+		return
+
+	if changed_type == "class" and character.character_class:
+		# Get the class path from the current (possibly stale) reference
+		var class_path: String = character.character_class.resource_path
+		if class_path.is_empty():
+			return
+
+		# Force reload the class from disk, replacing cached version
+		var fresh_class: ClassData = ResourceLoader.load(
+			class_path, "", ResourceLoader.CACHE_MODE_REPLACE
+		) as ClassData
+		if fresh_class:
+			character.character_class = fresh_class
+			# Update the picker to reflect the change
+			if class_picker:
+				class_picker.select_resource(fresh_class)
+			print("CharacterEditor: Refreshed class reference for '%s' -> '%s'" % [
+				character.character_name, fresh_class.display_name
+			])
+
+	elif changed_type == "ability":
+		# Refresh unique abilities display in case ability names/properties changed
+		_load_unique_abilities_from_character(character)
 
 
 ## Override: Create the character-specific detail form
@@ -136,6 +169,8 @@ func _load_resource_data() -> void:
 	if not character:
 		return
 
+	_updating_ui = true
+
 	name_edit.text = character.character_name
 	uid_edit.text = character.character_uid
 	level_spin.value = character.starting_level
@@ -158,12 +193,17 @@ func _load_resource_data() -> void:
 	is_boss_check.button_pressed = character.is_boss
 	is_default_party_member_check.button_pressed = character.is_default_party_member
 
-	# Set default AI behavior
+	# Set default AI behavior - search dropdown by metadata
 	if character.default_ai_behavior:
-		for i: int in range(available_ai_behaviors.size()):
-			if available_ai_behaviors[i].resource_path == character.default_ai_behavior.resource_path:
-				default_ai_option.select(i + 1)
+		var found: bool = false
+		for i: int in range(default_ai_option.item_count):
+			var metadata: Variant = default_ai_option.get_item_metadata(i)
+			if metadata is AIBehaviorData and metadata.resource_path == character.default_ai_behavior.resource_path:
+				default_ai_option.select(i)
+				found = true
 				break
+		if not found:
+			default_ai_option.select(0)  # (None)
 	else:
 		default_ai_option.select(0)  # (None)
 
@@ -197,6 +237,8 @@ func _load_resource_data() -> void:
 	# Load AI threat configuration
 	_load_ai_threat_configuration(character)
 
+	_updating_ui = false
+
 
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
@@ -219,10 +261,11 @@ func _save_resource_data() -> void:
 	character.is_boss = is_boss_check.button_pressed
 	character.is_default_party_member = is_default_party_member_check.button_pressed
 
-	# Update default AI behavior
-	var ai_index: int = default_ai_option.selected - 1
-	if ai_index >= 0 and ai_index < available_ai_behaviors.size():
-		character.default_ai_behavior = available_ai_behaviors[ai_index]
+	# Update default AI behavior - get from dropdown metadata
+	var ai_selected: int = default_ai_option.selected
+	if ai_selected > 0:
+		var metadata: Variant = default_ai_option.get_item_metadata(ai_selected)
+		character.default_ai_behavior = metadata as AIBehaviorData
 	else:
 		character.default_ai_behavior = null
 
@@ -711,12 +754,16 @@ func _add_ai_threat_configuration_section() -> void:
 
 func _on_threat_modifier_changed(value: float) -> void:
 	ai_threat_modifier_value_label.text = "%.1f" % value
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_threat_modifier_preset(value: float) -> void:
 	ai_threat_modifier_slider.value = value
 	ai_threat_modifier_value_label.text = "%.1f" % value
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -818,19 +865,20 @@ func _create_stat_editor(label_text: String, parent: VBoxContainer, tooltip: Str
 
 
 func _load_available_ai_behaviors() -> void:
-	available_ai_behaviors.clear()
 	default_ai_option.clear()
 	default_ai_option.add_item("(None)", 0)
 
-	# Use ModLoader registry for ai_behavior resources (same as Battle Editor)
+	# Query registry fresh each time - no local cache
 	if ModLoader and ModLoader.registry:
 		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
+		var index: int = 0
 		for resource: Resource in behaviors:
 			var ai_behavior: AIBehaviorData = resource as AIBehaviorData
 			if ai_behavior:
-				available_ai_behaviors.append(ai_behavior)
 				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else ai_behavior.behavior_id.capitalize()
-				default_ai_option.add_item(display_name, available_ai_behaviors.size())
+				default_ai_option.add_item(display_name, index)
+				default_ai_option.set_item_metadata(index + 1, ai_behavior)
+				index += 1
 
 
 func _setup_filter_buttons() -> void:
@@ -1353,11 +1401,15 @@ func _generate_sprite_frames_path(character: CharacterData) -> String:
 
 ## Called when any basic form field changes to mark the editor as dirty
 func _on_basic_field_changed(_value: Variant = null) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 ## Called when the class picker selection changes
 func _on_class_picker_selected(_metadata: Dictionary) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -1377,22 +1429,32 @@ func _on_uid_copy_pressed() -> void:
 # =============================================================================
 
 func _on_portrait_selected(_path: String, _texture: Texture2D) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_portrait_cleared() -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_spritesheet_selected(_path: String, _texture: Texture2D) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_spritesheet_cleared() -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_sprite_frames_generated(sprite_frames: SpriteFrames) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	if sprite_frames:
 		_show_success_message("SpriteFrames generated successfully")

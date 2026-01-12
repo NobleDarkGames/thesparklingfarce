@@ -67,6 +67,9 @@ var preview_label: RichTextLabel
 # =============================================================================
 var _threat_weight_rows: Array[HBoxContainer] = []
 
+# Guard to prevent false dirty state during UI population
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_id = "ai_behavior"
@@ -96,6 +99,8 @@ func _load_resource_data() -> void:
 	var behavior: AIBehaviorData = current_resource as AIBehaviorData
 	if not behavior:
 		return
+
+	_updating_ui = true
 
 	# Identity
 	behavior_id_edit.text = behavior.behavior_id
@@ -136,6 +141,8 @@ func _load_resource_data() -> void:
 
 	# Update preview
 	_update_preview()
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -773,11 +780,15 @@ func _on_remove_threat_weight(row: HBoxContainer) -> void:
 
 
 func _on_threat_weight_changed(_new_text: String) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 
 
 func _on_threat_weight_value_changed(_new_value: float) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 
@@ -787,26 +798,36 @@ func _on_threat_weight_value_changed(_new_value: float) -> void:
 # =============================================================================
 
 func _on_field_changed(_new_text: String = "") -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 
 
 func _on_checkbox_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 
 
 func _on_spin_changed(_new_value: float) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 
 
 func _on_role_selected(_index: int) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 
 
 func _on_mode_selected(_index: int) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 	_update_preview()
 

@@ -63,8 +63,10 @@ var item_rewards_section: CollapseSection
 var item_rewards_container: VBoxContainer
 var item_rewards_list: Array[Dictionary] = []  # Track item reward UI elements
 
-# AI Behavior tracking
-var available_ai_behaviors: Array[AIBehaviorData] = []  # Track loaded AI behavior resources
+# AI Behavior - no local cache, query registry directly
+
+# Flag to prevent signal feedback loops during UI updates
+var _updating_ui: bool = false
 
 
 func _ready() -> void:
@@ -82,11 +84,9 @@ func _ready() -> void:
 
 
 ## Called when a dependent resource type changes
-func _on_dependencies_changed(changed_type: String) -> void:
-	if changed_type == "ai_behavior":
-		# Clear and reload AI behaviors cache so dropdowns show new behaviors
-		available_ai_behaviors.clear()
-		_load_available_ai_behaviors()
+func _on_dependencies_changed(_changed_type: String) -> void:
+	# No local cache to clear - dropdowns query registry directly when populated
+	pass
 
 
 ## Override: Create the battle-specific detail form
@@ -612,34 +612,21 @@ func _on_neutral_position_changed(_value: float, _index: int) -> void:
 	pass
 
 
-## Load available AI behaviors from the registry
-func _load_available_ai_behaviors() -> void:
-	available_ai_behaviors.clear()
-
-	# Use ModLoader registry to get all ai_behavior resources
-	if ModLoader and ModLoader.registry:
-		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
-		for ai_behavior: AIBehaviorData in behaviors:
-			if ai_behavior:
-				available_ai_behaviors.append(ai_behavior)
-
-
-## Update AI dropdown with available AI behaviors
+## Update AI dropdown with available AI behaviors - queries registry directly
 func _update_ai_dropdown(option: OptionButton) -> void:
 	option.clear()
 	option.add_item("(None)", -1)
 
-	# Load AI behaviors if not already loaded
-	if available_ai_behaviors.is_empty():
-		_load_available_ai_behaviors()
-
-	# Populate dropdown using behavior display names
-	var index: int = 0
-	for ai_behavior: AIBehaviorData in available_ai_behaviors:
-		var display_name: String = ai_behavior.display_name if ai_behavior.display_name else ai_behavior.resource_path.get_file().get_basename().capitalize()
-		option.add_item(display_name, index)
-		option.set_item_metadata(index + 1, ai_behavior)
-		index += 1
+	# Query registry fresh each time - no local cache
+	if ModLoader and ModLoader.registry:
+		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
+		var index: int = 0
+		for ai_behavior: AIBehaviorData in behaviors:
+			if ai_behavior:
+				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else ai_behavior.resource_path.get_file().get_basename().capitalize()
+				option.add_item(display_name, index)
+				option.set_item_metadata(index + 1, ai_behavior)
+				index += 1
 
 
 ## Select an AI behavior in the dropdown
@@ -845,6 +832,8 @@ func _load_resource_data() -> void:
 	if not battle:
 		return
 
+	_updating_ui = true
+
 	# Basic info
 	battle_name_edit.text = battle.battle_name
 	battle_description_edit.text = battle.battle_description
@@ -931,6 +920,8 @@ func _load_resource_data() -> void:
 	# Load item rewards (convert from ItemData array to our UI format)
 	_clear_item_rewards_ui()
 	_load_item_rewards_from_array(battle.item_rewards)
+
+	_updating_ui = false
 
 
 ## Clear enemies UI
@@ -1160,73 +1151,88 @@ func _save_resource_data() -> void:
 
 
 ## Override: Validate resource before saving
+## Reads directly from UI state - does NOT call _save_resource_data() first
 func _validate_resource() -> Dictionary:
 	var battle: BattleData = current_resource as BattleData
 	if not battle:
 		return {"valid": false, "errors": ["Invalid resource type"]}
 
-	# Save first to get current UI values
-	_save_resource_data()
-
-	# Collect validation errors instead of just checking boolean
-	var errors: Array[String] = _collect_battle_validation_errors(battle)
+	# Collect validation errors from UI state directly
+	var errors: Array[String] = _collect_battle_validation_errors_from_ui()
 	if not errors.is_empty():
 		return {"valid": false, "errors": errors}
 
 	return {"valid": true, "errors": []}
 
 
-## Collect actual validation error messages from BattleData
-## This duplicates BattleData.validate() logic but returns actual error strings
-func _collect_battle_validation_errors(battle: BattleData) -> Array[String]:
+## Collect validation error messages by reading directly from UI controls
+## This validates UI state before _save_resource_data() is called
+func _collect_battle_validation_errors_from_ui() -> Array[String]:
 	var errors: Array[String] = []
 
-	# Basic validation
-	if battle.battle_name.is_empty():
+	# Basic validation - read from UI controls
+	var ui_battle_name: String = battle_name_edit.text.strip_edges() if battle_name_edit else ""
+	if ui_battle_name.is_empty():
 		errors.append("Battle name is required")
-	if battle.map_scene == null:
+
+	# Map scene validation - check UI dropdown
+	var map_index: int = map_scene_option.selected if map_scene_option else -1
+	if map_index <= 0:
 		errors.append("Map scene is required")
 
-	# Enemy validation
-	for i: int in range(battle.enemies.size()):
-		var enemy: Dictionary = battle.enemies[i]
-		if not 'character' in enemy or enemy.character == null:
+	# Enemy validation - read from enemies_list UI elements
+	for i: int in range(enemies_list.size()):
+		var enemy_ui: Dictionary = enemies_list[i]
+		var character: CharacterData = enemy_ui.character_picker.get_selected_resource() as CharacterData
+		if character == null:
 			errors.append("Enemy %d: Missing character" % (i + 1))
-		if not 'position' in enemy:
-			errors.append("Enemy %d: Missing position" % (i + 1))
-		if not 'ai_behavior' in enemy or enemy.ai_behavior == null:
+		# Position is always present in UI (spinboxes have defaults)
+		var ai_index: int = enemy_ui.ai_option.selected
+		if ai_index <= 0:
 			errors.append("Enemy %d: Missing AI behavior" % (i + 1))
 
-	# Neutral validation
-	for i: int in range(battle.neutrals.size()):
-		var neutral: Dictionary = battle.neutrals[i]
-		if not 'character' in neutral or neutral.character == null:
+	# Neutral validation - read from neutrals_list UI elements
+	for i: int in range(neutrals_list.size()):
+		var neutral_ui: Dictionary = neutrals_list[i]
+		var character: CharacterData = neutral_ui.character_picker.get_selected_resource() as CharacterData
+		if character == null:
 			errors.append("Neutral %d: Missing character" % (i + 1))
-		if not 'position' in neutral:
-			errors.append("Neutral %d: Missing position" % (i + 1))
-		if not 'ai_behavior' in neutral or neutral.ai_behavior == null:
+		# Position is always present in UI (spinboxes have defaults)
+		var ai_index: int = neutral_ui.ai_option.selected
+		if ai_index <= 0:
 			errors.append("Neutral %d: Missing AI behavior" % (i + 1))
 
-	# Victory condition validation
-	match battle.victory_condition:
+	# Victory condition validation - read from UI
+	var victory_condition: BattleData.VictoryCondition = victory_condition_option.get_item_id(victory_condition_option.selected)
+	var enemy_count: int = enemies_list.size()
+	var neutral_count: int = neutrals_list.size()
+
+	match victory_condition:
 		BattleData.VictoryCondition.DEFEAT_BOSS:
-			if battle.victory_boss_index < 0 or battle.victory_boss_index >= battle.enemies.size():
-				errors.append("Victory condition: Invalid boss index %d (have %d enemies)" % [battle.victory_boss_index, battle.enemies.size()])
+			var boss_index: int = int(victory_boss_index_spin.value) if victory_boss_index_spin else -1
+			if boss_index < 0 or boss_index >= enemy_count:
+				errors.append("Victory condition: Invalid boss index %d (have %d enemies)" % [boss_index, enemy_count])
 		BattleData.VictoryCondition.SURVIVE_TURNS:
-			if battle.victory_turn_count <= 0:
+			var turn_count: int = int(victory_turn_count_spin.value) if victory_turn_count_spin else 0
+			if turn_count <= 0:
 				errors.append("Victory condition: Turn count must be greater than 0")
 		BattleData.VictoryCondition.PROTECT_UNIT:
-			if battle.victory_protect_index < 0 or battle.victory_protect_index >= battle.neutrals.size():
-				errors.append("Victory condition: Invalid protect unit index %d (have %d neutrals)" % [battle.victory_protect_index, battle.neutrals.size()])
+			var protect_index: int = int(victory_protect_index_spin.value) if victory_protect_index_spin else -1
+			if protect_index < 0 or protect_index >= neutral_count:
+				errors.append("Victory condition: Invalid protect unit index %d (have %d neutrals)" % [protect_index, neutral_count])
 
-	# Defeat condition validation
-	match battle.defeat_condition:
+	# Defeat condition validation - read from UI
+	var defeat_condition: BattleData.DefeatCondition = defeat_condition_option.get_item_id(defeat_condition_option.selected)
+
+	match defeat_condition:
 		BattleData.DefeatCondition.TURN_LIMIT:
-			if battle.defeat_turn_limit <= 0:
+			var turn_limit: int = int(defeat_turn_limit_spin.value) if defeat_turn_limit_spin else 0
+			if turn_limit <= 0:
 				errors.append("Defeat condition: Turn limit must be greater than 0")
 		BattleData.DefeatCondition.UNIT_DIES:
-			if battle.defeat_protect_index < 0 or battle.defeat_protect_index >= battle.neutrals.size():
-				errors.append("Defeat condition: Invalid protect unit index %d (have %d neutrals)" % [battle.defeat_protect_index, battle.neutrals.size()])
+			var protect_index: int = int(defeat_protect_index_spin.value) if defeat_protect_index_spin else -1
+			if protect_index < 0 or protect_index >= neutral_count:
+				errors.append("Defeat condition: Invalid protect unit index %d (have %d neutrals)" % [protect_index, neutral_count])
 
 	return errors
 

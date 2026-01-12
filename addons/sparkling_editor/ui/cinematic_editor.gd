@@ -81,19 +81,12 @@ var _id_is_locked: bool = false
 var _unsaved_changes_dialog: ConfirmationDialog
 var _pending_cinematic_index: int = -1
 
-# Character, NPC, Shop, Map, Battle, and Interactable caches for pickers
-var _characters: Array[Resource] = []
-var _npcs: Array[Resource] = []
-var _shops: Array[Resource] = []
-var _maps: Array[Resource] = []
-var _interactables: Array[Resource] = []
-var _battles: Array[Resource] = []
+# No local resource caches - query registry directly via widget context
 
 
 func _ready() -> void:
 	resource_type_name = "Cinematic"
 	resource_dir_name = "cinematics"
-	_refresh_characters()
 	_setup_ui()
 	_refresh_cinematic_list()
 
@@ -123,93 +116,39 @@ func _exit_tree() -> void:
 
 ## Called when mods are reloaded via Refresh Mods button
 func _on_mods_reloaded() -> void:
-	_refresh_characters()
+	_invalidate_widget_context()
 	_refresh_cinematic_list()
+	if actor_entity_picker:
+		_populate_actor_entity_picker()
 
 
 ## Called when any resource is saved or created
 func _on_resource_changed(resource_type: String, _resource_id: String, _resource: Resource) -> void:
-	# Refresh characters/NPCs if either was modified
-	if resource_type in ["character", "characters", "npc", "npcs"]:
-		_refresh_characters()
-	# Refresh maps and rebuild inspector to update map dropdowns
-	elif resource_type == "map":
-		_refresh_characters()  # This already refreshes _maps cache
-		# Rebuild inspector if a command is selected (to refresh map dropdown)
+	# Invalidate widget context so it queries registry fresh
+	if resource_type in ["character", "characters", "npc", "npcs", "shop", "battle", "map", "interactable"]:
+		_invalidate_widget_context()
+		if actor_entity_picker:
+			_populate_actor_entity_picker()
+		# Rebuild inspector if a command is selected (to refresh dropdowns)
 		if selected_command_index >= 0:
 			_build_inspector_for_command(selected_command_index)
 
 
-func _refresh_characters() -> void:
-	_characters.clear()
-	_npcs.clear()
-	_shops.clear()
-	_maps.clear()
-	_interactables.clear()
-	_battles.clear()
-	if ModLoader and ModLoader.registry:
-		_characters = ModLoader.registry.get_all_resources("character")
-		_npcs = ModLoader.registry.get_all_resources("npc")
-		_shops = ModLoader.registry.get_all_resources("shop")
-		_maps = ModLoader.registry.get_all_resources("map")
-		_interactables = ModLoader.registry.get_all_resources("interactable")
-		_battles = ModLoader.registry.get_all_resources("battle")
-
-	# Update actor picker dropdown if it exists
-	if actor_entity_picker:
-		_populate_actor_entity_picker()
-
-	# Invalidate widget context so it gets rebuilt
+## Invalidate widget context so it gets rebuilt with fresh registry data
+func _invalidate_widget_context() -> void:
 	_widget_context = null
 
 
 ## Build or refresh the widget context for the new widget system
-## This context provides resource caches to widgets so they can populate dropdowns
+## This context queries the registry directly for resource data
 func _build_widget_context() -> void:
 	if not _widget_context:
 		_widget_context = EditorWidgetContext.new()
 
-	_widget_context.populate_from_editor_caches(
-		_characters,
-		_npcs_as_resources(),
-		_shops_as_resources(),
-		_battles_as_resources(),
-		_maps_as_resources(),
+	_widget_context.populate_from_registry(
 		cinematics,
 		_get_current_actor_ids()
 	)
-
-
-## Convert typed NPC array to untyped for context helper
-func _npcs_as_resources() -> Array[Resource]:
-	var result: Array[Resource] = []
-	for npc: Resource in _npcs:
-		result.append(npc)
-	return result
-
-
-## Convert typed shops array to untyped for context helper
-func _shops_as_resources() -> Array[Resource]:
-	var result: Array[Resource] = []
-	for shop: Resource in _shops:
-		result.append(shop)
-	return result
-
-
-## Convert typed battles array to untyped for context helper
-func _battles_as_resources() -> Array[Resource]:
-	var result: Array[Resource] = []
-	for battle: Resource in _battles:
-		result.append(battle)
-	return result
-
-
-## Convert typed maps array to untyped for context helper
-func _maps_as_resources() -> Array[Resource]:
-	var result: Array[Resource] = []
-	for map_res: Resource in _maps:
-		result.append(map_res)
-	return result
 
 
 func _setup_ui() -> void:
@@ -953,16 +892,19 @@ func _get_command_color(cmd_type: String) -> Color:
 func _get_character_name(character_uid: String) -> String:
 	if character_uid.is_empty():
 		return "[?]"
-	for char_res: Resource in _characters:
-		# Use get() for safe property access in editor context
-		var res_uid: String = ""
-		var res_name: String = ""
-		if "character_uid" in char_res:
-			res_uid = str(char_res.get("character_uid"))
-		if "character_name" in char_res:
-			res_name = str(char_res.get("character_name"))
-		if res_uid == character_uid:
-			return res_name if not res_name.is_empty() else "[" + character_uid + "]"
+	# Query registry directly
+	if ModLoader and ModLoader.registry:
+		var characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
+		for char_res: Resource in characters:
+			# Use get() for safe property access in editor context
+			var res_uid: String = ""
+			var res_name: String = ""
+			if "character_uid" in char_res:
+				res_uid = str(char_res.get("character_uid"))
+			if "character_name" in char_res:
+				res_name = str(char_res.get("character_name"))
+			if res_uid == character_uid:
+				return res_name if not res_name.is_empty() else "[" + character_uid + "]"
 	return "[" + character_uid + "]"
 
 
@@ -1620,8 +1562,10 @@ func _get_active_mod() -> String:
 ## Refresh when tab becomes visible
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
-		_refresh_characters()
+		_invalidate_widget_context()
 		_refresh_cinematic_list()
+		if actor_entity_picker:
+			_populate_actor_entity_picker()
 
 
 # =============================================================================
@@ -1662,6 +1606,7 @@ func _rebuild_actors_list() -> void:
 
 
 ## Populate the actor entity picker dropdown based on selected entity type
+## Queries registry directly - no local cache
 func _populate_actor_entity_picker() -> void:
 	actor_entity_picker.clear()
 	actor_entity_picker.add_item("(None)", 0)
@@ -1671,10 +1616,14 @@ func _populate_actor_entity_picker() -> void:
 	if actor_entity_type_picker and actor_entity_type_picker.selected >= 0:
 		entity_type = actor_entity_type_picker.get_item_metadata(actor_entity_type_picker.selected)
 
+	if not ModLoader or not ModLoader.registry:
+		return
+
 	var idx: int = 1
 	match entity_type:
 		"character":
-			for char_res: Resource in _characters:
+			var characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
+			for char_res: Resource in characters:
 				if char_res:
 					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
 					var char_id: String = ""
@@ -1684,7 +1633,8 @@ func _populate_actor_entity_picker() -> void:
 					actor_entity_picker.set_item_metadata(idx, char_id)
 					idx += 1
 		"interactable":
-			for inter_res: Resource in _interactables:
+			var interactables: Array[Resource] = ModLoader.registry.get_all_resources("interactable")
+			for inter_res: Resource in interactables:
 				if inter_res:
 					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(inter_res, "display_name")
 					var inter_id: String = ""
@@ -1694,7 +1644,8 @@ func _populate_actor_entity_picker() -> void:
 					actor_entity_picker.set_item_metadata(idx, inter_id)
 					idx += 1
 		"npc":
-			for npc_res: Resource in _npcs:
+			var npcs: Array[Resource] = ModLoader.registry.get_all_resources("npc")
+			for npc_res: Resource in npcs:
 				if npc_res:
 					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(npc_res, "npc_name")
 					var npc_id: String = ""
@@ -1706,7 +1657,8 @@ func _populate_actor_entity_picker() -> void:
 		"virtual":
 			# Virtual actors reference existing NPCs or characters for their display data
 			# Add NPCs first (most common virtual actor source)
-			for npc_res: Resource in _npcs:
+			var npcs: Array[Resource] = ModLoader.registry.get_all_resources("npc")
+			for npc_res: Resource in npcs:
 				if npc_res:
 					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(npc_res, "npc_name")
 					var npc_id: String = ""
@@ -1716,7 +1668,8 @@ func _populate_actor_entity_picker() -> void:
 					actor_entity_picker.set_item_metadata(idx, "npc:" + npc_id)
 					idx += 1
 			# Add characters
-			for char_res: Resource in _characters:
+			var characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
+			for char_res: Resource in characters:
 				if char_res:
 					var display_name: String = SparklingEditorUtils.get_resource_display_name_with_mod(char_res, "character_name")
 					var char_id: String = ""
@@ -2286,7 +2239,7 @@ func _create_choice_value_control(action: String, current_value: String, choice_
 			return line_edit
 
 
-## Create battle picker dropdown for choice value
+## Create battle picker dropdown for choice value - queries registry directly
 func _create_battle_picker(current_value: String, choice_index: int, param_name: String) -> OptionButton:
 	var picker: OptionButton = OptionButton.new()
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2296,7 +2249,11 @@ func _create_battle_picker(current_value: String, choice_index: int, param_name:
 	var selected_idx: int = 0
 	var item_idx: int = 1
 
-	for battle_res: Resource in _battles:
+	var battles: Array[Resource] = []
+	if ModLoader and ModLoader.registry:
+		battles = ModLoader.registry.get_all_resources("battle")
+
+	for battle_res: Resource in battles:
 		if battle_res:
 			var battle_id: String = ""
 			var battle_name: String = ""
@@ -2330,7 +2287,7 @@ func _create_battle_picker(current_value: String, choice_index: int, param_name:
 	return picker
 
 
-## Create shop picker dropdown for choice value
+## Create shop picker dropdown for choice value - queries registry directly
 func _create_shop_picker_for_choice(current_value: String, choice_index: int, param_name: String) -> OptionButton:
 	var picker: OptionButton = OptionButton.new()
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2340,7 +2297,11 @@ func _create_shop_picker_for_choice(current_value: String, choice_index: int, pa
 	var selected_idx: int = 0
 	var item_idx: int = 1
 
-	for shop_res: Resource in _shops:
+	var shops: Array[Resource] = []
+	if ModLoader and ModLoader.registry:
+		shops = ModLoader.registry.get_all_resources("shop")
+
+	for shop_res: Resource in shops:
 		if shop_res:
 			var shop_id: String = ""
 			var shop_name: String = ""

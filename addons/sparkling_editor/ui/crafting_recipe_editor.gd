@@ -58,9 +58,9 @@ var unlock_hint_edit: LineEdit
 var item_picker_popup: PopupMenu
 var _item_picker_target: String = ""  # "choice", "input", "single", "upgrade_base", "upgrade_result"
 
-# Cached data
-var _items_cache: Array[Resource] = []
+# Form state (not caches - tracks user edits)
 var _current_inputs: Array[Dictionary] = []  # [{material_id: String, quantity: int}]
+var _picker_items: Array[Resource] = []  # Temporary for popup selection
 var _current_choices: Array[String] = []
 
 # Common crafter types (same as crafter editor)
@@ -88,8 +88,6 @@ func _ready() -> void:
 
 ## Override: Create the recipe-specific detail form
 func _create_detail_form() -> void:
-	_refresh_items_cache()
-
 	_add_basic_info_section()
 	_add_output_mode_section()
 	_add_single_output_section()
@@ -641,9 +639,14 @@ func _on_crafter_type_selected(index: int) -> void:
 
 func _show_item_picker() -> void:
 	item_picker_popup.clear()
+	_picker_items.clear()
 
-	for i: int in _items_cache.size():
-		var item: ItemData = _items_cache[i] as ItemData
+	# Query registry fresh each time
+	if ModLoader and ModLoader.registry:
+		_picker_items = ModLoader.registry.get_all_resources("item")
+
+	for i: int in _picker_items.size():
+		var item: ItemData = _picker_items[i] as ItemData
 		if item:
 			var label: String = "%s" % item.item_name
 			item_picker_popup.add_item(label, i)
@@ -656,10 +659,10 @@ func _show_item_picker() -> void:
 
 
 func _on_item_picker_selected(id: int) -> void:
-	if id < 0 or id >= _items_cache.size():
+	if id < 0 or id >= _picker_items.size():
 		return
 
-	var item: ItemData = _items_cache[id] as ItemData
+	var item: ItemData = _picker_items[id] as ItemData
 	if not item:
 		return
 
@@ -728,10 +731,6 @@ func _parse_string_array(text: String) -> Array[String]:
 	return result
 
 
-func _refresh_items_cache() -> void:
-	_items_cache.clear()
-	if ModLoader and ModLoader.registry:
-		_items_cache = ModLoader.registry.get_all_resources("item")
 
 
 func _refresh_choice_list() -> void:
@@ -752,27 +751,24 @@ func _refresh_inputs_list() -> void:
 
 
 func _get_item_name(item_id: String) -> String:
-	for item_data: ItemData in _items_cache:
-		if item_data:
-			var res_id: String = item_data.resource_path.get_file().get_basename()
-			if res_id == item_id:
-				return item_data.item_name
+	# Query registry directly
+	if ModLoader and ModLoader.registry:
+		var item: ItemData = ModLoader.registry.get_item(item_id)
+		if item:
+			return item.item_name
 	return item_id  # Fallback to ID
 
 
 func _item_exists(item_id: String) -> bool:
-	for item_data: ItemData in _items_cache:
-		if item_data:
-			var res_id: String = item_data.resource_path.get_file().get_basename()
-			if res_id == item_id:
-				return true
+	# Query registry directly
+	if ModLoader and ModLoader.registry:
+		return ModLoader.registry.has_resource("item", item_id)
 	return false
 
 
 ## Override: Called when dependent resource types change (via base class)
 func _on_dependencies_changed(_changed_type: String) -> void:
-	_refresh_items_cache()
-	# Refresh pickers
+	# Refresh pickers (they query registry directly)
 	if output_item_picker:
 		output_item_picker.refresh()
 	if upgrade_base_picker:
@@ -790,9 +786,8 @@ func _on_dependencies_changed(_changed_type: String) -> void:
 			_show_errors(validation.errors)
 
 
-## Override refresh to also refresh caches and pickers
+## Override refresh to also refresh pickers
 func refresh() -> void:
-	_refresh_items_cache()
 	if output_item_picker:
 		output_item_picker.refresh()
 	if upgrade_base_picker:

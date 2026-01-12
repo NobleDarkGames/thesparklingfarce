@@ -44,6 +44,9 @@ var spam_threshold_heavy_spin: SpinBox
 var xp_per_level_spin: SpinBox
 var max_level_spin: SpinBox
 
+# Guard to prevent false dirty state during UI population
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_id = "experience_config"
@@ -74,6 +77,8 @@ func _load_resource_data() -> void:
 	var config: ExperienceConfig = current_resource as ExperienceConfig
 	if not config:
 		return
+
+	_updating_ui = true
 
 	# Combat XP Settings
 	enable_formation_xp_check.button_pressed = config.enable_formation_xp
@@ -106,6 +111,8 @@ func _load_resource_data() -> void:
 	_update_formation_xp_visual_feedback()
 	_update_support_xp_visual_feedback()
 	_update_anti_spam_visual_feedback()
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -473,11 +480,15 @@ func _create_spin_row(label_text: String, tooltip: String, min_val: float, max_v
 
 ## Called when any value changes - mark dirty
 func _on_value_changed(_value: float) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 ## Called when any simple checkbox is toggled - mark dirty
 func _on_checkbox_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -487,6 +498,8 @@ func _on_checkbox_toggled(_pressed: bool) -> void:
 
 func _on_formation_xp_toggled(_pressed: bool) -> void:
 	_update_formation_xp_visual_feedback()
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -511,6 +524,8 @@ func _update_formation_xp_visual_feedback() -> void:
 
 func _on_support_xp_toggled(_pressed: bool) -> void:
 	_update_support_xp_visual_feedback()
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -538,6 +553,8 @@ func _update_support_xp_visual_feedback() -> void:
 
 func _on_anti_spam_toggled(_pressed: bool) -> void:
 	_update_anti_spam_visual_feedback()
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 

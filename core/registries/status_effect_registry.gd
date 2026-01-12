@@ -28,10 +28,6 @@ var _effects: Dictionary = {}
 ## Track which mod registered each effect
 var _effect_sources: Dictionary = {}  # {effect_id: mod_id}
 
-## Cached sorted effect IDs for editor performance
-var _cached_effect_ids: Array[String] = []
-var _cache_dirty: bool = true
-
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -67,7 +63,6 @@ func register_effect(effect: StatusEffectData, mod_id: String) -> void:
 
 	_effects[id_lower] = effect
 	_effect_sources[id_lower] = mod_id
-	_cache_dirty = true
 
 
 ## Register multiple effects from a mod (called by ModLoader during discovery)
@@ -98,10 +93,13 @@ func has_effect(effect_id: String) -> bool:
 	return effect_id.to_lower() in _effects
 
 
-## Get all registered effect IDs (cached for editor performance)
+## Get all registered effect IDs
 func get_all_effect_ids() -> Array[String]:
-	_rebuild_cache_if_dirty()
-	return _cached_effect_ids.duplicate()
+	var result: Array[String] = []
+	for effect_id: String in _effects.keys():
+		result.append(effect_id)
+	result.sort()
+	return result
 
 
 ## Get all registered effects
@@ -149,7 +147,6 @@ func unregister_mod(mod_id: String) -> void:
 		changed = true
 	
 	if changed:
-		_cache_dirty = true
 		registrations_changed.emit()
 
 
@@ -157,20 +154,7 @@ func unregister_mod(mod_id: String) -> void:
 func clear_mod_registrations() -> void:
 	_effects.clear()
 	_effect_sources.clear()
-	_cache_dirty = true
 	registrations_changed.emit()
-
-
-## Rebuild cached sorted array if dirty
-func _rebuild_cache_if_dirty() -> void:
-	if not _cache_dirty:
-		return
-	
-	_cached_effect_ids.clear()
-	for effect_id: String in _effects.keys():
-		_cached_effect_ids.append(effect_id)
-	_cached_effect_ids.sort()
-	_cache_dirty = false
 
 
 ## Get registration counts for debugging

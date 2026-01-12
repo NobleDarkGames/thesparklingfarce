@@ -35,6 +35,9 @@ var weapon_types_container: VBoxContainer
 var learnable_abilities_container: VBoxContainer
 var add_ability_button: Button
 
+# Flag to prevent signal feedback loops during UI updates
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_name = "Class"
@@ -82,6 +85,8 @@ func _load_resource_data() -> void:
 	if not class_data:
 		return
 
+	_updating_ui = true
+
 	name_edit.text = class_data.display_name
 	movement_type_option.selected = class_data.movement_type
 	movement_range_spin.value = class_data.movement_range
@@ -114,6 +119,8 @@ func _load_resource_data() -> void:
 
 	# Load learnable abilities from class_abilities + ability_unlock_levels (new system)
 	_load_learnable_abilities_new(class_data)
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -167,10 +174,14 @@ func _validate_resource() -> Dictionary:
 
 	var errors: Array[String] = []
 
-	if class_data.display_name.strip_edges().is_empty():
+	# Validate UI state (not resource state) since validation runs before _save_resource_data()
+	var display_name: String = name_edit.text.strip_edges() if name_edit else ""
+	var movement_range: int = int(movement_range_spin.value) if movement_range_spin else 4
+
+	if display_name.is_empty():
 		errors.append("Class name cannot be empty")
 
-	if class_data.movement_range < 1 or class_data.movement_range > 20:
+	if movement_range < 1 or movement_range > 20:
 		errors.append("Movement range must be between 1 and 20")
 
 	return {valid = errors.is_empty(), errors = errors}

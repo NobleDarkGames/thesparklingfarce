@@ -58,11 +58,8 @@ var story_flags_container: VBoxContainer
 var story_flags_list: Array[Dictionary] = []  # Track flag UI elements
 
 # =============================================================================
-# CACHED DATA
+# NO LOCAL CACHES - query registry directly
 # =============================================================================
-
-var available_parties: Array[Resource] = []
-var available_items: Array[Resource] = []
 
 # =============================================================================
 # PHASE 7: ACTIVE DEFAULT TRACKING
@@ -71,6 +68,9 @@ var available_items: Array[Resource] = []
 # Track which config is the active default (highest priority mod)
 var active_default_config_id: String = ""
 var active_default_source_mod: String = ""
+
+# Guard to prevent false dirty state during UI population
+var _updating_ui: bool = false
 
 # =============================================================================
 # PHASE 7.4: PREVIEW CONFIGURATION PANEL
@@ -88,7 +88,6 @@ func _ready() -> void:
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
 	resource_dependencies = ["party", "item"]
 	super._ready()
-	_load_available_resources()
 	_load_active_default_info()
 
 
@@ -96,10 +95,12 @@ func _ready() -> void:
 func _on_dependencies_changed(changed_type: String) -> void:
 	match changed_type:
 		"party":
-			_load_available_parties()
+			_populate_party_dropdown()
 			_update_preview_panel()
 		"item":
-			_load_available_items()
+			# Refresh item dropdowns for depot items
+			for item_ui: Dictionary in depot_items_list:
+				_populate_item_dropdown(item_ui.item_option)
 	# Refresh active default info when any dependency changes
 	_load_active_default_info()
 	_apply_filter()  # Refresh list to update badges
@@ -145,6 +146,8 @@ func _load_resource_data() -> void:
 	if not config:
 		return
 
+	_updating_ui = true
+
 	# Identity
 	config_id_edit.text = config.config_id
 	config_name_edit.text = config.config_name
@@ -176,6 +179,8 @@ func _load_resource_data() -> void:
 	for flag_name: String in config.starting_story_flags.keys():
 		var flag_value: bool = config.starting_story_flags[flag_name]
 		_add_story_flag_ui(flag_name, flag_value)
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -627,25 +632,6 @@ func _add_separator() -> void:
 # RESOURCE LOADING
 # =============================================================================
 
-func _load_available_resources() -> void:
-	_load_available_parties()
-	_load_available_items()
-
-
-func _load_available_parties() -> void:
-	available_parties.clear()
-	if ModLoader and ModLoader.registry:
-		available_parties = ModLoader.registry.get_all_resources("party")
-	_populate_party_dropdown()
-
-
-func _load_available_items() -> void:
-	available_items.clear()
-	if ModLoader and ModLoader.registry:
-		available_items = ModLoader.registry.get_all_resources("item")
-	# Update existing item dropdowns
-	for item_ui: Dictionary in depot_items_list:
-		_populate_item_dropdown(item_ui.item_option)
 
 
 # =============================================================================
@@ -656,20 +642,32 @@ func _populate_party_dropdown() -> void:
 	if not party_option:
 		return
 
+	# Save current selection
+	var current_party_id: String = ""
+	if party_option.selected > 0 and party_option.selected < party_option.item_count:
+		current_party_id = party_option.get_item_metadata(party_option.selected)
+
 	party_option.clear()
 	party_option.add_item("(Auto-detect from character flags)", -1)
 	party_option.set_item_metadata(0, "")
 
-	var idx: int = 1
-	for party: PartyData in available_parties:
-		if not party:
-			continue
-		var display_name: String = party.party_name if not party.party_name.is_empty() else party.resource_path.get_file().get_basename()
-		if party.has_method("get_member_count"):
-			display_name = "%s (%d members)" % [display_name, party.get_member_count()]
-		party_option.add_item(display_name)
-		party_option.set_item_metadata(idx, party.resource_path.get_file().get_basename())
-		idx += 1
+	# Query registry fresh
+	if ModLoader and ModLoader.registry:
+		var all_parties: Array[Resource] = ModLoader.registry.get_all_resources("party")
+		var idx: int = 1
+		for party: PartyData in all_parties:
+			if not party:
+				continue
+			var party_id: String = party.resource_path.get_file().get_basename()
+			var display_name: String = party.party_name if not party.party_name.is_empty() else party_id
+			if party.has_method("get_member_count"):
+				display_name = "%s (%d members)" % [display_name, party.get_member_count()]
+			party_option.add_item(display_name)
+			party_option.set_item_metadata(idx, party_id)
+			# Restore selection if this was the previously selected party
+			if party_id == current_party_id:
+				party_option.select(idx)
+			idx += 1
 
 
 func _select_party(party_id: String) -> void:
@@ -729,27 +727,23 @@ func _update_party_preview(is_auto: bool) -> void:
 					})
 		preview_title = "Auto-detected Party:"
 	else:
-		# Get the selected party template
+		# Get the selected party template - query registry directly
 		var party_id: String = _get_selected_party_id()
-		if not party_id.is_empty():
-			for resource: Resource in available_parties:
-				var res_id: String = resource.resource_path.get_file().get_basename()
-				if res_id == party_id:
-					# PartyData has member_ids array
-					if "member_ids" in resource:
-						for member_id: String in resource.member_ids:
-							var char_data: CharacterData = null
-							if ModLoader and ModLoader.registry:
-								char_data = ModLoader.registry.get_character(member_id)
-							if char_data and "character_name" in char_data:
-								var is_hero: bool = char_data.is_hero if "is_hero" in char_data else false
-								members.append({
-									"name": char_data.character_name,
-									"is_hero": is_hero
-								})
-							else:
-								members.append({"name": member_id, "is_hero": false})
-					break
+		if not party_id.is_empty() and ModLoader and ModLoader.registry:
+			var party_data: PartyData = ModLoader.registry.get_party(party_id)
+			if party_data:
+				# PartyData has member_ids array
+				if "member_ids" in party_data:
+					for member_id: String in party_data.member_ids:
+						var char_data: CharacterData = ModLoader.registry.get_character(member_id)
+						if char_data and "character_name" in char_data:
+							var is_hero: bool = char_data.is_hero if "is_hero" in char_data else false
+							members.append({
+								"name": char_data.character_name,
+								"is_hero": is_hero
+							})
+						else:
+							members.append({"name": member_id, "is_hero": false})
 		preview_title = "Party Template Members:"
 
 	# Build preview UI
@@ -850,12 +844,15 @@ func _populate_item_dropdown(option: OptionButton) -> void:
 	option.add_item("(Select Item)", -1)
 	option.set_item_metadata(0, "")
 
-	var idx: int = 1
-	for resource: Resource in available_items:
-		var display_name: String = _get_item_display_name(resource)
-		option.add_item(display_name)
-		option.set_item_metadata(idx, _get_item_id(resource))
-		idx += 1
+	# Query registry fresh
+	if ModLoader and ModLoader.registry:
+		var all_items: Array[Resource] = ModLoader.registry.get_all_resources("item")
+		var idx: int = 1
+		for resource: Resource in all_items:
+			var display_name: String = _get_item_display_name(resource)
+			option.add_item(display_name)
+			option.set_item_metadata(idx, _get_item_id(resource))
+			idx += 1
 
 	# Restore selection if possible
 	if not current_selection.is_empty():
@@ -959,32 +956,46 @@ func _clear_story_flags_ui() -> void:
 # =============================================================================
 
 func _on_field_changed(_new_value: Variant = null) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_spin_changed(_new_value: float) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_default_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_party_selected(index: int) -> void:
 	var is_auto: bool = (index <= 0)
 	_update_party_help(is_auto)
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_depot_item_selected(_index: int) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_flag_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_caravan_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 

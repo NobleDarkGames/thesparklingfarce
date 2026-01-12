@@ -70,6 +70,9 @@ var action_modifier_option: OptionButton
 var action_modifier_chance_spin: SpinBox
 var action_modifier_chance_container: HBoxContainer
 
+# Guard to prevent false dirty state during UI population
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_id = "status_effect"
@@ -114,6 +117,8 @@ func _load_resource_data() -> void:
 	if not effect:
 		return
 
+	_updating_ui = true
+
 	# Identity
 	effect_id_edit.text = effect.effect_id
 	display_name_edit.text = effect.display_name
@@ -147,6 +152,8 @@ func _load_resource_data() -> void:
 	action_modifier_option.selected = effect.action_modifier
 	action_modifier_chance_spin.value = effect.action_modifier_chance
 	_update_action_modifier_chance_visibility()
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -542,31 +549,45 @@ func _update_action_modifier_chance_visibility() -> void:
 # =============================================================================
 
 func _on_field_changed(_new_text: String = "") -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_color_changed(_new_color: Color) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_spin_changed(_new_value: float) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_option_selected(_index: int) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_skips_turn_toggled(_pressed: bool) -> void:
 	_update_recovery_chance_visibility()
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_removed_on_damage_toggled(_pressed: bool) -> void:
 	_update_removal_chance_visibility()
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 func _on_action_modifier_selected(_index: int) -> void:
 	_update_action_modifier_chance_visibility()
+	if _updating_ui:
+		return
 	_mark_dirty()

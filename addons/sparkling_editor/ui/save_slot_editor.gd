@@ -27,8 +27,7 @@ var add_to_party_button: Button
 var character_preview_label: RichTextLabel
 var party_info_label: RichTextLabel
 
-# Available characters for selection
-var available_characters: Array[CharacterData] = []
+# No local character cache - query registry directly
 
 # File access constants
 const SAVE_DIRECTORY: String = "user://saves/"
@@ -41,11 +40,16 @@ func _ready() -> void:
 	_connect_event_bus()
 
 
+func _exit_tree() -> void:
+	_disconnect_event_bus()
+
+
 ## Standard refresh method for EditorTabRegistry
 ## Save slot editor operates on save files, not mod resources,
-## so it only needs to refresh available characters when mods change
+## so it only needs to refresh UI when mods change
 func refresh() -> void:
-	_load_available_characters()
+	_refresh_available_characters()
+	_refresh_player_party()
 
 
 func _connect_event_bus() -> void:
@@ -60,10 +64,20 @@ func _connect_event_bus() -> void:
 			event_bus.resource_deleted.connect(_on_resource_deleted_event)
 
 
+func _disconnect_event_bus() -> void:
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if event_bus.resource_saved.is_connected(_on_resource_event):
+			event_bus.resource_saved.disconnect(_on_resource_event)
+		if event_bus.resource_created.is_connected(_on_resource_event):
+			event_bus.resource_created.disconnect(_on_resource_event)
+		if event_bus.resource_deleted.is_connected(_on_resource_deleted_event):
+			event_bus.resource_deleted.disconnect(_on_resource_deleted_event)
+
+
 ## Handle resource saved/created events from EditorEventBus
 func _on_resource_event(res_type: String, _res_id: String, _resource: Resource) -> void:
 	if res_type == "character":
-		_load_available_characters()
 		_refresh_player_party()
 		_refresh_available_characters()
 
@@ -71,7 +85,6 @@ func _on_resource_event(res_type: String, _res_id: String, _resource: Resource) 
 ## Handle resource deleted events from EditorEventBus
 func _on_resource_deleted_event(res_type: String, _res_id: String) -> void:
 	if res_type == "character":
-		_load_available_characters()
 		_refresh_player_party()
 		_refresh_available_characters()
 
@@ -285,19 +298,6 @@ func _create_party_info_panel(parent: VBoxContainer) -> void:
 # CHARACTER LOADING
 # ============================================================================
 
-## Load all available characters from ALL loaded mods
-func _load_available_characters() -> void:
-	available_characters.clear()
-
-	if ModLoader and ModLoader.registry:
-		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
-		for char_data: CharacterData in all_characters:
-			if char_data:
-				available_characters.append(char_data)
-	else:
-		push_warning("SaveSlotEditor: ModLoader or registry not available")
-
-	_refresh_available_characters()
 
 
 # ============================================================================
@@ -341,34 +341,44 @@ func _refresh_player_party() -> void:
 	_update_party_info()
 
 
-## Refresh available characters list
+## Refresh available characters list - queries registry directly
 func _refresh_available_characters() -> void:
 	if not available_characters_list:
 		return
 
 	available_characters_list.clear()
 
-	for character: CharacterData in available_characters:
+	# Query registry fresh each time
+	if not ModLoader or not ModLoader.registry:
+		push_warning("SaveSlotEditor: ModLoader or registry not available")
+		return
+
+	var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
+	var idx: int = 0
+	for char_data: CharacterData in all_characters:
+		if not char_data:
+			continue
+
 		# Get mod source for this character (ResourcePicker pattern)
-		var resource_id: String = character.resource_path.get_file().get_basename()
-		var mod_id: String = ""
-		if ModLoader and ModLoader.registry:
-			mod_id = ModLoader.registry.get_resource_source(resource_id)
+		var resource_id: String = char_data.resource_path.get_file().get_basename()
+		var mod_id: String = ModLoader.registry.get_resource_source(resource_id)
 
 		# Format: [mod_id] Name [*] - Class (matching ResourcePicker style)
 		var display_text: String = ""
 		if not mod_id.is_empty():
 			display_text = "[%s] " % mod_id
 
-		display_text += character.character_name
+		display_text += char_data.character_name
 
-		if character.is_hero:
+		if char_data.is_hero:
 			display_text += " [*]"
 
-		if character.character_class:
-			display_text += " - " + character.character_class.display_name
+		if char_data.character_class:
+			display_text += " - " + char_data.character_class.display_name
 
 		available_characters_list.add_item(display_text)
+		available_characters_list.set_item_metadata(idx, char_data)
+		idx += 1
 
 
 ## Update character preview panel
@@ -453,10 +463,10 @@ func _on_add_to_party() -> void:
 		return
 
 	var char_index: int = selected_indices[0]
-	if char_index < 0 or char_index >= available_characters.size():
+	var character: CharacterData = available_characters_list.get_item_metadata(char_index) as CharacterData
+	if not character:
+		_show_error("Invalid character selection")
 		return
-
-	var character: CharacterData = available_characters[char_index]
 
 	# Check party size limit
 	if current_save_data.party_members.size() >= current_save_data.max_party_size:
@@ -562,10 +572,10 @@ func _on_move_down() -> void:
 
 ## Update character preview when selection changes
 func _on_available_character_selected(index: int) -> void:
-	if index < 0 or index >= available_characters.size():
+	var character: CharacterData = available_characters_list.get_item_metadata(index) as CharacterData
+	if not character:
 		return
 
-	var character: CharacterData = available_characters[index]
 	_update_character_preview(character)
 
 

@@ -18,6 +18,9 @@ var current_mod_path: String = ""
 var current_mod_data: Dictionary = {}
 var is_dirty: bool = false
 
+# Guard to prevent false dirty state during UI population
+var _updating_ui: bool = false
+
 # Error panel
 var error_panel: PanelContainer
 var error_label: RichTextLabel
@@ -843,6 +846,8 @@ func _load_mod_json(path: String) -> void:
 
 ## Populate all UI fields from current_mod_data
 func _populate_ui_from_data() -> void:
+	_updating_ui = true
+
 	# Basic info
 	id_edit.text = current_mod_data.get("id", "")
 	name_edit.text = current_mod_data.get("name", "")
@@ -927,6 +932,8 @@ func _populate_ui_from_data() -> void:
 				"scene_path": opt_dict.get("scene_path", ""),
 				"position": position_text
 			})
+
+	_updating_ui = false
 
 
 ## Collect all UI data into current_mod_data
@@ -1471,11 +1478,15 @@ func _on_total_conversion_toggled(pressed: bool) -> void:
 
 ## Mark as dirty when LineEdit text changes (takes String parameter)
 func _mark_dirty_on_text_change(_new_text: String) -> void:
+	if _updating_ui:
+		return
 	is_dirty = true
 
 
 ## Mark as dirty when TextEdit text changes (no parameter)
 func _mark_dirty() -> void:
+	if _updating_ui:
+		return
 	is_dirty = true
 
 

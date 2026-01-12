@@ -315,3 +315,23 @@ static func is_valid_json(json_string: String) -> bool:
 
 	var json: JSON = JSON.new()
 	return json.parse(json_string) == OK
+
+
+# =============================================================================
+# Lifecycle
+# =============================================================================
+
+## Clean up signal connections when removed from tree
+## Child classes that connect to EditorEventBus should override this
+## and call super._exit_tree() to ensure proper cleanup
+func _exit_tree() -> void:
+	# Base class has no EditorEventBus connections to clean up
+	# Child classes should override this method to disconnect their signals:
+	#
+	# func _exit_tree() -> void:
+	#     var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	#     if event_bus:
+	#         if event_bus.some_signal.is_connected(_my_handler):
+	#             event_bus.some_signal.disconnect(_my_handler)
+	#     super._exit_tree()
+	pass

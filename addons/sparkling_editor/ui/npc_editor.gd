@@ -71,7 +71,8 @@ var _updating_ui: bool = false
 func _ready() -> void:
 	resource_type_name = "NPC"
 	resource_type_id = "npc"
-	# Cinematic pickers auto-refresh via EditorEventBus when cinematics change
+	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
+	resource_dependencies = ["cinematic"]  # For cinematic pickers
 	super._ready()
 
 	# Initialize helper components

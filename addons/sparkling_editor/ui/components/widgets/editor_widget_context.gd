@@ -64,30 +64,29 @@ func update_actors_from_commands(commands: Array) -> void:
 					actor_ids.append(actor_id)
 
 
-## Populate this context from a cinematic editor's cached data
+## Populate this context by querying the registry directly
 ## Call this after creating a new context to provide resource access to widgets
 ##
 ## Parameters:
-##   p_characters: Array of CharacterData resources
-##   p_npcs: Array of NPCData resources
-##   p_shops: Array of ShopData resources
-##   p_battles: Array of BattleData resources
-##   p_maps: Array of map resources
 ##   p_cinematics: Array of cinematic info dictionaries [{path, mod_id, name}]
 ##   p_actor_ids: Array of actor ID strings from current cinematic
-func populate_from_editor_caches(
-	p_characters: Array[Resource],
-	p_npcs: Array[Resource],
-	p_shops: Array[Resource],
-	p_battles: Array[Resource],
-	p_maps: Array[Resource],
+func populate_from_registry(
 	p_cinematics: Array[Dictionary],
 	p_actor_ids: Array[String]
 ) -> void:
-	characters = p_characters
-	npcs = p_npcs
-	shops = p_shops
-	battles = p_battles
-	maps = p_maps
+	# Query registry fresh each time - no caches
+	characters.clear()
+	npcs.clear()
+	shops.clear()
+	battles.clear()
+	maps.clear()
+
+	if ModLoader and ModLoader.registry:
+		characters = ModLoader.registry.get_all_resources("character")
+		npcs = ModLoader.registry.get_all_resources("npc")
+		shops = ModLoader.registry.get_all_resources("shop")
+		battles = ModLoader.registry.get_all_resources("battle")
+		maps = ModLoader.registry.get_all_resources("map")
+
 	cinematics = p_cinematics
 	actor_ids = p_actor_ids

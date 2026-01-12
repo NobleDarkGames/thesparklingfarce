@@ -49,10 +49,15 @@ var sell_price_spin: SpinBox
 # Item Management
 var is_crafting_material_check: CheckBox
 
+# Flag to prevent signal feedback loops during UI updates
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_id = "item"
 	resource_type_name = "Item"
+	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
+	resource_dependencies = ["ability"]  # For effect picker
 	# resource_directory is set dynamically via base class using ModLoader.get_active_mod()
 	super._ready()
 
@@ -89,6 +94,8 @@ func _load_resource_data() -> void:
 	var item: ItemData = current_resource as ItemData
 	if not item:
 		return
+
+	_updating_ui = true
 
 	name_edit.text = item.item_name
 	item_type_option.selected = item.item_type
@@ -146,6 +153,8 @@ func _load_resource_data() -> void:
 
 	# Update section visibility
 	_on_item_type_changed(item.item_type)
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -212,13 +221,18 @@ func _validate_resource() -> Dictionary:
 
 	var errors: Array[String] = []
 
-	if item.item_name.strip_edges().is_empty():
+	# Validate UI state (not resource state) since validation runs before _save_resource_data()
+	var item_name: String = name_edit.text.strip_edges() if name_edit else ""
+	var buy_price: int = int(buy_price_spin.value) if buy_price_spin else 0
+	var sell_price: int = int(sell_price_spin.value) if sell_price_spin else 0
+
+	if item_name.is_empty():
 		errors.append("Item name cannot be empty")
 
-	if item.buy_price < 0:
+	if buy_price < 0:
 		errors.append("Buy price cannot be negative")
 
-	if item.sell_price < 0:
+	if sell_price < 0:
 		errors.append("Sell price cannot be negative")
 
 	return {valid = errors.is_empty(), errors = errors}
@@ -459,6 +473,8 @@ func _on_item_type_changed(index: int) -> void:
 		item_type == ItemData.ItemType.ACCESSORY
 	)
 	curse_section.visible = is_equippable
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -611,6 +627,8 @@ func _on_clear_icon() -> void:
 	icon_path_edit.text = ""
 	icon_preview.texture = null
 	icon_preview.tooltip_text = "No icon assigned"
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
@@ -634,9 +652,13 @@ func _on_max_range_changed(value: float) -> void:
 
 ## Called when equipment slot dropdown changes
 func _on_equipment_slot_changed(_index: int) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()
 
 
 ## Called when effect picker selection changes
 func _on_effect_selected(_resource_id: String) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()

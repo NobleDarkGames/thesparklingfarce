@@ -39,6 +39,9 @@ var _id_is_locked: bool = false
 # Animation and Audio
 var animation_edit: LineEdit
 
+# Flag to prevent signal feedback loops during UI updates
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_id = "ability"
@@ -80,6 +83,8 @@ func _load_resource_data() -> void:
 	if not ability:
 		return
 
+	_updating_ui = true
+
 	name_edit.text = ability.ability_name
 	ability_id_edit.text = ability.ability_id
 
@@ -117,6 +122,8 @@ func _load_resource_data() -> void:
 
 	# Animation and audio
 	animation_edit.text = ability.animation_name
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -161,28 +168,38 @@ func _validate_resource() -> Dictionary:
 
 	var errors: Array[String] = []
 
-	if ability.ability_name.strip_edges().is_empty():
+	# Validate UI state (not resource state) since validation runs before _save_resource_data()
+	var ability_name: String = name_edit.text.strip_edges() if name_edit else ""
+	var min_range_val: int = int(min_range_spin.value) if min_range_spin else 0
+	var max_range_val: int = int(max_range_spin.value) if max_range_spin else 0
+	var area_of_effect_val: int = int(area_of_effect_spin.value) if area_of_effect_spin else 0
+	var mp_cost_val: int = int(mp_cost_spin.value) if mp_cost_spin else 0
+	var hp_cost_val: int = int(hp_cost_spin.value) if hp_cost_spin else 0
+	var accuracy_val: int = int(accuracy_spin.value) if accuracy_spin else 100
+	var effect_chance_val: int = int(effect_chance_spin.value) if effect_chance_spin else 100
+
+	if ability_name.is_empty():
 		errors.append("Ability name cannot be empty")
 
-	if ability.max_range < ability.min_range:
+	if max_range_val < min_range_val:
 		errors.append("Max range must be >= min range")
 
-	if ability.min_range < 0:
+	if min_range_val < 0:
 		errors.append("Min range cannot be negative")
 
-	if ability.area_of_effect < 0:
+	if area_of_effect_val < 0:
 		errors.append("Area of effect cannot be negative")
 
-	if ability.mp_cost < 0:
+	if mp_cost_val < 0:
 		errors.append("MP cost cannot be negative")
 
-	if ability.hp_cost < 0:
+	if hp_cost_val < 0:
 		errors.append("HP cost cannot be negative")
 
-	if ability.accuracy < 0 or ability.accuracy > 100:
+	if accuracy_val < 0 or accuracy_val > 100:
 		errors.append("Accuracy must be between 0 and 100")
 
-	if ability.effect_chance < 0 or ability.effect_chance > 100:
+	if effect_chance_val < 0 or effect_chance_val > 100:
 		errors.append("Effect chance must be between 0 and 100")
 
 	return {valid = errors.is_empty(), errors = errors}
@@ -476,6 +493,8 @@ func _refresh_menu_checkboxes() -> void:
 
 ## Called when the ability name changes - auto-generates ID if not locked
 func _on_name_changed(new_name: String) -> void:
+	if _updating_ui:
+		return
 	if not _id_is_locked:
 		ability_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_mark_dirty()
@@ -483,6 +502,8 @@ func _on_name_changed(new_name: String) -> void:
 
 ## Called when the ID field is manually edited
 func _on_id_manually_changed(_text: String) -> void:
+	if _updating_ui:
+		return
 	# If user is editing the ID field directly, lock it
 	if not _id_is_locked and ability_id_edit.has_focus():
 		_id_is_locked = true

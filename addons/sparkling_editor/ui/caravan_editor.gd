@@ -48,6 +48,9 @@ var menu_close_sfx_edit: LineEdit
 var heal_sfx_edit: LineEdit
 var ambient_sfx_edit: LineEdit
 
+# Guard to prevent false dirty state during UI population
+var _updating_ui: bool = false
+
 
 func _ready() -> void:
 	resource_type_id = "caravan"
@@ -74,6 +77,8 @@ func _load_resource_data() -> void:
 	var caravan: CaravanData = current_resource as CaravanData
 	if not caravan:
 		return
+
+	_updating_ui = true
 
 	# Identity
 	caravan_id_edit.text = caravan.caravan_id
@@ -112,6 +117,8 @@ func _load_resource_data() -> void:
 	menu_close_sfx_edit.text = caravan.menu_close_sfx
 	heal_sfx_edit.text = caravan.heal_sfx
 	ambient_sfx_edit.text = caravan.ambient_sfx
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -279,7 +286,7 @@ func _add_identity_section() -> void:
 	caravan_id_edit = LineEdit.new()
 	caravan_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	caravan_id_edit.placeholder_text = "e.g., base_game:default_caravan"
-	caravan_id_edit.text_changed.connect(_mark_dirty)
+	caravan_id_edit.text_changed.connect(_on_field_changed)
 	id_container.add_child(caravan_id_edit)
 	section.add_child(id_container)
 
@@ -294,7 +301,7 @@ func _add_identity_section() -> void:
 	display_name_edit = LineEdit.new()
 	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	display_name_edit.placeholder_text = "e.g., Caravan Headquarters"
-	display_name_edit.text_changed.connect(_mark_dirty)
+	display_name_edit.text_changed.connect(_on_field_changed)
 	name_container.add_child(display_name_edit)
 	section.add_child(name_container)
 
@@ -326,7 +333,7 @@ func _add_appearance_section() -> void:
 	wagon_sprite_path_edit = LineEdit.new()
 	wagon_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wagon_sprite_path_edit.placeholder_text = "res://path/to/wagon.png"
-	wagon_sprite_path_edit.text_changed.connect(_mark_dirty)
+	wagon_sprite_path_edit.text_changed.connect(_on_field_changed)
 	sprite_container.add_child(wagon_sprite_path_edit)
 
 	wagon_sprite_picker_btn = Button.new()
@@ -347,7 +354,7 @@ func _add_appearance_section() -> void:
 	wagon_animation_path_edit = LineEdit.new()
 	wagon_animation_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wagon_animation_path_edit.placeholder_text = "res://path/to/wagon_animations.tres (optional)"
-	wagon_animation_path_edit.text_changed.connect(_mark_dirty)
+	wagon_animation_path_edit.text_changed.connect(_on_field_changed)
 	anim_container.add_child(wagon_animation_path_edit)
 	section.add_child(anim_container)
 
@@ -368,7 +375,7 @@ func _add_appearance_section() -> void:
 	wagon_scale_x_spin.max_value = 10.0
 	wagon_scale_x_spin.step = 0.1
 	wagon_scale_x_spin.value = 1.0
-	wagon_scale_x_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	wagon_scale_x_spin.value_changed.connect(_on_spin_changed)
 	scale_container.add_child(wagon_scale_x_spin)
 
 	var y_label: Label = Label.new()
@@ -380,7 +387,7 @@ func _add_appearance_section() -> void:
 	wagon_scale_y_spin.max_value = 10.0
 	wagon_scale_y_spin.step = 0.1
 	wagon_scale_y_spin.value = 1.0
-	wagon_scale_y_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	wagon_scale_y_spin.value_changed.connect(_on_spin_changed)
 	scale_container.add_child(wagon_scale_y_spin)
 	section.add_child(scale_container)
 
@@ -396,7 +403,7 @@ func _add_appearance_section() -> void:
 	z_index_spin.min_value = -100
 	z_index_spin.max_value = 100
 	z_index_spin.value = 0
-	z_index_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	z_index_spin.value_changed.connect(_on_spin_changed)
 	z_container.add_child(z_index_spin)
 	section.add_child(z_container)
 
@@ -430,7 +437,7 @@ func _add_following_section() -> void:
 	follow_distance_spin.max_value = 10
 	follow_distance_spin.value = 3
 	follow_distance_spin.suffix = " tiles"
-	follow_distance_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	follow_distance_spin.value_changed.connect(_on_spin_changed)
 	dist_container.add_child(follow_distance_spin)
 	section.add_child(dist_container)
 
@@ -448,7 +455,7 @@ func _add_following_section() -> void:
 	follow_speed_spin.step = 8.0
 	follow_speed_spin.value = 96.0
 	follow_speed_spin.suffix = " px/s"
-	follow_speed_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	follow_speed_spin.value_changed.connect(_on_spin_changed)
 	speed_container.add_child(follow_speed_spin)
 	section.add_child(speed_container)
 
@@ -457,7 +464,7 @@ func _add_following_section() -> void:
 	use_chain_check.text = "Use Chain Following (SF2-Authentic)"
 	use_chain_check.tooltip_text = "Follow breadcrumb trail instead of direct pathfinding"
 	use_chain_check.button_pressed = true
-	use_chain_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	use_chain_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(use_chain_check)
 
 	# Max History Size
@@ -473,7 +480,7 @@ func _add_following_section() -> void:
 	max_history_spin.max_value = 100
 	max_history_spin.value = 20
 	max_history_spin.suffix = " tiles"
-	max_history_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	max_history_spin.value_changed.connect(_on_spin_changed)
 	history_container.add_child(max_history_spin)
 	section.add_child(history_container)
 
@@ -499,7 +506,7 @@ func _add_terrain_section() -> void:
 	can_cross_water_check.text = "Can Cross Water (ferries, bridges)"
 	can_cross_water_check.tooltip_text = "Allow the caravan to use water crossings"
 	can_cross_water_check.button_pressed = true
-	can_cross_water_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	can_cross_water_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(can_cross_water_check)
 
 	# Can Enter Forest
@@ -507,7 +514,7 @@ func _add_terrain_section() -> void:
 	can_enter_forest_check.text = "Can Enter Forest"
 	can_enter_forest_check.tooltip_text = "Allow the caravan to enter forest tiles"
 	can_enter_forest_check.button_pressed = false
-	can_enter_forest_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	can_enter_forest_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(can_enter_forest_check)
 
 	# Blocked Terrain Types
@@ -521,7 +528,7 @@ func _add_terrain_section() -> void:
 	blocked_terrain_edit = LineEdit.new()
 	blocked_terrain_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	blocked_terrain_edit.placeholder_text = "mountain, deep_water, wall"
-	blocked_terrain_edit.text_changed.connect(_mark_dirty)
+	blocked_terrain_edit.text_changed.connect(_on_field_changed)
 	blocked_container.add_child(blocked_terrain_edit)
 	section.add_child(blocked_container)
 
@@ -547,7 +554,7 @@ func _add_services_section() -> void:
 	has_item_storage_check.text = "Item Storage (SF2's Depot)"
 	has_item_storage_check.tooltip_text = "Enable storing items in the caravan"
 	has_item_storage_check.button_pressed = true
-	has_item_storage_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	has_item_storage_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(has_item_storage_check)
 
 	# Party Management
@@ -555,7 +562,7 @@ func _add_services_section() -> void:
 	has_party_management_check.text = "Party Management"
 	has_party_management_check.tooltip_text = "Enable swapping active/reserve members"
 	has_party_management_check.button_pressed = true
-	has_party_management_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	has_party_management_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(has_party_management_check)
 
 	# Rest Service
@@ -563,7 +570,7 @@ func _add_services_section() -> void:
 	has_rest_check.text = "Rest Service (heal all party members)"
 	has_rest_check.tooltip_text = "Enable free full heal for the party"
 	has_rest_check.button_pressed = true
-	has_rest_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	has_rest_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(has_rest_check)
 
 	# Shop Service
@@ -571,7 +578,7 @@ func _add_services_section() -> void:
 	has_shop_check.text = "Shop Service (typically false for base game)"
 	has_shop_check.tooltip_text = "Enable buy/sell items inside the caravan"
 	has_shop_check.button_pressed = false
-	has_shop_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	has_shop_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(has_shop_check)
 
 	# Promotion Service
@@ -579,7 +586,7 @@ func _add_services_section() -> void:
 	has_promotion_check.text = "Promotion Service (class promotion)"
 	has_promotion_check.tooltip_text = "Enable class promotion inside the caravan"
 	has_promotion_check.button_pressed = false
-	has_promotion_check.toggled.connect(func(_pressed: bool) -> void: _mark_dirty())
+	has_promotion_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(has_promotion_check)
 
 	detail_panel.add_child(section)
@@ -610,7 +617,7 @@ func _add_interior_section() -> void:
 	interior_scene_edit = LineEdit.new()
 	interior_scene_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	interior_scene_edit.placeholder_text = "res://path/to/interior.tscn (optional)"
-	interior_scene_edit.text_changed.connect(_mark_dirty)
+	interior_scene_edit.text_changed.connect(_on_field_changed)
 	interior_container.add_child(interior_scene_edit)
 	section.add_child(interior_container)
 
@@ -642,7 +649,7 @@ func _add_audio_section() -> void:
 	menu_open_sfx_edit = LineEdit.new()
 	menu_open_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	menu_open_sfx_edit.placeholder_text = "e.g., caravan_open"
-	menu_open_sfx_edit.text_changed.connect(_mark_dirty)
+	menu_open_sfx_edit.text_changed.connect(_on_field_changed)
 	open_container.add_child(menu_open_sfx_edit)
 	section.add_child(open_container)
 
@@ -657,7 +664,7 @@ func _add_audio_section() -> void:
 	menu_close_sfx_edit = LineEdit.new()
 	menu_close_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	menu_close_sfx_edit.placeholder_text = "e.g., caravan_close"
-	menu_close_sfx_edit.text_changed.connect(_mark_dirty)
+	menu_close_sfx_edit.text_changed.connect(_on_field_changed)
 	close_container.add_child(menu_close_sfx_edit)
 	section.add_child(close_container)
 
@@ -672,7 +679,7 @@ func _add_audio_section() -> void:
 	heal_sfx_edit = LineEdit.new()
 	heal_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heal_sfx_edit.placeholder_text = "e.g., heal_jingle"
-	heal_sfx_edit.text_changed.connect(_mark_dirty)
+	heal_sfx_edit.text_changed.connect(_on_field_changed)
 	heal_container.add_child(heal_sfx_edit)
 	section.add_child(heal_container)
 
@@ -687,7 +694,7 @@ func _add_audio_section() -> void:
 	ambient_sfx_edit = LineEdit.new()
 	ambient_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ambient_sfx_edit.placeholder_text = "e.g., campfire_crackle (optional)"
-	ambient_sfx_edit.text_changed.connect(_mark_dirty)
+	ambient_sfx_edit.text_changed.connect(_on_field_changed)
 	ambient_container.add_child(ambient_sfx_edit)
 	section.add_child(ambient_container)
 
@@ -726,4 +733,29 @@ func _on_browse_wagon_sprite() -> void:
 ## Handle wagon sprite file selection
 func _on_wagon_sprite_selected(path: String) -> void:
 	wagon_sprite_path_edit.text = path
+	_mark_dirty()
+
+
+# =============================================================================
+# SIGNAL HANDLERS (with guard check)
+# =============================================================================
+
+## Called when text field changes - mark dirty if not populating UI
+func _on_field_changed(_new_text: String = "") -> void:
+	if _updating_ui:
+		return
+	_mark_dirty()
+
+
+## Called when spinbox value changes - mark dirty if not populating UI
+func _on_spin_changed(_new_value: float) -> void:
+	if _updating_ui:
+		return
+	_mark_dirty()
+
+
+## Called when checkbox is toggled - mark dirty if not populating UI
+func _on_checkbox_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
 	_mark_dirty()

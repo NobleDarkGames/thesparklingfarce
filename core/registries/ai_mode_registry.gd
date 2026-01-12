@@ -57,13 +57,6 @@ const DEFAULT_MODES: Dictionary = {
 ## Registered modes from mods: {mode_id: {display_name, description, source_mod}}
 var _mod_modes: Dictionary = {}
 
-## Cached merged dictionary (rebuilt when mods change)
-var _all_modes: Dictionary = {}
-var _cache_dirty: bool = true
-
-## Cached sorted array for get_all_modes() (editor performance)
-var _cached_all_modes_sorted: Array[Dictionary] = []
-
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -104,8 +97,6 @@ func _register_mode(mod_id: String, mode_id: String, data: Dictionary) -> void:
 		"source_mod": mod_id
 	}
 
-	_cache_dirty = true
-
 
 ## Unregister all modes from a mod (called when mod is unloaded)
 func unregister_mod(mod_id: String) -> void:
@@ -122,14 +113,12 @@ func unregister_mod(mod_id: String) -> void:
 		changed = true
 
 	if changed:
-		_cache_dirty = true
 		registrations_changed.emit()
 
 
 ## Clear all mod registrations (called on full mod reload)
 func clear_mod_registrations() -> void:
 	_mod_modes.clear()
-	_cache_dirty = true
 	registrations_changed.emit()
 
 
@@ -139,59 +128,64 @@ func clear_mod_registrations() -> void:
 
 ## Get all available mode IDs (defaults + mod-registered)
 func get_mode_ids() -> Array[String]:
-	_rebuild_cache_if_dirty()
+	var all_modes: Dictionary = _get_merged_modes()
 	var result: Array[String] = []
-	for mode_id: String in _all_modes.keys():
+	for mode_id: String in all_modes.keys():
 		result.append(mode_id)
 	result.sort()
 	return result
 
 
-## Get all registered modes as dictionaries with metadata (cached for editor performance)
+## Get all registered modes as dictionaries with metadata
 ## Returns: Array of {id, display_name, description, source_mod}
 func get_all_modes() -> Array[Dictionary]:
-	_rebuild_cache_if_dirty()
+	var all_modes: Dictionary = _get_merged_modes()
 	var result: Array[Dictionary] = []
-	for entry: Dictionary in _cached_all_modes_sorted:
+	for mode_id: String in all_modes.keys():
+		var entry: Dictionary = all_modes[mode_id]
 		result.append(entry.duplicate())
+	# Sort by display name for consistent UI ordering
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.get("display_name", "") < b.get("display_name", "")
+	)
 	return result
 
 
 ## Get a specific mode's metadata
 ## Returns empty dictionary if not found
 func get_mode(mode_id: String) -> Dictionary:
-	_rebuild_cache_if_dirty()
+	var all_modes: Dictionary = _get_merged_modes()
 	var lower: String = mode_id.to_lower()
-	if lower in _all_modes:
-		var entry: Dictionary = _all_modes[lower]
+	if lower in all_modes:
+		var entry: Dictionary = all_modes[lower]
 		return entry.duplicate()
 	return {}
 
 
 ## Get the display name for a mode
 func get_display_name(mode_id: String) -> String:
-	_rebuild_cache_if_dirty()
+	var all_modes: Dictionary = _get_merged_modes()
 	var lower: String = mode_id.to_lower()
-	if lower in _all_modes:
-		var entry: Dictionary = _all_modes[lower]
+	if lower in all_modes:
+		var entry: Dictionary = all_modes[lower]
 		return entry.get("display_name", mode_id.capitalize())
 	return mode_id.capitalize()
 
 
 ## Get the description for a mode
 func get_description(mode_id: String) -> String:
-	_rebuild_cache_if_dirty()
+	var all_modes: Dictionary = _get_merged_modes()
 	var lower: String = mode_id.to_lower()
-	if lower in _all_modes:
-		var entry: Dictionary = _all_modes[lower]
+	if lower in all_modes:
+		var entry: Dictionary = all_modes[lower]
 		return entry.get("description", "")
 	return ""
 
 
 ## Check if a mode is valid
 func is_valid_mode(mode_id: String) -> bool:
-	_rebuild_cache_if_dirty()
-	return mode_id.to_lower() in _all_modes
+	var all_modes: Dictionary = _get_merged_modes()
+	return mode_id.to_lower() in all_modes
 
 
 ## Check if a mode is one of the built-in defaults
@@ -214,18 +208,16 @@ func get_mode_source(mode_id: String) -> String:
 # INTERNAL HELPERS
 # =============================================================================
 
-## Rebuild the cached merged dictionary
-func _rebuild_cache_if_dirty() -> void:
-	if not _cache_dirty:
-		return
+## Compute merged modes dictionary fresh (defaults + mod overrides)
+func _get_merged_modes() -> Dictionary:
+	var result: Dictionary = {}
 
 	# Start with defaults
-	_all_modes.clear()
 	for mode_id: String in DEFAULT_MODES.keys():
 		var mode_data: Dictionary = DEFAULT_MODES[mode_id]
 		var display_name: String = mode_data.get("display_name", "")
 		var description: String = mode_data.get("description", "")
-		_all_modes[mode_id] = {
+		result[mode_id] = {
 			"id": mode_id,
 			"display_name": display_name,
 			"description": description,
@@ -235,18 +227,9 @@ func _rebuild_cache_if_dirty() -> void:
 	# Add/override with mod modes
 	for mode_id: String in _mod_modes.keys():
 		var entry: Dictionary = _mod_modes[mode_id]
-		_all_modes[mode_id] = entry.duplicate()
+		result[mode_id] = entry.duplicate()
 
-	# Build sorted array for get_all_modes()
-	_cached_all_modes_sorted.clear()
-	for mode_id: String in _all_modes.keys():
-		var entry: Dictionary = _all_modes[mode_id]
-		_cached_all_modes_sorted.append(entry.duplicate())
-	_cached_all_modes_sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a.get("display_name", "") < b.get("display_name", "")
-	)
-
-	_cache_dirty = false
+	return result
 
 
 # =============================================================================
@@ -255,8 +238,8 @@ func _rebuild_cache_if_dirty() -> void:
 
 ## Get registration counts for debugging
 func get_stats() -> Dictionary:
-	_rebuild_cache_if_dirty()
+	var all_modes: Dictionary = _get_merged_modes()
 	return {
-		"mode_count": _all_modes.size(),
+		"mode_count": all_modes.size(),
 		"mod_mode_count": _mod_modes.size()
 	}

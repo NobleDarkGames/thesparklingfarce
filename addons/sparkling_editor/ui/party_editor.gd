@@ -18,8 +18,10 @@ var max_size_spin: SpinBox
 var members_container: VBoxContainer
 var members_list: Array[Dictionary] = []  # Track member UI elements
 
-# Available characters for selection
-var available_characters: Array[CharacterData] = []
+# No local character cache - query registry directly via dropdowns
+
+# Flag to prevent signal feedback loops during UI updates
+var _updating_ui: bool = false
 
 # ============================================================================
 # PHASE 7: DEFAULT PARTY WORKFLOW
@@ -39,14 +41,15 @@ func _ready() -> void:
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
 	resource_dependencies = ["character", "new_game_config"]
 	super._ready()
-	_load_available_characters()
 	_load_default_party_info()
 
 
 ## Override: Called when dependent resource types change (via base class)
 func _on_dependencies_changed(changed_type: String) -> void:
-	# Reload character data when any character is created/saved/deleted
-	_load_available_characters()
+	# Refresh character dropdowns when characters change (query registry fresh)
+	if changed_type == "character":
+		for member_ui: Dictionary in members_list:
+			_populate_character_dropdown(member_ui.character_option)
 	# Refresh default party info when configs change
 	if changed_type == "new_game_config":
 		_load_default_party_info()
@@ -79,6 +82,8 @@ func _load_resource_data() -> void:
 	if not party:
 		return
 
+	_updating_ui = true
+
 	party_name_edit.text = party.party_name
 	description_edit.text = party.description
 	max_size_spin.value = party.max_size
@@ -87,6 +92,8 @@ func _load_resource_data() -> void:
 	_clear_members_ui()
 	for member_dict: Dictionary in party.members:
 		_add_member_ui(member_dict)
+
+	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -100,15 +107,20 @@ func _save_resource_data() -> void:
 	party.description = description_edit.text
 	party.max_size = int(max_size_spin.value)
 
-	# Update members array from UI
+	# Update members array from UI - get character from dropdown metadata
 	party.members.clear()
 	for member_ui: Dictionary in members_list:
-		var character_idx: int = member_ui.character_option.selected - 1
-		if character_idx < 0 or character_idx >= available_characters.size():
-			continue  # Skip if no character selected
+		var option: OptionButton = member_ui.character_option
+		var selected_idx: int = option.selected
+		if selected_idx <= 0:
+			continue  # Skip if "(Select Character)" or invalid
+
+		var character: CharacterData = option.get_item_metadata(selected_idx) as CharacterData
+		if not character:
+			continue
 
 		var member_dict: Dictionary = {
-			"character": available_characters[character_idx],
+			"character": character,
 			"formation_offset": Vector2i(
 				int(member_ui.offset_x_spin.value),
 				int(member_ui.offset_y_spin.value)
@@ -243,34 +255,29 @@ func _add_party_members_section() -> void:
 	_add_default_party_section()
 
 
-## Load all available characters from ALL loaded mods
-func _load_available_characters() -> void:
-	available_characters.clear()
-
-	# Get ALL characters from ModRegistry (not just active mod!)
-	if ModLoader and ModLoader.registry:
-		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
-
-		# Convert to typed array
-		for char_data: CharacterData in all_characters:
-			if char_data:
-				available_characters.append(char_data)
-	else:
-		push_warning("PartyEditor: ModLoader or registry not available")
-
-	# Update all character dropdowns if we have any members
-	for member_ui: Dictionary in members_list:
-		_populate_character_dropdown(member_ui.character_option)
-
-
-## Populate a character dropdown with available characters (with source mod prefix)
+## Populate a character dropdown with available characters - queries registry directly
 func _populate_character_dropdown(option_button: OptionButton) -> void:
+	# Save current selection if any
+	var current_character: CharacterData = null
+	if option_button.selected > 0:
+		current_character = option_button.get_item_metadata(option_button.selected) as CharacterData
+
 	option_button.clear()
 	option_button.add_item("(Select Character)", -1)
 
-	for character: CharacterData in available_characters:
-		var display_name: String = SparklingEditorUtils.get_character_display_name(character)
-		option_button.add_item(display_name)
+	# Query registry fresh each time
+	if ModLoader and ModLoader.registry:
+		var all_characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
+		var idx: int = 1
+		for char_data: CharacterData in all_characters:
+			if char_data:
+				var display_name: String = SparklingEditorUtils.get_character_display_name(char_data)
+				option_button.add_item(display_name, idx - 1)
+				option_button.set_item_metadata(idx, char_data)
+				# Restore selection if this was the previously selected character
+				if current_character and char_data.resource_path == current_character.resource_path:
+					option_button.select(idx)
+				idx += 1
 
 
 ## Add a new member UI element
@@ -292,11 +299,13 @@ func _add_member_ui(member_dict: Dictionary) -> void:
 	var character_option: OptionButton = OptionButton.new()
 	_populate_character_dropdown(character_option)
 
-	# Select the current character if present
+	# Select the current character if present - search by metadata
 	if "character" in member_dict and member_dict.character:
-		for i: int in range(available_characters.size()):
-			if available_characters[i] == member_dict.character:
-				character_option.select(i + 1)
+		var target_path: String = member_dict.character.resource_path
+		for i: int in range(character_option.item_count):
+			var metadata: Variant = character_option.get_item_metadata(i)
+			if metadata is CharacterData and metadata.resource_path == target_path:
+				character_option.select(i)
 				break
 
 	member_vbox.add_child(character_option)

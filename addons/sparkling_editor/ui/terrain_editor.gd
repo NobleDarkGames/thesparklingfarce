@@ -187,6 +187,7 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 func _add_identity_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Identity")
 
 	terrain_id_edit = form.add_text_field("Terrain ID:", "e.g., deep_water, lava_flow",
@@ -224,12 +225,14 @@ func _add_movement_section() -> void:
 	walking_cost_spin.max_value = 99
 	walking_cost_spin.value = 1
 	walking_cost_spin.tooltip_text = "1 = normal, 2 = half speed, 3+ = very slow"
+	walking_cost_spin.value_changed.connect(_on_field_changed)
 	walking_container.add_child(walking_cost_spin)
 
 	impassable_walking_check = CheckBox.new()
 	impassable_walking_check.text = "Impassable"
 	impassable_walking_check.tooltip_text = "Walking units cannot enter at all"
 	impassable_walking_check.toggled.connect(_on_impassable_toggled)
+	impassable_walking_check.toggled.connect(_on_field_changed)
 	walking_container.add_child(impassable_walking_check)
 	section.add_child(walking_container)
 
@@ -245,12 +248,14 @@ func _add_movement_section() -> void:
 	floating_cost_spin.min_value = 1
 	floating_cost_spin.max_value = 99
 	floating_cost_spin.value = 1
+	floating_cost_spin.value_changed.connect(_on_field_changed)
 	floating_container.add_child(floating_cost_spin)
 
 	impassable_floating_check = CheckBox.new()
 	impassable_floating_check.text = "Impassable"
 	impassable_floating_check.tooltip_text = "Floating units cannot enter at all"
 	impassable_floating_check.toggled.connect(_on_impassable_toggled)
+	impassable_floating_check.toggled.connect(_on_field_changed)
 	floating_container.add_child(impassable_floating_check)
 	section.add_child(floating_container)
 
@@ -266,12 +271,14 @@ func _add_movement_section() -> void:
 	flying_cost_spin.min_value = 1
 	flying_cost_spin.max_value = 99
 	flying_cost_spin.value = 1
+	flying_cost_spin.value_changed.connect(_on_field_changed)
 	flying_container.add_child(flying_cost_spin)
 
 	impassable_flying_check = CheckBox.new()
 	impassable_flying_check.text = "Impassable"
 	impassable_flying_check.tooltip_text = "Flying units cannot enter (rare - anti-air zones, ceilings)"
 	impassable_flying_check.toggled.connect(_on_impassable_toggled)
+	impassable_flying_check.toggled.connect(_on_field_changed)
 	flying_container.add_child(impassable_flying_check)
 	section.add_child(flying_container)
 
@@ -280,6 +287,7 @@ func _add_movement_section() -> void:
 
 func _add_combat_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Combat Modifiers")
 	form.add_help_text("Bonuses applied to units standing on this terrain during combat.")
 
@@ -293,6 +301,7 @@ func _add_combat_section() -> void:
 
 func _add_turn_effects_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Turn Effects")
 	form.add_help_text("Effects applied at the start of each turn for units on this terrain.")
 
@@ -301,6 +310,11 @@ func _add_turn_effects_section() -> void:
 
 	healing_per_turn_spin = form.add_number_field("Healing per Turn:", 0, 99, 0,
 		"HP restored at start of turn (for sacred ground, healing tiles)")
+
+
+## Called when any manually-connected field changes to mark dirty
+func _on_field_changed(_value: Variant = null) -> void:
+	_mark_dirty()
 
 
 ## Update visual feedback when impassable checkboxes are toggled

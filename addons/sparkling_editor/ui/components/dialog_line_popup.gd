@@ -37,6 +37,28 @@ func _ready() -> void:
 	close_requested.connect(_on_cancel)
 
 
+func _exit_tree() -> void:
+	# Clean up signal connections
+	if close_requested.is_connected(_on_cancel):
+		close_requested.disconnect(_on_cancel)
+
+	# Clean up internal control signals
+	if character_picker and character_picker.item_selected.is_connected(_on_character_selected):
+		character_picker.item_selected.disconnect(_on_character_selected)
+	if emotion_picker and emotion_picker.item_selected.is_connected(_on_input_changed):
+		emotion_picker.item_selected.disconnect(_on_input_changed)
+	if text_edit and text_edit.text_changed.is_connected(_on_input_changed):
+		text_edit.text_changed.disconnect(_on_input_changed)
+	if copy_button and copy_button.pressed.is_connected(_on_copy):
+		copy_button.pressed.disconnect(_on_copy)
+	if cancel_button and cancel_button.pressed.is_connected(_on_cancel):
+		cancel_button.pressed.disconnect(_on_cancel)
+
+	# Clear resource caches
+	_characters.clear()
+	_npcs.clear()
+
+
 func _refresh_characters() -> void:
 	_characters.clear()
 	_npcs.clear()

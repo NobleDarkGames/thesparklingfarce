@@ -58,12 +58,14 @@ var new_map_error_label: Label
 # Map type enum values (matching MapMetadata.MapType)
 const MAP_TYPES: Array[String] = ["TOWN", "OVERWORLD", "DUNGEON", "BATTLE", "INTERIOR"]
 
-# Available tilesets for new maps
-var available_tilesets: Array[String] = []
+# No local tileset cache - query TilesetRegistry directly
 
 # Confirmation dialog for destructive actions
 var confirmation_dialog: ConfirmationDialog
 var _pending_confirmation_action: Callable
+
+# Guard to prevent marking dirty during UI population
+var _updating_ui: bool = false
 
 
 func _init() -> void:
@@ -178,9 +180,6 @@ func _setup_ui() -> void:
 
 	# Create confirmation dialog for destructive actions
 	_create_confirmation_dialog()
-
-	# Scan for available tilesets
-	_scan_tilesets()
 
 	# Initial refresh
 	_refresh_map_list()
@@ -536,6 +535,8 @@ func _add_separator() -> void:
 
 ## Called when any form field changes to mark the editor as dirty
 func _on_form_field_changed(_value: Variant = null) -> void:
+	if _updating_ui:
+		return
 	is_dirty = true
 
 
@@ -632,6 +633,8 @@ func _load_map_json(path: String) -> void:
 
 
 func _populate_ui_from_data() -> void:
+	_updating_ui = true
+
 	# Scene reference (REQUIRED - the only mandatory field in scene-as-truth)
 	scene_path_edit.text = current_map_data.get("scene_path", "")
 
@@ -645,6 +648,8 @@ func _populate_ui_from_data() -> void:
 
 	# Edge connections (overworld only - cannot derive from scene)
 	_populate_edge_connections()
+
+	_updating_ui = false
 
 
 func _populate_edge_connections() -> void:
@@ -840,38 +845,38 @@ func _on_new_map_dialog_close() -> void:
 	new_map_dialog.hide()
 
 
-func _scan_tilesets() -> void:
-	available_tilesets.clear()
+## Refresh tileset dropdown - queries TilesetRegistry directly (no local cache)
+func _refresh_tileset_dropdown() -> void:
+	new_map_tileset_dropdown.clear()
+
+	# Build tileset list directly from registry
+	var tilesets: Array[String] = []
 
 	# First, add core default tileset (always available as fallback)
 	var core_tileset_path: String = "res://core/defaults/tilesets/default_tileset.tres"
 	if ResourceLoader.exists(core_tileset_path):
-		available_tilesets.append(core_tileset_path)
+		tilesets.append(core_tileset_path)
 
 	# Use the Tileset Registry for discovery (supports mod.json declarations + auto-discovery)
 	if ModLoader and ModLoader.tileset_registry:
 		var registry_tilesets: Array[String] = ModLoader.tileset_registry.get_all_tileset_paths()
 		for tileset_path: String in registry_tilesets:
-			if tileset_path not in available_tilesets:
-				available_tilesets.append(tileset_path)
+			if tileset_path not in tilesets:
+				tilesets.append(tileset_path)
 	else:
 		# Fallback: Scan for .tres files in tileset directories across mods
 		var results: Array[Dictionary] = SparklingEditorUtils.scan_mods_for_files("tilesets", ".tres")
 		for res: Dictionary in results:
 			var path: String = res.get("path", "")
 			# Verify it's actually a TileSet resource and not already added
-			if ResourceLoader.exists(path) and path not in available_tilesets:
-				available_tilesets.append(path)
+			if ResourceLoader.exists(path) and path not in tilesets:
+				tilesets.append(path)
 
-	if available_tilesets.is_empty():
+	if tilesets.is_empty():
 		push_warning("MapMetadataEditor: No tilesets found. Core default should exist at res://core/defaults/tilesets/")
 
-
-func _refresh_tileset_dropdown() -> void:
-	new_map_tileset_dropdown.clear()
-
-	# Use registry for display names if available
-	for tileset_path: String in available_tilesets:
+	# Populate dropdown
+	for tileset_path: String in tilesets:
 		var display_name: String = ""
 		# Try to get display name from registry
 		if ModLoader and ModLoader.tileset_registry:
