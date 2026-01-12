@@ -584,9 +584,7 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 			return
 
 	# Check for other interactables (signs, chests, etc.)
-	print("[MapTemplate] Checking for interactables at position: %s" % interaction_pos)
 	var interactable: Node = _find_interactable_at_position(interaction_pos)
-	print("[MapTemplate] _find_interactable_at_position returned: %s" % (interactable.name if interactable else "null"))
 	if interactable:
 		_debug_print("MapTemplate: Found interactable at position: %s" % interactable.name)
 		if interactable.has_method("interact"):

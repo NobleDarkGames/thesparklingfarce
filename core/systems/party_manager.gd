@@ -743,32 +743,19 @@ func transfer_item_between_members(from_uid: String, to_uid: String, item_id: St
 ## Returns runtime CharacterSaveData (with inventory, level-ups, etc.)
 ## @return: Array of CharacterSaveData representing current party
 func export_to_save() -> Array[CharacterSaveData]:
-	print("PartyManager.export_to_save: Exporting %d party members, %d in save_data cache" % [
-		party_members.size(), _member_save_data.size()
-	])
 	var save_array: Array[CharacterSaveData] = []
 
 	for character_data: CharacterData in party_members:
 		var uid: String = character_data.character_uid
 		if uid in _member_save_data:
 			# Use runtime save data (has inventory, level-ups, etc.)
-			print("PartyManager.export_to_save: Using cached save data for '%s' (uid=%s)" % [
-				character_data.character_name, uid
-			])
 			save_array.append(_member_save_data[uid])
 		else:
 			# Fallback: create fresh save data from template
-			print("PartyManager.export_to_save: Creating fresh save data for '%s' (uid=%s, path='%s')" % [
-				character_data.character_name, uid, character_data.resource_path
-			])
 			var char_save: CharacterSaveData = CharacterSaveData.new()
 			char_save.populate_from_character_data(character_data)
-			print("PartyManager.export_to_save: Created save data - mod_id='%s', resource_id='%s'" % [
-				char_save.character_mod_id, char_save.character_resource_id
-			])
 			save_array.append(char_save)
 
-	print("PartyManager.export_to_save: Exported %d characters" % save_array.size())
 	return save_array
 
 

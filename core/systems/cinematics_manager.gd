@@ -773,12 +773,26 @@ func skip_cinematic() -> void:
 	cinematic_skipped.emit()
 
 	# Fade to black BEFORE cleanup so actors don't pop out visually
-	# Only fade if not already faded (avoids double-fade)
-	if SceneManager and not SceneManager.is_faded_to_black:
-		await SceneManager.fade_to_black(0.3)
-		# Guard against node being freed during await
-		if not is_instance_valid(self):
-			return
+	# First wait for any existing fade to complete (prevents actors popping out
+	# when Escape is pressed during a fade_screen command)
+	if SceneManager:
+		var frames_waited: int = 0
+		const FADE_WAIT_TIMEOUT: int = 300  # ~5 seconds at 60fps
+		while SceneManager.is_fading:
+			await get_tree().process_frame
+			if not is_instance_valid(self):
+				return
+			frames_waited += 1
+			if frames_waited >= FADE_WAIT_TIMEOUT:
+				push_warning("CinematicsManager: Fade wait timed out during skip")
+				break
+
+		# Now fade to black if not already faded
+		if not SceneManager.is_faded_to_black:
+			await SceneManager.fade_to_black(0.3)
+			# Guard against node being freed during await
+			if not is_instance_valid(self):
+				return
 
 	_end_cinematic()
 

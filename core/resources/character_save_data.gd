@@ -125,17 +125,9 @@ func populate_from_character_data(character: CharacterData) -> void:
 		push_error("CharacterSaveData: Cannot populate from null CharacterData")
 		return
 
-	print("CharacterSaveData.populate_from_character_data: name='%s', resource_path='%s'" % [
-		character.character_name, character.resource_path
-	])
-
 	# Get mod_id and resource_id from ModRegistry
 	character_mod_id = _get_mod_id_for_resource(character)
 	character_resource_id = _get_resource_id_for_resource(character)
-
-	print("CharacterSaveData.populate_from_character_data: Resolved mod_id='%s', resource_id='%s'" % [
-		character_mod_id, character_resource_id
-	])
 
 	# Fallback data
 	fallback_character_name = character.character_name
@@ -347,36 +339,26 @@ func _deserialize_learned_abilities(data: Dictionary) -> void:
 ## Validate that character save data is complete and valid
 ## @return: true if valid, false if corrupted/invalid
 func validate() -> bool:
-	print("CharacterSaveData.validate: name='%s', mod_id='%s', resource_id='%s', level=%d, max_hp=%d" % [
-		fallback_character_name, character_mod_id, character_resource_id, level, max_hp
-	])
-
 	if character_mod_id.is_empty():
 		push_error("CharacterSaveData: character_mod_id is empty for '%s'" % fallback_character_name)
-		print("CharacterSaveData.validate: FAILED - character_mod_id empty")
 		return false
 
 	if character_resource_id.is_empty():
 		push_error("CharacterSaveData: character_resource_id is empty for '%s'" % fallback_character_name)
-		print("CharacterSaveData.validate: FAILED - character_resource_id empty")
 		return false
 
 	if fallback_character_name.is_empty():
 		push_error("CharacterSaveData: fallback_character_name is empty")
-		print("CharacterSaveData.validate: FAILED - fallback_character_name empty")
 		return false
 
 	if level < 1:
 		push_error("CharacterSaveData: Invalid level: %d" % level)
-		print("CharacterSaveData.validate: FAILED - level < 1")
 		return false
 
 	if max_hp < 1:
 		push_error("CharacterSaveData: Invalid max_hp: %d" % max_hp)
-		print("CharacterSaveData.validate: FAILED - max_hp < 1")
 		return false
 
-	print("CharacterSaveData.validate: SUCCESS for '%s'" % fallback_character_name)
 	return true
 
 

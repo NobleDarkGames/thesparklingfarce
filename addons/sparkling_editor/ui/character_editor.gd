@@ -130,7 +130,7 @@ func _on_dependencies_changed(changed_type: String) -> void:
 
 	elif changed_type == "ability":
 		# Refresh unique abilities display in case ability names/properties changed
-		_load_unique_abilities_from_character(character)
+		_load_unique_abilities(character)
 
 
 ## Override: Create the character-specific detail form
