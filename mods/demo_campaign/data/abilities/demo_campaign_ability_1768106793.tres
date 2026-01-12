@@ -4,4 +4,7 @@
 
 [resource]
 script = ExtResource("1_ejtba")
-ability_name = "New Ability"
+ability_name = "Healio"
+ability_id = "healio"
+ability_type = 1
+target_type = 1
