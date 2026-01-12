@@ -434,6 +434,9 @@ func _update_sprite_animation() -> void:
 		if sprite.animation != anim_name:
 			sprite.play(anim_name)
 
+	# SF2-authentic: movement animation is faster than idle
+	sprite.speed_scale = AnimationTiming.MOVEMENT_SPEED_SCALE
+
 
 ## Play walk animation for current facing direction (SF2-authentic: walk plays even when stationary).
 func _play_idle_animation() -> void:
@@ -446,6 +449,9 @@ func _play_idle_animation() -> void:
 	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
 		if sprite.animation != anim_name:
 			sprite.play(anim_name)
+
+	# SF2-authentic: idle animation is slower than movement
+	sprite.speed_scale = AnimationTiming.IDLE_SPEED_SCALE
 
 
 ## Add current position to history for followers.

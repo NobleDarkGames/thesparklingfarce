@@ -193,6 +193,8 @@ func _play_idle_animation() -> void:
 	if _sprite.sprite_frames.has_animation(anim_name):
 		if _sprite.animation != anim_name:
 			_sprite.play(anim_name)
+	# SF2-authentic: idle animation is slower than movement
+	_sprite.speed_scale = AnimationTiming.IDLE_SPEED_SCALE
 
 
 ## Play walk animation for current facing direction
@@ -206,3 +208,5 @@ func _play_walk_animation() -> void:
 	elif _sprite.sprite_frames.has_animation("walk_down"):
 		# Fallback to walk_down if no directional animation
 		_sprite.play("walk_down")
+	# SF2-authentic: movement animation is faster than idle
+	_sprite.speed_scale = AnimationTiming.MOVEMENT_SPEED_SCALE
