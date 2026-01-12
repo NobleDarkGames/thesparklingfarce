@@ -310,23 +310,34 @@ func deserialize_from_dict(data: Dictionary) -> void:
 ## Validate that save data is complete and valid
 ## @return: true if valid, false if corrupted/invalid
 func validate() -> bool:
+	print("SaveData.validate: Checking save_version=%d, slot=%d, game_version='%s', party_size=%d" % [
+		save_version, slot_number, game_version, party_members.size()
+	])
+
 	if save_version < 1:
 		push_error("SaveData: Invalid save_version: %d" % save_version)
+		print("SaveData.validate: FAILED - save_version < 1")
 		return false
 
 	if slot_number < 1 or slot_number > 3:
 		push_error("SaveData: Invalid slot_number: %d (must be 1-3)" % slot_number)
+		print("SaveData.validate: FAILED - slot_number out of range")
 		return false
 
 	if game_version.is_empty():
 		push_error("SaveData: game_version is empty")
+		print("SaveData.validate: FAILED - game_version empty")
 		return false
 
 	# Validate party members
-	for char_save: CharacterSaveData in party_members:
+	for i: int in range(party_members.size()):
+		var char_save: CharacterSaveData = party_members[i]
+		print("SaveData.validate: Validating party member %d: '%s'" % [i, char_save.fallback_character_name])
 		if not char_save.validate():
+			print("SaveData.validate: FAILED - party member %d failed validation" % i)
 			return false
 
+	print("SaveData.validate: SUCCESS")
 	return true
 
 

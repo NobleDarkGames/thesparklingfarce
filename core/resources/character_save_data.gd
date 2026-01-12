@@ -125,9 +125,17 @@ func populate_from_character_data(character: CharacterData) -> void:
 		push_error("CharacterSaveData: Cannot populate from null CharacterData")
 		return
 
+	print("CharacterSaveData.populate_from_character_data: name='%s', resource_path='%s'" % [
+		character.character_name, character.resource_path
+	])
+
 	# Get mod_id and resource_id from ModRegistry
 	character_mod_id = _get_mod_id_for_resource(character)
 	character_resource_id = _get_resource_id_for_resource(character)
+
+	print("CharacterSaveData.populate_from_character_data: Resolved mod_id='%s', resource_id='%s'" % [
+		character_mod_id, character_resource_id
+	])
 
 	# Fallback data
 	fallback_character_name = character.character_name
@@ -215,8 +223,12 @@ func populate_from_unit(unit: Unit) -> void:
 		intelligence = unit.stats.intelligence
 		luck = unit.stats.luck
 
-	# TODO: Copy equipped items when equipment system is implemented
-	# TODO: Copy learned abilities when ability learning system is implemented
+		# Copy equipped items from Unit's cached equipment
+		_capture_equipment_from_unit(unit)
+
+	# Preserve learned abilities from PartyManager's authoritative save data
+	# Unit stats don't track abilities - CharacterSaveData does
+	_preserve_abilities_from_party(char_data)
 
 
 # ============================================================================
@@ -335,26 +347,36 @@ func _deserialize_learned_abilities(data: Dictionary) -> void:
 ## Validate that character save data is complete and valid
 ## @return: true if valid, false if corrupted/invalid
 func validate() -> bool:
+	print("CharacterSaveData.validate: name='%s', mod_id='%s', resource_id='%s', level=%d, max_hp=%d" % [
+		fallback_character_name, character_mod_id, character_resource_id, level, max_hp
+	])
+
 	if character_mod_id.is_empty():
-		push_error("CharacterSaveData: character_mod_id is empty")
+		push_error("CharacterSaveData: character_mod_id is empty for '%s'" % fallback_character_name)
+		print("CharacterSaveData.validate: FAILED - character_mod_id empty")
 		return false
 
 	if character_resource_id.is_empty():
-		push_error("CharacterSaveData: character_resource_id is empty")
+		push_error("CharacterSaveData: character_resource_id is empty for '%s'" % fallback_character_name)
+		print("CharacterSaveData.validate: FAILED - character_resource_id empty")
 		return false
 
 	if fallback_character_name.is_empty():
 		push_error("CharacterSaveData: fallback_character_name is empty")
+		print("CharacterSaveData.validate: FAILED - fallback_character_name empty")
 		return false
 
 	if level < 1:
 		push_error("CharacterSaveData: Invalid level: %d" % level)
+		print("CharacterSaveData.validate: FAILED - level < 1")
 		return false
 
 	if max_hp < 1:
 		push_error("CharacterSaveData: Invalid max_hp: %d" % max_hp)
+		print("CharacterSaveData.validate: FAILED - max_hp < 1")
 		return false
 
+	print("CharacterSaveData.validate: SUCCESS for '%s'" % fallback_character_name)
 	return true
 
 
@@ -497,3 +519,53 @@ func set_current_class(new_class: ClassData) -> void:
 
 	current_class_mod_id = _get_mod_id_for_resource(new_class)
 	current_class_resource_id = _get_resource_id_for_resource(new_class)
+
+
+# ============================================================================
+# UNIT STATE CAPTURE HELPERS
+# ============================================================================
+
+## Capture equipment from a Unit's cached equipment into this save data
+## Preserves curse_broken status from existing equipped_items if available
+## @param unit: Unit node with equipment state
+func _capture_equipment_from_unit(unit: Unit) -> void:
+	if not unit or not unit.stats:
+		return
+
+	# Store existing curse_broken status before clearing
+	var curse_status: Dictionary = {}  # slot -> curse_broken
+	for entry: Dictionary in equipped_items:
+		var slot: String = entry.get("slot", "")
+		if not slot.is_empty():
+			curse_status[slot] = entry.get("curse_broken", false)
+
+	# Clear and rebuild from unit's cached equipment
+	equipped_items.clear()
+
+	for slot_id: String in unit.stats.cached_equipment:
+		var item: ItemData = unit.stats.cached_equipment[slot_id] as ItemData
+		if item:
+			equipped_items.append({
+				"slot": slot_id,
+				"mod_id": _get_mod_id_for_resource(item),
+				"item_id": _get_resource_id_for_resource(item),
+				"curse_broken": curse_status.get(slot_id, false)
+			})
+
+
+## Preserve learned abilities from PartyManager's authoritative save data
+## Units don't track abilities at runtime - the CharacterSaveData is the source of truth
+## @param char_data: CharacterData to get UID for PartyManager lookup
+func _preserve_abilities_from_party(char_data: CharacterData) -> void:
+	if not char_data:
+		return
+
+	var uid: String = char_data.character_uid
+	if uid.is_empty():
+		return
+
+	# Get the authoritative save data from PartyManager
+	var party_save: CharacterSaveData = PartyManager.get_member_save_data(uid)
+	if party_save and party_save != self:
+		# Copy learned abilities from the party's save data
+		learned_abilities = party_save.learned_abilities.duplicate(true)

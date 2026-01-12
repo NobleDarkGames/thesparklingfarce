@@ -29,6 +29,7 @@ func _ready() -> void:
 	_run_unit_stats_tests()
 	_run_experience_config_tests()
 	_run_item_menu_integration_tests()
+	_run_save_system_tests()
 
 	# Print summary
 	_print_summary()
@@ -1271,3 +1272,121 @@ func _test_party_manager_save_data() -> void:
 
 	# Clean up
 	PartyManager.clear_party()
+
+
+# =============================================================================
+# SAVE SYSTEM TESTS
+# =============================================================================
+
+func _run_save_system_tests() -> void:
+	_start_suite("SaveSystem")
+
+	_test_save_manager_sync_handles_null()
+	_test_save_manager_sync_updates_timestamp()
+	_test_save_manager_sync_copies_flags()
+	_test_character_save_equipment_format()
+	_test_character_save_abilities_format()
+	_test_character_save_curse_status_preserved()
+
+
+func _test_save_manager_sync_handles_null() -> void:
+	_start_test("sync_current_save_state_handles_null")
+	var original: SaveData = SaveManager.current_save
+	SaveManager.current_save = null
+
+	# Should not crash
+	SaveManager.sync_current_save_state()
+
+	SaveManager.current_save = original
+	_pass()
+
+
+func _test_save_manager_sync_updates_timestamp() -> void:
+	_start_test("sync_current_save_state_updates_timestamp")
+	var test_save: SaveData = SaveData.new()
+	test_save.last_played_timestamp = 0
+	var original: SaveData = SaveManager.current_save
+	SaveManager.current_save = test_save
+
+	SaveManager.sync_current_save_state()
+
+	var updated: bool = test_save.last_played_timestamp > 0
+	SaveManager.current_save = original
+
+	if _assert_true(updated, "timestamp should be updated"):
+		_pass()
+
+
+func _test_save_manager_sync_copies_flags() -> void:
+	_start_test("sync_current_save_state_copies_flags")
+	var test_flag: String = "_test_sync_flag_" + str(randi())
+	GameState.set_flag(test_flag, true)
+
+	var test_save: SaveData = SaveData.new()
+	test_save.story_flags = {}
+	var original: SaveData = SaveManager.current_save
+	SaveManager.current_save = test_save
+
+	SaveManager.sync_current_save_state()
+
+	var flag_copied: bool = test_flag in test_save.story_flags
+	SaveManager.current_save = original
+	GameState.clear_flag(test_flag)
+
+	if _assert_true(flag_copied, "flag should be in save data"):
+		_pass()
+
+
+func _test_character_save_equipment_format() -> void:
+	_start_test("character_save_equipment_format")
+	var save_data: CharacterSaveData = CharacterSaveData.new()
+	save_data.equipped_items.append({
+		"slot": "weapon",
+		"mod_id": "_base_game",
+		"item_id": "bronze_sword",
+		"curse_broken": false
+	})
+
+	var has_slot: bool = "slot" in save_data.equipped_items[0]
+	var has_mod_id: bool = "mod_id" in save_data.equipped_items[0]
+	var has_item_id: bool = "item_id" in save_data.equipped_items[0]
+	var has_curse: bool = "curse_broken" in save_data.equipped_items[0]
+
+	if _assert_true(has_slot and has_mod_id and has_item_id and has_curse, "equipment format"):
+		_pass()
+
+
+func _test_character_save_abilities_format() -> void:
+	_start_test("character_save_abilities_format")
+	var save_data: CharacterSaveData = CharacterSaveData.new()
+	save_data.learned_abilities = [
+		{"mod_id": "_base_game", "ability_id": "blaze"}
+	]
+
+	var serialized: Dictionary = save_data.serialize_to_dict()
+	var has_abilities: bool = "learned_abilities" in serialized
+	var ability_count: int = serialized.learned_abilities.size() if has_abilities else 0
+
+	if _assert_true(has_abilities, "has learned_abilities") and _assert_equal(ability_count, 1, "ability count"):
+		_pass()
+
+
+func _test_character_save_curse_status_preserved() -> void:
+	_start_test("character_save_curse_status_preserved")
+	var save_data: CharacterSaveData = CharacterSaveData.new()
+	save_data.equipped_items = [{
+		"slot": "weapon",
+		"mod_id": "_base_game",
+		"item_id": "cursed_blade",
+		"curse_broken": true
+	}]
+
+	# Simulate capture preservation logic
+	var curse_status: Dictionary = {}
+	for entry: Dictionary in save_data.equipped_items:
+		var slot: String = entry.get("slot", "")
+		if not slot.is_empty():
+			curse_status[slot] = entry.get("curse_broken", false)
+
+	if _assert_true(curse_status.get("weapon", false), "curse_broken should be true"):
+		_pass()

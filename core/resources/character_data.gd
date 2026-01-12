@@ -164,15 +164,22 @@ func get_uid() -> String:
 ## Combines: ClassData.class_abilities (filtered by level) + unique_abilities
 ## This is the PRIMARY method to get a character's spell list
 func get_available_abilities(level: int) -> Array[AbilityData]:
+	print("CharacterData.get_available_abilities: char='%s', level=%d, character_class=%s, unique_abilities=%d" % [
+		character_name, level, str(character_class != null), unique_abilities.size()
+	])
 	var abilities: Array[AbilityData] = []
 
 	# 1. Class abilities (primary source) - filtered by unlock level
 	if character_class != null:
+		print("CharacterData.get_available_abilities: Getting class abilities from '%s'" % character_class.display_name)
 		abilities.append_array(character_class.get_unlocked_class_abilities(level))
+	else:
+		print("CharacterData.get_available_abilities: WARNING - character_class is NULL!")
 
 	# 2. Character unique abilities (rare exceptions like Domingo's Freeze)
 	abilities.append_array(unique_abilities)
 
+	print("CharacterData.get_available_abilities: Returning %d total abilities" % abilities.size())
 	return abilities
 
 

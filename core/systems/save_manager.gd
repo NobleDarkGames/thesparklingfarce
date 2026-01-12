@@ -148,17 +148,30 @@ func _initialize_metadata_if_missing() -> void:
 ## @param save_data: SaveData to save
 ## @return: true if successful, false if failed
 func save_to_slot(slot_number: int, save_data: SaveData) -> bool:
+	print("SaveManager.save_to_slot: Starting save to slot %d" % slot_number)
+
 	if not _validate_slot_number(slot_number):
+		print("SaveManager.save_to_slot: FAILED - invalid slot number")
 		return false
 
 	if not save_data:
 		push_error("SaveManager: Cannot save null SaveData")
+		print("SaveManager.save_to_slot: FAILED - save_data is null")
 		save_completed.emit(slot_number, false)
 		return false
+
+	# Debug: Print save data state before validation
+	print("SaveManager.save_to_slot: save_version=%d, slot=%d, game_version='%s', party_size=%d" % [
+		save_data.save_version,
+		save_data.slot_number,
+		save_data.game_version,
+		save_data.party_members.size()
+	])
 
 	# Validate save data
 	if not save_data.validate():
 		push_error("SaveManager: SaveData validation failed")
+		print("SaveManager.save_to_slot: FAILED - validation failed (see above for details)")
 		save_completed.emit(slot_number, false)
 		return false
 
@@ -168,16 +181,20 @@ func save_to_slot(slot_number: int, save_data: SaveData) -> bool:
 	# Serialize to JSON
 	var save_dict: Dictionary = save_data.serialize_to_dict()
 	var json_string: String = JSON.stringify(save_dict, "\t")
+	print("SaveManager.save_to_slot: Serialized to %d bytes" % json_string.length())
 
 	# Write to file using atomic write pattern
 	var file_path: String = _get_slot_file_path(slot_number)
+	print("SaveManager.save_to_slot: Writing to %s" % file_path)
 	if not _atomic_write_file(file_path, json_string):
+		print("SaveManager.save_to_slot: FAILED - atomic write failed")
 		save_completed.emit(slot_number, false)
 		return false
 
 	# Update metadata
 	_update_metadata_for_slot(slot_number, save_data)
 
+	print("SaveManager.save_to_slot: SUCCESS - saved to slot %d" % slot_number)
 	save_completed.emit(slot_number, true)
 	return true
 
@@ -186,23 +203,30 @@ func save_to_slot(slot_number: int, save_data: SaveData) -> bool:
 ## @param slot_number: Slot number (1-3)
 ## @return: SaveData if successful, null if failed
 func load_from_slot(slot_number: int) -> SaveData:
+	print("SaveManager.load_from_slot: Starting load from slot %d" % slot_number)
+
 	if not _validate_slot_number(slot_number):
+		print("SaveManager.load_from_slot: FAILED - invalid slot number")
 		return null
 
 	if not is_slot_occupied(slot_number):
 		push_warning("SaveManager: Slot %d is empty, cannot load" % slot_number)
+		print("SaveManager.load_from_slot: FAILED - slot is empty")
 		return null
 
 	# Read file
 	var file_path: String = _get_slot_file_path(slot_number)
+	print("SaveManager.load_from_slot: Reading from %s" % file_path)
 	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
 
 	if not file:
 		push_error("SaveManager: Failed to open file for reading: %s" % file_path)
+		print("SaveManager.load_from_slot: FAILED - could not open file")
 		return null
 
 	var json_string: String = file.get_as_text()
 	file.close()
+	print("SaveManager.load_from_slot: Read %d bytes" % json_string.length())
 
 	# Parse JSON
 	var json: JSON = JSON.new()
@@ -213,17 +237,29 @@ func load_from_slot(slot_number: int) -> SaveData:
 			slot_number,
 			json.get_error_message()
 		])
+		print("SaveManager.load_from_slot: FAILED - JSON parse error")
 		return null
 
 	var save_dict: Dictionary = json.data
+	print("SaveManager.load_from_slot: Parsed JSON with %d keys" % save_dict.size())
 
 	# Deserialize to SaveData
 	var save_data: SaveData = SaveData.new()
 	save_data.deserialize_from_dict(save_dict)
 
+	# Debug: Print loaded data
+	print("SaveManager.load_from_slot: Deserialized - version=%d, slot=%d, game_version='%s', scene='%s', party=%d" % [
+		save_data.save_version,
+		save_data.slot_number,
+		save_data.game_version,
+		save_data.current_scene_path,
+		save_data.party_members.size()
+	])
+
 	# Validate loaded data
 	if not save_data.validate():
 		push_error("SaveManager: Loaded SaveData from slot %d failed validation" % slot_number)
+		print("SaveManager.load_from_slot: FAILED - validation failed (see above)")
 		return null
 
 	# Validate mod dependencies and clean up orphaned content
@@ -240,6 +276,7 @@ func load_from_slot(slot_number: int) -> SaveData:
 		# Clean up orphaned data
 		save_data.remove_orphaned_content(mod_check)
 
+	print("SaveManager.load_from_slot: SUCCESS - loaded from slot %d" % slot_number)
 	save_loaded.emit(slot_number, save_data)
 	return save_data
 
@@ -554,3 +591,45 @@ func add_current_gold(amount: int) -> int:
 		current_save.gold = maxi(0, current_save.gold + amount)
 		return current_save.gold
 	return -1
+
+
+# ============================================================================
+# PARTY STATE SYNCHRONIZATION
+# ============================================================================
+
+## Synchronize all runtime state to current_save before writing to disk
+## Call this before save_to_slot() to ensure all data is captured
+##
+## Syncs:
+## - Party member stats, equipment, abilities from PartyManager
+## - Story flags from GameState
+## - Timestamp update
+func sync_current_save_state() -> void:
+	if not current_save:
+		push_warning("SaveManager: Cannot sync - no current_save set")
+		return
+
+	# Sync party members from PartyManager
+	var party_data: Array[CharacterSaveData] = PartyManager.export_to_save()
+	current_save.party_members.clear()
+	for member: CharacterSaveData in party_data:
+		current_save.party_members.append(member)
+
+	# Sync story flags from GameState
+	current_save.story_flags = GameState.story_flags.duplicate()
+
+	# Update timestamp
+	current_save.last_played_timestamp = int(Time.get_unix_time_from_system())
+
+	print("SaveManager: State synced - %d party members, %d flags" % [
+		current_save.party_members.size(),
+		current_save.story_flags.size()
+	])
+
+
+## Convenience method that syncs state and saves in one call
+## @param slot_number: Slot number (1-3)
+## @return: true if successful
+func sync_and_save_to_slot(slot_number: int) -> bool:
+	sync_current_save_state()
+	return save_to_slot(slot_number, current_save)

@@ -96,9 +96,13 @@ func can_equip_weapon(weapon_type: String) -> bool:
 ## Uses class_abilities array filtered by ability_unlock_levels dictionary
 ## Abilities without an entry in ability_unlock_levels are available at level 1
 func get_unlocked_class_abilities(level: int) -> Array[AbilityData]:
+	print("ClassData.get_unlocked_class_abilities: class='%s', level=%d, class_abilities.size()=%d" % [
+		display_name, level, class_abilities.size()
+	])
 	var unlocked: Array[AbilityData] = []
 	for ability: AbilityData in class_abilities:
 		if ability == null:
+			print("ClassData.get_unlocked_class_abilities: Skipping null ability")
 			continue
 		var unlock_level: int = 1
 		if ability.ability_id in ability_unlock_levels:
@@ -107,8 +111,12 @@ func get_unlocked_class_abilities(level: int) -> Array[AbilityData]:
 				unlock_level = level_value
 			elif level_value is float:
 				unlock_level = int(level_value)
+		print("ClassData.get_unlocked_class_abilities: ability='%s', unlock_level=%d, current_level=%d, unlocked=%s" % [
+			ability.ability_name, unlock_level, level, str(level >= unlock_level)
+		])
 		if level >= unlock_level:
 			unlocked.append(ability)
+	print("ClassData.get_unlocked_class_abilities: Returning %d abilities" % unlocked.size())
 	return unlocked
 
 
