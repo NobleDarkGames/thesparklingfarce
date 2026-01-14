@@ -27,6 +27,10 @@ var add_to_party_button: Button
 var character_preview_label: RichTextLabel
 var party_info_label: RichTextLabel
 
+# Feedback panel for success/error messages
+var feedback_panel: PanelContainer
+var feedback_label: RichTextLabel
+
 # No local character cache - query registry directly
 
 # File access constants
@@ -117,12 +121,12 @@ func _setup_ui() -> void:
 	help_label.add_theme_font_size_override("font_size", 14)
 	main_vbox.add_child(help_label)
 
-	_add_separator(main_vbox)
+	SparklingEditorUtils.add_separator(main_vbox)
 
 	# Save slot selector section
 	_create_save_slot_selector(main_vbox)
 
-	_add_separator(main_vbox)
+	SparklingEditorUtils.add_separator(main_vbox)
 
 	# Main split container
 	var hsplit: HSplitContainer = HSplitContainer.new()
@@ -139,16 +143,12 @@ func _setup_ui() -> void:
 	# Bottom: Party info
 	_create_party_info_panel(main_vbox)
 
+	# Feedback panel for success/error messages
+	_create_feedback_panel(main_vbox)
+
 	# Initial refresh
 	_refresh_player_party()
 	_refresh_available_characters()
-
-
-## Add a visual separator
-func _add_separator(parent: Control) -> void:
-	var separator: HSeparator = HSeparator.new()
-	separator.custom_minimum_size = Vector2(0, 10)
-	parent.add_child(separator)
 
 
 ## Create save slot selector UI
@@ -294,6 +294,19 @@ func _create_party_info_panel(parent: VBoxContainer) -> void:
 	parent.add_child(party_info_label)
 
 
+## Create feedback panel for success/error messages
+func _create_feedback_panel(parent: VBoxContainer) -> void:
+	feedback_panel = PanelContainer.new()
+	feedback_panel.visible = false
+	parent.add_child(feedback_panel)
+
+	feedback_label = RichTextLabel.new()
+	feedback_label.bbcode_enabled = true
+	feedback_label.fit_content = true
+	feedback_label.custom_minimum_size = Vector2(0, 40)
+	feedback_panel.add_child(feedback_label)
+
+
 # ============================================================================
 # CHARACTER LOADING
 # ============================================================================
@@ -381,28 +394,67 @@ func _refresh_available_characters() -> void:
 		idx += 1
 
 
-## Update character preview panel
+## Update character preview panel (for available characters - shows template data)
 func _update_character_preview(character: CharacterData) -> void:
 	if not character_preview_label:
 		return
 
-	var preview_text: String = "[b]%s[/b]\n" % character.character_name
+	var preview_text: String = "[b]%s[/b] [i](Template)[/i]\n" % character.character_name
 
 	if character.is_hero:
 		preview_text += "[color=gold]HERO CHARACTER[/color]\n"
 
-	preview_text += "Level: %d\n" % character.starting_level
+	preview_text += "Starting Level: %d\n" % character.starting_level
 
 	if character.character_class:
 		preview_text += "Class: %s\n" % character.character_class.display_name
 		preview_text += "Movement: %d tiles\n" % character.character_class.movement_range
 
-	# Stats
-	preview_text += "\n[b]Stats:[/b]\n"
+	# Stats (base template stats)
+	preview_text += "\n[b]Base Stats:[/b]\n"
 	preview_text += "HP: %d / MP: %d\n" % [character.base_hp, character.base_mp]
 	preview_text += "STR: %d / DEF: %d\n" % [character.base_strength, character.base_defense]
 	preview_text += "AGI: %d / INT: %d\n" % [character.base_agility, character.base_intelligence]
 	preview_text += "LUK: %d\n" % character.base_luck
+
+	character_preview_label.text = preview_text
+
+
+## Update character preview panel (for party members - shows saved data)
+func _update_party_member_preview(char_save: CharacterSaveData) -> void:
+	if not character_preview_label:
+		return
+
+	var preview_text: String = "[b]%s[/b] [i](Saved)[/i]\n" % char_save.fallback_character_name
+
+	if char_save.is_hero:
+		preview_text += "[color=gold]HERO CHARACTER[/color]\n"
+
+	preview_text += "Level: %d\n" % char_save.level
+	preview_text += "Experience: %d\n" % char_save.experience
+	preview_text += "Class: %s\n" % char_save.fallback_class_name
+
+	# Current stats from save
+	preview_text += "\n[b]Current Stats:[/b]\n"
+	preview_text += "HP: %d/%d | MP: %d/%d\n" % [char_save.current_hp, char_save.max_hp, char_save.current_mp, char_save.max_mp]
+	preview_text += "STR: %d / DEF: %d\n" % [char_save.strength, char_save.defense]
+	preview_text += "AGI: %d / INT: %d\n" % [char_save.agility, char_save.intelligence]
+	preview_text += "LUK: %d\n" % char_save.luck
+
+	# Equipment if any
+	if not char_save.equipped_weapon_id.is_empty() or not char_save.equipped_armor_id.is_empty() or not char_save.equipped_accessory_id.is_empty():
+		preview_text += "\n[b]Equipment:[/b]\n"
+		if not char_save.equipped_weapon_id.is_empty():
+			preview_text += "Weapon: %s\n" % char_save.equipped_weapon_id
+		if not char_save.equipped_armor_id.is_empty():
+			preview_text += "Armor: %s\n" % char_save.equipped_armor_id
+		if not char_save.equipped_accessory_id.is_empty():
+			preview_text += "Accessory: %s\n" % char_save.equipped_accessory_id
+
+	# Check if source character still exists
+	var source_exists: bool = ModLoader.registry.get_resource("character", char_save.character_resource_id) != null
+	if not source_exists:
+		preview_text += "\n[color=red][b]Warning:[/b] Source character not found in mods![/color]"
 
 	character_preview_label.text = preview_text
 
@@ -441,10 +493,41 @@ func _update_party_info() -> void:
 	party_info_label.text = info_text
 
 
-## Show error message
+## Show error message with visual feedback
 func _show_error(message: String) -> void:
 	push_warning("SaveSlotEditor: " + message)
-	# Could show a popup here in the future
+	if feedback_panel and feedback_label:
+		var error_color: Color = SparklingEditorUtils.get_error_color()
+		feedback_label.text = "[color=#%s][b]Error:[/b] %s[/color]" % [error_color.to_html(false), message]
+		var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
+		feedback_panel.add_theme_stylebox_override("panel", error_style)
+		feedback_panel.visible = true
+
+		# Auto-dismiss after 5 seconds
+		var tween: Tween = create_tween()
+		tween.tween_interval(5.0)
+		tween.tween_callback(_hide_feedback_panel)
+
+
+## Show success message with visual feedback
+func _show_success(message: String) -> void:
+	if feedback_panel and feedback_label:
+		var success_color: Color = SparklingEditorUtils.get_success_color()
+		feedback_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
+		var success_style: StyleBoxFlat = SparklingEditorUtils.create_success_panel_style()
+		feedback_panel.add_theme_stylebox_override("panel", success_style)
+		feedback_panel.visible = true
+
+		# Auto-dismiss after 3 seconds
+		var tween: Tween = create_tween()
+		tween.tween_interval(3.0)
+		tween.tween_callback(_hide_feedback_panel)
+
+
+## Hide feedback panel
+func _hide_feedback_panel() -> void:
+	if feedback_panel:
+		feedback_panel.visible = false
 
 
 # ============================================================================
@@ -580,9 +663,12 @@ func _on_available_character_selected(index: int) -> void:
 
 
 ## Update party member preview when selection changes
-func _on_player_member_selected(_index: int) -> void:
-	# Could show detailed stats here in the future
-	pass
+func _on_player_member_selected(index: int) -> void:
+	if not current_save_data or index < 0 or index >= current_save_data.party_members.size():
+		return
+
+	var char_save: CharacterSaveData = current_save_data.party_members[index]
+	_update_party_member_preview(char_save)
 
 
 # ============================================================================
@@ -669,6 +755,7 @@ func _on_save_changes() -> void:
 	# Save to slot
 	if _editor_save_to_slot(current_save_slot, current_save_data):
 		_update_slot_info_display()
+		_show_success("Saved to slot %d successfully!" % current_save_slot)
 	else:
 		_show_error("Failed to save to slot %d!" % current_save_slot)
 

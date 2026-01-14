@@ -223,7 +223,7 @@ func _create_scene_reference_section() -> void:
 	section.add_child(validation_label)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_caravan_settings_section() -> void:
@@ -251,7 +251,7 @@ func _create_caravan_settings_section() -> void:
 	section.add_child(caravan_visible_check)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_audio_settings_section() -> void:
@@ -266,7 +266,7 @@ func _create_audio_settings_section() -> void:
 	ambient_id_edit = _create_line_edit_field("Ambient ID:", section, "Ambient sound effect ID")
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_edge_connections_section() -> void:
@@ -360,7 +360,7 @@ func _create_edge_connections_section() -> void:
 	section.add_child(west_container)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_new_map_dialog() -> void:
@@ -525,12 +525,6 @@ func _create_line_edit_field(label_text: String, parent: VBoxContainer, tooltip:
 
 	parent.add_child(container)
 	return edit
-
-
-func _add_separator() -> void:
-	var sep: HSeparator = HSeparator.new()
-	sep.custom_minimum_size.y = 10
-	detail_panel.add_child(sep)
 
 
 ## Called when any form field changes to mark the editor as dirty

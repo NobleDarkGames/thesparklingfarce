@@ -193,7 +193,7 @@ func _create_overview_content() -> Control:
 	var overview: VBoxContainer = VBoxContainer.new()
 
 	var title: Label = Label.new()
-	title.text = "The Sparkling Farce - Content Editor"
+	title.text = "The Sparkling Farce - Modding Platform"
 	title.add_theme_font_size_override("font_size", 24)
 	overview.add_child(title)
 
@@ -204,31 +204,53 @@ func _create_overview_content() -> Control:
 	description.bbcode_enabled = true
 	description.text = """[b]Welcome to the Sparkling Editor![/b]
 
-This editor allows you to create content for your tactical RPG game without writing code.
+This editor allows you to create mods and content for Shining Force-style tactical RPGs without writing code.
 
-[b]Quick Start:[/b]
-• Use the tabs above to browse and edit different types of content
-• Use the Tools menu to create new characters, classes, items, and abilities
-• All content is saved in the data/ folder as .tres Resource files
-• You can also edit Resources directly in the Godot Inspector
+[b]Getting Started:[/b]
+• [b]Active Mod:[/b] Use the dropdown at the top to select which mod you're editing
+• [b]Create New Mod:[/b] Click "Create New Mod" to start a fresh mod with proper folder structure
+• [b]Categories:[/b] Use the category bar (Content, Battles, Story, System) to navigate editor tabs
+• [b]Creating Content:[/b] Each tab has a "New" button to create new resources
 
-[b]Content Types:[/b]
-• [b]Characters:[/b] Create playable units and enemies with stats and equipment
-• [b]Classes:[/b] Define character classes with movement and abilities
-• [b]Items:[/b] Create weapons, accessories, and consumable items
-• [b]Abilities:[/b] Define skills and spells for combat
-• [b]Parties:[/b] Create and manage party compositions for battles
-• [b]Battles:[/b] Configure tactical battle scenarios with enemies and objectives
-• [b]Maps:[/b] Configure map metadata and connections
-• [b]Cinematics:[/b] Create cutscenes and narrative sequences with dialog
+[b]Content Category:[/b]
+• [b]Characters:[/b] Playable units and enemies with stats, equipment, and class assignments
+• [b]Classes:[/b] Character archetypes defining movement range, learnable abilities, and promotion paths
+• [b]Abilities:[/b] Skills and spells for combat with damage, effects, and targeting rules
+• [b]Items:[/b] Weapons, armor, accessories, and consumables
+• [b]Status Effects:[/b] Buffs, debuffs, and conditions that affect units in battle
 
-[b]Next Steps:[/b]
-1. Create some classes first (they're required for characters)
-2. Create abilities that classes can learn
-3. Create characters and assign them classes
-4. Create items for characters to equip
+[b]Battles Category:[/b]
+• [b]Maps:[/b] Map metadata, connections, and spawn point configuration
+• [b]Terrain Effects:[/b] Define how terrain types affect movement and combat
+• [b]Battles:[/b] Tactical scenarios with enemy placement, objectives, and win/lose conditions
+• [b]AI Behaviors:[/b] Configure enemy AI decision-making and tactics
 
-For more information, check the documentation in the user_content folder."""
+[b]Story Category:[/b]
+• [b]NPCs:[/b] Non-player characters for towns and exploration
+• [b]Interactables:[/b] Chests, signs, doors, and interactive objects
+• [b]Cinematics:[/b] Cutscenes and narrative sequences with dialogue and actions
+• [b]Campaigns:[/b] Story progression, chapter structure, and campaign flow
+• [b]Shops:[/b] Configure shop inventories and pricing
+• [b]Crafters:[/b] NPCs that can craft items for the player
+• [b]Recipes:[/b] Crafting recipes defining ingredients and results
+
+[b]System Category:[/b]
+• [b]Mod Settings:[/b] Edit your mod's metadata, dependencies, and configuration
+• [b]New Game Configs:[/b] Define starting conditions for new games
+• [b]Save Slots:[/b] Edit save file party composition (for testing)
+• [b]Caravans:[/b] Configure the mobile shop/storage system
+• [b]Experience:[/b] Customize level-up curves and experience formulas
+
+[b]Quick Start for New Modders:[/b]
+1. Click "Create New Mod" and fill in your mod details
+2. Create Classes first (characters require a class)
+3. Create Abilities that your classes can learn
+4. Create Characters and assign them classes
+5. Create Items for equipment and consumables
+6. Design Battles using your characters as enemies
+7. Create Cinematics for story sequences
+
+All content is saved as .tres files in your mod's folder (mods/your_mod_id/data/)."""
 	description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	description.fit_content = true
 

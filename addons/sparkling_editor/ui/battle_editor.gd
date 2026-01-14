@@ -214,7 +214,7 @@ func _add_enemy_forces_section() -> void:
 	add_enemy_button.pressed.connect(_on_add_enemy)
 	enemies_section.add_content_child(add_enemy_button)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 4: Neutral Forces (collapsible)
@@ -237,7 +237,7 @@ func _add_neutral_forces_section() -> void:
 	add_neutral_button.pressed.connect(_on_add_neutral)
 	neutrals_section.add_content_child(add_neutral_button)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 5: Victory Conditions
@@ -266,7 +266,7 @@ func _add_victory_conditions_section() -> void:
 	victory_conditional_container = VBoxContainer.new()
 	detail_panel.add_child(victory_conditional_container)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 6: Defeat Conditions
@@ -294,7 +294,7 @@ func _add_defeat_conditions_section() -> void:
 	defeat_conditional_container = VBoxContainer.new()
 	detail_panel.add_child(defeat_conditional_container)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 7: Battle Flow & Dialogue
@@ -373,13 +373,6 @@ func _add_rewards_section() -> void:
 	item_rewards_section.add_content_child(add_item_button)
 
 	form.add_separator()
-
-
-## Helper: Add visual separator
-func _add_separator() -> void:
-	var separator: HSeparator = HSeparator.new()
-	separator.custom_minimum_size = Vector2(0, 10)
-	detail_panel.add_child(separator)
 
 
 ## Called when map scene selection changes

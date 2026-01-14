@@ -398,7 +398,7 @@ func _add_identity_section() -> void:
 	is_default_check.toggled.connect(_on_default_toggled)
 	detail_panel.add_child(is_default_check)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 2: Starting Scene
@@ -475,7 +475,7 @@ func _add_starting_scene_section() -> void:
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 3: Economy
@@ -508,7 +508,7 @@ func _add_economy_section() -> void:
 
 	detail_panel.add_child(gold_container)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 4: Starting Party
@@ -544,7 +544,7 @@ func _add_party_section() -> void:
 	party_preview_container = VBoxContainer.new()
 	detail_panel.add_child(party_preview_container)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 5: Caravan State
@@ -568,7 +568,7 @@ func _add_caravan_section() -> void:
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_panel.add_child(help_label)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 6: Depot Items
@@ -593,7 +593,7 @@ func _add_depot_items_section() -> void:
 	add_item_button.pressed.connect(_on_add_depot_item)
 	detail_panel.add_child(add_item_button)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Section 6: Story Flags
@@ -618,14 +618,7 @@ func _add_story_flags_section() -> void:
 	add_flag_button.pressed.connect(_on_add_story_flag)
 	detail_panel.add_child(add_flag_button)
 
-	_add_separator()
-
-
-## Add a visual separator
-func _add_separator() -> void:
-	var separator: HSeparator = HSeparator.new()
-	separator.custom_minimum_size = Vector2(0, 10)
-	detail_panel.add_child(separator)
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 # =============================================================================
@@ -1125,7 +1118,7 @@ func _add_preview_configuration_panel() -> void:
 	preview_panel.add_child(preview_container)
 	detail_panel.add_child(preview_panel)
 
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 ## Handle preview panel toggle

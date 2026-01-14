@@ -249,7 +249,7 @@ func _create_basic_info_section() -> void:
 	section.add_child(description_edit)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_load_priority_section() -> void:
@@ -295,7 +295,7 @@ func _create_load_priority_section() -> void:
 	section.add_child(ranges_text)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_total_conversion_section() -> void:
@@ -323,7 +323,7 @@ func _create_total_conversion_section() -> void:
 	total_conversion_section.add_child(help_text)
 
 	detail_panel.add_child(total_conversion_section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_dependencies_section() -> void:
@@ -368,7 +368,7 @@ func _create_dependencies_section() -> void:
 	section.add_child(dependencies_container)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_custom_types_section() -> void:
@@ -391,7 +391,7 @@ func _create_custom_types_section() -> void:
 	animation_offset_types_edit = _create_type_editor("Animation Offsets:", section, "Custom sprite positioning")
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_equipment_slots_section() -> void:
@@ -476,7 +476,7 @@ func _create_equipment_slots_section() -> void:
 	section.add_child(equipment_slots_container)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_inventory_config_section() -> void:
@@ -576,7 +576,7 @@ func _create_scene_overrides_section() -> void:
 	section.add_child(scene_overrides_container)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_field_menu_options_section() -> void:
@@ -692,7 +692,7 @@ func _create_field_menu_options_section() -> void:
 	section.add_child(button_row)
 
 	detail_panel.add_child(section)
-	_add_separator()
+	SparklingEditorUtils.add_separator(detail_panel)
 
 
 func _create_content_paths_section() -> void:
@@ -775,13 +775,6 @@ func _create_type_editor(label_text: String, parent: VBoxContainer, placeholder:
 
 	parent.add_child(container)
 	return edit
-
-
-## Helper to add a visual separator
-func _add_separator() -> void:
-	var sep: HSeparator = HSeparator.new()
-	sep.custom_minimum_size.y = 10
-	detail_panel.add_child(sep)
 
 
 ## Public refresh method for standard editor interface
