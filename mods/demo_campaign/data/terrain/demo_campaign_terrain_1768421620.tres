@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="TerrainData" load_steps=2 format=3 uid="uid://bvscdkyigbskf"]
+
+[ext_resource type="Script" uid="uid://bsauf31n1riac" path="res://core/resources/terrain_data.gd" id="1_vlblo"]
+
+[resource]
+script = ExtResource("1_vlblo")
+terrain_id = "heal"
+display_name = "Heal"
+healing_per_turn = 1

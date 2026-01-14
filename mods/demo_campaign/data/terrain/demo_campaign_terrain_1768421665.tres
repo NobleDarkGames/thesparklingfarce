@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="TerrainData" load_steps=2 format=3 uid="uid://cm6on5rfp6yc8"]
+
+[ext_resource type="Script" uid="uid://bsauf31n1riac" path="res://core/resources/terrain_data.gd" id="1_pr01u"]
+
+[resource]
+script = ExtResource("1_pr01u")
+terrain_id = "damage"
+display_name = "Damage"
+damage_per_turn = 1
