@@ -855,10 +855,6 @@ func _on_conditional_cinematic_changed(_metadata: Dictionary) -> void:
 	_mark_dirty()
 
 
-func _show_error(message: String) -> void:
-	push_error("NPC Editor: " + message)
-
-
 # =============================================================================
 # Place on Map (using MapPlacementHelper)
 # =============================================================================
@@ -962,11 +958,6 @@ func _on_place_confirmed() -> void:
 	var success: bool = map_placement_helper.place_npc_on_map(map_path, npc_path, node_name, Vector2i(grid_x, grid_y))
 	if success:
 		map_selection_popup.hide()
-		var scene_is_open: bool = MapPlacementHelper.is_scene_open(map_path)
-		if scene_is_open:
-			print("NPC Editor: NPC added to scene - save to keep changes!")
-		else:
-			print("NPC Editor: NPC placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y])
 	else:
 		_show_error("Failed to place NPC on map. Check the output for details.")
 

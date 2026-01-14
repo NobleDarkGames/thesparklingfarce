@@ -109,7 +109,7 @@ func _load_resource_data() -> void:
 	luk_growth_slider.value = class_data.luck_growth
 
 	# Set weapon types
-	for child in weapon_types_container.get_children():
+	for child: Node in weapon_types_container.get_children():
 		if child is CheckBox:
 			var type_name: String = child.get_meta("equipment_type")
 			child.button_pressed = type_name in class_data.equippable_weapon_types
@@ -153,7 +153,7 @@ func _save_resource_data() -> void:
 
 	# Update weapon types - create new array to avoid read-only issues
 	var new_weapon_types: Array[String] = []
-	for child in weapon_types_container.get_children():
+	for child: Node in weapon_types_container.get_children():
 		if child is CheckBox and child.button_pressed:
 			var type_name: String = child.get_meta("equipment_type")
 			new_weapon_types.append(type_name)
@@ -321,7 +321,7 @@ func _add_promotion_section() -> void:
 ## Load promotion paths from ClassData into UI
 func _load_promotion_paths(class_data: ClassData) -> void:
 	# Clear existing rows
-	for child in promotion_paths_container.get_children():
+	for child: Node in promotion_paths_container.get_children():
 		child.queue_free()
 
 	# Add a row for each promotion path
@@ -333,7 +333,7 @@ func _load_promotion_paths(class_data: ClassData) -> void:
 func _save_promotion_paths(class_data: ClassData) -> void:
 	var new_paths: Array[PromotionPath] = []
 
-	for child in promotion_paths_container.get_children():
+	for child: Node in promotion_paths_container.get_children():
 		if child is HBoxContainer:
 			var class_picker: ResourcePicker = child.get_node_or_null("ClassPicker")
 			var item_picker: ResourcePicker = child.get_node_or_null("ItemPicker")
@@ -500,7 +500,7 @@ func _add_learnable_abilities_section() -> void:
 ## The new system stores abilities in class_abilities array, with unlock levels in ability_unlock_levels dict
 func _load_learnable_abilities_new(class_data: ClassData) -> void:
 	# Clear existing rows
-	for child in learnable_abilities_container.get_children():
+	for child: Node in learnable_abilities_container.get_children():
 		child.queue_free()
 
 	# Build level -> ability mapping from the new system
@@ -538,7 +538,7 @@ func _save_learnable_abilities_new(class_data: ClassData) -> void:
 	var new_class_abilities: Array[AbilityData] = []
 	var new_unlock_levels: Dictionary = {}  # ability_id -> level
 
-	for child in learnable_abilities_container.get_children():
+	for child: Node in learnable_abilities_container.get_children():
 		if child is HBoxContainer:
 			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
 			var picker: ResourcePicker = child.get_node_or_null("AbilityPicker")
@@ -633,7 +633,7 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 func _on_add_learnable_ability() -> void:
 	# Find the next available level (highest current + 1, or 1 if empty)
 	var max_level: int = 0
-	for child in learnable_abilities_container.get_children():
+	for child: Node in learnable_abilities_container.get_children():
 		if child is HBoxContainer:
 			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
 			if level_spin:
@@ -660,7 +660,7 @@ func _check_duplicate_levels() -> void:
 	var level_counts: Dictionary = {}  # level -> count
 	var row_data: Array = []  # Array of {level: int, warning: Label}
 
-	for child in learnable_abilities_container.get_children():
+	for child: Node in learnable_abilities_container.get_children():
 		if not is_instance_valid(child) or not child is HBoxContainer:
 			continue
 		var level_spin: SpinBox = child.get_node_or_null("LevelSpin")

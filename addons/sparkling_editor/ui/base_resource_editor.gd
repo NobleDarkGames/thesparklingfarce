@@ -916,6 +916,11 @@ func _perform_delete() -> void:
 		_show_errors(["Failed to access directory for deletion"])
 
 
+## Show a single error message in the visual error panel (convenience wrapper)
+func _show_error(message: String) -> void:
+	_show_errors([message])
+
+
 ## Show error messages in the visual error panel
 func _show_errors(errors: Array) -> void:
 	var error_text: String = "[b]Error:[/b]\n"
@@ -1233,6 +1238,10 @@ func _perform_create_override(override_path: String) -> void:
 		# Refresh and select the override
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
+		# Safety check: node may have been freed during await
+		if not is_instance_valid(self) or not is_inside_tree():
+			_operation_in_progress = false
+			return
 		_refresh_list()
 
 		# Get active mod for registration

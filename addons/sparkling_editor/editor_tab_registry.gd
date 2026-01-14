@@ -187,8 +187,10 @@ func register_mod_tab(mod_id: String, ext_id: String, config: Dictionary, mod_di
 	# Resolve full path
 	var full_path: String = mod_directory.path_join(scene_path)
 
-	# Security: Verify resolved path is still under mod_directory
-	if not full_path.begins_with(mod_directory):
+	# Security: Use simplify_path() for canonical path comparison to prevent traversal attacks
+	var canonical_mod: String = mod_directory.simplify_path()
+	var canonical_full: String = full_path.simplify_path()
+	if not canonical_full.begins_with(canonical_mod):
 		push_warning("EditorTabRegistry: Mod '%s' tab '%s' path escapes mod directory (blocked)" % [mod_id, ext_id])
 		return
 

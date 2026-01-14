@@ -50,7 +50,12 @@ func _update_property() -> void:
 	# (e.g., from undo/redo, or scene reload)
 	_updating = true
 
-	var current_value: Resource = get_edited_object().get(get_edited_property())
+	var obj: Object = get_edited_object()
+	if not obj:
+		_updating = false
+		return
+
+	var current_value: Resource = obj.get(get_edited_property())
 	if current_value:
 		_picker.select_resource(current_value)
 	else:

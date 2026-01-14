@@ -124,9 +124,6 @@ func _on_dependencies_changed(changed_type: String) -> void:
 			# Update the picker to reflect the change
 			if class_picker:
 				class_picker.select_resource(fresh_class)
-			print("CharacterEditor: Refreshed class reference for '%s' -> '%s'" % [
-				character.character_name, fresh_class.display_name
-			])
 
 	elif changed_type == "ability":
 		# Refresh unique abilities display in case ability names/properties changed
@@ -1578,6 +1575,9 @@ func _on_add_unique_ability() -> void:
 
 ## Handle confirmation of adding a unique ability
 func _on_add_unique_ability_confirmed(dialog: AcceptDialog) -> void:
+	if not dialog.has_meta("picker"):
+		dialog.queue_free()
+		return
 	var picker: ResourcePicker = dialog.get_meta("picker") as ResourcePicker
 	if not picker:
 		dialog.queue_free()

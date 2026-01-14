@@ -595,9 +595,3 @@ func _hide_success_panel() -> void:
 	if error_panel:
 		var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
 		error_panel.add_theme_stylebox_override("panel", error_style)
-
-
-## Show a single error message
-func _show_error(message: String) -> void:
-	push_error("PartyEditor: " + message)
-	_show_errors([message])

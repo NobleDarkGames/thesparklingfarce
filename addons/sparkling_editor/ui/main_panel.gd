@@ -61,11 +61,11 @@ func _exit_tree() -> void:
 	if is_instance_valid(wizard_mod_id_edit) and wizard_mod_id_edit.text_changed.is_connected(_on_wizard_mod_id_changed):
 		wizard_mod_id_edit.text_changed.disconnect(_on_wizard_mod_id_changed)
 
-	# Clean up category button signals
-	for category: String in category_buttons.keys():
-		var button: Button = category_buttons[category]
-		if is_instance_valid(button) and button.pressed.is_connected(_on_category_button_pressed):
-			button.pressed.disconnect(_on_category_button_pressed.bind(category))
+	# Note: Category button signal cleanup is not needed because:
+	# 1. Buttons are children of this node and will be freed with it
+	# 2. The bound callable pattern (_on_category_button_pressed.bind(category)) creates
+	#    a new callable each time, making is_connected checks unreliable
+	# Godot handles this automatically when the node tree is freed.
 
 
 func _setup_ui() -> void:

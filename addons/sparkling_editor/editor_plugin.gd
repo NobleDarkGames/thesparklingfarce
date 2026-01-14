@@ -101,6 +101,7 @@ func _exit_tree() -> void:
 	if main_panel:
 		remove_control_from_bottom_panel(main_panel)
 		main_panel.queue_free()
+		main_panel = null
 
 	# Remove the event bus autoload
 	remove_autoload_singleton("EditorEventBus")
@@ -108,3 +109,4 @@ func _exit_tree() -> void:
 	# Remove inspector plugin
 	if _resource_inspector_plugin:
 		remove_inspector_plugin(_resource_inspector_plugin)
+		_resource_inspector_plugin = null

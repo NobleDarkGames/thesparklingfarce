@@ -1263,10 +1263,6 @@ func _load_texture(path: String) -> Texture2D:
 # PLACE ON MAP (using MapPlacementHelper)
 # =============================================================================
 
-func _show_error(message: String) -> void:
-	_show_errors([message])
-
-
 func _on_place_on_map_pressed() -> void:
 	if not current_resource:
 		_show_error("No interactable selected.")
@@ -1366,11 +1362,6 @@ func _on_place_confirmed() -> void:
 	var success: bool = map_placement_helper.place_interactable_on_map(map_path, interactable_path, node_name, Vector2i(grid_x, grid_y))
 	if success:
 		map_selection_popup.hide()
-		var scene_is_open: bool = MapPlacementHelper.is_scene_open(map_path)
-		if scene_is_open:
-			print("Interactable Editor: Interactable added to scene - save to keep changes!")
-		else:
-			print("Interactable Editor: Interactable placed on %s at (%d, %d)" % [map_path.get_file().get_basename(), grid_x, grid_y])
 	else:
 		_show_error("Failed to place interactable on map. Check the output for details.")
 

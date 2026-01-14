@@ -1511,8 +1511,8 @@ func _migrate_legacy_format() -> void:
 						params_dict.erase("character_id")
 						migrated_count += 1
 
-	if migrated_count > 0:
-		print("CinematicEditor: Migrated %d dialog_line commands (character_id → speaker)" % migrated_count)
+	if migrated_count > 0 and OS.is_debug_build():
+		print("CinematicEditor: Migrated %d dialog_line commands (character_id -> speaker)" % migrated_count)
 
 
 # =============================================================================
