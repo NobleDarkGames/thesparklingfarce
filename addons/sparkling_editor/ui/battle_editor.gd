@@ -478,7 +478,7 @@ func _add_enemy_ui(enemy_dict: Dictionary) -> void:
 
 func _on_remove_enemy(panel: PanelContainer) -> void:
 	# Find and remove from list
-	for i in range(enemies_list.size()):
+	for i: int in range(enemies_list.size()):
 		if enemies_list[i].panel == panel:
 			enemies_list.remove_at(i)
 			break
@@ -488,7 +488,7 @@ func _on_remove_enemy(panel: PanelContainer) -> void:
 	panel.queue_free()
 
 	# Update numbering
-	for i in range(enemies_list.size()):
+	for i: int in range(enemies_list.size()):
 		var title_label: Label = enemies_list[i].panel.get_child(0).get_child(0).get_child(0)
 		title_label.text = "Enemy #%d" % (i + 1)
 
@@ -591,7 +591,7 @@ func _add_neutral_ui(neutral_dict: Dictionary) -> void:
 
 func _on_remove_neutral(panel: PanelContainer) -> void:
 	# Find and remove from list
-	for i in range(neutrals_list.size()):
+	for i: int in range(neutrals_list.size()):
 		if neutrals_list[i].panel == panel:
 			neutrals_list.remove_at(i)
 			break
@@ -601,7 +601,7 @@ func _on_remove_neutral(panel: PanelContainer) -> void:
 	panel.queue_free()
 
 	# Update numbering
-	for i in range(neutrals_list.size()):
+	for i: int in range(neutrals_list.size()):
 		var title_label: Label = neutrals_list[i].panel.get_child(0).get_child(0).get_child(0)
 		title_label.text = "Neutral #%d" % (i + 1)
 
@@ -723,7 +723,7 @@ func _select_map_in_dropdown(map_scene: PackedScene) -> void:
 ## Victory condition changed - update conditional UI
 func _on_victory_condition_changed(index: int) -> void:
 	# Clear conditional container
-	for child in victory_conditional_container.get_children():
+	for child: Node in victory_conditional_container.get_children():
 		victory_conditional_container.remove_child(child)
 		child.queue_free()
 
@@ -790,7 +790,7 @@ func _on_victory_condition_changed(index: int) -> void:
 ## Defeat condition changed - update conditional UI
 func _on_defeat_condition_changed(index: int) -> void:
 	# Clear conditional container
-	for child in defeat_conditional_container.get_children():
+	for child: Node in defeat_conditional_container.get_children():
 		defeat_conditional_container.remove_child(child)
 		child.queue_free()
 

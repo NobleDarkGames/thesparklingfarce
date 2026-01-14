@@ -673,6 +673,7 @@ func _on_unsaved_save_confirmed() -> void:
 func _on_unsaved_discard(_action: String) -> void:
 	# Discard changes and switch
 	is_dirty = false
+	_unsaved_changes_dialog.hide()
 	if _pending_cinematic_index >= 0:
 		_perform_cinematic_selection(_pending_cinematic_index)
 		_pending_cinematic_index = -1

@@ -279,7 +279,7 @@ func _get_weapon_types_from_registry() -> Array[String]:
 
 
 func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String]) -> void:
-	for type_name in types:
+	for type_name: String in types:
 		var checkbox: CheckBox = CheckBox.new()
 		checkbox.text = type_name.capitalize()
 		checkbox.set_meta("equipment_type", type_name)

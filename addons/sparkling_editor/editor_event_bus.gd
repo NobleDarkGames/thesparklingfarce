@@ -50,6 +50,16 @@ func _ready() -> void:
 	add_child(_debounce_timer)
 
 
+func _exit_tree() -> void:
+	# Clean up timer to prevent issues during plugin reload cycles
+	if _debounce_timer:
+		_debounce_timer.stop()
+		if _debounce_timer.timeout.is_connected(_on_debounce_timeout):
+			_debounce_timer.timeout.disconnect(_on_debounce_timeout)
+		_debounce_timer = null
+	_mods_reloaded_pending = false
+
+
 ## Convenience method to emit resource_saved with automatic ID extraction
 func notify_resource_saved(resource_type: String, resource_path: String, resource: Resource) -> void:
 	var resource_id: String = resource_path.get_file().get_basename()
