@@ -2,18 +2,11 @@ extends Node
 
 ## PartyManager - Manages the player's party across battles
 ##
-## Responsibilities:
-## - Store party members (CharacterData references)
-## - Track party composition and order
-## - Provide party data to BattleManager for spawning
-##
-## This is a lightweight version for Phase 3 testing.
-## TODO Phase 4+: Expand to full Shining Force-style party system:
-## - Party member inventory management
-## - Permanent stat changes (level-ups persist)
-## - Party member recruitment
-## - Maximum party size limits
-## - Reserve/active member management
+## Full Shining Force-style party system with:
+## - Party member CharacterSaveData (inventory, equipment, stats, levels)
+## - Recruitment via add_member/remove_member/rejoin_departed_member
+## - Maximum party size limits (configurable by mods)
+## - Reserve/active member management (Caravan system)
 
 # ============================================================================
 # SIGNALS
@@ -864,23 +857,8 @@ func clear_departed() -> void:
 # FUTURE EXPANSION NOTES
 # ============================================================================
 
-## TODO Phase 4+: Add these features for full Shining Force experience
-##
-## Party Persistence:
-## - Apply saved stats to characters (level, XP, equipment)
-## - Track which characters have acted in current chapter
-##
-## Recruitment:
-## - Add characters during story progression
-## - Handle character death (permanent or temporary)
+## Future enhancements (nice-to-have):
 ## - Character loyalty/morale system
-##
-## Management:
-## - Active party (in battle) vs reserve (headquarters)
-## - Party formation editor
+## - Party formation editor UI
 ## - Pre-battle party selection screen
-##
-## Integration:
-## - Create placeholder characters for missing mods
-## - Link with DialogueManager for recruitment events
-## - Link with HeadquartersManager for party management UI
+## - Create placeholder characters when mod removed (line 806)

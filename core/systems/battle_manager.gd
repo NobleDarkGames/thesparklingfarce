@@ -524,7 +524,7 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 			)
 			phases.append(heal_phase)
 		AbilityData.AbilityType.ATTACK:
-			# Damage items - TODO: Could use SPELL_ATTACK or create ITEM_ATTACK type
+			# Damage items use SPELL_ATTACK (same as spells - no counter, no miss)
 			var damage_phase: CombatPhase = CombatPhase.create_spell_attack(
 				unit,
 				target,
@@ -1898,7 +1898,7 @@ func _revive_all_party_members(full_restoration: bool) -> void:
 			save_data.is_alive = true
 			save_data.current_hp = save_data.max_hp
 			save_data.current_mp = save_data.max_mp
-			# TODO: Clear status ailments when status system is implemented
+			# Status effects auto-clear when Units are freed (battle-only, not persisted)
 
 
 ## Sync all surviving player units' HP/MP to their CharacterSaveData after battle

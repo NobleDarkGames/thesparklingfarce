@@ -372,14 +372,27 @@ func preview_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 func _check_equipment_compatibility(unit: Unit, new_class: ClassData) -> Array:
 	var unequipped: Array = []
 
-	# Get conflicts
+	# Get save data for unequipping
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if not save_data:
+		return unequipped
+
+	# Get conflicts and equipped items mapping
 	var conflicts: Array = _get_equipment_conflicts(unit, new_class)
-	
-	# TODO: Implement actual unequipping when equipment system supports it
-	# For now, just return the conflicts as items that would be unequipped
+	var equipped_dict: Dictionary = EquipmentManager.get_equipped_items(save_data)
+
+	# Unequip each conflicting item
 	for item: ItemData in conflicts:
-		unequipped.append(item)
-	
+		# Find the slot this item is in
+		for slot_id: String in equipped_dict.keys():
+			var equipped_item: ItemData = equipped_dict[slot_id] as ItemData
+			if equipped_item == item:
+				# Unequip - item goes to inventory
+				var result: Dictionary = EquipmentManager.unequip_item(save_data, slot_id, unit)
+				if result.get("success", false):
+					unequipped.append(item)
+				break
+
 	return unequipped
 
 

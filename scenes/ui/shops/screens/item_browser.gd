@@ -291,10 +291,8 @@ func _on_back_pressed() -> void:
 
 
 func _on_back_requested() -> void:
-	# If queue has items, confirm before going back
+	# SF2-style: instant cancel, no confirmation - queue panel provides visibility
 	if context.queue and not context.queue.is_empty():
-		# For now, just clear queue and go back
-		# TODO: Add cancel-queue confirmation dialog (protects against losing queued items)
 		context.queue.clear()
 		show_queue_panel(false)
 

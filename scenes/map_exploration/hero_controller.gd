@@ -189,9 +189,6 @@ func _process_movement(delta: float) -> void:
 		# Emit signal
 		moved_to_tile.emit(grid_position)
 
-		# Check for triggers at new position
-		_check_tile_triggers()
-
 		# Stop walk sound and play idle if no direction input held (seamless if continuing to move)
 		if not _is_direction_input_held():
 			_stop_walk_sound()
@@ -371,17 +368,6 @@ func _is_interactable_at_tile(tile_pos: Vector2i) -> bool:
 			if obj.is_at_grid_position(tile_pos):
 				return true
 	return false
-
-
-## Check if the current tile has any triggers (battles, events, etc.)
-func _check_tile_triggers() -> void:
-	# TODO: Implement trigger system
-	# This will check for:
-	# - Battle encounters
-	# - Cutscene triggers
-	# - Area transitions
-	# - NPCs
-	pass
 
 
 ## Attempt to interact with whatever is in front of the hero.

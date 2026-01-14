@@ -215,13 +215,6 @@ func _follow_cursor() -> void:
 		_target_position.y = cursor_pos.y
 
 
-## Follow the currently active unit (placeholder for Phase 3)
-func _follow_active_unit() -> void:
-	# TODO: Get active unit position from BattleManager
-	# For now, this is a placeholder
-	pass
-
-
 ## Set target position for camera to move to
 func set_target_position(target: Vector2) -> void:
 	_target_position = target

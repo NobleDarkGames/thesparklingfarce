@@ -29,7 +29,6 @@ const TransitionContext = preload("res://core/resources/transition_context.gd")
 ## LOW-001: Constants for trigger type strings
 const TRIGGER_TYPE_BATTLE: String = "battle"
 const TRIGGER_TYPE_DIALOG: String = "dialog"
-const TRIGGER_TYPE_CHEST: String = "chest"
 const TRIGGER_TYPE_DOOR: String = "door"
 const TRIGGER_TYPE_CUTSCENE: String = "cutscene"
 const TRIGGER_TYPE_TRANSITION: String = "transition"
@@ -143,8 +142,6 @@ func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
 			_handle_battle_trigger(trigger, player)
 		TRIGGER_TYPE_DIALOG:
 			_handle_dialog_trigger(trigger, player)
-		TRIGGER_TYPE_CHEST:
-			_handle_chest_trigger(trigger, player)
 		TRIGGER_TYPE_DOOR:
 			_handle_door_trigger(trigger, player)
 		TRIGGER_TYPE_CUTSCENE:
@@ -391,13 +388,6 @@ func _handle_dialog_trigger(trigger: Node, _player: Node2D) -> void:
 
 	# Start dialogue (method is start_dialog_from_resource, not start_dialogue)
 	DialogManager.start_dialog_from_resource(dialogue_data)
-
-
-## Handle CHEST trigger - grant rewards
-func _handle_chest_trigger(trigger: Node, _player: Node2D) -> void:
-	var _trigger_data: Dictionary = trigger.get("trigger_data")
-	# TODO: Phase 4 - implement item/gold rewards
-	pass
 
 
 ## Handle DOOR trigger - scene transition
