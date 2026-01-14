@@ -589,7 +589,9 @@ func _show_item_picker(for_deals: bool) -> void:
 	for i: int in range(_picker_items.size()):
 		var item: ItemData = _picker_items[i] as ItemData
 		if item:
-			var label: String = "%s (%dG)" % [item.item_name, item.buy_price]
+			var item_id: String = item.resource_path.get_file().get_basename()
+			var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
+			var label: String = "%s (%dG)" % [item_display, item.buy_price]
 			item_picker_popup.add_item(label, i)
 
 	if item_picker_popup.item_count == 0:
@@ -652,11 +654,11 @@ func _refresh_inventory_list() -> void:
 		var stock: int = entry.get("stock", -1)
 		var price_override: int = entry.get("price_override", -1)
 
-		var item_name: String = _get_item_name(item_id)
+		var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
 		var stock_str: String = "infinite" if stock == -1 else str(stock)
 		var price_str: String = "default" if price_override == -1 else "%dG" % price_override
 
-		var label: String = "%s  [Stock: %s, Price: %s]" % [item_name, stock_str, price_str]
+		var label: String = "%s  [Stock: %s, Price: %s]" % [item_display, stock_str, price_str]
 		inventory_list.add_item(label)
 
 
@@ -664,8 +666,8 @@ func _refresh_deals_list() -> void:
 	deals_list.clear()
 
 	for item_id: String in _current_deals:
-		var item_name: String = _get_item_name(item_id)
-		deals_list.add_item(item_name)
+		var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
+		deals_list.add_item(item_display)
 
 
 func _get_item_name(item_id: String) -> String:

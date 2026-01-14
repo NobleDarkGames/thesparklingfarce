@@ -599,8 +599,14 @@ func _update_map_dropdowns() -> void:
 		if dropdown:
 			dropdown.clear()
 			dropdown.add_item("(None)")
-			for map_id in loaded_maps.keys():
-				dropdown.add_item(map_id)
+			for map_id: String in loaded_maps.keys():
+				# Extract mod_id from path for attribution
+				var path: String = loaded_maps[map_id]
+				var mod_id: String = SparklingEditorUtils.get_mod_id_from_path(path)
+				var label: String = SparklingEditorUtils.format_with_mod(mod_id, map_id)
+				dropdown.add_item(label)
+				# Store map_id in metadata for selection
+				dropdown.set_item_metadata(dropdown.item_count - 1, map_id)
 
 
 # =============================================================================
@@ -664,8 +670,10 @@ func _set_edge_dropdown_value(dropdown: OptionButton, spawn_edit: LineEdit, edge
 	if target_map.is_empty():
 		dropdown.select(0)  # (None)
 	else:
+		# Match by metadata (map_id) rather than display text
 		for i in range(dropdown.item_count):
-			if dropdown.get_item_text(i) == target_map:
+			var metadata: Variant = dropdown.get_item_metadata(i)
+			if metadata is String and metadata == target_map:
 				dropdown.select(i)
 				return
 		dropdown.select(0)
@@ -698,9 +706,10 @@ func _collect_data_from_ui() -> void:
 
 func _collect_edge_connection(edge_connections: Dictionary, direction: String, dropdown: OptionButton, spawn_edit: LineEdit) -> void:
 	if dropdown.selected > 0:  # Not "(None)"
-		var target_map: String = dropdown.get_item_text(dropdown.selected)
+		# Get map_id from metadata (not display text which includes mod prefix)
+		var target_map: Variant = dropdown.get_item_metadata(dropdown.selected)
 		var target_spawn: String = spawn_edit.text.strip_edges()
-		if not target_map.is_empty():
+		if target_map is String and not target_map.is_empty():
 			edge_connections[direction] = {
 				"target_map_id": target_map,
 				"target_spawn_id": target_spawn,

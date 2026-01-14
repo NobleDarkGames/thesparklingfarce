@@ -648,7 +648,8 @@ func _show_item_picker() -> void:
 	for i: int in _picker_items.size():
 		var item: ItemData = _picker_items[i] as ItemData
 		if item:
-			var label: String = "%s" % item.item_name
+			var item_id: String = item.resource_path.get_file().get_basename()
+			var label: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
 			item_picker_popup.add_item(label, i)
 
 	if item_picker_popup.item_count == 0:
@@ -736,8 +737,8 @@ func _parse_string_array(text: String) -> Array[String]:
 func _refresh_choice_list() -> void:
 	choice_items_list.clear()
 	for item_id: String in _current_choices:
-		var item_name: String = _get_item_name(item_id)
-		choice_items_list.add_item(item_name)
+		var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
+		choice_items_list.add_item(item_display)
 
 
 func _refresh_inputs_list() -> void:
@@ -745,8 +746,8 @@ func _refresh_inputs_list() -> void:
 	for input_entry: Dictionary in _current_inputs:
 		var material_id: String = input_entry.get("material_id", "")
 		var quantity: int = input_entry.get("quantity", 1)
-		var material_name: String = _get_item_name(material_id)
-		var label: String = "%s x%d" % [material_name, quantity]
+		var material_display: String = SparklingEditorUtils.get_item_display_with_mod(material_id)
+		var label: String = "%s x%d" % [material_display, quantity]
 		inputs_list.add_item(label)
 
 

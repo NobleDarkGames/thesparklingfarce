@@ -655,7 +655,8 @@ func _populate_party_dropdown() -> void:
 			var display_name: String = party.party_name if not party.party_name.is_empty() else party_id
 			if party.has_method("get_member_count"):
 				display_name = "%s (%d members)" % [display_name, party.get_member_count()]
-			party_option.add_item(display_name)
+			var label: String = SparklingEditorUtils.get_display_with_mod_by_id("party", party_id, display_name)
+			party_option.add_item(label)
 			party_option.set_item_metadata(idx, party_id)
 			# Restore selection if this was the previously selected party
 			if party_id == current_party_id:
@@ -842,9 +843,11 @@ func _populate_item_dropdown(option: OptionButton) -> void:
 		var all_items: Array[Resource] = ModLoader.registry.get_all_resources("item")
 		var idx: int = 1
 		for resource: Resource in all_items:
+			var item_id: String = _get_item_id(resource)
 			var display_name: String = _get_item_display_name(resource)
-			option.add_item(display_name)
-			option.set_item_metadata(idx, _get_item_id(resource))
+			var label: String = SparklingEditorUtils.get_display_with_mod_by_id("item", item_id, display_name)
+			option.add_item(label)
+			option.set_item_metadata(idx, item_id)
 			idx += 1
 
 	# Restore selection if possible

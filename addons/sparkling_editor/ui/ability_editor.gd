@@ -423,8 +423,7 @@ func _populate_status_effects_menu() -> void:
 		return
 
 	for effect_id: String in effect_ids:
-		var effect: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_id)
-		var display_text: String = effect.display_name if effect and not effect.display_name.is_empty() else effect_id.capitalize()
+		var display_text: String = SparklingEditorUtils.get_status_effect_display_with_mod(effect_id)
 
 		popup.add_check_item(display_text)
 		var idx: int = popup.item_count - 1

@@ -407,14 +407,20 @@ func _get_editor_state_color() -> Color:
 	if not interactable_data:
 		return Color.RED  # No data
 
-	# Guard against placeholder instances in editor
-	if not interactable_data.get_script():
+	# Guard against placeholder instances in editor - check if it's actually an InteractableData
+	# Placeholder instances have the script but can't execute methods
+	if not interactable_data is InteractableData:
 		return Color.ORANGE
 
-	if interactable_data.has_method("validate") and not interactable_data.validate():
+	# Cast to typed variable to safely call methods
+	var data: InteractableData = interactable_data as InteractableData
+	if not data:
+		return Color.ORANGE
+
+	if not data.validate():
 		return Color.ORANGE  # Invalid config
 
-	if interactable_data.has_method("has_rewards") and interactable_data.has_rewards():
+	if data.has_rewards():
 		return Color.GOLD  # Has loot
 
 	return Color.CYAN  # Valid, no rewards

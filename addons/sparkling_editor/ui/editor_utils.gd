@@ -421,6 +421,58 @@ static func get_character_display_name(character: CharacterData) -> String:
 
 
 # =============================================================================
+# Mod Attribution Formatting
+# =============================================================================
+
+## Format a display name with mod prefix: "[mod_id] display_name"
+## Handles empty/null mod_id by using "unknown"
+static func format_with_mod(mod_id: String, display_name: String) -> String:
+	var safe_mod: String = mod_id if not mod_id.is_empty() else "unknown"
+	return "[%s] %s" % [safe_mod, display_name]
+
+
+## Extract mod_id from a resource path (res://mods/<mod_id>/...)
+## Returns "unknown" if path doesn't match expected format
+static func get_mod_id_from_path(path: String) -> String:
+	var parts: PackedStringArray = path.split("/")
+	# Expected: ["res:", "", "mods", "<mod_id>", ...]
+	if parts.size() >= 4 and parts[2] == "mods":
+		return parts[3]
+	return "unknown"
+
+
+## Get display text for a resource by type and ID, with mod attribution
+## Queries the registry for mod source and formats as "[mod_id] display_name"
+static func get_display_with_mod_by_id(resource_type: String, resource_id: String, display_name: String) -> String:
+	var mod_id: String = ""
+	if ModLoader and ModLoader.registry:
+		mod_id = ModLoader.registry.get_resource_source(resource_id, resource_type)
+	return format_with_mod(mod_id, display_name)
+
+
+## Get item display text with mod attribution by item_id
+## Convenience wrapper that looks up the item name from registry
+static func get_item_display_with_mod(item_id: String) -> String:
+	if ModLoader and ModLoader.registry:
+		var item: ItemData = ModLoader.registry.get_item(item_id)
+		if item:
+			var mod_id: String = ModLoader.registry.get_resource_source(item_id, "item")
+			return format_with_mod(mod_id, item.item_name)
+	return format_with_mod("", item_id)
+
+
+## Get status effect display text with mod attribution by effect_id
+## Uses status_effect_registry for source lookup
+static func get_status_effect_display_with_mod(effect_id: String) -> String:
+	if ModLoader and ModLoader.status_effect_registry:
+		var effect: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_id)
+		var display_name: String = effect.display_name if effect and not effect.display_name.is_empty() else effect_id.capitalize()
+		var mod_id: String = ModLoader.status_effect_registry.get_source_mod(effect_id)
+		return format_with_mod(mod_id, display_name)
+	return format_with_mod("", effect_id.capitalize())
+
+
+# =============================================================================
 # FormBuilder - Fluent API for Building Editor Forms
 # =============================================================================
 
