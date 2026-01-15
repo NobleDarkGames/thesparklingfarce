@@ -15,6 +15,8 @@ const UnitScript = preload("res://core/components/unit.gd")
 var _test_complete: bool = false
 var _test_passed: bool = false
 var _failure_reason: String = ""
+var _test_start_time: int = 0
+const TEST_TIMEOUT_MS: int = 5000
 
 # Units
 var _archer_unit: Unit
@@ -36,6 +38,7 @@ var _created_items: Array[ItemData] = []
 
 
 func _ready() -> void:
+	_test_start_time = Time.get_ticks_msec()
 	print("\n" + "=".repeat(60))
 	print("RANGED AI POSITIONING TEST")
 	print("=".repeat(60))
@@ -290,10 +293,10 @@ func _cleanup_resources() -> void:
 
 
 func _process(_delta: float) -> void:
-	# Safety timeout
+	# Safety timeout using elapsed time check (not timers in _process)
 	if not _test_complete:
-		await get_tree().create_timer(5.0).timeout
-		if not _test_complete:
+		var elapsed: int = Time.get_ticks_msec() - _test_start_time
+		if elapsed > TEST_TIMEOUT_MS:
 			print("\n[TIMEOUT] Test did not complete in time")
 			_test_passed = false
 			_failure_reason = "Test timeout"
