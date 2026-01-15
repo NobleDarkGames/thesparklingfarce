@@ -455,3 +455,121 @@ func test_equipment_plus_status_effect_full_workflow() -> void:
 
 	# Base 10 + Equipment 5 + Status Effect 3 = 18
 	assert_int(stats.get_effective_strength()).is_equal(18)
+
+
+# =============================================================================
+# CORE STATS OPERATIONS TESTS
+# =============================================================================
+
+func test_unit_stats_creation() -> void:
+	var stats: UnitStats = UnitStats.new()
+	stats.strength = 15
+	stats.defense = 10
+	stats.agility = 12
+	stats.intelligence = 8
+	stats.luck = 6
+
+	assert_int(stats.strength).is_equal(15)
+	assert_int(stats.defense).is_equal(10)
+	assert_int(stats.agility).is_equal(12)
+	assert_int(stats.intelligence).is_equal(8)
+	assert_int(stats.luck).is_equal(6)
+
+
+func test_unit_stats_take_damage() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_hp = 20
+	stats.current_hp = 20
+
+	var died: bool = stats.take_damage(5)
+
+	assert_int(stats.current_hp).is_equal(15)
+	assert_bool(died).is_false()
+
+
+func test_unit_stats_take_fatal_damage() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_hp = 20
+	stats.current_hp = 10
+
+	var died: bool = stats.take_damage(15)
+
+	assert_int(stats.current_hp).is_equal(0)
+	assert_bool(died).is_true()
+
+
+func test_unit_stats_heal() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_hp = 20
+	stats.current_hp = 10
+
+	stats.heal(5)
+
+	assert_int(stats.current_hp).is_equal(15)
+
+
+func test_unit_stats_heal_over_max() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_hp = 20
+	stats.current_hp = 18
+
+	stats.heal(10)
+
+	assert_int(stats.current_hp).is_equal(20)
+
+
+func test_unit_stats_spend_mp() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_mp = 10
+	stats.current_mp = 10
+
+	var success: bool = stats.spend_mp(3)
+
+	assert_bool(success).is_true()
+	assert_int(stats.current_mp).is_equal(7)
+
+
+func test_unit_stats_spend_mp_insufficient() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_mp = 10
+	stats.current_mp = 5
+
+	var success: bool = stats.spend_mp(10)
+
+	assert_bool(success).is_false()
+	assert_int(stats.current_mp).is_equal(5)
+
+
+func test_unit_stats_status_effect_add() -> void:
+	var stats: UnitStats = _create_unit_stats()
+
+	stats.add_status_effect("poison", 3, 5)
+
+	assert_int(stats.status_effects.size()).is_equal(1)
+
+
+func test_unit_stats_status_effect_has() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.add_status_effect("poison", 3, 5)
+
+	assert_bool(stats.has_status_effect("poison")).is_true()
+	assert_bool(stats.has_status_effect("stun")).is_false()
+
+
+func test_unit_stats_status_effect_remove() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.add_status_effect("poison", 3, 5)
+
+	stats.remove_status_effect("poison")
+
+	assert_bool(stats.has_status_effect("poison")).is_false()
+
+
+func test_unit_stats_hp_percent() -> void:
+	var stats: UnitStats = _create_unit_stats()
+	stats.max_hp = 100
+	stats.current_hp = 75
+
+	var percent: float = stats.get_hp_percent()
+
+	assert_float(percent).is_equal(0.75)
