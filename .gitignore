@@ -35,3 +35,4 @@ docs/plans/ignored/
 
 # Local untracked docs
 .local/
+docs/untracked/
