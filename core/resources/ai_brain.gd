@@ -178,8 +178,9 @@ func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: i
 
 ## Helper: Move unit into attack range of target
 ## Respects weapon min/max range (avoids dead zones for ranged weapons)
+## If behavior is provided and seek_terrain_advantage is true, prefers defensive terrain
 ## Returns true if movement succeeded
-func move_into_attack_range(unit: Unit, target: Unit) -> bool:
+func move_into_attack_range(unit: Unit, target: Unit, behavior: AIBehaviorData = null) -> bool:
 	if not unit or not target:
 		return false
 
@@ -222,6 +223,13 @@ func move_into_attack_range(unit: Unit, target: Unit) -> bool:
 			# For ranged units, slightly prefer staying at max range (safer)
 			if max_range > 1:
 				score += (dist_to_target - min_range) * 0.5
+
+			# Terrain advantage: prefer cells with defense/evasion bonuses
+			if behavior and behavior.seek_terrain_advantage:
+				var terrain: TerrainData = GridManager.get_terrain_at_cell(cell)
+				if terrain:
+					score += terrain.defense_bonus * 2.0
+					score += terrain.evasion_bonus * 0.5
 
 			if score > best_score:
 				best_score = score

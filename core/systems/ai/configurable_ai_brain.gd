@@ -130,7 +130,7 @@ func _execute_aggressive(unit: Unit, context: Dictionary, behavior: AIBehaviorDa
 		return
 
 	# Move into attack range (respects weapon min/max range for ranged units)
-	var moved: bool = move_into_attack_range(unit, target)
+	var moved: bool = move_into_attack_range(unit, target, behavior)
 	if moved:
 		await unit.await_movement_completion()
 		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
@@ -172,7 +172,7 @@ func _execute_cautious(unit: Unit, context: Dictionary, behavior: AIBehaviorData
 		return
 
 	# Move into attack range (respects weapon min/max range for ranged units)
-	var moved: bool = move_into_attack_range(unit, nearest)
+	var moved: bool = move_into_attack_range(unit, nearest, behavior)
 	if moved:
 		await unit.await_movement_completion()
 		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))

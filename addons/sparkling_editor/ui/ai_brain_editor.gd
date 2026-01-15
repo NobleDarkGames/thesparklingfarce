@@ -585,7 +585,7 @@ func _add_engagement_section() -> void:
 	# Terrain advantage
 	seek_terrain_check = CheckBox.new()
 	seek_terrain_check.text = "Seek terrain advantage (defense bonuses)"
-	seek_terrain_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: AI moves to forests, hills for defense bonuses. Makes enemies tactically smarter."
+	seek_terrain_check.tooltip_text = "AI prefers tiles with defense/evasion bonuses when moving to attack. Makes enemies tactically smarter."
 	seek_terrain_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(seek_terrain_check)
 
@@ -607,7 +607,7 @@ func _add_engagement_section() -> void:
 	section.add_child(idle_container)
 
 	var engage_stub_label: Label = Label.new()
-	engage_stub_label.text = "[STUB] Terrain seeking and idle turn patience not yet processed by AI system"
+	engage_stub_label.text = "[STUB] Idle turn patience not yet processed by AI system"
 	engage_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
 	engage_stub_label.add_theme_font_size_override("font_size", 12)
 	section.add_child(engage_stub_label)

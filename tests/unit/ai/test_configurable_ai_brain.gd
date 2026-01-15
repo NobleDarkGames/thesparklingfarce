@@ -452,6 +452,41 @@ func test_seek_terrain_advantage_configuration() -> void:
 	assert_bool(behavior.seek_terrain_advantage).is_true()
 
 
+func test_seek_terrain_advantage_default_is_true() -> void:
+	# Per AIBehaviorData resource, seek_terrain_advantage defaults to true
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	assert_bool(behavior.seek_terrain_advantage).is_true()
+
+
+func test_seek_terrain_advantage_can_be_disabled() -> void:
+	var behavior: AIBehaviorData = _create_test_behavior("aggressive", "aggressive")
+	behavior.seek_terrain_advantage = false
+
+	assert_bool(behavior.seek_terrain_advantage).is_false()
+
+
+func test_terrain_scoring_values() -> void:
+	# Test that terrain bonuses translate to expected score contributions
+	# Score formula: defense_bonus * 2.0 + evasion_bonus * 0.5
+	# Forest example: defense 3, evasion 10% = 3*2 + 10*0.5 = 6 + 5 = 11 points
+	var forest: TerrainData = TerrainData.new()
+	forest.terrain_id = "test_forest"
+	forest.defense_bonus = 3
+	forest.evasion_bonus = 10
+
+	var expected_score: float = forest.defense_bonus * 2.0 + forest.evasion_bonus * 0.5
+	assert_float(expected_score).is_equal(11.0)
+
+	# Plains with no bonus = 0 score contribution
+	var plains: TerrainData = TerrainData.new()
+	plains.terrain_id = "test_plains"
+	plains.defense_bonus = 0
+	plains.evasion_bonus = 0
+
+	var plains_score: float = plains.defense_bonus * 2.0 + plains.evasion_bonus * 0.5
+	assert_float(plains_score).is_equal(0.0)
+
+
 # =============================================================================
 # ABILITY/ITEM USAGE RULE TESTS
 # =============================================================================

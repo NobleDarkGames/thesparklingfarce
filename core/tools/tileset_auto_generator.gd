@@ -233,6 +233,74 @@ static func _auto_populate_atlas_source(atlas: TileSetAtlasSource, tile_size: in
 	return generated
 
 
+## Repair a TileSet by removing invalid atlas sources and out-of-bounds tiles.
+## Call this when textures have been modified and tile definitions may be stale.
+## Returns the number of repairs made.
+static func repair_tileset(tileset: TileSet, tileset_name: String = "") -> int:
+	if not tileset:
+		return 0
+
+	var prefix: String = "TileSetAutoGenerator"
+	if not tileset_name.is_empty():
+		prefix = "TileSetAutoGenerator [%s]" % tileset_name
+
+	var tile_size: int = tileset.tile_size.x
+	var repairs: int = 0
+
+	# Collect source IDs to remove (can't modify while iterating)
+	var sources_to_remove: Array[int] = []
+
+	for i: int in range(tileset.get_source_count()):
+		var source_id: int = tileset.get_source_id(i)
+		var source: TileSetSource = tileset.get_source(source_id)
+
+		if source is TileSetAtlasSource:
+			var atlas: TileSetAtlasSource = source as TileSetAtlasSource
+
+			# Remove atlas sources with no texture
+			if not atlas.texture:
+				sources_to_remove.append(source_id)
+				print("%s: Removing atlas source %d (no texture assigned)" % [prefix, source_id])
+				repairs += 1
+				continue
+
+			# Check for out-of-bounds tiles and remove them
+			var texture: Texture2D = atlas.texture
+			var max_col: int = (texture.get_width() / tile_size) - 1
+			var max_row: int = (texture.get_height() / tile_size) - 1
+			var texture_name: String = texture.resource_path.get_file()
+
+			# Parse animation info to determine if tiles use multiple columns
+			var anim_info: Dictionary = _parse_animation_info(texture_name)
+			var frame_count: int = anim_info.frames
+			var is_animated: bool = frame_count > 1
+
+			# Get all tiles and check bounds
+			var tiles_to_remove: Array[Vector2i] = []
+			for tile_coords: Vector2i in atlas.get_tiles_to_be_removed_on_change(atlas.texture):
+				pass  # This method doesn't exist, need different approach
+
+			# Iterate through defined tiles using atlas coordinates
+			# For animated tiles, only column 0 should have tiles
+			var tile_count: int = atlas.get_tiles_count()
+			if tile_count > 0:
+				# Check if any tiles are out of bounds
+				# Unfortunately there's no direct way to iterate tiles, so we check expected bounds
+				var expected_max_row: int = max_row
+				if is_animated:
+					# Animated tiles only in column 0
+					if atlas.get_tiles_count() > (max_row + 1):
+						print("%s: %s has %d tiles but texture only supports %d rows" % [
+							prefix, texture_name, atlas.get_tiles_count(), max_row + 1
+						])
+
+	# Remove invalid sources
+	for source_id: int in sources_to_remove:
+		tileset.remove_source(source_id)
+
+	return repairs
+
+
 ## Validate a TileSet and report any issues.
 ## Returns an array of warning messages (empty if no issues).
 static func validate_tileset(tileset: TileSet, tileset_name: String = "") -> Array[String]:

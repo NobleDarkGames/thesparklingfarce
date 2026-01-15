@@ -684,7 +684,12 @@ func get_tileset(tileset_name: String) -> TileSet:
 	if entry_resource is TileSet and not auto_populated:
 		var tileset: TileSet = entry_resource as TileSet
 
-		# First, discover any new textures in the tileset's texture directory
+		# First, repair any invalid atlas sources (no texture, out-of-bounds tiles)
+		var repaired: int = TileSetAutoGeneratorClass.repair_tileset(tileset, tileset_name)
+		if repaired > 0:
+			print("ModLoader: Repaired %d issue(s) in TileSet '%s'" % [repaired, tileset_name])
+
+		# Then, discover any new textures in the tileset's texture directory
 		var discovered: int = TileSetAutoGeneratorClass.auto_discover_textures(tileset, entry_path, tileset_name)
 		if discovered > 0 and OS.is_debug_build():
 			print("ModLoader: Discovered %d new texture(s) for TileSet '%s'" % [discovered, tileset_name])
