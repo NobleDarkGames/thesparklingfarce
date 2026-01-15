@@ -3,6 +3,9 @@ extends RefCounted
 
 ## Registry for tileset declarations from mod manifests
 ##
+## NOTE: This class cannot use class_name references for TileSetAutoGenerator
+## because autoloads aren't available when this class loads. We use preload instead.
+##
 ## Instead of just scanning directories, mods can declare their tilesets
 ## in mod.json with metadata. This provides:
 ## - Display names and descriptions for editor dropdowns
@@ -27,6 +30,13 @@ extends RefCounted
 ##
 ## For backwards compatibility, also discovers tilesets from tilesets/
 ## directories that aren't explicitly declared in mod.json.
+
+# =============================================================================
+# PRELOADS
+# =============================================================================
+
+## TileSetAutoGenerator for auto-populating tile definitions on first access
+const TileSetAutoGeneratorClass = preload("res://core/tools/tileset_auto_generator.gd")
 
 # =============================================================================
 # SIGNALS
@@ -232,22 +242,49 @@ func get_source_mod(tileset_id: String) -> String:
 
 ## Get the TileSet resource (lazy-loaded)
 ## Returns null if not found or failed to load
+## Auto-generates tile definitions based on texture dimensions on first access
 func get_tileset(tileset_id: String) -> TileSet:
 	var lower: String = tileset_id.to_lower()
 
 	if lower not in _tilesets:
+		push_warning("TilesetRegistry: TileSet '%s' not found in registry" % tileset_id)
 		return null
 
 	var entry: Dictionary = _tilesets[lower]
+	var entry_resource: Variant = entry.get("resource")
+	var entry_path: String = entry.get("path", "")
+	var auto_populated: bool = entry.get("auto_populated", false)
 
 	# Lazy-load the resource on first access
-	if entry.resource == null:
-		entry.resource = load(entry.path) as TileSet
-		if entry.resource == null:
-			push_error("TilesetRegistry: Failed to load TileSet from: %s" % entry.path)
+	if entry_resource == null:
+		var loaded: Resource = load(entry_path)
+		entry_resource = loaded if loaded is TileSet else null
+		entry["resource"] = entry_resource
+		if entry_resource == null:
+			push_error("TilesetRegistry: Failed to load TileSet from: %s" % entry_path)
 			return null
 
-	return entry.resource
+	# Auto-discover textures and populate tile definitions (once per tileset)
+	if entry_resource is TileSet and not auto_populated:
+		var tileset: TileSet = entry_resource as TileSet
+
+		# First, repair any invalid atlas sources (no texture, out-of-bounds tiles)
+		var repaired: int = TileSetAutoGeneratorClass.repair_tileset(tileset, lower)
+		if repaired > 0:
+			print("TilesetRegistry: Repaired %d issue(s) in TileSet '%s'" % [repaired, lower])
+
+		# Then, discover any new textures in the tileset's texture directory
+		var discovered: int = TileSetAutoGeneratorClass.auto_discover_textures(tileset, entry_path, lower)
+		if discovered > 0 and OS.is_debug_build():
+			print("TilesetRegistry: Discovered %d new texture(s) for TileSet '%s'" % [discovered, lower])
+
+		# Then, auto-populate tile definitions for all atlas sources
+		var generated: int = TileSetAutoGeneratorClass.auto_populate_tileset(tileset, lower)
+		entry["auto_populated"] = true
+		if generated > 0 and OS.is_debug_build():
+			print("TilesetRegistry: Auto-generated %d tile(s) for TileSet '%s'" % [generated, lower])
+
+	return entry_resource if entry_resource is TileSet else null
 
 
 ## Get all tileset paths (for backwards compatibility with editors)

@@ -62,7 +62,6 @@ const AIBrainRegistryClass = preload("res://core/registries/ai_brain_registry.gd
 const TilesetRegistryClass = preload("res://core/registries/tileset_registry.gd")
 const AIModeRegistryClass = preload("res://core/registries/ai_mode_registry.gd")
 const StatusEffectRegistryClass = preload("res://core/registries/status_effect_registry.gd")
-const TileSetAutoGeneratorClass = preload("res://core/tools/tileset_auto_generator.gd")
 
 ## Signal emitted when all mods have finished loading
 signal mods_loaded()
@@ -98,10 +97,6 @@ var ai_mode_registry: AIModeRegistry = AIModeRegistryClass.new()
 
 # Status effect registry (data-driven status effects)
 var status_effect_registry: StatusEffectRegistry = StatusEffectRegistryClass.new()
-
-# Legacy tileset registry for backwards compatibility
-# TODO: Migrate to tileset_registry and remove this
-var _tileset_registry: Dictionary = {}
 
 ## Loading state tracking
 var _is_loading: bool = false
@@ -609,49 +604,13 @@ func _discover_trigger_scripts(manifest: ModManifest) -> int:
 ## TileSets are registered by their filename (without extension) as the tileset name
 ## Higher-priority mods override lower-priority tilesets with the same name
 func _discover_tilesets(manifest: ModManifest) -> int:
-	# Use the new tileset registry for discovery (handles both declared and auto-discovered)
-	var new_count: int = tileset_registry.discover_from_directory(manifest.mod_id, manifest.mod_directory)
+	# Use the tileset registry for discovery (handles both declared and auto-discovered)
+	var tileset_count: int = tileset_registry.discover_from_directory(manifest.mod_id, manifest.mod_directory)
 
-	# Also discover AI brains from directory for backwards compatibility
+	# Also discover AI brains from directory
 	ai_brain_registry.discover_from_directory(manifest.mod_id, manifest.mod_directory)
 
-	# Legacy registry support - keep in sync for backwards compatibility
-	var tilesets_dir: String = manifest.mod_directory.path_join("tilesets")
-	var dir: DirAccess = DirAccess.open(tilesets_dir)
-
-	if not dir:
-		# No tilesets directory - that's okay
-		return new_count
-
-	var count: int = 0
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-
-	while file_name != "":
-		if not dir.current_is_dir():
-			# Strip .remap suffix when listing directories (for export builds)
-			var original_name: String = file_name
-			if file_name.ends_with(".remap"):
-				original_name = file_name.substr(0, file_name.length() - 6)
-
-			if original_name.ends_with(".tres"):
-				var full_path: String = tilesets_dir.path_join(original_name)
-				# Extract tileset name from filename: terrain_placeholder.tres -> terrain_placeholder
-				var tileset_name: String = original_name.get_basename().to_lower()
-
-				if not tileset_name.is_empty():
-					# Register (or override) the tileset in legacy registry
-					_tileset_registry[tileset_name] = {
-						"path": full_path,
-						"mod_id": manifest.mod_id,
-						"resource": null  # Lazy-loaded on first access
-					}
-					count += 1
-
-		file_name = dir.get_next()
-
-	dir.list_dir_end()
-	return count + new_count
+	return tileset_count
 
 
 ## Get a TileSet resource by name
@@ -660,85 +619,28 @@ func _discover_tilesets(manifest: ModManifest) -> int:
 ## @param tileset_name: The tileset name (e.g., "terrain_placeholder")
 ## @return: The TileSet resource, or null if not found
 func get_tileset(tileset_name: String) -> TileSet:
-	var name_lower: String = tileset_name.to_lower()
-
-	if name_lower not in _tileset_registry:
-		push_warning("ModLoader: TileSet '%s' not found in registry" % tileset_name)
-		return null
-
-	var entry: Dictionary = _tileset_registry[name_lower]
-	var entry_resource: Variant = entry.get("resource")
-	var entry_path: String = DictUtils.get_string(entry, "path", "")
-	var auto_populated: bool = entry.get("auto_populated", false)
-
-	# Lazy-load the resource on first access
-	if entry_resource == null:
-		var loaded: Resource = load(entry_path)
-		entry_resource = loaded if loaded is TileSet else null
-		entry["resource"] = entry_resource
-		if entry_resource == null:
-			push_error("ModLoader: Failed to load TileSet from: %s" % entry_path)
-			return null
-
-	# Auto-discover textures and populate tile definitions (once per tileset)
-	if entry_resource is TileSet and not auto_populated:
-		var tileset: TileSet = entry_resource as TileSet
-
-		# First, repair any invalid atlas sources (no texture, out-of-bounds tiles)
-		var repaired: int = TileSetAutoGeneratorClass.repair_tileset(tileset, tileset_name)
-		if repaired > 0:
-			print("ModLoader: Repaired %d issue(s) in TileSet '%s'" % [repaired, tileset_name])
-
-		# Then, discover any new textures in the tileset's texture directory
-		var discovered: int = TileSetAutoGeneratorClass.auto_discover_textures(tileset, entry_path, tileset_name)
-		if discovered > 0 and OS.is_debug_build():
-			print("ModLoader: Discovered %d new texture(s) for TileSet '%s'" % [discovered, tileset_name])
-
-		# Then, auto-populate tile definitions for all atlas sources
-		var generated: int = TileSetAutoGeneratorClass.auto_populate_tileset(tileset, tileset_name)
-		entry["auto_populated"] = true
-		if generated > 0 and OS.is_debug_build():
-			print("ModLoader: Auto-generated %d tile(s) for TileSet '%s'" % [generated, tileset_name])
-
-	return entry_resource if entry_resource is TileSet else null
+	return tileset_registry.get_tileset(tileset_name)
 
 
 ## Get the path to a TileSet by name (without loading it)
 ## Useful for scene files that need the path at edit time
 func get_tileset_path(tileset_name: String) -> String:
-	var name_lower: String = tileset_name.to_lower()
-
-	if name_lower not in _tileset_registry:
-		return ""
-
-	var entry: Dictionary = _tileset_registry[name_lower]
-	return DictUtils.get_string(entry, "path", "")
+	return tileset_registry.get_tileset_path(tileset_name)
 
 
 ## Check if a tileset is registered
 func has_tileset(tileset_name: String) -> bool:
-	return tileset_name.to_lower() in _tileset_registry
+	return tileset_registry.has_tileset(tileset_name)
 
 
 ## Get all registered tileset names
 func get_tileset_names() -> Array[String]:
-	var names: Array[String] = []
-	var registry_keys: Array = _tileset_registry.keys()
-	for name_variant: Variant in registry_keys:
-		var tileset_name: String = str(name_variant)
-		names.append(tileset_name)
-	return names
+	return tileset_registry.get_all_tileset_ids()
 
 
 ## Get which mod provides a tileset
 func get_tileset_source(tileset_name: String) -> String:
-	var name_lower: String = tileset_name.to_lower()
-
-	if name_lower not in _tileset_registry:
-		return ""
-
-	var entry: Dictionary = _tileset_registry[name_lower]
-	return DictUtils.get_string(entry, "mod_id", "")
+	return tileset_registry.get_source_mod(tileset_name)
 
 
 ## Check if a mod with the given ID is loaded
@@ -1052,8 +954,6 @@ func reload_mods() -> void:
 	ai_mode_registry.clear_mod_registrations()
 	# Clear status effect registry
 	status_effect_registry.clear_mod_registrations()
-	# Clear legacy tileset registry
-	_tileset_registry.clear()
 	_discover_and_load_mods()
 	mods_loaded.emit()
 
@@ -1087,8 +987,6 @@ func reload_mods_async() -> void:
 	ai_mode_registry.clear_mod_registrations()
 	# Clear status effect registry
 	status_effect_registry.clear_mod_registrations()
-	# Clear legacy tileset registry
-	_tileset_registry.clear()
 	await _discover_and_load_mods_async()
 	mods_loaded.emit()
 
