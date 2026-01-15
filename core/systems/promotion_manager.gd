@@ -48,26 +48,11 @@ signal equipment_unequipped(unit: Unit, items: Array)
 
 
 # ============================================================================
-# CONFIGURATION
-# ============================================================================
-
-## Reference to ExperienceConfig for promotion bonuses.
-## Set automatically from ExperienceManager.
-var _experience_config: ExperienceConfig = null
-
-
-# ============================================================================
 # INITIALIZATION
 # ============================================================================
 
 func _ready() -> void:
-	# Get config from ExperienceManager when available
-	call_deferred("_connect_to_experience_manager")
-
-
-func _connect_to_experience_manager() -> void:
-	if ExperienceManager and ExperienceManager.config:
-		_experience_config = ExperienceManager.config
+	pass
 
 
 # ============================================================================
@@ -288,8 +273,8 @@ func execute_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	var cumulative_before: int = _get_cumulative_level(unit)
 	var current_level: int = unit.stats.level
 
-	# Apply promotion stat bonuses
-	stat_changes = _calculate_promotion_bonuses()
+	# Apply promotion stat bonuses from the target class
+	stat_changes = _calculate_promotion_bonuses(target_class)
 	_apply_stat_bonuses(unit, stat_changes)
 
 	# Update class reference
@@ -351,7 +336,7 @@ func preview_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	preview["valid"] = target_class in get_available_promotions(unit)
 	preview["old_class_name"] = old_class.display_name
 	preview["new_class_name"] = target_class.display_name
-	preview["stat_bonuses"] = _calculate_promotion_bonuses()
+	preview["stat_bonuses"] = _calculate_promotion_bonuses(target_class)
 	preview["is_special_promotion"] = _is_item_gated_promotion(old_class, target_class)
 
 	# Equipment compatibility check
@@ -445,21 +430,24 @@ func _get_unit_equipped_items(unit: Unit) -> Array[ItemData]:
 # STAT BONUSES
 # ============================================================================
 
-## Calculate promotion stat bonuses from config.
+## Calculate promotion stat bonuses from the target class.
+## Promotion bonuses come from the TARGET class (the class being promoted to),
+## applied instantly on promotion.
+## @param target_class: The ClassData being promoted to
 ## @return: Dictionary of stat bonuses {stat_name: bonus_value}
-func _calculate_promotion_bonuses() -> Dictionary:
+func _calculate_promotion_bonuses(target_class: ClassData) -> Dictionary:
 	var bonuses: Dictionary = {}
 
-	if not _experience_config:
+	if not target_class:
 		return bonuses
 
-	# Check for promotion bonus properties in config
+	# Read promotion bonus properties from the target class
 	var bonus_stats: Array[String] = ["hp", "mp", "strength", "defense", "agility", "intelligence", "luck"]
 
 	for stat: String in bonus_stats:
-		var config_key: String = "promotion_bonus_" + stat
-		if config_key in _experience_config:
-			var bonus: int = _experience_config.get(config_key)
+		var property_key: String = "promotion_bonus_" + stat
+		if property_key in target_class:
+			var bonus: int = target_class.get(property_key)
 			if bonus > 0:
 				bonuses[stat] = bonus
 

@@ -70,6 +70,18 @@ enum MovementType {
 ## Whether promotion items are consumed when used (applies to all paths)
 @export var consume_promotion_item: bool = true
 
+@export_group("Promotion Bonuses")
+## Promotion bonuses come from the TARGET class (the class being promoted to).
+## These bonuses are applied instantly when a character promotes TO this class.
+## Values are modest Fire Emblem-style defaults.
+@export var promotion_bonus_hp: int = 15
+@export var promotion_bonus_mp: int = 10
+@export var promotion_bonus_strength: int = 8
+@export var promotion_bonus_defense: int = 8
+@export var promotion_bonus_agility: int = 8
+@export var promotion_bonus_intelligence: int = 8
+@export var promotion_bonus_luck: int = 5
+
 @export_group("Appearance")
 @export var class_icon: Texture2D
 
