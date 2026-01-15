@@ -36,7 +36,7 @@ theme_override_constants/separation = 8
 
 [node name="HeaderLabel" type="Label" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 24
 text = "AVAILABLE RECIPES"
 
 [node name="HSeparator" type="HSeparator" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
@@ -76,7 +76,7 @@ theme_override_constants/separation = 12
 [node name="RecipeNameLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/DetailsPanel/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "RECIPE NAME"
 horizontal_alignment = 1
 
