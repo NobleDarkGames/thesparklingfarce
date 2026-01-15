@@ -38,6 +38,17 @@ func _ready() -> void:
 	modulate.a = 0.0
 
 
+## Update a stat label with color indicating buff/debuff status
+func _update_stat_label(label: Label, base: int, effective: int) -> void:
+	label.text = str(effective)
+	if effective > base:
+		label.add_theme_color_override("font_color", Color.LIME_GREEN)
+	elif effective < base:
+		label.add_theme_color_override("font_color", Color.INDIAN_RED)
+	else:
+		label.remove_theme_color_override("font_color")
+
+
 ## Display stats for the given unit.
 func show_unit_stats(unit: Unit) -> void:
 	# Kill any existing tween to prevent conflicts
@@ -68,21 +79,23 @@ func show_unit_stats(unit: Unit) -> void:
 		faction_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))  # Light red
 
 	# Update HP (set immediately on first display)
-	hp_bar.max_value = unit.stats.max_hp
+	var effective_max_hp: int = unit.stats.get_effective_max_hp()
+	hp_bar.max_value = effective_max_hp
 	hp_bar.value = unit.stats.current_hp
-	hp_value.text = "%d/%d" % [unit.stats.current_hp, unit.stats.max_hp]
+	hp_value.text = "%d/%d" % [unit.stats.current_hp, effective_max_hp]
 
 	# Update MP (set immediately on first display)
-	mp_bar.max_value = unit.stats.max_mp
+	var effective_max_mp: int = unit.stats.get_effective_max_mp()
+	mp_bar.max_value = effective_max_mp
 	mp_bar.value = unit.stats.current_mp
-	mp_value.text = "%d/%d" % [unit.stats.current_mp, unit.stats.max_mp]
+	mp_value.text = "%d/%d" % [unit.stats.current_mp, effective_max_mp]
 
-	# Update combat stats
-	str_value.text = str(unit.stats.strength)
-	def_value.text = str(unit.stats.defense)
-	agi_value.text = str(unit.stats.agility)
-	int_value.text = str(unit.stats.intelligence)
-	luk_value.text = str(unit.stats.luck)
+	# Update combat stats (with color for buffs/debuffs)
+	_update_stat_label(str_value, unit.stats.strength, unit.stats.get_effective_strength())
+	_update_stat_label(def_value, unit.stats.defense, unit.stats.get_effective_defense())
+	_update_stat_label(agi_value, unit.stats.agility, unit.stats.get_effective_agility())
+	_update_stat_label(int_value, unit.stats.intelligence, unit.stats.get_effective_intelligence())
+	_update_stat_label(luk_value, unit.stats.luck, unit.stats.get_effective_luck())
 
 	# Force visible and animate in
 	visible = true
@@ -139,18 +152,18 @@ func refresh_stats() -> void:
 	var stats: UnitStats = _current_unit.stats
 
 	# Animate HP/MP changes
-	update_hp(stats.current_hp, stats.max_hp, true)
-	update_mp(stats.current_mp, stats.max_mp, true)
+	update_hp(stats.current_hp, stats.get_effective_max_hp(), true)
+	update_mp(stats.current_mp, stats.get_effective_max_mp(), true)
 
 	# Update level (might have changed)
 	level_label.text = "Lv %d" % stats.level
 
-	# Update combat stats
-	str_value.text = str(stats.strength)
-	def_value.text = str(stats.defense)
-	agi_value.text = str(stats.agility)
-	int_value.text = str(stats.intelligence)
-	luk_value.text = str(stats.luck)
+	# Update combat stats (with color for buffs/debuffs)
+	_update_stat_label(str_value, stats.strength, stats.get_effective_strength())
+	_update_stat_label(def_value, stats.defense, stats.get_effective_defense())
+	_update_stat_label(agi_value, stats.agility, stats.get_effective_agility())
+	_update_stat_label(int_value, stats.intelligence, stats.get_effective_intelligence())
+	_update_stat_label(luk_value, stats.luck, stats.get_effective_luck())
 
 
 ## Hide the stats panel with animation.
