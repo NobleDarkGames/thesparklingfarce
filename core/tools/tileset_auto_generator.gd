@@ -275,11 +275,6 @@ static func repair_tileset(tileset: TileSet, tileset_name: String = "") -> int:
 			var frame_count: int = anim_info.frames
 			var is_animated: bool = frame_count > 1
 
-			# Get all tiles and check bounds
-			var tiles_to_remove: Array[Vector2i] = []
-			for tile_coords: Vector2i in atlas.get_tiles_to_be_removed_on_change(atlas.texture):
-				pass  # This method doesn't exist, need different approach
-
 			# Iterate through defined tiles using atlas coordinates
 			# For animated tiles, only column 0 should have tiles
 			var tile_count: int = atlas.get_tiles_count()
