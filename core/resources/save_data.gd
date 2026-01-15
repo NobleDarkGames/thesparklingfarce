@@ -59,22 +59,6 @@ extends Resource
 ## Example: "Mudford", "Overworld", "Ancient Shrine"
 @export var current_location: String = "headquarters"
 
-# ============================================================================
-# LEGACY CAMPAIGN FIELDS (kept for backwards compatibility with old saves)
-# ============================================================================
-
-## @deprecated Use current_scene_path instead
-@export var current_campaign_id: String = ""
-
-## @deprecated Use current_scene_path instead
-@export var current_node_id: String = ""
-
-## @deprecated No longer used
-@export var campaign_node_history: Array[String] = []
-
-## @deprecated Use last_safe_location instead
-@export var last_hub_id: String = ""
-
 ## Story flags (quest completion, dialogue choices, etc.)
 ## Format: {"flag_name": bool}
 @export var story_flags: Dictionary = {}
@@ -148,11 +132,6 @@ func serialize_to_dict() -> Dictionary:
 		"current_spawn_point": current_spawn_point,
 		"last_safe_location": last_safe_location,
 		"current_location": current_location,
-		# Legacy campaign fields (for backwards compatibility)
-		"current_campaign_id": current_campaign_id,
-		"current_node_id": current_node_id,
-		"campaign_node_history": campaign_node_history.duplicate(),
-		"last_hub_id": last_hub_id,
 		"story_flags": story_flags.duplicate(),
 		"completed_battles": completed_battles.duplicate(),
 		"available_battles": available_battles.duplicate(),
@@ -210,18 +189,6 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	last_safe_location = DictUtils.get_string(data, "last_safe_location", "")
 	current_location = DictUtils.get_string(data, "current_location", "headquarters")
 
-	# Legacy campaign fields - for backwards compatibility with old saves
-	current_campaign_id = DictUtils.get_string(data, "current_campaign_id", "")
-	current_node_id = DictUtils.get_string(data, "current_node_id", "")
-	if "campaign_node_history" in data:
-		campaign_node_history.clear()
-		var history_data: Variant = data.get("campaign_node_history")
-		if history_data is Array:
-			var history_array: Array = history_data
-			for node_entry: Variant in history_array:
-				if node_entry is String:
-					campaign_node_history.append(node_entry)
-	last_hub_id = DictUtils.get_string(data, "last_hub_id", "")
 	if "story_flags" in data:
 		var flags_data: Variant = data.get("story_flags")
 		if flags_data is Dictionary:

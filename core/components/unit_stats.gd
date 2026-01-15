@@ -248,73 +248,57 @@ func get_weapon_crit_rate() -> int:
 	return 5
 
 
-## Get effective strength (base + equipment + buffs)
-func get_effective_strength() -> int:
-	var total: int = strength + equipment_strength_bonus
-
-	# Add strength buffs
+## Helper to sum stat modifiers from all active status effects (data-driven)
+func _get_status_stat_modifier(stat_name: String) -> int:
+	var total: int = 0
 	for effect: Dictionary in status_effects:
 		var effect_type: String = effect.get("type", "")
-		var effect_potency: int = effect.get("potency", 0)
-		if effect_type == "attack_up":
-			total += effect_potency
-		elif effect_type == "attack_down":
-			total -= effect_potency
+		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
+		if effect_data:
+			total += effect_data.get_stat_modifier(stat_name)
+	return total
 
+
+## Get effective strength (base + equipment + buffs)
+func get_effective_strength() -> int:
+	var total: int = strength + equipment_strength_bonus + _get_status_stat_modifier("strength")
 	return maxi(0, total)
 
 
 ## Get effective defense (base + equipment + buffs)
 func get_effective_defense() -> int:
-	var total: int = defense + equipment_defense_bonus
-
-	# Add defense buffs
-	for effect: Dictionary in status_effects:
-		var effect_type: String = effect.get("type", "")
-		var effect_potency: int = effect.get("potency", 0)
-		if effect_type == "defense_up":
-			total += effect_potency
-		elif effect_type == "defense_down":
-			total -= effect_potency
-
+	var total: int = defense + equipment_defense_bonus + _get_status_stat_modifier("defense")
 	return maxi(0, total)
 
 
 ## Get effective agility (base + equipment + buffs)
 func get_effective_agility() -> int:
-	var total: int = agility + equipment_agility_bonus
-
-	# Add agility buffs
-	for effect: Dictionary in status_effects:
-		var effect_type: String = effect.get("type", "")
-		var effect_potency: int = effect.get("potency", 0)
-		if effect_type == "speed_up":
-			total += effect_potency
-		elif effect_type == "speed_down":
-			total -= effect_potency
-
+	var total: int = agility + equipment_agility_bonus + _get_status_stat_modifier("agility")
 	return maxi(0, total)
 
 
 ## Get effective intelligence (base + equipment + buffs)
 func get_effective_intelligence() -> int:
-	var total: int = intelligence + equipment_intelligence_bonus
+	var total: int = intelligence + equipment_intelligence_bonus + _get_status_stat_modifier("intelligence")
 	return maxi(0, total)
 
 
-## Get effective luck (base + equipment)
+## Get effective luck (base + equipment + buffs)
 func get_effective_luck() -> int:
-	return maxi(0, luck + equipment_luck_bonus)
+	var total: int = luck + equipment_luck_bonus + _get_status_stat_modifier("luck")
+	return maxi(0, total)
 
 
-## Get effective max HP (base + equipment)
+## Get effective max HP (base + equipment + buffs)
 func get_effective_max_hp() -> int:
-	return maxi(1, max_hp + equipment_hp_bonus)
+	var total: int = max_hp + equipment_hp_bonus + _get_status_stat_modifier("max_hp")
+	return maxi(1, total)
 
 
-## Get effective max MP (base + equipment)
+## Get effective max MP (base + equipment + buffs)
 func get_effective_max_mp() -> int:
-	return maxi(0, max_mp + equipment_mp_bonus)
+	var total: int = max_mp + equipment_mp_bonus + _get_status_stat_modifier("max_mp")
+	return maxi(0, total)
 
 
 ## Add a status effect

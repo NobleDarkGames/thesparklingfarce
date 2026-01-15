@@ -27,6 +27,7 @@ func _ready() -> void:
 	_run_combat_calculator_tests()
 	_run_grid_tests()
 	_run_unit_stats_tests()
+	_run_status_effect_tests()
 	_run_experience_config_tests()
 	_run_item_menu_integration_tests()
 	_run_save_system_tests()
@@ -1389,4 +1390,209 @@ func _test_character_save_curse_status_preserved() -> void:
 			curse_status[slot] = entry.get("curse_broken", false)
 
 	if _assert_true(curse_status.get("weapon", false), "curse_broken should be true"):
+		_pass()
+
+
+# =============================================================================
+# STATUS EFFECT TESTS
+# =============================================================================
+
+func _run_status_effect_tests() -> void:
+	_start_suite("StatusEffects")
+
+	# StatusEffectData unit tests
+	_test_status_effect_data_get_stat_modifier()
+	_test_status_effect_data_get_stat_modifier_missing()
+	_test_status_effect_data_has_stat_modifiers()
+
+	# UnitStats integration tests with data-driven modifiers
+	_test_unit_stats_effective_strength_with_buff()
+	_test_unit_stats_effective_strength_with_debuff()
+	_test_unit_stats_effective_defense_with_buff()
+	_test_unit_stats_effective_agility_with_buff()
+	_test_unit_stats_multiple_effects_stack()
+	_test_unit_stats_effect_not_in_registry()
+	_test_unit_stats_effect_without_stat_modifiers()
+
+
+## Create a test StatusEffectData with given stat modifiers
+func _create_test_status_effect(effect_id: String, modifiers: Dictionary) -> StatusEffectData:
+	var effect: StatusEffectData = StatusEffectData.new()
+	effect.effect_id = effect_id
+	effect.display_name = effect_id.capitalize()
+	effect.duration = 3
+	effect.stat_modifiers = modifiers
+	return effect
+
+
+## Register a test effect with the registry (and track for cleanup)
+var _test_registered_effects: Array[String] = []
+
+func _register_test_effect(effect: StatusEffectData) -> void:
+	ModLoader.status_effect_registry.register_effect(effect, "_test")
+	_test_registered_effects.append(effect.effect_id)
+
+
+func _cleanup_test_effects() -> void:
+	for effect_id: String in _test_registered_effects:
+		ModLoader.status_effect_registry._effects.erase(effect_id)
+	_test_registered_effects.clear()
+
+
+# -----------------------------------------------------------------------------
+# StatusEffectData Unit Tests
+# -----------------------------------------------------------------------------
+
+func _test_status_effect_data_get_stat_modifier() -> void:
+	_start_test("status_effect_data_get_stat_modifier")
+	var effect: StatusEffectData = _create_test_status_effect("test_buff", {"strength": 5, "defense": 3})
+
+	var str_mod: int = effect.get_stat_modifier("strength")
+	var def_mod: int = effect.get_stat_modifier("defense")
+
+	if _assert_equal(str_mod, 5, "strength modifier") and _assert_equal(def_mod, 3, "defense modifier"):
+		_pass()
+
+
+func _test_status_effect_data_get_stat_modifier_missing() -> void:
+	_start_test("status_effect_data_get_stat_modifier_missing_returns_0")
+	var effect: StatusEffectData = _create_test_status_effect("test_buff", {"strength": 5})
+
+	var agi_mod: int = effect.get_stat_modifier("agility")
+
+	if _assert_equal(agi_mod, 0, "missing stat returns 0"):
+		_pass()
+
+
+func _test_status_effect_data_has_stat_modifiers() -> void:
+	_start_test("status_effect_data_has_stat_modifiers")
+	var effect_with: StatusEffectData = _create_test_status_effect("with_mods", {"strength": 5})
+	var effect_without: StatusEffectData = _create_test_status_effect("without_mods", {})
+
+	if _assert_true(effect_with.has_stat_modifiers(), "effect with modifiers") and \
+	   _assert_false(effect_without.has_stat_modifiers(), "effect without modifiers"):
+		_pass()
+
+
+# -----------------------------------------------------------------------------
+# UnitStats Integration Tests (Data-Driven Stat Modifiers)
+# -----------------------------------------------------------------------------
+
+func _test_unit_stats_effective_strength_with_buff() -> void:
+	_start_test("effective_strength_with_data_driven_buff")
+
+	# Create and register a strength buff effect
+	var buff: StatusEffectData = _create_test_status_effect("_test_str_up", {"strength": 10})
+	_register_test_effect(buff)
+
+	# Create unit with the buff applied
+	var stats: UnitStats = _create_test_stats(20, 10, 10, 10, 5)  # 20 base strength
+	stats.add_status_effect("_test_str_up", 3, 0)
+
+	var effective: int = stats.get_effective_strength()
+	_cleanup_test_effects()
+
+	if _assert_equal(effective, 30, "20 base + 10 buff = 30"):
+		_pass()
+
+
+func _test_unit_stats_effective_strength_with_debuff() -> void:
+	_start_test("effective_strength_with_data_driven_debuff")
+
+	# Create and register a strength debuff effect
+	var debuff: StatusEffectData = _create_test_status_effect("_test_str_down", {"strength": -5})
+	_register_test_effect(debuff)
+
+	# Create unit with the debuff applied
+	var stats: UnitStats = _create_test_stats(20, 10, 10, 10, 5)
+	stats.add_status_effect("_test_str_down", 3, 0)
+
+	var effective: int = stats.get_effective_strength()
+	_cleanup_test_effects()
+
+	if _assert_equal(effective, 15, "20 base - 5 debuff = 15"):
+		_pass()
+
+
+func _test_unit_stats_effective_defense_with_buff() -> void:
+	_start_test("effective_defense_with_data_driven_buff")
+
+	var buff: StatusEffectData = _create_test_status_effect("_test_def_up", {"defense": 8})
+	_register_test_effect(buff)
+
+	var stats: UnitStats = _create_test_stats(10, 15, 10, 10, 5)  # 15 base defense
+	stats.add_status_effect("_test_def_up", 3, 0)
+
+	var effective: int = stats.get_effective_defense()
+	_cleanup_test_effects()
+
+	if _assert_equal(effective, 23, "15 base + 8 buff = 23"):
+		_pass()
+
+
+func _test_unit_stats_effective_agility_with_buff() -> void:
+	_start_test("effective_agility_with_data_driven_buff")
+
+	var buff: StatusEffectData = _create_test_status_effect("_test_agi_up", {"agility": 7})
+	_register_test_effect(buff)
+
+	var stats: UnitStats = _create_test_stats(10, 10, 12, 10, 5)  # 12 base agility
+	stats.add_status_effect("_test_agi_up", 3, 0)
+
+	var effective: int = stats.get_effective_agility()
+	_cleanup_test_effects()
+
+	if _assert_equal(effective, 19, "12 base + 7 buff = 19"):
+		_pass()
+
+
+func _test_unit_stats_multiple_effects_stack() -> void:
+	_start_test("multiple_status_effects_stack")
+
+	# Register two different buffs
+	var buff1: StatusEffectData = _create_test_status_effect("_test_str_buff_1", {"strength": 5})
+	var buff2: StatusEffectData = _create_test_status_effect("_test_str_buff_2", {"strength": 3})
+	_register_test_effect(buff1)
+	_register_test_effect(buff2)
+
+	var stats: UnitStats = _create_test_stats(10, 10, 10, 10, 5)
+	stats.add_status_effect("_test_str_buff_1", 3, 0)
+	stats.add_status_effect("_test_str_buff_2", 3, 0)
+
+	var effective: int = stats.get_effective_strength()
+	_cleanup_test_effects()
+
+	if _assert_equal(effective, 18, "10 base + 5 + 3 = 18"):
+		_pass()
+
+
+func _test_unit_stats_effect_not_in_registry() -> void:
+	_start_test("effect_not_in_registry_no_crash")
+
+	# Apply an effect that doesn't exist in registry
+	var stats: UnitStats = _create_test_stats(10, 10, 10, 10, 5)
+	stats.add_status_effect("_nonexistent_effect_xyz", 3, 0)
+
+	# Should not crash and should return base value
+	var effective: int = stats.get_effective_strength()
+
+	if _assert_equal(effective, 10, "unregistered effect has no impact"):
+		_pass()
+
+
+func _test_unit_stats_effect_without_stat_modifiers() -> void:
+	_start_test("effect_without_stat_modifiers_no_impact")
+
+	# Create an effect with no stat modifiers (like poison - only does damage)
+	var poison: StatusEffectData = _create_test_status_effect("_test_poison", {})
+	poison.damage_per_turn = 2
+	_register_test_effect(poison)
+
+	var stats: UnitStats = _create_test_stats(10, 10, 10, 10, 5)
+	stats.add_status_effect("_test_poison", 3, 0)
+
+	var effective: int = stats.get_effective_strength()
+	_cleanup_test_effects()
+
+	if _assert_equal(effective, 10, "effect with no stat_modifiers has no impact"):
 		_pass()

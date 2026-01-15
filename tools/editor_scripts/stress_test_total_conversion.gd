@@ -155,7 +155,6 @@ func _create_mod_structure() -> bool:
 		"godot_version": "4.5",
 		"load_priority": 9001,  # Total conversion priority
 		"dependencies": [],
-		"hidden_campaigns": ["_base_game:*"],
 		"party_config": {"replaces_lower_priority": true}
 	}
 
@@ -956,7 +955,6 @@ func _create_new_game_config() -> void:
 	config.config_name = "Test Default Config"
 	config.config_description = "Default starting configuration for stress test"
 	config.is_default = true
-	config.starting_campaign_id = MOD_ID + ":test_campaign"
 	config.starting_location_label = "Opening"
 	config.starting_gold = 100
 	config.starting_depot_items = [

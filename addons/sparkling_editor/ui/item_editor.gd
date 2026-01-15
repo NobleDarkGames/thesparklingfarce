@@ -62,6 +62,12 @@ func _ready() -> void:
 	super._ready()
 
 
+## Handle dependency changes - refresh effect picker when abilities change
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "ability" and effect_picker:
+		effect_picker.refresh()
+
+
 ## Override: Create the item-specific detail form
 func _create_detail_form() -> void:
 	# Basic info section

@@ -48,14 +48,6 @@ extends Resource
 @export var intro_cinematic_id: String = ""
 
 # ============================================================================
-# LEGACY CAMPAIGN (deprecated)
-# ============================================================================
-
-## @deprecated Use starting_scene_path instead
-## Campaign ID to start (can be namespaced: "mod_id:campaign_id")
-@export var starting_campaign_id: String = ""
-
-# ============================================================================
 # LOCATION DISPLAY
 # ============================================================================
 

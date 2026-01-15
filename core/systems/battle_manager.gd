@@ -670,15 +670,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 				effect_applied = await _apply_spell_heal(caster, spell_target, ability)
 			AbilityData.AbilityType.ATTACK:
 				effect_applied = await _apply_spell_damage(caster, spell_target, ability)
-			AbilityData.AbilityType.SUPPORT:
-				# TODO: Implement buff effects
-				push_warning("BattleManager: Support spell effects not yet implemented")
-				effect_applied = false
-			AbilityData.AbilityType.DEBUFF:
-				# TODO: Implement debuff effects
-				push_warning("BattleManager: Debuff spell effects not yet implemented")
-				effect_applied = false
-			AbilityData.AbilityType.STATUS:
+			AbilityData.AbilityType.SUPPORT, AbilityData.AbilityType.DEBUFF, AbilityData.AbilityType.STATUS:
 				effect_applied = await _apply_spell_status(caster, spell_target, ability)
 			AbilityData.AbilityType.SPECIAL:
 				# Handle special abilities like Egress

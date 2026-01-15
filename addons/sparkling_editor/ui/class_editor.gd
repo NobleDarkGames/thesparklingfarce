@@ -52,6 +52,16 @@ func _ready() -> void:
 	super._ready()
 
 
+## Handle dependency changes - refresh promotion path pickers when classes change
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "class" and promotion_paths_container:
+		# Refresh all class pickers in promotion path rows
+		for row: Node in promotion_paths_container.get_children():
+			var class_picker: ResourcePicker = row.get_node_or_null("ClassPicker") as ResourcePicker
+			if class_picker:
+				class_picker.refresh()
+
+
 ## Override: Create the class-specific detail form
 func _create_detail_form() -> void:
 	# Basic info section

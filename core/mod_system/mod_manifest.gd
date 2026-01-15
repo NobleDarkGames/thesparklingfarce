@@ -77,12 +77,6 @@ static var _mod_id_regex: RegEx = null
 ## editor_scene is relative to mod directory
 @export var editor_extensions: Dictionary = {}
 
-## Hidden campaigns - patterns for campaigns to hide from the selection UI
-## Total conversion mods use this to hide base game campaigns
-## Supports glob-style patterns: "base_game:*" hides all campaigns with that prefix
-## Exact IDs also work: "base_game:main_story" hides that specific campaign
-@export var hidden_campaigns: Array[String] = []
-
 ## Caravan configuration - allows mods to customize or disable the Caravan system
 ## Format: {
 ##   "enabled": bool (default true, set false to disable caravan entirely),
@@ -270,12 +264,6 @@ static func load_from_file(json_path: String) -> ModManifest:
 			if ext_data is Dictionary:
 				var ext_dict: Dictionary = ext_data
 				manifest.editor_extensions[ext_id] = ext_dict
-
-	# Parse hidden campaigns (for total conversion mods to hide base content)
-	if "hidden_campaigns" in data and data.hidden_campaigns is Array:
-		var hidden_arr: Array = data.hidden_campaigns
-		for pattern: Variant in hidden_arr:
-			manifest.hidden_campaigns.append(str(pattern))
 
 	# Parse caravan configuration
 	if "caravan_config" in data and data.caravan_config is Dictionary:

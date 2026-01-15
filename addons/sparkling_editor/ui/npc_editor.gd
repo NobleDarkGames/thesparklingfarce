@@ -79,6 +79,21 @@ func _ready() -> void:
 	map_placement_helper = MapPlacementHelper.new()
 
 
+## Handle dependency changes - refresh cinematic pickers when cinematics change
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "cinematic":
+		# Refresh main cinematic pickers
+		if interaction_cinematic_picker:
+			interaction_cinematic_picker.refresh()
+		if fallback_cinematic_picker:
+			fallback_cinematic_picker.refresh()
+		# Refresh conditional cinematic pickers
+		for entry: Dictionary in conditional_entries:
+			var picker: ResourcePicker = entry.get("cinematic_picker") as ResourcePicker
+			if picker:
+				picker.refresh()
+
+
 ## Override: Create the NPC-specific detail form
 func _create_detail_form() -> void:
 	var main_split: HSplitContainer = HSplitContainer.new()
