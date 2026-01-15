@@ -35,6 +35,14 @@ var _unit_start_pos: Vector2i
 var _unit_moved: bool = false
 var _combat_occurred: bool = false
 
+# Resources to clean up
+var _tilemap_layer: TileMapLayer
+var _tileset: TileSet
+var _grid_resource: Grid
+var _created_characters: Array[CharacterData] = []
+var _created_classes: Array[ClassData] = []
+var _created_behaviors: Array[AIBehaviorData] = []
+
 
 func _ready() -> void:
 	print("\n" + "=".repeat(60))
@@ -52,17 +60,20 @@ func _ready() -> void:
 
 
 func _setup_grid() -> void:
+	# Clean up previous tilemap if any
+	_cleanup_tilemap()
+
 	# Create minimal TileMapLayer for GridManager
-	var tilemap_layer: TileMapLayer = TileMapLayer.new()
-	var tileset: TileSet = TileSet.new()
-	tilemap_layer.tile_set = tileset
-	add_child(tilemap_layer)
+	_tilemap_layer = TileMapLayer.new()
+	_tileset = TileSet.new()
+	_tilemap_layer.tile_set = _tileset
+	add_child(_tilemap_layer)
 
 	# Setup grid
-	var grid_resource: Grid = Grid.new()
-	grid_resource.grid_size = Vector2i(20, 10)
-	grid_resource.cell_size = 32
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	_grid_resource = Grid.new()
+	_grid_resource.grid_size = Vector2i(20, 10)
+	_grid_resource.cell_size = 32
+	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
 
 func _cleanup_scenario() -> void:
@@ -76,12 +87,30 @@ func _cleanup_scenario() -> void:
 		_player_unit.queue_free()
 		_player_unit = null
 
+	# Clean up tilemap for next scenario
+	_cleanup_tilemap()
+
 	# Reset tracking
 	_unit_moved = false
 	_combat_occurred = false
 
 	# Small delay for cleanup
 	await get_tree().create_timer(0.1).timeout
+
+
+func _cleanup_tilemap() -> void:
+	if _tilemap_layer and is_instance_valid(_tilemap_layer):
+		_tilemap_layer.queue_free()
+		_tilemap_layer = null
+	_tileset = null
+	_grid_resource = null
+
+
+func _cleanup_resources() -> void:
+	# Clear tracked resources (RefCounted will handle cleanup)
+	_created_characters.clear()
+	_created_classes.clear()
+	_created_behaviors.clear()
 
 
 # =============================================================================
@@ -266,6 +295,11 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	basic_class.movement_range = 4
 
 	character.character_class = basic_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(basic_class)
+
 	return character
 
 
@@ -280,6 +314,10 @@ func _create_cautious_behavior() -> AIBehaviorData:
 	behavior.retreat_enabled = false
 	behavior.use_healing_items = false
 	behavior.use_attack_items = false
+
+	# Track for cleanup
+	_created_behaviors.append(behavior)
+
 	return behavior
 
 
@@ -356,6 +394,11 @@ func _validate_all_scenarios() -> void:
 	print("=".repeat(60) + "\n")
 
 	_test_complete = true
+
+	# Cleanup before quitting
+	_cleanup_tilemap()
+	_cleanup_resources()
+
 	get_tree().quit(0 if _test_passed else 1)
 
 

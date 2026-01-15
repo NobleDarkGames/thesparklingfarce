@@ -26,6 +26,14 @@ var _retreater_final_pos: Vector2i
 var _initial_distance: int
 var _combat_occurred: bool = false
 
+# Resources to clean up
+var _tilemap_layer: TileMapLayer
+var _tileset: TileSet
+var _grid_resource: Grid
+var _created_characters: Array[CharacterData] = []
+var _created_classes: Array[ClassData] = []
+var _created_behaviors: Array[AIBehaviorData] = []
+
 
 func _ready() -> void:
 	print("\n" + "=".repeat(60))
@@ -34,16 +42,16 @@ func _ready() -> void:
 	print("Testing: Wounded unit (50% HP) should retreat from threat\n")
 
 	# Create minimal TileMapLayer for GridManager
-	var tilemap_layer: TileMapLayer = TileMapLayer.new()
-	var tileset: TileSet = TileSet.new()
-	tilemap_layer.tile_set = tileset
-	add_child(tilemap_layer)
+	_tilemap_layer = TileMapLayer.new()
+	_tileset = TileSet.new()
+	_tilemap_layer.tile_set = _tileset
+	add_child(_tilemap_layer)
 
 	# Setup grid (larger to allow retreat movement)
-	var grid_resource: Grid = Grid.new()
-	grid_resource.grid_size = Vector2i(20, 15)
-	grid_resource.cell_size = 32
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	_grid_resource = Grid.new()
+	_grid_resource.grid_size = Vector2i(20, 15)
+	_grid_resource.cell_size = 32
+	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
 	# Create retreater character
 	var retreater_character: CharacterData = _create_character("Retreater", 100, 10, 15, 10, 12)
@@ -117,6 +125,11 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	basic_class.movement_range = 5  # Good movement for retreat
 
 	character.character_class = basic_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(basic_class)
+
 	return character
 
 
@@ -130,6 +143,10 @@ func _create_retreat_behavior() -> AIBehaviorData:
 	behavior.retreat_hp_threshold = 60  # Retreat below 60% HP
 	behavior.use_healing_items = false  # Don't try to use items (avoids PartyManager issues)
 	behavior.use_attack_items = false
+
+	# Track for cleanup
+	_created_behaviors.append(behavior)
+
 	return behavior
 
 
@@ -226,7 +243,38 @@ func _print_results() -> void:
 		print("Reason: %s" % _failure_reason)
 	print("=".repeat(60) + "\n")
 
+	# Cleanup before quitting
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
 	get_tree().quit(0 if _test_passed else 1)
+
+
+func _cleanup_units() -> void:
+	if _retreater_unit and is_instance_valid(_retreater_unit):
+		GridManager.set_cell_occupied(_retreater_unit.grid_position, null)
+		_retreater_unit.queue_free()
+		_retreater_unit = null
+	if _threat_unit and is_instance_valid(_threat_unit):
+		GridManager.set_cell_occupied(_threat_unit.grid_position, null)
+		_threat_unit.queue_free()
+		_threat_unit = null
+
+
+func _cleanup_tilemap() -> void:
+	if _tilemap_layer and is_instance_valid(_tilemap_layer):
+		_tilemap_layer.queue_free()
+		_tilemap_layer = null
+	_tileset = null
+	_grid_resource = null
+
+
+func _cleanup_resources() -> void:
+	# Clear tracked resources (RefCounted will handle cleanup)
+	_created_characters.clear()
+	_created_classes.clear()
+	_created_behaviors.clear()
 
 
 func _process(_delta: float) -> void:

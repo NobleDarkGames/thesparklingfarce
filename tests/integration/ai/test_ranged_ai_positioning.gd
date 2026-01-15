@@ -25,6 +25,15 @@ var _archer_start_pos: Vector2i
 var _archer_final_pos: Vector2i
 var _combat_occurred: bool = false
 
+# Resources to clean up
+var _tilemap_layer: TileMapLayer
+var _tileset: TileSet
+var _grid_resource: Grid
+var _created_characters: Array[CharacterData] = []
+var _created_classes: Array[ClassData] = []
+var _created_behaviors: Array[AIBehaviorData] = []
+var _created_items: Array[ItemData] = []
+
 
 func _ready() -> void:
 	print("\n" + "=".repeat(60))
@@ -33,16 +42,16 @@ func _ready() -> void:
 	print("Testing: Archer with bow (range 2-4) should NOT walk to melee range\n")
 
 	# Create minimal TileMapLayer for GridManager
-	var tilemap_layer: TileMapLayer = TileMapLayer.new()
-	var tileset: TileSet = TileSet.new()
-	tilemap_layer.tile_set = tileset
-	add_child(tilemap_layer)
+	_tilemap_layer = TileMapLayer.new()
+	_tileset = TileSet.new()
+	_tilemap_layer.tile_set = _tileset
+	add_child(_tilemap_layer)
 
 	# Setup grid (larger to allow movement testing)
-	var grid_resource: Grid = Grid.new()
-	grid_resource.grid_size = Vector2i(15, 10)
-	grid_resource.cell_size = 32
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	_grid_resource = Grid.new()
+	_grid_resource.grid_size = Vector2i(15, 10)
+	_grid_resource.cell_size = 32
+	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
 	# Create archer character
 	var archer_character: CharacterData = _create_character("TestArcher", 30, 10, 15, 10, 12)
@@ -51,12 +60,8 @@ func _ready() -> void:
 	var target_character: CharacterData = _create_character("TestTarget", 100, 10, 10, 20, 5)
 	target_character.is_hero = true  # Mark as hero for battle end detection
 
-	# Load opportunistic archer AI behavior
-	var archer_ai: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres")
-	if not archer_ai:
-		archer_ai = AIBehaviorData.new()
-		archer_ai.display_name = "Test Archer AI"
-		archer_ai.behavior_mode = "aggressive"
+	# Create opportunistic archer AI behavior inline for test isolation
+	var archer_ai: AIBehaviorData = _create_archer_behavior()
 
 	# Spawn archer at position (2, 5) - will need to move to attack
 	_archer_start_pos = Vector2i(2, 5)
@@ -72,6 +77,7 @@ func _ready() -> void:
 	bow.hit_rate = 90
 	bow.critical_rate = 5
 	_archer_unit.stats.cached_weapon = bow
+	_created_items.append(bow)
 
 	# Spawn target at position (8, 5) - distance of 6 from archer
 	# Archer must move closer but should stop at distance 2-4, not 1
@@ -118,7 +124,28 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	basic_class.movement_range = 5  # Good movement to reach target
 
 	character.character_class = basic_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(basic_class)
+
 	return character
+
+
+func _create_archer_behavior() -> AIBehaviorData:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "test_opportunistic_archer"
+	behavior.display_name = "Test Archer AI"
+	behavior.role = "aggressive"
+	behavior.behavior_mode = "opportunistic"
+	behavior.retreat_enabled = true
+	behavior.retreat_hp_threshold = 40
+	behavior.threat_weights = {"wounded_target": 1.5, "proximity": 0.5}
+
+	# Track for cleanup
+	_created_behaviors.append(behavior)
+
+	return behavior
 
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
@@ -227,7 +254,39 @@ func _print_results() -> void:
 		print("Reason: %s" % _failure_reason)
 	print("=".repeat(60) + "\n")
 
+	# Cleanup before quitting
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
 	get_tree().quit(0 if _test_passed else 1)
+
+
+func _cleanup_units() -> void:
+	if _archer_unit and is_instance_valid(_archer_unit):
+		GridManager.set_cell_occupied(_archer_unit.grid_position, null)
+		_archer_unit.queue_free()
+		_archer_unit = null
+	if _target_unit and is_instance_valid(_target_unit):
+		GridManager.set_cell_occupied(_target_unit.grid_position, null)
+		_target_unit.queue_free()
+		_target_unit = null
+
+
+func _cleanup_tilemap() -> void:
+	if _tilemap_layer and is_instance_valid(_tilemap_layer):
+		_tilemap_layer.queue_free()
+		_tilemap_layer = null
+	_tileset = null
+	_grid_resource = null
+
+
+func _cleanup_resources() -> void:
+	# Clear tracked resources (RefCounted will handle cleanup)
+	_created_characters.clear()
+	_created_classes.clear()
+	_created_behaviors.clear()
+	_created_items.clear()
 
 
 func _process(_delta: float) -> void:

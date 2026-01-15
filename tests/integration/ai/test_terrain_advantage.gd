@@ -29,6 +29,14 @@ var _plains_cell: Vector2i  # Cell without bonus
 var _forest_terrain: TerrainData
 var _plains_terrain: TerrainData
 
+# Resources to clean up
+var _tilemap_layer: TileMapLayer
+var _tileset: TileSet
+var _grid_resource: Grid
+var _created_characters: Array[CharacterData] = []
+var _created_classes: Array[ClassData] = []
+var _created_behaviors: Array[AIBehaviorData] = []
+
 
 func _ready() -> void:
 	print("\n" + "=".repeat(60))
@@ -70,17 +78,20 @@ func _run_test_with_terrain_seeking(seek_terrain: bool) -> void:
 	# Clean up any previous test state
 	_cleanup_units()
 
+	# Clean up any previous tilemap/grid resources
+	_cleanup_tilemap()
+
 	# Create minimal TileMapLayer for GridManager
-	var tilemap_layer: TileMapLayer = TileMapLayer.new()
-	var tileset: TileSet = TileSet.new()
-	tilemap_layer.tile_set = tileset
-	add_child(tilemap_layer)
+	_tilemap_layer = TileMapLayer.new()
+	_tileset = TileSet.new()
+	_tilemap_layer.tile_set = _tileset
+	add_child(_tilemap_layer)
 
 	# Setup grid
-	var grid_resource: Grid = Grid.new()
-	grid_resource.grid_size = Vector2i(10, 10)
-	grid_resource.cell_size = 32
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	_grid_resource = Grid.new()
+	_grid_resource.grid_size = Vector2i(10, 10)
+	_grid_resource.cell_size = 32
+	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
 	# Define key positions:
 	# - AI starts at (2, 4)
@@ -181,6 +192,11 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	basic_class.movement_range = 5
 
 	character.character_class = basic_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(basic_class)
+
 	return character
 
 
@@ -192,6 +208,11 @@ func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_
 	unit.position = Vector2(cell.x * 32, cell.y * 32)
 	add_child(unit)
 	GridManager.set_cell_occupied(cell, unit)
+
+	# Track behavior for cleanup
+	if p_ai_behavior and p_ai_behavior not in _created_behaviors:
+		_created_behaviors.append(p_ai_behavior)
+
 	return unit
 
 
@@ -204,6 +225,25 @@ func _cleanup_units() -> void:
 		GridManager.set_cell_occupied(_target_unit.grid_position, null)
 		_target_unit.queue_free()
 		_target_unit = null
+
+
+func _cleanup_tilemap() -> void:
+	if _tilemap_layer and is_instance_valid(_tilemap_layer):
+		_tilemap_layer.queue_free()
+		_tilemap_layer = null
+	_tileset = null
+	_grid_resource = null
+
+
+func _cleanup_resources() -> void:
+	# Free terrain data
+	_forest_terrain = null
+	_plains_terrain = null
+
+	# Clear tracked resources (RefCounted will handle cleanup)
+	_created_characters.clear()
+	_created_classes.clear()
+	_created_behaviors.clear()
 
 
 func _execute_ai_turn() -> void:
@@ -288,5 +328,10 @@ func _print_final_results() -> void:
 		print("TERRAIN ADVANTAGE AI TEST FAILED!")
 		print("Reason: %s" % _failure_reason)
 	print("=".repeat(60) + "\n")
+
+	# Cleanup before quitting
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
 
 	get_tree().quit(0 if _test_passed else 1)

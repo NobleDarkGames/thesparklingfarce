@@ -248,21 +248,14 @@ func test_aggressive_mode_is_default() -> void:
 # =============================================================================
 
 func test_support_behavior_configuration() -> void:
-	# Load the actual smart_healer behavior to verify configuration
-	var healer_behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres")
+	# Test that support role behaviors can be configured correctly
+	var behavior: AIBehaviorData = _create_test_behavior("support", "cautious")
+	behavior.conserve_mp_on_heals = true
+	behavior.prioritize_boss_heals = true
 
-	if healer_behavior:
-		assert_str(healer_behavior.get_effective_role()).is_equal("support")
-		assert_bool(healer_behavior.conserve_mp_on_heals).is_true()
-		assert_bool(healer_behavior.prioritize_boss_heals).is_true()
-	else:
-		# Fallback: test manual configuration
-		var behavior: AIBehaviorData = _create_test_behavior("support", "cautious")
-		behavior.conserve_mp_on_heals = true
-		behavior.prioritize_boss_heals = true
-
-		assert_str(behavior.get_effective_role()).is_equal("support")
-		assert_bool(behavior.conserve_mp_on_heals).is_true()
+	assert_str(behavior.get_effective_role()).is_equal("support")
+	assert_bool(behavior.conserve_mp_on_heals).is_true()
+	assert_bool(behavior.prioritize_boss_heals).is_true()
 
 
 func test_support_role_healer_settings() -> void:
@@ -359,65 +352,104 @@ func test_phase_changes_disable_retreat() -> void:
 
 
 # =============================================================================
-# PRESET BEHAVIOR FILE TESTS
+# BEHAVIOR ARCHETYPE CONFIGURATION TESTS
 # =============================================================================
+# These tests verify that AI behavior archetypes can be correctly configured
+# with the expected properties. They create behaviors inline rather than
+# loading from files, ensuring tests work regardless of which mods are present.
 
-func test_aggressive_melee_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres")
-	if behavior:
-		assert_str(behavior.behavior_id).is_equal("aggressive_melee")
-		assert_str(behavior.get_effective_role()).is_equal("aggressive")
-		assert_str(behavior.get_effective_mode()).is_equal("aggressive")
-		assert_bool(behavior.retreat_enabled).is_false()
+func test_aggressive_melee_behavior_configuration() -> void:
+	# Aggressive melee: attacks relentlessly, never retreats
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "aggressive_melee"
+	behavior.role = "aggressive"
+	behavior.behavior_mode = "aggressive"
+	behavior.retreat_enabled = false
 
-
-func test_smart_healer_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres")
-	if behavior:
-		assert_str(behavior.behavior_id).is_equal("smart_healer")
-		assert_str(behavior.get_effective_role()).is_equal("support")
-		assert_str(behavior.get_effective_mode()).is_equal("cautious")
-		assert_bool(behavior.conserve_mp_on_heals).is_true()
-
-
-func test_defensive_tank_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/defensive_tank.tres")
-	if behavior:
-		assert_str(behavior.behavior_id).is_equal("defensive_tank")
-		assert_str(behavior.get_effective_role()).is_equal("defensive")
-		assert_str(behavior.get_effective_mode()).is_equal("cautious")
+	assert_str(behavior.behavior_id).is_equal("aggressive_melee")
+	assert_str(behavior.get_effective_role()).is_equal("aggressive")
+	assert_str(behavior.get_effective_mode()).is_equal("aggressive")
+	assert_bool(behavior.retreat_enabled).is_false()
 
 
-func test_opportunistic_archer_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres")
-	if behavior:
-		assert_str(behavior.behavior_id).is_equal("opportunistic_archer")
-		# Opportunistic archers retreat and target wounded
-		assert_bool(behavior.retreat_enabled).is_true()
+func test_smart_healer_behavior_configuration() -> void:
+	# Smart healer: support role, cautious, conserves MP
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "smart_healer"
+	behavior.role = "support"
+	behavior.behavior_mode = "cautious"
+	behavior.conserve_mp_on_heals = true
+	behavior.prioritize_boss_heals = true
+
+	assert_str(behavior.behavior_id).is_equal("smart_healer")
+	assert_str(behavior.get_effective_role()).is_equal("support")
+	assert_str(behavior.get_effective_mode()).is_equal("cautious")
+	assert_bool(behavior.conserve_mp_on_heals).is_true()
 
 
-func test_stationary_guard_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/stationary_guard.tres")
-	if behavior:
-		assert_str(behavior.behavior_id).is_equal("stationary_guard")
-		assert_str(behavior.get_effective_role()).is_equal("defensive")
-		assert_str(behavior.get_effective_mode()).is_equal("cautious")
-		# Stationary guards do not retreat
-		assert_bool(behavior.retreat_enabled).is_false()
-		# Very limited engagement range
-		assert_int(behavior.engagement_range).is_equal(1)
+func test_defensive_tank_behavior_configuration() -> void:
+	# Defensive tank: holds position, protects allies
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "defensive_tank"
+	behavior.role = "defensive"
+	behavior.behavior_mode = "cautious"
+	behavior.retreat_when_outnumbered = false
+	behavior.seek_terrain_advantage = true
+
+	assert_str(behavior.behavior_id).is_equal("defensive_tank")
+	assert_str(behavior.get_effective_role()).is_equal("defensive")
+	assert_str(behavior.get_effective_mode()).is_equal("cautious")
 
 
-func test_tactical_mage_behavior_loads() -> void:
-	var behavior: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/tactical_mage.tres")
-	if behavior:
-		assert_str(behavior.behavior_id).is_equal("tactical_mage")
-		assert_str(behavior.get_effective_role()).is_equal("tactical")
-		assert_str(behavior.get_effective_mode()).is_equal("opportunistic")
-		assert_bool(behavior.use_status_effects).is_true()
-		# Tactical mages prioritize damage dealers as threats
-		var threat_weight: float = behavior.get_threat_weight("damage_dealer", 1.0)
-		assert_float(threat_weight).is_equal(1.5)
+func test_opportunistic_archer_behavior_configuration() -> void:
+	# Opportunistic archer: retreats when threatened, targets wounded
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "opportunistic_archer"
+	behavior.role = "aggressive"
+	behavior.behavior_mode = "opportunistic"
+	behavior.retreat_enabled = true
+	behavior.retreat_hp_threshold = 40
+	behavior.threat_weights = {"wounded_target": 1.5, "proximity": 0.5}
+
+	assert_str(behavior.behavior_id).is_equal("opportunistic_archer")
+	assert_bool(behavior.retreat_enabled).is_true()
+	assert_int(behavior.retreat_hp_threshold).is_equal(40)
+	assert_float(behavior.get_threat_weight("wounded_target", 1.0)).is_equal(1.5)
+
+
+func test_stationary_guard_behavior_configuration() -> void:
+	# Stationary guard: holds position, very short engagement range
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "stationary_guard"
+	behavior.role = "defensive"
+	behavior.behavior_mode = "cautious"
+	behavior.retreat_enabled = false
+	behavior.engagement_range = 1
+	behavior.alert_range = 3
+
+	assert_str(behavior.behavior_id).is_equal("stationary_guard")
+	assert_str(behavior.get_effective_role()).is_equal("defensive")
+	assert_str(behavior.get_effective_mode()).is_equal("cautious")
+	assert_bool(behavior.retreat_enabled).is_false()
+	assert_int(behavior.engagement_range).is_equal(1)
+
+
+func test_tactical_mage_behavior_configuration() -> void:
+	# Tactical mage: uses status effects, targets damage dealers
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "tactical_mage"
+	behavior.role = "tactical"
+	behavior.behavior_mode = "opportunistic"
+	behavior.use_status_effects = true
+	behavior.preferred_status_effects = ["slow", "weaken"]
+	behavior.threat_weights = {"damage_dealer": 1.5, "healer": 1.2}
+
+	assert_str(behavior.behavior_id).is_equal("tactical_mage")
+	assert_str(behavior.get_effective_role()).is_equal("tactical")
+	assert_str(behavior.get_effective_mode()).is_equal("opportunistic")
+	assert_bool(behavior.use_status_effects).is_true()
+	var threat_weight: float = behavior.get_threat_weight("damage_dealer", 1.0)
+	assert_float(threat_weight).is_equal(1.5)
 
 
 # =============================================================================
@@ -543,41 +575,87 @@ func test_empty_role_defaults_to_aggressive() -> void:
 
 
 # =============================================================================
-# INTEGRATION TESTS (Behavior Loading from Files)
+# BEHAVIOR VALIDATION TESTS
 # =============================================================================
+# These tests verify the validate() method works correctly on behaviors
+# created inline, ensuring the validation logic functions as expected.
 
-func test_all_base_behaviors_valid() -> void:
-	var behavior_paths: Array[String] = [
-		"res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/defensive_tank.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/stationary_guard.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/tactical_mage.tres"
-	]
+func test_behavior_validation_passes_with_valid_id() -> void:
+	var behaviors: Array[AIBehaviorData] = _create_test_behavior_set()
 
-	for path: String in behavior_paths:
-		var behavior: AIBehaviorData = load(path) as AIBehaviorData
-		if behavior:
-			var validation: Dictionary = behavior.validate()
-			assert_bool(validation.valid).is_true()
+	for behavior: AIBehaviorData in behaviors:
+		var validation: Dictionary = behavior.validate()
+		assert_bool(validation.valid).is_true()
 
 
-func test_base_behaviors_have_unique_ids() -> void:
-	var behavior_paths: Array[String] = [
-		"res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/defensive_tank.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/opportunistic_archer.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/stationary_guard.tres",
-		"res://mods/_starter_kit/data/ai_behaviors/tactical_mage.tres"
-	]
+func test_behavior_validation_fails_with_empty_id() -> void:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = ""  # Empty ID should fail validation
 
+	var validation: Dictionary = behavior.validate()
+	assert_bool(validation.valid).is_false()
+	assert_int(validation.errors.size()).is_greater(0)
+
+
+func test_behavior_set_has_unique_ids() -> void:
+	var behaviors: Array[AIBehaviorData] = _create_test_behavior_set()
 	var seen_ids: Dictionary = {}
 
-	for path: String in behavior_paths:
-		var behavior: AIBehaviorData = load(path) as AIBehaviorData
-		if behavior:
-			var bid: String = behavior.behavior_id
-			assert_bool(bid in seen_ids).is_false()
-			seen_ids[bid] = true
+	for behavior: AIBehaviorData in behaviors:
+		var bid: String = behavior.behavior_id
+		assert_bool(bid in seen_ids).is_false()
+		seen_ids[bid] = true
+
+
+## Create a set of test behaviors covering all archetypes
+func _create_test_behavior_set() -> Array[AIBehaviorData]:
+	var behaviors: Array[AIBehaviorData] = []
+
+	# Aggressive melee
+	var aggressive: AIBehaviorData = AIBehaviorData.new()
+	aggressive.behavior_id = "test_aggressive_melee"
+	aggressive.role = "aggressive"
+	aggressive.behavior_mode = "aggressive"
+	aggressive.retreat_enabled = false
+	behaviors.append(aggressive)
+
+	# Smart healer
+	var healer: AIBehaviorData = AIBehaviorData.new()
+	healer.behavior_id = "test_smart_healer"
+	healer.role = "support"
+	healer.behavior_mode = "cautious"
+	healer.conserve_mp_on_heals = true
+	behaviors.append(healer)
+
+	# Defensive tank
+	var tank: AIBehaviorData = AIBehaviorData.new()
+	tank.behavior_id = "test_defensive_tank"
+	tank.role = "defensive"
+	tank.behavior_mode = "cautious"
+	behaviors.append(tank)
+
+	# Opportunistic archer
+	var archer: AIBehaviorData = AIBehaviorData.new()
+	archer.behavior_id = "test_opportunistic_archer"
+	archer.role = "aggressive"
+	archer.behavior_mode = "opportunistic"
+	archer.retreat_enabled = true
+	behaviors.append(archer)
+
+	# Stationary guard
+	var guard: AIBehaviorData = AIBehaviorData.new()
+	guard.behavior_id = "test_stationary_guard"
+	guard.role = "defensive"
+	guard.behavior_mode = "cautious"
+	guard.engagement_range = 1
+	behaviors.append(guard)
+
+	# Tactical mage
+	var mage: AIBehaviorData = AIBehaviorData.new()
+	mage.behavior_id = "test_tactical_mage"
+	mage.role = "tactical"
+	mage.behavior_mode = "opportunistic"
+	mage.use_status_effects = true
+	behaviors.append(mage)
+
+	return behaviors

@@ -56,15 +56,10 @@ func _ready() -> void:
 	# Goblin: Weak enemy that will die quickly (low HP, low DEF)
 	var enemy_character: CharacterData = _create_character("TestGoblin", 10, 5, 5, 2, 5)
 
-	# Load AI behavior for enemy (new data-driven system)
-	var aggressive_ai: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres")
-	if not aggressive_ai:
-		# Fallback: create minimal aggressive behavior for testing
-		aggressive_ai = AIBehaviorData.new()
-		aggressive_ai.display_name = "Test Aggressive"
-		aggressive_ai.behavior_mode = "aggressive"
+	# Create aggressive AI behavior inline for test isolation
+	var aggressive_ai: AIBehaviorData = _create_aggressive_behavior()
 
-	# Load AI behavior for player (also aggressive - will attack)
+	# Both units use aggressive behavior - will attack immediately
 	var player_ai: AIBehaviorData = aggressive_ai
 
 	# Spawn units adjacent so combat can happen immediately
@@ -111,6 +106,16 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 
 	character.character_class = basic_class
 	return character
+
+
+func _create_aggressive_behavior() -> AIBehaviorData:
+	var behavior: AIBehaviorData = AIBehaviorData.new()
+	behavior.behavior_id = "test_aggressive_melee"
+	behavior.display_name = "Test Aggressive"
+	behavior.role = "aggressive"
+	behavior.behavior_mode = "aggressive"
+	behavior.retreat_enabled = false
+	return behavior
 
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:

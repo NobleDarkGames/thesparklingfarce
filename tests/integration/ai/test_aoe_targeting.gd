@@ -28,6 +28,15 @@ var _mage_initial_mp: int = 0
 var _targets_hit: Array[Unit] = []
 var _spell_cast: bool = false
 
+# Resources to clean up
+var _tilemap_layer: TileMapLayer
+var _tileset: TileSet
+var _grid_resource: Grid
+var _created_characters: Array[CharacterData] = []
+var _created_classes: Array[ClassData] = []
+var _created_behaviors: Array[AIBehaviorData] = []
+var _created_abilities: Array[AbilityData] = []
+
 
 func _ready() -> void:
 	print("\n" + "=".repeat(60))
@@ -36,16 +45,16 @@ func _ready() -> void:
 	print("Testing: AI should prefer cluster over isolated target for AoE\n")
 
 	# Create minimal TileMapLayer for GridManager
-	var tilemap_layer: TileMapLayer = TileMapLayer.new()
-	var tileset: TileSet = TileSet.new()
-	tilemap_layer.tile_set = tileset
-	add_child(tilemap_layer)
+	_tilemap_layer = TileMapLayer.new()
+	_tileset = TileSet.new()
+	_tilemap_layer.tile_set = _tileset
+	add_child(_tilemap_layer)
 
 	# Setup grid
-	var grid_resource: Grid = Grid.new()
-	grid_resource.grid_size = Vector2i(20, 15)
-	grid_resource.cell_size = 32
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	_grid_resource = Grid.new()
+	_grid_resource.grid_size = Vector2i(20, 15)
+	_grid_resource.cell_size = 32
+	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
 	# Create AoE mage character
 	var mage_character: CharacterData = _create_aoe_mage("AoEMage")
@@ -129,6 +138,11 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	basic_class.movement_range = 4
 
 	character.character_class = basic_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(basic_class)
+
 	return character
 
 
@@ -170,6 +184,12 @@ func _create_aoe_mage(p_name: String) -> CharacterData:
 		ModLoader.registry.register_resource(aoe_ability, "ability", "test_fireball", "_test")
 
 	character.character_class = mage_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(mage_class)
+	_created_abilities.append(aoe_ability)
+
 	return character
 
 
@@ -183,6 +203,10 @@ func _create_aoe_behavior() -> AIBehaviorData:
 	behavior.retreat_enabled = false
 	behavior.use_healing_items = false
 	behavior.use_attack_items = false
+
+	# Track for cleanup
+	_created_behaviors.append(behavior)
+
 	return behavior
 
 
@@ -290,7 +314,51 @@ func _print_results() -> void:
 		print("Reason: %s" % _failure_reason)
 	print("=".repeat(60) + "\n")
 
+	# Cleanup before quitting
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
 	get_tree().quit(0 if _test_passed else 1)
+
+
+func _cleanup_units() -> void:
+	if _mage_unit and is_instance_valid(_mage_unit):
+		GridManager.set_cell_occupied(_mage_unit.grid_position, null)
+		_mage_unit.queue_free()
+		_mage_unit = null
+	if _isolated_target and is_instance_valid(_isolated_target):
+		GridManager.set_cell_occupied(_isolated_target.grid_position, null)
+		_isolated_target.queue_free()
+		_isolated_target = null
+	if _cluster_target_1 and is_instance_valid(_cluster_target_1):
+		GridManager.set_cell_occupied(_cluster_target_1.grid_position, null)
+		_cluster_target_1.queue_free()
+		_cluster_target_1 = null
+	if _cluster_target_2 and is_instance_valid(_cluster_target_2):
+		GridManager.set_cell_occupied(_cluster_target_2.grid_position, null)
+		_cluster_target_2.queue_free()
+		_cluster_target_2 = null
+	if _cluster_target_3 and is_instance_valid(_cluster_target_3):
+		GridManager.set_cell_occupied(_cluster_target_3.grid_position, null)
+		_cluster_target_3.queue_free()
+		_cluster_target_3 = null
+
+
+func _cleanup_tilemap() -> void:
+	if _tilemap_layer and is_instance_valid(_tilemap_layer):
+		_tilemap_layer.queue_free()
+		_tilemap_layer = null
+	_tileset = null
+	_grid_resource = null
+
+
+func _cleanup_resources() -> void:
+	# Clear tracked resources (RefCounted will handle cleanup)
+	_created_characters.clear()
+	_created_classes.clear()
+	_created_behaviors.clear()
+	_created_abilities.clear()
 
 
 func _process(_delta: float) -> void:

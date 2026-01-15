@@ -27,6 +27,15 @@ var _healing_occurred: bool = false
 var _ally_initial_hp: int = 0
 var _healer_initial_mp: int = 0
 
+# Resources to clean up
+var _tilemap_layer: TileMapLayer
+var _tileset: TileSet
+var _grid_resource: Grid
+var _created_characters: Array[CharacterData] = []
+var _created_classes: Array[ClassData] = []
+var _created_behaviors: Array[AIBehaviorData] = []
+var _created_abilities: Array[AbilityData] = []
+
 
 func _ready() -> void:
 	print("\n" + "=".repeat(60))
@@ -35,16 +44,16 @@ func _ready() -> void:
 	print("Testing: Healer should heal wounded ally instead of attacking enemy\n")
 
 	# Create minimal TileMapLayer for GridManager
-	var tilemap_layer: TileMapLayer = TileMapLayer.new()
-	var tileset: TileSet = TileSet.new()
-	tilemap_layer.tile_set = tileset
-	add_child(tilemap_layer)
+	_tilemap_layer = TileMapLayer.new()
+	_tileset = TileSet.new()
+	_tilemap_layer.tile_set = _tileset
+	add_child(_tilemap_layer)
 
 	# Setup grid
-	var grid_resource: Grid = Grid.new()
-	grid_resource.grid_size = Vector2i(15, 10)
-	grid_resource.cell_size = 32
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	_grid_resource = Grid.new()
+	_grid_resource.grid_size = Vector2i(15, 10)
+	_grid_resource.cell_size = 32
+	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
 	# Create healer character with healing ability
 	var healer_character: CharacterData = _create_healer_character("TestHealer")
@@ -56,10 +65,8 @@ func _ready() -> void:
 	var enemy_character: CharacterData = _create_character("TestEnemy", 50, 10, 10, 10, 5)
 	enemy_character.is_hero = true  # Mark as hero for battle end detection
 
-	# Load support role AI behavior (smart_healer)
-	var healer_ai: AIBehaviorData = load("res://mods/_starter_kit/data/ai_behaviors/smart_healer.tres")
-	if not healer_ai:
-		healer_ai = _create_support_behavior()
+	# Create support role AI behavior inline for test isolation
+	var healer_ai: AIBehaviorData = _create_support_behavior()
 
 	# Spawn healer at (5, 5)
 	_healer_unit = _spawn_unit(healer_character, Vector2i(5, 5), "enemy", healer_ai)
@@ -123,6 +130,11 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 	basic_class.movement_range = 4
 
 	character.character_class = basic_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(basic_class)
+
 	return character
 
 
@@ -164,6 +176,12 @@ func _create_healer_character(p_name: String) -> CharacterData:
 		ModLoader.registry.register_resource(heal_ability, "ability", "test_heal", "_test")
 
 	character.character_class = healer_class
+
+	# Track for cleanup
+	_created_characters.append(character)
+	_created_classes.append(healer_class)
+	_created_abilities.append(heal_ability)
+
 	return character
 
 
@@ -175,6 +193,10 @@ func _create_support_behavior() -> AIBehaviorData:
 	behavior.behavior_mode = "cautious"
 	behavior.conserve_mp_on_heals = false  # Heal freely
 	behavior.prioritize_boss_heals = false
+
+	# Track for cleanup
+	_created_behaviors.append(behavior)
+
 	return behavior
 
 
@@ -260,7 +282,43 @@ func _print_results() -> void:
 		print("Reason: %s" % _failure_reason)
 	print("=".repeat(60) + "\n")
 
+	# Cleanup before quitting
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
 	get_tree().quit(0 if _test_passed else 1)
+
+
+func _cleanup_units() -> void:
+	if _healer_unit and is_instance_valid(_healer_unit):
+		GridManager.set_cell_occupied(_healer_unit.grid_position, null)
+		_healer_unit.queue_free()
+		_healer_unit = null
+	if _wounded_ally and is_instance_valid(_wounded_ally):
+		GridManager.set_cell_occupied(_wounded_ally.grid_position, null)
+		_wounded_ally.queue_free()
+		_wounded_ally = null
+	if _enemy_unit and is_instance_valid(_enemy_unit):
+		GridManager.set_cell_occupied(_enemy_unit.grid_position, null)
+		_enemy_unit.queue_free()
+		_enemy_unit = null
+
+
+func _cleanup_tilemap() -> void:
+	if _tilemap_layer and is_instance_valid(_tilemap_layer):
+		_tilemap_layer.queue_free()
+		_tilemap_layer = null
+	_tileset = null
+	_grid_resource = null
+
+
+func _cleanup_resources() -> void:
+	# Clear tracked resources (RefCounted will handle cleanup)
+	_created_characters.clear()
+	_created_classes.clear()
+	_created_behaviors.clear()
+	_created_abilities.clear()
 
 
 func _process(_delta: float) -> void:
