@@ -1098,15 +1098,25 @@ func _load_equipment_from_character(character: CharacterData) -> void:
 ## Infer equipment slot from equipment type
 func _infer_slot_from_type(equipment_type: String) -> String:
 	var lower_type: String = equipment_type.to_lower()
+	# Check registry for category-based inference
+	if ModLoader and ModLoader.equipment_type_registry:
+		var category: String = ModLoader.equipment_type_registry.get_category(lower_type)
+		if category == "weapon":
+			return "weapon"
+		elif category == "accessory":
+			if lower_type == "ring":
+				return "ring_1"
+			return "accessory"
+	# Fallback matching EquipmentTypeRegistry.init_defaults()
 	match lower_type:
-		"weapon", "sword", "axe", "lance", "bow", "staff", "tome":
+		"sword", "axe", "spear", "bow", "staff", "knife":
 			return "weapon"
 		"ring":
-			return "ring_1"  # Default to first ring slot
+			return "ring_1"
 		"accessory":
 			return "accessory"
 		_:
-			return "weapon"  # Default fallback
+			return "weapon"
 
 
 ## Save equipment from pickers to CharacterData

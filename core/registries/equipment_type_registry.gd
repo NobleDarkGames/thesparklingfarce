@@ -279,6 +279,40 @@ func get_all_subtypes() -> Array[String]:
 	return result
 
 
+## Get all weapon-category subtypes (convenience for dropdowns)
+func get_weapon_types() -> Array[String]:
+	return get_subtypes_for_category("weapon")
+
+
+## Check if any class can equip this weapon type (orphan detection)
+## Returns Dictionary with "orphan": bool and "warning": String
+func check_equippability(weapon_type: String) -> Dictionary:
+	if weapon_type.is_empty():
+		return {"orphan": false, "warning": ""}
+
+	# Only check weapon-category types
+	var category: String = get_category(weapon_type)
+	if category != "weapon":
+		return {"orphan": false, "warning": ""}
+
+	# Query all classes from registry
+	if not ModLoader or not ModLoader.registry:
+		return {"orphan": false, "warning": "Cannot check - ModLoader unavailable"}
+
+	var classes: Array[Resource] = ModLoader.registry.get_all_resources("class")
+	var lower_type: String = weapon_type.to_lower()
+	for class_res: Resource in classes:
+		if class_res and class_res.has_method("can_equip_weapon"):
+			if class_res.can_equip_weapon(lower_type):
+				return {"orphan": false, "warning": ""}
+		elif "equippable_weapon_types" in class_res:
+			for allowed: String in class_res.equippable_weapon_types:
+				if allowed.to_lower() == lower_type:
+					return {"orphan": false, "warning": ""}
+
+	return {"orphan": true, "warning": "No class can equip '%s' weapons" % weapon_type}
+
+
 ## Get display name for a subtype
 func get_subtype_display_name(subtype: String) -> String:
 	var lower: String = subtype.to_lower()

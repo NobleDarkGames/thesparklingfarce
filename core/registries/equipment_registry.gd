@@ -4,8 +4,11 @@ extends RefCounted
 ## Registry for equipment types (weapons and armor).
 ## Allows mods to extend available equipment categories beyond the defaults.
 ##
-## Default weapon types: sword, axe, lance, bow, staff, tome
+## Default weapon types: sword, axe, spear, bow, staff, knife
 ## Default armor types: light, heavy, robe, shield
+##
+## NOTE: Prefer EquipmentTypeRegistry for new code - it supports categories and wildcards.
+## This registry is maintained for backwards compatibility.
 ##
 ## Mods can register additional types via their mod.json:
 ## {
@@ -18,8 +21,8 @@ extends RefCounted
 ## Emitted when registrations change (for editor refresh)
 signal registrations_changed()
 
-# Default types that are always available
-const DEFAULT_WEAPON_TYPES: Array[String] = ["sword", "axe", "lance", "bow", "staff", "tome"]
+# Default types that are always available (matches EquipmentTypeRegistry.init_defaults())
+const DEFAULT_WEAPON_TYPES: Array[String] = ["sword", "axe", "spear", "bow", "staff", "knife"]
 const DEFAULT_ARMOR_TYPES: Array[String] = ["light", "heavy", "robe", "shield"]
 
 # Registered types from mods (mod_id -> Array[String])

@@ -5,10 +5,9 @@ extends Resource
 ## Defines movement capabilities, equipment restrictions, and learnable abilities.
 
 enum MovementType {
-	WALKING,    ## Ground movement only, affected by terrain
-	FLYING,     ## Can fly over obstacles, ignores terrain penalties
-	FLOATING,   ## Hovers over terrain, some terrain penalties
-	SWIMMING,   ## Aquatic movement (merfolk, water units) - water terrain preferred
+	WALKING,    ## Ground movement, pays terrain costs, gets terrain defense
+	FLYING,     ## Ignores terrain costs (1 MP always), NO terrain defense bonus
+	FLOATING,   ## Ignores terrain costs AND gets terrain defense (best movement type)
 	CUSTOM      ## Mod-defined type (use custom_movement_type field)
 }
 

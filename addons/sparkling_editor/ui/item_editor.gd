@@ -382,7 +382,7 @@ func _add_stat_modifiers_section() -> void:
 	agi_mod_spin = form.add_number_field("Agility:", -999, 999, 0,
 		"Bonus agility (speed/evasion). Some weapons may reduce this as a tradeoff.")
 	int_mod_spin = form.add_number_field("Intelligence:", -999, 999, 0,
-		"Bonus magic power. Staves/tomes add to spell damage.")
+		"Bonus magic power. Staves add to spell damage.")
 	luk_mod_spin = form.add_number_field("Luck:", -999, 999, 0,
 		"Bonus luck (crits/drops). Usually small bonuses from accessories.")
 
@@ -404,7 +404,7 @@ func _add_weapon_section() -> void:
 		"Farthest distance this weapon can hit. 1 = melee only. 2-3 = short range. 4+ = long range.")
 	max_attack_range_spin.value_changed.connect(_on_max_range_changed)
 
-	form.add_help_text("Sword: 1-1 | Spear: 1-2 | Bow: 2-3 | Crossbow: 2-4")
+	form.add_help_text("Sword/Axe: 1-1 | Spear: 1-1 or 1-2 | Bow: 2-3")
 
 	hit_rate_spin = form.add_number_field("Hit Rate (%):", 0, 100, 90,
 		"Base accuracy percentage. 90% = reliable. 70% = inaccurate but powerful. Combined with character AGI.")

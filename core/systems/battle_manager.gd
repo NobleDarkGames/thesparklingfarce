@@ -1033,10 +1033,12 @@ func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase
 	var phases: Array[CombatPhase] = []
 
 	# Get terrain bonuses for defender's position
+	# SF2 Reference: Flying units get NO terrain defense bonus (always 0%)
+	# Floating units DO get terrain bonuses (this is why floating > flying)
 	var terrain_defense: int = 0
 	var terrain_evasion: int = 0
 	var defender_terrain: TerrainData = GridManager.get_terrain_at_cell(defender.grid_position)
-	if defender_terrain:
+	if defender_terrain and not _is_flying_unit(defender):
 		terrain_defense = defender_terrain.defense_bonus
 		terrain_evasion = defender_terrain.evasion_bonus
 
@@ -1077,10 +1079,11 @@ func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase
 	# =========================================================================
 	if not defender_would_die:
 		# Get terrain bonuses for attacker's position (they're the counter target)
+		# SF2 Reference: Flying units get NO terrain defense bonus
 		var attacker_terrain_defense: int = 0
 		var attacker_terrain_evasion: int = 0
 		var attacker_terrain: TerrainData = GridManager.get_terrain_at_cell(attacker.grid_position)
-		if attacker_terrain:
+		if attacker_terrain and not _is_flying_unit(attacker):
 			attacker_terrain_defense = attacker_terrain.defense_bonus
 			attacker_terrain_evasion = attacker_terrain.evasion_bonus
 
@@ -1111,6 +1114,14 @@ func _get_unit_weapon_name(unit: Unit) -> String:
 			return weapon.item_name
 
 	return ""
+
+
+## Check if a unit has flying movement type (for terrain bonus exclusion)
+## SF2 Reference: Flying units get NO terrain defense bonus, floating units DO
+func _is_flying_unit(unit: Unit) -> bool:
+	if not unit or not unit.stats or not unit.stats.class_data:
+		return false
+	return unit.stats.class_data.movement_type == ClassData.MovementType.FLYING
 
 
 ## Calculate a single attack phase (initial or double attack)

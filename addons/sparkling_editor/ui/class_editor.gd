@@ -251,9 +251,8 @@ func _add_movement_section() -> void:
 	movement_type_option.add_item("Walking", ClassData.MovementType.WALKING)
 	movement_type_option.add_item("Flying", ClassData.MovementType.FLYING)
 	movement_type_option.add_item("Floating", ClassData.MovementType.FLOATING)
-	movement_type_option.add_item("Swimming", ClassData.MovementType.SWIMMING)
 	movement_type_option.add_item("Custom", ClassData.MovementType.CUSTOM)
-	form.add_labeled_control("Movement Type:", movement_type_option, "How terrain affects movement. Walking = blocked by water/cliffs. Flying = ignores all terrain. Floating = ignores ground hazards.")
+	form.add_labeled_control("Movement Type:", movement_type_option, "Walking = pays terrain costs. Flying = ignores terrain but NO defense bonus. Floating = ignores terrain AND keeps defense bonus (best type).")
 
 	movement_range_spin = form.add_number_field("Movement Range:", 1, 20, 4, "Tiles this class can move per turn. Typical: 4-5 infantry, 6-7 cavalry, 5-6 flying.")
 
@@ -282,10 +281,11 @@ func _add_combat_rates_section() -> void:
 
 ## Get weapon types from ModLoader's equipment registry (with fallback)
 func _get_weapon_types_from_registry() -> Array[String]:
-	if ModLoader and ModLoader.equipment_registry:
-		return ModLoader.equipment_registry.get_weapon_types()
-	# Fallback to defaults if registry not available
-	return ["sword", "axe", "lance", "bow", "staff", "tome"]
+	# Prefer EquipmentTypeRegistry (supports categories and wildcards)
+	if ModLoader and ModLoader.equipment_type_registry:
+		return ModLoader.equipment_type_registry.get_weapon_types()
+	# Fallback to defaults matching EquipmentTypeRegistry.init_defaults()
+	return ["sword", "axe", "spear", "bow", "staff", "knife"]
 
 
 func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String]) -> void:

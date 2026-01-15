@@ -427,12 +427,13 @@ func _process_terrain_effects(unit: Unit) -> bool:
 	if terrain == null:
 		return false
 
-	# Flying units are immune to ground-based terrain damage
+	# Flying units are immune to ALL terrain effects (damage AND healing)
+	# They're above the terrain, not touching it - consistent with no terrain defense bonus
 	var unit_class: ClassData = unit.get_current_class()
 	if unit_class:
 		var movement_type: int = unit_class.movement_type
 		if movement_type == ClassData.MovementType.FLYING:
-			return false  # Flying units ignore terrain DoT
+			return false  # Flying units ignore all terrain effects
 
 	# Apply terrain damage
 	if terrain.damage_per_turn > 0:
