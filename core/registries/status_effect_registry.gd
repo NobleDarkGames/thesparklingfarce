@@ -128,6 +128,42 @@ func get_display_name(effect_id: String) -> String:
 	return effect_id.capitalize()
 
 
+## Get display text with stat modifier values (e.g., "Strength Up (+5 STR)")
+func get_display_text_with_modifiers(effect_id: String) -> String:
+	var effect: StatusEffectData = get_effect(effect_id)
+	if not effect:
+		return effect_id.capitalize()
+
+	var base_name: String = get_display_name(effect_id)
+
+	# If no stat modifiers, just return the name
+	if effect.stat_modifiers.is_empty():
+		return base_name
+
+	# Build modifier string
+	var mod_parts: Array[String] = []
+	var stat_abbrevs: Dictionary = {
+		"strength": "STR",
+		"defense": "DEF",
+		"agility": "AGI",
+		"intelligence": "INT",
+		"luck": "LCK",
+		"max_hp": "HP",
+		"max_mp": "MP"
+	}
+
+	for stat_name: String in effect.stat_modifiers.keys():
+		var value: int = effect.get_stat_modifier(stat_name)
+		var abbrev: String = stat_abbrevs.get(stat_name, stat_name.to_upper())
+		var sign: String = "+" if value >= 0 else ""
+		mod_parts.append("%s%d %s" % [sign, value, abbrev])
+
+	if mod_parts.is_empty():
+		return base_name
+
+	return "%s (%s)" % [base_name, ", ".join(mod_parts)]
+
+
 # =============================================================================
 # UTILITY API
 # =============================================================================

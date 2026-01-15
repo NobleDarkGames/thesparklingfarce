@@ -819,10 +819,13 @@ func _apply_spell_status(caster: Unit, target: Unit, ability: AbilityData) -> bo
 
 	# Get the primary status effect name for display
 	var primary_effect: String = ability.status_effects[0] if ability.status_effects.size() > 0 else "status"
-	# Clean up effect name for display (remove "remove_" prefix if present)
-	var display_effect: String = primary_effect
-	if display_effect.begins_with("remove_"):
-		display_effect = "Cured " + display_effect.substr(7)
+	# Look up display name from registry, handling "remove_" prefix for cure spells
+	var display_effect: String
+	if primary_effect.begins_with("remove_"):
+		var underlying_effect: String = primary_effect.substr(7)
+		display_effect = "Cured " + ModLoader.status_effect_registry.get_display_name(underlying_effect)
+	else:
+		display_effect = ModLoader.status_effect_registry.get_display_text_with_modifiers(primary_effect)
 
 	# Build spell status combat phase
 	var phases: Array[CombatPhase] = []
