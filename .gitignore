@@ -6,6 +6,7 @@
 *.translation
 *.uid
 *.import
+*.png.import
 export_presets.cfg
 export/
 
