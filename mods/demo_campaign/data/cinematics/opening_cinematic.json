@@ -103,15 +103,6 @@
 		},
 		{
 			"params": {
-				"duration": 0.5,
-				"frequency": 30.0,
-				"intensity": 2.0,
-				"wait": true
-			},
-			"type": "camera_shake"
-		},
-		{
-			"params": {
 				"path": [
 					[
 						5.0,

@@ -1,0 +1,19 @@
+{
+	"actors": [],
+	"can_skip": true,
+	"cinematic_id": "mitch_guard",
+	"cinematic_name": "Mitch Guard",
+	"commands": [
+		{
+			"params": {
+				"auto_follow": true,
+				"emotion": "neutral",
+				"speaker": "wbud9a9d",
+				"text": "Henchmen only!"
+			},
+			"type": "dialog_line"
+		}
+	],
+	"description": "",
+	"disable_player_input": true
+}

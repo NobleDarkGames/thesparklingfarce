@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="TerrainData" load_steps=2 format=3 uid="uid://dxcpi4dy65mea"]
+
+[ext_resource type="Script" uid="uid://bsauf31n1riac" path="res://core/resources/terrain_data.gd" id="1_oy4tk"]
+
+[resource]
+script = ExtResource("1_oy4tk")
+terrain_id = "water_anim2_sync"
+display_name = "Water - Animated"

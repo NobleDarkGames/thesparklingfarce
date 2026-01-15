@@ -6,67 +6,36 @@
 	"commands": [
 		{
 			"params": {
-				"flag": "battle1_victory",
-				"if_false": [
+				"auto_follow": true,
+				"emotion": "neutral",
+				"speaker": "s9svpdr6",
+				"text": "Bla bla dialog"
+			},
+			"type": "dialog_line"
+		},
+		{
+			"params": {
+				"choices": [
 					{
-						"params": {
-							"character_id": "6djr4fap",
-							"custom_message": "",
-							"recruitment_chapter": "",
-							"show_message": true,
-							"to_active": true
-						},
-						"type": "add_party_member"
+						"action": "battle",
+						"label": "Battle #1 - Proving Grounds",
+						"on_victory_flags": "battle1_victory",
+						"value": "demo_campaign_battle_1767747082"
 					},
 					{
-						"params": {
-							"auto_follow": true,
-							"character_id": "npc:cloaky",
-							"emotion": "neutral",
-							"text": "Greetings, {player_name}. Yes, I know all about you!"
-						},
-						"type": "dialog_line"
+						"action": "battle",
+						"label": "Battle #2 - Grounds are Proven",
+						"on_victory_flags": "battle2_victory",
+						"value": "demo_campaign_battle_1768074988"
 					},
 					{
-						"params": {
-							"choices": [
-								{
-									"action": "battle",
-									"label": "Battle 1: Proving Grounds",
-									"on_victory_flags": [
-										"battle1_victory"
-									],
-									"value": "demo_campaign_battle_1767747082"
-								},
-								{
-									"action": "battle",
-									"label": "Battle 2: Grounds are Proven",
-									"on_victory_flags": "battle2_victory",
-									"value": "demo_campaign_battle_1768074988"
-								},
-								{
-									"action": "none",
-									"label": "Whatever, weirdo...",
-									"value": ""
-								}
-							]
-						},
-						"type": "show_choice"
-					}
-				],
-				"if_true": [
-					{
-						"params": {
-							"auto_follow": true,
-							"character_id": "npc:cloaky",
-							"emotion": "neutral",
-							"text": "Ah, you've returned victorious! I knew you had it in you."
-						},
-						"type": "dialog_line"
+						"action": "none",
+						"label": "Nevermind...",
+						"value": ""
 					}
 				]
 			},
-			"type": "check_flag"
+			"type": "show_choice"
 		}
 	],
 	"description": "",
