@@ -90,3 +90,15 @@ func _on_caravan_selected() -> void:
 
 func _on_back_pressed() -> void:
 	go_back()
+
+
+func _on_screen_exit() -> void:
+	# Disconnect signals to prevent memory leaks
+	if is_instance_valid(back_button) and back_button.pressed.is_connected(_on_back_pressed):
+		back_button.pressed.disconnect(_on_back_pressed)
+
+	if is_instance_valid(caravan_button) and caravan_button.pressed.is_connected(_on_caravan_selected):
+		caravan_button.pressed.disconnect(_on_caravan_selected)
+
+	# Character buttons will be freed with the grid, just clear references
+	character_buttons.clear()

@@ -22,7 +22,7 @@ var _selected_style: StyleBoxFlat
 @onready var confirm_button: Button = %ConfirmButton
 @onready var back_button: Button = %BackButton
 @onready var stat_comparison_panel: PanelContainer = %StatComparisonPanel
-@onready var stat_comparison_label: Label = %StatComparisonLabel
+@onready var stat_comparison_label: RichTextLabel = %StatComparisonLabel
 
 
 func _on_initialized() -> void:

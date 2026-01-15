@@ -110,6 +110,10 @@ func calculate_from_character(character: CharacterData) -> void:
 	current_hp = max_hp
 	current_mp = max_mp
 
+	# Initialize XP threshold from config (allows mods to customize progression)
+	if ExperienceManager.config:
+		xp_to_next_level = ExperienceManager.config.xp_per_level
+
 
 ## Apply bonuses from equipped item
 func apply_equipment_bonus(item: ItemData) -> void:

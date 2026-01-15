@@ -27,6 +27,9 @@ core/                    # Platform code ONLY
   defaults/              # Core fallback assets
     cinematics/          # opening_cinematic.json
     tilesets/            # terrain_default.tres
+  templates/             # Code templates
+  tools/                 # Utilities (TileSetAutoGenerator, etc.)
+  utils/                 # Helper scripts
 
 mods/                    # ALL game content
   demo_campaign/         # Demo content (priority 100)
@@ -116,7 +119,6 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 |-----------|---------|
 | DialogManager | Dialog state machine, external choice routing, save/load via `export_state()`/`import_state()` |
 | CinematicsManager | Cutscene execution, choice signals |
-| CampaignManager | Campaign progression |
 | CaravanController | Caravan HQ lifecycle |
 | AudioManager | Music, SFX |
 
@@ -150,7 +152,6 @@ ModLoader auto-discovers from `mods/*/data/<directory>/`:
 | dialogues/ | dialogue | DialogueData |
 | cinematics/ | cinematic | CinematicData |
 | maps/ | map | MapMetadata |
-| campaigns/ | campaign | CampaignData |
 | terrain/ | terrain | TerrainData |
 | npcs/ | npc | NPCData |
 | interactables/ | interactable | InteractableData |
@@ -163,7 +164,7 @@ ModLoader auto-discovers from `mods/*/data/<directory>/`:
 | crafting_recipes/ | crafting_recipe | CraftingRecipeData |
 | crafters/ | crafter | CrafterData |
 
-**JSON-supported types:** cinematic, campaign, map
+**JSON-supported types:** cinematic, map
 
 ---
 
@@ -201,6 +202,7 @@ The cinematic system supports spawning entities at runtime via a registry of han
 | character | CharacterSpawnHandler | Characters with animated sprites |
 | npc | NPCSpawnHandler | NPCs (uses character_data or own sprite_frames) |
 | interactable | InteractableSpawnHandler | Static objects (chests, signs, etc.) |
+| virtual | VirtualSpawnHandler | Off-screen actors (narrators, radio voices, thoughts) |
 
 ### Registration (for mods)
 
@@ -421,7 +423,6 @@ Godot's `_unhandled_input()` does NOT block `Input.is_action_pressed()` polling.
 **Add modal UIs to these checks:**
 1. `ExplorationUIController.is_blocking_input()`
 2. `HeroController._is_modal_ui_active()` (defense-in-depth)
-3. `DebugConsole._is_other_modal_active()`
 
 **Existing modal checks:** `DebugConsole.is_open`, `ShopManager.is_shop_open()`, `DialogManager.is_dialog_active()`, `ExplorationUIController.current_state != EXPLORING`
 
@@ -429,7 +430,7 @@ Godot's `_unhandled_input()` does NOT block `Input.is_action_pressed()` polling.
 
 ## Debug Console
 
-Toggle: **F1**, **F12**, or **~**
+Toggle: **F12** or **~**
 
 | Namespace | Example Commands |
 |-----------|------------------|
@@ -601,6 +602,57 @@ conditional_cinematics = [
     }
 ]
 ```
+
+---
+
+## Known Limitations
+
+Issues identified but not yet implemented:
+
+| Issue | Location | Status |
+|-------|----------|--------|
+| Promotion bonuses not implemented | `core/resources/experience_config.gd` | ExperienceConfig lacks `promotion_bonus_*` properties; promotions give 0 stat boost |
+| Buff/Debuff spells do nothing | `core/systems/battle_manager.gd:674-680` | SUPPORT and DEBUFF ability types just warn and fail; status effects not applied |
+| Custom trigger system stub | `core/systems/trigger_manager.gd:511-515` | `_handle_custom_trigger()` is unimplemented; mods cannot define custom trigger types |
+| Scroll transition not implemented | `core/systems/trigger_manager.gd:464-466` | Scroll transition falls back to fade; SF2-style scrolling unavailable |
+| Free cursor unit stats panel | `core/systems/input_manager.gd:844-846` | Pressing A on another unit in free cursor mode should show stats panel |
+| Battle game menu | `core/systems/input_manager.gd:847-850` | Pressing A on empty cell in free cursor mode should open game menu (Map, Speed, etc.) |
+| AI buff item processing | `ai_brain_editor.gd:530-538` | Buff item usage setting exposed in editor but not processed by AI |
+| AI idle turn patience | `ai_brain_editor.gd:604-613` | `max_idle_turns` setting exposed but has no effect |
+| Spell animation system | `ability_editor.gd:398-400` | Animation fields in ability editor are ignored; spells have no visual effects |
+| Dialog box auto-positioning | `dialog_box.gd:363-365` | AUTO position falls back to BOTTOM instead of smart speaker-based positioning |
+| Mod field menu options | `exploration_field_menu.gd:330-331` | `_add_mod_options()` commented out; mods cannot add custom field menu options |
+| Battle equip setting | `item_action_menu.gd:285-286` | Equipment always exploration-only; cannot equip during battle (SF2 allows it) |
+| Editor reference scanning | Multiple editors | Phase 2+ TODO for scanning resource references (e.g., find all uses of a character) |
+
+### Test Coverage Gaps
+
+Critical untested autoloads:
+
+| System | Lines | Risk |
+|--------|-------|------|
+| InputManager | 2,392 | HIGH — all player input |
+| SceneManager | 263 | HIGH — scene transitions |
+| PartyManager | 864 | HIGH — roster/save data |
+| TurnManager | 710 | MEDIUM — battle flow |
+| GridManager | 700 | MEDIUM — pathfinding |
+
+Additional untested: ExperienceManager, CaravanController, ExplorationUIManager, GameJuice, DebugConsole, RandomManager, SettingsManager, GameEventBus, LocalizationManager, CraftingManager, EquipmentManager (indirect only)
+
+### Undocumented Features
+
+Working features that may need modder documentation:
+
+| Feature | Description |
+|---------|-------------|
+| Character UID System | 8-char unique IDs for stable references across renames |
+| VirtualSpawnHandler | Off-screen actors for narrators, radio voices, thoughts |
+| Church Services | HEAL, REVIVE, UNCURSE, PROMOTION, SAVE modes in shop system |
+| Crafter System | Recipe browser, material transformation |
+| AI Threat Configuration | `ai_threat_modifier`, `ai_threat_tags` on characters |
+| Equipment Bonus System | Full stat modifier caching in UnitStats |
+| Status Effect System | 11 effects with behavior types |
+| Text Interpolation | `{player_name}`, `{char:id}`, `{flag:name}`, `{var:key}` syntax |
 
 ---
 

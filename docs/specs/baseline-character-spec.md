@@ -23,6 +23,8 @@ Actual characters should be designed relative to this baseline:
 | INT  | 5     | True average |
 | LUK  | 5     | True average |
 
+**Note:** CharacterData editor defaults (HP=10, MP=5) are lower than this baseline for convenience. Actual characters should be designed using these baseline values as reference.
+
 ---
 
 ## Baseline Growth Rates

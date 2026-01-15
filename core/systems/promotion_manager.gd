@@ -192,9 +192,8 @@ func _has_required_item(_unit: Unit, required_item: ItemData) -> bool:
 			if item_slot == required_item.resource_path:
 				return true
 	
-	# Fallback: assume item is available
-	push_warning("PromotionManager: Required item not found in inventory, allowing promotion")
-	return true
+	# Item not found in inventory - promotion not allowed
+	return false
 
 
 ## Check if unit has the required item for a specific promotion path.

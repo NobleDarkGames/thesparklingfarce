@@ -521,7 +521,7 @@ func _update_turn_order_display(active_unit: Unit) -> void:
 
 
 func _on_combat_resolved(_attacker: Unit, _defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
-	# TODO: Show damage numbers (Phase 3)
+	# Damage display handled by combat_animation_scene.gd via _show_damage_number()
 	pass
 
 

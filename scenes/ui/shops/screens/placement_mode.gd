@@ -68,7 +68,9 @@ func _create_character_button(character: CharacterData) -> Button:
 	# Get inventory status
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
 	var slots_used: int = save_data.inventory.size() if save_data else 0
-	var slots_max: int = 4  # Default max inventory
+	var slots_max: int = 4
+	if ModLoader and ModLoader.inventory_config:
+		slots_max = ModLoader.inventory_config.get_max_slots()
 
 	if slots_used >= slots_max:
 		btn.disabled = true
@@ -136,6 +138,8 @@ func _refresh_character_buttons() -> void:
 		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
 		var slots_used: int = save_data.inventory.size() if save_data else 0
 		var slots_max: int = 4
+		if ModLoader and ModLoader.inventory_config:
+			slots_max = ModLoader.inventory_config.get_max_slots()
 
 		if slots_used >= slots_max:
 			btn.disabled = true
