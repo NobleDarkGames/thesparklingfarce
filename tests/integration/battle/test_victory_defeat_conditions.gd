@@ -10,6 +10,9 @@ class_name TestVictoryDefeatConditions
 extends GdUnitTestSuite
 
 
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
+
+
 # =============================================================================
 # TEST FIXTURES - Mock Objects
 # =============================================================================
@@ -71,8 +74,8 @@ var _original_all_units: Array[Unit] = []
 var _original_turn_number: int = 0
 var _original_battle_active: bool = false
 
-# Signal connection tracking for cleanup
-var _connected_signals: Array[Dictionary] = []
+# Signal tracking
+var _tracker: SignalTracker
 
 
 func before_test() -> void:
@@ -81,6 +84,9 @@ func before_test() -> void:
 	_original_turn_number = TurnManager.turn_number
 	_original_battle_active = TurnManager.battle_active
 	_original_battle_data = BattleManager.current_battle_data
+
+	# Initialize signal tracker
+	_tracker = SignalTrackerScript.new()
 
 	# Create fresh mock data
 	_mock_units.clear()
@@ -92,13 +98,10 @@ func before_test() -> void:
 
 
 func after_test() -> void:
-	# Disconnect any signals that were connected during the test
-	for connection: Dictionary in _connected_signals:
-		var sig: Signal = connection.signal_ref
-		var callable: Callable = connection.callable
-		if sig.is_connected(callable):
-			sig.disconnect(callable)
-	_connected_signals.clear()
+	# Disconnect all tracked signals
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 	# Restore original TurnManager state
 	TurnManager.all_units = _original_all_units
@@ -106,18 +109,17 @@ func after_test() -> void:
 	TurnManager.battle_active = _original_battle_active
 	BattleManager.current_battle_data = _original_battle_data
 
-	# Clean up mock units
+	# Clean up mock units - use free() for immediate deletion to prevent orphan detection
 	for unit: MockUnit in _mock_units:
 		if is_instance_valid(unit):
-			unit.queue_free()
+			unit.free()
 	_mock_units.clear()
 	_mock_battle_data = null
 
 
 ## Helper to connect a signal and track it for cleanup
-func _connect_signal(sig: Signal, callable: Callable) -> void:
-	sig.connect(callable)
-	_connected_signals.append({"signal_ref": sig, "callable": callable})
+func _track_signal(sig: Signal, callable: Callable) -> void:
+	_tracker.track_with_callback(sig, callable)
 
 
 ## Helper to create and register a mock unit
@@ -565,7 +567,7 @@ func _reset_signal_tracking() -> void:
 
 func test_victory_signal_emitted() -> void:
 	_reset_signal_tracking()
-	_connect_signal(TurnManager.victory_condition_check, _on_victory_condition_check)
+	_track_signal(TurnManager.victory_condition_check, _on_victory_condition_check)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	player1.set_hero(true)
@@ -584,7 +586,7 @@ func test_victory_signal_emitted() -> void:
 
 func test_defeat_signal_emitted() -> void:
 	_reset_signal_tracking()
-	_connect_signal(TurnManager.defeat_condition_check, _on_defeat_condition_check)
+	_track_signal(TurnManager.defeat_condition_check, _on_defeat_condition_check)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	player1.set_hero(true)
@@ -603,7 +605,7 @@ func test_defeat_signal_emitted() -> void:
 
 func test_mod_can_override_victory() -> void:
 	_reset_signal_tracking()
-	_connect_signal(TurnManager.victory_condition_check, _on_victory_override)
+	_track_signal(TurnManager.victory_condition_check, _on_victory_override)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	var enemy1: MockUnit = _create_mock_unit("enemy", true)  # Enemy still alive
@@ -621,7 +623,7 @@ func test_mod_can_override_victory() -> void:
 
 func test_mod_can_override_defeat() -> void:
 	_reset_signal_tracking()
-	_connect_signal(TurnManager.defeat_condition_check, _on_defeat_override)
+	_track_signal(TurnManager.defeat_condition_check, _on_defeat_override)
 
 	var player1: MockUnit = _create_mock_unit("player", true)
 	var enemy1: MockUnit = _create_mock_unit("enemy", true)

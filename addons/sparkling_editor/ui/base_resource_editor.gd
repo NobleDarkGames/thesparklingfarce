@@ -340,7 +340,9 @@ func _setup_base_ui() -> void:
 	error_label.scroll_active = false
 	error_panel.add_child(error_label)
 
-	# Error panel will be inserted before button_container in child's _create_detail_form
+	# Add error_panel to tree immediately (hidden) to ensure proper cleanup when freed.
+	# _position_error_panel_before_buttons() will reposition it when errors are shown.
+	detail_panel.add_child(error_panel)
 
 
 # =============================================================================

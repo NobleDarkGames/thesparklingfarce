@@ -29,7 +29,9 @@ func before_test() -> void:
 
 func after_test() -> void:
 	if _editor and is_instance_valid(_editor):
+		# Queue for deletion and wait for it to complete
 		_editor.queue_free()
+		await _editor.tree_exited
 	_editor = null
 
 
