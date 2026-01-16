@@ -7,6 +7,13 @@ extends GdUnitTestSuite
 
 
 # =============================================================================
+# TEST CONSTANTS
+# =============================================================================
+
+const TEST_MOD_ID: String = "_test_tileset_registry"
+
+
+# =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
@@ -209,7 +216,7 @@ func test_override_keeps_single_entry() -> void:
 			"path": "tilesets/terrain.tres"
 		}
 	}
-	_registry.register_from_config("base_mod", config1, "res://mods/_base_game")
+	_registry.register_from_config("base_mod", config1, "res://mods/" + TEST_MOD_ID)
 
 	# Override with different path
 	var config2: Dictionary = {

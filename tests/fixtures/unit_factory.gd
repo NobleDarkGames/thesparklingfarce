@@ -1,7 +1,17 @@
 ## Shared test fixture for spawning Unit nodes
 ##
+## Dependencies (autoloads that must be initialized):
+## - GridManager: Called via GridManager.set_cell_occupied() for grid registration
+##
+## Requires: Grid must be set up via GridSetup before spawning units.
+##
+## This fixture is for INTEGRATION TESTS ONLY.
+## Do not use in unit tests that should be autoload-free.
+##
 ## Usage:
 ##   var unit: Unit = UnitFactory.spawn_unit(character, Vector2i(5, 5), "player", container)
+##   # ... run tests ...
+##   UnitFactory.cleanup_unit(unit)  # Also unregisters from GridManager
 class_name UnitFactory
 extends RefCounted
 

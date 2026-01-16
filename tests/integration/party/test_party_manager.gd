@@ -12,14 +12,11 @@ extends GdUnitTestSuite
 
 
 const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 const TEST_MOD_ID: String = "_test_party_manager"
 
 # Signal tracking
-var _member_added_events: Array[CharacterData] = []
-var _member_departed_events: Array[Dictionary] = []
-var _member_rejoined_events: Array[String] = []
-var _item_transferred_events: Array[Dictionary] = []
-var _inventory_changed_events: Array[String] = []
+var _tracker: RefCounted
 
 # Resources to clean up
 var _created_characters: Array[CharacterData] = []
@@ -35,34 +32,8 @@ func before() -> void:
 	_original_party_members = PartyManager.party_members.duplicate()
 	_original_max_active_size = PartyManager.MAX_ACTIVE_SIZE
 
-	# Clear signal tracking
-	_member_added_events.clear()
-	_member_departed_events.clear()
-	_member_rejoined_events.clear()
-	_item_transferred_events.clear()
-	_inventory_changed_events.clear()
-
-	# Connect signals
-	PartyManager.member_added.connect(_on_member_added)
-	PartyManager.member_departed.connect(_on_member_departed)
-	PartyManager.member_rejoined.connect(_on_member_rejoined)
-	PartyManager.item_transferred.connect(_on_item_transferred)
-	PartyManager.member_inventory_changed.connect(_on_inventory_changed)
-
 
 func after() -> void:
-	# Disconnect signals
-	if PartyManager.member_added.is_connected(_on_member_added):
-		PartyManager.member_added.disconnect(_on_member_added)
-	if PartyManager.member_departed.is_connected(_on_member_departed):
-		PartyManager.member_departed.disconnect(_on_member_departed)
-	if PartyManager.member_rejoined.is_connected(_on_member_rejoined):
-		PartyManager.member_rejoined.disconnect(_on_member_rejoined)
-	if PartyManager.item_transferred.is_connected(_on_item_transferred):
-		PartyManager.item_transferred.disconnect(_on_item_transferred)
-	if PartyManager.member_inventory_changed.is_connected(_on_inventory_changed):
-		PartyManager.member_inventory_changed.disconnect(_on_inventory_changed)
-
 	# Restore original state
 	PartyManager.party_members = _original_party_members
 	PartyManager.MAX_ACTIVE_SIZE = _original_max_active_size
@@ -77,17 +48,27 @@ func after() -> void:
 
 
 func before_test() -> void:
-	# Clear signal events
-	_member_added_events.clear()
-	_member_departed_events.clear()
-	_member_rejoined_events.clear()
-	_item_transferred_events.clear()
-	_inventory_changed_events.clear()
+	# Initialize signal tracker
+	_tracker = SignalTrackerScript.new()
+
+	# Track PartyManager signals
+	_tracker.track(PartyManager.member_added)
+	_tracker.track(PartyManager.member_departed)
+	_tracker.track(PartyManager.member_rejoined)
+	_tracker.track(PartyManager.item_transferred)
+	_tracker.track(PartyManager.member_inventory_changed)
 
 	# Clear party state for each test
 	PartyManager.clear_party()
 	PartyManager.clear_departed()
 	PartyManager.MAX_ACTIVE_SIZE = PartyManager.DEFAULT_MAX_ACTIVE_SIZE
+
+
+func after_test() -> void:
+	# Disconnect signal tracker
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 
 # =============================================================================
@@ -101,7 +82,7 @@ func test_add_member_succeeds() -> void:
 
 	assert_bool(result).is_true()
 	assert_int(PartyManager.get_party_size()).is_equal(1)
-	assert_int(_member_added_events.size()).is_equal(1)
+	assert_int(_tracker.emission_count("member_added")).is_equal(1)
 
 
 func test_remove_member_succeeds() -> void:
@@ -377,8 +358,10 @@ func test_remove_member_preserve_data() -> void:
 
 	assert_object(preserved).is_not_null()
 	assert_int(PartyManager.get_party_size()).is_equal(1)
-	assert_int(_member_departed_events.size()).is_equal(1)
-	assert_str(_member_departed_events[0].reason).is_equal("left")
+	assert_int(_tracker.emission_count("member_departed")).is_equal(1)
+	# Verify signal was emitted with correct reason
+	var emissions: Array = _tracker.get_emissions("member_departed")
+	assert_str(emissions[0].arguments[1]).is_equal("left")
 
 
 func test_is_departed() -> void:
@@ -410,7 +393,7 @@ func test_rejoin_departed_member() -> void:
 
 	assert_bool(result).is_true()
 	assert_int(PartyManager.get_party_size()).is_equal(2)
-	assert_int(_member_rejoined_events.size()).is_equal(1)
+	assert_int(_tracker.emission_count("member_rejoined")).is_equal(1)
 
 
 func test_rejoin_nonexistent_departed_fails() -> void:
@@ -493,7 +476,7 @@ func test_add_item_to_member() -> void:
 	var result: bool = PartyManager.add_item_to_member(uid, "test_sword")
 
 	assert_bool(result).is_true()
-	assert_int(_inventory_changed_events.size()).is_equal(1)
+	assert_int(_tracker.emission_count("member_inventory_changed")).is_equal(1)
 
 
 func test_remove_item_from_member() -> void:
@@ -504,12 +487,12 @@ func test_remove_item_from_member() -> void:
 	var uid: String = hero.get_uid()
 
 	PartyManager.add_item_to_member(uid, "test_potion")
-	_inventory_changed_events.clear()
+	_tracker.clear_emissions()
 
 	var result: bool = PartyManager.remove_item_from_member(uid, "test_potion")
 
 	assert_bool(result).is_true()
-	assert_int(_inventory_changed_events.size()).is_equal(1)
+	assert_int(_tracker.emission_count("member_inventory_changed")).is_equal(1)
 
 
 func test_transfer_item_between_members() -> void:
@@ -528,7 +511,7 @@ func test_transfer_item_between_members() -> void:
 	var result: Dictionary = PartyManager.transfer_item_between_members(hero_uid, warrior_uid, "transfer_item")
 
 	assert_bool(result.success).is_true()
-	assert_int(_item_transferred_events.size()).is_equal(1)
+	assert_int(_tracker.emission_count("item_transferred")).is_equal(1)
 
 
 func test_transfer_item_fails_for_nonexistent_item() -> void:
@@ -594,34 +577,6 @@ func test_export_to_save() -> void:
 	var exported: Array[CharacterSaveData] = PartyManager.export_to_save()
 
 	assert_int(exported.size()).is_equal(2)
-
-
-# =============================================================================
-# SIGNAL HANDLERS
-# =============================================================================
-
-func _on_member_added(character: CharacterData) -> void:
-	_member_added_events.append(character)
-
-
-func _on_member_departed(character_uid: String, reason: String) -> void:
-	_member_departed_events.append({"uid": character_uid, "reason": reason})
-
-
-func _on_member_rejoined(character_uid: String) -> void:
-	_member_rejoined_events.append(character_uid)
-
-
-func _on_item_transferred(from_uid: String, to_uid: String, item_id: String) -> void:
-	_item_transferred_events.append({
-		"from": from_uid,
-		"to": to_uid,
-		"item": item_id
-	})
-
-
-func _on_inventory_changed(character_uid: String) -> void:
-	_inventory_changed_events.append(character_uid)
 
 
 # =============================================================================

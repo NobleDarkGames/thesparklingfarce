@@ -7,6 +7,13 @@ extends GdUnitTestSuite
 
 
 # =============================================================================
+# TEST CONSTANTS
+# =============================================================================
+
+const TEST_MOD_ID: String = "_test_ai_brain_registry"
+
+
+# =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
@@ -209,7 +216,7 @@ func test_override_clears_cached_instance() -> void:
 			"path": "ai_brains/ai_aggressive.gd"
 		}
 	}
-	_registry.register_from_config("base_mod", config1, "res://mods/_base_game")
+	_registry.register_from_config("base_mod", config1, "res://mods/" + TEST_MOD_ID)
 
 	# Get stats before override - may have cached instance
 	var stats_before: Dictionary = _registry.get_stats()

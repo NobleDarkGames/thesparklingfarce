@@ -1,12 +1,19 @@
 ## Reusable utility for tracking signal emissions in tests
 ##
+## Dependencies: None (pure RefCounted utility)
+##
+## This fixture is safe for both unit and integration tests.
+##
+## IMPORTANT: Call disconnect_all() in after_test() to prevent
+## signal connections persisting between tests.
+##
 ## Usage:
 ##   var tracker: SignalTracker = SignalTracker.new()
 ##   tracker.track(my_object.some_signal)
 ##   # ... trigger action ...
 ##   assert_bool(tracker.was_emitted("some_signal")).is_true()
 ##   assert_int(tracker.emission_count("some_signal")).is_equal(2)
-##   tracker.disconnect_all()  # Cleanup
+##   tracker.disconnect_all()  # Cleanup - REQUIRED in after_test()
 class_name SignalTracker
 extends RefCounted
 

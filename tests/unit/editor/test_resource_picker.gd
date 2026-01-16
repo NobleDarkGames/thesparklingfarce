@@ -8,6 +8,13 @@ extends GdUnitTestSuite
 
 
 # =============================================================================
+# TEST CONSTANTS
+# =============================================================================
+
+const TEST_MOD_ID: String = "_test_resource_picker"
+
+
+# =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
@@ -338,12 +345,12 @@ func test_format_item_text_basic() -> void:
 	var entry: Dictionary = {
 		"display_name": "Super Hero",
 		"resource_id": "hero",
-		"mod_id": "_base_game"
+		"mod_id": TEST_MOD_ID
 	}
 
 	var text: String = _picker._format_item_text(entry)
 
-	assert_str(text).is_equal("[_base_game] Super Hero")
+	assert_str(text).is_equal("[" + TEST_MOD_ID + "] Super Hero")
 
 
 func test_format_item_text_different_mod() -> void:

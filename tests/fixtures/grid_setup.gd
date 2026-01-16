@@ -1,5 +1,11 @@
 ## Shared test fixture for setting up Grid and TileMapLayer
 ##
+## Dependencies (autoloads that must be initialized):
+## - GridManager: Called via GridManager.setup_grid()
+##
+## This fixture is for INTEGRATION TESTS ONLY.
+## Do not use in unit tests that should be autoload-free.
+##
 ## Usage:
 ##   var setup: GridSetup = GridSetup.new()
 ##   setup.create_grid(parent_node, Vector2i(20, 15))

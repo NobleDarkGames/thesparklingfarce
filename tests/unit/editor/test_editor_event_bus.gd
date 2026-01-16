@@ -7,6 +7,13 @@ extends GdUnitTestSuite
 
 
 # =============================================================================
+# TEST CONSTANTS
+# =============================================================================
+
+const TEST_MOD_ID: String = "_test_editor_event_bus"
+
+
+# =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
@@ -89,7 +96,7 @@ func test_notify_resource_saved_extracts_id_from_path() -> void:
 	_event_bus.resource_saved.connect(_on_resource_saved)
 
 	var test_resource: Resource = Resource.new()
-	_event_bus.notify_resource_saved("character", "res://mods/_base_game/data/characters/hero.tres", test_resource)
+	_event_bus.notify_resource_saved("character", "res://mods/" + TEST_MOD_ID + "/data/characters/hero.tres", test_resource)
 
 	assert_str(_saved_type).is_equal("character")
 	assert_str(_saved_id).is_equal("hero")
@@ -185,7 +192,7 @@ func test_notify_resource_deleted_extracts_id_from_path() -> void:
 
 	_event_bus.resource_deleted.connect(_on_resource_deleted)
 
-	_event_bus.notify_resource_deleted("battle", "res://mods/_base_game/data/battles/final_boss.tres")
+	_event_bus.notify_resource_deleted("battle", "res://mods/" + TEST_MOD_ID + "/data/battles/final_boss.tres")
 
 	assert_str(_deleted_type).is_equal("battle")
 	assert_str(_deleted_id).is_equal("final_boss")

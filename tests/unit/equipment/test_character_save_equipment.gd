@@ -6,12 +6,19 @@ extends GdUnitTestSuite
 
 
 # =============================================================================
+# TEST CONSTANTS
+# =============================================================================
+
+const TEST_MOD_ID: String = "_test_equipment_save"
+
+
+# =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
 func _create_base_save_data() -> CharacterSaveData:
 	var save_data: CharacterSaveData = CharacterSaveData.new()
-	save_data.character_mod_id = "_base_game"
+	save_data.character_mod_id = TEST_MOD_ID
 	save_data.character_resource_id = "max"
 	save_data.fallback_character_name = "Max"
 	save_data.fallback_class_name = "Warrior"
@@ -34,7 +41,7 @@ func test_equipped_items_with_curse_broken_field() -> void:
 	var save_data: CharacterSaveData = _create_base_save_data()
 	save_data.equipped_items.append({
 		"slot": "weapon",
-		"mod_id": "_base_game",
+		"mod_id": TEST_MOD_ID,
 		"item_id": "bronze_sword",
 		"curse_broken": false
 	})
@@ -47,7 +54,7 @@ func test_equipped_items_curse_broken_true() -> void:
 	var save_data: CharacterSaveData = _create_base_save_data()
 	save_data.equipped_items.append({
 		"slot": "weapon",
-		"mod_id": "_base_game",
+		"mod_id": TEST_MOD_ID,
 		"item_id": "cursed_blade",
 		"curse_broken": true
 	})
@@ -83,7 +90,7 @@ func test_serialize_includes_equipped_items() -> void:
 	var save_data: CharacterSaveData = _create_base_save_data()
 	save_data.equipped_items.append({
 		"slot": "weapon",
-		"mod_id": "_base_game",
+		"mod_id": TEST_MOD_ID,
 		"item_id": "bronze_sword",
 		"curse_broken": false
 	})
@@ -114,7 +121,7 @@ func test_serialize_includes_inventory() -> void:
 
 func test_deserialize_equipped_items_with_curse_broken() -> void:
 	var data: Dictionary = {
-		"character_mod_id": "_base_game",
+		"character_mod_id": TEST_MOD_ID,
 		"character_resource_id": "max",
 		"fallback_character_name": "Max",
 		"fallback_class_name": "Warrior",
@@ -130,7 +137,7 @@ func test_deserialize_equipped_items_with_curse_broken() -> void:
 		"intelligence": 5,
 		"luck": 5,
 		"equipped_items": [
-			{"slot": "weapon", "mod_id": "_base_game", "item_id": "cursed_blade", "curse_broken": true}
+			{"slot": "weapon", "mod_id": TEST_MOD_ID, "item_id": "cursed_blade", "curse_broken": true}
 		],
 		"inventory": [],
 		"learned_abilities": [],
@@ -149,7 +156,7 @@ func test_deserialize_equipped_items_with_curse_broken() -> void:
 
 func test_deserialize_equipped_items_adds_curse_broken_if_missing() -> void:
 	var data: Dictionary = {
-		"character_mod_id": "_base_game",
+		"character_mod_id": TEST_MOD_ID,
 		"character_resource_id": "max",
 		"fallback_character_name": "Max",
 		"fallback_class_name": "Warrior",
@@ -165,7 +172,7 @@ func test_deserialize_equipped_items_adds_curse_broken_if_missing() -> void:
 		"intelligence": 5,
 		"luck": 5,
 		"equipped_items": [
-			{"slot": "weapon", "mod_id": "_base_game", "item_id": "bronze_sword"}
+			{"slot": "weapon", "mod_id": TEST_MOD_ID, "item_id": "bronze_sword"}
 		],
 		"inventory": [],
 		"learned_abilities": [],
@@ -185,7 +192,7 @@ func test_deserialize_equipped_items_adds_curse_broken_if_missing() -> void:
 
 func test_deserialize_inventory() -> void:
 	var data: Dictionary = {
-		"character_mod_id": "_base_game",
+		"character_mod_id": TEST_MOD_ID,
 		"character_resource_id": "max",
 		"fallback_character_name": "Max",
 		"fallback_class_name": "Warrior",
@@ -220,7 +227,7 @@ func test_deserialize_inventory() -> void:
 
 func test_deserialize_missing_inventory_keeps_empty() -> void:
 	var data: Dictionary = {
-		"character_mod_id": "_base_game",
+		"character_mod_id": TEST_MOD_ID,
 		"character_resource_id": "max",
 		"fallback_character_name": "Max",
 		"fallback_class_name": "Warrior",

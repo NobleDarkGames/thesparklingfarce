@@ -1,5 +1,11 @@
 ## Shared test fixture for creating CharacterData resources
 ##
+## Dependencies: None (pure resource creation)
+##
+## This fixture is safe for both unit and integration tests.
+## Characters are RefCounted resources that don't need explicit cleanup;
+## they are garbage collected when unreferenced.
+##
 ## Usage:
 ##   var char: CharacterData = CharacterFactory.create_character("Hero", {
 ##       "hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10
