@@ -43,8 +43,8 @@ func test_sync_handles_null_current_save() -> void:
 	# Should not crash - just early return with a warning
 	SaveManager.sync_current_save_state()
 
-	# If we got here without crashing, the test passes
-	assert_bool(true).is_true()
+	# Verify current_save remains null (sync did not create one)
+	assert_object(SaveManager.current_save).is_null()
 
 
 # =============================================================================

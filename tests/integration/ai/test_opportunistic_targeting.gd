@@ -7,14 +7,12 @@
 ## - Attacker ignores closer full-HP target
 ## - Attacker moves toward and attacks wounded target
 ## - Wounded priority weight functions correctly
-extends Node2D
+class_name TestOpportunisticTargeting
+extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
-
-# Test state
-var _test_complete: bool = false
-var _test_passed: bool = false
-var _failure_reason: String = ""
+const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
+const UnitFactoryScript = preload("res://tests/fixtures/unit_factory.gd")
 
 # Units
 var _attacker_unit: Unit
@@ -26,6 +24,9 @@ var _attacker_start_pos: Vector2i
 var _attacked_target: Unit = null
 var _combat_occurred: bool = false
 
+# Scene container for units (BattleManager needs Node2D)
+var _units_container: Node2D
+
 # Resources to clean up
 var _tilemap_layer: TileMapLayer
 var _tileset: TileSet
@@ -35,17 +36,19 @@ var _created_classes: Array[ClassData] = []
 var _created_behaviors: Array[AIBehaviorData] = []
 
 
-func _ready() -> void:
-	print("\n" + "=".repeat(60))
-	print("OPPORTUNISTIC TARGET SELECTION TEST")
-	print("=".repeat(60))
-	print("Testing: Attacker should prioritize wounded target over closer full-HP target\n")
+func before() -> void:
+	_combat_occurred = false
+	_attacked_target = null
+
+	# Create units container (BattleManager needs Node2D)
+	_units_container = Node2D.new()
+	add_child(_units_container)
 
 	# Create minimal TileMapLayer for GridManager
 	_tilemap_layer = TileMapLayer.new()
 	_tileset = TileSet.new()
 	_tilemap_layer.tile_set = _tileset
-	add_child(_tilemap_layer)
+	_units_container.add_child(_tilemap_layer)
 
 	# Setup grid
 	_grid_resource = Grid.new()
@@ -53,91 +56,73 @@ func _ready() -> void:
 	_grid_resource.cell_size = 32
 	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
-	# Create attacker character
-	var attacker_character: CharacterData = _create_character("Opportunist", 80, 10, 20, 12, 14)
 
-	# Create full HP target character
-	var full_hp_character: CharacterData = _create_character("FullHPTarget", 100, 10, 15, 15, 10)
+func after() -> void:
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
+	# Disconnect combat signal if connected
+	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
+		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clean up units container
+	if _units_container and is_instance_valid(_units_container):
+		_units_container.queue_free()
+		_units_container = null
+
+
+func test_attacker_prioritizes_wounded_over_closer_target() -> void:
+	# Create attacker character using CharacterFactory
+	var attacker_character: CharacterData = CharacterFactoryScript.create_combatant("Opportunist", 80, 10, 20, 12, 14)
+	_created_characters.append(attacker_character)
+	# Set movement range to 5 as the original test used
+	attacker_character.character_class.movement_range = 5
+
+	# Create full HP target character using CharacterFactory
+	var full_hp_character: CharacterData = CharacterFactoryScript.create_combatant("FullHPTarget", 100, 10, 15, 15, 10)
 	full_hp_character.is_hero = true
+	_created_characters.append(full_hp_character)
 
-	# Create wounded target character
-	var wounded_character: CharacterData = _create_character("WoundedTarget", 100, 10, 15, 15, 10)
+	# Create wounded target character using CharacterFactory
+	var wounded_character: CharacterData = CharacterFactoryScript.create_combatant("WoundedTarget", 100, 10, 15, 15, 10)
 	wounded_character.is_hero = true
+	_created_characters.append(wounded_character)
 
 	# Create opportunistic behavior
 	var attacker_ai: AIBehaviorData = _create_opportunistic_behavior()
 
 	# Spawn attacker at (2, 5)
 	_attacker_start_pos = Vector2i(2, 5)
-	_attacker_unit = _spawn_unit(attacker_character, _attacker_start_pos, "enemy", attacker_ai)
+	_attacker_unit = UnitFactoryScript.spawn_unit(attacker_character, _attacker_start_pos, "enemy", _units_container, attacker_ai)
 
 	# Spawn full HP target at (4, 5) - distance 2 (closer)
-	_full_hp_target = _spawn_unit(full_hp_character, Vector2i(4, 5), "player", null)
+	_full_hp_target = UnitFactoryScript.spawn_unit(full_hp_character, Vector2i(4, 5), "player", _units_container)
 
 	# Spawn wounded target at (6, 5) - distance 4 (farther but wounded)
-	_wounded_target = _spawn_unit(wounded_character, Vector2i(6, 5), "player", null)
+	_wounded_target = UnitFactoryScript.spawn_unit(wounded_character, Vector2i(6, 5), "player", _units_container)
 	_wounded_target.stats.current_hp = 20  # 20% HP
 
-	print("Setup:")
-	print("  Attacker at: %s" % _attacker_start_pos)
-	print("  Full HP target at: %s (HP: %d/%d = 100%%)" % [
-		_full_hp_target.grid_position,
-		_full_hp_target.stats.current_hp,
-		_full_hp_target.stats.max_hp
-	])
-	print("  Wounded target at: %s (HP: %d/%d = %d%%)" % [
-		_wounded_target.grid_position,
-		_wounded_target.stats.current_hp,
-		_wounded_target.stats.max_hp,
-		int(100.0 * _wounded_target.stats.current_hp / _wounded_target.stats.max_hp)
-	])
-	print("  Distance to full HP: %d" % GridManager.grid.get_manhattan_distance(_attacker_start_pos, _full_hp_target.grid_position))
-	print("  Distance to wounded: %d" % GridManager.grid.get_manhattan_distance(_attacker_start_pos, _wounded_target.grid_position))
-
 	# Setup BattleManager
-	BattleManager.setup(self, self)
+	BattleManager.setup(_units_container, _units_container)
 	BattleManager.player_units = [_full_hp_target, _wounded_target]
 	BattleManager.enemy_units = [_attacker_unit]
 	BattleManager.all_units = [_attacker_unit, _full_hp_target, _wounded_target]
 
-	# Connect to combat signal to track who gets attacked
+	# Connect to combat signal
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
 	# Run the AI turn
-	print("\nExecuting attacker AI turn...")
 	await _execute_attacker_turn()
 
-	# Small delay to ensure all async operations complete
-	await get_tree().create_timer(0.1).timeout
+	# Wait for processing
+	await await_millis(100)
 
-	# Validate results
-	_validate_behavior()
+	# Combat should occur
+	assert_bool(_combat_occurred).is_true()
 
-
-func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: int, agi: int) -> CharacterData:
-	var character: CharacterData = CharacterData.new()
-	character.character_name = p_name
-	character.base_hp = hp
-	character.base_mp = mp
-	character.base_strength = str_val
-	character.base_defense = def_val
-	character.base_agility = agi
-	character.base_intelligence = 5
-	character.base_luck = 5
-	character.starting_level = 1
-
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Fighter"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 5
-
-	character.character_class = basic_class
-
-	# Track for cleanup
-	_created_characters.append(character)
-	_created_classes.append(basic_class)
-
-	return character
+	# Attacker should prioritize wounded target over closer full-HP target
+	assert_object(_attacked_target).is_same(_wounded_target)
 
 
 func _create_opportunistic_behavior() -> AIBehaviorData:
@@ -146,10 +131,9 @@ func _create_opportunistic_behavior() -> AIBehaviorData:
 	behavior.display_name = "Test Opportunistic"
 	behavior.role = "aggressive"
 	behavior.behavior_mode = "opportunistic"
-	behavior.retreat_enabled = false  # Don't retreat, focus on attacking
+	behavior.retreat_enabled = false
 	behavior.use_healing_items = false
 	behavior.use_attack_items = false
-	# High wounded priority, low proximity priority
 	behavior.threat_weights = {
 		"wounded_target": 2.0,
 		"proximity": 0.3
@@ -161,24 +145,13 @@ func _create_opportunistic_behavior() -> AIBehaviorData:
 	return behavior
 
 
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
-	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Unit = unit_scene.instantiate() as Unit
-	unit.initialize(character, p_faction, p_ai_behavior)
-	unit.grid_position = cell
-	unit.position = Vector2(cell.x * 32, cell.y * 32)
-	add_child(unit)
-	GridManager.set_cell_occupied(cell, unit)
-	return unit
-
-
 func _execute_attacker_turn() -> void:
 	var context: Dictionary = {
 		"player_units": BattleManager.player_units,
 		"enemy_units": BattleManager.enemy_units,
 		"neutral_units": [],
 		"turn_number": 1,
-		"unit_hp_percent": 100.0,  # Attacker at full HP
+		"unit_hp_percent": 100.0,
 		"ai_delays": {"after_movement": 0.0, "before_attack": 0.0}
 	}
 
@@ -196,74 +169,15 @@ func _on_combat_resolved(attacker: Unit, defender: Unit, _damage: int, _hit: boo
 	if attacker == _attacker_unit:
 		_combat_occurred = true
 		_attacked_target = defender
-		print("  [COMBAT] Attacker attacked %s" % defender.character_data.character_name)
-
-
-func _validate_behavior() -> void:
-	if _test_complete:
-		return
-
-	print("\nResults:")
-	print("  Combat occurred: %s" % _combat_occurred)
-	if _attacked_target:
-		print("  Target attacked: %s" % _attacked_target.character_data.character_name)
-	else:
-		print("  Target attacked: None")
-
-	print("\nValidation:")
-
-	if not _combat_occurred:
-		_test_passed = false
-		_failure_reason = "No combat occurred - attacker did not attack anyone"
-		print("  [FAIL] %s" % _failure_reason)
-	elif _attacked_target == _full_hp_target:
-		_test_passed = false
-		_failure_reason = "Attacker attacked the closer full-HP target instead of wounded target"
-		print("  [FAIL] %s" % _failure_reason)
-	elif _attacked_target == _wounded_target:
-		print("  [OK] Attacker prioritized the wounded target")
-		print("  [OK] Ignored closer full-HP target")
-		_test_passed = true
-	else:
-		_test_passed = false
-		_failure_reason = "Unknown target attacked"
-		print("  [FAIL] %s" % _failure_reason)
-
-	_test_complete = true
-	_print_results()
-
-
-func _print_results() -> void:
-	print("\n" + "=".repeat(60))
-	if _test_passed:
-		print("OPPORTUNISTIC TARGETING TEST PASSED!")
-		print("Attacker correctly prioritized wounded target over closer target.")
-	else:
-		print("OPPORTUNISTIC TARGETING TEST FAILED!")
-		print("Reason: %s" % _failure_reason)
-	print("=".repeat(60) + "\n")
-
-	# Cleanup before quitting
-	_cleanup_units()
-	_cleanup_tilemap()
-	_cleanup_resources()
-
-	get_tree().quit(0 if _test_passed else 1)
 
 
 func _cleanup_units() -> void:
-	if _attacker_unit and is_instance_valid(_attacker_unit):
-		GridManager.set_cell_occupied(_attacker_unit.grid_position, null)
-		_attacker_unit.queue_free()
-		_attacker_unit = null
-	if _full_hp_target and is_instance_valid(_full_hp_target):
-		GridManager.set_cell_occupied(_full_hp_target.grid_position, null)
-		_full_hp_target.queue_free()
-		_full_hp_target = null
-	if _wounded_target and is_instance_valid(_wounded_target):
-		GridManager.set_cell_occupied(_wounded_target.grid_position, null)
-		_wounded_target.queue_free()
-		_wounded_target = null
+	UnitFactoryScript.cleanup_unit(_attacker_unit)
+	_attacker_unit = null
+	UnitFactoryScript.cleanup_unit(_full_hp_target)
+	_full_hp_target = null
+	UnitFactoryScript.cleanup_unit(_wounded_target)
+	_wounded_target = null
 
 
 func _cleanup_tilemap() -> void:
@@ -279,8 +193,3 @@ func _cleanup_resources() -> void:
 	_created_characters.clear()
 	_created_classes.clear()
 	_created_behaviors.clear()
-
-
-func _process(_delta: float) -> void:
-	# Safety timeout
-	pass

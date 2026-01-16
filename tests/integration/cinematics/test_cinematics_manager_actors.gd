@@ -414,10 +414,11 @@ func test_empty_character_uid_not_found() -> void:
 
 
 func test_register_null_actor_is_ignored() -> void:
+	var count_before: int = CinematicsManager._registered_actors.size()
 	CinematicsManager.register_actor(null)
 
-	# Should not crash or add anything
-	assert_bool(true).is_true()
+	# Should not crash or add anything - count should remain unchanged
+	assert_int(CinematicsManager._registered_actors.size()).is_equal(count_before)
 
 
 func test_register_actor_with_empty_id_is_ignored() -> void:

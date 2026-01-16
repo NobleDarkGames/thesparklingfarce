@@ -27,11 +27,6 @@ var _unit_turn_ended_events: Array[Unit] = []
 var _battle_ended_events: Array[bool] = []
 var _hero_died_events: int = 0
 
-# Resources to clean up
-var _created_characters: Array[CharacterData] = []
-var _created_classes: Array[ClassData] = []
-
-
 func before() -> void:
 	# Clear signal tracking
 	_turn_cycle_events.clear()
@@ -99,11 +94,6 @@ func after() -> void:
 		_units_container.queue_free()
 		_units_container = null
 
-	# Clean up resources
-	_created_characters.clear()
-	_created_classes.clear()
-
-
 func before_test() -> void:
 	_turn_cycle_events.clear()
 	_player_turn_events.clear()
@@ -121,11 +111,11 @@ func before_test() -> void:
 # =============================================================================
 
 func test_start_battle_initializes_state() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	var all_units: Array[Unit] = [_player_unit, _enemy_unit]
 	TurnManager.start_battle(all_units)
@@ -136,11 +126,11 @@ func test_start_battle_initializes_state() -> void:
 
 
 func test_start_battle_emits_turn_cycle_signal() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	var all_units: Array[Unit] = [_player_unit, _enemy_unit]
 	TurnManager.start_battle(all_units)
@@ -164,11 +154,11 @@ func test_start_battle_with_no_units_fails() -> void:
 
 func test_turn_priority_based_on_agility() -> void:
 	# Create two characters with different agility
-	var fast_char: CharacterData = _create_character("FastHero", 50, 10, 15, 10, 20, true)  # AGI 20
-	var slow_char: CharacterData = _create_character("SlowGoblin", 30, 0, 8, 5, 5, false)   # AGI 5
+	var fast_char: CharacterData = CharacterFactory.create_character("FastHero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 20, "is_hero": true})  # AGI 20
+	var slow_char: CharacterData = CharacterFactory.create_combatant("SlowGoblin", 30, 0, 8, 5, 5)   # AGI 5
 
-	var fast_unit: Unit = _spawn_unit(fast_char, Vector2i(5, 5), "player", null)
-	var slow_unit: Unit = _spawn_unit(slow_char, Vector2i(6, 5), "enemy", null)
+	var fast_unit: Unit = UnitFactory.spawn_unit(fast_char, Vector2i(5, 5), "player", _units_container)
+	var slow_unit: Unit = UnitFactory.spawn_unit(slow_char, Vector2i(6, 5), "enemy", _units_container)
 
 	# Calculate priorities multiple times to account for randomness
 	var fast_priorities: Array[float] = []
@@ -190,20 +180,16 @@ func test_turn_priority_based_on_agility() -> void:
 	assert_float(fast_avg).is_greater(slow_avg)
 
 	# Clean up test units
-	if fast_unit and is_instance_valid(fast_unit):
-		GridManager.set_cell_occupied(fast_unit.grid_position, null)
-		fast_unit.queue_free()
-	if slow_unit and is_instance_valid(slow_unit):
-		GridManager.set_cell_occupied(slow_unit.grid_position, null)
-		slow_unit.queue_free()
+	UnitFactory.cleanup_unit(fast_unit)
+	UnitFactory.cleanup_unit(slow_unit)
 
 
 func test_calculate_turn_order_sorts_by_priority() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 15, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 10, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 15, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 10)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	TurnManager.all_units = [_player_unit, _enemy_unit]
 	TurnManager.calculate_turn_order()
@@ -218,11 +204,11 @@ func test_calculate_turn_order_sorts_by_priority() -> void:
 
 
 func test_dead_units_excluded_from_turn_order() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 15, true)
-	var dead_char: CharacterData = _create_character("DeadGoblin", 30, 0, 8, 5, 10, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 15, "is_hero": true})
+	var dead_char: CharacterData = CharacterFactory.create_combatant("DeadGoblin", 30, 0, 8, 5, 10)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(dead_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(dead_char, Vector2i(6, 5), "enemy", _units_container)
 
 	# Kill the enemy
 	_enemy_unit.stats.current_hp = 0
@@ -240,8 +226,8 @@ func test_dead_units_excluded_from_turn_order() -> void:
 # =============================================================================
 
 func test_get_active_unit_returns_current() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
 
 	TurnManager.active_unit = _player_unit
 
@@ -249,11 +235,11 @@ func test_get_active_unit_returns_current() -> void:
 
 
 func test_is_player_turn_returns_correct_value() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	# No active unit
 	TurnManager.active_unit = null
@@ -290,11 +276,11 @@ func test_get_turn_number() -> void:
 
 
 func test_get_remaining_turn_queue() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	TurnManager.turn_queue = [_player_unit, _enemy_unit]
 
@@ -311,11 +297,11 @@ func test_get_remaining_turn_queue() -> void:
 # =============================================================================
 
 func test_victory_when_all_enemies_defeated() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	TurnManager.all_units = [_player_unit, _enemy_unit]
 	TurnManager.battle_active = true
@@ -332,11 +318,11 @@ func test_victory_when_all_enemies_defeated() -> void:
 
 
 func test_defeat_when_hero_dies() -> void:
-	var hero_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var hero_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_hero_unit = _spawn_unit(hero_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_hero_unit = UnitFactory.spawn_unit(hero_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	TurnManager.all_units = [_hero_unit, _enemy_unit]
 	TurnManager.battle_active = true
@@ -352,11 +338,11 @@ func test_defeat_when_hero_dies() -> void:
 
 
 func test_no_battle_end_when_both_sides_alive() -> void:
-	var hero_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var hero_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_hero_unit = _spawn_unit(hero_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_hero_unit = UnitFactory.spawn_unit(hero_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	TurnManager.all_units = [_hero_unit, _enemy_unit]
 	TurnManager.battle_active = true
@@ -374,8 +360,8 @@ func test_no_battle_end_when_both_sides_alive() -> void:
 # =============================================================================
 
 func test_clear_battle_resets_state() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
 
 	# Set some state
 	TurnManager.all_units = [_player_unit]
@@ -399,8 +385,8 @@ func test_clear_battle_resets_state() -> void:
 # =============================================================================
 
 func test_end_unit_turn_emits_signal() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
 
 	TurnManager.active_unit = _player_unit
 	TurnManager.battle_active = true
@@ -416,11 +402,11 @@ func test_end_unit_turn_emits_signal() -> void:
 
 
 func test_end_wrong_unit_turn_warns() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, true)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, false)
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	TurnManager.active_unit = _player_unit
 
@@ -459,57 +445,10 @@ func _on_hero_died() -> void:
 	_hero_died_events += 1
 
 
-# =============================================================================
-# TEST FIXTURES
-# =============================================================================
-
-func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: int, agi: int, is_hero: bool = false) -> CharacterData:
-	var character: CharacterData = CharacterData.new()
-	character.character_name = p_name
-	character.base_hp = hp
-	character.base_mp = mp
-	character.base_strength = str_val
-	character.base_defense = def_val
-	character.base_agility = agi
-	character.base_intelligence = 10
-	character.base_luck = 5
-	character.starting_level = 1
-	character.is_hero = is_hero
-
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Warrior"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 4
-
-	character.character_class = basic_class
-
-	_created_characters.append(character)
-	_created_classes.append(basic_class)
-
-	return character
-
-
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
-	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Unit = unit_scene.instantiate() as Unit
-	unit.initialize(character, p_faction, p_ai_behavior)
-	unit.grid_position = cell
-	unit.position = Vector2(cell.x * 32, cell.y * 32)
-	_units_container.add_child(unit)
-	GridManager.set_cell_occupied(cell, unit)
-	return unit
-
-
 func _cleanup_units() -> void:
-	if _player_unit and is_instance_valid(_player_unit):
-		GridManager.set_cell_occupied(_player_unit.grid_position, null)
-		_player_unit.queue_free()
-		_player_unit = null
-	if _enemy_unit and is_instance_valid(_enemy_unit):
-		GridManager.set_cell_occupied(_enemy_unit.grid_position, null)
-		_enemy_unit.queue_free()
-		_enemy_unit = null
-	if _hero_unit and is_instance_valid(_hero_unit):
-		GridManager.set_cell_occupied(_hero_unit.grid_position, null)
-		_hero_unit.queue_free()
-		_hero_unit = null
+	UnitFactory.cleanup_unit(_player_unit)
+	_player_unit = null
+	UnitFactory.cleanup_unit(_enemy_unit)
+	_enemy_unit = null
+	UnitFactory.cleanup_unit(_hero_unit)
+	_hero_unit = null

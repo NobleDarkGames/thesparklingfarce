@@ -41,5 +41,5 @@ static func cleanup_unit(unit: Unit) -> void:
 
 ## Clean up multiple units
 static func cleanup_units(units: Array) -> void:
-	for unit in units:
+	for unit: Unit in units:
 		cleanup_unit(unit)

@@ -26,10 +26,9 @@ var _xp_gained_events: Array[Dictionary] = []
 var _level_up_events: Array[Dictionary] = []
 var _ability_learned_events: Array[Dictionary] = []
 
-# Resources to clean up
+# Resources to clean up (for test_level_up_can_learn_abilities which creates custom resources)
 var _created_characters: Array[CharacterData] = []
 var _created_classes: Array[ClassData] = []
-var _created_behaviors: Array[AIBehaviorData] = []
 var _created_abilities: Array[AbilityData] = []
 var _original_config: ExperienceConfig = null
 
@@ -91,10 +90,9 @@ func after() -> void:
 		_units_container.queue_free()
 		_units_container = null
 
-	# Clean up resources
+	# Clean up resources (for test_level_up_can_learn_abilities custom resources)
 	_created_characters.clear()
 	_created_classes.clear()
-	_created_behaviors.clear()
 	_created_abilities.clear()
 
 
@@ -116,11 +114,11 @@ func before_test() -> void:
 # =============================================================================
 
 func test_combat_xp_awarded_for_damage() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, 1)
+	var player_char: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5, 1)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	var initial_xp: int = _player_unit.stats.current_xp
 
@@ -133,11 +131,11 @@ func test_combat_xp_awarded_for_damage() -> void:
 
 
 func test_combat_xp_kill_bonus() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, 1)
+	var player_char: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5, 1)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	# Award XP for damage without kill
 	ExperienceManager.award_combat_xp(_player_unit, _enemy_unit, 10, false)
@@ -157,11 +155,11 @@ func test_combat_xp_kill_bonus() -> void:
 
 
 func test_combat_xp_only_awarded_to_player_faction() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	var enemy_char: CharacterData = _create_character("Orc", 40, 0, 12, 8, 6, 1)
+	var player_char: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Orc", 40, 0, 12, 8, 6, 1)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	var initial_enemy_xp: int = _enemy_unit.stats.current_xp
 
@@ -173,8 +171,8 @@ func test_combat_xp_only_awarded_to_player_faction() -> void:
 
 
 func test_combat_xp_handles_null_units() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
+	var player_char: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
 
 	# Should not crash with null units
 	ExperienceManager.award_combat_xp(null, _player_unit, 10, false)
@@ -190,13 +188,13 @@ func test_combat_xp_handles_null_units() -> void:
 # =============================================================================
 
 func test_formation_xp_awarded_to_nearby_allies() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	var ally_char: CharacterData = _create_character("Ally", 45, 5, 12, 8, 8, 1)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, 1)
+	var player_char: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	var ally_char: CharacterData = CharacterFactory.create_combatant("Ally", 45, 5, 12, 8, 8, 1)
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5, 1)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_ally_unit = _spawn_unit(ally_char, Vector2i(6, 6), "player", null)  # Within formation radius (3)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(8, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_ally_unit = UnitFactory.spawn_unit(ally_char, Vector2i(6, 6), "player", _units_container)  # Within formation radius (3)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(8, 5), "enemy", _units_container)
 
 	# Setup TurnManager with units for formation calculation
 	TurnManager.all_units = [_player_unit, _ally_unit, _enemy_unit]
@@ -219,13 +217,13 @@ func test_formation_xp_awarded_to_nearby_allies() -> void:
 
 
 func test_formation_xp_not_awarded_to_distant_allies() -> void:
-	var player_char: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	var ally_char: CharacterData = _create_character("Ally", 45, 5, 12, 8, 8, 1)
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, 1)
+	var player_char: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	var ally_char: CharacterData = CharacterFactory.create_combatant("Ally", 45, 5, 12, 8, 8, 1)
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5, 1)
 
-	_player_unit = _spawn_unit(player_char, Vector2i(5, 5), "player", null)
-	_ally_unit = _spawn_unit(ally_char, Vector2i(12, 5), "player", null)  # Too far (distance 7)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_ally_unit = UnitFactory.spawn_unit(ally_char, Vector2i(12, 5), "player", _units_container)  # Too far (distance 7)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	# Setup TurnManager with units for formation calculation
 	TurnManager.all_units = [_player_unit, _ally_unit, _enemy_unit]
@@ -243,11 +241,11 @@ func test_formation_xp_not_awarded_to_distant_allies() -> void:
 # =============================================================================
 
 func test_support_xp_for_healing() -> void:
-	var healer_char: CharacterData = _create_character("Healer", 40, 30, 8, 8, 10, 1)
-	var ally_char: CharacterData = _create_character("Ally", 50, 5, 15, 10, 8, 1)
+	var healer_char: CharacterData = CharacterFactory.create_combatant("Healer", 40, 30, 8, 8, 10, 1)
+	var ally_char: CharacterData = CharacterFactory.create_combatant("Ally", 50, 5, 15, 10, 8, 1)
 
-	_player_unit = _spawn_unit(healer_char, Vector2i(5, 5), "player", null)
-	_ally_unit = _spawn_unit(ally_char, Vector2i(6, 5), "player", null)
+	_player_unit = UnitFactory.spawn_unit(healer_char, Vector2i(5, 5), "player", _units_container)
+	_ally_unit = UnitFactory.spawn_unit(ally_char, Vector2i(6, 5), "player", _units_container)
 	_ally_unit.stats.current_hp = 25  # Half health
 
 	var initial_xp: int = _player_unit.stats.current_xp
@@ -261,11 +259,11 @@ func test_support_xp_for_healing() -> void:
 
 
 func test_support_xp_for_buff() -> void:
-	var buffer_char: CharacterData = _create_character("Buffer", 40, 30, 8, 8, 10, 1)
-	var ally_char: CharacterData = _create_character("Ally", 50, 5, 15, 10, 8, 1)
+	var buffer_char: CharacterData = CharacterFactory.create_combatant("Buffer", 40, 30, 8, 8, 10, 1)
+	var ally_char: CharacterData = CharacterFactory.create_combatant("Ally", 50, 5, 15, 10, 8, 1)
 
-	_player_unit = _spawn_unit(buffer_char, Vector2i(5, 5), "player", null)
-	_ally_unit = _spawn_unit(ally_char, Vector2i(6, 5), "player", null)
+	_player_unit = UnitFactory.spawn_unit(buffer_char, Vector2i(5, 5), "player", _units_container)
+	_ally_unit = UnitFactory.spawn_unit(ally_char, Vector2i(6, 5), "player", _units_container)
 
 	var initial_xp: int = _player_unit.stats.current_xp
 
@@ -278,11 +276,11 @@ func test_support_xp_for_buff() -> void:
 
 
 func test_support_xp_for_debuff() -> void:
-	var debuffer_char: CharacterData = _create_character("Debuffer", 40, 30, 8, 8, 10, 1)
-	var enemy_char: CharacterData = _create_character("Enemy", 50, 5, 15, 10, 8, 1)
+	var debuffer_char: CharacterData = CharacterFactory.create_combatant("Debuffer", 40, 30, 8, 8, 10, 1)
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Enemy", 50, 5, 15, 10, 8, 1)
 
-	_player_unit = _spawn_unit(debuffer_char, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(debuffer_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	var initial_xp: int = _player_unit.stats.current_xp
 
@@ -295,11 +293,11 @@ func test_support_xp_for_debuff() -> void:
 
 
 func test_support_xp_anti_spam_reduces_xp() -> void:
-	var healer_char: CharacterData = _create_character("Healer", 40, 30, 8, 8, 10, 1)
-	var ally_char: CharacterData = _create_character("Ally", 50, 5, 15, 10, 8, 1)
+	var healer_char: CharacterData = CharacterFactory.create_combatant("Healer", 40, 30, 8, 8, 10, 1)
+	var ally_char: CharacterData = CharacterFactory.create_combatant("Ally", 50, 5, 15, 10, 8, 1)
 
-	_player_unit = _spawn_unit(healer_char, Vector2i(5, 5), "player", null)
-	_ally_unit = _spawn_unit(ally_char, Vector2i(6, 5), "player", null)
+	_player_unit = UnitFactory.spawn_unit(healer_char, Vector2i(5, 5), "player", _units_container)
+	_ally_unit = UnitFactory.spawn_unit(ally_char, Vector2i(6, 5), "player", _units_container)
 	_ally_unit.stats.max_hp = 50
 
 	# First heal - full XP
@@ -318,11 +316,11 @@ func test_support_xp_anti_spam_reduces_xp() -> void:
 
 
 func test_support_xp_disabled_when_config_off() -> void:
-	var healer_char: CharacterData = _create_character("Healer", 40, 30, 8, 8, 10, 1)
-	var ally_char: CharacterData = _create_character("Ally", 50, 5, 15, 10, 8, 1)
+	var healer_char: CharacterData = CharacterFactory.create_combatant("Healer", 40, 30, 8, 8, 10, 1)
+	var ally_char: CharacterData = CharacterFactory.create_combatant("Ally", 50, 5, 15, 10, 8, 1)
 
-	_player_unit = _spawn_unit(healer_char, Vector2i(5, 5), "player", null)
-	_ally_unit = _spawn_unit(ally_char, Vector2i(6, 5), "player", null)
+	_player_unit = UnitFactory.spawn_unit(healer_char, Vector2i(5, 5), "player", _units_container)
+	_ally_unit = UnitFactory.spawn_unit(ally_char, Vector2i(6, 5), "player", _units_container)
 
 	# Disable enhanced support XP
 	ExperienceManager.config.enable_enhanced_support_xp = false
@@ -341,8 +339,8 @@ func test_support_xp_disabled_when_config_off() -> void:
 # =============================================================================
 
 func test_level_up_increases_stats() -> void:
-	var char_data: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 1)
-	_player_unit = _spawn_unit(char_data, Vector2i(5, 5), "player", null)
+	var char_data: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 1)
+	_player_unit = UnitFactory.spawn_unit(char_data, Vector2i(5, 5), "player", _units_container)
 
 	var old_level: int = _player_unit.stats.level
 	var old_max_hp: int = _player_unit.stats.max_hp
@@ -357,8 +355,8 @@ func test_level_up_increases_stats() -> void:
 
 
 func test_level_up_signal_contains_correct_data() -> void:
-	var char_data: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 5)
-	_player_unit = _spawn_unit(char_data, Vector2i(5, 5), "player", null)
+	var char_data: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 5)
+	_player_unit = UnitFactory.spawn_unit(char_data, Vector2i(5, 5), "player", _units_container)
 
 	# Apply level-up
 	ExperienceManager.apply_level_up(_player_unit)
@@ -414,7 +412,7 @@ func test_level_up_can_learn_abilities() -> void:
 	char_data.character_class = class_data
 	_created_characters.append(char_data)
 
-	_player_unit = _spawn_unit(char_data, Vector2i(5, 5), "player", null)
+	_player_unit = UnitFactory.spawn_unit(char_data, Vector2i(5, 5), "player", _units_container)
 
 	# Level up from 1 to 2 - should learn the ability
 	ExperienceManager.apply_level_up(_player_unit)
@@ -480,11 +478,11 @@ func test_invalidate_party_level_cache() -> void:
 # =============================================================================
 
 func test_xp_not_awarded_at_max_level() -> void:
-	var char_data: CharacterData = _create_character("Hero", 50, 10, 15, 10, 10, 20)  # Max level
-	var enemy_char: CharacterData = _create_character("Goblin", 30, 0, 8, 5, 5, 1)
+	var char_data: CharacterData = CharacterFactory.create_combatant("Hero", 50, 10, 15, 10, 10, 20)  # Max level
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5, 1)
 
-	_player_unit = _spawn_unit(char_data, Vector2i(5, 5), "player", null)
-	_enemy_unit = _spawn_unit(enemy_char, Vector2i(6, 5), "enemy", null)
+	_player_unit = UnitFactory.spawn_unit(char_data, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
 
 	# Ensure config has max level 20
 	ExperienceManager.config.max_level = 20
@@ -525,67 +523,13 @@ func _on_unit_learned_ability(unit: Node2D, ability: AbilityData) -> void:
 	})
 
 
-# =============================================================================
-# TEST FIXTURES
-# =============================================================================
-
-func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: int, agi: int, level: int = 1) -> CharacterData:
-	var character: CharacterData = CharacterData.new()
-	character.character_name = p_name
-	character.base_hp = hp
-	character.base_mp = mp
-	character.base_strength = str_val
-	character.base_defense = def_val
-	character.base_agility = agi
-	character.base_intelligence = 10
-	character.base_luck = 5
-	character.starting_level = level
-
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Warrior"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 4
-	# Set some growth rates for level-up tests
-	basic_class.hp_growth = 60
-	basic_class.mp_growth = 20
-	basic_class.strength_growth = 50
-	basic_class.defense_growth = 40
-	basic_class.agility_growth = 30
-	basic_class.intelligence_growth = 20
-	basic_class.luck_growth = 20
-
-	character.character_class = basic_class
-
-	_created_characters.append(character)
-	_created_classes.append(basic_class)
-
-	return character
-
-
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
-	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Unit = unit_scene.instantiate() as Unit
-	unit.initialize(character, p_faction, p_ai_behavior)
-	unit.grid_position = cell
-	unit.position = Vector2(cell.x * 32, cell.y * 32)
-	_units_container.add_child(unit)
-	GridManager.set_cell_occupied(cell, unit)
-	return unit
-
-
 func _cleanup_units() -> void:
-	if _player_unit and is_instance_valid(_player_unit):
-		GridManager.set_cell_occupied(_player_unit.grid_position, null)
-		_player_unit.queue_free()
-		_player_unit = null
-	if _enemy_unit and is_instance_valid(_enemy_unit):
-		GridManager.set_cell_occupied(_enemy_unit.grid_position, null)
-		_enemy_unit.queue_free()
-		_enemy_unit = null
-	if _ally_unit and is_instance_valid(_ally_unit):
-		GridManager.set_cell_occupied(_ally_unit.grid_position, null)
-		_ally_unit.queue_free()
-		_ally_unit = null
+	UnitFactory.cleanup_unit(_player_unit)
+	_player_unit = null
+	UnitFactory.cleanup_unit(_enemy_unit)
+	_enemy_unit = null
+	UnitFactory.cleanup_unit(_ally_unit)
+	_ally_unit = null
 
 	# Clean up any registered test resources
 	if ModLoader and ModLoader.registry:

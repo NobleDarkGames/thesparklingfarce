@@ -7,14 +7,12 @@
 ## - Healer with wounded ally and enemy in range heals first
 ## - Healer does NOT attack when healing is needed
 ## - Support role behavior matches its intent
-extends Node2D
+class_name TestHealerPrioritization
+extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
-
-# Test state
-var _test_complete: bool = false
-var _test_passed: bool = false
-var _failure_reason: String = ""
+const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
+const UnitFactoryScript = preload("res://tests/fixtures/unit_factory.gd")
 
 # Units
 var _healer_unit: Unit
@@ -23,9 +21,11 @@ var _enemy_unit: Unit
 
 # Tracking
 var _healer_attacked: bool = false
-var _healing_occurred: bool = false
 var _ally_initial_hp: int = 0
 var _healer_initial_mp: int = 0
+
+# Scene container for units (BattleManager needs Node2D)
+var _units_container: Node2D
 
 # Resources to clean up
 var _tilemap_layer: TileMapLayer
@@ -37,17 +37,18 @@ var _created_behaviors: Array[AIBehaviorData] = []
 var _created_abilities: Array[AbilityData] = []
 
 
-func _ready() -> void:
-	print("\n" + "=".repeat(60))
-	print("HEALER PRIORITIZATION TEST (Dark Priest Problem)")
-	print("=".repeat(60))
-	print("Testing: Healer should heal wounded ally instead of attacking enemy\n")
+func before() -> void:
+	_healer_attacked = false
+
+	# Create units container (BattleManager needs Node2D)
+	_units_container = Node2D.new()
+	add_child(_units_container)
 
 	# Create minimal TileMapLayer for GridManager
 	_tilemap_layer = TileMapLayer.new()
 	_tileset = TileSet.new()
 	_tilemap_layer.tile_set = _tileset
-	add_child(_tilemap_layer)
+	_units_container.add_child(_tilemap_layer)
 
 	# Setup grid
 	_grid_resource = Grid.new()
@@ -55,87 +56,77 @@ func _ready() -> void:
 	_grid_resource.cell_size = 32
 	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
+
+func after() -> void:
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
+	# Disconnect combat signal if connected
+	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
+		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clean up units container
+	if _units_container and is_instance_valid(_units_container):
+		_units_container.queue_free()
+		_units_container = null
+
+
+func test_healer_prioritizes_healing_over_attacking() -> void:
 	# Create healer character with healing ability
 	var healer_character: CharacterData = _create_healer_character("TestHealer")
 
-	# Create wounded ally character
-	var ally_character: CharacterData = _create_character("WoundedAlly", 100, 10, 10, 10, 10)
+	# Create wounded ally character using CharacterFactory
+	var ally_character: CharacterData = CharacterFactoryScript.create_combatant("WoundedAlly", 100, 10, 10, 10, 10)
+	_created_characters.append(ally_character)
 
-	# Create enemy character
-	var enemy_character: CharacterData = _create_character("TestEnemy", 50, 10, 10, 10, 5)
-	enemy_character.is_hero = true  # Mark as hero for battle end detection
+	# Create enemy character using CharacterFactory
+	var enemy_character: CharacterData = CharacterFactoryScript.create_combatant("TestEnemy", 50, 10, 10, 10, 5)
+	enemy_character.is_hero = true
+	_created_characters.append(enemy_character)
 
-	# Create support role AI behavior inline for test isolation
+	# Create support role AI behavior
 	var healer_ai: AIBehaviorData = _create_support_behavior()
 
 	# Spawn healer at (5, 5)
-	_healer_unit = _spawn_unit(healer_character, Vector2i(5, 5), "enemy", healer_ai)
+	_healer_unit = UnitFactoryScript.spawn_unit(healer_character, Vector2i(5, 5), "enemy", _units_container, healer_ai)
 
 	# Spawn wounded ally at (6, 5) - adjacent to healer, 30% HP
-	_wounded_ally = _spawn_unit(ally_character, Vector2i(6, 5), "enemy", null)
-	_wounded_ally.stats.current_hp = 30  # 30% of 100 HP
+	_wounded_ally = UnitFactoryScript.spawn_unit(ally_character, Vector2i(6, 5), "enemy", _units_container)
+	_wounded_ally.stats.current_hp = 30
 	_ally_initial_hp = _wounded_ally.stats.current_hp
 
 	# Spawn enemy at (4, 5) - adjacent to healer on other side (in attack range)
-	_enemy_unit = _spawn_unit(enemy_character, Vector2i(4, 5), "player", null)
+	_enemy_unit = UnitFactoryScript.spawn_unit(enemy_character, Vector2i(4, 5), "player", _units_container)
 
 	# Record initial state
 	_healer_initial_mp = _healer_unit.stats.current_mp
 
-	print("Setup:")
-	print("  Healer at: %s (MP: %d)" % [_healer_unit.grid_position, _healer_initial_mp])
-	print("  Wounded ally at: %s (HP: %d/%d = %d%%)" % [
-		_wounded_ally.grid_position,
-		_wounded_ally.stats.current_hp,
-		_wounded_ally.stats.max_hp,
-		int(100.0 * _wounded_ally.stats.current_hp / _wounded_ally.stats.max_hp)
-	])
-	print("  Enemy at: %s (in attack range)" % _enemy_unit.grid_position)
-
 	# Setup BattleManager
-	BattleManager.setup(self, self)
+	BattleManager.setup(_units_container, _units_container)
 	BattleManager.player_units = [_enemy_unit]
 	BattleManager.enemy_units = [_healer_unit, _wounded_ally]
 	BattleManager.all_units = [_healer_unit, _wounded_ally, _enemy_unit]
 
-	# Connect to combat signal to detect attacks
+	# Connect to combat signal
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
 	# Run the AI turn
-	print("\nExecuting healer AI turn...")
 	await _execute_healer_turn()
 
-	# Small delay to ensure all async operations complete
-	await get_tree().create_timer(0.1).timeout
+	# Wait for processing
+	await await_millis(100)
 
-	# Validate results
-	_validate_behavior()
+	# Check if ally was healed
+	var ally_hp_change: int = _wounded_ally.stats.current_hp - _ally_initial_hp
+	var healer_mp_change: int = _healer_initial_mp - _healer_unit.stats.current_mp
+	var healing_occurred: bool = ally_hp_change > 0 or healer_mp_change > 0
 
+	# Healer should NOT attack
+	assert_bool(_healer_attacked).is_false()
 
-func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: int, agi: int) -> CharacterData:
-	var character: CharacterData = CharacterData.new()
-	character.character_name = p_name
-	character.base_hp = hp
-	character.base_mp = mp
-	character.base_strength = str_val
-	character.base_defense = def_val
-	character.base_agility = agi
-	character.base_intelligence = 10
-	character.base_luck = 5
-	character.starting_level = 1
-
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Fighter"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 4
-
-	character.character_class = basic_class
-
-	# Track for cleanup
-	_created_characters.append(character)
-	_created_classes.append(basic_class)
-
-	return character
+	# Healer should heal the wounded ally
+	assert_bool(healing_occurred).is_true()
 
 
 func _create_healer_character(p_name: String) -> CharacterData:
@@ -165,13 +156,13 @@ func _create_healer_character(p_name: String) -> CharacterData:
 	heal_ability.min_range = 1
 	heal_ability.max_range = 2
 	heal_ability.mp_cost = 5
-	heal_ability.potency = 20  # Heals 20 HP
+	heal_ability.potency = 20
 
-	# Add ability to class (this is what get_unlocked_class_abilities iterates)
+	# Add ability to class
 	healer_class.class_abilities = [heal_ability]
 	healer_class.ability_unlock_levels = {"test_heal": 1}
 
-	# Also register in ModLoader so execute_ai_spell can look it up by ID
+	# Register in ModLoader so execute_ai_spell can look it up
 	if ModLoader and ModLoader.registry:
 		ModLoader.registry.register_resource(heal_ability, "ability", "test_heal", "_test")
 
@@ -191,24 +182,13 @@ func _create_support_behavior() -> AIBehaviorData:
 	behavior.display_name = "Test Support"
 	behavior.role = "support"
 	behavior.behavior_mode = "cautious"
-	behavior.conserve_mp_on_heals = false  # Heal freely
+	behavior.conserve_mp_on_heals = false
 	behavior.prioritize_boss_heals = false
 
 	# Track for cleanup
 	_created_behaviors.append(behavior)
 
 	return behavior
-
-
-func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
-	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Unit = unit_scene.instantiate() as Unit
-	unit.initialize(character, p_faction, p_ai_behavior)
-	unit.grid_position = cell
-	unit.position = Vector2(cell.x * 32, cell.y * 32)
-	add_child(unit)
-	GridManager.set_cell_occupied(cell, unit)
-	return unit
 
 
 func _execute_healer_turn() -> void:
@@ -224,85 +204,24 @@ func _execute_healer_turn() -> void:
 	var brain: AIBrain = ConfigurableAIBrainScript.get_instance()
 	await brain.execute_with_behavior(_healer_unit, context, _healer_unit.ai_behavior)
 
-	# Wait for any async operations
-	await _healer_unit.await_movement_completion()
+	# Wait for any async operations (with timeout)
+	var wait_start: float = Time.get_ticks_msec()
+	while _healer_unit.is_moving() and (Time.get_ticks_msec() - wait_start) < 3000:
+		await get_tree().process_frame
 
 
-func _on_combat_resolved(attacker: Unit, defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
+func _on_combat_resolved(attacker: Unit, _defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
 	if attacker == _healer_unit:
 		_healer_attacked = true
-		print("  [COMBAT] Healer ATTACKED %s (this should NOT happen!)" % defender.get_display_name())
-
-
-func _validate_behavior() -> void:
-	if _test_complete:
-		return
-
-	print("\nResults:")
-
-	# Check if ally was healed
-	var ally_hp_change: int = _wounded_ally.stats.current_hp - _ally_initial_hp
-	var healer_mp_change: int = _healer_initial_mp - _healer_unit.stats.current_mp
-
-	print("  Ally HP: %d -> %d (change: %+d)" % [_ally_initial_hp, _wounded_ally.stats.current_hp, ally_hp_change])
-	print("  Healer MP: %d -> %d (spent: %d)" % [_healer_initial_mp, _healer_unit.stats.current_mp, healer_mp_change])
-	print("  Healer attacked: %s" % _healer_attacked)
-
-	_healing_occurred = ally_hp_change > 0 or healer_mp_change > 0
-
-	print("\nValidation:")
-
-	if _healer_attacked:
-		_test_passed = false
-		_failure_reason = "Healer attacked enemy instead of healing wounded ally (Dark Priest Problem!)"
-		print("  [FAIL] %s" % _failure_reason)
-	elif not _healing_occurred:
-		_test_passed = false
-		_failure_reason = "Healer did not heal (no HP change, no MP spent)"
-		print("  [FAIL] %s" % _failure_reason)
-	else:
-		print("  [OK] Healer did not attack")
-		if ally_hp_change > 0:
-			print("  [OK] Wounded ally was healed (+%d HP)" % ally_hp_change)
-		if healer_mp_change > 0:
-			print("  [OK] Healer spent MP on healing (%d MP)" % healer_mp_change)
-		_test_passed = true
-
-	_test_complete = true
-	_print_results()
-
-
-func _print_results() -> void:
-	print("\n" + "=".repeat(60))
-	if _test_passed:
-		print("HEALER PRIORITIZATION TEST PASSED!")
-		print("Healer correctly prioritized healing over attacking.")
-	else:
-		print("HEALER PRIORITIZATION TEST FAILED!")
-		print("Reason: %s" % _failure_reason)
-	print("=".repeat(60) + "\n")
-
-	# Cleanup before quitting
-	_cleanup_units()
-	_cleanup_tilemap()
-	_cleanup_resources()
-
-	get_tree().quit(0 if _test_passed else 1)
 
 
 func _cleanup_units() -> void:
-	if _healer_unit and is_instance_valid(_healer_unit):
-		GridManager.set_cell_occupied(_healer_unit.grid_position, null)
-		_healer_unit.queue_free()
-		_healer_unit = null
-	if _wounded_ally and is_instance_valid(_wounded_ally):
-		GridManager.set_cell_occupied(_wounded_ally.grid_position, null)
-		_wounded_ally.queue_free()
-		_wounded_ally = null
-	if _enemy_unit and is_instance_valid(_enemy_unit):
-		GridManager.set_cell_occupied(_enemy_unit.grid_position, null)
-		_enemy_unit.queue_free()
-		_enemy_unit = null
+	UnitFactoryScript.cleanup_unit(_healer_unit)
+	_healer_unit = null
+	UnitFactoryScript.cleanup_unit(_wounded_ally)
+	_wounded_ally = null
+	UnitFactoryScript.cleanup_unit(_enemy_unit)
+	_enemy_unit = null
 
 
 func _cleanup_tilemap() -> void:
@@ -319,8 +238,3 @@ func _cleanup_resources() -> void:
 	_created_classes.clear()
 	_created_behaviors.clear()
 	_created_abilities.clear()
-
-
-func _process(_delta: float) -> void:
-	# Safety timeout - but give more time for healing to complete
-	pass

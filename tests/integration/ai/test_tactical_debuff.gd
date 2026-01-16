@@ -7,14 +7,10 @@
 ## - Tactical mage casts debuff when available
 ## - MP is consumed for the spell
 ## - Mage doesn't just spam basic attacks
-extends Node2D
+class_name TestTacticalDebuff
+extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
-
-# Test state
-var _test_complete: bool = false
-var _test_passed: bool = false
-var _failure_reason: String = ""
 
 # Units
 var _mage_unit: Unit
@@ -22,30 +18,32 @@ var _target_unit: Unit
 
 # Tracking
 var _mage_initial_mp: int = 0
-var _spell_cast: bool = false
 var _combat_occurred: bool = false
+
+# Scene container for units (BattleManager needs Node2D)
+var _units_container: Node2D
 
 # Resources to clean up
 var _tilemap_layer: TileMapLayer
 var _tileset: TileSet
 var _grid_resource: Grid
 var _created_characters: Array[CharacterData] = []
-var _created_classes: Array[ClassData] = []
 var _created_behaviors: Array[AIBehaviorData] = []
 var _created_abilities: Array[AbilityData] = []
 
 
-func _ready() -> void:
-	print("\n" + "=".repeat(60))
-	print("TACTICAL DEBUFF USAGE TEST")
-	print("=".repeat(60))
-	print("Testing: Tactical mage should cast debuff on target instead of attacking\n")
+func before() -> void:
+	_combat_occurred = false
+
+	# Create units container (BattleManager needs Node2D)
+	_units_container = Node2D.new()
+	add_child(_units_container)
 
 	# Create minimal TileMapLayer for GridManager
 	_tilemap_layer = TileMapLayer.new()
 	_tileset = TileSet.new()
 	_tilemap_layer.tile_set = _tileset
-	add_child(_tilemap_layer)
+	_units_container.add_child(_tilemap_layer)
 
 	# Setup grid
 	_grid_resource = Grid.new()
@@ -53,6 +51,23 @@ func _ready() -> void:
 	_grid_resource.cell_size = 32
 	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
+
+func after() -> void:
+	_cleanup_units()
+	_cleanup_tilemap()
+	_cleanup_resources()
+
+	# Disconnect combat signal if connected
+	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
+		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clean up units container
+	if _units_container and is_instance_valid(_units_container):
+		_units_container.queue_free()
+		_units_container = null
+
+
+func test_tactical_mage_casts_debuff_instead_of_attacking() -> void:
 	# Create tactical mage character with debuff ability
 	var mage_character: CharacterData = _create_tactical_mage("TacticalMage")
 
@@ -70,15 +85,8 @@ func _ready() -> void:
 	# Spawn target at (7, 5) - distance 2, within debuff range
 	_target_unit = _spawn_unit(target_character, Vector2i(7, 5), "player", null)
 
-	print("Setup:")
-	print("  Mage at: %s (MP: %d)" % [_mage_unit.grid_position, _mage_initial_mp])
-	print("  Target at: %s (high-threat damage dealer)" % _target_unit.grid_position)
-	print("  Distance: %d (within debuff range)" % GridManager.grid.get_manhattan_distance(
-		_mage_unit.grid_position, _target_unit.grid_position
-	))
-
 	# Setup BattleManager
-	BattleManager.setup(self, self)
+	BattleManager.setup(_units_container, _units_container)
 	BattleManager.player_units = [_target_unit]
 	BattleManager.enemy_units = [_mage_unit]
 	BattleManager.all_units = [_mage_unit, _target_unit]
@@ -87,39 +95,22 @@ func _ready() -> void:
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
 	# Run the AI turn
-	print("\nExecuting tactical mage AI turn...")
 	await _execute_mage_turn()
 
-	# Small delay to ensure all async operations complete
-	await get_tree().create_timer(0.1).timeout
+	# Wait for processing
+	await await_millis(100)
 
-	# Validate results
-	_validate_behavior()
+	# Check if MP was spent (indicating spell was cast)
+	var mp_spent: int = _mage_initial_mp - _mage_unit.stats.current_mp
+	var spell_cast: bool = mp_spent > 0
+
+	# Tactical mage should cast spell (spend MP)
+	assert_bool(spell_cast).is_true()
 
 
 func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: int, agi: int) -> CharacterData:
-	var character: CharacterData = CharacterData.new()
-	character.character_name = p_name
-	character.base_hp = hp
-	character.base_mp = mp
-	character.base_strength = str_val
-	character.base_defense = def_val
-	character.base_agility = agi
-	character.base_intelligence = 15
-	character.base_luck = 5
-	character.starting_level = 1
-
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Fighter"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 4
-
-	character.character_class = basic_class
-
-	# Track for cleanup
+	var character: CharacterData = CharacterFactory.create_combatant(p_name, hp, mp, str_val, def_val, agi)
 	_created_characters.append(character)
-	_created_classes.append(basic_class)
-
 	return character
 
 
@@ -150,13 +141,13 @@ func _create_tactical_mage(p_name: String) -> CharacterData:
 	debuff_ability.min_range = 1
 	debuff_ability.max_range = 3
 	debuff_ability.mp_cost = 8
-	debuff_ability.potency = 5  # Reduces stat by 5
+	debuff_ability.potency = 5
 
 	# Add ability to class
 	mage_class.class_abilities = [debuff_ability]
 	mage_class.ability_unlock_levels = {"test_weaken": 1}
 
-	# Register in ModLoader so execute_ai_spell can find it
+	# Register in ModLoader
 	if ModLoader and ModLoader.registry:
 		ModLoader.registry.register_resource(debuff_ability, "ability", "test_weaken", "_test")
 
@@ -174,13 +165,12 @@ func _create_tactical_behavior() -> AIBehaviorData:
 	var behavior: AIBehaviorData = AIBehaviorData.new()
 	behavior.behavior_id = "test_tactical"
 	behavior.display_name = "Test Tactical"
-	behavior.role = "tactical"  # Key: tactical role prioritizes debuffs
+	behavior.role = "tactical"
 	behavior.behavior_mode = "cautious"
 	behavior.use_status_effects = true
 	behavior.retreat_enabled = false
 	behavior.use_healing_items = false
 	behavior.use_attack_items = false
-	# High weight for damage dealers (our target)
 	behavior.threat_weights = {
 		"damage_dealer": 2.0,
 		"high_attack": 1.5
@@ -193,14 +183,7 @@ func _create_tactical_behavior() -> AIBehaviorData:
 
 
 func _spawn_unit(character: CharacterData, cell: Vector2i, p_faction: String, p_ai_behavior: AIBehaviorData) -> Unit:
-	var unit_scene: PackedScene = load("res://scenes/unit.tscn")
-	var unit: Unit = unit_scene.instantiate() as Unit
-	unit.initialize(character, p_faction, p_ai_behavior)
-	unit.grid_position = cell
-	unit.position = Vector2(cell.x * 32, cell.y * 32)
-	add_child(unit)
-	GridManager.set_cell_occupied(cell, unit)
-	return unit
+	return UnitFactory.spawn_unit(character, cell, p_faction, _units_container, p_ai_behavior)
 
 
 func _execute_mage_turn() -> void:
@@ -226,73 +209,13 @@ func _execute_mage_turn() -> void:
 func _on_combat_resolved(attacker: Unit, _defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
 	if attacker == _mage_unit:
 		_combat_occurred = true
-		print("  [COMBAT] Mage used basic attack (not ideal for tactical role)")
-
-
-func _validate_behavior() -> void:
-	if _test_complete:
-		return
-
-	print("\nResults:")
-
-	var mp_spent: int = _mage_initial_mp - _mage_unit.stats.current_mp
-	print("  Mage MP: %d -> %d (spent: %d)" % [_mage_initial_mp, _mage_unit.stats.current_mp, mp_spent])
-	print("  Basic attack occurred: %s" % _combat_occurred)
-
-	# Check if MP was spent (indicating spell was cast)
-	_spell_cast = mp_spent > 0
-
-	print("\nValidation:")
-
-	if _spell_cast and not _combat_occurred:
-		print("  [OK] Mage cast a spell (spent %d MP)" % mp_spent)
-		print("  [OK] Did not resort to basic attack")
-		_test_passed = true
-	elif _spell_cast and _combat_occurred:
-		# Cast spell AND attacked - could happen if debuff failed or had extra action
-		print("  [OK] Mage cast a spell (spent %d MP)" % mp_spent)
-		print("  [WARN] Also used basic attack (unusual but not failure)")
-		_test_passed = true
-	elif not _spell_cast and _combat_occurred:
-		_test_passed = false
-		_failure_reason = "Mage used basic attack instead of casting debuff"
-		print("  [FAIL] %s" % _failure_reason)
-	else:
-		_test_passed = false
-		_failure_reason = "Mage did nothing (no spell cast, no attack)"
-		print("  [FAIL] %s" % _failure_reason)
-
-	_test_complete = true
-	_print_results()
-
-
-func _print_results() -> void:
-	print("\n" + "=".repeat(60))
-	if _test_passed:
-		print("TACTICAL DEBUFF TEST PASSED!")
-		print("Tactical mage correctly prioritized debuff over basic attack.")
-	else:
-		print("TACTICAL DEBUFF TEST FAILED!")
-		print("Reason: %s" % _failure_reason)
-	print("=".repeat(60) + "\n")
-
-	# Cleanup before quitting
-	_cleanup_units()
-	_cleanup_tilemap()
-	_cleanup_resources()
-
-	get_tree().quit(0 if _test_passed else 1)
 
 
 func _cleanup_units() -> void:
-	if _mage_unit and is_instance_valid(_mage_unit):
-		GridManager.set_cell_occupied(_mage_unit.grid_position, null)
-		_mage_unit.queue_free()
-		_mage_unit = null
-	if _target_unit and is_instance_valid(_target_unit):
-		GridManager.set_cell_occupied(_target_unit.grid_position, null)
-		_target_unit.queue_free()
-		_target_unit = null
+	UnitFactory.cleanup_unit(_mage_unit)
+	_mage_unit = null
+	UnitFactory.cleanup_unit(_target_unit)
+	_target_unit = null
 
 
 func _cleanup_tilemap() -> void:
@@ -306,11 +229,5 @@ func _cleanup_tilemap() -> void:
 func _cleanup_resources() -> void:
 	# Clear tracked resources (RefCounted will handle cleanup)
 	_created_characters.clear()
-	_created_classes.clear()
 	_created_behaviors.clear()
 	_created_abilities.clear()
-
-
-func _process(_delta: float) -> void:
-	# Safety timeout
-	pass
