@@ -11,6 +11,7 @@ class_name TestRangedAiPositioning
 extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
+const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
 
 # Units
 var _archer_unit: Unit
@@ -61,6 +62,13 @@ func after() -> void:
 	# Disconnect combat signal if connected
 	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
 		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
 
 	# Clean up units container
 	if _units_container and is_instance_valid(_units_container):
@@ -139,18 +147,8 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 
 
 func _create_archer_behavior() -> AIBehaviorData:
-	var behavior: AIBehaviorData = AIBehaviorData.new()
-	behavior.behavior_id = "test_opportunistic_archer"
-	behavior.display_name = "Test Archer AI"
-	behavior.role = "aggressive"
-	behavior.behavior_mode = "opportunistic"
-	behavior.retreat_enabled = true
-	behavior.retreat_hp_threshold = 40
-	behavior.threat_weights = {"wounded_target": 1.5, "proximity": 0.5}
-
-	# Track for cleanup
+	var behavior: AIBehaviorData = AIBehaviorFactoryScript.create_ranged("test_opportunistic_archer")
 	_created_behaviors.append(behavior)
-
 	return behavior
 
 

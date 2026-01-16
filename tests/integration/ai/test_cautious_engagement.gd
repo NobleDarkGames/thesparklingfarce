@@ -13,6 +13,7 @@ extends GdUnitTestSuite
 const UnitScript = preload("res://core/components/unit.gd")
 const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
 const UnitFactoryScript = preload("res://tests/fixtures/unit_factory.gd")
+const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
 
 # Test configuration
 const ALERT_RANGE: int = 6
@@ -56,6 +57,13 @@ func after_test() -> void:
 	# Disconnect combat signal if connected
 	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
 		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
 
 	# Clean up units container
 	if _units_container and is_instance_valid(_units_container):
@@ -185,20 +193,8 @@ func test_scenario_c_inside_engagement_range_should_attack() -> void:
 # =============================================================================
 
 func _create_cautious_behavior() -> AIBehaviorData:
-	var behavior: AIBehaviorData = AIBehaviorData.new()
-	behavior.behavior_id = "test_cautious"
-	behavior.display_name = "Test Cautious"
-	behavior.role = "aggressive"
-	behavior.behavior_mode = "cautious"
-	behavior.alert_range = ALERT_RANGE
-	behavior.engagement_range = ENGAGEMENT_RANGE
-	behavior.retreat_enabled = false
-	behavior.use_healing_items = false
-	behavior.use_attack_items = false
-
-	# Track for cleanup
+	var behavior: AIBehaviorData = AIBehaviorFactoryScript.create_cautious("test_cautious", ALERT_RANGE, ENGAGEMENT_RANGE)
 	_created_behaviors.append(behavior)
-
 	return behavior
 
 

@@ -11,6 +11,7 @@ class_name TestTerrainAdvantage
 extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
+const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
 
 # Units
 var _ai_unit: Unit
@@ -48,6 +49,13 @@ func after() -> void:
 	_cleanup_units()
 	_cleanup_tilemap()
 	_cleanup_resources()
+
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
 
 	# Clean up units container
 	if _units_container and is_instance_valid(_units_container):
@@ -94,12 +102,7 @@ func test_ai_prefers_defensive_terrain_when_enabled() -> void:
 	target_character.is_hero = true
 
 	# Create AI behavior with seek_terrain_advantage enabled
-	var ai_behavior: AIBehaviorData = AIBehaviorData.new()
-	ai_behavior.behavior_id = "test_terrain_seeker"
-	ai_behavior.display_name = "Test Terrain Seeker"
-	ai_behavior.role = "aggressive"
-	ai_behavior.behavior_mode = "aggressive"
-	ai_behavior.seek_terrain_advantage = true
+	var ai_behavior: AIBehaviorData = AIBehaviorFactoryScript.create_terrain_seeker("test_terrain_seeker")
 	_created_behaviors.append(ai_behavior)
 
 	# Spawn units

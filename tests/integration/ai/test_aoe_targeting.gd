@@ -13,6 +13,7 @@ extends GdUnitTestSuite
 const UnitScript = preload("res://core/components/unit.gd")
 const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
 const UnitFactoryScript = preload("res://tests/fixtures/unit_factory.gd")
+const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
 
 # Units
 var _mage_unit: Unit
@@ -66,6 +67,13 @@ func after() -> void:
 	# Disconnect combat signal if connected
 	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
 		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
 
 	# Clean up units container
 	if _units_container and is_instance_valid(_units_container):
@@ -197,19 +205,8 @@ func _create_aoe_mage(p_name: String) -> CharacterData:
 
 
 func _create_aoe_behavior() -> AIBehaviorData:
-	var behavior: AIBehaviorData = AIBehaviorData.new()
-	behavior.behavior_id = "test_aoe_mage"
-	behavior.display_name = "Test AoE Mage"
-	behavior.role = "aggressive"
-	behavior.behavior_mode = "aggressive"
-	behavior.aoe_minimum_targets = 2
-	behavior.retreat_enabled = false
-	behavior.use_healing_items = false
-	behavior.use_attack_items = false
-
-	# Track for cleanup
+	var behavior: AIBehaviorData = AIBehaviorFactoryScript.create_aoe_mage("test_aoe_mage", 2)
 	_created_behaviors.append(behavior)
-
 	return behavior
 
 

@@ -11,6 +11,7 @@ class_name TestStationaryGuard
 extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
+const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
 
 # Units (recreated for each scenario)
 var _guard_unit: Unit
@@ -49,6 +50,13 @@ func after_test() -> void:
 	# Disconnect combat signal if connected
 	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
 		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
 
 	# Clean up units container
 	if _units_container and is_instance_valid(_units_container):
@@ -149,20 +157,8 @@ func _create_character(p_name: String, hp: int, mp: int, str_val: int, def_val: 
 
 
 func _create_stationary_behavior() -> AIBehaviorData:
-	var behavior: AIBehaviorData = AIBehaviorData.new()
-	behavior.behavior_id = "test_stationary_guard"
-	behavior.display_name = "Test Stationary Guard"
-	behavior.role = "defensive"
-	behavior.behavior_mode = "cautious"
-	behavior.alert_range = 1
-	behavior.engagement_range = 1
-	behavior.retreat_enabled = false
-	behavior.use_healing_items = false
-	behavior.use_attack_items = false
-
-	# Track for cleanup
+	var behavior: AIBehaviorData = AIBehaviorFactoryScript.create_stationary_guard("test_stationary_guard")
 	_created_behaviors.append(behavior)
-
 	return behavior
 
 

@@ -385,6 +385,28 @@ func after_test() -> void:
         GameState.set_flag(flag, _original_state.flags[flag])
 ```
 
+### Option 4: Battle System Cleanup (Required for AI/Battle Tests)
+
+Tests using BattleManager, TurnManager, or GridManager **must** clear state:
+
+```gdscript
+func after() -> void:
+    _cleanup_units()
+
+    # Clear autoload state - REQUIRED to prevent stale references
+    TurnManager.clear_battle()
+    BattleManager.player_units.clear()
+    BattleManager.enemy_units.clear()
+    BattleManager.all_units.clear()
+    GridManager.clear_grid()
+```
+
+| Autoload | Clear Method |
+|----------|--------------|
+| TurnManager | `clear_battle()` |
+| BattleManager | Clear `player_units`, `enemy_units`, `all_units` arrays |
+| GridManager | `clear_grid()` |
+
 ---
 
 ## Common Mistakes
@@ -398,23 +420,25 @@ func after_test() -> void:
 | Node `.new()` without `add_child()` | Add to tree immediately, hide if needed |
 | `queue_free()` on orphan | Use `free()` for nodes not in tree |
 | Missing `await tree_exited` | Add after `queue_free()` |
+| Not clearing battle autoloads | Call `TurnManager.clear_battle()` etc. in cleanup |
 
 ---
 
 ## CI/CD Command Line
 
 ```bash
-# Run all tests
-./addons/gdUnit4/runtest.sh --add "res://tests"
+# Run full test suite (recommended)
+./test_headless.sh
+
+# Run GdUnit4 directly
+godot --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
+    --ignoreHeadlessMode --add "res://tests"
 
 # Run specific directory
-./addons/gdUnit4/runtest.sh --add "res://tests/unit/combat"
+godot --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
+    --ignoreHeadlessMode --add "res://tests/unit/combat"
 
-# With headless mode (required for CI)
-godot --headless -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
-    --ignoreHeadlessMode --add "res://tests/unit"
-
-# Generate reports
+# Reports generated at:
 # HTML: reports/report_*/index.html
 # XML:  reports/report_*/results.xml
 ```

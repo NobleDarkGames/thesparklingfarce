@@ -13,6 +13,7 @@ extends GdUnitTestSuite
 const UnitScript = preload("res://core/components/unit.gd")
 const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
 const UnitFactoryScript = preload("res://tests/fixtures/unit_factory.gd")
+const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
 
 # Units
 var _healer_unit: Unit
@@ -65,6 +66,13 @@ func after() -> void:
 	# Disconnect combat signal if connected
 	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
 		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
 
 	# Clean up units container
 	if _units_container and is_instance_valid(_units_container):
@@ -177,17 +185,8 @@ func _create_healer_character(p_name: String) -> CharacterData:
 
 
 func _create_support_behavior() -> AIBehaviorData:
-	var behavior: AIBehaviorData = AIBehaviorData.new()
-	behavior.behavior_id = "test_support"
-	behavior.display_name = "Test Support"
-	behavior.role = "support"
-	behavior.behavior_mode = "cautious"
-	behavior.conserve_mp_on_heals = false
-	behavior.prioritize_boss_heals = false
-
-	# Track for cleanup
+	var behavior: AIBehaviorData = AIBehaviorFactoryScript.create_support("test_support")
 	_created_behaviors.append(behavior)
-
 	return behavior
 
 

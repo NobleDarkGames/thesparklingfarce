@@ -14,10 +14,14 @@ extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
 const GridSetupScript = preload("res://tests/fixtures/grid_setup.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 
 # Scene container (GdUnitTestSuite extends Node, we need Node2D for some operations)
 var _container: Node2D
 var _grid_setup: GridSetup
+
+# Signal tracking
+var _tracker: SignalTracker
 
 # Units
 var _player_unit: Unit
@@ -45,25 +49,21 @@ func before() -> void:
 	_grid_setup = GridSetupScript.new()
 	_grid_setup.create_grid(_container, Vector2i(10, 10))
 
-	# Connect signals for tracking
-	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
-	TurnManager.player_turn_started.connect(_on_player_turn_started)
-	TurnManager.battle_ended.connect(_on_battle_ended)
-	BattleManager.combat_resolved.connect(_on_combat_resolved)
+	# Initialize signal tracker and connect signals with callbacks
+	_tracker = SignalTrackerScript.new()
+	_tracker.track_with_callback(TurnManager.enemy_turn_started, _on_enemy_turn_started)
+	_tracker.track_with_callback(TurnManager.player_turn_started, _on_player_turn_started)
+	_tracker.track_with_callback(TurnManager.battle_ended, _on_battle_ended)
+	_tracker.track_with_callback(BattleManager.combat_resolved, _on_combat_resolved)
 
 	await await_millis(100)
 
 
 func after() -> void:
-	# Disconnect signals
-	if TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
-		TurnManager.enemy_turn_started.disconnect(_on_enemy_turn_started)
-	if TurnManager.player_turn_started.is_connected(_on_player_turn_started):
-		TurnManager.player_turn_started.disconnect(_on_player_turn_started)
-	if TurnManager.battle_ended.is_connected(_on_battle_ended):
-		TurnManager.battle_ended.disconnect(_on_battle_ended)
-	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
-		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+	# Disconnect all tracked signals
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 	# Cleanup units
 	_cleanup_units()
