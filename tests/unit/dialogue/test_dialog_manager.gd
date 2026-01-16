@@ -225,16 +225,15 @@ func test_max_depth_enforced() -> void:
 
 	DialogManager.start_dialog_from_resource(dialogues[0])
 
-	# Advance through dialogs until depth limit
-	for i: int in range(DialogManager.MAX_DIALOG_CHAIN_DEPTH + 1):
+	# Advance through dialogs - should eventually stop due to depth limit or chain end
+	for i: int in range(DialogManager.MAX_DIALOG_CHAIN_DEPTH + 5):
 		if not DialogManager.is_dialog_active():
 			break
 		DialogManager.on_text_reveal_finished()
 		DialogManager.advance_dialog()
 
-	# Should have stopped before exceeding max depth
-	# The exact behavior depends on implementation, but we shouldn't crash
-	assert_bool(true).is_true()  # Test that we didn't crash
+	# Verify dialog eventually ended (no infinite loop) and no crash occurred
+	assert_bool(DialogManager.is_dialog_active()).is_false()
 
 
 func test_dialog_chain_stack_tracks_ids() -> void:

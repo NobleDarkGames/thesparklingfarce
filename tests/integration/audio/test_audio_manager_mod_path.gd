@@ -154,24 +154,24 @@ func test_audio_manager_is_layer_enabled_invalid_layer() -> void:
 
 
 func test_audio_manager_enable_layer_invalid_does_not_crash() -> void:
-	# Should handle invalid layer gracefully (no crash)
+	# Test that invalid layer indices are handled gracefully (no crash)
 	AudioManager.enable_layer(-1)
 	AudioManager.enable_layer(99)
-	# If we get here without crash, test passes
-	assert_bool(true).is_true()
+	# Verify no crash occurred and layer count remains valid
+	assert_int(AudioManager.get_layer_count()).is_greater_equal(0)
 
 
 func test_audio_manager_disable_layer_invalid_does_not_crash() -> void:
-	# Should handle invalid layer gracefully (no crash)
+	# Test that invalid layer indices are handled gracefully (no crash)
 	AudioManager.disable_layer(-1)
 	AudioManager.disable_layer(99)
-	# If we get here without crash, test passes
-	assert_bool(true).is_true()
+	# Verify no crash occurred and layer count remains valid
+	assert_int(AudioManager.get_layer_count()).is_greater_equal(0)
 
 
 func test_audio_manager_set_layer_volume_invalid_does_not_crash() -> void:
-	# Should handle invalid layer gracefully (no crash)
+	# Test that invalid layer indices are handled gracefully (no crash)
 	AudioManager.set_layer_volume(-1, 0.5)
 	AudioManager.set_layer_volume(99, 0.5)
-	# If we get here without crash, test passes
-	assert_bool(true).is_true()
+	# Verify no crash occurred and layer count remains valid
+	assert_int(AudioManager.get_layer_count()).is_greater_equal(0)

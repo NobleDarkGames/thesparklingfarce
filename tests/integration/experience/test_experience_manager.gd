@@ -467,11 +467,12 @@ func test_get_base_xp_from_level_diff() -> void:
 
 
 func test_invalidate_party_level_cache() -> void:
-	# This is mainly a smoke test - should not crash
+	# Smoke test: verify cache invalidation is callable without error
+	# The cache is internal state; we verify the method completes successfully
 	ExperienceManager.invalidate_party_level_cache()
 
-	# Cache should be invalid (internal state, but we can verify by calling a method that uses it)
-	assert_bool(true).is_true()
+	# Verify ExperienceManager is still functional after cache invalidation
+	assert_object(ExperienceManager.config).is_not_null()
 
 
 # =============================================================================
