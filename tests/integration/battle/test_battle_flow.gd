@@ -80,6 +80,13 @@ func after() -> void:
 	# Clean up resources
 	_created_behaviors.clear()
 
+	# Clear autoload state to prevent stale references between tests
+	TurnManager.clear_battle()
+	BattleManager.player_units.clear()
+	BattleManager.enemy_units.clear()
+	BattleManager.all_units.clear()
+	GridManager.clear_grid()
+
 
 func test_battle_flow_start_to_victory() -> void:
 	# Create test characters

@@ -244,10 +244,6 @@ func test_spawn_actors_from_empty_array() -> void:
 	assert_int(CinematicsManager._spawned_actor_nodes.size()).is_equal(0)
 
 
-func test_spawn_actors_from_data_creates_node() -> void:
-	# Skip in headless mode - requires scene tree
-	# This is an integration-level test
-	pass
 
 
 # =============================================================================
