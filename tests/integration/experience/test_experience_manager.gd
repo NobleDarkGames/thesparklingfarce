@@ -10,6 +10,7 @@ class_name TestExperienceManager
 extends GdUnitTestSuite
 
 const GridSetupScript = preload("res://tests/fixtures/grid_setup.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 const TEST_MOD_ID: String = "_test_experience_manager"
 
 # Test data
@@ -23,6 +24,7 @@ var _grid_setup: GridSetup
 var _xp_gained_events: Array[Dictionary] = []
 var _level_up_events: Array[Dictionary] = []
 var _ability_learned_events: Array[Dictionary] = []
+var _tracker: SignalTracker
 
 # Resources to clean up (for test_level_up_can_learn_abilities which creates custom resources)
 var _created_characters: Array[CharacterData] = []
@@ -35,6 +37,7 @@ func before() -> void:
 	_xp_gained_events.clear()
 	_level_up_events.clear()
 	_ability_learned_events.clear()
+	_tracker = SignalTrackerScript.new()
 
 	# Store original config to restore later
 	_original_config = ExperienceManager.config
@@ -47,20 +50,17 @@ func before() -> void:
 	_grid_setup = GridSetupScript.new()
 	_grid_setup.create_grid(_units_container)
 
-	# Connect signals
-	ExperienceManager.unit_gained_xp.connect(_on_unit_gained_xp)
-	ExperienceManager.unit_leveled_up.connect(_on_unit_leveled_up)
-	ExperienceManager.unit_learned_ability.connect(_on_unit_learned_ability)
+	# Connect signals via tracker
+	_tracker.track_with_callback(ExperienceManager.unit_gained_xp, _on_unit_gained_xp)
+	_tracker.track_with_callback(ExperienceManager.unit_leveled_up, _on_unit_leveled_up)
+	_tracker.track_with_callback(ExperienceManager.unit_learned_ability, _on_unit_learned_ability)
 
 
 func after() -> void:
-	# Disconnect signals
-	if ExperienceManager.unit_gained_xp.is_connected(_on_unit_gained_xp):
-		ExperienceManager.unit_gained_xp.disconnect(_on_unit_gained_xp)
-	if ExperienceManager.unit_leveled_up.is_connected(_on_unit_leveled_up):
-		ExperienceManager.unit_leveled_up.disconnect(_on_unit_leveled_up)
-	if ExperienceManager.unit_learned_ability.is_connected(_on_unit_learned_ability):
-		ExperienceManager.unit_learned_ability.disconnect(_on_unit_learned_ability)
+	# Disconnect all tracked signals FIRST
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 	# Restore original config
 	ExperienceManager.config = _original_config

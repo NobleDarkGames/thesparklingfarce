@@ -10,6 +10,7 @@ class_name TestTurnManager
 extends GdUnitTestSuite
 
 const GridSetupScript = preload("res://tests/fixtures/grid_setup.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 
 # Test data
 var _player_unit: Unit
@@ -25,6 +26,7 @@ var _enemy_turn_events: Array[Unit] = []
 var _unit_turn_ended_events: Array[Unit] = []
 var _battle_ended_events: Array[bool] = []
 var _hero_died_events: int = 0
+var _tracker: SignalTracker
 
 func before() -> void:
 	# Clear signal tracking
@@ -34,6 +36,7 @@ func before() -> void:
 	_unit_turn_ended_events.clear()
 	_battle_ended_events.clear()
 	_hero_died_events = 0
+	_tracker = SignalTrackerScript.new()
 
 	# Create units container
 	_units_container = Node2D.new()
@@ -43,29 +46,20 @@ func before() -> void:
 	_grid_setup = GridSetupScript.new()
 	_grid_setup.create_grid(_units_container)
 
-	# Connect signals
-	TurnManager.turn_cycle_started.connect(_on_turn_cycle_started)
-	TurnManager.player_turn_started.connect(_on_player_turn_started)
-	TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
-	TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
-	TurnManager.battle_ended.connect(_on_battle_ended)
-	TurnManager.hero_died_in_battle.connect(_on_hero_died)
+	# Connect signals via tracker
+	_tracker.track_with_callback(TurnManager.turn_cycle_started, _on_turn_cycle_started)
+	_tracker.track_with_callback(TurnManager.player_turn_started, _on_player_turn_started)
+	_tracker.track_with_callback(TurnManager.enemy_turn_started, _on_enemy_turn_started)
+	_tracker.track_with_callback(TurnManager.unit_turn_ended, _on_unit_turn_ended)
+	_tracker.track_with_callback(TurnManager.battle_ended, _on_battle_ended)
+	_tracker.track_with_callback(TurnManager.hero_died_in_battle, _on_hero_died)
 
 
 func after() -> void:
-	# Disconnect signals
-	if TurnManager.turn_cycle_started.is_connected(_on_turn_cycle_started):
-		TurnManager.turn_cycle_started.disconnect(_on_turn_cycle_started)
-	if TurnManager.player_turn_started.is_connected(_on_player_turn_started):
-		TurnManager.player_turn_started.disconnect(_on_player_turn_started)
-	if TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
-		TurnManager.enemy_turn_started.disconnect(_on_enemy_turn_started)
-	if TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
-		TurnManager.unit_turn_ended.disconnect(_on_unit_turn_ended)
-	if TurnManager.battle_ended.is_connected(_on_battle_ended):
-		TurnManager.battle_ended.disconnect(_on_battle_ended)
-	if TurnManager.hero_died_in_battle.is_connected(_on_hero_died):
-		TurnManager.hero_died_in_battle.disconnect(_on_hero_died)
+	# Disconnect all tracked signals FIRST
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 	# Clear TurnManager state
 	TurnManager.clear_battle()

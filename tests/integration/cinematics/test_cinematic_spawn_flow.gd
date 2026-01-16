@@ -9,6 +9,7 @@ class_name TestCinematicSpawnFlow
 extends GdUnitTestSuite
 
 const CinematicData = preload("res://core/resources/cinematic_data.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 
 # Scene container (GdUnitTestSuite extends Node, we need Node2D for some operations)
 var _container: Node2D
@@ -18,10 +19,12 @@ var _grid_resource: Grid
 
 # Signal tracking
 var _events_recorded: Array[String] = []
+var _tracker: SignalTracker
 
 
 func before() -> void:
 	_events_recorded.clear()
+	_tracker = SignalTrackerScript.new()
 
 	# Create container for scene tree operations
 	_container = Node2D.new()
@@ -39,23 +42,20 @@ func before() -> void:
 	_grid_resource.cell_size = 32
 	GridManager.setup_grid(_grid_resource, _tilemap_layer)
 
-	# Connect signals
-	CinematicsManager.cinematic_started.connect(_on_cinematic_started)
-	CinematicsManager.cinematic_ended.connect(_on_cinematic_ended)
-	CinematicsManager.command_executed.connect(_on_command_executed)
+	# Connect signals via tracker
+	_tracker.track_with_callback(CinematicsManager.cinematic_started, _on_cinematic_started)
+	_tracker.track_with_callback(CinematicsManager.cinematic_ended, _on_cinematic_ended)
+	_tracker.track_with_callback(CinematicsManager.command_executed, _on_command_executed)
 
 	# Wait for autoloads to stabilize
 	await await_idle_frame()
 
 
 func after() -> void:
-	# Disconnect signals
-	if CinematicsManager.cinematic_started.is_connected(_on_cinematic_started):
-		CinematicsManager.cinematic_started.disconnect(_on_cinematic_started)
-	if CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
-		CinematicsManager.cinematic_ended.disconnect(_on_cinematic_ended)
-	if CinematicsManager.command_executed.is_connected(_on_command_executed):
-		CinematicsManager.command_executed.disconnect(_on_command_executed)
+	# Disconnect all tracked signals FIRST
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 	# Ensure cinematic state is clean
 	if CinematicsManager.is_cinematic_active():

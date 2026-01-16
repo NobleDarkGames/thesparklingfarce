@@ -120,10 +120,8 @@ func test_battle_flow_start_to_victory() -> void:
 	TurnManager.start_battle(all_units)
 
 	# Wait for battle to complete (with timeout)
-	var wait_start: float = Time.get_ticks_msec()
-	var max_wait_ms: float = 10000  # 10 second timeout
-	while not _battle_complete and (Time.get_ticks_msec() - wait_start) < max_wait_ms:
-		await get_tree().process_frame
+	if not _battle_complete:
+		await await_signal_on(TurnManager, "battle_ended", [], 10000)
 
 	# Verify expected events occurred
 	assert_bool("battle_started" in _events_recorded).is_true()

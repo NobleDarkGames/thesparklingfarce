@@ -24,7 +24,7 @@ func before_test() -> void:
 	_editor = CharacterEditorClass.new()
 	add_child(_editor)
 	# Wait for UI to initialize
-	await get_tree().process_frame
+	await await_idle_frame()
 
 
 func after_test() -> void:

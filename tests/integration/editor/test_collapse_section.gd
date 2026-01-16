@@ -21,7 +21,7 @@ func before_test() -> void:
 	# Add to scene tree to trigger _ready
 	add_child(_section)
 	# Wait for _ready to complete
-	await get_tree().process_frame
+	await await_idle_frame()
 	_tracker = SignalTrackerScript.new()
 
 
@@ -325,7 +325,7 @@ func test_start_collapsed_true_creates_collapsed_section() -> void:
 	collapsed_section.start_collapsed = true
 
 	add_child(collapsed_section)
-	await get_tree().process_frame
+	await await_idle_frame()
 
 	assert_bool(collapsed_section.is_collapsed()).is_true()
 
@@ -338,7 +338,7 @@ func test_start_collapsed_false_creates_expanded_section() -> void:
 	expanded_section.start_collapsed = false
 
 	add_child(expanded_section)
-	await get_tree().process_frame
+	await await_idle_frame()
 
 	assert_bool(expanded_section.is_collapsed()).is_false()
 

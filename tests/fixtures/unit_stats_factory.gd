@@ -22,7 +22,7 @@ const UnitFactoryScript = preload("res://tests/fixtures/unit_factory.gd")
 
 ## Create a balanced unit (moderate stats across the board)
 ## HP: 50, MP: 20, STR: 15, DEF: 15, AGI: 15, INT: 15, LUK: 10
-static func create_default(
+static func create_balanced(
 	parent: Node,
 	cell: Vector2i,
 	faction: String = "player",
@@ -38,6 +38,16 @@ static func create_default(
 		"luck": 10
 	})
 	return UnitFactoryScript.spawn_unit(character, cell, faction, parent)
+
+
+## Alias for create_balanced() for backward compatibility
+static func create_default(
+	parent: Node,
+	cell: Vector2i,
+	faction: String = "player",
+	unit_name: String = "Balanced"
+) -> Unit:
+	return create_balanced(parent, cell, faction, unit_name)
 
 
 ## Create a tank unit (high HP and defense, low speed)
@@ -146,19 +156,42 @@ static func create_healer(
 static func create_wounded(
 	parent: Node,
 	cell: Vector2i,
-	hp_percent: float = 0.25,
 	faction: String = "player",
-	unit_name: String = "Wounded"
+	unit_name: String = "Wounded",
+	hp_percent: float = 0.25
 ) -> Unit:
-	var unit: Unit = create_default(parent, cell, faction, unit_name)
+	var unit: Unit = create_balanced(parent, cell, faction, unit_name)
 	var max_hp: int = unit.stats.max_hp
 	unit.stats.current_hp = maxi(1, int(max_hp * hp_percent))
 	return unit
 
 
 ## Create a unit with specific stats (full control)
-## overrides: Dictionary with any combination of stat keys
+## stats: Dictionary with any combination of stat keys
 ## Valid keys: hp, mp, strength, defense, agility, intelligence, luck, level
+static func create_with_stats(
+	parent: Node,
+	cell: Vector2i,
+	stats: Dictionary,
+	faction: String = "player",
+	unit_name: String = "Custom"
+) -> Unit:
+	# Start with balanced defaults, then apply overrides
+	var merged_stats: Dictionary = {
+		"hp": stats.get("hp", 50),
+		"mp": stats.get("mp", 20),
+		"strength": stats.get("strength", 15),
+		"defense": stats.get("defense", 15),
+		"agility": stats.get("agility", 15),
+		"intelligence": stats.get("intelligence", 15),
+		"luck": stats.get("luck", 10),
+		"level": stats.get("level", 1)
+	}
+	var character: CharacterData = CharacterFactoryScript.create_character(unit_name, merged_stats)
+	return UnitFactoryScript.spawn_unit(character, cell, faction, parent)
+
+
+## Alias for create_with_stats() for backward compatibility
 static func create_custom(
 	parent: Node,
 	cell: Vector2i,
@@ -166,19 +199,7 @@ static func create_custom(
 	faction: String = "player",
 	unit_name: String = "Custom"
 ) -> Unit:
-	# Start with balanced defaults, then apply overrides
-	var stats: Dictionary = {
-		"hp": overrides.get("hp", 50),
-		"mp": overrides.get("mp", 20),
-		"strength": overrides.get("strength", 15),
-		"defense": overrides.get("defense", 15),
-		"agility": overrides.get("agility", 15),
-		"intelligence": overrides.get("intelligence", 15),
-		"luck": overrides.get("luck", 10),
-		"level": overrides.get("level", 1)
-	}
-	var character: CharacterData = CharacterFactoryScript.create_character(unit_name, stats)
-	return UnitFactoryScript.spawn_unit(character, cell, faction, parent)
+	return create_with_stats(parent, cell, overrides, faction, unit_name)
 
 
 ## Create a pair of combatants for damage calculation tests
@@ -190,10 +211,10 @@ static func create_combat_pair(
 	attacker_cell: Vector2i = Vector2i(5, 5),
 	defender_cell: Vector2i = Vector2i(6, 5)
 ) -> Dictionary:
-	var attacker: Unit = create_custom(
+	var attacker: Unit = create_with_stats(
 		parent, attacker_cell, attacker_stats, "enemy", "Attacker"
 	)
-	var defender: Unit = create_custom(
+	var defender: Unit = create_with_stats(
 		parent, defender_cell, defender_stats, "player", "Defender"
 	)
 	return {"attacker": attacker, "defender": defender}
@@ -208,6 +229,6 @@ static func create_opposing_units(
 	player_name: String = "Player",
 	enemy_name: String = "Enemy"
 ) -> Dictionary:
-	var player_unit: Unit = create_default(parent, player_cell, "player", player_name)
-	var enemy_unit: Unit = create_default(parent, enemy_cell, "enemy", enemy_name)
+	var player_unit: Unit = create_balanced(parent, player_cell, "player", player_name)
+	var enemy_unit: Unit = create_balanced(parent, enemy_cell, "enemy", enemy_name)
 	return {"player_unit": player_unit, "enemy_unit": enemy_unit}

@@ -176,10 +176,10 @@ func _execute_ai_turn() -> void:
 	var brain: AIBrain = ConfigurableAIBrainScript.get_instance()
 	await brain.execute_with_behavior(_ai_unit, context, _ai_unit.ai_behavior)
 
-	# Wait for movement to complete (with timeout)
-	var wait_start: float = Time.get_ticks_msec()
-	while _ai_unit.is_moving() and (Time.get_ticks_msec() - wait_start) < 3000:
-		await get_tree().process_frame
+	# Wait for movement to complete with bounded delay
+	await await_millis(100)
+	if _ai_unit.is_moving():
+		await await_millis(500)
 
 
 func _cleanup_units() -> void:

@@ -12,6 +12,7 @@ extends GdUnitTestSuite
 
 const UnitScript = preload("res://core/components/unit.gd")
 const AIBehaviorFactoryScript = preload("res://tests/fixtures/ai_behavior_factory.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 
 # Units (recreated for each scenario)
 var _guard_unit: Unit
@@ -20,6 +21,7 @@ var _player_unit: Unit
 # Tracking
 var _guard_start_pos: Vector2i
 var _combat_occurred: bool = false
+var _tracker: SignalTracker
 
 # Scene container for units (BattleManager needs Node2D)
 var _units_container: Node2D
@@ -34,6 +36,7 @@ var _created_behaviors: Array[AIBehaviorData] = []
 
 func before_test() -> void:
 	_combat_occurred = false
+	_tracker = SignalTrackerScript.new()
 
 	# Create units container (BattleManager needs Node2D)
 	_units_container = Node2D.new()
@@ -43,13 +46,14 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# Disconnect all tracked signals FIRST
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
+
 	_cleanup_units()
 	_cleanup_tilemap()
 	_cleanup_resources()
-
-	# Disconnect combat signal if connected
-	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
-		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
 
 	# Clear autoload state to prevent stale references between tests
 	TurnManager.clear_battle()
@@ -172,9 +176,8 @@ func _setup_battle_manager() -> void:
 	BattleManager.enemy_units = [_guard_unit]
 	BattleManager.all_units = [_guard_unit, _player_unit]
 
-	# Connect combat signal
-	if not BattleManager.combat_resolved.is_connected(_on_combat_resolved):
-		BattleManager.combat_resolved.connect(_on_combat_resolved)
+	# Connect combat signal via tracker
+	_tracker.track_with_callback(BattleManager.combat_resolved, _on_combat_resolved)
 
 
 func _execute_guard_turn() -> void:
@@ -191,13 +194,10 @@ func _execute_guard_turn() -> void:
 	var brain: AIBrain = ConfigurableAIBrainScript.get_instance()
 	await brain.execute_with_behavior(_guard_unit, context, _guard_unit.ai_behavior)
 
-	# Wait for any movement to complete (with timeout)
-	var wait_start: float = Time.get_ticks_msec()
-	while _guard_unit.is_moving() and (Time.get_ticks_msec() - wait_start) < 3000:
-		await get_tree().process_frame
-
-	# Wait for AI processing to complete
+	# Wait for movement to complete with bounded delay
 	await await_millis(100)
+	if _guard_unit.is_moving():
+		await await_millis(500)
 
 
 func _on_combat_resolved(attacker: Unit, _defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
