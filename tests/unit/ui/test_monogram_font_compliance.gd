@@ -131,28 +131,3 @@ func _extract_font_size(line: String) -> int:
 	return 0
 
 
-# Individual tests for each allowed size to document the standard
-func test_size_16_is_allowed() -> void:
-	assert_bool(16 in ALLOWED_SIZES).is_true()
-
-
-func test_size_24_is_allowed() -> void:
-	assert_bool(24 in ALLOWED_SIZES).is_true()
-
-
-func test_size_32_is_allowed() -> void:
-	assert_bool(32 in ALLOWED_SIZES).is_true()
-
-
-func test_size_48_is_allowed() -> void:
-	assert_bool(48 in ALLOWED_SIZES).is_true()
-
-
-func test_size_64_is_allowed() -> void:
-	assert_bool(64 in ALLOWED_SIZES).is_true()
-
-
-func test_non_multiple_of_8_is_not_allowed() -> void:
-	assert_bool(14 in ALLOWED_SIZES).is_false()
-	assert_bool(18 in ALLOWED_SIZES).is_false()
-	assert_bool(20 in ALLOWED_SIZES).is_false()

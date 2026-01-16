@@ -1,8 +1,7 @@
-## Unit Tests for CollapseSection Component
+## Integration Tests for CollapseSection Component
 ##
-## Tests the collapsible section UI component added in Phase 4.
-## Uses SceneRunner pattern for UI testing.
-class_name TestCollapseSection
+## Tests the collapsible section UI component.
+## Uses scene tree operations, so this is an integration test.
 extends GdUnitTestSuite
 
 
@@ -11,8 +10,10 @@ extends GdUnitTestSuite
 # =============================================================================
 
 const CollapseSectionScript = preload("res://addons/sparkling_editor/ui/components/collapse_section.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
 
 var _section: CollapseSection
+var _tracker: RefCounted
 
 
 func before_test() -> void:
@@ -21,12 +22,16 @@ func before_test() -> void:
 	add_child(_section)
 	# Wait for _ready to complete
 	await get_tree().process_frame
+	_tracker = SignalTrackerScript.new()
 
 
 func after_test() -> void:
-	if _section:
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
+	if _section and is_instance_valid(_section):
 		_section.queue_free()
-		_section = null
+	_section = null
 
 
 # =============================================================================
@@ -209,72 +214,60 @@ func test_get_content_container_returns_vbox() -> void:
 # SIGNAL TESTS
 # =============================================================================
 
-var _toggled_signal_received: bool = false
-var _toggled_signal_value: bool = false
-
-
-func _on_toggled(is_collapsed: bool) -> void:
-	_toggled_signal_received = true
-	_toggled_signal_value = is_collapsed
-
-
 func test_toggle_emits_signal() -> void:
-	_toggled_signal_received = false
-	_section.toggled.connect(_on_toggled)
+	_tracker.track(_section.toggled)
 
 	_section.toggle()
 
-	assert_bool(_toggled_signal_received).is_true()
+	assert_bool(_tracker.was_emitted("toggled")).is_true()
 
 
 func test_toggled_signal_has_correct_value_when_collapsing() -> void:
 	# Start expanded
 	_section.expand()
-	_toggled_signal_received = false
-	_toggled_signal_value = false
-	_section.toggled.connect(_on_toggled)
+	_tracker.clear_emissions()
+	_tracker.track(_section.toggled)
 
 	# Toggle to collapse
 	_section.toggle()
 
-	assert_bool(_toggled_signal_received).is_true()
-	assert_bool(_toggled_signal_value).is_true()  # is_collapsed = true
+	assert_bool(_tracker.was_emitted("toggled")).is_true()
+	assert_bool(_tracker.was_emitted_with("toggled", [true])).is_true()  # is_collapsed = true
 
 
 func test_toggled_signal_has_correct_value_when_expanding() -> void:
 	# Start collapsed
 	_section.collapse()
-	_toggled_signal_received = false
-	_toggled_signal_value = true
-	_section.toggled.connect(_on_toggled)
+	_tracker.clear_emissions()
+	_tracker.track(_section.toggled)
 
 	# Toggle to expand
 	_section.toggle()
 
-	assert_bool(_toggled_signal_received).is_true()
-	assert_bool(_toggled_signal_value).is_false()  # is_collapsed = false
+	assert_bool(_tracker.was_emitted("toggled")).is_true()
+	assert_bool(_tracker.was_emitted_with("toggled", [false])).is_true()  # is_collapsed = false
 
 
 func test_expand_emits_signal_when_state_changes() -> void:
 	# Start collapsed
 	_section.collapse()
-	_toggled_signal_received = false
-	_section.toggled.connect(_on_toggled)
+	_tracker.clear_emissions()
+	_tracker.track(_section.toggled)
 
 	_section.expand()
 
-	assert_bool(_toggled_signal_received).is_true()
+	assert_bool(_tracker.was_emitted("toggled")).is_true()
 
 
 func test_collapse_emits_signal_when_state_changes() -> void:
 	# Start expanded
 	_section.expand()
-	_toggled_signal_received = false
-	_section.toggled.connect(_on_toggled)
+	_tracker.clear_emissions()
+	_tracker.track(_section.toggled)
 
 	_section.collapse()
 
-	assert_bool(_toggled_signal_received).is_true()
+	assert_bool(_tracker.was_emitted("toggled")).is_true()
 
 
 # =============================================================================

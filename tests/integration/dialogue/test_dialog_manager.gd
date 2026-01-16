@@ -6,12 +6,15 @@ class_name TestDialogManager
 extends GdUnitTestSuite
 
 
+const SignalTrackerScript: GDScript = preload("res://tests/fixtures/signal_tracker.gd")
+
+
 # =============================================================================
 # TEST FIXTURES
 # =============================================================================
 
-# Signal connection tracking for cleanup
-var _connected_signals: Array[Dictionary] = []
+# Signal tracker for cleanup
+var _tracker: RefCounted  # SignalTracker type
 
 
 ## Create a valid DialogueData for testing
@@ -40,27 +43,24 @@ func _create_dialogue_with_choices(id: String = "choice_dialogue") -> DialogueDa
 
 ## Reset DialogManager state before each test
 func before_test() -> void:
+	_tracker = SignalTrackerScript.new()
+
 	# Reset the singleton to idle state
 	_reset_dialog_manager_state()
 
 
 ## Ensure DialogManager is reset after each test (even on failure)
 func after_test() -> void:
-	# Disconnect any signals that were connected during the test
-	for connection: Dictionary in _connected_signals:
-		var sig: Signal = connection.signal_ref
-		var callable: Callable = connection.callable
-		if sig.is_connected(callable):
-			sig.disconnect(callable)
-	_connected_signals.clear()
+	# Disconnect all tracked signals
+	_tracker.disconnect_all()
+	_tracker = null
 
 	_reset_dialog_manager_state()
 
 
 ## Helper to connect a signal and track it for cleanup
 func _connect_signal(sig: Signal, callable: Callable) -> void:
-	sig.connect(callable)
-	_connected_signals.append({"signal_ref": sig, "callable": callable})
+	_tracker.track_with_callback(sig, callable)
 
 
 ## Helper to reset DialogManager to a clean state

@@ -9,15 +9,14 @@
 class_name TestTurnManager
 extends GdUnitTestSuite
 
+const GridSetupScript = preload("res://tests/fixtures/grid_setup.gd")
 
 # Test data
 var _player_unit: Unit
 var _enemy_unit: Unit
 var _hero_unit: Unit
 var _units_container: Node2D
-var _tilemap_layer: TileMapLayer
-var _tileset: TileSet
-var _grid_resource: Grid
+var _grid_setup: GridSetup
 
 # Signal tracking
 var _turn_cycle_events: Array[int] = []
@@ -40,17 +39,9 @@ func before() -> void:
 	_units_container = Node2D.new()
 	add_child(_units_container)
 
-	# Create minimal TileMapLayer for GridManager
-	_tilemap_layer = TileMapLayer.new()
-	_tileset = TileSet.new()
-	_tilemap_layer.tile_set = _tileset
-	_units_container.add_child(_tilemap_layer)
-
-	# Setup grid
-	_grid_resource = Grid.new()
-	_grid_resource.grid_size = Vector2i(20, 15)
-	_grid_resource.cell_size = 32
-	GridManager.setup_grid(_grid_resource, _tilemap_layer)
+	# Setup grid using fixture
+	_grid_setup = GridSetupScript.new()
+	_grid_setup.create_grid(_units_container)
 
 	# Connect signals
 	TurnManager.turn_cycle_started.connect(_on_turn_cycle_started)
@@ -82,12 +73,9 @@ func after() -> void:
 	# Clean up units
 	_cleanup_units()
 
-	# Clean up tilemap
-	if _tilemap_layer and is_instance_valid(_tilemap_layer):
-		_tilemap_layer.queue_free()
-		_tilemap_layer = null
-	_tileset = null
-	_grid_resource = null
+	# Clean up grid
+	_grid_setup.cleanup()
+	_grid_setup = null
 
 	# Clean up container
 	if _units_container and is_instance_valid(_units_container):

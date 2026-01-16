@@ -52,6 +52,16 @@ func track(sig: Signal) -> void:
 	})
 
 
+## Track a signal with a custom callback (for tests that need to inspect args)
+## The callback is connected AND tracked for automatic disconnection
+func track_with_callback(sig: Signal, callback: Callable) -> void:
+	sig.connect(callback)
+	_connections.append({
+		"signal": sig,
+		"callable": callback
+	})
+
+
 ## Record an emission internally
 func _record_emission(signal_name: String, arguments: Array) -> void:
 	_emissions.append(EmissionRecord.new(signal_name, arguments))

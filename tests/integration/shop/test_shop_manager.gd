@@ -7,6 +7,9 @@ class_name TestShopManager
 extends GdUnitTestSuite
 
 
+const SignalTrackerScript: GDScript = preload("res://tests/fixtures/signal_tracker.gd")
+
+
 # =============================================================================
 # TEST FIXTURES
 # =============================================================================
@@ -15,8 +18,8 @@ var _shop_data: ShopData
 var _save_data: SaveData
 var _test_character_uid: String = "test_character"
 
-# Signal connection tracking for cleanup
-var _connected_signals: Array[Dictionary] = []
+# Signal tracker for cleanup
+var _tracker: RefCounted  # SignalTracker type
 
 
 ## Helper to create and register a test character with PartyManager
@@ -35,6 +38,8 @@ func _setup_test_character(needs_healing: bool = true) -> void:
 
 
 func before_test() -> void:
+	_tracker = SignalTrackerScript.new()
+
 	# Clear any existing depot state
 	if StorageManager:
 		StorageManager.clear_depot()
@@ -64,13 +69,9 @@ func before_test() -> void:
 
 
 func after_test() -> void:
-	# Disconnect any signals that were connected during the test
-	for connection: Dictionary in _connected_signals:
-		var sig: Signal = connection.signal_ref
-		var callable: Callable = connection.callable
-		if sig.is_connected(callable):
-			sig.disconnect(callable)
-	_connected_signals.clear()
+	# Disconnect all tracked signals
+	_tracker.disconnect_all()
+	_tracker = null
 
 	if ShopManager:
 		ShopManager.close_shop()
@@ -82,8 +83,7 @@ func after_test() -> void:
 
 ## Helper to connect a signal and track it for cleanup
 func _connect_signal(sig: Signal, callable: Callable) -> void:
-	sig.connect(callable)
-	_connected_signals.append({"signal_ref": sig, "callable": callable})
+	_tracker.track_with_callback(sig, callable)
 
 
 # =============================================================================

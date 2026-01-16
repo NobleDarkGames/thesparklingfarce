@@ -271,7 +271,7 @@ func test_multiple_debounced_calls_result_in_single_emission() -> void:
 	assert_bool(_event_bus._mods_reloaded_pending).is_true()
 
 	# Wait for debounce timer to fire
-	await get_tree().create_timer(0.15).timeout
+	await await_millis(150)
 
 	# Should have only emitted once
 	assert_int(_mods_reloaded_count).is_equal(1)

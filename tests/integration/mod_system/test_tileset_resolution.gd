@@ -1,8 +1,7 @@
-## Unit Tests for TileSet Resolution in ModLoader
+## Integration Tests for TileSet Resolution in ModLoader
 ##
 ## Tests the tileset registry API added in Phase 2.5.1.
 ## Verifies tileset lookup by name and mod priority override.
-class_name TestTilesetResolution
 extends GdUnitTestSuite
 
 
@@ -10,8 +9,30 @@ extends GdUnitTestSuite
 # TEST FIXTURES
 # =============================================================================
 
-# Since ModLoader is an autoload that loads on startup, we test against
-# its current state. These tests verify the API works correctly.
+const TEST_MOD_ID: String = "_tileset_test"
+var _test_tileset: TileSet
+
+
+func before() -> void:
+	# Register a test tileset so we have data to test against
+	_test_tileset = TileSet.new()
+	var config: Dictionary = {
+		"test_tileset": {
+			"path": "defaults/tilesets/default_tileset.tres",
+			"display_name": "Test TileSet",
+			"description": "A test tileset for unit testing"
+		}
+	}
+	# Access tileset registry through ModLoader (use res://core/ as base)
+	if ModLoader and ModLoader.tileset_registry:
+		ModLoader.tileset_registry.register_from_config(TEST_MOD_ID, config, "res://core/")
+
+
+func after() -> void:
+	# Unregister test tileset
+	if ModLoader and ModLoader.tileset_registry:
+		ModLoader.tileset_registry.unregister_mod(TEST_MOD_ID)
+	_test_tileset = null
 
 
 # =============================================================================
@@ -61,11 +82,11 @@ func test_get_tileset_names_returns_array() -> void:
 # =============================================================================
 
 func test_has_tileset_is_case_insensitive() -> void:
-	# First, check if any tilesets are registered
+	# Require at least one tileset to be registered
 	var names: Array[String] = ModLoader.get_tileset_names()
-	if names.is_empty():
-		# Skip this test if no tilesets registered (still valid)
-		return
+	assert_array(names).override_failure_message(
+		"Test requires at least one tileset registered"
+	).is_not_empty()
 
 	var first_name: String = names[0]
 
@@ -83,8 +104,9 @@ func test_has_tileset_is_case_insensitive() -> void:
 
 func test_get_tileset_is_case_insensitive() -> void:
 	var names: Array[String] = ModLoader.get_tileset_names()
-	if names.is_empty():
-		return
+	assert_array(names).override_failure_message(
+		"Test requires at least one tileset registered"
+	).is_not_empty()
 
 	var first_name: String = names[0]
 
@@ -103,8 +125,9 @@ func test_get_tileset_is_case_insensitive() -> void:
 
 func test_get_tileset_source_returns_mod_id() -> void:
 	var names: Array[String] = ModLoader.get_tileset_names()
-	if names.is_empty():
-		return
+	assert_array(names).override_failure_message(
+		"Test requires at least one tileset registered"
+	).is_not_empty()
 
 	var first_name: String = names[0]
 	var source: String = ModLoader.get_tileset_source(first_name)
@@ -119,8 +142,9 @@ func test_get_tileset_source_returns_mod_id() -> void:
 
 func test_get_tileset_returns_tileset_resource() -> void:
 	var names: Array[String] = ModLoader.get_tileset_names()
-	if names.is_empty():
-		return
+	assert_array(names).override_failure_message(
+		"Test requires at least one tileset registered"
+	).is_not_empty()
 
 	var first_name: String = names[0]
 	var tileset: TileSet = ModLoader.get_tileset(first_name)
@@ -132,8 +156,9 @@ func test_get_tileset_returns_tileset_resource() -> void:
 
 func test_get_tileset_path_returns_valid_path() -> void:
 	var names: Array[String] = ModLoader.get_tileset_names()
-	if names.is_empty():
-		return
+	assert_array(names).override_failure_message(
+		"Test requires at least one tileset registered"
+	).is_not_empty()
 
 	var first_name: String = names[0]
 	var path: String = ModLoader.get_tileset_path(first_name)
@@ -153,8 +178,9 @@ func test_tileset_is_lazy_loaded() -> void:
 	# This test verifies that get_tileset_path works without loading the resource
 	# We can't easily test lazy loading internals, but we can verify the API
 	var names: Array[String] = ModLoader.get_tileset_names()
-	if names.is_empty():
-		return
+	assert_array(names).override_failure_message(
+		"Test requires at least one tileset registered"
+	).is_not_empty()
 
 	var first_name: String = names[0]
 

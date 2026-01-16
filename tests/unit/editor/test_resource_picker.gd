@@ -11,8 +11,11 @@ extends GdUnitTestSuite
 # TEST FIXTURES
 # =============================================================================
 
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
+
 var _picker: Control
 var ResourcePickerClass: GDScript
+var _tracker: RefCounted
 
 
 func before_test() -> void:
@@ -20,9 +23,13 @@ func before_test() -> void:
 	ResourcePickerClass = load("res://addons/sparkling_editor/ui/components/resource_picker.gd")
 	_picker = ResourcePickerClass.new()
 	add_child(_picker)
+	_tracker = SignalTrackerScript.new()
 
 
 func after_test() -> void:
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 	if _picker and is_instance_valid(_picker):
 		_picker.queue_free()
 	_picker = null
@@ -153,17 +160,8 @@ func test_picker_refreshed_signal_exists() -> void:
 # RESOURCE_SELECTED SIGNAL TESTS
 # =============================================================================
 
-var _selected_metadata: Dictionary = {}
-
-
-func _on_resource_selected(metadata: Dictionary) -> void:
-	_selected_metadata = metadata.duplicate()
-
-
 func test_select_none_emits_empty_metadata() -> void:
-	_selected_metadata = {"dummy": "data"}
-
-	_picker.resource_selected.connect(_on_resource_selected)
+	_tracker.track(_picker.resource_selected)
 	_picker.select_none()
 
 	# Note: select_none() doesn't emit signal, just sets state
@@ -396,9 +394,7 @@ func test_select_none_clears_current_metadata() -> void:
 # =============================================================================
 
 func test_on_item_selected_emits_signal() -> void:
-	_selected_metadata = {}
-
-	_picker.resource_selected.connect(_on_resource_selected)
+	_tracker.track(_picker.resource_selected)
 
 	# Add a test item to the option button
 	_picker._option_button.add_item("Test Item")
@@ -407,14 +403,16 @@ func test_on_item_selected_emits_signal() -> void:
 	# Simulate selection
 	_picker._on_item_selected(0)
 
-	assert_bool("test_key" in _selected_metadata).is_true()
-	assert_str(_selected_metadata.get("test_key", "")).is_equal("test_value")
+	assert_bool(_tracker.was_emitted("resource_selected")).is_true()
+	var emissions: Array = _tracker.get_emissions("resource_selected")
+	assert_int(emissions.size()).is_equal(1)
+	var emitted_metadata: Dictionary = emissions[0].arguments[0]
+	assert_bool("test_key" in emitted_metadata).is_true()
+	assert_str(emitted_metadata.get("test_key", "")).is_equal("test_value")
 
 
 func test_on_item_selected_with_empty_metadata_emits_empty_dict() -> void:
-	_selected_metadata = {"initial": "value"}
-
-	_picker.resource_selected.connect(_on_resource_selected)
+	_tracker.track(_picker.resource_selected)
 
 	# Add a test item with empty metadata (like "(None)" option)
 	_picker._option_button.add_item("(None)")
@@ -423,7 +421,10 @@ func test_on_item_selected_with_empty_metadata_emits_empty_dict() -> void:
 	# Simulate selection
 	_picker._on_item_selected(0)
 
-	assert_bool(_selected_metadata.is_empty()).is_true()
+	assert_bool(_tracker.was_emitted("resource_selected")).is_true()
+	var emissions: Array = _tracker.get_emissions("resource_selected")
+	var emitted_metadata: Dictionary = emissions[0].arguments[0]
+	assert_bool(emitted_metadata.is_empty()).is_true()
 
 
 func test_on_item_selected_updates_current_metadata() -> void:
