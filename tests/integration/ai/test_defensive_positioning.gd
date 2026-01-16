@@ -107,7 +107,7 @@ func test_tank_positions_between_vip_and_threat() -> void:
 	# Run the AI turn
 	await _execute_tank_turn()
 
-	# Wait for AI decision processing (100ms is sufficient for turn evaluation)
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 	# Validate results

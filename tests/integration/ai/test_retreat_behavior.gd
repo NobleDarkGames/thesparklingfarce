@@ -103,7 +103,7 @@ func test_wounded_unit_retreats_from_threat() -> void:
 	# Run the AI turn
 	await _execute_retreater_turn()
 
-	# Wait for processing
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 	# Validate results

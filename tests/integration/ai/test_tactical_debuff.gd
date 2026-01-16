@@ -97,7 +97,7 @@ func test_tactical_mage_casts_debuff_instead_of_attacking() -> void:
 	# Run the AI turn
 	await _execute_mage_turn()
 
-	# Wait for processing
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 	# Check if MP was spent (indicating spell was cast)
@@ -155,7 +155,6 @@ func _create_tactical_mage(p_name: String) -> CharacterData:
 
 	# Track for cleanup
 	_created_characters.append(character)
-	_created_classes.append(mage_class)
 	_created_abilities.append(debuff_ability)
 
 	return character

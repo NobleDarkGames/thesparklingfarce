@@ -9,7 +9,7 @@ extends RefCounted
 
 
 ## Create a CharacterData with the specified name and stats
-## Options dictionary keys: hp, mp, strength, defense, agility, intelligence, luck, level, is_hero
+## Options dictionary keys: hp, mp, strength, defense, agility, intelligence, luck, level, is_hero, ensure_uid
 static func create_character(
 	p_name: String,
 	options: Dictionary = {}
@@ -31,6 +31,10 @@ static func create_character(
 	if class_data == null:
 		class_data = _create_default_class()
 	character.character_class = class_data
+
+	# Generate UID if requested (needed for PartyManager tests)
+	if options.get("ensure_uid", false):
+		character.ensure_uid()
 
 	return character
 

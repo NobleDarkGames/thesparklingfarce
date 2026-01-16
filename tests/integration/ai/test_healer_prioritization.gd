@@ -114,7 +114,7 @@ func test_healer_prioritizes_healing_over_attacking() -> void:
 	# Run the AI turn
 	await _execute_healer_turn()
 
-	# Wait for processing
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 	# Check if ally was healed

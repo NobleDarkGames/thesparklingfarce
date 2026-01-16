@@ -11,6 +11,7 @@ class_name TestPartyManager
 extends GdUnitTestSuite
 
 
+const CharacterFactoryScript = preload("res://tests/fixtures/character_factory.gd")
 const TEST_MOD_ID: String = "_test_party_manager"
 
 # Signal tracking
@@ -22,7 +23,6 @@ var _inventory_changed_events: Array[String] = []
 
 # Resources to clean up
 var _created_characters: Array[CharacterData] = []
-var _created_classes: Array[ClassData] = []
 var _created_items: Array[ItemData] = []
 
 # Store original state
@@ -73,7 +73,6 @@ func after() -> void:
 
 	# Clean up resources
 	_created_characters.clear()
-	_created_classes.clear()
 	_created_items.clear()
 
 
@@ -630,29 +629,11 @@ func _on_inventory_changed(character_uid: String) -> void:
 # =============================================================================
 
 func _create_character(p_name: String, is_hero: bool = false) -> CharacterData:
-	var character: CharacterData = CharacterData.new()
-	character.character_name = p_name
-	character.base_hp = 50
-	character.base_mp = 10
-	character.base_strength = 10
-	character.base_defense = 10
-	character.base_agility = 10
-	character.base_intelligence = 10
-	character.base_luck = 5
-	character.starting_level = 1
-	character.is_hero = is_hero
-	character.ensure_uid()
-
-	var basic_class: ClassData = ClassData.new()
-	basic_class.display_name = "Warrior"
-	basic_class.movement_type = ClassData.MovementType.WALKING
-	basic_class.movement_range = 4
-
-	character.character_class = basic_class
-
+	var character: CharacterData = CharacterFactoryScript.create_character(p_name, {
+		"is_hero": is_hero,
+		"ensure_uid": true
+	})
 	_created_characters.append(character)
-	_created_classes.append(basic_class)
-
 	return character
 
 

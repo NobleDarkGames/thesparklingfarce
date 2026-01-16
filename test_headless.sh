@@ -21,18 +21,20 @@ timeout 15 "$GODOT" --headless --check-only --path "$PROJECT_PATH" 2>&1 | grep -
 
 echo ""
 echo "========================================="
-echo "2. Running Unit Tests..."
+echo "2. Running GdUnit4 Tests..."
 echo "========================================="
-timeout 30 "$GODOT" --headless --path "$PROJECT_PATH" res://tests/test_runner_scene.tscn 2>&1 | tee /tmp/unit_test.log
+timeout 180 "$GODOT" --headless --path "$PROJECT_PATH" -s addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode --add "res://tests" 2>&1 | tee /tmp/gdunit_test.log
 
-# Check unit test results
-if grep -q "ALL TESTS PASSED!" /tmp/unit_test.log; then
-    echo "Unit tests PASSED"
+# Check GdUnit4 results - look for the overall summary line
+if grep -q "0 errors | 0 failures" /tmp/gdunit_test.log; then
+    echo "GdUnit4 tests PASSED"
+    # Extract statistics
+    GDUNIT_STATS=$(grep "Overall Summary:" /tmp/gdunit_test.log | sed 's/\x1b\[[0-9;]*m//g')
+    echo "$GDUNIT_STATS"
 else
-    echo "Unit tests FAILED"
-    # Extract summary
-    grep -E "^Passed:|^Failed:" /tmp/unit_test.log
-    grep "Failed Tests:" -A 100 /tmp/unit_test.log | head -20
+    echo "GdUnit4 tests FAILED"
+    # Show failures - strip ANSI codes for readability
+    grep -E "FAILED|ERROR" /tmp/gdunit_test.log | sed 's/\x1b\[[0-9;]*m//g' | head -30
     EXIT_CODE=1
 fi
 
@@ -262,11 +264,13 @@ echo "========================================="
 echo "TEST SUMMARY"
 echo "========================================="
 
-# Get unit test counts
-UNIT_PASSED=$(grep "^Passed:" /tmp/unit_test.log | awk '{print $2}')
-UNIT_FAILED=$(grep "^Failed:" /tmp/unit_test.log | awk '{print $2}')
-
-echo "Unit Tests: ${UNIT_PASSED:-0} passed, ${UNIT_FAILED:-0} failed"
+# Get GdUnit4 test counts - strip ANSI codes
+GDUNIT_SUMMARY=$(grep "Overall Summary:" /tmp/gdunit_test.log | sed 's/\x1b\[[0-9;]*m//g')
+if [ -n "$GDUNIT_SUMMARY" ]; then
+    echo "GdUnit4: $GDUNIT_SUMMARY"
+else
+    echo "GdUnit4: No results (check logs)"
+fi
 if [ "$INTEGRATION_PASS" = true ]; then
     echo "AI Integration Tests: PASSED"
 else

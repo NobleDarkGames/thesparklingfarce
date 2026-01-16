@@ -115,7 +115,7 @@ func test_attacker_prioritizes_wounded_over_closer_target() -> void:
 	# Run the AI turn
 	await _execute_attacker_turn()
 
-	# Wait for processing
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 	# Combat should occur

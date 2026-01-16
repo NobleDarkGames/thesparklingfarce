@@ -117,7 +117,7 @@ func test_aoe_mage_prefers_cluster_over_isolated() -> void:
 	# Run the AI turn
 	await _execute_mage_turn()
 
-	# Wait for AI decision processing (100ms is sufficient for turn evaluation)
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 	# Validate results

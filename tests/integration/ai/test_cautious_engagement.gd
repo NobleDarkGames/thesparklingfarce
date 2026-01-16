@@ -232,7 +232,7 @@ func _execute_cautious_turn() -> void:
 	while _cautious_unit.is_moving() and (Time.get_ticks_msec() - wait_start) < 3000:
 		await get_tree().process_frame
 
-	# Small delay for processing
+	# Wait for AI processing to complete
 	await await_millis(100)
 
 
