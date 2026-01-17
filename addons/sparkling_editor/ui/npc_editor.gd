@@ -44,6 +44,9 @@ var add_conditional_btn: Button
 var face_player_check: CheckBox
 var facing_override_option: OptionButton
 
+# Ambient Patrol section
+var ambient_cinematic_picker: ResourcePicker
+
 # Advanced options section (collapsible)
 var advanced_section: VBoxContainer
 var advanced_toggle_btn: Button
@@ -72,7 +75,8 @@ func _ready() -> void:
 	resource_type_name = "NPC"
 	resource_type_id = "npc"
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
-	resource_dependencies = ["cinematic"]  # For cinematic pickers
+	# Note: "cinematics" (plural) matches cinematic_editor.resource_dir_name
+	resource_dependencies = ["cinematics"]  # For cinematic pickers
 	super._ready()
 
 	# Initialize helper components
@@ -81,12 +85,14 @@ func _ready() -> void:
 
 ## Handle dependency changes - refresh cinematic pickers when cinematics change
 func _on_dependencies_changed(changed_type: String) -> void:
-	if changed_type == "cinematic":
+	if changed_type == "cinematics":
 		# Refresh main cinematic pickers
 		if interaction_cinematic_picker:
 			interaction_cinematic_picker.refresh()
 		if fallback_cinematic_picker:
 			fallback_cinematic_picker.refresh()
+		if ambient_cinematic_picker:
+			ambient_cinematic_picker.refresh()
 		# Refresh conditional cinematic pickers
 		for entry: Dictionary in conditional_entries:
 			var picker: ResourcePicker = entry.get("cinematic_picker") as ResourcePicker
@@ -171,6 +177,13 @@ func _load_resource_data() -> void:
 	face_player_check.button_pressed = npc.face_player_on_interact
 	_set_facing_dropdown(npc.facing_override)
 
+	# Load ambient patrol cinematic
+	if ambient_cinematic_picker:
+		if npc.ambient_cinematic_id.is_empty():
+			ambient_cinematic_picker.call_deferred("select_none")
+		else:
+			ambient_cinematic_picker.call_deferred("select_by_id", "", npc.ambient_cinematic_id)
+
 	_updating_ui = false
 
 	call_deferred("_update_preview")
@@ -199,6 +212,9 @@ func _save_resource_data() -> void:
 	npc.conditional_cinematics = _collect_conditional_cinematics()
 	npc.face_player_on_interact = face_player_check.button_pressed
 	npc.facing_override = _get_facing_from_dropdown()
+
+	# Save ambient patrol cinematic
+	npc.ambient_cinematic_id = ambient_cinematic_picker.get_selected_resource_id() if ambient_cinematic_picker else ""
 
 
 ## Override: Validate resource before saving
@@ -556,6 +572,21 @@ func _add_behavior_section_to(parent: Control) -> void:
 	facing_row.add_child(facing_override_option)
 
 	SparklingEditorUtils.create_help_label("Force NPC to always face a specific direction (overrides face player)", section)
+
+	# Ambient Patrol section
+	var patrol_section: VBoxContainer = SparklingEditorUtils.create_section("Ambient Patrol", parent)
+
+	var ambient_row: HBoxContainer = SparklingEditorUtils.create_field_row("Patrol Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, patrol_section)
+	ambient_cinematic_picker = ResourcePicker.new()
+	ambient_cinematic_picker.resource_type = "cinematic"
+	ambient_cinematic_picker.allow_none = true
+	ambient_cinematic_picker.none_text = "(None - stationary)"
+	ambient_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ambient_cinematic_picker.tooltip_text = "Cinematic that plays automatically on map load. Set loop=true in the cinematic for continuous patrol."
+	ambient_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("ambient"))
+	ambient_row.add_child(ambient_cinematic_picker)
+
+	SparklingEditorUtils.create_help_label("Auto-plays on map load. Use loop=true + move_entity/wait commands. Pauses during interaction.", patrol_section)
 
 
 # =============================================================================

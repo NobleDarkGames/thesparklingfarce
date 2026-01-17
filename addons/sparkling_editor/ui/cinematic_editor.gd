@@ -9,6 +9,7 @@ extends JsonEditorBase
 ## - Character picker for dialog commands
 
 const DialogLinePopupScript = preload("res://addons/sparkling_editor/ui/components/dialog_line_popup.gd")
+const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
 
 # Widget context for the new widget system
 var _widget_context: EditorWidgetContext
@@ -32,6 +33,7 @@ var inspector_scroll: ScrollContainer
 var inspector_panel: VBoxContainer
 var inspector_fields: Dictionary = {}  # param_name -> Control
 var target_field: OptionButton  # For commands with target (actor_id)
+var target_custom_edit: LineEdit  # For custom actor_id entry (scene NPCs)
 
 # UI Components - Metadata
 var cinematic_id_edit: LineEdit
@@ -40,6 +42,7 @@ var cinematic_name_edit: LineEdit
 var description_edit: TextEdit
 var can_skip_check: CheckBox
 var disable_input_check: CheckBox
+var loop_check: CheckBox
 var save_button: Button
 
 # UI Components - Actors panel
@@ -371,6 +374,12 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	disable_input_check.text = "Disable Input"
 	disable_input_check.button_pressed = true
 	opt_row.add_child(disable_input_check)
+
+	loop_check = CheckBox.new()
+	loop_check.text = "Loop"
+	loop_check.button_pressed = false
+	loop_check.tooltip_text = "Loop cinematic continuously (for ambient NPC patrols)"
+	opt_row.add_child(loop_check)
 
 	# Separator
 	var sep: HSeparator = HSeparator.new()
@@ -798,6 +807,7 @@ func _populate_metadata() -> void:
 	cinematic_id_edit.text = current_cinematic_data.get("cinematic_id", "")
 	can_skip_check.button_pressed = current_cinematic_data.get("can_skip", true)
 	disable_input_check.button_pressed = current_cinematic_data.get("disable_player_input", true)
+	loop_check.button_pressed = current_cinematic_data.get("loop", false)
 
 	# Determine if ID was manually set (different from auto-generated)
 	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(current_cinematic_data.get("cinematic_name", ""))
@@ -938,6 +948,7 @@ func _clear_inspector() -> void:
 		child.queue_free()
 	inspector_fields.clear()
 	target_field = null
+	target_custom_edit = null
 
 	# Re-add placeholder
 	var placeholder: Label = Label.new()
@@ -953,6 +964,7 @@ func _build_inspector_for_command(index: int) -> void:
 		child.queue_free()
 	inspector_fields.clear()
 	target_field = null
+	target_custom_edit = null
 
 	var commands: Array = current_cinematic_data.get("commands", [])
 	if index < 0 or index >= commands.size():
@@ -989,7 +1001,7 @@ func _build_inspector_for_command(index: int) -> void:
 		inspector_panel.add_child(target_row)
 
 		var target_label: Label = Label.new()
-		target_label.text = "Target (Actor):"
+		target_label.text = "Target:"
 		target_label.custom_minimum_size.x = 130
 		target_row.add_child(target_label)
 
@@ -997,18 +1009,60 @@ func _build_inspector_for_command(index: int) -> void:
 		target_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		target_field.add_item("(None)", 0)
 		target_field.set_item_metadata(0, "")
+
+		# Add "self" as built-in option (for ambient patrols)
+		target_field.add_item("self (this NPC)", 1)
+		target_field.set_item_metadata(1, "self")
+
 		var current_target: String = cmd.get("target", "")
 		var selected_idx: int = 0
-		var item_idx: int = 1
-		for actor_id: String in _get_current_actor_ids():
-			target_field.add_item(actor_id, item_idx)
-			target_field.set_item_metadata(item_idx, actor_id)
-			if actor_id == current_target:
-				selected_idx = item_idx
-			item_idx += 1
+		var item_idx: int = 2
+
+		# Check if current target is "self"
+		if current_target == "self":
+			selected_idx = 1
+
+		# Add defined actors from this cinematic
+		var actor_ids: Array[String] = _get_current_actor_ids()
+		if not actor_ids.is_empty():
+			for actor_id: String in actor_ids:
+				target_field.add_item(actor_id, item_idx)
+				target_field.set_item_metadata(item_idx, actor_id)
+				if actor_id == current_target:
+					selected_idx = item_idx
+				item_idx += 1
+
+		# Add "Custom..." option for scene NPCs
+		target_field.add_item("Custom (scene NPC)...", item_idx)
+		target_field.set_item_metadata(item_idx, "__custom__")
+		var custom_idx: int = item_idx
+
+		# Check if current target is a custom value (not in dropdown)
+		var is_custom: bool = not current_target.is_empty() and current_target != "self" and current_target not in actor_ids
+		if is_custom:
+			selected_idx = custom_idx
+
 		target_field.select(selected_idx)
 		target_field.item_selected.connect(_on_target_selected)
 		target_row.add_child(target_field)
+
+		# Custom entry field (for scene NPC ids)
+		target_custom_edit = LineEdit.new()
+		target_custom_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		target_custom_edit.placeholder_text = "Enter npc_id..."
+		target_custom_edit.tooltip_text = "Enter the npc_id of a scene NPC to target"
+		target_custom_edit.visible = is_custom
+		if is_custom:
+			target_custom_edit.text = current_target
+		target_custom_edit.text_changed.connect(_on_target_custom_changed)
+		target_row.add_child(target_custom_edit)
+
+		# Help text for target field
+		var target_help: Label = Label.new()
+		target_help.text = "self = this NPC | Custom = scene NPC by npc_id"
+		target_help.add_theme_font_size_override("font_size", 11)
+		target_help.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		inspector_panel.add_child(target_help)
 
 	# Build parameter fields based on definition (using merged definitions)
 	if cmd_type in definitions and "params" in definitions[cmd_type]:
@@ -1175,11 +1229,37 @@ func _on_target_selected(item_index: int) -> void:
 	var commands: Array = current_cinematic_data.get("commands", [])
 	if selected_command_index >= commands.size():
 		return
-	var actor_id: String = target_field.get_item_metadata(item_index)
-	commands[selected_command_index]["target"] = actor_id
+
+	var metadata: String = target_field.get_item_metadata(item_index)
+
+	# Handle custom option - show LineEdit, don't update target yet
+	if metadata == "__custom__":
+		if target_custom_edit:
+			target_custom_edit.visible = true
+			target_custom_edit.grab_focus()
+		return
+
+	# Hide custom edit for non-custom selections
+	if target_custom_edit:
+		target_custom_edit.visible = false
+
+	commands[selected_command_index]["target"] = metadata
 	is_dirty = true
 	_rebuild_command_list()
 	command_list.select(selected_command_index)
+
+
+func _on_target_custom_changed(new_text: String) -> void:
+	if _updating_ui or selected_command_index < 0:
+		return
+	var commands: Array = current_cinematic_data.get("commands", [])
+	if selected_command_index >= commands.size():
+		return
+
+	commands[selected_command_index]["target"] = new_text.strip_edges()
+	is_dirty = true
+	# Don't rebuild list on every keystroke - just mark dirty
+	# List will rebuild when command is deselected or saved
 
 
 func _on_param_changed(value: Variant, param_name: String) -> void:
@@ -1332,6 +1412,7 @@ func _on_create_new() -> void:
 		"description": "",
 		"can_skip": true,
 		"disable_player_input": true,
+		"loop": false,
 		"actors": [],
 		"commands": []
 	}
@@ -1387,6 +1468,7 @@ func _on_save() -> void:
 	current_cinematic_data["cinematic_name"] = cinematic_name_edit.text.strip_edges()
 	current_cinematic_data["can_skip"] = can_skip_check.button_pressed
 	current_cinematic_data["disable_player_input"] = disable_input_check.button_pressed
+	current_cinematic_data["loop"] = loop_check.button_pressed
 
 	# Validate
 	var errors: Array[String] = _validate_cinematic()
@@ -1411,10 +1493,27 @@ func _on_save() -> void:
 		# Delete old file if path changed
 		if expected_path != old_path and FileAccess.file_exists(old_path):
 			DirAccess.remove_absolute(old_path)
+			# Unregister old cinematic if ID changed
+			if ModLoader and ModLoader.registry:
+				var old_id: String = old_path.get_file().get_basename()
+				ModLoader.registry.unregister_resource("cinematic", old_id)
 
 		current_cinematic_path = expected_path
 		_hide_errors()
 		is_dirty = false
+
+		# Register with ModLoader.registry so ResourcePickers can find it immediately
+		if ModLoader and ModLoader.registry:
+			var cinematic: CinematicData = CinematicLoader.load_from_json(expected_path)
+			if cinematic:
+				# Extract mod_id from path (e.g., res://mods/demo_campaign/data/cinematics/...)
+				var mod_id: String = ""
+				if expected_path.begins_with("res://mods/"):
+					var parts: PackedStringArray = expected_path.split("/")
+					if parts.size() >= 4:
+						mod_id = parts[3]
+				ModLoader.registry.register_resource(cinematic, "cinematic", new_id, mod_id)
+
 		notify_resource_saved(new_id)
 
 		# Refresh file list and filesystem

@@ -278,82 +278,188 @@ func _add_npc_to_open_scene(
 
 
 ## Add NPC to a scene that's not currently open
+## Uses direct .tscn file manipulation to ensure ExtResource references (not embedded SubResources)
 func _add_npc_to_closed_scene(
 	scene_path: String,
 	npc_resource_path: String,
 	node_name: String,
 	position: Vector2
 ) -> bool:
-	# Load the scene as a PackedScene
-	var loaded: Resource = load(scene_path)
-	var packed_scene: PackedScene = loaded if loaded is PackedScene else null
-	if not packed_scene:
-		push_error("MapPlacementHelper: Failed to load scene: %s" % scene_path)
+	# Read the scene file as text
+	var file: FileAccess = FileAccess.open(scene_path, FileAccess.READ)
+	if not file:
+		push_error("MapPlacementHelper: Failed to open scene file: %s" % scene_path)
 		return false
 
-	# Instantiate the scene to modify it
-	var scene_root: Node = packed_scene.instantiate()
-	if not scene_root:
-		push_error("MapPlacementHelper: Failed to instantiate scene")
+	var scene_text: String = file.get_as_text()
+	file.close()
+
+	# Get the NPC resource UID
+	var npc_uid: String = _get_resource_uid(npc_resource_path)
+	if npc_uid.is_empty():
+		push_error("MapPlacementHelper: Failed to get UID for NPC resource: %s" % npc_resource_path)
 		return false
 
-	# Find or create NPCs container
-	var npcs_container: Node2D = scene_root.get_node_or_null("NPCs") as Node2D
-	if not npcs_container:
-		npcs_container = Node2D.new()
-		npcs_container.name = "NPCs"
-		scene_root.add_child(npcs_container)
-		npcs_container.owner = scene_root
+	# Generate a unique ExtResource ID
+	var ext_id: String = _generate_unique_ext_id(scene_text)
 
-	# Generate unique node name if needed
-	var final_node_name: String = _make_unique_node_name(npcs_container, node_name)
-
-	# Load the NPC script and data
-	# Use CACHE_MODE_REUSE to get the canonical resource instance with proper resource_path
-	# This ensures the resource is saved as an external reference, not embedded
-	var npc_script: GDScript = ResourceLoader.load("res://core/components/npc_node.gd", "", ResourceLoader.CACHE_MODE_REUSE) as GDScript
-	if not npc_script:
-		push_error("MapPlacementHelper: Failed to load npc_node.gd script")
-		scene_root.queue_free()
+	# Check if NPC script ExtResource already exists
+	var npc_script_id: String = _find_ext_resource_id(scene_text, "res://core/components/npc_node.gd")
+	if npc_script_id.is_empty():
+		push_error("MapPlacementHelper: Scene doesn't have npc_node.gd script reference")
 		return false
 
-	var npc_data: Resource = ResourceLoader.load(npc_resource_path, "", ResourceLoader.CACHE_MODE_REUSE)
-	if not npc_data:
-		push_error("MapPlacementHelper: Failed to load NPC data: %s" % npc_resource_path)
-		scene_root.queue_free()
+	# Add ExtResource for the NPC data file (before first sub_resource or node)
+	var ext_resource_line: String = '[ext_resource type="Resource" uid="%s" path="%s" id="%s"]\n' % [npc_uid, npc_resource_path, ext_id]
+
+	# Find insertion point for new ExtResource (after last ext_resource, before first sub_resource or node)
+	var insert_pos: int = _find_ext_resource_insert_position(scene_text)
+	if insert_pos < 0:
+		push_error("MapPlacementHelper: Failed to find insertion point in scene file")
 		return false
 
-	# Create the NPC node
-	var npc_node: Area2D = Area2D.new()
-	npc_node.name = final_node_name
-	npc_node.position = position
-	npc_node.set_script(npc_script)
-	npc_node.set("npc_data", npc_data)
+	scene_text = scene_text.insert(insert_pos, ext_resource_line)
 
-	# Add to scene tree with proper ownership
-	npcs_container.add_child(npc_node)
-	npc_node.owner = scene_root
+	# Find the NPCs container node path and check if it exists
+	var has_npcs_container: bool = scene_text.contains('[node name="NPCs"')
 
-	# Pack the modified scene back
-	var new_packed: PackedScene = PackedScene.new()
-	var pack_result: Error = new_packed.pack(scene_root)
-	if pack_result != OK:
-		push_error("MapPlacementHelper: Failed to pack scene: %s" % error_string(pack_result))
-		scene_root.queue_free()
+	# Generate unique node name
+	var final_node_name: String = node_name
+	var name_counter: int = 2
+	while scene_text.contains('[node name="%s"' % final_node_name):
+		final_node_name = "%s%d" % [node_name, name_counter]
+		name_counter += 1
+
+	# Build the node definition
+	var node_text: String = '\n[node name="%s" type="Area2D" parent="NPCs"]\n' % final_node_name
+	node_text += 'position = Vector2(%d, %d)\n' % [int(position.x), int(position.y)]
+	node_text += 'script = ExtResource("%s")\n' % npc_script_id
+	node_text += 'npc_data = ExtResource("%s")\n' % ext_id
+
+	# If no NPCs container, we need to add it too
+	if not has_npcs_container:
+		var npcs_container_text: String = '\n[node name="NPCs" type="Node2D" parent="."]\n'
+		# Find a good place to insert (after map root node children, before Interactables if exists)
+		var interactables_pos: int = scene_text.find('[node name="Interactables"')
+		if interactables_pos > 0:
+			scene_text = scene_text.insert(interactables_pos, npcs_container_text)
+		else:
+			# Append before the end
+			scene_text += npcs_container_text
+
+	# Append the node (scene files end with nodes)
+	scene_text += node_text
+
+	# Update load_steps count in header
+	scene_text = _increment_load_steps(scene_text)
+
+	# Write back to file
+	file = FileAccess.open(scene_path, FileAccess.WRITE)
+	if not file:
+		push_error("MapPlacementHelper: Failed to write scene file: %s" % scene_path)
 		return false
 
-	# Save the modified scene
-	var save_result: Error = ResourceSaver.save(new_packed, scene_path)
-	scene_root.queue_free()
-
-	if save_result != OK:
-		push_error("MapPlacementHelper: Failed to save scene: %s" % error_string(save_result))
-		return false
+	file.store_string(scene_text)
+	file.close()
 
 	# Notify the editor to refresh
 	EditorInterface.get_resource_filesystem().scan()
 
 	return true
+
+
+## Get the UID of a resource file
+func _get_resource_uid(resource_path: String) -> String:
+	var file: FileAccess = FileAccess.open(resource_path, FileAccess.READ)
+	if not file:
+		return ""
+
+	# Read first line to find UID
+	var first_line: String = file.get_line()
+	file.close()
+
+	# Parse uid from line like: [gd_resource ... uid="uid://xyz" ...]
+	var uid_start: int = first_line.find('uid="')
+	if uid_start < 0:
+		return ""
+
+	uid_start += 5  # Skip 'uid="'
+	var uid_end: int = first_line.find('"', uid_start)
+	if uid_end < 0:
+		return ""
+
+	return first_line.substr(uid_start, uid_end - uid_start)
+
+
+## Generate a unique ExtResource ID for the scene
+func _generate_unique_ext_id(scene_text: String) -> String:
+	var counter: int = 1
+	var base: String = "npc_data_"
+	while scene_text.contains('id="%s%d"' % [base, counter]):
+		counter += 1
+	return "%s%d" % [base, counter]
+
+
+## Find the ID of an existing ExtResource by path
+func _find_ext_resource_id(scene_text: String, resource_path: String) -> String:
+	var search: String = 'path="%s"' % resource_path
+	var pos: int = scene_text.find(search)
+	if pos < 0:
+		return ""
+
+	# Find the id on the same line
+	var line_start: int = scene_text.rfind("\n", pos)
+	if line_start < 0:
+		line_start = 0
+	var line_end: int = scene_text.find("\n", pos)
+	if line_end < 0:
+		line_end = scene_text.length()
+
+	var line: String = scene_text.substr(line_start, line_end - line_start)
+	var id_start: int = line.find('id="')
+	if id_start < 0:
+		return ""
+
+	id_start += 4  # Skip 'id="'
+	var id_end: int = line.find('"', id_start)
+	if id_end < 0:
+		return ""
+
+	return line.substr(id_start, id_end - id_start)
+
+
+## Find the position to insert a new ExtResource (after last ext_resource line)
+func _find_ext_resource_insert_position(scene_text: String) -> int:
+	# Find the last [ext_resource line
+	var last_ext: int = scene_text.rfind("[ext_resource")
+	if last_ext < 0:
+		# No ext_resources, insert after header line
+		var header_end: int = scene_text.find("]\n")
+		if header_end > 0:
+			return header_end + 2
+		return -1
+
+	# Find end of this ext_resource line
+	var line_end: int = scene_text.find("\n", last_ext)
+	if line_end < 0:
+		return -1
+
+	return line_end + 1
+
+
+## Increment the load_steps count in scene header
+func _increment_load_steps(scene_text: String) -> String:
+	var regex: RegEx = RegEx.new()
+	regex.compile('load_steps=(\\d+)')
+	var result: RegExMatch = regex.search(scene_text)
+	if result:
+		var current_steps: int = int(result.get_string(1))
+		var new_steps: int = current_steps + 1
+		scene_text = scene_text.replace(
+			"load_steps=%d" % current_steps,
+			"load_steps=%d" % new_steps
+		)
+	return scene_text
 
 
 ## Generate a unique node name by appending numbers if needed

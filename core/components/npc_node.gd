@@ -3,7 +3,7 @@ class_name NPCNode
 extends Area2D
 
 const FacingUtils = preload("res://core/utils/facing_utils.gd")
-const DEBUG_MODE: bool = false
+const DEBUG_MODE: bool = true  # TEMP: Enable for patrol debugging
 
 ## NPCNode - A map entity that players can interact with.
 ## When the player presses the interact button facing this NPC,
@@ -58,6 +58,23 @@ signal interaction_started(npc: NPCNode, player: Node2D)
 ## Signal emitted when interaction ends (after cinematic finishes)
 signal interaction_ended(npc: NPCNode)
 
+# =============================================================================
+# AMBIENT PATROL STATE
+# =============================================================================
+
+## Loaded patrol cinematic data
+var _patrol_cinematic: Resource = null  # CinematicData
+
+## Command queue for patrol execution
+var _patrol_command_queue: Array[Dictionary] = []
+
+## Patrol execution flags
+var _patrol_command_completed: bool = false
+var _patrol_wait_timer: float = 0.0
+var _patrol_is_waiting: bool = false
+var _is_patrolling: bool = false
+var _patrol_paused: bool = false
+
 
 ## Editor tile size constant (GridManager may not be available in editor)
 const EDITOR_TILE_SIZE: int = 32
@@ -87,6 +104,29 @@ func _ready() -> void:
 	if not sprite:
 		sprite = _find_or_create_sprite()
 
+	# Start ambient patrol if configured
+	if DEBUG_MODE:
+		var ambient_id: String = npc_data.ambient_cinematic_id if npc_data else "(no npc_data)"
+		print("[NPCNode] %s: Checking ambient patrol - ambient_cinematic_id='%s'" % [name, ambient_id])
+	if npc_data and not npc_data.ambient_cinematic_id.is_empty():
+		call_deferred("_start_ambient_patrol")
+
+
+func _process(delta: float) -> void:
+	# Only process when patrolling
+	if not _is_patrolling or _patrol_paused:
+		return
+
+	# Handle wait timer
+	if _patrol_is_waiting:
+		_patrol_wait_timer -= delta
+		if _patrol_wait_timer <= 0.0:
+			_patrol_is_waiting = false
+			_patrol_command_completed = true
+
+	# Execute next command when ready
+	if _patrol_command_completed:
+		_execute_next_patrol_command()
 
 
 func _notification(what: int) -> void:
@@ -332,6 +372,10 @@ func interact(player: Node2D) -> void:
 		push_warning("NPCNode: Cannot interact - no npc_data set")
 		return
 
+	# Pause any active patrol during interaction
+	if _is_patrolling:
+		pause_patrol()
+
 	# Emit signal before processing
 	interaction_started.emit(self, player)
 
@@ -354,6 +398,9 @@ func interact(player: Node2D) -> void:
 		CinematicsManager.cinematic_ended.emit("")
 		CinematicsManager.clear_interaction_context()
 		interaction_ended.emit(self)
+		# Resume patrol if active
+		if _is_patrolling:
+			resume_patrol()
 		return
 
 	# Play the cinematic
@@ -367,6 +414,9 @@ func interact(player: Node2D) -> void:
 		push_error("NPCNode: Failed to play cinematic '%s' for NPC '%s'" % [cinematic_id, npc_data.npc_id])
 		CinematicsManager.clear_interaction_context()
 		interaction_ended.emit(self)
+		# Resume patrol if active
+		if _is_patrolling:
+			resume_patrol()
 		return
 
 	# Connect to cinematic end signal to emit our own end signal
@@ -378,6 +428,10 @@ func interact(player: Node2D) -> void:
 func _on_cinematic_ended(_cinematic_id: String) -> void:
 	CinematicsManager.clear_interaction_context()
 	interaction_ended.emit(self)
+
+	# Resume patrol if we were patrolling before interaction
+	if _is_patrolling:
+		resume_patrol()
 
 
 ## Face toward a target node (usually the player)
@@ -454,6 +508,177 @@ func is_at_grid_position(pos: Vector2i) -> bool:
 func teleport_to_grid(pos: Vector2i) -> void:
 	grid_position = pos
 	global_position = GridManager.cell_to_world(pos)
+
+
+# =============================================================================
+# AMBIENT PATROL SYSTEM
+# =============================================================================
+
+## Start ambient patrol from configured cinematic
+func _start_ambient_patrol() -> void:
+	if not npc_data or npc_data.ambient_cinematic_id.is_empty():
+		if DEBUG_MODE:
+			print("[NPCNode] %s: No ambient_cinematic_id configured" % name)
+		return
+
+	if DEBUG_MODE:
+		print("[NPCNode] %s: Starting ambient patrol with cinematic '%s'" % [name, npc_data.ambient_cinematic_id])
+
+	_patrol_cinematic = ModLoader.registry.get_cinematic(npc_data.ambient_cinematic_id)
+	if not _patrol_cinematic:
+		push_warning("NPCNode '%s': Ambient cinematic '%s' not found in registry" % [name, npc_data.ambient_cinematic_id])
+		return
+
+	# Populate command queue
+	_patrol_command_queue.clear()
+	var command_count: int = _patrol_cinematic.get_command_count()
+	if DEBUG_MODE:
+		print("[NPCNode] %s: Cinematic has %d commands, loop=%s" % [name, command_count, _patrol_cinematic.loop])
+	for i: int in range(command_count):
+		var cmd: Dictionary = _patrol_cinematic.get_command(i)
+		_patrol_command_queue.append(cmd)
+		if DEBUG_MODE:
+			print("[NPCNode] %s: Queued command %d: %s" % [name, i, cmd])
+
+	if _patrol_command_queue.is_empty():
+		push_warning("NPCNode '%s': Ambient cinematic '%s' has no commands" % [name, npc_data.ambient_cinematic_id])
+		return
+
+	_is_patrolling = true
+	_patrol_command_completed = true
+	set_process(true)
+	if DEBUG_MODE:
+		print("[NPCNode] %s: Patrol started successfully" % name)
+
+
+## Execute the next patrol command
+func _execute_next_patrol_command() -> void:
+	_patrol_command_completed = false
+
+	# Check if queue is empty - loop if configured
+	if _patrol_command_queue.is_empty():
+		if _patrol_cinematic.loop:
+			# Restart from beginning
+			var command_count: int = _patrol_cinematic.get_command_count()
+			for i: int in range(command_count):
+				_patrol_command_queue.append(_patrol_cinematic.get_command(i))
+		else:
+			_is_patrolling = false
+			set_process(false)
+			return
+
+	if _patrol_command_queue.is_empty():
+		return
+
+	var command: Dictionary = _patrol_command_queue.pop_front()
+	var command_type: String = command.get("type", "")
+
+	# Handle supported patrol commands
+	match command_type:
+		"move_entity":
+			_execute_patrol_move(command)
+		"wait":
+			_execute_patrol_wait(command)
+		"set_facing":
+			_execute_patrol_facing(command)
+		_:
+			# Skip unsupported commands silently
+			_patrol_command_completed = true
+
+
+## Execute patrol move command
+func _execute_patrol_move(command: Dictionary) -> void:
+	if DEBUG_MODE:
+		print("[NPCNode] %s: _execute_patrol_move called with command: %s" % [name, command])
+
+	if not cinematic_actor:
+		if DEBUG_MODE:
+			print("[NPCNode] %s: No cinematic_actor - skipping move" % name)
+		_patrol_command_completed = true
+		return
+
+	var params: Dictionary = command.get("params", {})
+	var path: Array = params.get("path", [])
+	var speed: float = params.get("speed", 2.0)
+
+	if DEBUG_MODE:
+		print("[NPCNode] %s: path=%s (type=%s), speed=%s" % [name, path, typeof(path), speed])
+
+	if path.is_empty():
+		if DEBUG_MODE:
+			print("[NPCNode] %s: Path is empty - skipping move" % name)
+		_patrol_command_completed = true
+		return
+
+	# Convert path to Vector2i array
+	var waypoints: Array[Vector2i] = []
+	for point: Variant in path:
+		if DEBUG_MODE:
+			print("[NPCNode] %s: Processing path point: %s (type=%s)" % [name, point, typeof(point)])
+		if point is Array and point.size() >= 2:
+			waypoints.append(Vector2i(int(point[0]), int(point[1])))
+		elif point is Vector2i:
+			waypoints.append(point)
+		elif point is Vector2:
+			# Handle Vector2 (converted from JSON)
+			var v2: Vector2 = point
+			waypoints.append(Vector2i(int(v2.x), int(v2.y)))
+
+	if DEBUG_MODE:
+		print("[NPCNode] %s: Waypoints after conversion: %s" % [name, waypoints])
+
+	if waypoints.is_empty():
+		if DEBUG_MODE:
+			print("[NPCNode] %s: Waypoints empty after conversion - skipping move" % name)
+		_patrol_command_completed = true
+		return
+
+	# For ambient patrols, use waypoints directly without A* pathfinding expansion
+	# The patrol route is explicitly defined by the modder, so we follow it as-is
+	var full_path: Array[Vector2i] = waypoints
+	if DEBUG_MODE:
+		print("[NPCNode] %s: Using waypoints directly (no A* expansion): %s" % [name, full_path])
+
+	# Start movement via CinematicActor
+	cinematic_actor.move_along_path(full_path, speed)
+	if not cinematic_actor.movement_completed.is_connected(_on_patrol_move_completed):
+		cinematic_actor.movement_completed.connect(_on_patrol_move_completed, CONNECT_ONE_SHOT)
+
+
+## Callback when patrol movement completes
+func _on_patrol_move_completed() -> void:
+	_patrol_command_completed = true
+
+
+## Execute patrol wait command
+func _execute_patrol_wait(command: Dictionary) -> void:
+	var params: Dictionary = command.get("params", {})
+	var duration: float = params.get("duration", 1.0)
+	_patrol_wait_timer = duration
+	_patrol_is_waiting = true
+
+
+## Execute patrol set_facing command
+func _execute_patrol_facing(command: Dictionary) -> void:
+	var params: Dictionary = command.get("params", {})
+	var direction: String = params.get("direction", "down")
+	set_facing(direction)
+	_patrol_command_completed = true
+
+
+## Pause patrol (called during player interaction)
+func pause_patrol() -> void:
+	_patrol_paused = true
+
+
+## Resume patrol (called after interaction ends)
+func resume_patrol() -> void:
+	_patrol_paused = false
+
+
+## Check if NPC is currently patrolling
+func is_patrolling() -> bool:
+	return _is_patrolling
 
 
 # =============================================================================

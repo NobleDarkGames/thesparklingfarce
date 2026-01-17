@@ -60,6 +60,9 @@ enum CommandType {
 @export var skip_key: String = "ui_cancel"
 ## Auto-play after previous cinematic
 @export var auto_play: bool = false
+## Loop cinematic continuously (for ambient patrols)
+## When true, commands restart from beginning after completing
+@export var loop: bool = false
 
 @export_group("Flow Control")
 ## Next cinematic to play after this one
