@@ -103,7 +103,8 @@ func _find_sprite_node(node: Node) -> AnimatedSprite2D:
 ## Move along a complete path (Phase 3: for executors with pre-expanded paths)
 ## complete_path: Array[Vector2i] of grid cells (already expanded by GridManager)
 ## speed: Movement speed in tiles per second (used only for fallback movement)
-func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0) -> void:
+## auto_face: If true, entity faces the direction of movement during traversal
+func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0, auto_face: bool = true) -> void:
 	if complete_path.is_empty():
 		push_warning("CinematicActor: Empty path provided for %s" % actor_id)
 		movement_completed.emit()
@@ -122,14 +123,15 @@ func move_along_path_direct(complete_path: Array[Vector2i], speed: float = -1.0)
 		_await_parent_movement(complete_path)
 	else:
 		# Fallback for simple test entities without Unit component
-		_use_simple_movement_direct(complete_path, speed if speed > 0 else default_speed)
+		_use_simple_movement_direct(complete_path, speed if speed > 0 else default_speed, auto_face)
 
 
 ## Start moving along a path - delegates to parent entity if possible
 ## path: Array of waypoints (grid coordinates)
 ## speed: Movement speed in tiles per second (ignored if parent handles it)
 ## is_grid: If true, path positions are grid coordinates (default true)
-func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true) -> void:
+## auto_face: If true, entity faces the direction of movement during traversal
+func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true, auto_face: bool = true) -> void:
 	if path.is_empty():
 		push_warning("CinematicActor: Empty path provided for %s" % actor_id)
 		movement_completed.emit()
@@ -163,7 +165,7 @@ func move_along_path(path: Array, speed: float = -1.0, is_grid: bool = true) -> 
 		_use_parent_movement(waypoints)
 	else:
 		# Fallback for simple test entities without Unit component
-		_use_simple_movement(waypoints, speed)
+		_use_simple_movement(waypoints, speed, auto_face)
 
 
 ## Use parent entity's existing movement system (Unit, HeroController, etc.)
@@ -193,7 +195,7 @@ func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 
 ## Simple movement for basic entities without Unit component
 ## Uses Manhattan pathfinding for consistent 4-directional movement (matches battle feel)
-func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
+func _use_simple_movement(waypoints: Array[Vector2i], speed: float, auto_face: bool = true) -> void:
 	is_moving = true
 	movement_speed = speed if speed > 0 else default_speed
 
@@ -230,8 +232,9 @@ func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
 	for target_pos: Vector2 in world_path:
 		var direction: Vector2 = target_pos - prev_pos
 		var duration: float = 1.0 / movement_speed  # Each cell takes consistent time
-		# Update facing before each movement segment
-		move_tween.tween_callback(_update_facing_from_direction.bind(direction))
+		# Update facing before each movement segment (if auto_face enabled)
+		if auto_face:
+			move_tween.tween_callback(_update_facing_from_direction.bind(direction))
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
 		prev_pos = target_pos
 
@@ -239,7 +242,7 @@ func _use_simple_movement(waypoints: Array[Vector2i], speed: float) -> void:
 
 
 ## Simple movement with direct complete path (Phase 3: for move_along_path_direct fallback)
-func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -> void:
+func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float, auto_face: bool = true) -> void:
 	is_moving = true
 	movement_speed = speed
 
@@ -247,7 +250,7 @@ func _use_simple_movement_direct(complete_path: Array[Vector2i], speed: float) -
 	for cell: Vector2i in complete_path:
 		world_path.append(GridManager.cell_to_world(cell))
 
-	_tween_through_world_path(world_path, speed)
+	_tween_through_world_path(world_path, speed, auto_face)
 
 
 ## Called when parent entity's movement completes
@@ -291,7 +294,7 @@ func _await_parent_movement(complete_path: Array[Vector2i]) -> void:
 
 
 ## Tween through a world path with given speed (tiles per second)
-func _tween_through_world_path(world_path: Array[Vector2], tiles_per_second: float) -> void:
+func _tween_through_world_path(world_path: Array[Vector2], tiles_per_second: float, auto_face: bool = true) -> void:
 	var move_tween: Tween = create_tween()
 	move_tween.set_trans(Tween.TRANS_LINEAR)
 	move_tween.set_ease(Tween.EASE_IN_OUT)
@@ -302,19 +305,27 @@ func _tween_through_world_path(world_path: Array[Vector2], tiles_per_second: flo
 		var direction: Vector2 = target_pos - start_pos
 		var distance: float = start_pos.distance_to(target_pos)
 		var duration: float = distance / (tiles_per_second * GridManager.get_tile_size())
-		# Update facing before each movement segment
-		move_tween.tween_callback(_update_facing_from_direction.bind(direction))
+		# Update facing before each movement segment (if auto_face enabled)
+		if auto_face:
+			move_tween.tween_callback(_update_facing_from_direction.bind(direction))
 		move_tween.tween_property(parent_entity, "global_position", target_pos, duration)
 
 	move_tween.tween_callback(_stop_movement)
 
 
 ## Update sprite facing based on movement direction
+## Prefers parent's set_facing() to sync both state and animation
 func _update_facing_from_direction(direction: Vector2) -> void:
-	if sprite_node == null:
+	var dir_name: String = FacingUtils.get_dominant_direction_float(direction)
+
+	# Prefer parent's set_facing() method (syncs facing_direction state + animation)
+	if parent_entity and parent_entity.has_method("set_facing"):
+		parent_entity.call("set_facing", dir_name)
 		return
 
-	var dir_name: String = FacingUtils.get_dominant_direction_float(direction)
+	# Fallback: play animation directly on sprite
+	if sprite_node == null:
+		return
 	_play_animation("walk_" + dir_name)
 
 

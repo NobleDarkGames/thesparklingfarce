@@ -55,7 +55,8 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"params": {
 			"path": {"type": "path", "default": [], "hint": "Array of [x, y] grid positions"},
 			"speed": {"type": "float", "default": 3.0, "min": 0.5, "max": 20.0, "hint": "Movement speed"},
-			"wait": {"type": "bool", "default": true, "hint": "Wait for movement to complete"}
+			"wait": {"type": "bool", "default": true, "hint": "Wait for movement to complete"},
+			"auto_face": {"type": "bool", "default": true, "hint": "Face direction of movement"}
 		}
 	},
 	"set_facing": {
