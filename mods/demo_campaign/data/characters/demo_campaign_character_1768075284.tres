@@ -29,7 +29,6 @@ prioritize_boss_heals = false
 use_status_effects = false
 alert_range = 12
 engagement_range = 8
-max_idle_turns = 5
 
 [resource]
 script = ExtResource("1_1weh0")

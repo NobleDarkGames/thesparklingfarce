@@ -226,15 +226,21 @@ func _execute_save(slot_number: int) -> void:
 	var current_scene: Node = get_tree().current_scene
 	if current_scene:
 		SaveManager.current_save.current_scene_path = current_scene.scene_file_path
-	# Use default spawn point (hero will spawn at map's default)
-	SaveManager.current_save.current_spawn_point = ""
 
-	# Debug: verify data before save
-	print("ChurchSaveConfirm: Saving to slot %d - %d party members, scene: %s" % [
-		slot_number,
-		SaveManager.current_save.party_members.size(),
-		SaveManager.current_save.current_scene_path
-	])
+	# Capture player's exact position and facing for respawn
+	var hero: Node = get_tree().get_first_node_in_group("hero")
+	if hero and hero.has_method("get_grid_position"):
+		SaveManager.current_save.player_grid_position = hero.get_grid_position()
+		if hero.has_method("get_facing"):
+			SaveManager.current_save.player_facing = hero.get_facing()
+		elif "facing" in hero:
+			SaveManager.current_save.player_facing = hero.facing
+	else:
+		# Fallback to spawn point system
+		SaveManager.current_save.player_grid_position = Vector2i(-1, -1)
+		SaveManager.current_save.player_facing = ""
+
+	SaveManager.current_save.current_spawn_point = ""
 
 	# Perform the save
 	var success: bool = SaveManager.save_to_slot(slot_number, SaveManager.current_save)

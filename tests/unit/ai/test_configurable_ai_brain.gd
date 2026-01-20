@@ -480,13 +480,6 @@ func test_engagement_range_configuration() -> void:
 	assert_int(behavior.engagement_range).is_equal(4)
 
 
-func test_max_idle_turns_configuration() -> void:
-	var behavior: AIBehaviorData = _create_test_behavior("defensive", "cautious")
-	behavior.max_idle_turns = 5
-
-	assert_int(behavior.max_idle_turns).is_equal(5)
-
-
 func test_seek_terrain_advantage_configuration() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("defensive", "cautious")
 	behavior.seek_terrain_advantage = true

@@ -205,3 +205,21 @@ static func find_caravan_spawn(root: Node) -> SpawnPoint:
 		if spawn.is_caravan_spawn:
 			return spawn
 	return null
+
+
+## Find the nearest spawn point to a given grid position
+static func find_nearest(root: Node, grid_pos: Vector2i) -> SpawnPoint:
+	var all_spawns: Array[SpawnPoint] = find_all_in_tree(root)
+	if all_spawns.is_empty():
+		return null
+
+	var nearest: SpawnPoint = null
+	var nearest_distance: float = INF
+
+	for spawn: SpawnPoint in all_spawns:
+		var distance: float = Vector2(spawn.grid_position - grid_pos).length()
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest = spawn
+
+	return nearest

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=5 format=3 uid="uid://b4tr8nowe1qjm"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_2s5r0"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_08fc2"]
+[ext_resource type="Resource" uid="uid://dttyeumpl0vux" path="res://mods/demo_campaign/data/abilities/demo_campaign_ability_1768497778.tres" id="2_ij1qk"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_ij1qk"]
+
+[resource]
+script = ExtResource("3_ij1qk")
+display_name = "Support"
+movement_range = 5
+counter_rate = 5
+double_attack_rate = 5
+mp_growth = 75
+agility_growth = 100
+equippable_weapon_types = Array[String](["tome"])
+class_abilities = Array[ExtResource("1_2s5r0")]([ExtResource("2_ij1qk")])
+ability_unlock_levels = {
+"buff_str": 1
+}

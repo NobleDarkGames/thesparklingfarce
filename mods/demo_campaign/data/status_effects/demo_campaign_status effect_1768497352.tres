@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3 uid="uid://boo3eday1hs4h"]
+
+[ext_resource type="Script" uid="uid://jdqcxv6edyuw" path="res://core/resources/status_effect_data.gd" id="1_a6uhh"]
+
+[resource]
+script = ExtResource("1_a6uhh")
+effect_id = "str_down"
+display_name = "Reduce Strength"
+description = "STR -5"
+popup_text = "STR -5"
+stat_modifiers = {
+"strength": -5
+}

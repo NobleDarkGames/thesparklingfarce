@@ -9,7 +9,6 @@ script = ExtResource("3_r8hl2")
 display_name = "Super Hero"
 movement_range = 5
 hp_growth = 60
-mp_growth = 60
 strength_growth = 60
 defense_growth = 60
 agility_growth = 60

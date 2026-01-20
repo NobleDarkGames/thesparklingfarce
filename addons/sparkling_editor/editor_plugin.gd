@@ -29,7 +29,17 @@ func _enter_tree() -> void:
 		return
 
 	# Add as a bottom panel (Godot manages the sizing)
-	add_control_to_bottom_panel(main_panel, "Sparkling Editor")
+	var panel_button: Control = add_control_to_bottom_panel(main_panel, "Sparkling Editor")
+
+	# Add star icon
+	panel_button.icon = EditorInterface.get_base_control().get_theme_icon("Favorites", "EditorIcons")
+
+	# Add color pulsing animation
+	var tween := create_tween()
+	tween.tween_property(panel_button, "self_modulate", Color.CORNFLOWER_BLUE, 1.5)
+	tween.tween_property(panel_button, "self_modulate", Color.GOLD, 1.5)
+	tween.set_loops(-1)
+	tween.play()
 
 	# Register custom inspector plugin for mod-aware resource pickers
 	_resource_inspector_plugin = ResourceInspectorPlugin.new()

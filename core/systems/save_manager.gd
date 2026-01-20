@@ -42,7 +42,8 @@ func _atomic_write_file(file_path: String, content: String) -> bool:
 	# Step 1: Write to temp file
 	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
 	if not file:
-		push_error("SaveManager: Failed to open temp file: %s" % temp_path)
+		var err: Error = FileAccess.get_open_error()
+		push_error("SaveManager: Failed to open temp file: %s (error: %d)" % [temp_path, err])
 		return false
 
 	file.store_string(content)
@@ -54,9 +55,11 @@ func _atomic_write_file(file_path: String, content: String) -> bool:
 		return false
 
 	# Step 2: Open directory for rename operations
-	var dir: DirAccess = DirAccess.open(file_path.get_base_dir())
+	var base_dir: String = file_path.get_base_dir()
+	var dir: DirAccess = DirAccess.open(base_dir)
 	if not dir:
-		push_error("SaveManager: Cannot open directory for atomic write")
+		var dir_err: Error = DirAccess.get_open_error()
+		push_error("SaveManager: Cannot open directory for atomic write (error: %d)" % dir_err)
 		return false
 
 	# Step 3: Backup existing file (if exists)
@@ -574,6 +577,7 @@ func sync_current_save_state() -> void:
 
 	# Sync party members from PartyManager
 	var party_data: Array[CharacterSaveData] = PartyManager.export_to_save()
+
 	current_save.party_members.clear()
 	for member: CharacterSaveData in party_data:
 		current_save.party_members.append(member)

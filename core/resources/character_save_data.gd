@@ -380,10 +380,11 @@ func _get_mod_id_for_resource(resource: Resource) -> String:
 		return ""
 
 	# Extract mod_id from path (e.g., "res://mods/_base_game/..." → "_base_game")
+	# Split result: ["res:", "", "mods", "mod_id", ...] - mod_id is at index 3
 	if resource_path.begins_with("res://mods/"):
 		var path_parts: PackedStringArray = resource_path.split("/")
-		if path_parts.size() >= 3:
-			return path_parts[2]  # mods/[mod_id]/...
+		if path_parts.size() >= 4:
+			return path_parts[3]  # res://mods/[mod_id]/...
 
 	push_warning("CharacterSaveData: Could not determine mod_id from path: %s" % resource_path)
 	return ""

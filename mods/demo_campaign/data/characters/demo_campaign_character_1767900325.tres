@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_pp6ls"]
 [ext_resource type="Resource" uid="uid://8nla4ftir3rx" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767750454.tres" id="1_vb5fu"]
-[ext_resource type="Texture2D" uid="uid://c442mghm0qluv" path="res://mods/demo_campaign/assets/portraits/Villager.png" id="2_pk881"]
+[ext_resource type="Texture2D" uid="uid://b65k07ieb7w1t" path="res://mods/demo_campaign/assets/portraits/Villager.png" id="2_pk881"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_ywjm7"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_eykb1"]
-[ext_resource type="Texture2D" uid="uid://1ijgeip4076c" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="4_icjbl"]
+[ext_resource type="Texture2D" uid="uid://diujsbual07ed" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="4_icjbl"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_i4u7f"]
 atlas = ExtResource("4_icjbl")

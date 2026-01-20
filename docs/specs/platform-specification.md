@@ -630,8 +630,6 @@ Issues identified but not yet implemented:
 | Issue | Location | Status |
 |-------|----------|--------|
 | No translation files | `mods/*/translations/` | LocalizationManager API works but no actual .po/.csv translation files exist; game is English-only |
-| AI buff item processing | `ai_brain_editor.gd:530-538` | Buff item usage setting exposed in editor but not processed by AI |
-| AI idle turn patience | `ai_brain_editor.gd:604-613` | `max_idle_turns` setting exposed but has no effect |
 | Spell animation system | `ability_editor.gd:398-400` | Animation fields in ability editor are ignored; spells have no visual effects |
 | Dialog box auto-positioning | `dialog_box.gd:363-365` | AUTO position falls back to BOTTOM instead of smart speaker-based positioning |
 | Mod field menu options | `exploration_field_menu.gd:330-331` | `_add_mod_options()` commented out; mods cannot add custom field menu options |

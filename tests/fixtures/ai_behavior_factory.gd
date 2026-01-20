@@ -228,7 +228,6 @@ static func create_ranged(behavior_id: String = "test_ranged") -> AIBehaviorData
 ##   - conserve_mp_on_heals: bool
 ##   - prioritize_boss_heals: bool
 ##   - seek_terrain_advantage: bool
-##   - max_idle_turns: int
 ##   - ignore_protagonist_priority: bool
 ##   - threat_weights: Dictionary
 ##   - behavior_phases: Array[Dictionary]
@@ -278,8 +277,6 @@ static func create_custom(options: Dictionary) -> AIBehaviorData:
 		behavior.engagement_range = options.engagement_range
 	if "seek_terrain_advantage" in options:
 		behavior.seek_terrain_advantage = options.seek_terrain_advantage
-	if "max_idle_turns" in options:
-		behavior.max_idle_turns = options.max_idle_turns
 
 	# Targeting options
 	if "ignore_protagonist_priority" in options:

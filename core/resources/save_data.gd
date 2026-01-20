@@ -49,8 +49,14 @@ extends Resource
 ## Current scene path (where to load when resuming)
 @export var current_scene_path: String = ""
 
-## Current spawn point ID within the scene (optional)
+## Current spawn point ID within the scene (optional, used if player_position not set)
 @export var current_spawn_point: String = ""
+
+## Player's exact grid position when saved (takes priority over spawn point)
+@export var player_grid_position: Vector2i = Vector2i(-1, -1)
+
+## Player's facing direction when saved
+@export var player_facing: String = ""
 
 ## Last safe location scene path (for Egress/defeat returns)
 @export var last_safe_location: String = ""
@@ -130,6 +136,8 @@ func serialize_to_dict() -> Dictionary:
 		# Scene progress
 		"current_scene_path": current_scene_path,
 		"current_spawn_point": current_spawn_point,
+		"player_grid_position": {"x": player_grid_position.x, "y": player_grid_position.y},
+		"player_facing": player_facing,
 		"last_safe_location": last_safe_location,
 		"current_location": current_location,
 		"story_flags": story_flags.duplicate(),
@@ -186,6 +194,19 @@ func deserialize_from_dict(data: Dictionary) -> void:
 	# Scene progress - with type safety
 	current_scene_path = DictUtils.get_string(data, "current_scene_path", "")
 	current_spawn_point = DictUtils.get_string(data, "current_spawn_point", "")
+	player_facing = DictUtils.get_string(data, "player_facing", "")
+	# Load player grid position
+	if "player_grid_position" in data:
+		var pos_data: Variant = data.get("player_grid_position")
+		if pos_data is Dictionary:
+			var pos_dict: Dictionary = pos_data
+			var x: int = DictUtils.get_int(pos_dict, "x", -1)
+			var y: int = DictUtils.get_int(pos_dict, "y", -1)
+			player_grid_position = Vector2i(x, y)
+		else:
+			player_grid_position = Vector2i(-1, -1)
+	else:
+		player_grid_position = Vector2i(-1, -1)
 	last_safe_location = DictUtils.get_string(data, "last_safe_location", "")
 	current_location = DictUtils.get_string(data, "current_location", "headquarters")
 

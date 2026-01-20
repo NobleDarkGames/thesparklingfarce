@@ -3,9 +3,9 @@
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_luwc7"]
 [ext_resource type="Resource" uid="uid://8nla4ftir3rx" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767750454.tres" id="1_m8k32"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_84ms0"]
-[ext_resource type="Texture2D" uid="uid://b08jfse3s7vc5" path="res://mods/demo_campaign/assets/portraits/Cloaky.png" id="2_w408e"]
+[ext_resource type="Texture2D" uid="uid://dbu33y5cdimg6" path="res://mods/demo_campaign/assets/portraits/Cloaky.png" id="2_w408e"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_ur5gf"]
-[ext_resource type="Texture2D" uid="uid://1ijgeip4076c" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="4_g0vux"]
+[ext_resource type="Texture2D" uid="uid://diujsbual07ed" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="4_g0vux"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_m8k32"]
 atlas = ExtResource("4_g0vux")

@@ -55,7 +55,6 @@ var use_buff_items_check: CheckBox
 var alert_range_spin: SpinBox
 var engagement_range_spin: SpinBox
 var seek_terrain_check: CheckBox
-var max_idle_turns_spin: SpinBox
 
 # =============================================================================
 # UI Components - Preview Section
@@ -137,7 +136,6 @@ func _load_resource_data() -> void:
 	alert_range_spin.value = behavior.alert_range
 	engagement_range_spin.value = behavior.engagement_range
 	seek_terrain_check.button_pressed = behavior.seek_terrain_advantage
-	max_idle_turns_spin.value = behavior.max_idle_turns
 
 	# Update preview
 	_update_preview()
@@ -194,7 +192,6 @@ func _save_resource_data() -> void:
 	behavior.alert_range = int(alert_range_spin.value)
 	behavior.engagement_range = int(engagement_range_spin.value)
 	behavior.seek_terrain_advantage = seek_terrain_check.button_pressed
-	behavior.max_idle_turns = int(max_idle_turns_spin.value)
 
 
 ## Override: Validate resource before saving
@@ -582,29 +579,6 @@ func _add_engagement_section() -> void:
 	seek_terrain_check.tooltip_text = "AI prefers tiles with defense/evasion bonuses when moving to attack. Makes enemies tactically smarter."
 	seek_terrain_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(seek_terrain_check)
-
-	# Max idle turns
-	var idle_container: HBoxContainer = HBoxContainer.new()
-	var idle_label: Label = Label.new()
-	idle_label.text = "Max Idle Turns:"
-	idle_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	idle_label.tooltip_text = "Turns waiting before becoming aggressive (0 = stay passive)"
-	idle_container.add_child(idle_label)
-
-	max_idle_turns_spin = SpinBox.new()
-	max_idle_turns_spin.min_value = 0
-	max_idle_turns_spin.max_value = 99
-	max_idle_turns_spin.value = 0
-	max_idle_turns_spin.tooltip_text = "[NOT YET IMPLEMENTED] Intended: After this many turns without acting, unit becomes aggressive. 0 = stay passive forever."
-	max_idle_turns_spin.value_changed.connect(_on_spin_changed)
-	idle_container.add_child(max_idle_turns_spin)
-	section.add_child(idle_container)
-
-	var engage_stub_label: Label = Label.new()
-	engage_stub_label.text = "[STUB] Idle turn patience not yet processed by AI system"
-	engage_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	engage_stub_label.add_theme_font_size_override("font_size", 12)
-	section.add_child(engage_stub_label)
 
 	detail_panel.add_child(section)
 

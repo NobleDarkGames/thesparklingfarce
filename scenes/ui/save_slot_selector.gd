@@ -175,7 +175,8 @@ func _start_new_game(hero_name: String) -> void:
 	var original_path: String = party[0].resource_path
 	print("SaveSlotSelector._start_new_game: Hero original resource_path='%s'" % original_path)
 	var hero: CharacterData = party[0].duplicate()
-	hero.resource_path = original_path  # Preserve for save system mod_id lookup
+	# Use take_over_path() instead of direct assignment - Godot 4 protects resource_path
+	hero.take_over_path(original_path)
 	hero.character_name = hero_name
 	party[0] = hero
 	print("SaveSlotSelector._start_new_game: Hero duplicated, resource_path='%s'" % hero.resource_path)

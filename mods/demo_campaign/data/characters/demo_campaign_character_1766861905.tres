@@ -3,9 +3,9 @@
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_iecgb"]
 [ext_resource type="Resource" uid="uid://nivncn7dj42l" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1766861870.tres" id="1_rdoq6"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_0ac43"]
-[ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="2_e80f5"]
+[ext_resource type="Texture2D" uid="uid://fd8v2mvcjw4x" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="2_e80f5"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_pc324"]
-[ext_resource type="Texture2D" uid="uid://uhkgx2pei8j0" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_3.png" id="4_rdoq6"]
+[ext_resource type="Texture2D" uid="uid://dmm6isn0pxhad" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_3.png" id="4_rdoq6"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rdoq6"]
 atlas = ExtResource("4_rdoq6")

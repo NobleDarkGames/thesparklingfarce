@@ -116,10 +116,6 @@ extends Resource
 ## If true, prefer positions with terrain bonuses (defense, cover)
 @export var seek_terrain_advantage: bool = true
 
-## Maximum turns to wait without action before becoming aggressive
-## 0 = always stay passive until triggered
-@export_range(0, 99) var max_idle_turns: int = 0
-
 # =============================================================================
 # BEHAVIOR PHASES (Trigger-Based State Changes)
 # =============================================================================

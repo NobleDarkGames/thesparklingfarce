@@ -128,14 +128,14 @@ const COMMAND_DEFINITIONS: Dictionary = {
 		"description": "Play a sound effect",
 		"icon": "AudioStreamPlayer",
 		"params": {
-			"sound_id": {"type": "string", "default": "", "hint": "Sound effect ID"}
+			"sound_id": {"type": "sfx", "default": "", "hint": "Sound effect ID"}
 		}
 	},
 	"play_music": {
 		"description": "Play background music",
 		"icon": "AudioStreamPlayer2D",
 		"params": {
-			"music_id": {"type": "string", "default": "", "hint": "Music track ID"},
+			"music_id": {"type": "music", "default": "", "hint": "Music track ID"},
 			"fade_duration": {"type": "float", "default": 0.5, "min": 0.0, "max": 5.0, "hint": "Fade-in duration"}
 		}
 	},

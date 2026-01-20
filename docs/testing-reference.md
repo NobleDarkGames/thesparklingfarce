@@ -319,23 +319,41 @@ static func create_test_character(
 
 ### Signal Tracking Helper
 
+Track signal emissions without manual callback wiring. Each emission records the signal name, arguments, and timestamp.
+
+**API:**
+
+| Method | Description |
+|--------|-------------|
+| `track(sig: Signal)` | Track signal with auto-recording |
+| `track_with_callback(sig: Signal, callback: Callable)` | Track with custom callback (also auto-disconnects) |
+| `was_emitted(signal_name: String) -> bool` | True if signal fired at least once |
+| `emission_count(signal_name: String) -> int` | Number of times signal fired |
+| `get_emissions(signal_name: String) -> Array[EmissionRecord]` | All emission records (includes `.arguments`, `.timestamp`) |
+| `was_emitted_with(signal_name: String, expected_args: Array) -> bool` | True if signal fired with exact arguments |
+| `clear_emissions()` | Reset recorded emissions (useful between test phases) |
+| `disconnect_all()` | Disconnect all tracked signals - **REQUIRED in after_test()** |
+
+**Usage:**
+
 ```gdscript
-# tests/fixtures/signal_tracker.gd
-class_name SignalTracker
-extends RefCounted
+var tracker: SignalTracker
 
-var _connections: Array[Dictionary] = []
-var received_signals: Array[Dictionary] = []
+func before_test() -> void:
+    tracker = SignalTracker.new()
 
-func track(sig: Signal, callable: Callable) -> void:
-    sig.connect(callable)
-    _connections.append({"signal": sig, "callable": callable})
+func after_test() -> void:
+    tracker.disconnect_all()  # Prevents leaks between tests
 
-func disconnect_all() -> void:
-    for conn in _connections:
-        if conn.signal.is_connected(conn.callable):
-            conn.signal.disconnect(conn.callable)
-    _connections.clear()
+func test_damage_emits_health_changed() -> void:
+    var unit: Unit = create_test_unit()
+    tracker.track(unit.health_changed)
+
+    unit.take_damage(10)
+
+    assert_bool(tracker.was_emitted("health_changed")).is_true()
+    assert_bool(tracker.was_emitted_with("health_changed", [90, 100])).is_true()
+    assert_int(tracker.emission_count("health_changed")).is_equal(1)
 ```
 
 ---

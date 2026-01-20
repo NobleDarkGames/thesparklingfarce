@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://ddj47tgc425vy"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_bj16j"]
+[ext_resource type="Resource" uid="uid://b4tr8nowe1qjm" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1768497866.tres" id="1_vukh2"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_fvdue"]
+[ext_resource type="Texture2D" uid="uid://fd8v2mvcjw4x" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="2_i8deh"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_6yhu5"]
+[ext_resource type="SpriteFrames" uid="uid://l0fkatci8t5g" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1768497946_map_sprites.tres" id="4_n58p1"]
+
+[resource]
+script = ExtResource("1_bj16j")
+character_uid = "demo_campaign_character_1768497946"
+character_name = "Supporty"
+character_class = ExtResource("1_vukh2")
+base_hp = 12
+base_mp = 8
+portrait = ExtResource("2_i8deh")
+sprite_frames = ExtResource("4_n58p1")
+is_default_party_member = true

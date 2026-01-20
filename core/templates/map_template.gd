@@ -133,13 +133,16 @@ func _ready() -> void:
 	# SF2-authentic: followers spawn at hero position, fan out as hero moves
 	_setup_party_followers()
 
-	# CRITICAL: Handle transitions (restores hero position after battle/door)
+	# CRITICAL: Handle transitions (restores hero position after battle/door/load)
 	var context: TransitionContext = GameState.get_transition_context()
 	if context:
 		await _handle_transition_context(context)
 	else:
-		# No transition context - use default spawn point if available
-		_spawn_at_default()
+		# No transition context - check for saved position (game load scenario)
+		var restored: bool = _restore_from_save_data()
+		if not restored:
+			# Fallback to default spawn point
+			_spawn_at_default()
 
 	# Setup camera to follow hero
 	_setup_camera()
@@ -257,6 +260,48 @@ func _spawn_at_default() -> void:
 			if camera:
 				camera.snap_to_target()
 	# If no default spawn point, hero stays at scene-defined position
+
+
+## Restore hero position from SaveManager.current_save (game load scenario)
+## Returns true if position was restored, false if no saved position available
+func _restore_from_save_data() -> bool:
+	if not SaveManager or not SaveManager.current_save:
+		return false
+
+	var save_data: SaveData = SaveManager.current_save
+
+	# Check if we have a valid saved position (not the default -1, -1)
+	if save_data.player_grid_position.x < 0 or save_data.player_grid_position.y < 0:
+		# No saved position - check for spawn point fallback
+		if not save_data.current_spawn_point.is_empty():
+			return _spawn_at_point(save_data.current_spawn_point)
+		return false
+
+	# Restore to saved grid position
+	if hero and hero.has_method("teleport_to_grid"):
+		hero.teleport_to_grid(save_data.player_grid_position)
+		_debug_print("MapTemplate: Hero restored to saved position: %s" % save_data.player_grid_position)
+
+		# Restore facing if available
+		if not save_data.player_facing.is_empty() and hero.has_method("set_facing"):
+			hero.set_facing(save_data.player_facing)
+
+		# Reposition followers at hero's restored location
+		for follower: CharacterBody2D in party_followers:
+			if follower and follower.has_method("reposition_to_hero"):
+				follower.reposition_to_hero()
+
+		# Snap camera to new position
+		if camera:
+			camera.snap_to_target()
+
+		# Clear the saved position so subsequent map transitions use normal spawn logic
+		save_data.player_grid_position = Vector2i(-1, -1)
+		save_data.player_facing = ""
+
+		return true
+
+	return false
 
 
 ## Legacy function - redirects to new system.

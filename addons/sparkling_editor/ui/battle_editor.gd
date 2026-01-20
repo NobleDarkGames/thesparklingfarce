@@ -54,6 +54,11 @@ var pre_battle_dialogue_picker: ResourcePicker
 var victory_dialogue_picker: ResourcePicker
 var defeat_dialogue_picker: ResourcePicker
 
+# Audio
+var music_id_option: OptionButton
+var victory_music_option: OptionButton
+var defeat_music_option: OptionButton
+
 # Rewards
 var experience_reward_spin: SpinBox
 var gold_reward_spin: SpinBox
@@ -331,11 +336,30 @@ func _add_battle_flow_section() -> void:
 	form.add_separator()
 
 
-## Section 8: Audio (Placeholders)
+## Section 8: Audio
 func _add_audio_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.add_section("Audio")
-	form.add_help_text("Audio settings (BGM, Victory, Defeat music): Coming soon")
+
+	# Battle Music dropdown
+	music_id_option = OptionButton.new()
+	music_id_option.tooltip_text = "Background music for this battle. Leave empty for default (battle_theme or boss_theme)."
+	form.add_labeled_control("Battle Music:", music_id_option,
+		"Music track to play during battle. Empty uses default based on battle type.")
+
+	# Victory Fanfare dropdown
+	victory_music_option = OptionButton.new()
+	victory_music_option.tooltip_text = "Fanfare played on victory. Leave empty for default (battle_victory)."
+	form.add_labeled_control("Victory Fanfare:", victory_music_option,
+		"Sound effect or short music played when battle is won.")
+
+	# Defeat Jingle dropdown
+	defeat_music_option = OptionButton.new()
+	defeat_music_option.tooltip_text = "Jingle played on defeat. Leave empty for default (battle_defeat)."
+	form.add_labeled_control("Defeat Jingle:", defeat_music_option,
+		"Sound effect or short music played when battle is lost.")
+
+	form.add_help_text("Music files are loaded from mods/*/assets/audio/music/. Layers (_layer1, _l2) are automatic.")
 	form.add_separator()
 
 
@@ -603,6 +627,60 @@ func _on_remove_neutral(panel: PanelContainer) -> void:
 func _on_neutral_position_changed(_value: float, _index: int) -> void:
 	# Map preview removed - no action needed
 	pass
+
+
+## Update music dropdown with available music tracks from mods
+func _update_music_dropdown(option: OptionButton) -> void:
+	option.clear()
+	option.add_item("(Use Default)", -1)
+
+	var music_tracks: Array[Dictionary] = MusicDiscovery.get_available_music_with_labels()
+	for i: int in range(music_tracks.size()):
+		var track: Dictionary = music_tracks[i]
+		var label: String = "[%s] %s" % [track.mod, track.display_name]
+		option.add_item(label)
+		option.set_item_metadata(i + 1, track.id)
+
+
+## Update SFX dropdown with available sound effects from mods (for victory/defeat)
+func _update_sfx_dropdown(option: OptionButton) -> void:
+	option.clear()
+	option.add_item("(Use Default)", -1)
+
+	var sfx_tracks: Array[Dictionary] = MusicDiscovery.get_available_sfx_with_labels()
+	for i: int in range(sfx_tracks.size()):
+		var track: Dictionary = sfx_tracks[i]
+		var label: String = "[%s] %s" % [track.mod, track.display_name]
+		option.add_item(label)
+		option.set_item_metadata(i + 1, track.id)
+
+
+## Select a music/sfx track in dropdown by ID
+func _select_audio_in_dropdown(option: OptionButton, audio_id: String) -> void:
+	if audio_id.is_empty():
+		option.selected = 0
+		return
+
+	for i: int in range(option.item_count):
+		var metadata: Variant = option.get_item_metadata(i)
+		if metadata == audio_id:
+			option.selected = i
+			return
+
+	# ID not found - might be custom, add it
+	var item_index: int = option.item_count
+	option.add_item("[custom] %s" % audio_id, item_index - 1)
+	option.set_item_metadata(item_index, audio_id)
+	option.selected = item_index
+
+
+## Get selected audio ID from dropdown (empty string if default selected)
+func _get_selected_audio_id(option: OptionButton) -> String:
+	var index: int = option.selected
+	if index <= 0:
+		return ""
+	var metadata: Variant = option.get_item_metadata(index)
+	return metadata if metadata is String else ""
 
 
 ## Update AI dropdown with available AI behaviors - queries registry directly
@@ -908,6 +986,14 @@ func _load_resource_data() -> void:
 	else:
 		defeat_dialogue_picker.select_none()
 
+	# Audio settings
+	_update_music_dropdown(music_id_option)
+	_update_sfx_dropdown(victory_music_option)
+	_update_sfx_dropdown(defeat_music_option)
+	_select_audio_in_dropdown(music_id_option, battle.music_id)
+	_select_audio_in_dropdown(victory_music_option, battle.victory_music_id)
+	_select_audio_in_dropdown(defeat_music_option, battle.defeat_music_id)
+
 	# Rewards
 	experience_reward_spin.value = battle.experience_reward
 	gold_reward_spin.value = battle.gold_reward
@@ -1136,6 +1222,11 @@ func _save_resource_data() -> void:
 	battle.pre_battle_dialogue = pre_battle_dialogue_picker.get_selected_resource() as DialogueData
 	battle.victory_dialogue = victory_dialogue_picker.get_selected_resource() as DialogueData
 	battle.defeat_dialogue = defeat_dialogue_picker.get_selected_resource() as DialogueData
+
+	# Audio settings
+	battle.music_id = _get_selected_audio_id(music_id_option)
+	battle.victory_music_id = _get_selected_audio_id(victory_music_option)
+	battle.defeat_music_id = _get_selected_audio_id(defeat_music_option)
 
 	# Rewards
 	battle.experience_reward = int(experience_reward_spin.value)
