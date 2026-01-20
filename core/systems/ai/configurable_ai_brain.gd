@@ -71,6 +71,13 @@ func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehavior
 		if "behavior_mode" in phase_changes:
 			mode = phase_changes["behavior_mode"]
 
+	# Pre-combat: try to use buff items on self or nearby allies
+	# This happens before any movement or combat actions
+	if behavior.use_buff_items:
+		var buffed: bool = await _try_use_buff_item(unit, context, behavior)
+		if buffed:
+			return  # Turn consumed by item use
+
 	# Execute based on ROLE first (what the AI prioritizes)
 	# Then fall back to MODE (how it executes attacks)
 	match role:
@@ -776,6 +783,8 @@ func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
 		return false
 	if ability_type == AbilityData.AbilityType.ATTACK and not behavior.use_attack_items:
 		return false
+	if ability_type == AbilityData.AbilityType.SUPPORT and not behavior.use_buff_items:
+		return false
 
 	if not "character_data" in unit or unit.character_data == null:
 		return false
@@ -826,6 +835,111 @@ func _try_use_healing_item(unit: Unit, context: Dictionary, behavior: AIBehavior
 ## Convenience wrapper for attack items
 func _try_use_attack_item(unit: Unit, target: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
 	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.ATTACK, target)
+
+
+## Convenience wrapper for buff items on self or nearby allies
+## @param unit: The AI unit
+## @param context: Battle context
+## @param behavior: AI behavior settings
+## @return: true if buff item was used, false otherwise
+func _try_use_buff_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
+	if not behavior or not behavior.use_buff_items:
+		return false
+
+	# Find best target for buff (self or nearby ally)
+	var target: Unit = _find_best_buff_target(unit, context)
+	if not target:
+		return false
+
+	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.SUPPORT, target)
+
+
+## Find the best target for a buff item (self or nearby ally)
+## Prioritizes allies without buffs, then self
+## @param unit: The AI unit
+## @param context: Battle context
+## @return: Best target for buff, or null if none suitable
+func _find_best_buff_target(unit: Unit, context: Dictionary) -> Unit:
+	var allies: Array[Unit] = _get_allied_units(unit, context)
+
+	# Check self first - quick early return if no allies
+	if allies.is_empty():
+		return unit
+
+	var best_target: Unit = null
+	var best_score: float = -999.0
+
+	# Score self
+	var self_score: float = _calculate_buff_target_score(unit, unit)
+	if self_score > best_score:
+		best_score = self_score
+		best_target = unit
+
+	# Score nearby allies (within buff item range, typically 1-3 tiles)
+	var buff_range: int = 3  # Typical buff item range
+	for ally: Unit in allies:
+		if not ally.is_alive() or ally == unit:
+			continue
+
+		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, ally.grid_position)
+		if dist > buff_range:
+			continue  # Too far to buff
+
+		var score: float = _calculate_buff_target_score(unit, ally)
+
+		# Proximity bonus - closer allies are easier to buff
+		score += (buff_range - dist) * 5.0
+
+		if score > best_score:
+			best_score = score
+			best_target = ally
+
+	return best_target
+
+
+## Calculate score for a potential buff target
+## Higher score = better target for buffing
+## @param caster: The AI unit considering the buff
+## @param target: Potential target for the buff
+## @return: Score value (higher = better)
+func _calculate_buff_target_score(caster: Unit, target: Unit) -> float:
+	var score: float = 0.0
+
+	if not target or not target.stats:
+		return score
+
+	# Units without active buffs are better targets (avoid stacking)
+	# Check status_effects for existing buffs
+	if target.stats.status_effects.is_empty():
+		score += 30.0  # Significant bonus for unbuffed target
+	else:
+		# Check if any existing effects are buffs (typically have _up suffix)
+		var has_buff: bool = false
+		for effect: Dictionary in target.stats.status_effects:
+			var effect_type: String = effect.get("type", "")
+			if effect_type.ends_with("_up") or effect_type.begins_with("buff_"):
+				has_buff = true
+				break
+		if has_buff:
+			score -= 20.0  # Penalty for already buffed
+
+	# Higher threat units are better buff targets (they'll make better use of it)
+	if target.character_data:
+		score += target.character_data.ai_threat_modifier * 10.0
+
+		# Bosses get priority
+		if target.character_data.is_boss:
+			score += 25.0
+
+	# Self-buff has a small bonus (no movement cost)
+	if target == caster:
+		score += 5.0
+
+	# Offensive stats benefit more from buffs generally
+	if target.stats.strength > 15:
+		score += 10.0  # Strong units benefit more from attack buffs
+
+	return score
 
 
 # =============================================================================

@@ -527,15 +527,9 @@ func _add_item_usage_section() -> void:
 
 	use_buff_items_check = CheckBox.new()
 	use_buff_items_check.text = "Use buff items on self or allies"
-	use_buff_items_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: AI will use power rings, speed boots on self or nearby allies before combat."
+	use_buff_items_check.tooltip_text = "AI will use power rings, speed boots, and other buff items on self or nearby allies before combat. Prioritizes unbuffed units and bosses."
 	use_buff_items_check.toggled.connect(_on_checkbox_toggled)
 	section.add_child(use_buff_items_check)
-
-	var item_stub_label: Label = Label.new()
-	item_stub_label.text = "[STUB] Buff items not yet processed by AI system"
-	item_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	item_stub_label.add_theme_font_size_override("font_size", 12)
-	section.add_child(item_stub_label)
 
 	detail_panel.add_child(section)
 
