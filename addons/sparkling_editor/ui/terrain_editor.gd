@@ -198,91 +198,59 @@ func _add_identity_section() -> void:
 
 
 func _add_movement_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Movement")
+	form.add_help_text("Movement cost: 1 = normal, 2 = half speed, 3+ = very slow. Check 'Impassable' to block entirely.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Movement"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Movement cost: 1 = normal, 2 = half speed, 3+ = very slow. Check 'Impassable' to block entirely."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_label)
-
-	# Walking
-	var walking_container: HBoxContainer = HBoxContainer.new()
-	var walking_label: Label = Label.new()
-	walking_label.text = "Walking Cost:"
-	walking_label.custom_minimum_size.x = 150
-	walking_label.tooltip_text = "Movement cost for ground infantry and cavalry"
-	walking_container.add_child(walking_label)
-
+	# Walking - custom row with SpinBox + CheckBox
+	var walking_row: HBoxContainer = HBoxContainer.new()
 	walking_cost_spin = SpinBox.new()
 	walking_cost_spin.min_value = 1
 	walking_cost_spin.max_value = 99
 	walking_cost_spin.value = 1
 	walking_cost_spin.tooltip_text = "1 = normal, 2 = half speed, 3+ = very slow"
 	walking_cost_spin.value_changed.connect(_on_field_changed)
-	walking_container.add_child(walking_cost_spin)
-
+	walking_row.add_child(walking_cost_spin)
 	impassable_walking_check = CheckBox.new()
 	impassable_walking_check.text = "Impassable"
 	impassable_walking_check.tooltip_text = "Walking units cannot enter at all"
 	impassable_walking_check.toggled.connect(_on_impassable_toggled)
 	impassable_walking_check.toggled.connect(_on_field_changed)
-	walking_container.add_child(impassable_walking_check)
-	section.add_child(walking_container)
+	walking_row.add_child(impassable_walking_check)
+	form.add_labeled_control("Walking Cost:", walking_row, "Movement cost for ground infantry and cavalry")
 
-	# Floating
-	var floating_container: HBoxContainer = HBoxContainer.new()
-	var floating_label: Label = Label.new()
-	floating_label.text = "Floating Cost:"
-	floating_label.custom_minimum_size.x = 150
-	floating_label.tooltip_text = "Movement cost for hover/levitating units"
-	floating_container.add_child(floating_label)
-
+	# Floating - custom row with SpinBox + CheckBox
+	var floating_row: HBoxContainer = HBoxContainer.new()
 	floating_cost_spin = SpinBox.new()
 	floating_cost_spin.min_value = 1
 	floating_cost_spin.max_value = 99
 	floating_cost_spin.value = 1
 	floating_cost_spin.value_changed.connect(_on_field_changed)
-	floating_container.add_child(floating_cost_spin)
-
+	floating_row.add_child(floating_cost_spin)
 	impassable_floating_check = CheckBox.new()
 	impassable_floating_check.text = "Impassable"
 	impassable_floating_check.tooltip_text = "Floating units cannot enter at all"
 	impassable_floating_check.toggled.connect(_on_impassable_toggled)
 	impassable_floating_check.toggled.connect(_on_field_changed)
-	floating_container.add_child(impassable_floating_check)
-	section.add_child(floating_container)
+	floating_row.add_child(impassable_floating_check)
+	form.add_labeled_control("Floating Cost:", floating_row, "Movement cost for hover/levitating units")
 
-	# Flying
-	var flying_container: HBoxContainer = HBoxContainer.new()
-	var flying_label: Label = Label.new()
-	flying_label.text = "Flying Cost:"
-	flying_label.custom_minimum_size.x = 150
-	flying_label.tooltip_text = "Movement cost for flying units (usually 1)"
-	flying_container.add_child(flying_label)
-
+	# Flying - custom row with SpinBox + CheckBox
+	var flying_row: HBoxContainer = HBoxContainer.new()
 	flying_cost_spin = SpinBox.new()
 	flying_cost_spin.min_value = 1
 	flying_cost_spin.max_value = 99
 	flying_cost_spin.value = 1
 	flying_cost_spin.value_changed.connect(_on_field_changed)
-	flying_container.add_child(flying_cost_spin)
-
+	flying_row.add_child(flying_cost_spin)
 	impassable_flying_check = CheckBox.new()
 	impassable_flying_check.text = "Impassable"
 	impassable_flying_check.tooltip_text = "Flying units cannot enter (rare - anti-air zones, ceilings)"
 	impassable_flying_check.toggled.connect(_on_impassable_toggled)
 	impassable_flying_check.toggled.connect(_on_field_changed)
-	flying_container.add_child(impassable_flying_check)
-	section.add_child(flying_container)
-
-	detail_panel.add_child(section)
+	flying_row.add_child(impassable_flying_check)
+	form.add_labeled_control("Flying Cost:", flying_row, "Movement cost for flying units (usually 1)")
 
 
 func _add_combat_section() -> void:
