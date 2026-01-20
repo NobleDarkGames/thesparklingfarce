@@ -205,12 +205,12 @@ func _create_detail_form() -> void:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Basic Information")
 
 	# Template selector
-	var template_row: HBoxContainer = SparklingEditorUtils.create_field_row("Start from:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	template_option = OptionButton.new()
-	template_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var idx: int = 0
 	for key: String in INTERACTABLE_TEMPLATES.keys():
 		var template: Dictionary = INTERACTABLE_TEMPLATES[key]
@@ -219,9 +219,9 @@ func _add_basic_info_section() -> void:
 		template_option.set_item_metadata(idx, key)
 		idx += 1
 	template_option.item_selected.connect(_on_template_selected)
-	template_row.add_child(template_option)
+	form.add_labeled_control("Start from:", template_option)
 
-	SparklingEditorUtils.create_help_label("Choose a template to pre-fill common interactable types", section)
+	form.add_help_text("Choose a template to pre-fill common interactable types")
 
 	# Name/ID using reusable component
 	name_id_group = NameIdFieldGroup.new()
@@ -233,12 +233,10 @@ func _add_basic_info_section() -> void:
 	name_id_group.id_tooltip = "Unique ID for referencing this interactable. Auto-generates from name."
 	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_id_group.value_changed.connect(_on_name_id_changed)
-	section.add_child(name_id_group)
+	form.container.add_child(name_id_group)
 
 	# Interactable Type
-	var type_row: HBoxContainer = SparklingEditorUtils.create_field_row("Type:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	type_option = OptionButton.new()
-	type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	type_option.tooltip_text = "Determines default behavior and editor suggestions."
 	type_option.add_item("Chest", InteractableData.InteractableType.CHEST)
 	type_option.add_item("Bookshelf", InteractableData.InteractableType.BOOKSHELF)
@@ -247,16 +245,25 @@ func _add_basic_info_section() -> void:
 	type_option.add_item("Lever", InteractableData.InteractableType.LEVER)
 	type_option.add_item("Custom", InteractableData.InteractableType.CUSTOM)
 	type_option.item_selected.connect(_on_type_changed)
-	type_row.add_child(type_option)
+	form.add_labeled_control("Type:", type_option)
 
-	SparklingEditorUtils.create_help_label("Chest/Barrel = one-shot items. Bookshelf/Sign = repeatable text. Lever = state toggle.", section)
+	form.add_help_text("Chest/Barrel = one-shot items. Bookshelf/Sign = repeatable text. Lever = state toggle.")
 
 
 func _add_appearance_section() -> void:
-	appearance_section = SparklingEditorUtils.create_section("Appearance", detail_panel)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Appearance")
+	appearance_section = form.container as VBoxContainer
 
-	# Sprite Closed
-	var closed_row: HBoxContainer = SparklingEditorUtils.create_field_row("Sprite (Closed):", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
+	# Sprite Closed row
+	var closed_row: HBoxContainer = HBoxContainer.new()
+	closed_row.add_theme_constant_override("separation", 8)
+
+	var closed_label: Label = Label.new()
+	closed_label.text = "Sprite (Closed):"
+	closed_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	closed_row.add_child(closed_label)
 
 	var closed_preview_panel: PanelContainer = _create_sprite_preview_panel()
 	var closed_child: Node = closed_preview_panel.get_child(0)
@@ -281,8 +288,16 @@ func _add_appearance_section() -> void:
 	closed_clear_btn.pressed.connect(_on_clear_sprite_closed)
 	closed_row.add_child(closed_clear_btn)
 
-	# Sprite Opened
-	var opened_row: HBoxContainer = SparklingEditorUtils.create_field_row("Sprite (Opened):", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
+	form.container.add_child(closed_row)
+
+	# Sprite Opened row
+	var opened_row: HBoxContainer = HBoxContainer.new()
+	opened_row.add_theme_constant_override("separation", 8)
+
+	var opened_label: Label = Label.new()
+	opened_label.text = "Sprite (Opened):"
+	opened_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	opened_row.add_child(opened_label)
 
 	var opened_preview_panel: PanelContainer = _create_sprite_preview_panel()
 	var opened_child: Node = opened_preview_panel.get_child(0)
@@ -307,7 +322,9 @@ func _add_appearance_section() -> void:
 	opened_clear_btn.pressed.connect(_on_clear_sprite_opened)
 	opened_row.add_child(opened_clear_btn)
 
-	SparklingEditorUtils.create_help_label("32x32 sprites recommended. Opened sprite is optional (one-shot items stay opened).", appearance_section)
+	form.container.add_child(opened_row)
+
+	form.add_help_text("32x32 sprites recommended. Opened sprite is optional (one-shot items stay opened).")
 
 
 func _create_sprite_preview_panel() -> PanelContainer:
@@ -330,24 +347,21 @@ func _create_sprite_preview_panel() -> PanelContainer:
 
 
 func _add_rewards_section() -> void:
-	rewards_section = SparklingEditorUtils.create_section("Rewards", detail_panel)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Rewards")
+	rewards_section = form.container as VBoxContainer
 
-	SparklingEditorUtils.create_help_label("Items and gold granted when this interactable is searched. Best for chests/barrels.", rewards_section)
+	form.add_help_text("Items and gold granted when this interactable is searched. Best for chests/barrels.")
 
 	# Gold reward
-	var gold_row: HBoxContainer = SparklingEditorUtils.create_field_row("Gold:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, rewards_section)
-	gold_reward_spin = SpinBox.new()
-	gold_reward_spin.min_value = 0
-	gold_reward_spin.max_value = 999999
-	gold_reward_spin.value = 0
-	gold_reward_spin.tooltip_text = "Amount of gold to grant when searched"
-	gold_reward_spin.value_changed.connect(_on_field_changed)
-	gold_row.add_child(gold_reward_spin)
+	gold_reward_spin = form.add_number_field("Gold:", 0, 999999, 0,
+		"Amount of gold to grant when searched")
 
 	# Item rewards header and add button
 	var items_header: HBoxContainer = HBoxContainer.new()
 	items_header.add_theme_constant_override("separation", 8)
-	rewards_section.add_child(items_header)
+	form.container.add_child(items_header)
 
 	var items_label: Label = Label.new()
 	items_label.text = "Item Rewards:"
@@ -362,13 +376,23 @@ func _add_rewards_section() -> void:
 	# Container for item reward entries
 	item_rewards_container = VBoxContainer.new()
 	item_rewards_container.add_theme_constant_override("separation", 4)
-	rewards_section.add_child(item_rewards_container)
+	form.container.add_child(item_rewards_container)
 
 
 func _add_place_on_map_section() -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Place on Map", detail_panel)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Place on Map")
 
-	var pos_row: HBoxContainer = SparklingEditorUtils.create_field_row("Grid Position:", 100, section)
+	# Grid position row - custom layout for X/Y spinboxes
+	var pos_row: HBoxContainer = HBoxContainer.new()
+	pos_row.add_theme_constant_override("separation", 8)
+
+	var pos_label: Label = Label.new()
+	pos_label.text = "Grid Position:"
+	pos_label.custom_minimum_size.x = 100
+	pos_row.add_child(pos_label)
+
 	var x_label: Label = Label.new()
 	x_label.text = "X:"
 	pos_row.add_child(x_label)
@@ -393,13 +417,15 @@ func _add_place_on_map_section() -> void:
 	place_position_y.tooltip_text = "Y grid coordinate where interactable will be placed on the map."
 	pos_row.add_child(place_position_y)
 
+	form.container.add_child(pos_row)
+
 	place_on_map_btn = Button.new()
 	place_on_map_btn.text = "Place on Map..."
 	place_on_map_btn.tooltip_text = "Add this interactable to a map in the current mod"
 	place_on_map_btn.pressed.connect(_on_place_on_map_pressed)
-	section.add_child(place_on_map_btn)
+	form.container.add_child(place_on_map_btn)
 
-	SparklingEditorUtils.create_help_label("Save the interactable first, then click to add it to a map", section)
+	form.add_help_text("Save the interactable first, then click to add it to a map")
 	_create_map_selection_popup()
 
 
@@ -461,99 +487,84 @@ func _add_advanced_options_section() -> void:
 
 
 func _add_cinematic_section_to(parent: Control) -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Cinematic Assignment", parent)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(parent)
+	form.on_change(_mark_dirty)
+	form.add_section("Cinematic Assignment")
 
-	var primary_row: HBoxContainer = SparklingEditorUtils.create_field_row("Interaction Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
+	# Primary cinematic picker
 	interaction_cinematic_picker = ResourcePicker.new()
 	interaction_cinematic_picker.resource_type = "cinematic"
 	interaction_cinematic_picker.allow_none = true
 	interaction_cinematic_picker.none_text = "(None)"
-	interaction_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	interaction_cinematic_picker.tooltip_text = "Explicit cinematic to play. Use for signs/bookshelves with text, or complex interactions."
 	interaction_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("primary"))
-	primary_row.add_child(interaction_cinematic_picker)
+	form.add_labeled_control("Interaction Cinematic:", interaction_cinematic_picker)
 
 	interaction_warning_label = Label.new()
 	interaction_warning_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
 	interaction_warning_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	interaction_warning_label.visible = false
-	section.add_child(interaction_warning_label)
+	form.container.add_child(interaction_warning_label)
 
-	SparklingEditorUtils.create_help_label("Leave empty to auto-generate 'Found X!' from rewards. Use for text/complex interactions.", section)
+	form.add_help_text("Leave empty to auto-generate 'Found X!' from rewards. Use for text/complex interactions.")
 
-	var fallback_row: HBoxContainer = SparklingEditorUtils.create_field_row("Fallback Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
+	# Fallback cinematic picker
 	fallback_cinematic_picker = ResourcePicker.new()
 	fallback_cinematic_picker.resource_type = "cinematic"
 	fallback_cinematic_picker.allow_none = true
 	fallback_cinematic_picker.none_text = "(None)"
-	fallback_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fallback_cinematic_picker.tooltip_text = "Cinematic to play if no conditions match and no primary cinematic set."
 	fallback_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("fallback"))
-	fallback_row.add_child(fallback_cinematic_picker)
+	form.add_labeled_control("Fallback Cinematic:", fallback_cinematic_picker)
 
 	fallback_warning_label = Label.new()
 	fallback_warning_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
 	fallback_warning_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	fallback_warning_label.visible = false
-	section.add_child(fallback_warning_label)
+	form.container.add_child(fallback_warning_label)
 
 
 func _add_conditional_cinematics_section_to(parent: Control) -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Conditional Cinematics", parent)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(parent)
+	form.on_change(_mark_dirty)
+	form.add_section("Conditional Cinematics")
 
 	add_conditional_btn = Button.new()
 	add_conditional_btn.text = "+ Add Condition"
 	add_conditional_btn.pressed.connect(_on_add_conditional)
-	section.add_child(add_conditional_btn)
+	form.container.add_child(add_conditional_btn)
 
-	SparklingEditorUtils.create_help_label("Conditions checked in order. First matching condition's cinematic plays.", section)
+	form.add_help_text("Conditions checked in order. First matching condition's cinematic plays.")
 
 	conditionals_container = VBoxContainer.new()
 	conditionals_container.add_theme_constant_override("separation", 4)
-	section.add_child(conditionals_container)
+	form.container.add_child(conditionals_container)
 
 
 func _add_behavior_section_to(parent: Control) -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Behavior", parent)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(parent)
+	form.on_change(_mark_dirty)
+	form.add_section("Behavior")
 
-	# One Shot
-	one_shot_check = CheckBox.new()
-	one_shot_check.text = "One-Shot (can only be searched once)"
-	one_shot_check.button_pressed = true
-	one_shot_check.tooltip_text = "If checked, this interactable can only be used once and will be marked as opened."
-	one_shot_check.toggled.connect(_on_check_changed)
-	section.add_child(one_shot_check)
+	# One Shot - standalone checkbox
+	one_shot_check = form.add_standalone_checkbox("One-Shot (can only be searched once)", true,
+		"If checked, this interactable can only be used once and will be marked as opened.")
 
-	SparklingEditorUtils.create_help_label("One-shot: chests, barrels (grant items once). Repeatable: signs, bookshelves (read multiple times).", section)
+	form.add_help_text("One-shot: chests, barrels (grant items once). Repeatable: signs, bookshelves (read multiple times).")
 
 	# Required Flags
-	var required_row: HBoxContainer = SparklingEditorUtils.create_field_row("Required Flags:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	required_flags_edit = LineEdit.new()
-	required_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	required_flags_edit.placeholder_text = "flag1, flag2 (comma-separated)"
-	required_flags_edit.tooltip_text = "All these flags must be set for the player to interact. Leave empty for always available."
-	required_flags_edit.text_changed.connect(_on_field_changed)
-	required_row.add_child(required_flags_edit)
+	required_flags_edit = form.add_text_field("Required Flags:", "flag1, flag2 (comma-separated)",
+		"All these flags must be set for the player to interact. Leave empty for always available.")
 
 	# Forbidden Flags
-	var forbidden_row: HBoxContainer = SparklingEditorUtils.create_field_row("Forbidden Flags:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	forbidden_flags_edit = LineEdit.new()
-	forbidden_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	forbidden_flags_edit.placeholder_text = "flag1, flag2 (comma-separated)"
-	forbidden_flags_edit.tooltip_text = "If ANY of these flags are set, interaction is blocked."
-	forbidden_flags_edit.text_changed.connect(_on_field_changed)
-	forbidden_row.add_child(forbidden_flags_edit)
+	forbidden_flags_edit = form.add_text_field("Forbidden Flags:", "flag1, flag2 (comma-separated)",
+		"If ANY of these flags are set, interaction is blocked.")
 
 	# Completion Flag
-	var completion_row: HBoxContainer = SparklingEditorUtils.create_field_row("Completion Flag:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	completion_flag_edit = LineEdit.new()
-	completion_flag_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	completion_flag_edit.placeholder_text = "(auto: {interactable_id}_opened)"
-	completion_flag_edit.tooltip_text = "Flag set after successful interaction. Auto-generated if empty."
-	completion_flag_edit.text_changed.connect(_on_field_changed)
-	completion_row.add_child(completion_flag_edit)
+	completion_flag_edit = form.add_text_field("Completion Flag:", "(auto: {interactable_id}_opened)",
+		"Flag set after successful interaction. Auto-generated if empty.")
 
-	SparklingEditorUtils.create_help_label("Completion flag tracks opened state. Leave empty for auto-generated '{id}_opened'.", section)
+	form.add_help_text("Completion flag tracks opened state. Leave empty for auto-generated '{id}_opened'.")
 
 
 # =============================================================================
@@ -786,10 +797,10 @@ func _collect_item_rewards() -> Array[Dictionary]:
 		if not item_res:
 			continue
 
-		var item_id: String = item_res.resource_path.get_file().get_basename()
-		var quantity: int = int(qty_spin.value) if qty_spin else 1
+		var item_data_id: String = item_res.resource_path.get_file().get_basename()
+		var qty: int = int(qty_spin.value) if qty_spin else 1
 
-		result.append({"item_id": item_id, "quantity": quantity})
+		result.append({"item_id": item_data_id, "quantity": qty})
 
 	return result
 
@@ -958,19 +969,19 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _conditional_entries:
 		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var and_flags_edit_ctrl: LineEdit = and_val if and_val is LineEdit else null
 		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var or_flags_edit_ctrl: LineEdit = or_val if or_val is LineEdit else null
 		var negate_val: Variant = entry.get("negate_check")
-		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
+		var negate_check_ctrl: CheckBox = negate_val if negate_val is CheckBox else null
 		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
+		var cinematic_picker_ctrl: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
 		# Get cinematic ID from picker
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+		var cine_id: String = cinematic_picker_ctrl.get_selected_resource_id() if cinematic_picker_ctrl else ""
 
-		var and_flags: Array[String] = _parse_flag_list(and_flags_edit.text if and_flags_edit else "")
-		var or_flags: Array[String] = _parse_flag_list(or_flags_edit.text if or_flags_edit else "")
+		var and_flags: Array[String] = _parse_flag_list(and_flags_edit_ctrl.text if and_flags_edit_ctrl else "")
+		var or_flags: Array[String] = _parse_flag_list(or_flags_edit_ctrl.text if or_flags_edit_ctrl else "")
 
 		if and_flags.is_empty() and or_flags.is_empty() and cine_id.is_empty():
 			continue
@@ -981,7 +992,7 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 			cond_dict["flags"] = and_flags
 		if not or_flags.is_empty():
 			cond_dict["any_flags"] = or_flags
-		if negate_check and negate_check.button_pressed:
+		if negate_check_ctrl and negate_check_ctrl.button_pressed:
 			cond_dict["negate"] = true
 
 		result.append(cond_dict)
@@ -992,19 +1003,19 @@ func _collect_conditional_cinematics() -> Array[Dictionary]:
 func _has_valid_conditional() -> bool:
 	for entry: Dictionary in _conditional_entries:
 		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
+		var and_flags_edit_ctrl: LineEdit = and_val if and_val is LineEdit else null
 		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
+		var or_flags_edit_ctrl: LineEdit = or_val if or_val is LineEdit else null
 		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
+		var cinematic_picker_ctrl: ResourcePicker = picker_val if picker_val is ResourcePicker else null
 
 		# Get cinematic ID from picker
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+		var cine_id: String = cinematic_picker_ctrl.get_selected_resource_id() if cinematic_picker_ctrl else ""
 		if cine_id.is_empty():
 			continue
 
-		var has_and_flags: bool = and_flags_edit and not and_flags_edit.text.strip_edges().is_empty()
-		var has_or_flags: bool = or_flags_edit and not or_flags_edit.text.strip_edges().is_empty()
+		var has_and_flags: bool = and_flags_edit_ctrl and not and_flags_edit_ctrl.text.strip_edges().is_empty()
+		var has_or_flags: bool = or_flags_edit_ctrl and not or_flags_edit_ctrl.text.strip_edges().is_empty()
 
 		if has_and_flags or has_or_flags:
 			return true
