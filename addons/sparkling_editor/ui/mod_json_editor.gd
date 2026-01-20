@@ -209,69 +209,40 @@ func _setup_ui() -> void:
 
 
 func _create_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Basic Information")
 
 	# ID (read-only after creation)
-	id_edit = _create_line_edit_field("Mod ID:", section, "Unique identifier (cannot be changed after creation)")
+	id_edit = form.add_text_field("Mod ID:", "", "Unique identifier (cannot be changed after creation)")
 	id_edit.editable = false
 
 	# Name
-	name_edit = _create_line_edit_field("Name:", section, "Display name for the mod")
-	name_edit.text_changed.connect(_mark_dirty_on_text_change)
+	name_edit = form.add_text_field("Name:", "", "Display name for the mod")
 
 	# Version
-	version_edit = _create_line_edit_field("Version:", section, "Semantic version (e.g., 1.0.0)")
-	version_edit.text_changed.connect(_mark_dirty_on_text_change)
+	version_edit = form.add_text_field("Version:", "", "Semantic version (e.g., 1.0.0)")
 
 	# Author
-	author_edit = _create_line_edit_field("Author:", section, "Mod author name")
-	author_edit.text_changed.connect(_mark_dirty_on_text_change)
+	author_edit = form.add_text_field("Author:", "", "Mod author name")
 
 	# Godot Version
-	godot_version_edit = _create_line_edit_field("Godot Version:", section, "Compatible Godot version (e.g., 4.5)")
-	godot_version_edit.text_changed.connect(_mark_dirty_on_text_change)
+	godot_version_edit = form.add_text_field("Godot Version:", "", "Compatible Godot version (e.g., 4.5)")
 
 	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	section.add_child(desc_label)
+	description_edit = form.add_text_area("Description:", 60, "Describe what this mod provides...")
 
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 60
-	description_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	description_edit.placeholder_text = "Describe what this mod provides..."
-	description_edit.text_changed.connect(_mark_dirty)
-	section.add_child(description_edit)
-
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_load_priority_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Load Priority")
+	form.add_help_text("Higher priority mods override lower priority content with matching IDs")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Load Priority"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Higher priority mods override lower priority content with matching IDs"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
-
+	# Priority field with dynamic range label - need custom row
 	var priority_container: HBoxContainer = HBoxContainer.new()
-
-	var priority_label: Label = Label.new()
-	priority_label.text = "Priority:"
-	priority_label.custom_minimum_size.x = 150
-	priority_container.add_child(priority_label)
+	priority_container.add_theme_constant_override("separation", 8)
 
 	priority_spin = SpinBox.new()
 	priority_spin.min_value = 0
@@ -285,26 +256,20 @@ func _create_load_priority_section() -> void:
 	priority_range_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
 	priority_container.add_child(priority_range_label)
 
-	section.add_child(priority_container)
+	form.add_labeled_control("Priority:", priority_container)
 
 	# Range explanation
-	var ranges_text: Label = Label.new()
-	ranges_text.text = "0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions"
-	ranges_text.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	ranges_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(ranges_text)
+	form.add_help_text("0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions")
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_total_conversion_section() -> void:
-	total_conversion_section = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Total Conversion Mode")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Total Conversion Mode"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	total_conversion_section.add_child(section_label)
+	# Store section container for external reference (if needed)
+	total_conversion_section = form.container as VBoxContainer
 
 	total_conversion_check = CheckBox.new()
 	total_conversion_check.text = "Enable Total Conversion Mode"
@@ -312,18 +277,11 @@ func _create_total_conversion_section() -> void:
 		"- Sets load_priority to 9000 (overrides all other mods)\n" + \
 		"- Enables 'replaces_default_party' (uses your party instead of base game)"
 	total_conversion_check.toggled.connect(_on_total_conversion_toggled)
-	total_conversion_section.add_child(total_conversion_check)
+	form.container.add_child(total_conversion_check)
 
-	var help_text: Label = Label.new()
-	help_text.text = "Total conversions create entirely new games using the platform.\n" + \
-		"They override or replace all base game content."
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 12)
-	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	total_conversion_section.add_child(help_text)
+	form.add_help_text("Total conversions create entirely new games using the platform.\nThey override or replace all base game content.")
 
-	detail_panel.add_child(total_conversion_section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_dependencies_section() -> void:
@@ -372,26 +330,17 @@ func _create_dependencies_section() -> void:
 
 
 func _create_custom_types_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Custom Types")
+	form.add_help_text("Register new enum-like values (one per line)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Custom Types"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	weapon_types_edit = form.add_text_area("Weapon Types:", 40, "e.g., laser, plasma, energy_blade")
+	unit_categories_edit = form.add_text_area("Unit Categories:", 40, "e.g., mech, cyborg, undead")
+	trigger_types_edit = form.add_text_area("Trigger Types:", 40, "e.g., puzzle, teleporter, shop")
+	animation_offset_types_edit = form.add_text_area("Animation Offsets:", 40, "Custom sprite positioning")
 
-	var help_text: Label = Label.new()
-	help_text.text = "Register new enum-like values (one per line)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
-
-	weapon_types_edit = _create_type_editor("Weapon Types:", section, "e.g., laser, plasma, energy_blade")
-	unit_categories_edit = _create_type_editor("Unit Categories:", section, "e.g., mech, cyborg, undead")
-	trigger_types_edit = _create_type_editor("Trigger Types:", section, "e.g., puzzle, teleporter, shop")
-	animation_offset_types_edit = _create_type_editor("Animation Offsets:", section, "Custom sprite positioning")
-
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_equipment_slots_section() -> void:
@@ -481,6 +430,7 @@ func _create_equipment_slots_section() -> void:
 
 func _create_inventory_config_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Inventory Configuration")
 
 	slots_per_character_spin = form.add_number_field("Slots per Character:", 1, 99, 4,
@@ -494,6 +444,7 @@ func _create_inventory_config_section() -> void:
 
 func _create_party_config_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Party Configuration")
 
 	replaces_lower_priority_check = form.add_standalone_checkbox("Replaces lower priority party members", false,
@@ -505,7 +456,7 @@ func _create_party_config_section() -> void:
 	warning_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
 	warning_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(warning_label)
+	form.container.add_child(warning_label)
 
 	form.add_separator()
 
@@ -697,6 +648,7 @@ func _create_field_menu_options_section() -> void:
 
 func _create_content_paths_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Content Paths")
 	form.add_help_text("Relative paths within the mod folder")
 
@@ -736,45 +688,6 @@ func _create_error_panel() -> void:
 	error_panel.add_child(error_label)
 
 	detail_panel.add_child(error_panel)
-
-
-## Helper to create a labeled line edit field
-func _create_line_edit_field(label_text: String, parent: VBoxContainer, tooltip: String = "") -> LineEdit:
-	var container: HBoxContainer = HBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = 150
-	if tooltip != "":
-		label.tooltip_text = tooltip
-	container.add_child(label)
-
-	var edit: LineEdit = LineEdit.new()
-	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if tooltip != "":
-		edit.tooltip_text = tooltip
-	container.add_child(edit)
-
-	parent.add_child(container)
-	return edit
-
-
-## Helper to create a custom type text editor
-func _create_type_editor(label_text: String, parent: VBoxContainer, placeholder: String) -> TextEdit:
-	var container: VBoxContainer = VBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	container.add_child(label)
-
-	var edit: TextEdit = TextEdit.new()
-	edit.custom_minimum_size.y = 40
-	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	edit.placeholder_text = placeholder
-	container.add_child(edit)
-
-	parent.add_child(container)
-	return edit
 
 
 ## Public refresh method for standard editor interface
