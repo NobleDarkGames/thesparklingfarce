@@ -271,16 +271,9 @@ func _add_basic_info_section() -> void:
 func _add_inventory_section() -> void:
 	inventory_container = VBoxContainer.new()
 
-	var section_label: Label = Label.new()
-	section_label.text = "Inventory"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	inventory_container.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Items available for purchase in this shop"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 12)
-	inventory_container.add_child(help_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(inventory_container)
+	form.add_section_label("Inventory")
+	form.add_help_text("Items available for purchase in this shop")
 
 	# Use DynamicRowList for inventory management
 	inventory_list = DynamicRowList.new()
@@ -304,16 +297,9 @@ func _add_inventory_section() -> void:
 func _add_deals_section() -> void:
 	deals_container = VBoxContainer.new()
 
-	var section_label: Label = Label.new()
-	section_label.text = "Deals (Discounted Items)"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	deals_container.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Items shown in the 'Deals' menu with discount applied"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 12)
-	deals_container.add_child(help_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(deals_container)
+	form.add_section_label("Deals (Discounted Items)")
+	form.add_help_text("Items shown in the 'Deals' menu with discount applied")
 
 	# Use DynamicRowList for deals management
 	deals_list = DynamicRowList.new()
