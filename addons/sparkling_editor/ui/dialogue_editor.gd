@@ -353,51 +353,34 @@ func _on_field_changed(_new_value: Variant = null) -> void:
 
 
 func _add_lines_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Dialogue Lines"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Dialogue Lines")
 
 	# Container for the list of lines
 	lines_container = VBoxContainer.new()
-	section.add_child(lines_container)
+	form.container.add_child(lines_container)
 
 	# Add line button
 	var add_line_button: Button = Button.new()
 	add_line_button.text = "Add Line"
 	add_line_button.pressed.connect(_on_add_line_pressed)
-	section.add_child(add_line_button)
-
-	detail_panel.add_child(section)
+	form.container.add_child(add_line_button)
 
 
 func _add_choices_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Choices (Optional Branching)"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Add choices for yes/no branches. If no choices, dialogue flows to 'Next Dialogue'."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Choices (Optional Branching)")
+	form.add_help_text("Add choices for yes/no branches. If no choices, dialogue flows to 'Next Dialogue'.")
 
 	# Container for the list of choices
 	choices_container = VBoxContainer.new()
-	section.add_child(choices_container)
+	form.container.add_child(choices_container)
 
 	# Add choice button
 	var add_choice_button: Button = Button.new()
 	add_choice_button.text = "Add Choice"
 	add_choice_button.pressed.connect(_on_add_choice_pressed)
-	section.add_child(add_choice_button)
-
-	detail_panel.add_child(section)
+	form.container.add_child(add_choice_button)
 
 
 func _add_flow_control_section() -> void:
@@ -561,8 +544,8 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	text_header.add_child(text_label)
 	var text_hint: Label = Label.new()
 	text_hint.text = "(Use {variable_name} for dynamic text)"
-	text_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	text_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
+	text_hint.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	text_hint.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	text_header.add_child(text_hint)
 	text_container.add_child(text_header)
 
