@@ -43,27 +43,12 @@ var disable_input_check: CheckBox
 var loop_check: CheckBox
 var save_button: Button
 
-# UI Components - Actors panel
-var actors_container: VBoxContainer
-var actors_list: ItemList
-var add_actor_button: Button
-var delete_actor_button: Button
-var selected_actor_index: int = -1
+# UI Components - Actors panel - uses ListEditor component
+var actors_editor: ListEditor
+var actors_container: VBoxContainer  # Container for header + ListEditor
 
-# Actor inspector fields
-var actor_id_edit: LineEdit
-var actor_entity_type_picker: OptionButton  # character, interactable, npc
-var actor_entity_picker: OptionButton  # Entity ID based on selected type
-var actor_pos_x_spin: SpinBox
-var actor_pos_y_spin: SpinBox
-var actor_facing_picker: OptionButton
-
-# Legacy alias for backward compatibility
-var actor_character_picker: OptionButton:
-	get:
-		return actor_entity_picker
-	set(value):
-		actor_entity_picker = value
+# Actor detail field references (set by detail_builder for later access)
+var _actor_detail_fields: Dictionary = {}
 
 # Quick Add Dialog popup
 var dialog_line_popup: Window
@@ -352,125 +337,36 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 
 
 func _setup_actors_section(parent: VBoxContainer) -> void:
-	# Collapsible actors section
+	# Section container
 	actors_container = VBoxContainer.new()
 	actors_container.add_theme_constant_override("separation", 4)
 	parent.add_child(actors_container)
 
-	# Header with toggle
-	var header: HBoxContainer = HBoxContainer.new()
-	header.add_theme_constant_override("separation", 4)
-	actors_container.add_child(header)
-
-	var header_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(header)
-	var actors_label: Label = header_form.add_section_label("Actors")
+	# Section header using FormBuilder
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(actors_container)
+	var actors_label: Label = form.add_section_label("Actors")
 	actors_label.tooltip_text = "Actors spawn before commands execute. Use for characters that need to exist at cinematic start."
 
-	header.add_spacer(false)
+	# Use ListEditor component for master-detail pattern
+	actors_editor = ListEditor.new()
+	actors_editor.add_button_text = "+ Add"
+	actors_editor.remove_button_text = "Del"
+	actors_editor.update_button_text = "Update"
+	actors_editor.list_min_height = 60
+	actors_editor.label_width = 70
+	actors_editor.empty_selection_text = "Select an actor to edit or click Add"
 
-	add_actor_button = Button.new()
-	add_actor_button.text = "+ Add"
-	add_actor_button.tooltip_text = "Add a new actor"
-	add_actor_button.pressed.connect(_on_add_actor)
-	header.add_child(add_actor_button)
+	# Configure callbacks
+	actors_editor.detail_builder = _build_actor_detail
+	actors_editor.display_formatter = _format_actor_display
+	actors_editor.data_factory = _create_new_actor
+	actors_editor.data_extractor = _extract_actor_data
 
-	delete_actor_button = Button.new()
-	delete_actor_button.text = "Del"
-	delete_actor_button.tooltip_text = "Delete selected actor"
-	delete_actor_button.disabled = true
-	delete_actor_button.pressed.connect(_on_delete_actor)
-	header.add_child(delete_actor_button)
+	# Connect dirty tracking
+	actors_editor.data_changed.connect(_mark_dirty)
 
-	# Actor list (compact)
-	actors_list = ItemList.new()
-	actors_list.custom_minimum_size.y = 60
-	actors_list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	actors_list.item_selected.connect(_on_actor_selected)
-	actors_list.allow_reselect = true
-	actors_container.add_child(actors_list)
-
-	# Actor inline editor (shown when actor is selected)
-	var actor_editor: VBoxContainer = VBoxContainer.new()
-	actor_editor.name = "ActorEditor"
-	actor_editor.add_theme_constant_override("separation", 4)
-	actors_container.add_child(actor_editor)
-
-	# Use FormBuilder for actor editor fields with narrower label width
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(actor_editor, 70)
-
-	# Actor ID field
-	actor_id_edit = LineEdit.new()
-	actor_id_edit.placeholder_text = "unique_actor_id"
-	actor_id_edit.text_changed.connect(_on_actor_id_changed)
-	form.add_labeled_control("ID:", actor_id_edit, "Unique ID to reference this actor in commands")
-
-	# Entity type picker
-	actor_entity_type_picker = OptionButton.new()
-	actor_entity_type_picker.add_item("Character", 0)
-	actor_entity_type_picker.add_item("Interactable", 1)
-	actor_entity_type_picker.add_item("NPC", 2)
-	actor_entity_type_picker.add_item("Virtual (Off-Screen)", 3)
-	actor_entity_type_picker.set_item_metadata(0, "character")
-	actor_entity_type_picker.set_item_metadata(1, "interactable")
-	actor_entity_type_picker.set_item_metadata(2, "npc")
-	actor_entity_type_picker.set_item_metadata(3, "virtual")
-	actor_entity_type_picker.item_selected.connect(_on_actor_entity_type_changed)
-	form.add_labeled_control("Type:", actor_entity_type_picker,
-		"Character: Playable characters with stats and portraits\nInteractable: Objects like chests, signs, doors\nNPC: Non-playable characters for dialog\nVirtual: Off-screen actors for dialog_line speakers that don't need map sprites")
-
-	# Entity picker
-	actor_entity_picker = OptionButton.new()
-	actor_entity_picker.item_selected.connect(_on_actor_entity_changed)
-	form.add_labeled_control("Entity:", actor_entity_picker, "Entity to spawn (provides sprite)")
-
-	# Position row (custom layout with X/Y spinboxes)
-	var pos_row: HBoxContainer = HBoxContainer.new()
-	pos_row.add_theme_constant_override("separation", 8)
-	actor_editor.add_child(pos_row)
-
-	var pos_label: Label = Label.new()
-	pos_label.text = "Position:"
-	pos_label.custom_minimum_size.x = 70
-	pos_row.add_child(pos_label)
-
-	var x_label: Label = Label.new()
-	x_label.text = "X:"
-	pos_row.add_child(x_label)
-
-	actor_pos_x_spin = SpinBox.new()
-	actor_pos_x_spin.min_value = -1000
-	actor_pos_x_spin.max_value = 1000
-	actor_pos_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actor_pos_x_spin.tooltip_text = "Grid X coordinate"
-	actor_pos_x_spin.value_changed.connect(_on_actor_position_changed)
-	pos_row.add_child(actor_pos_x_spin)
-
-	var y_label: Label = Label.new()
-	y_label.text = "Y:"
-	pos_row.add_child(y_label)
-
-	actor_pos_y_spin = SpinBox.new()
-	actor_pos_y_spin.min_value = -1000
-	actor_pos_y_spin.max_value = 1000
-	actor_pos_y_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actor_pos_y_spin.tooltip_text = "Grid Y coordinate"
-	actor_pos_y_spin.value_changed.connect(_on_actor_position_changed)
-	pos_row.add_child(actor_pos_y_spin)
-
-	# Facing picker
-	actor_facing_picker = OptionButton.new()
-	actor_facing_picker.add_item("down", 0)
-	actor_facing_picker.add_item("up", 1)
-	actor_facing_picker.add_item("left", 2)
-	actor_facing_picker.add_item("right", 3)
-	actor_facing_picker.item_selected.connect(_on_actor_facing_changed)
-	form.add_labeled_control("Facing:", actor_facing_picker, "Initial facing direction")
-
-	# Separator
+	actors_container.add_child(actors_editor)
 	form.add_separator()
-
-	# Initially hide editor until actor is selected
-	actor_editor.visible = false
 
 
 func _setup_inspector_panel(parent: HSplitContainer) -> void:
@@ -702,23 +598,20 @@ func _load_cinematic(path: String) -> void:
 	current_cinematic_path = path
 	current_cinematic_data = data
 	selected_command_index = -1
-	selected_actor_index = -1
 	is_dirty = false
 
 	_populate_metadata()
-	_rebuild_actors_list()
+	_load_actors_to_editor()
 	_rebuild_command_list()
 	_clear_inspector()
-	_clear_actor_editor()
 	_hide_errors()
 
 
-## Clear actor editor when loading new cinematic
-func _clear_actor_editor() -> void:
-	var actor_editor: VBoxContainer = _get_actor_editor()
-	if actor_editor:
-		actor_editor.visible = false
-	delete_actor_button.disabled = true
+## Load actors from cinematic data into ListEditor
+func _load_actors_to_editor() -> void:
+	if actors_editor and current_cinematic_data:
+		var actors: Array = current_cinematic_data.get("actors", [])
+		actors_editor.load_data(actors)
 
 
 func _populate_metadata() -> void:
@@ -1334,12 +1227,10 @@ func _on_create_new() -> void:
 	}
 
 	current_cinematic_path = new_path
-	selected_actor_index = -1
 	_populate_metadata()
-	_rebuild_actors_list()
+	_load_actors_to_editor()
 	_rebuild_command_list()
 	_clear_inspector()
-	_clear_actor_editor()
 	_hide_errors()
 	is_dirty = true
 
@@ -1385,6 +1276,16 @@ func _on_save() -> void:
 	current_cinematic_data["can_skip"] = can_skip_check.button_pressed
 	current_cinematic_data["disable_player_input"] = disable_input_check.button_pressed
 	current_cinematic_data["loop"] = loop_check.button_pressed
+
+	# Collect actors from ListEditor
+	if actors_editor:
+		var actors_data: Array[Dictionary] = actors_editor.get_all_data()
+		# Filter out empty actors (no actor_id)
+		var valid_actors: Array = []
+		for actor: Dictionary in actors_data:
+			if not actor.get("actor_id", "").is_empty():
+				valid_actors.append(actor)
+		current_cinematic_data["actors"] = valid_actors
 
 	# Validate
 	var errors: Array[String] = _validate_cinematic()
@@ -1554,62 +1455,140 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
 		_invalidate_widget_context()
 		_refresh_cinematic_list()
-		if actor_entity_picker:
-			_populate_actor_entity_picker()
+		# Refresh the actors list if visible
+		if actors_editor and current_cinematic_data:
+			actors_editor.refresh_list()
 
 
 # =============================================================================
-# ACTORS SECTION HANDLERS
+# ACTORS SECTION - LISTEDITOR CALLBACKS
 # =============================================================================
 
-## Rebuild the actors list from current data
-func _rebuild_actors_list() -> void:
-	actors_list.clear()
-	var actors: Array = current_cinematic_data.get("actors", [])
+## Build detail fields for actor editor
+func _build_actor_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionary) -> Dictionary:
+	var fields: Dictionary = {}
 
-	for i: int in range(actors.size()):
-		var actor: Dictionary = actors[i]
-		var actor_id: String = actor.get("actor_id", "unnamed")
+	# Actor ID field
+	fields["actor_id"] = form.add_text_field("ID:", "unique_actor_id",
+		"Unique ID to reference this actor in commands")
+	fields["actor_id"].text = data.get("actor_id", "")
 
-		# Get entity info (with backward compatibility for character_id)
-		var entity_type: String = actor.get("entity_type", "")
-		var entity_id: String = actor.get("entity_id", "")
-		if entity_type.is_empty() and entity_id.is_empty():
-			entity_id = actor.get("character_id", "")
-			if not entity_id.is_empty():
-				entity_type = "character"
+	# Determine entity type (with backward compatibility for character_id)
+	var entity_type: String = data.get("entity_type", "")
+	var entity_id: String = data.get("entity_id", "")
+	if entity_type.is_empty() and entity_id.is_empty():
+		var character_id: String = data.get("character_id", "")
+		if not character_id.is_empty():
+			entity_type = "character"
+			entity_id = character_id
+	if entity_type.is_empty():
+		entity_type = "character"
 
-		var display: String = actor_id
-		if not entity_id.is_empty():
-			var type_abbrev: String = ""
-			match entity_type:
-				"character": type_abbrev = "char"
-				"interactable": type_abbrev = "obj"
-				"npc": type_abbrev = "npc"
-				"virtual": type_abbrev = "virtual"
-				_: type_abbrev = entity_type
-			display += " [%s: %s]" % [type_abbrev, entity_id]
-		actors_list.add_item(display)
+	# Entity type picker
+	fields["entity_type"] = OptionButton.new()
+	fields["entity_type"].add_item("Character", 0)
+	fields["entity_type"].add_item("Interactable", 1)
+	fields["entity_type"].add_item("NPC", 2)
+	fields["entity_type"].add_item("Virtual (Off-Screen)", 3)
+	fields["entity_type"].set_item_metadata(0, "character")
+	fields["entity_type"].set_item_metadata(1, "interactable")
+	fields["entity_type"].set_item_metadata(2, "npc")
+	fields["entity_type"].set_item_metadata(3, "virtual")
+	form.add_labeled_control("Type:", fields["entity_type"],
+		"Character: Playable characters with stats and portraits\nInteractable: Objects like chests, signs, doors\nNPC: Non-playable characters for dialog\nVirtual: Off-screen actors for dialog_line speakers that don't need map sprites")
 
-	# Update button states
-	delete_actor_button.disabled = selected_actor_index < 0
+	var type_idx: int = 0
+	match entity_type:
+		"character": type_idx = 0
+		"interactable": type_idx = 1
+		"npc": type_idx = 2
+		"virtual": type_idx = 3
+	fields["entity_type"].select(type_idx)
+
+	# Entity picker - populate based on type
+	fields["entity_id"] = OptionButton.new()
+	form.add_labeled_control("Entity:", fields["entity_id"], "Entity to spawn (provides sprite)")
+	_populate_entity_picker(fields["entity_id"], entity_type, entity_id)
+
+	# Connect entity type change to repopulate entity picker
+	fields["entity_type"].item_selected.connect(func(idx: int) -> void:
+		var new_type: String = fields["entity_type"].get_item_metadata(idx)
+		_populate_entity_picker(fields["entity_id"], new_type, "")
+	)
+
+	# Position row (custom layout with X/Y spinboxes)
+	var pos_row: HBoxContainer = HBoxContainer.new()
+	pos_row.add_theme_constant_override("separation", 8)
+	form.container.add_child(pos_row)
+
+	var pos_label: Label = Label.new()
+	pos_label.text = "Position:"
+	pos_label.custom_minimum_size.x = 70
+	pos_row.add_child(pos_label)
+
+	var x_label: Label = Label.new()
+	x_label.text = "X:"
+	pos_row.add_child(x_label)
+
+	fields["pos_x"] = SpinBox.new()
+	fields["pos_x"].min_value = -1000
+	fields["pos_x"].max_value = 1000
+	fields["pos_x"].size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fields["pos_x"].tooltip_text = "Grid X coordinate"
+	pos_row.add_child(fields["pos_x"])
+
+	var y_label: Label = Label.new()
+	y_label.text = "Y:"
+	pos_row.add_child(y_label)
+
+	fields["pos_y"] = SpinBox.new()
+	fields["pos_y"].min_value = -1000
+	fields["pos_y"].max_value = 1000
+	fields["pos_y"].size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fields["pos_y"].tooltip_text = "Grid Y coordinate"
+	pos_row.add_child(fields["pos_y"])
+
+	# Set position values
+	var pos: Variant = data.get("position", [0, 0])
+	if pos is Array and pos.size() >= 2:
+		fields["pos_x"].value = pos[0]
+		fields["pos_y"].value = pos[1]
+
+	# Facing picker
+	fields["facing"] = OptionButton.new()
+	fields["facing"].add_item("down", 0)
+	fields["facing"].add_item("up", 1)
+	fields["facing"].add_item("left", 2)
+	fields["facing"].add_item("right", 3)
+	form.add_labeled_control("Facing:", fields["facing"], "Initial facing direction")
+
+	var facing: String = data.get("facing", "down")
+	var facing_idx: int = 0
+	match facing:
+		"down": facing_idx = 0
+		"up": facing_idx = 1
+		"left": facing_idx = 2
+		"right": facing_idx = 3
+	fields["facing"].select(facing_idx)
+
+	# Store field references for later access
+	_actor_detail_fields = fields
+
+	return fields
 
 
-## Populate the actor entity picker dropdown based on selected entity type
-## Queries registry directly - no local cache
-func _populate_actor_entity_picker() -> void:
-	actor_entity_picker.clear()
-	actor_entity_picker.add_item("(None)", 0)
-	actor_entity_picker.set_item_metadata(0, "")
-
-	var entity_type: String = "character"
-	if actor_entity_type_picker and actor_entity_type_picker.selected >= 0:
-		entity_type = actor_entity_type_picker.get_item_metadata(actor_entity_type_picker.selected)
+## Populate the entity picker dropdown based on selected entity type
+func _populate_entity_picker(picker: OptionButton, entity_type: String, selected_id: String) -> void:
+	picker.clear()
+	picker.add_item("(None)", 0)
+	picker.set_item_metadata(0, "")
 
 	if not ModLoader or not ModLoader.registry:
 		return
 
 	var idx: int = 1
+	var selected_idx: int = 0
+
 	match entity_type:
 		"character":
 			var characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
@@ -1619,8 +1598,10 @@ func _populate_actor_entity_picker() -> void:
 					var char_id: String = ""
 					if char_res.resource_path:
 						char_id = char_res.resource_path.get_file().get_basename()
-					actor_entity_picker.add_item(display_name, idx)
-					actor_entity_picker.set_item_metadata(idx, char_id)
+					picker.add_item(display_name, idx)
+					picker.set_item_metadata(idx, char_id)
+					if char_id == selected_id:
+						selected_idx = idx
 					idx += 1
 		"interactable":
 			var interactables: Array[Resource] = ModLoader.registry.get_all_resources("interactable")
@@ -1630,8 +1611,10 @@ func _populate_actor_entity_picker() -> void:
 					var inter_id: String = ""
 					if inter_res.resource_path:
 						inter_id = inter_res.resource_path.get_file().get_basename()
-					actor_entity_picker.add_item(display_name, idx)
-					actor_entity_picker.set_item_metadata(idx, inter_id)
+					picker.add_item(display_name, idx)
+					picker.set_item_metadata(idx, inter_id)
+					if inter_id == selected_id:
+						selected_idx = idx
 					idx += 1
 		"npc":
 			var npcs: Array[Resource] = ModLoader.registry.get_all_resources("npc")
@@ -1641,12 +1624,13 @@ func _populate_actor_entity_picker() -> void:
 					var npc_id: String = ""
 					if npc_res.resource_path:
 						npc_id = npc_res.resource_path.get_file().get_basename()
-					actor_entity_picker.add_item(display_name, idx)
-					actor_entity_picker.set_item_metadata(idx, npc_id)
+					picker.add_item(display_name, idx)
+					picker.set_item_metadata(idx, npc_id)
+					if npc_id == selected_id:
+						selected_idx = idx
 					idx += 1
 		"virtual":
 			# Virtual actors reference existing NPCs or characters for their display data
-			# Add NPCs first (most common virtual actor source)
 			var npcs: Array[Resource] = ModLoader.registry.get_all_resources("npc")
 			for npc_res: Resource in npcs:
 				if npc_res:
@@ -1654,10 +1638,11 @@ func _populate_actor_entity_picker() -> void:
 					var npc_id: String = ""
 					if npc_res.resource_path:
 						npc_id = npc_res.resource_path.get_file().get_basename()
-					actor_entity_picker.add_item("[NPC] " + display_name, idx)
-					actor_entity_picker.set_item_metadata(idx, "npc:" + npc_id)
+					picker.add_item("[NPC] " + display_name, idx)
+					picker.set_item_metadata(idx, "npc:" + npc_id)
+					if "npc:" + npc_id == selected_id:
+						selected_idx = idx
 					idx += 1
-			# Add characters
 			var characters: Array[Resource] = ModLoader.registry.get_all_resources("character")
 			for char_res: Resource in characters:
 				if char_res:
@@ -1665,32 +1650,62 @@ func _populate_actor_entity_picker() -> void:
 					var char_id: String = ""
 					if char_res.resource_path:
 						char_id = char_res.resource_path.get_file().get_basename()
-					actor_entity_picker.add_item("[Char] " + display_name, idx)
-					actor_entity_picker.set_item_metadata(idx, char_id)
+					picker.add_item("[Char] " + display_name, idx)
+					picker.set_item_metadata(idx, char_id)
+					if char_id == selected_id:
+						selected_idx = idx
 					idx += 1
 
-
-## Get actor editor container
-func _get_actor_editor() -> VBoxContainer:
-	return actors_container.get_node_or_null("ActorEditor") as VBoxContainer
+	picker.select(selected_idx)
 
 
-## Add a new actor
-func _on_add_actor() -> void:
-	if "actors" not in current_cinematic_data:
-		current_cinematic_data["actors"] = []
+## Format actor display text for list
+func _format_actor_display(data: Dictionary, _index: int) -> String:
+	var actor_id: String = data.get("actor_id", "unnamed")
 
-	var actors: Array = current_cinematic_data["actors"]
+	# Get entity info (with backward compatibility for character_id)
+	var entity_type: String = data.get("entity_type", "")
+	var entity_id: String = data.get("entity_id", "")
+	if entity_type.is_empty() and entity_id.is_empty():
+		entity_id = data.get("character_id", "")
+		if not entity_id.is_empty():
+			entity_type = "character"
 
+	var display: String = actor_id
+	if not entity_id.is_empty():
+		var type_abbrev: String = ""
+		match entity_type:
+			"character": type_abbrev = "char"
+			"interactable": type_abbrev = "obj"
+			"npc": type_abbrev = "npc"
+			"virtual": type_abbrev = "virtual"
+			_: type_abbrev = entity_type
+		display += " [%s: %s]" % [type_abbrev, entity_id]
+
+	return display
+
+
+## Create a new actor with default values
+func _create_new_actor() -> Dictionary:
 	# Generate unique actor ID
 	var base_id: String = "actor"
 	var counter: int = 1
 	var new_id: String = base_id + "_" + str(counter)
-	while _actor_id_exists(new_id, actors):
+
+	# Get existing actors from ListEditor's data
+	var existing_ids: Array[String] = []
+	if actors_editor:
+		var existing_data: Array[Dictionary] = actors_editor.get_all_data()
+		for actor: Dictionary in existing_data:
+			var aid: String = actor.get("actor_id", "")
+			if not aid.is_empty():
+				existing_ids.append(aid)
+
+	while new_id in existing_ids:
 		counter += 1
 		new_id = base_id + "_" + str(counter)
 
-	var new_actor: Dictionary = {
+	return {
 		"actor_id": new_id,
 		"entity_type": "character",
 		"entity_id": "",
@@ -1698,250 +1713,46 @@ func _on_add_actor() -> void:
 		"facing": "down"
 	}
 
-	actors.append(new_actor)
-	_rebuild_actors_list()
 
-	# Select the new actor
-	selected_actor_index = actors.size() - 1
-	actors_list.select(selected_actor_index)
-	_on_actor_selected(selected_actor_index)
+## Extract actor data from detail fields
+func _extract_actor_data(fields: Dictionary) -> Dictionary:
+	var entity_type_idx: int = fields["entity_type"].selected
+	var entity_type: String = fields["entity_type"].get_item_metadata(entity_type_idx) if entity_type_idx >= 0 else "character"
 
-	is_dirty = true
+	var entity_id_idx: int = fields["entity_id"].selected
+	var entity_id: String = ""
+	if entity_id_idx >= 0:
+		var metadata: Variant = fields["entity_id"].get_item_metadata(entity_id_idx)
+		entity_id = str(metadata) if metadata else ""
 
-
-## Get all actor IDs from the current cinematic
-func _get_current_actor_ids() -> Array[String]:
-	var result: Array[String] = []
-	if not current_cinematic_data:
-		return result
-	var actors: Array = current_cinematic_data.get("actors", [])
-	for actor_item: Variant in actors:
-		if actor_item is Dictionary:
-			var actor_dict: Dictionary = actor_item
-			var actor_id: String = actor_dict.get("actor_id", "")
-			if not actor_id.is_empty():
-				result.append(actor_id)
-	return result
-
-
-## Check if an actor ID already exists
-func _actor_id_exists(actor_id: String, actors: Array) -> bool:
-	for actor_item: Variant in actors:
-		if actor_item is Dictionary:
-			var actor_dict: Dictionary = actor_item
-			if actor_dict.get("actor_id", "") == actor_id:
-				return true
-	return false
-
-
-## Delete the selected actor
-func _on_delete_actor() -> void:
-	if selected_actor_index < 0:
-		return
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if selected_actor_index >= actors.size():
-		return
-
-	actors.remove_at(selected_actor_index)
-
-	# Clear selection and hide editor
-	selected_actor_index = -1
-	var actor_editor: VBoxContainer = _get_actor_editor()
-	if actor_editor:
-		actor_editor.visible = false
-
-	_rebuild_actors_list()
-	is_dirty = true
-
-
-## Handle actor selection
-func _on_actor_selected(index: int) -> void:
-	selected_actor_index = index
-	delete_actor_button.disabled = false
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if index < 0 or index >= actors.size():
-		var actor_editor: VBoxContainer = _get_actor_editor()
-		if actor_editor:
-			actor_editor.visible = false
-		return
-
-	var actor: Dictionary = actors[index]
-
-	# Show and populate editor
-	var actor_editor: VBoxContainer = _get_actor_editor()
-	if actor_editor:
-		actor_editor.visible = true
-
-	_updating_ui = true
-
-	# Set actor ID
-	actor_id_edit.text = actor.get("actor_id", "")
-
-	# Determine entity type (with backward compatibility for character_id)
-	var entity_type: String = actor.get("entity_type", "")
-	var entity_id: String = actor.get("entity_id", "")
-
-	# Backward compatibility: character_id -> entity_type="character"
-	if entity_type.is_empty() and entity_id.is_empty():
-		var character_id: String = actor.get("character_id", "")
-		if not character_id.is_empty():
-			entity_type = "character"
-			entity_id = character_id
-
-	if entity_type.is_empty():
-		entity_type = "character"
-
-	# Set entity type picker
-	var type_idx: int = 0
-	match entity_type:
-		"character": type_idx = 0
-		"interactable": type_idx = 1
-		"npc": type_idx = 2
-		"virtual": type_idx = 3
-	actor_entity_type_picker.select(type_idx)
-
-	# Populate entity picker for this type
-	_populate_actor_entity_picker()
-
-	# Set entity
-	var entity_idx: int = 0
-	for i: int in range(actor_entity_picker.item_count):
-		if actor_entity_picker.get_item_metadata(i) == entity_id:
-			entity_idx = i
-			break
-	actor_entity_picker.select(entity_idx)
-
-	# Set position
-	var pos: Variant = actor.get("position", [0, 0])
-	if pos is Array:
-		var pos_arr: Array = pos
-		if pos_arr.size() >= 2:
-			actor_pos_x_spin.value = pos_arr[0]
-			actor_pos_y_spin.value = pos_arr[1]
-		else:
-			actor_pos_x_spin.value = 0
-			actor_pos_y_spin.value = 0
-	else:
-		actor_pos_x_spin.value = 0
-		actor_pos_y_spin.value = 0
-
-	# Set facing
-	var facing: String = actor.get("facing", "down")
-	var facing_idx: int = 0
-	match facing:
-		"down": facing_idx = 0
-		"up": facing_idx = 1
-		"left": facing_idx = 2
-		"right": facing_idx = 3
-	actor_facing_picker.select(facing_idx)
-
-	_updating_ui = false
-
-
-## Handle actor ID change
-func _on_actor_id_changed(new_id: String) -> void:
-	if _updating_ui or selected_actor_index < 0:
-		return
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if selected_actor_index >= actors.size():
-		return
-
-	actors[selected_actor_index]["actor_id"] = new_id
-	_rebuild_actors_list()
-	actors_list.select(selected_actor_index)
-	is_dirty = true
-
-
-## Handle actor entity type change
-func _on_actor_entity_type_changed(index: int) -> void:
-	if _updating_ui or selected_actor_index < 0:
-		return
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if selected_actor_index >= actors.size():
-		return
-
-	var entity_type: String = actor_entity_type_picker.get_item_metadata(index)
-	var selected_actor: Dictionary = actors[selected_actor_index]
-	selected_actor["entity_type"] = entity_type
-	# Clear entity_id when type changes
-	selected_actor["entity_id"] = ""
-	# Remove legacy character_id if present
-	selected_actor.erase("character_id")
-
-	# Repopulate entity picker for new type
-	_populate_actor_entity_picker()
-	actor_entity_picker.select(0)  # Select "(None)"
-
-	_rebuild_actors_list()
-	actors_list.select(selected_actor_index)
-	is_dirty = true
-
-
-## Handle actor entity change
-func _on_actor_entity_changed(index: int) -> void:
-	if _updating_ui or selected_actor_index < 0:
-		return
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if selected_actor_index >= actors.size():
-		return
-
-	var entity_id: Variant = actor_entity_picker.get_item_metadata(index)
-	var entity_type: String = actor_entity_type_picker.get_item_metadata(actor_entity_type_picker.selected)
-
-	var selected_actor: Dictionary = actors[selected_actor_index]
-	selected_actor["entity_type"] = entity_type
-	selected_actor["entity_id"] = entity_id if entity_id else ""
-	# Remove legacy character_id if present
-	selected_actor.erase("character_id")
-
-	# Auto-generate actor_id from entity_id if it starts with default "actor_" prefix
-	var current_actor_id: String = selected_actor.get("actor_id", "")
-	if current_actor_id.begins_with("actor_") and entity_id:
-		var new_actor_id: String = str(entity_id)
-		selected_actor["actor_id"] = new_actor_id
-		actor_id_edit.text = new_actor_id
-
-	_rebuild_actors_list()
-	actors_list.select(selected_actor_index)
-	is_dirty = true
-
-
-## Handle actor position change
-func _on_actor_position_changed(_value: float) -> void:
-	if _updating_ui or selected_actor_index < 0:
-		return
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if selected_actor_index >= actors.size():
-		return
-
-	actors[selected_actor_index]["position"] = [int(actor_pos_x_spin.value), int(actor_pos_y_spin.value)]
-	is_dirty = true
-
-
-## Handle actor facing change
-func _on_actor_facing_changed(index: int) -> void:
-	if _updating_ui or selected_actor_index < 0:
-		return
-
-	var actors: Array = current_cinematic_data.get("actors", [])
-	if selected_actor_index >= actors.size():
-		return
-
+	var facing_idx: int = fields["facing"].selected
 	var facing: String = "down"
-	match index:
+	match facing_idx:
 		0: facing = "down"
 		1: facing = "up"
 		2: facing = "left"
 		3: facing = "right"
 
-	actors[selected_actor_index]["facing"] = facing
-	is_dirty = true
+	return {
+		"actor_id": fields["actor_id"].text.strip_edges(),
+		"entity_type": entity_type,
+		"entity_id": entity_id,
+		"position": [int(fields["pos_x"].value), int(fields["pos_y"].value)],
+		"facing": facing
+	}
+
+
+## Get all actor IDs from the current cinematic
+func _get_current_actor_ids() -> Array[String]:
+	var result: Array[String] = []
+	if not actors_editor:
+		return result
+	var actors: Array[Dictionary] = actors_editor.get_all_data()
+	for actor: Dictionary in actors:
+		var actor_id: String = actor.get("actor_id", "")
+		if not actor_id.is_empty():
+			result.append(actor_id)
+	return result
 
 
 ## Convert Variant to float with type safety
