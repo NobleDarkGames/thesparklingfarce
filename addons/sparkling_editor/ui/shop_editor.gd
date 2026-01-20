@@ -14,19 +14,12 @@ var shop_type_option: OptionButton
 
 # Inventory
 var inventory_container: VBoxContainer
-var inventory_list: ItemList
-var add_item_button: Button
-var remove_item_button: Button
+var inventory_list: DynamicRowList
 var item_picker_popup: PopupMenu
-var stock_spin: SpinBox
-var price_override_spin: SpinBox
-var inventory_edit_container: HBoxContainer
 
 # Deals
 var deals_container: VBoxContainer
-var deals_list: ItemList
-var add_deal_button: Button
-var remove_deal_button: Button
+var deals_list: DynamicRowList
 
 # Economy
 var buy_multiplier_spin: SpinBox
@@ -53,9 +46,6 @@ var uncurse_cost_spin: SpinBox
 var crafter_section: VBoxContainer
 var crafter_picker: ResourcePicker
 
-# Current form state (not caches - these track user edits)
-var _current_inventory: Array[Dictionary] = []
-var _current_deals: Array[String] = []
 
 
 func _ready() -> void:
@@ -93,13 +83,14 @@ func _load_resource_data() -> void:
 	if shop_type_option:
 		shop_type_option.selected = shop.shop_type
 
-	# Inventory
-	_current_inventory = shop.inventory.duplicate(true)
-	_refresh_inventory_list()
+	# Inventory - load into DynamicRowList
+	inventory_list.load_data(shop.inventory)
 
-	# Deals
-	_current_deals = shop.deals_inventory.duplicate()
-	_refresh_deals_list()
+	# Deals - convert Array[String] to Array[Dictionary] for DynamicRowList
+	var deals_data: Array[Dictionary] = []
+	for item_id: String in shop.deals_inventory:
+		deals_data.append({"item_id": item_id})
+	deals_list.load_data(deals_data)
 
 	# Economy
 	buy_multiplier_spin.value = shop.buy_multiplier
@@ -146,12 +137,18 @@ func _save_resource_data() -> void:
 	shop.shop_name = name_id_group.get_name_value()
 	shop.shop_type = shop_type_option.selected
 
-	# Inventory
-	shop.inventory = _current_inventory.duplicate(true)
+	# Inventory - collect from DynamicRowList
+	shop.inventory = inventory_list.get_all_data()
 
-	# Deals
-	shop.deals_inventory = _current_deals.duplicate()
-	shop.has_deals = not _current_deals.is_empty()
+	# Deals - convert from Array[Dictionary] back to Array[String]
+	var deals_data: Array[Dictionary] = deals_list.get_all_data()
+	var deals_ids: Array[String] = []
+	for entry: Dictionary in deals_data:
+		var item_id: String = entry.get("item_id", "")
+		if not item_id.is_empty():
+			deals_ids.append(item_id)
+	shop.deals_inventory = deals_ids
+	shop.has_deals = not deals_ids.is_empty()
 
 	# Economy
 	shop.buy_multiplier = buy_multiplier_spin.value
@@ -197,14 +194,17 @@ func _validate_resource() -> Dictionary:
 		errors.append("Shop name cannot be empty")
 
 	# Validate inventory item IDs exist
-	for entry: Dictionary in _current_inventory:
+	var inventory_data: Array[Dictionary] = inventory_list.get_all_data()
+	for entry: Dictionary in inventory_data:
 		var item_id: String = entry.get("item_id", "")
 		if not _item_exists(item_id):
 			errors.append("Invalid item in inventory: '%s'" % item_id)
 
 	# Validate deals item IDs exist
-	for item_id: String in _current_deals:
-		if not _item_exists(item_id):
+	var deals_data: Array[Dictionary] = deals_list.get_all_data()
+	for entry: Dictionary in deals_data:
+		var item_id: String = entry.get("item_id", "")
+		if not item_id.is_empty() and not _item_exists(item_id):
 			errors.append("Invalid item in deals: '%s'" % item_id)
 
 	# Crafter validation
@@ -282,58 +282,18 @@ func _add_inventory_section() -> void:
 	help_label.add_theme_font_size_override("font_size", 12)
 	inventory_container.add_child(help_label)
 
-	# Inventory list
-	inventory_list = ItemList.new()
-	inventory_list.custom_minimum_size = Vector2(0, 150)
-	inventory_list.item_selected.connect(_on_inventory_item_selected)
+	# Use DynamicRowList for inventory management
+	inventory_list = DynamicRowList.new()
+	inventory_list.add_button_text = "Add Item..."
+	inventory_list.add_button_tooltip = "Add an item to this shop's inventory."
+	inventory_list.use_scroll_container = true
+	inventory_list.scroll_min_height = 150
+	inventory_list.row_factory = _create_inventory_row
+	inventory_list.data_extractor = _extract_inventory_data
+	inventory_list.data_changed.connect(_on_inventory_data_changed)
 	inventory_container.add_child(inventory_list)
 
-	# Edit controls for selected item
-	inventory_edit_container = HBoxContainer.new()
-	inventory_edit_container.visible = false
-
-	var stock_label: Label = Label.new()
-	stock_label.text = "Stock:"
-	inventory_edit_container.add_child(stock_label)
-
-	stock_spin = SpinBox.new()
-	stock_spin.min_value = -1
-	stock_spin.max_value = 999
-	stock_spin.value = -1
-	stock_spin.tooltip_text = "-1 = infinite stock"
-	stock_spin.value_changed.connect(_on_stock_changed)
-	inventory_edit_container.add_child(stock_spin)
-
-	var price_label: Label = Label.new()
-	price_label.text = "Price Override:"
-	inventory_edit_container.add_child(price_label)
-
-	price_override_spin = SpinBox.new()
-	price_override_spin.min_value = -1
-	price_override_spin.max_value = 999999
-	price_override_spin.value = -1
-	price_override_spin.tooltip_text = "-1 = use item's buy_price"
-	price_override_spin.value_changed.connect(_on_price_override_changed)
-	inventory_edit_container.add_child(price_override_spin)
-
-	inventory_container.add_child(inventory_edit_container)
-
-	# Buttons
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_item_button = Button.new()
-	add_item_button.text = "Add Item..."
-	add_item_button.pressed.connect(_on_add_inventory_item)
-	button_row.add_child(add_item_button)
-
-	remove_item_button = Button.new()
-	remove_item_button.text = "Remove Selected"
-	remove_item_button.pressed.connect(_on_remove_inventory_item)
-	button_row.add_child(remove_item_button)
-
-	inventory_container.add_child(button_row)
-
-	# Item picker popup
+	# Item picker popup (still needed for "Add Item..." button behavior)
 	item_picker_popup = PopupMenu.new()
 	item_picker_popup.id_pressed.connect(_on_item_picker_selected)
 	add_child(item_picker_popup)
@@ -355,23 +315,15 @@ func _add_deals_section() -> void:
 	help_label.add_theme_font_size_override("font_size", 12)
 	deals_container.add_child(help_label)
 
-	deals_list = ItemList.new()
-	deals_list.custom_minimum_size = Vector2(0, 80)
+	# Use DynamicRowList for deals management
+	deals_list = DynamicRowList.new()
+	deals_list.add_button_text = "Add Deal Item..."
+	deals_list.add_button_tooltip = "Add an item to the deals/discount list."
+	deals_list.use_scroll_container = false
+	deals_list.row_factory = _create_deal_row
+	deals_list.data_extractor = _extract_deal_data
+	deals_list.data_changed.connect(_on_deal_data_changed)
 	deals_container.add_child(deals_list)
-
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_deal_button = Button.new()
-	add_deal_button.text = "Add Deal Item..."
-	add_deal_button.pressed.connect(_on_add_deal_item)
-	button_row.add_child(add_deal_button)
-
-	remove_deal_button = Button.new()
-	remove_deal_button.text = "Remove Selected"
-	remove_deal_button.pressed.connect(_on_remove_deal_item)
-	button_row.add_child(remove_deal_button)
-
-	deals_container.add_child(button_row)
 
 	detail_panel.add_child(deals_container)
 
@@ -484,102 +436,144 @@ func _on_crafter_selected(_metadata: Dictionary) -> void:
 	_mark_dirty()
 
 
-func _on_inventory_item_selected(index: int) -> void:
-	if index < 0 or index >= _current_inventory.size():
-		inventory_edit_container.visible = false
-		return
+## =============================================================================
+## INVENTORY - DynamicRowList Factory/Extractor Pattern
+## =============================================================================
 
-	inventory_edit_container.visible = true
-	var entry: Dictionary = _current_inventory[index]
-	stock_spin.value = entry.get("stock", -1)
-	price_override_spin.value = entry.get("price_override", -1)
+## Row factory for inventory items - creates the UI for an inventory row
+func _create_inventory_row(data: Dictionary, row: HBoxContainer) -> void:
+	var item_id: String = data.get("item_id", "")
+	var stock: int = data.get("stock", -1)
+	var price_override: int = data.get("price_override", -1)
 
+	# Item picker
+	var item_picker: ResourcePicker = ResourcePicker.new()
+	item_picker.name = "ItemPicker"
+	item_picker.resource_type = "item"
+	item_picker.allow_none = true
+	item_picker.none_text = "(Select Item)"
+	item_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item_picker.tooltip_text = "Select an item to sell in this shop."
+	row.add_child(item_picker)
 
-func _on_stock_changed(value: float) -> void:
-	var selected: PackedInt32Array = inventory_list.get_selected_items()
-	if selected.is_empty():
-		return
+	# Stock spinbox
+	var stock_label: Label = Label.new()
+	stock_label.text = "Stock:"
+	row.add_child(stock_label)
 
-	var index: int = selected[0]
-	if index >= 0 and index < _current_inventory.size():
-		_current_inventory[index]["stock"] = int(value)
-		_refresh_inventory_list()
-		inventory_list.select(index)
-		_mark_dirty()
+	var stock_spin: SpinBox = SpinBox.new()
+	stock_spin.name = "StockSpin"
+	stock_spin.min_value = -1
+	stock_spin.max_value = 999
+	stock_spin.value = stock
+	stock_spin.custom_minimum_size.x = 60
+	stock_spin.tooltip_text = "-1 = infinite stock"
+	row.add_child(stock_spin)
 
+	# Price override spinbox
+	var price_label: Label = Label.new()
+	price_label.text = "Price:"
+	row.add_child(price_label)
 
-func _on_price_override_changed(value: float) -> void:
-	var selected: PackedInt32Array = inventory_list.get_selected_items()
-	if selected.is_empty():
-		return
+	var price_spin: SpinBox = SpinBox.new()
+	price_spin.name = "PriceSpin"
+	price_spin.min_value = -1
+	price_spin.max_value = 999999
+	price_spin.value = price_override
+	price_spin.custom_minimum_size.x = 70
+	price_spin.tooltip_text = "-1 = use item's buy_price"
+	row.add_child(price_spin)
 
-	var index: int = selected[0]
-	if index >= 0 and index < _current_inventory.size():
-		_current_inventory[index]["price_override"] = int(value)
-		_refresh_inventory_list()
-		inventory_list.select(index)
-		_mark_dirty()
-
-
-func _on_add_inventory_item() -> void:
-	_show_item_picker(false)
-
-
-func _on_remove_inventory_item() -> void:
-	var selected: PackedInt32Array = inventory_list.get_selected_items()
-	if selected.is_empty():
-		return
-
-	var index: int = selected[0]
-	if index >= 0 and index < _current_inventory.size():
-		_current_inventory.remove_at(index)
-		_refresh_inventory_list()
-		inventory_edit_container.visible = false
-		_mark_dirty()
-
-
-func _on_add_deal_item() -> void:
-	_show_item_picker(true)
+	# Set item if provided (deferred to ensure picker is ready)
+	if not item_id.is_empty():
+		var item_res: ItemData = ModLoader.registry.get_item(item_id) if ModLoader and ModLoader.registry else null
+		if item_res:
+			item_picker.call_deferred("select_resource", item_res)
 
 
-func _on_remove_deal_item() -> void:
-	var selected: PackedInt32Array = deals_list.get_selected_items()
-	if selected.is_empty():
-		return
+## Data extractor for inventory items - extracts data from an inventory row
+func _extract_inventory_data(row: HBoxContainer) -> Dictionary:
+	var item_picker: ResourcePicker = row.get_node_or_null("ItemPicker") as ResourcePicker
+	var stock_spin: SpinBox = row.get_node_or_null("StockSpin") as SpinBox
+	var price_spin: SpinBox = row.get_node_or_null("PriceSpin") as SpinBox
 
-	var index: int = selected[0]
-	if index >= 0 and index < _current_deals.size():
-		_current_deals.remove_at(index)
-		_refresh_deals_list()
-		_mark_dirty()
+	if not item_picker:
+		return {}
 
+	var item: ItemData = item_picker.get_selected_resource() as ItemData
+	if not item:
+		return {}  # Skip rows with no item selected
+
+	var item_id: String = _get_item_id(item)
+	if item_id.is_empty():
+		return {}
+
+	return {
+		"item_id": item_id,
+		"stock": int(stock_spin.value) if stock_spin else -1,
+		"price_override": int(price_spin.value) if price_spin else -1
+	}
+
+
+## Called when inventory data changes via DynamicRowList
+func _on_inventory_data_changed() -> void:
+	_mark_dirty()
+
+
+## =============================================================================
+## DEALS - DynamicRowList Factory/Extractor Pattern
+## =============================================================================
+
+## Row factory for deal items - creates the UI for a deal row
+func _create_deal_row(data: Dictionary, row: HBoxContainer) -> void:
+	var item_id: String = data.get("item_id", "")
+
+	# Item picker
+	var item_picker: ResourcePicker = ResourcePicker.new()
+	item_picker.name = "ItemPicker"
+	item_picker.resource_type = "item"
+	item_picker.allow_none = true
+	item_picker.none_text = "(Select Item)"
+	item_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item_picker.tooltip_text = "Select an item for the deals/discount list."
+	row.add_child(item_picker)
+
+	# Set item if provided (deferred to ensure picker is ready)
+	if not item_id.is_empty():
+		var item_res: ItemData = ModLoader.registry.get_item(item_id) if ModLoader and ModLoader.registry else null
+		if item_res:
+			item_picker.call_deferred("select_resource", item_res)
+
+
+## Data extractor for deal items - extracts data from a deal row
+func _extract_deal_data(row: HBoxContainer) -> Dictionary:
+	var item_picker: ResourcePicker = row.get_node_or_null("ItemPicker") as ResourcePicker
+
+	if not item_picker:
+		return {}
+
+	var item: ItemData = item_picker.get_selected_resource() as ItemData
+	if not item:
+		return {}  # Skip rows with no item selected
+
+	var item_id: String = _get_item_id(item)
+	if item_id.is_empty():
+		return {}
+
+	return {"item_id": item_id}
+
+
+## Called when deal data changes via DynamicRowList
+func _on_deal_data_changed() -> void:
+	_mark_dirty()
+
+
+## =============================================================================
+## LEGACY ITEM PICKER POPUP (for backward compatibility)
+## =============================================================================
 
 var _adding_to_deals: bool = false
 var _picker_items: Array[Resource] = []  # Temporary for popup selection
-
-func _show_item_picker(for_deals: bool) -> void:
-	_adding_to_deals = for_deals
-	item_picker_popup.clear()
-	_picker_items.clear()
-
-	# Query registry fresh each time
-	if ModLoader and ModLoader.registry:
-		_picker_items = ModLoader.registry.get_all_resources("item")
-
-	for i: int in range(_picker_items.size()):
-		var item: ItemData = _picker_items[i] as ItemData
-		if item:
-			var item_id: String = item.resource_path.get_file().get_basename()
-			var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
-			var label: String = "%s (%dG)" % [item_display, item.buy_price]
-			item_picker_popup.add_item(label, i)
-
-	if item_picker_popup.item_count == 0:
-		item_picker_popup.add_item("(No items available)", -1)
-		item_picker_popup.set_item_disabled(0, true)
-
-	item_picker_popup.popup_centered()
-
 
 func _on_item_picker_selected(id: int) -> void:
 	if id < 0 or id >= _picker_items.size():
@@ -594,24 +588,9 @@ func _on_item_picker_selected(id: int) -> void:
 	if item_id.is_empty():
 		return
 
-	if _adding_to_deals:
-		if item_id not in _current_deals:
-			_current_deals.append(item_id)
-			_refresh_deals_list()
-			_mark_dirty()
-	else:
-		# Check if already in inventory
-		for entry: Dictionary in _current_inventory:
-			if entry.get("item_id", "") == item_id:
-				return  # Already exists
-
-		_current_inventory.append({
-			"item_id": item_id,
-			"stock": -1,
-			"price_override": -1
-		})
-		_refresh_inventory_list()
-		_mark_dirty()
+	# This is no longer used since we switched to DynamicRowList
+	# The row factory handles adding items via ResourcePicker
+	pass
 
 
 # =============================================================================
@@ -619,35 +598,21 @@ func _on_item_picker_selected(id: int) -> void:
 # =============================================================================
 
 ## Override: Called when dependent resource types change (via base class)
-## No local cache to refresh - registry is queried directly when needed
+## Refresh ResourcePickers in DynamicRowList rows when items change
 func _on_dependencies_changed(_changed_type: String) -> void:
-	# Refresh UI lists to reflect any item changes
-	_refresh_inventory_list()
-	_refresh_deals_list()
+	# Refresh inventory item pickers
+	if inventory_list:
+		for row: HBoxContainer in inventory_list.get_all_rows():
+			var item_picker: ResourcePicker = row.get_node_or_null("ItemPicker") as ResourcePicker
+			if item_picker:
+				item_picker.refresh()
 
-
-func _refresh_inventory_list() -> void:
-	inventory_list.clear()
-
-	for entry: Dictionary in _current_inventory:
-		var item_id: String = entry.get("item_id", "")
-		var stock: int = entry.get("stock", -1)
-		var price_override: int = entry.get("price_override", -1)
-
-		var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
-		var stock_str: String = "infinite" if stock == -1 else str(stock)
-		var price_str: String = "default" if price_override == -1 else "%dG" % price_override
-
-		var label: String = "%s  [Stock: %s, Price: %s]" % [item_display, stock_str, price_str]
-		inventory_list.add_item(label)
-
-
-func _refresh_deals_list() -> void:
-	deals_list.clear()
-
-	for item_id: String in _current_deals:
-		var item_display: String = SparklingEditorUtils.get_item_display_with_mod(item_id)
-		deals_list.add_item(item_display)
+	# Refresh deal item pickers
+	if deals_list:
+		for row: HBoxContainer in deals_list.get_all_rows():
+			var item_picker: ResourcePicker = row.get_node_or_null("ItemPicker") as ResourcePicker
+			if item_picker:
+				item_picker.refresh()
 
 
 func _get_item_name(item_id: String) -> String:

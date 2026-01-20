@@ -26,13 +26,11 @@ var player_party_picker: ResourcePicker
 
 # Enemy Forces (collapsible)
 var enemies_section: CollapseSection
-var enemies_container: VBoxContainer
-var enemies_list: Array[Dictionary] = []  # Track enemy UI elements
+var enemies_list: DynamicRowList
 
 # Neutral Forces (collapsible)
 var neutrals_section: CollapseSection
-var neutrals_container: VBoxContainer
-var neutrals_list: Array[Dictionary] = []  # Track neutral UI elements
+var neutrals_list: DynamicRowList
 
 # Victory Conditions
 var victory_condition_option: OptionButton
@@ -65,8 +63,7 @@ var gold_reward_spin: SpinBox
 
 # Item rewards
 var item_rewards_section: CollapseSection
-var item_rewards_container: VBoxContainer
-var item_rewards_list: Array[Dictionary] = []  # Track item reward UI elements
+var item_rewards_list: DynamicRowList
 
 # AI Behavior - no local cache, query registry directly
 
@@ -211,13 +208,18 @@ func _add_enemy_forces_section() -> void:
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	enemies_section.add_content_child(help_label)
 
-	enemies_container = VBoxContainer.new()
-	enemies_section.add_content_child(enemies_container)
-
-	var add_enemy_button: Button = Button.new()
-	add_enemy_button.text = "Add Enemy"
-	add_enemy_button.pressed.connect(_on_add_enemy)
-	enemies_section.add_content_child(add_enemy_button)
+	# Use DynamicRowList for enemy management
+	enemies_list = DynamicRowList.new()
+	enemies_list.add_button_text = "Add Enemy"
+	enemies_list.add_button_tooltip = "Add a new enemy unit to this battle."
+	enemies_list.use_scroll_container = true
+	enemies_list.scroll_min_height = 150
+	enemies_list.show_row_numbers = true
+	enemies_list.row_number_prefix = "Enemy"
+	enemies_list.row_factory = _create_enemy_row
+	enemies_list.data_extractor = _extract_enemy_data
+	enemies_list.data_changed.connect(_on_enemy_data_changed)
+	enemies_section.add_content_child(enemies_list)
 
 	SparklingEditorUtils.add_separator(detail_panel)
 
@@ -234,13 +236,18 @@ func _add_neutral_forces_section() -> void:
 	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	neutrals_section.add_content_child(help_label)
 
-	neutrals_container = VBoxContainer.new()
-	neutrals_section.add_content_child(neutrals_container)
-
-	var add_neutral_button: Button = Button.new()
-	add_neutral_button.text = "Add Neutral Unit"
-	add_neutral_button.pressed.connect(_on_add_neutral)
-	neutrals_section.add_content_child(add_neutral_button)
+	# Use DynamicRowList for neutral unit management
+	neutrals_list = DynamicRowList.new()
+	neutrals_list.add_button_text = "Add Neutral Unit"
+	neutrals_list.add_button_tooltip = "Add a neutral/NPC unit (for PROTECT_UNIT objectives)."
+	neutrals_list.use_scroll_container = true
+	neutrals_list.scroll_min_height = 120
+	neutrals_list.show_row_numbers = true
+	neutrals_list.row_number_prefix = "Neutral"
+	neutrals_list.row_factory = _create_neutral_row
+	neutrals_list.data_extractor = _extract_neutral_data
+	neutrals_list.data_changed.connect(_on_neutral_data_changed)
+	neutrals_section.add_content_child(neutrals_list)
 
 	SparklingEditorUtils.add_separator(detail_panel)
 
@@ -374,7 +381,7 @@ func _add_rewards_section() -> void:
 	gold_reward_spin = form.add_number_field("Gold Reward:", 0, 10000, 0,
 		"Gold received upon victory. Added to party funds.", 10)
 
-	form.add_help_text("Items granted to the player's depot after victory. Use Add Item button to add rewards.")
+	form.add_help_text("Items granted to the player's depot after victory.")
 
 	# Item rewards (collapsible section)
 	item_rewards_section = CollapseSection.new()
@@ -387,14 +394,15 @@ func _add_rewards_section() -> void:
 	item_help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
 	item_rewards_section.add_content_child(item_help_label)
 
-	item_rewards_container = VBoxContainer.new()
-	item_rewards_container.add_theme_constant_override("separation", 4)
-	item_rewards_section.add_content_child(item_rewards_container)
-
-	var add_item_button: Button = Button.new()
-	add_item_button.text = "Add Item Reward"
-	add_item_button.pressed.connect(_on_add_item_reward)
-	item_rewards_section.add_content_child(add_item_button)
+	# Use DynamicRowList for item rewards
+	item_rewards_list = DynamicRowList.new()
+	item_rewards_list.add_button_text = "Add Item Reward"
+	item_rewards_list.add_button_tooltip = "Add an item reward for battle victory."
+	item_rewards_list.use_scroll_container = false
+	item_rewards_list.row_factory = _create_item_reward_row
+	item_rewards_list.data_extractor = _extract_item_reward_data
+	item_rewards_list.data_changed.connect(_on_item_reward_data_changed)
+	item_rewards_section.add_content_child(item_rewards_list)
 
 	form.add_separator()
 
@@ -405,228 +413,248 @@ func _on_map_scene_changed(_index: int) -> void:
 	pass
 
 
-## Add enemy UI element
-func _on_add_enemy() -> void:
-	_add_enemy_ui({})
+## =============================================================================
+## ENEMY ROW - DynamicRowList Factory/Extractor Pattern
+## =============================================================================
 
+## Row factory for enemies - creates the UI for an enemy row
+func _create_enemy_row(data: Dictionary, row: HBoxContainer) -> void:
+	var character: CharacterData = data.get("character") as CharacterData
+	var position: Vector2i = data.get("position", Vector2i.ZERO)
+	var ai_behavior: AIBehaviorData = data.get("ai_behavior") as AIBehaviorData
 
-func _add_enemy_ui(enemy_dict: Dictionary) -> void:
-	var enemy_index: int = enemies_list.size()
-	var enemy_panel: PanelContainer = PanelContainer.new()
-	var enemy_vbox: VBoxContainer = VBoxContainer.new()
-	enemy_panel.add_child(enemy_vbox)
-
-	var header_hbox: HBoxContainer = HBoxContainer.new()
-	var enemy_title: Label = Label.new()
-	enemy_title.text = "Enemy #%d" % (enemy_index + 1)
-	enemy_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_hbox.add_child(enemy_title)
-
-	var remove_button: Button = Button.new()
-	remove_button.text = "Remove"
-	remove_button.pressed.connect(_on_remove_enemy.bind(enemy_panel))
-	header_hbox.add_child(remove_button)
-	enemy_vbox.add_child(header_hbox)
+	# Create a VBox within the HBox for vertical layout
+	var content_vbox: VBoxContainer = VBoxContainer.new()
+	content_vbox.name = "ContentVBox"
+	content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(content_vbox)
 
 	# Character picker - uses ResourcePicker for cross-mod support
 	var character_picker: ResourcePicker = ResourcePicker.new()
+	character_picker.name = "CharacterPicker"
 	character_picker.resource_type = "character"
 	character_picker.label_text = "Character:"
 	character_picker.label_min_width = 80
 	character_picker.allow_none = true
 	character_picker.tooltip_text = "The CharacterData template for this enemy unit. Defines stats, class, appearance."
-	enemy_vbox.add_child(character_picker)
+	content_vbox.add_child(character_picker)
 
-	# Position with Place button
-	var pos_label: Label = Label.new()
-	pos_label.text = "Position (X, Y):"
-	enemy_vbox.add_child(pos_label)
-
+	# Position row
 	var pos_hbox: HBoxContainer = HBoxContainer.new()
+	pos_hbox.add_theme_constant_override("separation", 4)
+	content_vbox.add_child(pos_hbox)
+
+	var pos_label: Label = Label.new()
+	pos_label.text = "Position:"
+	pos_label.custom_minimum_size.x = 80
+	pos_hbox.add_child(pos_label)
+
 	var pos_x_spin: SpinBox = SpinBox.new()
+	pos_x_spin.name = "PosXSpin"
 	pos_x_spin.min_value = 0
 	pos_x_spin.max_value = 100
-	pos_x_spin.value_changed.connect(_on_enemy_position_changed.bind(enemy_index))
+	pos_x_spin.value = position.x
+	pos_x_spin.custom_minimum_size.x = 60
+	pos_x_spin.tooltip_text = "X coordinate on battle map"
 	pos_hbox.add_child(pos_x_spin)
 
 	var pos_y_spin: SpinBox = SpinBox.new()
+	pos_y_spin.name = "PosYSpin"
 	pos_y_spin.min_value = 0
 	pos_y_spin.max_value = 100
-	pos_y_spin.value_changed.connect(_on_enemy_position_changed.bind(enemy_index))
+	pos_y_spin.value = position.y
+	pos_y_spin.custom_minimum_size.x = 60
+	pos_y_spin.tooltip_text = "Y coordinate on battle map"
 	pos_hbox.add_child(pos_y_spin)
 
-	enemy_vbox.add_child(pos_hbox)
+	# AI Behavior row
+	var ai_hbox: HBoxContainer = HBoxContainer.new()
+	ai_hbox.add_theme_constant_override("separation", 4)
+	content_vbox.add_child(ai_hbox)
 
-	# AI Behavior
 	var ai_label: Label = Label.new()
-	ai_label.text = "AI Behavior:"
-	ai_label.tooltip_text = "How this enemy makes decisions. Affects targeting, positioning, ability usage."
-	enemy_vbox.add_child(ai_label)
+	ai_label.text = "AI:"
+	ai_label.custom_minimum_size.x = 80
+	ai_label.tooltip_text = "How this enemy makes decisions."
+	ai_hbox.add_child(ai_label)
 
 	var ai_option: OptionButton = OptionButton.new()
+	ai_option.name = "AIOption"
+	ai_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ai_option.tooltip_text = "AI brain controlling this enemy. Aggressive rushes, Cautious holds position, Support heals allies."
-	enemy_vbox.add_child(ai_option)
+	ai_hbox.add_child(ai_option)
 
-	# Track UI elements
-	var enemy_ui: Dictionary = {
-		"panel": enemy_panel,
-		"character_picker": character_picker,
-		"pos_x_spin": pos_x_spin,
-		"pos_y_spin": pos_y_spin,
-		"ai_option": ai_option
-	}
-	enemies_list.append(enemy_ui)
-
-	enemies_container.add_child(enemy_panel)
-
-	# Load AI dropdown and set values if provided
+	# Populate AI dropdown and set values (deferred to ensure picker is ready)
 	_update_ai_dropdown(ai_option)
-
-	if 'character' in enemy_dict and enemy_dict.character:
-		character_picker.select_resource(enemy_dict.character)
-	if 'position' in enemy_dict:
-		var pos: Vector2i = enemy_dict.position
-		pos_x_spin.value = pos.x
-		pos_y_spin.value = pos.y
-	if 'ai_behavior' in enemy_dict and enemy_dict.ai_behavior:
-		_select_ai_in_dropdown(ai_option, enemy_dict.ai_behavior)
+	if character:
+		character_picker.call_deferred("select_resource", character)
+	if ai_behavior:
+		call_deferred("_select_ai_in_dropdown", ai_option, ai_behavior)
 
 
+## Data extractor for enemies - extracts data from an enemy row
+func _extract_enemy_data(row: HBoxContainer) -> Dictionary:
+	var content_vbox: VBoxContainer = row.get_node_or_null("ContentVBox") as VBoxContainer
+	if not content_vbox:
+		return {}
 
-func _on_remove_enemy(panel: PanelContainer) -> void:
-	# Find and remove from list
-	for i: int in range(enemies_list.size()):
-		if enemies_list[i].panel == panel:
-			enemies_list.remove_at(i)
-			break
+	var character_picker: ResourcePicker = content_vbox.get_node_or_null("CharacterPicker") as ResourcePicker
+	var pos_x_spin: SpinBox = content_vbox.get_node_or_null("HBoxContainer/PosXSpin") as SpinBox
+	var pos_y_spin: SpinBox = content_vbox.get_node_or_null("HBoxContainer/PosYSpin") as SpinBox
+	var ai_option: OptionButton = content_vbox.get_node_or_null("HBoxContainer2/AIOption") as OptionButton
 
-	# Remove from UI
-	enemies_container.remove_child(panel)
-	panel.queue_free()
+	# Find spinboxes by searching through children (they may be in nested HBoxContainers)
+	if not pos_x_spin:
+		for child: Node in content_vbox.get_children():
+			if child is HBoxContainer:
+				var hbox: HBoxContainer = child as HBoxContainer
+				for subchild: Node in hbox.get_children():
+					if subchild.name == "PosXSpin":
+						pos_x_spin = subchild as SpinBox
+					elif subchild.name == "PosYSpin":
+						pos_y_spin = subchild as SpinBox
+					elif subchild.name == "AIOption":
+						ai_option = subchild as OptionButton
 
-	# Update numbering
-	for i: int in range(enemies_list.size()):
-		var title_label: Label = enemies_list[i].panel.get_child(0).get_child(0).get_child(0)
-		title_label.text = "Enemy #%d" % (i + 1)
+	var character: CharacterData = character_picker.get_selected_resource() as CharacterData if character_picker else null
+
+	var ai_behavior: AIBehaviorData = null
+	if ai_option and ai_option.selected > 0:
+		ai_behavior = ai_option.get_item_metadata(ai_option.selected) as AIBehaviorData
+
+	return {
+		"character": character,
+		"position": Vector2i(int(pos_x_spin.value) if pos_x_spin else 0, int(pos_y_spin.value) if pos_y_spin else 0),
+		"ai_behavior": ai_behavior
+	}
 
 
-
-## Called when enemy position spinboxes change
-func _on_enemy_position_changed(_value: float, _index: int) -> void:
-	# Map preview removed - no action needed
-	pass
-
-
-## Add neutral UI element
-func _on_add_neutral() -> void:
-	_add_neutral_ui({})
+## Called when enemy data changes via DynamicRowList
+func _on_enemy_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
-func _add_neutral_ui(neutral_dict: Dictionary) -> void:
-	var neutral_index: int = neutrals_list.size()
-	var neutral_panel: PanelContainer = PanelContainer.new()
-	var neutral_vbox: VBoxContainer = VBoxContainer.new()
-	neutral_panel.add_child(neutral_vbox)
+## =============================================================================
+## NEUTRAL ROW - DynamicRowList Factory/Extractor Pattern
+## =============================================================================
 
-	var header_hbox: HBoxContainer = HBoxContainer.new()
-	var neutral_title: Label = Label.new()
-	neutral_title.text = "Neutral #%d" % (neutral_index + 1)
-	neutral_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_hbox.add_child(neutral_title)
+## Row factory for neutrals - creates the UI for a neutral row
+func _create_neutral_row(data: Dictionary, row: HBoxContainer) -> void:
+	var character: CharacterData = data.get("character") as CharacterData
+	var position: Vector2i = data.get("position", Vector2i.ZERO)
+	var ai_behavior: AIBehaviorData = data.get("ai_behavior") as AIBehaviorData
 
-	var remove_button: Button = Button.new()
-	remove_button.text = "Remove"
-	remove_button.pressed.connect(_on_remove_neutral.bind(neutral_panel))
-	header_hbox.add_child(remove_button)
-	neutral_vbox.add_child(header_hbox)
+	# Create a VBox within the HBox for vertical layout
+	var content_vbox: VBoxContainer = VBoxContainer.new()
+	content_vbox.name = "ContentVBox"
+	content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(content_vbox)
 
 	# Character picker - uses ResourcePicker for cross-mod support
 	var character_picker: ResourcePicker = ResourcePicker.new()
+	character_picker.name = "CharacterPicker"
 	character_picker.resource_type = "character"
 	character_picker.label_text = "Character:"
 	character_picker.label_min_width = 80
 	character_picker.allow_none = true
 	character_picker.tooltip_text = "The CharacterData template for this neutral unit. Usually an NPC to protect or escort."
-	neutral_vbox.add_child(character_picker)
+	content_vbox.add_child(character_picker)
 
-	# Position with Place button
-	var pos_label: Label = Label.new()
-	pos_label.text = "Position (X, Y):"
-	pos_label.tooltip_text = "Starting coordinates on the battle map grid."
-	neutral_vbox.add_child(pos_label)
-
+	# Position row
 	var pos_hbox: HBoxContainer = HBoxContainer.new()
+	pos_hbox.add_theme_constant_override("separation", 4)
+	content_vbox.add_child(pos_hbox)
+
+	var pos_label: Label = Label.new()
+	pos_label.text = "Position:"
+	pos_label.custom_minimum_size.x = 80
+	pos_hbox.add_child(pos_label)
+
 	var pos_x_spin: SpinBox = SpinBox.new()
+	pos_x_spin.name = "PosXSpin"
 	pos_x_spin.min_value = 0
 	pos_x_spin.max_value = 100
-	pos_x_spin.value_changed.connect(_on_neutral_position_changed.bind(neutral_index))
+	pos_x_spin.value = position.x
+	pos_x_spin.custom_minimum_size.x = 60
+	pos_x_spin.tooltip_text = "X coordinate on battle map"
 	pos_hbox.add_child(pos_x_spin)
 
 	var pos_y_spin: SpinBox = SpinBox.new()
+	pos_y_spin.name = "PosYSpin"
 	pos_y_spin.min_value = 0
 	pos_y_spin.max_value = 100
-	pos_y_spin.value_changed.connect(_on_neutral_position_changed.bind(neutral_index))
+	pos_y_spin.value = position.y
+	pos_y_spin.custom_minimum_size.x = 60
+	pos_y_spin.tooltip_text = "Y coordinate on battle map"
 	pos_hbox.add_child(pos_y_spin)
 
-	neutral_vbox.add_child(pos_hbox)
+	# AI Behavior row
+	var ai_hbox: HBoxContainer = HBoxContainer.new()
+	ai_hbox.add_theme_constant_override("separation", 4)
+	content_vbox.add_child(ai_hbox)
 
-	# AI Behavior
 	var ai_label: Label = Label.new()
-	ai_label.text = "AI Behavior:"
-	ai_label.tooltip_text = "How this neutral NPC behaves. Can flee, fight enemies, or stay in place."
-	neutral_vbox.add_child(ai_label)
+	ai_label.text = "AI:"
+	ai_label.custom_minimum_size.x = 80
+	ai_label.tooltip_text = "How this neutral NPC behaves."
+	ai_hbox.add_child(ai_label)
 
 	var ai_option: OptionButton = OptionButton.new()
+	ai_option.name = "AIOption"
+	ai_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ai_option.tooltip_text = "AI brain for neutral units. Defensive stays in place, Support heals nearby allies."
-	neutral_vbox.add_child(ai_option)
+	ai_hbox.add_child(ai_option)
 
-	# Track UI elements
-	var neutral_ui: Dictionary = {
-		"panel": neutral_panel,
-		"character_picker": character_picker,
-		"pos_x_spin": pos_x_spin,
-		"pos_y_spin": pos_y_spin,
-		"ai_option": ai_option
-	}
-	neutrals_list.append(neutral_ui)
-
-	neutrals_container.add_child(neutral_panel)
-
-	# Load AI dropdown and set values if provided
+	# Populate AI dropdown and set values (deferred to ensure picker is ready)
 	_update_ai_dropdown(ai_option)
-
-	if 'character' in neutral_dict and neutral_dict.character:
-		character_picker.select_resource(neutral_dict.character)
-	if 'position' in neutral_dict:
-		var pos: Vector2i = neutral_dict.position
-		pos_x_spin.value = pos.x
-		pos_y_spin.value = pos.y
-	if 'ai_behavior' in neutral_dict and neutral_dict.ai_behavior:
-		_select_ai_in_dropdown(ai_option, neutral_dict.ai_behavior)
+	if character:
+		character_picker.call_deferred("select_resource", character)
+	if ai_behavior:
+		call_deferred("_select_ai_in_dropdown", ai_option, ai_behavior)
 
 
+## Data extractor for neutrals - extracts data from a neutral row
+func _extract_neutral_data(row: HBoxContainer) -> Dictionary:
+	var content_vbox: VBoxContainer = row.get_node_or_null("ContentVBox") as VBoxContainer
+	if not content_vbox:
+		return {}
 
-func _on_remove_neutral(panel: PanelContainer) -> void:
-	# Find and remove from list
-	for i: int in range(neutrals_list.size()):
-		if neutrals_list[i].panel == panel:
-			neutrals_list.remove_at(i)
-			break
+	var character_picker: ResourcePicker = content_vbox.get_node_or_null("CharacterPicker") as ResourcePicker
 
-	# Remove from UI
-	neutrals_container.remove_child(panel)
-	panel.queue_free()
+	# Find spinboxes and AI option by searching through children
+	var pos_x_spin: SpinBox = null
+	var pos_y_spin: SpinBox = null
+	var ai_option: OptionButton = null
 
-	# Update numbering
-	for i: int in range(neutrals_list.size()):
-		var title_label: Label = neutrals_list[i].panel.get_child(0).get_child(0).get_child(0)
-		title_label.text = "Neutral #%d" % (i + 1)
+	for child: Node in content_vbox.get_children():
+		if child is HBoxContainer:
+			var hbox: HBoxContainer = child as HBoxContainer
+			for subchild: Node in hbox.get_children():
+				if subchild.name == "PosXSpin":
+					pos_x_spin = subchild as SpinBox
+				elif subchild.name == "PosYSpin":
+					pos_y_spin = subchild as SpinBox
+				elif subchild.name == "AIOption":
+					ai_option = subchild as OptionButton
+
+	var character: CharacterData = character_picker.get_selected_resource() as CharacterData if character_picker else null
+
+	var ai_behavior: AIBehaviorData = null
+	if ai_option and ai_option.selected > 0:
+		ai_behavior = ai_option.get_item_metadata(ai_option.selected) as AIBehaviorData
+
+	return {
+		"character": character,
+		"position": Vector2i(int(pos_x_spin.value) if pos_x_spin else 0, int(pos_y_spin.value) if pos_y_spin else 0),
+		"ai_behavior": ai_behavior
+	}
 
 
-## Called when neutral position spinboxes change
-func _on_neutral_position_changed(_value: float, _index: int) -> void:
-	# Map preview removed - no action needed
-	pass
+## Called when neutral data changes via DynamicRowList
+func _on_neutral_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 ## Update music dropdown with available music tracks from mods
@@ -925,17 +953,11 @@ func _load_resource_data() -> void:
 	else:
 		player_party_picker.select_none()
 
-	# Clear existing enemies/neutrals UI
-	_clear_enemies_ui()
-	_clear_neutrals_ui()
+	# Load enemies into DynamicRowList
+	enemies_list.load_data(battle.enemies)
 
-	# Load enemies
-	for enemy_dict in battle.enemies:
-		_add_enemy_ui(enemy_dict)
-
-	# Load neutrals
-	for neutral_dict in battle.neutrals:
-		_add_neutral_ui(neutral_dict)
+	# Load neutrals into DynamicRowList
+	neutrals_list.load_data(battle.neutrals)
 
 	# Victory condition
 	victory_condition_option.selected = battle.victory_condition
@@ -998,97 +1020,73 @@ func _load_resource_data() -> void:
 	experience_reward_spin.value = battle.experience_reward
 	gold_reward_spin.value = battle.gold_reward
 
-	# Load item rewards (convert from ItemData array to our UI format)
-	_clear_item_rewards_ui()
+	# Load item rewards (convert from ItemData array to DynamicRowList format)
 	_load_item_rewards_from_array(battle.item_rewards)
 
 	_updating_ui = false
 
 
-## Clear enemies UI
-func _clear_enemies_ui() -> void:
-	for enemy_ui in enemies_list:
-		enemies_container.remove_child(enemy_ui.panel)
-		enemy_ui.panel.queue_free()
-	enemies_list.clear()
-
-
-## Clear neutrals UI
-func _clear_neutrals_ui() -> void:
-	for neutral_ui in neutrals_list:
-		neutrals_container.remove_child(neutral_ui.panel)
-		neutral_ui.panel.queue_free()
-	neutrals_list.clear()
 
 
 ## =============================================================================
-## ITEM REWARDS UI
+## ITEM REWARDS - DynamicRowList Factory/Extractor Pattern
 ## =============================================================================
 
-## Add item reward UI element
-func _on_add_item_reward() -> void:
-	_add_item_reward_ui()
-
-
-func _add_item_reward_ui(item_data: ItemData = null, quantity: int = 1) -> void:
-	var entry_container: HBoxContainer = HBoxContainer.new()
-	entry_container.add_theme_constant_override("separation", 4)
+## Row factory for item rewards - creates the UI for an item reward row
+func _create_item_reward_row(data: Dictionary, row: HBoxContainer) -> void:
+	var item: ItemData = data.get("item") as ItemData
+	var quantity: int = data.get("quantity", 1)
 
 	# Item picker - use ResourcePicker for cross-mod support
 	var item_picker: ResourcePicker = ResourcePicker.new()
+	item_picker.name = "ItemPicker"
 	item_picker.resource_type = "item"
 	item_picker.allow_none = true
 	item_picker.none_text = "(Select Item)"
 	item_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	entry_container.add_child(item_picker)
+	row.add_child(item_picker)
 
 	# Quantity label and spinner
 	var qty_label: Label = Label.new()
 	qty_label.text = "x"
-	entry_container.add_child(qty_label)
+	row.add_child(qty_label)
 
 	var qty_spin: SpinBox = SpinBox.new()
+	qty_spin.name = "QuantitySpin"
 	qty_spin.min_value = 1
 	qty_spin.max_value = 99
 	qty_spin.value = quantity
 	qty_spin.custom_minimum_size.x = 60
 	qty_spin.tooltip_text = "Quantity of this item to grant"
-	entry_container.add_child(qty_spin)
+	row.add_child(qty_spin)
 
-	# Remove button
-	var remove_btn: Button = Button.new()
-	remove_btn.text = "X"
-	remove_btn.tooltip_text = "Remove this item reward"
-	remove_btn.custom_minimum_size.x = 30
-	remove_btn.pressed.connect(_on_remove_item_reward.bind(entry_container))
-	entry_container.add_child(remove_btn)
+	# Set item if provided (deferred to ensure picker is ready)
+	if item:
+		item_picker.call_deferred("select_resource", item)
 
-	item_rewards_container.add_child(entry_container)
 
-	# Track UI elements
-	var item_reward_ui: Dictionary = {
-		"container": entry_container,
-		"item_picker": item_picker,
-		"quantity_spin": qty_spin
+## Data extractor for item rewards - extracts data from an item reward row
+func _extract_item_reward_data(row: HBoxContainer) -> Dictionary:
+	var item_picker: ResourcePicker = row.get_node_or_null("ItemPicker") as ResourcePicker
+	var qty_spin: SpinBox = row.get_node_or_null("QuantitySpin") as SpinBox
+
+	if not item_picker:
+		return {}
+
+	var item: ItemData = item_picker.get_selected_resource() as ItemData
+	if not item:
+		return {}  # Skip rows with no item selected
+
+	return {
+		"item": item,
+		"quantity": int(qty_spin.value) if qty_spin else 1
 	}
-	item_rewards_list.append(item_reward_ui)
-
-	# Set item if provided
-	if item_data:
-		item_picker.select_resource(item_data)
 
 
-## Remove item reward entry
-func _on_remove_item_reward(container: HBoxContainer) -> void:
-	# Find and remove from list
-	for i in range(item_rewards_list.size()):
-		if item_rewards_list[i].container == container:
-			item_rewards_list.remove_at(i)
-			break
-
-	# Remove from UI
-	item_rewards_container.remove_child(container)
-	container.queue_free()
+## Called when item reward data changes via DynamicRowList
+func _on_item_reward_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 ## Load item rewards from ItemData array
@@ -1104,31 +1102,31 @@ func _load_item_rewards_from_array(items: Array[ItemData]) -> void:
 			else:
 				item_counts[path] = {item = item, count = 1}
 
-	# Create UI entries with correct quantities
+	# Build data array for DynamicRowList
+	var reward_data: Array[Dictionary] = []
 	for path: String in item_counts.keys():
 		var entry: Dictionary = item_counts[path]
-		_add_item_reward_ui(entry.item, entry.count)
+		reward_data.append({
+			"item": entry.item,
+			"quantity": entry.count
+		})
+
+	# Load into DynamicRowList
+	item_rewards_list.load_data(reward_data)
 
 
 ## Collect item rewards as ItemData array (for BattleData)
 func _collect_item_rewards_as_itemdata() -> Array[ItemData]:
 	var result: Array[ItemData] = []
-	for item_ui in item_rewards_list:
-		var item: ItemData = item_ui.item_picker.get_selected_resource() as ItemData
+	var all_data: Array[Dictionary] = item_rewards_list.get_all_data()
+	for entry: Dictionary in all_data:
+		var item: ItemData = entry.get("item") as ItemData
 		if item:
 			# BattleData stores ItemData directly with quantity managed by duplicates
-			var quantity: int = int(item_ui.quantity_spin.value)
+			var quantity: int = entry.get("quantity", 1)
 			for i: int in range(quantity):
 				result.append(item)
 	return result
-
-
-## Clear item rewards UI
-func _clear_item_rewards_ui() -> void:
-	for item_ui in item_rewards_list:
-		item_rewards_container.remove_child(item_ui.container)
-		item_ui.container.queue_free()
-	item_rewards_list.clear()
 
 
 ## Override: Save UI data to resource
@@ -1156,40 +1154,16 @@ func _save_resource_data() -> void:
 	# Player party - use ResourcePicker
 	battle.player_party = player_party_picker.get_selected_resource() as PartyData
 
-	# Enemies - use ResourcePicker for character selection
+	# Enemies - collect from DynamicRowList
 	var new_enemies: Array[Dictionary] = []
-	for enemy_ui in enemies_list:
-		var character: CharacterData = enemy_ui.character_picker.get_selected_resource() as CharacterData
-
-		var ai_index: int = enemy_ui.ai_option.selected
-		var ai_behavior: AIBehaviorData = null
-		if ai_index > 0:
-			ai_behavior = enemy_ui.ai_option.get_item_metadata(ai_index)
-
-		var enemy_dict: Dictionary = {
-			"character": character,
-			"position": Vector2i(int(enemy_ui.pos_x_spin.value), int(enemy_ui.pos_y_spin.value)),
-			"ai_behavior": ai_behavior
-		}
-		new_enemies.append(enemy_dict)
+	for entry: Dictionary in enemies_list.get_all_data():
+		new_enemies.append(entry)
 	battle.enemies = new_enemies
 
-	# Neutrals - use ResourcePicker for character selection
+	# Neutrals - collect from DynamicRowList
 	var new_neutrals: Array[Dictionary] = []
-	for neutral_ui in neutrals_list:
-		var character: CharacterData = neutral_ui.character_picker.get_selected_resource() as CharacterData
-
-		var ai_index: int = neutral_ui.ai_option.selected
-		var ai_behavior: AIBehaviorData = null
-		if ai_index > 0:
-			ai_behavior = neutral_ui.ai_option.get_item_metadata(ai_index)
-
-		var neutral_dict: Dictionary = {
-			"character": character,
-			"position": Vector2i(int(neutral_ui.pos_x_spin.value), int(neutral_ui.pos_y_spin.value)),
-			"ai_behavior": ai_behavior
-		}
-		new_neutrals.append(neutral_dict)
+	for entry: Dictionary in neutrals_list.get_all_data():
+		new_neutrals.append(entry)
 	battle.neutrals = new_neutrals
 
 	# Victory condition
@@ -1266,32 +1240,32 @@ func _collect_battle_validation_errors_from_ui() -> Array[String]:
 	if map_index <= 0:
 		errors.append("Map scene is required")
 
-	# Enemy validation - read from enemies_list UI elements
-	for i: int in range(enemies_list.size()):
-		var enemy_ui: Dictionary = enemies_list[i]
-		var character: CharacterData = enemy_ui.character_picker.get_selected_resource() as CharacterData
+	# Enemy validation - read from DynamicRowList data
+	var enemy_data: Array[Dictionary] = enemies_list.get_all_data()
+	for i: int in range(enemy_data.size()):
+		var entry: Dictionary = enemy_data[i]
+		var character: CharacterData = entry.get("character") as CharacterData
 		if character == null:
 			errors.append("Enemy %d: Missing character" % (i + 1))
-		# Position is always present in UI (spinboxes have defaults)
-		var ai_index: int = enemy_ui.ai_option.selected
-		if ai_index <= 0:
+		var ai_behavior: AIBehaviorData = entry.get("ai_behavior") as AIBehaviorData
+		if ai_behavior == null:
 			errors.append("Enemy %d: Missing AI behavior" % (i + 1))
 
-	# Neutral validation - read from neutrals_list UI elements
-	for i: int in range(neutrals_list.size()):
-		var neutral_ui: Dictionary = neutrals_list[i]
-		var character: CharacterData = neutral_ui.character_picker.get_selected_resource() as CharacterData
+	# Neutral validation - read from DynamicRowList data
+	var neutral_data: Array[Dictionary] = neutrals_list.get_all_data()
+	for i: int in range(neutral_data.size()):
+		var entry: Dictionary = neutral_data[i]
+		var character: CharacterData = entry.get("character") as CharacterData
 		if character == null:
 			errors.append("Neutral %d: Missing character" % (i + 1))
-		# Position is always present in UI (spinboxes have defaults)
-		var ai_index: int = neutral_ui.ai_option.selected
-		if ai_index <= 0:
+		var ai_behavior: AIBehaviorData = entry.get("ai_behavior") as AIBehaviorData
+		if ai_behavior == null:
 			errors.append("Neutral %d: Missing AI behavior" % (i + 1))
 
 	# Victory condition validation - read from UI
 	var victory_condition: BattleData.VictoryCondition = victory_condition_option.get_item_id(victory_condition_option.selected)
-	var enemy_count: int = enemies_list.size()
-	var neutral_count: int = neutrals_list.size()
+	var enemy_count: int = enemy_data.size()
+	var neutral_count: int = neutral_data.size()
 
 	match victory_condition:
 		BattleData.VictoryCondition.DEFEAT_BOSS:

@@ -32,8 +32,7 @@ var fallback_cinematic_picker: ResourcePicker
 var fallback_warning: Label
 
 # Conditional cinematics section
-var conditionals_container: VBoxContainer
-var add_conditional_btn: Button
+var conditionals_list: DynamicRowList
 
 # Behavior section
 var face_player_check: CheckBox
@@ -59,8 +58,6 @@ var place_position_y: SpinBox
 var preview_panel: NPCPreviewPanel
 var map_placement_helper: MapPlacementHelper
 
-# Track conditional entries for dynamic UI
-var conditional_entries: Array[Dictionary] = []
 
 # Flag to prevent signal feedback loops during UI updates
 var _updating_ui: bool = false
@@ -88,11 +85,18 @@ func _on_dependencies_changed(changed_type: String) -> void:
 			fallback_cinematic_picker.refresh()
 		if ambient_cinematic_picker:
 			ambient_cinematic_picker.refresh()
-		# Refresh conditional cinematic pickers
-		for entry: Dictionary in conditional_entries:
-			var picker: ResourcePicker = entry.get("cinematic_picker") as ResourcePicker
-			if picker:
-				picker.refresh()
+		# Refresh conditional cinematic pickers in DynamicRowList
+		if conditionals_list:
+			for row: HBoxContainer in conditionals_list.get_all_rows():
+				var panel: PanelContainer = row.get_node_or_null("Panel") as PanelContainer
+				if panel:
+					var content: VBoxContainer = panel.get_child(0) as VBoxContainer
+					if content:
+						for child: Node in content.get_children():
+							if child is HBoxContainer:
+								var picker: ResourcePicker = child.get_node_or_null("CinematicPicker") as ResourcePicker
+								if picker:
+									picker.refresh()
 
 
 ## Override: Create the NPC-specific detail form
@@ -231,18 +235,12 @@ func _validate_resource() -> Dictionary:
 	# Note: ResourcePicker only shows valid cinematics from the registry,
 	# so we don't need to validate existence here
 
-	for i: int in range(conditional_entries.size()):
-		var entry: Dictionary = conditional_entries[i]
-		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
-		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-
-		var and_text: String = and_flags_edit.text.strip_edges() if and_flags_edit else ""
-		var or_text: String = or_flags_edit.text.strip_edges() if or_flags_edit else ""
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+	var conditional_data: Array[Dictionary] = conditionals_list.get_all_data()
+	for i: int in range(conditional_data.size()):
+		var entry: Dictionary = conditional_data[i]
+		var and_text: String = entry.get("and_flags", "")
+		var or_text: String = entry.get("or_flags", "")
+		var cine_id: String = entry.get("cinematic_id", "")
 
 		var has_any_flags: bool = not and_text.is_empty() or not or_text.is_empty()
 		var has_cinematic: bool = not cine_id.is_empty()
@@ -512,16 +510,18 @@ func _add_interaction_section_to(parent: Control) -> void:
 func _add_conditional_cinematics_section_to(parent: Control) -> void:
 	var section: VBoxContainer = SparklingEditorUtils.create_section("Conditional Cinematics", parent)
 
-	add_conditional_btn = Button.new()
-	add_conditional_btn.text = "+ Add Condition"
-	add_conditional_btn.pressed.connect(_on_add_conditional)
-	section.add_child(add_conditional_btn)
-
 	SparklingEditorUtils.create_help_label("Conditions checked in order. First matching condition's cinematic plays.", section)
 
-	conditionals_container = VBoxContainer.new()
-	conditionals_container.add_theme_constant_override("separation", 4)
-	section.add_child(conditionals_container)
+	# Use DynamicRowList for conditional cinematics
+	conditionals_list = DynamicRowList.new()
+	conditionals_list.add_button_text = "+ Add Condition"
+	conditionals_list.add_button_tooltip = "Add a new conditional cinematic that triggers based on game flags."
+	conditionals_list.use_scroll_container = true
+	conditionals_list.scroll_min_height = 120
+	conditionals_list.row_factory = _create_conditional_row
+	conditionals_list.data_extractor = _extract_conditional_data
+	conditionals_list.data_changed.connect(_on_conditional_data_changed)
+	section.add_child(conditionals_list)
 
 
 func _add_behavior_section_to(parent: Control) -> void:
@@ -566,11 +566,12 @@ func _add_behavior_section_to(parent: Control) -> void:
 
 
 # =============================================================================
-# Conditional Cinematics UI Management
+# Conditional Cinematics - DynamicRowList Factory/Extractor Pattern
 # =============================================================================
 
 func _load_conditional_cinematics(conditionals: Array[Dictionary]) -> void:
-	_clear_conditional_entries()
+	# Build data array for DynamicRowList
+	var conditional_data: Array[Dictionary] = []
 	for cond: Dictionary in conditionals:
 		# Build the AND flags array
 		var flags_and: Array = []
@@ -590,21 +591,27 @@ func _load_conditional_cinematics(conditionals: Array[Dictionary]) -> void:
 		var negate: bool = DictUtils.get_bool(cond, "negate", false)
 		var cinematic_id: String = DictUtils.get_string(cond, "cinematic_id", "")
 
-		_add_conditional_entry(flags_and, flags_or, negate, cinematic_id)
+		conditional_data.append({
+			"flags_and": flags_and,
+			"flags_or": flags_or,
+			"negate": negate,
+			"cinematic_id": cinematic_id
+		})
+
+	# Load into DynamicRowList
+	conditionals_list.load_data(conditional_data)
 
 
-## Add a conditional entry to the UI
-## Parameters:
-##   flags_and: Array of flag names that must ALL be true (AND logic)
-##   flags_or: Array of flag names where at least ONE must be true (OR logic)
-##   negate: If true, invert the overall condition result
-##   cinematic_id: The cinematic to play when condition is met
-func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate: bool = false, cinematic_id: String = "") -> void:
-	var entry_container: VBoxContainer = VBoxContainer.new()
-	entry_container.add_theme_constant_override("separation", 2)
+## Row factory for conditional cinematics - creates the UI for a conditional row
+func _create_conditional_row(data: Dictionary, row: HBoxContainer) -> void:
+	var flags_and: Array = data.get("flags_and", [])
+	var flags_or: Array = data.get("flags_or", [])
+	var negate: bool = data.get("negate", false)
+	var cinematic_id: String = data.get("cinematic_id", "")
 
 	# Create a panel for visual grouping
 	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "Panel"
 	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.15, 0.15, 0.2, 0.5)
 	panel_style.set_border_width_all(1)
@@ -612,11 +619,13 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	panel_style.set_content_margin_all(6)
 	panel_style.set_corner_radius_all(4)
 	panel.add_theme_stylebox_override("panel", panel_style)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(panel)
 
 	var panel_content: VBoxContainer = VBoxContainer.new()
+	panel_content.name = "PanelContent"
 	panel_content.add_theme_constant_override("separation", 4)
 	panel.add_child(panel_content)
-	entry_container.add_child(panel)
 
 	# Row 1: AND flags (all must be true)
 	var and_row: HBoxContainer = HBoxContainer.new()
@@ -630,11 +639,11 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	and_row.add_child(and_label)
 
 	var and_flags_edit: LineEdit = LineEdit.new()
+	and_flags_edit.name = "AndFlagsEdit"
 	and_flags_edit.placeholder_text = "flag1, flag2, flag3 (comma-separated)"
 	and_flags_edit.text = ", ".join(flags_and) if not flags_and.is_empty() else ""
 	and_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	and_flags_edit.tooltip_text = "Enter flag names separated by commas. ALL must be set for condition to match."
-	and_flags_edit.text_changed.connect(_on_field_changed)
 	and_row.add_child(and_flags_edit)
 
 	# Row 2: OR flags (at least one must be true)
@@ -649,11 +658,11 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	or_row.add_child(or_label)
 
 	var or_flags_edit: LineEdit = LineEdit.new()
+	or_flags_edit.name = "OrFlagsEdit"
 	or_flags_edit.placeholder_text = "flagA, flagB (at least one)"
 	or_flags_edit.text = ", ".join(flags_or) if not flags_or.is_empty() else ""
 	or_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	or_flags_edit.tooltip_text = "Enter flag names separated by commas. At least ONE must be set for condition to match."
-	or_flags_edit.text_changed.connect(_on_field_changed)
 	or_row.add_child(or_flags_edit)
 
 	# Row 3: Cinematic picker and controls
@@ -662,10 +671,10 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	panel_content.add_child(cinematic_row)
 
 	var negate_check: CheckBox = CheckBox.new()
+	negate_check.name = "NegateCheck"
 	negate_check.text = "NOT"
 	negate_check.tooltip_text = "Invert the condition (trigger when flags are NOT matched)"
 	negate_check.button_pressed = negate
-	negate_check.toggled.connect(_on_check_changed)
 	cinematic_row.add_child(negate_check)
 
 	var arrow: Label = Label.new()
@@ -673,118 +682,112 @@ func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate:
 	cinematic_row.add_child(arrow)
 
 	var cinematic_picker: ResourcePicker = ResourcePicker.new()
+	cinematic_picker.name = "CinematicPicker"
 	cinematic_picker.resource_type = "cinematic"
 	cinematic_picker.allow_none = true
 	cinematic_picker.none_text = "(None)"
 	cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cinematic_picker.tooltip_text = "The cinematic to play when this condition is met"
-	cinematic_picker.resource_selected.connect(_on_conditional_cinematic_changed)
 	cinematic_row.add_child(cinematic_picker)
 
 	# Set initial value if provided (deferred to ensure picker is ready)
 	if not cinematic_id.is_empty():
 		cinematic_picker.call_deferred("select_by_id", "", cinematic_id)
 
-	var remove_btn: Button = Button.new()
-	remove_btn.text = "X"
-	remove_btn.tooltip_text = "Remove this condition"
-	remove_btn.custom_minimum_size.x = 30
-	remove_btn.pressed.connect(_on_remove_conditional.bind(entry_container))
-	cinematic_row.add_child(remove_btn)
 
-	conditionals_container.add_child(entry_container)
-	conditional_entries.append({
-		"container": entry_container,
-		"and_flags_edit": and_flags_edit,
-		"or_flags_edit": or_flags_edit,
-		"negate_check": negate_check,
-		"cinematic_picker": cinematic_picker
-	})
+## Data extractor for conditional cinematics - extracts data from a conditional row
+func _extract_conditional_data(row: HBoxContainer) -> Dictionary:
+	var panel: PanelContainer = row.get_node_or_null("Panel") as PanelContainer
+	if not panel:
+		return {}
+
+	var panel_content: VBoxContainer = panel.get_node_or_null("PanelContent") as VBoxContainer
+	if not panel_content:
+		return {}
+
+	# Find the UI elements by searching through the panel content
+	var and_flags_edit: LineEdit = null
+	var or_flags_edit: LineEdit = null
+	var negate_check: CheckBox = null
+	var cinematic_picker: ResourcePicker = null
+
+	for child: Node in panel_content.get_children():
+		if child is HBoxContainer:
+			var hbox: HBoxContainer = child as HBoxContainer
+			for subchild: Node in hbox.get_children():
+				if subchild.name == "AndFlagsEdit":
+					and_flags_edit = subchild as LineEdit
+				elif subchild.name == "OrFlagsEdit":
+					or_flags_edit = subchild as LineEdit
+				elif subchild.name == "NegateCheck":
+					negate_check = subchild as CheckBox
+				elif subchild.name == "CinematicPicker":
+					cinematic_picker = subchild as ResourcePicker
+
+	# Get cinematic ID from picker
+	var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+
+	# Parse AND flags (comma-separated)
+	var and_flags: Array[String] = []
+	if and_flags_edit:
+		var and_text: String = and_flags_edit.text.strip_edges()
+		if not and_text.is_empty():
+			for flag: String in and_text.split(","):
+				var clean_flag: String = flag.strip_edges()
+				if not clean_flag.is_empty():
+					and_flags.append(clean_flag)
+
+	# Parse OR flags (comma-separated)
+	var or_flags: Array[String] = []
+	if or_flags_edit:
+		var or_text: String = or_flags_edit.text.strip_edges()
+		if not or_text.is_empty():
+			for flag: String in or_text.split(","):
+				var clean_flag: String = flag.strip_edges()
+				if not clean_flag.is_empty():
+					or_flags.append(clean_flag)
+
+	# Skip entries with no flags and no cinematic
+	if and_flags.is_empty() and or_flags.is_empty() and cine_id.is_empty():
+		return {}
+
+	# Build the condition dictionary
+	var cond_dict: Dictionary = {"cinematic_id": cine_id}
+
+	# Use "flags" array for AND logic (new format)
+	if not and_flags.is_empty():
+		cond_dict["flags"] = and_flags
+
+	# Use "any_flags" array for OR logic
+	if not or_flags.is_empty():
+		cond_dict["any_flags"] = or_flags
+
+	if negate_check and negate_check.button_pressed:
+		cond_dict["negate"] = true
+
+	return cond_dict
 
 
-func _clear_conditional_entries() -> void:
-	for entry: Dictionary in conditional_entries:
-		var container_val: Variant = entry.get("container")
-		var container: Control = container_val if container_val is Control else null
-		if container and is_instance_valid(container):
-			container.queue_free()
-	conditional_entries.clear()
+## Called when conditional data changes via DynamicRowList
+func _on_conditional_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 func _collect_conditional_cinematics() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for entry: Dictionary in conditional_entries:
-		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
-		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var negate_val: Variant = entry.get("negate_check")
-		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
-		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-
-		# Get cinematic ID from picker
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
-
-		# Parse AND flags (comma-separated)
-		var and_flags: Array[String] = []
-		if and_flags_edit:
-			var and_text: String = and_flags_edit.text.strip_edges()
-			if not and_text.is_empty():
-				for flag: String in and_text.split(","):
-					var clean_flag: String = flag.strip_edges()
-					if not clean_flag.is_empty():
-						and_flags.append(clean_flag)
-
-		# Parse OR flags (comma-separated)
-		var or_flags: Array[String] = []
-		if or_flags_edit:
-			var or_text: String = or_flags_edit.text.strip_edges()
-			if not or_text.is_empty():
-				for flag: String in or_text.split(","):
-					var clean_flag: String = flag.strip_edges()
-					if not clean_flag.is_empty():
-						or_flags.append(clean_flag)
-
-		# Skip entries with no flags and no cinematic
-		if and_flags.is_empty() and or_flags.is_empty() and cine_id.is_empty():
-			continue
-
-		# Build the condition dictionary
-		var cond_dict: Dictionary = {"cinematic_id": cine_id}
-
-		# Use "flags" array for AND logic (new format)
-		if not and_flags.is_empty():
-			cond_dict["flags"] = and_flags
-
-		# Use "any_flags" array for OR logic
-		if not or_flags.is_empty():
-			cond_dict["any_flags"] = or_flags
-
-		if negate_check and negate_check.button_pressed:
-			cond_dict["negate"] = true
-
-		result.append(cond_dict)
-	return result
+	return conditionals_list.get_all_data()
 
 
 func _has_valid_conditional() -> bool:
-	for entry: Dictionary in conditional_entries:
-		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
-		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-
-		# Get cinematic ID from picker
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+	var all_data: Array[Dictionary] = conditionals_list.get_all_data()
+	for entry: Dictionary in all_data:
+		var cine_id: String = entry.get("cinematic_id", "")
 		if cine_id.is_empty():
 			continue
 
 		# Check if there are any flags defined (AND or OR)
-		var has_and_flags: bool = and_flags_edit and not and_flags_edit.text.strip_edges().is_empty()
-		var has_or_flags: bool = or_flags_edit and not or_flags_edit.text.strip_edges().is_empty()
+		var has_and_flags: bool = not entry.get("flags", []).is_empty()
+		var has_or_flags: bool = not entry.get("any_flags", []).is_empty()
 
 		if has_and_flags or has_or_flags:
 			return true
@@ -795,17 +798,6 @@ func _has_valid_conditional() -> bool:
 # UI Event Handlers
 # =============================================================================
 
-func _on_add_conditional() -> void:
-	_add_conditional_entry()
-
-
-func _on_remove_conditional(entry_container: HBoxContainer) -> void:
-	for i: int in range(conditional_entries.size()):
-		if conditional_entries[i].get("container") == entry_container:
-			conditional_entries.remove_at(i)
-			break
-	entry_container.queue_free()
-	_mark_dirty()
 
 
 func _on_field_changed(_text: String) -> void:
@@ -847,11 +839,6 @@ func _on_cinematic_picker_changed(_metadata: Dictionary, _field_type: String) ->
 	_mark_dirty()
 
 
-## Called when a conditional cinematic picker selection changes
-func _on_conditional_cinematic_changed(_metadata: Dictionary) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
 
 
 # =============================================================================
