@@ -78,6 +78,10 @@ var _grid_size: Vector2i = Vector2i.ZERO
 var _grid_to_screen_scale: Vector2 = Vector2.ONE
 var _grid_to_screen_offset: Vector2 = Vector2.ZERO
 
+## Cached tile colors for minimap (sampled from tilemap texture)
+var _tile_colors: Array[Color] = []
+var _tile_colors_valid: bool = false
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
@@ -105,7 +109,8 @@ func _draw() -> void:
 	if not _is_active:
 		return
 
-	var rect: Rect2 = get_rect()
+	# Use viewport rect for full-screen overlay (get_rect() may not reflect anchor sizing)
+	var rect: Rect2 = get_viewport_rect()
 
 	# Draw background
 	draw_rect(rect, BG_COLOR)
@@ -143,6 +148,9 @@ func show_overlay() -> void:
 		_grid_size = GridManager.grid.grid_size
 	else:
 		_grid_size = Vector2i(20, 11)  # Fallback
+
+	# Cache tile colors from tilemap (only once per overlay open)
+	_cache_tile_colors()
 
 	_is_active = true
 	_pulse_time = 0.0
@@ -212,6 +220,64 @@ func _gather_unit_data() -> void:
 					_neutral_positions.append(pos)
 
 
+## Cache tile colors by sampling the tilemap texture
+func _cache_tile_colors() -> void:
+	_tile_colors.clear()
+	_tile_colors_valid = false
+
+	if not GridManager or not GridManager.tilemap:
+		return
+
+	var tilemap: TileMapLayer = GridManager.tilemap
+	if not tilemap.tile_set:
+		return
+
+	# Pre-size the array
+	var total_cells: int = _grid_size.x * _grid_size.y
+	_tile_colors.resize(total_cells)
+
+	# Get the atlas texture image for sampling
+	var atlas_image: Image = null
+	var tile_size: Vector2i = tilemap.tile_set.tile_size
+
+	# Try to get the first atlas source's texture
+	if tilemap.tile_set.get_source_count() > 0:
+		var source_id: int = tilemap.tile_set.get_source_id(0)
+		var source: TileSetSource = tilemap.tile_set.get_source(source_id)
+		if source is TileSetAtlasSource:
+			var atlas_source: TileSetAtlasSource = source as TileSetAtlasSource
+			if atlas_source.texture:
+				atlas_image = atlas_source.texture.get_image()
+
+	# Sample each cell
+	for y: int in range(_grid_size.y):
+		for x: int in range(_grid_size.x):
+			var cell: Vector2i = Vector2i(x, y)
+			var idx: int = y * _grid_size.x + x
+			var cell_color: Color = COLOR_TERRAIN_WALKABLE  # Default
+
+			# Try to sample from tilemap
+			var source_id: int = tilemap.get_cell_source_id(cell)
+			if source_id >= 0 and atlas_image:
+				var atlas_coords: Vector2i = tilemap.get_cell_atlas_coords(cell)
+				# Sample center pixel of the tile
+				var pixel_x: int = atlas_coords.x * tile_size.x + tile_size.x / 2
+				var pixel_y: int = atlas_coords.y * tile_size.y + tile_size.y / 2
+				if pixel_x < atlas_image.get_width() and pixel_y < atlas_image.get_height():
+					cell_color = atlas_image.get_pixel(pixel_x, pixel_y)
+					# Darken slightly for minimap aesthetic
+					cell_color = cell_color.darkened(0.3)
+			else:
+				# No tile data - check if blocked
+				var terrain: TerrainData = GridManager.get_terrain_at_cell(cell)
+				if terrain and not terrain.is_passable(0):
+					cell_color = COLOR_TERRAIN_BLOCKED
+
+			_tile_colors[idx] = cell_color
+
+	_tile_colors_valid = true
+
+
 # =============================================================================
 # DRAWING
 # =============================================================================
@@ -245,11 +311,11 @@ func _calculate_map_rect(screen_rect: Rect2) -> Rect2:
 
 
 func _draw_map_background(map_rect: Rect2) -> void:
-	# Draw a simple grid background
+	# Draw grid background using cached tile colors
 	var cell_width: float = map_rect.size.x / float(_grid_size.x) if _grid_size.x > 0 else 1.0
 	var cell_height: float = map_rect.size.y / float(_grid_size.y) if _grid_size.y > 0 else 1.0
 
-	# Draw cells (simplified - just alternate colors for visual interest)
+	# Draw cells using cached colors from tilemap
 	for y: int in range(_grid_size.y):
 		for x: int in range(_grid_size.x):
 			var cell_rect: Rect2 = Rect2(
@@ -259,16 +325,19 @@ func _draw_map_background(map_rect: Rect2) -> void:
 				cell_height
 			)
 
-			# Check if cell is walkable (simplified check)
-			var cell: Vector2i = Vector2i(x, y)
-			var is_blocked: bool = false
+			# Get cached color or fall back to default
+			var idx: int = y * _grid_size.x + x
+			var cell_color: Color = COLOR_TERRAIN_WALKABLE
 
-			if GridManager:
-				# Use terrain data if available
-				var terrain_id: int = GridManager.get_terrain_id(cell)
-				is_blocked = terrain_id < 0  # Negative = impassable
-
-			var cell_color: Color = COLOR_TERRAIN_BLOCKED if is_blocked else COLOR_TERRAIN_WALKABLE
+			if _tile_colors_valid and idx < _tile_colors.size():
+				cell_color = _tile_colors[idx]
+			else:
+				# Fallback: check terrain passability
+				var cell: Vector2i = Vector2i(x, y)
+				if GridManager:
+					var terrain: TerrainData = GridManager.get_terrain_at_cell(cell)
+					if terrain and not terrain.is_passable(0):
+						cell_color = COLOR_TERRAIN_BLOCKED
 
 			# Slight checkerboard effect for visual interest
 			if (x + y) % 2 == 0:
@@ -362,7 +431,7 @@ func _draw_title(screen_rect: Rect2) -> void:
 		title,
 		HORIZONTAL_ALIGNMENT_CENTER,
 		-1,
-		FONT_SIZE + 4,
+		24,  # Monogram requires multiples of 8
 		Color.WHITE
 	)
 
@@ -376,7 +445,7 @@ func _draw_title(screen_rect: Rect2) -> void:
 		instruction,
 		HORIZONTAL_ALIGNMENT_CENTER,
 		-1,
-		FONT_SIZE - 2,
+		FONT_SIZE,  # Monogram requires multiples of 8 (16)
 		Color(0.6, 0.6, 0.6, 1.0)
 	)
 
