@@ -436,9 +436,8 @@ func _create_map_selection_popup() -> void:
 	var popup_content: VBoxContainer = VBoxContainer.new()
 	popup_content.custom_minimum_size = Vector2(400, 300)
 
-	var popup_label: Label = Label.new()
-	popup_label.text = "Select a map to place the interactable on:"
-	popup_content.add_child(popup_label)
+	var popup_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(popup_content)
+	popup_form.add_help_text("Select a map to place the interactable on:")
 
 	map_list = ItemList.new()
 	map_list.size_flags_vertical = Control.SIZE_EXPAND_FILL

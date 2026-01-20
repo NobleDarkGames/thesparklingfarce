@@ -93,16 +93,9 @@ func _setup_ui() -> void:
 	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var list_label: Label = Label.new()
-	list_label.text = "Map Metadata Files"
-	list_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	left_panel.add_child(list_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Select a map to edit its configuration"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	left_panel.add_child(help_label)
+	var list_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(left_panel)
+	list_form.add_section_label("Map Metadata Files")
+	list_form.add_help_text("Select a map to edit its configuration")
 
 	map_list = ItemList.new()
 	map_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -141,10 +134,8 @@ func _setup_ui() -> void:
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_panel.add_theme_constant_override("separation", 8)
 
-	var detail_label: Label = Label.new()
-	detail_label.text = "Map Configuration"
-	detail_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(detail_label)
+	var detail_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	detail_form.add_section_label("Map Configuration")
 
 	# Create all form sections (scene-as-truth: only runtime config in JSON)
 	_create_scene_reference_section()
@@ -318,68 +309,29 @@ func _create_new_map_dialog() -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
-	# Title
-	var title_label: Label = Label.new()
-	title_label.text = "Create a new map with scene, script, and metadata"
-	title_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	vbox.add_child(title_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(vbox, 100)
+	form.add_help_text("Create a new map with scene, script, and metadata")
 
-	# Map Name
-	var name_row: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Map Name:"
-	name_label.custom_minimum_size.x = 100
-	name_row.add_child(name_label)
-	new_map_name_edit = LineEdit.new()
-	new_map_name_edit.placeholder_text = "My Town"
-	new_map_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	new_map_name_edit = form.add_text_field("Map Name:", "My Town")
 	new_map_name_edit.text_changed.connect(_on_new_map_name_changed)
-	name_row.add_child(new_map_name_edit)
-	vbox.add_child(name_row)
 
-	# Map ID (auto-generated)
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Map ID:"
-	id_label.custom_minimum_size.x = 100
-	id_row.add_child(id_label)
-	new_map_id_edit = LineEdit.new()
-	new_map_id_edit.placeholder_text = "mod_id:my_town"
-	new_map_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	new_map_id_edit.editable = true
-	id_row.add_child(new_map_id_edit)
-	vbox.add_child(id_row)
+	new_map_id_edit = form.add_text_field("Map ID:", "mod_id:my_town")
 
-	# Map Type
-	var type_row: HBoxContainer = HBoxContainer.new()
-	var type_label: Label = Label.new()
-	type_label.text = "Map Type:"
-	type_label.custom_minimum_size.x = 100
-	type_row.add_child(type_label)
+	# Map Type - dynamic dropdown populated from MAP_TYPES
 	new_map_type_dropdown = OptionButton.new()
 	new_map_type_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for map_type: String in MAP_TYPES:
 		new_map_type_dropdown.add_item(map_type)
-	type_row.add_child(new_map_type_dropdown)
-	vbox.add_child(type_row)
+	form.add_labeled_control("Map Type:", new_map_type_dropdown)
 
-	# Tileset
-	var tileset_row: HBoxContainer = HBoxContainer.new()
-	var tileset_label: Label = Label.new()
-	tileset_label.text = "Tileset:"
-	tileset_label.custom_minimum_size.x = 100
-	tileset_row.add_child(tileset_label)
+	# Tileset - dynamic dropdown populated at runtime
 	new_map_tileset_dropdown = OptionButton.new()
 	new_map_tileset_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tileset_row.add_child(new_map_tileset_dropdown)
-	vbox.add_child(tileset_row)
+	form.add_labeled_control("Tileset:", new_map_tileset_dropdown)
 
 	# Info text
-	var info_label: Label = Label.new()
-	info_label.text = "This will create:\n* maps/<name>.gd - Map script\n* maps/<name>.tscn - Map scene\n* data/maps/<name>.json - Metadata"
+	var info_label: Label = form.add_help_text("This will create:\n* maps/<name>.gd - Map script\n* maps/<name>.tscn - Map scene\n* data/maps/<name>.json - Metadata")
 	info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
-	info_label.add_theme_font_size_override("font_size", 13)
-	vbox.add_child(info_label)
 
 	# Error label (hidden by default)
 	new_map_error_label = Label.new()
