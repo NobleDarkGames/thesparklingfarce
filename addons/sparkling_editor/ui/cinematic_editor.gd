@@ -179,14 +179,12 @@ func _setup_file_list_panel(parent: HSplitContainer) -> void:
 	left_panel.add_theme_constant_override("separation", 4)
 	parent.add_child(left_panel)
 
-	# Header
+	# Header with title and refresh button
 	var header: HBoxContainer = HBoxContainer.new()
 	left_panel.add_child(header)
 
-	var title: Label = Label.new()
-	title.text = "Cinematics"
-	title.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	header.add_child(title)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(header)
+	form.add_section_label("Cinematics")
 
 	header.add_spacer(false)
 
@@ -238,10 +236,8 @@ func _setup_command_list_panel(parent: HSplitContainer) -> void:
 	cmd_header.add_theme_constant_override("separation", 4)
 	center_panel.add_child(cmd_header)
 
-	var cmd_label: Label = Label.new()
-	cmd_label.text = "Commands"
-	cmd_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	cmd_header.add_child(cmd_label)
+	var cmd_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(cmd_header)
+	cmd_form.add_section_label("Commands")
 
 	cmd_header.add_spacer(false)
 
@@ -366,11 +362,9 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 	header.add_theme_constant_override("separation", 4)
 	actors_container.add_child(header)
 
-	var actors_label: Label = Label.new()
-	actors_label.text = "Actors"
-	actors_label.add_theme_font_size_override("font_size", 14)
+	var header_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(header)
+	var actors_label: Label = header_form.add_section_label("Actors")
 	actors_label.tooltip_text = "Actors spawn before commands execute. Use for characters that need to exist at cinematic start."
-	header.add_child(actors_label)
 
 	header.add_spacer(false)
 
@@ -401,34 +395,17 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 	actor_editor.add_theme_constant_override("separation", 4)
 	actors_container.add_child(actor_editor)
 
-	# Actor ID row
-	var id_row: HBoxContainer = HBoxContainer.new()
-	actor_editor.add_child(id_row)
+	# Use FormBuilder for actor editor fields with narrower label width
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(actor_editor, 70)
 
-	var id_label: Label = Label.new()
-	id_label.text = "ID:"
-	id_label.custom_minimum_size.x = 70
-	id_row.add_child(id_label)
-
+	# Actor ID field
 	actor_id_edit = LineEdit.new()
-	actor_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actor_id_edit.placeholder_text = "unique_actor_id"
-	actor_id_edit.tooltip_text = "Unique ID to reference this actor in commands"
 	actor_id_edit.text_changed.connect(_on_actor_id_changed)
-	id_row.add_child(actor_id_edit)
+	form.add_labeled_control("ID:", actor_id_edit, "Unique ID to reference this actor in commands")
 
-	# Entity type picker row
-	var type_row: HBoxContainer = HBoxContainer.new()
-	actor_editor.add_child(type_row)
-
-	var type_label: Label = Label.new()
-	type_label.text = "Type:"
-	type_label.custom_minimum_size.x = 70
-	type_row.add_child(type_label)
-
+	# Entity type picker
 	actor_entity_type_picker = OptionButton.new()
-	actor_entity_type_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actor_entity_type_picker.tooltip_text = "Character: Playable characters with stats and portraits\nInteractable: Objects like chests, signs, doors\nNPC: Non-playable characters for dialog\nVirtual: Off-screen actors for dialog_line speakers that don't need map sprites"
 	actor_entity_type_picker.add_item("Character", 0)
 	actor_entity_type_picker.add_item("Interactable", 1)
 	actor_entity_type_picker.add_item("NPC", 2)
@@ -438,25 +415,17 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 	actor_entity_type_picker.set_item_metadata(2, "npc")
 	actor_entity_type_picker.set_item_metadata(3, "virtual")
 	actor_entity_type_picker.item_selected.connect(_on_actor_entity_type_changed)
-	type_row.add_child(actor_entity_type_picker)
+	form.add_labeled_control("Type:", actor_entity_type_picker,
+		"Character: Playable characters with stats and portraits\nInteractable: Objects like chests, signs, doors\nNPC: Non-playable characters for dialog\nVirtual: Off-screen actors for dialog_line speakers that don't need map sprites")
 
-	# Entity picker row (changes based on type)
-	var entity_row: HBoxContainer = HBoxContainer.new()
-	actor_editor.add_child(entity_row)
-
-	var entity_label: Label = Label.new()
-	entity_label.text = "Entity:"
-	entity_label.custom_minimum_size.x = 70
-	entity_row.add_child(entity_label)
-
+	# Entity picker
 	actor_entity_picker = OptionButton.new()
-	actor_entity_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actor_entity_picker.tooltip_text = "Entity to spawn (provides sprite)"
 	actor_entity_picker.item_selected.connect(_on_actor_entity_changed)
-	entity_row.add_child(actor_entity_picker)
+	form.add_labeled_control("Entity:", actor_entity_picker, "Entity to spawn (provides sprite)")
 
-	# Position row
+	# Position row (custom layout with X/Y spinboxes)
 	var pos_row: HBoxContainer = HBoxContainer.new()
+	pos_row.add_theme_constant_override("separation", 8)
 	actor_editor.add_child(pos_row)
 
 	var pos_label: Label = Label.new()
@@ -488,28 +457,17 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 	actor_pos_y_spin.value_changed.connect(_on_actor_position_changed)
 	pos_row.add_child(actor_pos_y_spin)
 
-	# Facing row
-	var facing_row: HBoxContainer = HBoxContainer.new()
-	actor_editor.add_child(facing_row)
-
-	var facing_label: Label = Label.new()
-	facing_label.text = "Facing:"
-	facing_label.custom_minimum_size.x = 70
-	facing_row.add_child(facing_label)
-
+	# Facing picker
 	actor_facing_picker = OptionButton.new()
-	actor_facing_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actor_facing_picker.add_item("down", 0)
 	actor_facing_picker.add_item("up", 1)
 	actor_facing_picker.add_item("left", 2)
 	actor_facing_picker.add_item("right", 3)
-	actor_facing_picker.tooltip_text = "Initial facing direction"
 	actor_facing_picker.item_selected.connect(_on_actor_facing_changed)
-	facing_row.add_child(actor_facing_picker)
+	form.add_labeled_control("Facing:", actor_facing_picker, "Initial facing direction")
 
 	# Separator
-	var sep: HSeparator = HSeparator.new()
-	actors_container.add_child(sep)
+	form.add_separator()
 
 	# Initially hide editor until actor is selected
 	actor_editor.visible = false
@@ -521,14 +479,9 @@ func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	right_panel.add_theme_constant_override("separation", 4)
 	parent.add_child(right_panel)
 
-	# Header
-	var header: Label = Label.new()
-	header.text = "Command Inspector"
-	header.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	right_panel.add_child(header)
-
-	var sep: HSeparator = HSeparator.new()
-	right_panel.add_child(sep)
+	# Header using FormBuilder
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(right_panel)
+	form.add_section("Command Inspector")
 
 	# Scrollable inspector
 	inspector_scroll = ScrollContainer.new()
@@ -541,12 +494,10 @@ func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	inspector_panel.add_theme_constant_override("separation", 8)
 	inspector_scroll.add_child(inspector_panel)
 
-	# Placeholder text
-	var placeholder: Label = Label.new()
+	# Placeholder text using FormBuilder
+	var inspector_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(inspector_panel)
+	var placeholder: Label = inspector_form.add_help_text("Select a command to edit its parameters")
 	placeholder.name = "Placeholder"
-	placeholder.text = "Select a command to edit its parameters"
-	placeholder.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
-	inspector_panel.add_child(placeholder)
 
 
 func _setup_add_command_menu() -> void:
@@ -917,12 +868,10 @@ func _clear_inspector() -> void:
 	target_field = null
 	target_custom_edit = null
 
-	# Re-add placeholder
-	var placeholder: Label = Label.new()
+	# Re-add placeholder using FormBuilder
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(inspector_panel)
+	var placeholder: Label = form.add_help_text("Select a command to edit its parameters")
 	placeholder.name = "Placeholder"
-	placeholder.text = "Select a command to edit its parameters"
-	placeholder.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
-	inspector_panel.add_child(placeholder)
 
 
 func _build_inspector_for_command(index: int) -> void:
