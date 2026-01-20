@@ -120,18 +120,23 @@ func _validate_battle_data(data: BattleData) -> bool:
 
 
 ## Initialize audio system for battle
-## Plays appropriate music based on whether this is a boss battle
+## Plays appropriate music based on BattleData.music_id with fallback to defaults
 func _initialize_audio() -> void:
 	# Determine if this is a boss battle
 	var is_boss_battle: bool = _battle_has_boss()
 
-	# Play appropriate music
+	# Determine music track: BattleData.music_id > boss default > normal default
+	var music_track: String = "battle_theme"  # Default for normal battles
+	if current_battle_data and not current_battle_data.music_id.is_empty():
+		music_track = current_battle_data.music_id
+	elif is_boss_battle:
+		music_track = "boss_theme"
+
+	AudioManager.play_music(music_track, 1.0)
+
+	# Enable boss layer immediately for boss battles
 	if is_boss_battle:
-		AudioManager.play_music("boss_theme", 1.0)
-		# Enable boss layer immediately for boss battles
 		AudioManager.enable_layer(2, 0.4)
-	else:
-		AudioManager.play_music("battle_theme", 1.0)
 
 
 ## Check if any enemy unit in this battle is a boss
@@ -1611,6 +1616,13 @@ func _on_battle_ended(victory: bool) -> void:
 ## Show victory screen and wait for player to dismiss
 ## Returns false (victory never triggers retry)
 func _show_victory_screen() -> bool:
+	# Play victory fanfare
+	AudioManager.stop_music(0.5)
+	var victory_sfx: String = "battle_victory"
+	if current_battle_data and not current_battle_data.victory_music_id.is_empty():
+		victory_sfx = current_battle_data.victory_music_id
+	AudioManager.play_sfx(victory_sfx, AudioManager.SFXCategory.CEREMONY)
+
 	# Distribute rewards before showing victory screen
 	var rewards: Dictionary = _distribute_battle_rewards()
 
@@ -1664,6 +1676,13 @@ func _distribute_battle_rewards() -> Dictionary:
 ## Show defeat screen (SF2-authentic automatic flow) and wait for player input
 ## Returns false always (no retry option in SF2-authentic flow)
 func _show_defeat_screen() -> bool:
+	# Play defeat jingle
+	AudioManager.stop_music(0.5)
+	var defeat_sfx: String = "battle_defeat"
+	if current_battle_data and not current_battle_data.defeat_music_id.is_empty():
+		defeat_sfx = current_battle_data.defeat_music_id
+	AudioManager.play_sfx(defeat_sfx, AudioManager.SFXCategory.SYSTEM)
+
 	var defeat_screen: CanvasLayer = _get_cached_scene("defeat_screen_scene").instantiate()
 	battle_scene_root.add_child(defeat_screen)
 
@@ -1826,7 +1845,8 @@ enum BattleExitReason {
 	EGRESS,      ## Player cast Egress spell
 	ANGEL_WING,  ## Player used Angel Wing item
 	HERO_DEATH,  ## Hero (is_hero character) died
-	PARTY_WIPE   ## All player units dead
+	PARTY_WIPE,  ## All player units dead
+	MENU_QUIT    ## Player quit from game menu
 }
 
 
@@ -1926,7 +1946,21 @@ func _sync_surviving_units_to_save_data() -> void:
 			save_data.current_mp = unit.stats.current_mp
 
 
-## Show a brief exit message for voluntary battle exits (Egress/Angel Wing)
+## Quit battle from game menu - public API for InputManager
+## This is only allowed for non-story battles
+func quit_battle_from_menu() -> void:
+	if not battle_active:
+		return
+
+	# Safety check: story battles should not allow quit
+	if current_battle_data and current_battle_data.is_story_battle:
+		push_warning("BattleManager: Cannot quit a story battle from menu")
+		return
+
+	_execute_battle_exit(null, BattleExitReason.MENU_QUIT)
+
+
+## Show a brief exit message for voluntary battle exits (Egress/Angel Wing/Menu Quit)
 func _show_exit_message(reason: BattleExitReason) -> void:
 	var message: String = ""
 	match reason:
@@ -1934,6 +1968,8 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 			message = "Egress!"
 		BattleExitReason.ANGEL_WING:
 			message = "Angel Wing!"
+		BattleExitReason.MENU_QUIT:
+			message = "Retreating..."
 		_:
 			return  # No message for other reasons
 

@@ -66,6 +66,9 @@ enum DefeatCondition {
 @export var custom_defeat_script: GDScript
 
 @export_group("Battle Flow")
+## If true, this is a story-critical battle that cannot be quit via the game menu.
+## The "Quit" option will be grayed out. Used for mandatory plot battles.
+@export var is_story_battle: bool = false
 ## Dialogue to show before battle starts
 @export var pre_battle_dialogue: DialogueData
 ## Dialogue to show when player wins
@@ -76,9 +79,9 @@ enum DefeatCondition {
 @export var turn_dialogues: Dictionary = {}
 
 @export_group("Audio")
-@export var background_music: AudioStream
-@export var victory_music: AudioStream
-@export var defeat_music: AudioStream
+@export var music_id: String = ""  ## Battle music track ID (empty = use default based on battle type)
+@export var victory_music_id: String = ""  ## Victory fanfare ID (empty = use "battle_victory")
+@export var defeat_music_id: String = ""  ## Defeat music ID (empty = use "battle_defeat")
 
 @export_group("Rewards")
 @export var experience_reward: int = 0

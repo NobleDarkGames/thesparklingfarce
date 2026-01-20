@@ -56,7 +56,10 @@ scenes/                  # Engine scenes
     shops/               # SF2-authentic shop interface
     caravan/             # SF2-authentic depot interface
     components/          # Reusable UI components
-tests/                   # Automated test suite (at project root)
+tests/                   # Automated test suite (GdUnit4)
+  unit/                  # Isolated class tests (no autoloads)
+  integration/           # Multi-system tests (uses autoloads)
+  fixtures/              # Shared test factories (CharacterFactory, UnitFactory, etc.)
 addons/                  # sparkling_editor (20+ visual editors)
 templates/               # Code templates
 ```
@@ -134,6 +137,21 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 |-------|---------|
 | CombatCalculator | Pure static damage/hit/crit formulas |
 | InputManagerHelpers | Targeting context, directional input, grid selection utilities |
+
+### Battle System State Contract
+
+Tests and systems that initialize battle state MUST clean up when done. Battle singletons maintain global state that persists across scenes.
+
+**Required cleanup calls:**
+```gdscript
+TurnManager.clear_battle()
+BattleManager.player_units.clear()
+BattleManager.enemy_units.clear()
+BattleManager.all_units.clear()
+GridManager.clear_grid()
+```
+
+Failure to clean up causes test pollution and unpredictable behavior in subsequent battles or tests.
 
 ---
 
@@ -611,12 +629,7 @@ Issues identified but not yet implemented:
 
 | Issue | Location | Status |
 |-------|----------|--------|
-| Promotion bonuses not implemented | `core/resources/experience_config.gd` | ExperienceConfig lacks `promotion_bonus_*` properties; promotions give 0 stat boost |
-| Buff/Debuff spells do nothing | `core/systems/battle_manager.gd:674-680` | SUPPORT and DEBUFF ability types just warn and fail; status effects not applied |
-| Custom trigger system stub | `core/systems/trigger_manager.gd:511-515` | `_handle_custom_trigger()` is unimplemented; mods cannot define custom trigger types |
-| Scroll transition not implemented | `core/systems/trigger_manager.gd:464-466` | Scroll transition falls back to fade; SF2-style scrolling unavailable |
-| Free cursor unit stats panel | `core/systems/input_manager.gd:844-846` | Pressing A on another unit in free cursor mode should show stats panel |
-| Battle game menu | `core/systems/input_manager.gd:847-850` | Pressing A on empty cell in free cursor mode should open game menu (Map, Speed, etc.) |
+| No translation files | `mods/*/translations/` | LocalizationManager API works but no actual .po/.csv translation files exist; game is English-only |
 | AI buff item processing | `ai_brain_editor.gd:530-538` | Buff item usage setting exposed in editor but not processed by AI |
 | AI idle turn patience | `ai_brain_editor.gd:604-613` | `max_idle_turns` setting exposed but has no effect |
 | Spell animation system | `ability_editor.gd:398-400` | Animation fields in ability editor are ignored; spells have no visual effects |
@@ -633,11 +646,12 @@ Critical untested autoloads:
 |--------|-------|------|
 | InputManager | 2,392 | HIGH — all player input |
 | SceneManager | 263 | HIGH — scene transitions |
-| PartyManager | 864 | HIGH — roster/save data |
-| TurnManager | 710 | MEDIUM — battle flow |
-| GridManager | 700 | MEDIUM — pathfinding |
 
-Additional untested: ExperienceManager, CaravanController, ExplorationUIManager, GameJuice, DebugConsole, RandomManager, SettingsManager, GameEventBus, LocalizationManager, CraftingManager, EquipmentManager (indirect only)
+Additional untested: CaravanController, ExplorationUIManager, GameJuice, DebugConsole, SettingsManager, CraftingManager
+
+Recently tested (with dedicated suites): RandomManager (27 tests), GameEventBus (31 tests), TextInterpolator (32 tests), LocalizationManager (39 tests)
+
+**Test suite status:** 1760 test cases (80 suites). See `docs/testing-reference.md` for testing patterns.
 
 ### Undocumented Features
 

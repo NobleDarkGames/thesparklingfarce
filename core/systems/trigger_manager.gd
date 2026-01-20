@@ -149,7 +149,8 @@ func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
 		TRIGGER_TYPE_TRANSITION:
 			_handle_transition_trigger(trigger, player)
 		TRIGGER_TYPE_CUSTOM:
-			_handle_custom_trigger(trigger, player)
+			push_warning("TriggerManager: TriggerType.CUSTOM is deprecated. Use trigger_type_string with a registered handler script, or use CUTSCENE triggers with custom cinematic commands.")
+			_handle_modded_trigger(trigger, player, type_name)
 		_:
 			# Check for registered custom trigger handler
 			_handle_modded_trigger(trigger, player, type_name)
@@ -461,9 +462,6 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	match transition_type:
 		"instant":
 			SceneManager.change_scene(destination_scene, false)  # No fade
-		"scroll":
-			# TODO: Implement scroll transition for overworld edges
-			SceneManager.change_scene(destination_scene)
 		_:  # Default: fade
 			SceneManager.change_scene(destination_scene)
 
@@ -506,13 +504,6 @@ func _handle_transition_trigger(trigger: Node, player: Node2D) -> void:
 		player.teleport_to_grid(target_position)
 	else:
 		push_warning("TriggerManager: Player doesn't have teleport_to_grid method")
-
-
-## Handle CUSTOM trigger
-func _handle_custom_trigger(trigger: Node, _player: Node2D) -> void:
-	var _trigger_data: Dictionary = trigger.get("trigger_data")
-	# TODO: Phase 5 - custom trigger system
-	pass
 
 
 # =============================================================================

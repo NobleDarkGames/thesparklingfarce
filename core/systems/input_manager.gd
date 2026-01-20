@@ -87,6 +87,7 @@ var camera: Camera2D = null
 var action_menu: ActionMenu = null
 var item_menu: ItemMenu = null
 var spell_menu: SpellMenu = null
+var game_menu: BattleGameMenu = null  # Battle game menu (Map, Speed, Status, Quit)
 var battle_scene: Node = null  # Reference to battle scene for UI access
 var grid_cursor: Node2D = null  # Visual cursor for grid movement (GridCursor scene)
 var path_preview_parent: Node2D = null  # Parent node for path visuals
@@ -159,6 +160,13 @@ func set_spell_menu(menu: SpellMenu) -> void:
 	_safe_connect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
 
 
+## Set game menu reference and connect signals
+func set_game_menu(menu: BattleGameMenu) -> void:
+	game_menu = menu
+	_safe_connect_signal(game_menu.menu_closed, _on_game_menu_closed)
+	_safe_connect_signal(game_menu.quit_confirmed, _on_game_menu_quit_confirmed)
+
+
 ## Disconnect action menu signals only (used during turn start reset)
 func _disconnect_action_menu_signals() -> void:
 	if action_menu:
@@ -177,6 +185,9 @@ func _disconnect_all_menu_signals() -> void:
 	if spell_menu:
 		_safe_disconnect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
 		_safe_disconnect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
+	if game_menu:
+		_safe_disconnect_signal(game_menu.menu_closed, _on_game_menu_closed)
+		_safe_disconnect_signal(game_menu.quit_confirmed, _on_game_menu_quit_confirmed)
 
 
 ## Reconnect all menu signals (called when player turn starts)
@@ -190,6 +201,9 @@ func _reconnect_all_menu_signals() -> void:
 	if spell_menu:
 		_safe_connect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
 		_safe_connect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
+	if game_menu:
+		_safe_connect_signal(game_menu.menu_closed, _on_game_menu_closed)
+		_safe_connect_signal(game_menu.quit_confirmed, _on_game_menu_quit_confirmed)
 
 
 ## Handle spell menu selection signal
@@ -841,13 +855,12 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 			current_cursor_position = active_unit.grid_position
 			set_state(InputState.DIRECT_MOVEMENT)
 		elif unit_at_cursor:
-			# Pressed A on another unit - show stats
-			# TODO: Show unit stats panel
-			pass
+			# Pressed A on another unit - show their stats in the panel
+			if stats_panel:
+				stats_panel.show_unit_stats(unit_at_cursor)
 		else:
-			# Pressed A on empty cell - could open game menu (Map, Speed, etc.)
-			# TODO: Implement game menu (Map, Speed settings, etc.)
-			pass
+			# Pressed A on empty cell - open battle game menu (Map, Speed, Status, Quit)
+			_show_game_menu()
 		handled = true
 
 	# Cancel returns to direct movement mode
@@ -1211,6 +1224,42 @@ func _handle_action_menu_input(event: InputEvent) -> void:
 	# Action menu handles its own input
 	# We just wait for signals from the menu
 	pass
+
+
+## Show battle game menu (Map, Speed, Status, Quit)
+func _show_game_menu() -> void:
+	if not game_menu:
+		push_warning("InputManager: No game menu reference set")
+		return
+
+	# Check if this is a story battle (disables Quit option)
+	var is_story_battle: bool = false
+	if BattleManager and BattleManager.current_battle_data:
+		is_story_battle = BattleManager.current_battle_data.is_story_battle
+
+	game_menu.show_menu(is_story_battle)
+
+
+## Handle game menu closed signal (menu dismissed without action or after action completes)
+func _on_game_menu_closed() -> void:
+	# Menu closed, resume INSPECTING state (we were already in it)
+	# Just ensure we're in the right state
+	if current_state == InputState.INSPECTING:
+		# Refresh stats panel to show whatever was under cursor before menu
+		if stats_panel and active_unit:
+			var unit_at_cursor: Unit = GridManager.get_unit_at_cell(current_cursor_position) as Unit
+			if unit_at_cursor:
+				stats_panel.show_unit_stats(unit_at_cursor)
+			else:
+				stats_panel.show_unit_stats(active_unit)
+
+
+## Handle game menu quit confirmed signal
+func _on_game_menu_quit_confirmed() -> void:
+	# Player confirmed quitting the battle
+	# Use BattleManager's proper exit flow (handles restoration, transition context, etc.)
+	if BattleManager:
+		BattleManager.quit_battle_from_menu()
 
 
 ## Show item menu
