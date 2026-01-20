@@ -500,8 +500,10 @@ func get_display_name() -> String:
 
 
 ## Check if this NPC is at a specific grid position
+## Uses live global_position for accuracy during movement (not cached grid_position)
 func is_at_grid_position(pos: Vector2i) -> bool:
-	return grid_position == pos
+	var current_grid_pos: Vector2i = GridManager.world_to_cell(global_position)
+	return current_grid_pos == pos
 
 
 ## Teleport NPC to a grid position (for cinematics/scripting)
@@ -647,6 +649,8 @@ func _execute_patrol_move(command: Dictionary) -> void:
 
 ## Callback when patrol movement completes
 func _on_patrol_move_completed() -> void:
+	# Update grid_position to match new world position
+	_update_grid_position()
 	_patrol_command_completed = true
 
 

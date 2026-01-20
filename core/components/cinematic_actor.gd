@@ -258,7 +258,20 @@ func _on_parent_moved(_old_pos: Vector2i, _new_pos: Vector2i) -> void:
 ## Stop current movement
 func _stop_movement() -> void:
 	is_moving = false
+	# Sync parent entity's grid_position with actual world position
+	_sync_parent_grid_position()
 	movement_completed.emit()
+
+
+## Sync parent entity's grid_position to match its world position
+## This ensures collision detection works after cinematic movement
+func _sync_parent_grid_position() -> void:
+	if not parent_entity or not is_instance_valid(parent_entity):
+		return
+	# Update grid_position if the parent has such a property
+	if "grid_position" in parent_entity:
+		var new_grid_pos: Vector2i = GridManager.world_to_cell(parent_entity.global_position)
+		parent_entity.grid_position = new_grid_pos
 
 
 ## Connect to parent's moved signal or estimate completion time
@@ -427,6 +440,9 @@ func teleport_to(position: Vector2, is_grid: bool = true) -> void:
 		parent_entity.global_position = GridManager.cell_to_world(Vector2i(position))
 	else:
 		parent_entity.global_position = position
+
+	# Sync grid_position for entities that track it
+	_sync_parent_grid_position()
 
 	# Sync physics collider for CharacterBody2D entities
 	if parent_entity is CharacterBody2D:
