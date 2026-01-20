@@ -630,7 +630,7 @@ Issues identified but not yet implemented:
 | Issue | Location | Status |
 |-------|----------|--------|
 | No translation files | `mods/*/translations/` | LocalizationManager API works but no actual .po/.csv translation files exist; game is English-only |
-| Spell animation system | `ability_editor.gd:398-400` | Animation fields in ability editor are ignored; spells have no visual effects |
+| Spell animation system | `ability_editor.gd:398-400` | Animation fields ignored; spells have no VFX. **Planned approach**: Use Godot particle effects (GPUParticles2D), screen shake, flash/tint effects, and projectile motion as default effects. System should be mod-friendly—mods can override default particles with custom sprites/animations per ability. Deferred as significant scope. |
 | Dialog box auto-positioning | `dialog_box.gd:363-365` | AUTO position falls back to BOTTOM instead of smart speaker-based positioning |
 | Mod field menu options | `exploration_field_menu.gd:330-331` | `_add_mod_options()` commented out; mods cannot add custom field menu options |
 | Battle equip setting | `item_action_menu.gd:285-286` | Equipment always exploration-only; cannot equip during battle (SF2 allows it) |
