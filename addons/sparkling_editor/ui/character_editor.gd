@@ -391,91 +391,54 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Basic Information")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	# Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_container.add_child(name_label)
-
-	name_edit = LineEdit.new()
-	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit = form.add_text_field("Name:", "",
+		"Display name shown in menus and dialogue. Can differ from resource filename.")
 	name_edit.max_length = 64  # Reasonable limit for UI display
-	name_edit.tooltip_text = "Display name shown in menus and dialogue. Can differ from resource filename."
-	name_edit.text_changed.connect(_on_basic_field_changed)
-	name_container.add_child(name_edit)
-	section.add_child(name_container)
 
-	# Character UID (read-only, for referencing in cinematics/dialogs)
-	var uid_container: HBoxContainer = HBoxContainer.new()
-	uid_container.add_theme_constant_override("separation", 4)
+	# Character UID (read-only, for referencing in cinematics/dialogs) - needs custom layout
+	var uid_row: HBoxContainer = HBoxContainer.new()
+	uid_row.add_theme_constant_override("separation", 4)
 
 	var uid_label: Label = Label.new()
 	uid_label.text = "Character UID:"
 	uid_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	uid_container.add_child(uid_label)
+	uid_row.add_child(uid_label)
 
 	uid_edit = LineEdit.new()
 	uid_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	uid_edit.editable = false
 	uid_edit.tooltip_text = "Unique ID for referencing this character in cinematics and dialogs.\nAuto-generated and immutable. Use this instead of name for stable references."
 	uid_edit.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	uid_container.add_child(uid_edit)
+	uid_row.add_child(uid_edit)
 
 	uid_copy_btn = Button.new()
 	uid_copy_btn.text = "Copy"
 	uid_copy_btn.tooltip_text = "Copy UID to clipboard"
 	uid_copy_btn.custom_minimum_size.x = 50
 	uid_copy_btn.pressed.connect(_on_uid_copy_pressed)
-	uid_container.add_child(uid_copy_btn)
+	uid_row.add_child(uid_copy_btn)
 
-	section.add_child(uid_container)
+	form.container.add_child(uid_row)
 
 	# Class - use ResourcePicker for cross-mod class selection
 	class_picker = ResourcePicker.new()
 	class_picker.resource_type = "class"
 	class_picker.label_text = "Class:"
-	class_picker.label_min_width = 120
+	class_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	class_picker.allow_none = true
 	class_picker.tooltip_text = "Determines stat growth, abilities, and equippable weapon types. E.g., Warrior, Mage, Archer."
 	class_picker.resource_selected.connect(_on_class_picker_selected)
-	section.add_child(class_picker)
+	form.container.add_child(class_picker)
 
-	# Starting Level
-	var level_container: HBoxContainer = HBoxContainer.new()
-	var level_label: Label = Label.new()
-	level_label.text = "Starting Level:"
-	level_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	level_container.add_child(level_label)
+	level_spin = form.add_number_field("Starting Level:", 1, 99, 1,
+		"Level when character joins the party. Higher = stronger starting stats. Typical: 1-5 for early game, 10-20 for late joiners.")
 
-	level_spin = SpinBox.new()
-	level_spin.min_value = 1
-	level_spin.max_value = 99
-	level_spin.value = 1
-	level_spin.tooltip_text = "Level when character joins the party. Higher = stronger starting stats. Typical: 1-5 for early game, 10-20 for late joiners."
-	level_spin.value_changed.connect(_on_basic_field_changed)
-	level_container.add_child(level_spin)
-	section.add_child(level_container)
-
-	# Biography
-	var bio_label: Label = Label.new()
-	bio_label.text = "Biography:"
-	section.add_child(bio_label)
-
-	bio_edit = TextEdit.new()
-	bio_edit.custom_minimum_size.y = 120
-	bio_edit.tooltip_text = "Background story and personality description. Shown in character status screens and recruitment scenes."
-	bio_edit.text_changed.connect(_on_basic_field_changed)
-	section.add_child(bio_edit)
-
-	detail_panel.add_child(section)
+	bio_edit = form.add_text_area("Biography:", 120,
+		"Background story and personality description. Shown in character status screens and recruitment scenes.")
 
 
 func _add_appearance_section() -> void:
@@ -483,135 +446,62 @@ func _add_appearance_section() -> void:
 	section.title = "Appearance"
 	section.start_collapsed = false
 
-	var help_label: Label = Label.new()
-	help_label.text = "Visual assets for this character"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_content_child(help_label)
+	# Use FormBuilder within the collapse section content
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(section.get_content_container())
+	form.on_change(_mark_dirty)
+	form.add_help_text("Visual assets for this character")
 
 	# Portrait Picker
 	_portrait_picker = PortraitPicker.new()
 	_portrait_picker.texture_selected.connect(_on_portrait_selected)
 	_portrait_picker.texture_cleared.connect(_on_portrait_cleared)
-	section.add_content_child(_portrait_picker)
+	form.container.add_child(_portrait_picker)
 
 	# Sprite Frames Picker (consolidated: used for both map and battle grid)
 	_sprite_frames_picker = MapSpritesheetPicker.new()
 	_sprite_frames_picker.texture_selected.connect(_on_spritesheet_selected)
 	_sprite_frames_picker.texture_cleared.connect(_on_spritesheet_cleared)
 	_sprite_frames_picker.sprite_frames_generated.connect(_on_sprite_frames_generated)
-	section.add_content_child(_sprite_frames_picker)
+	form.container.add_child(_sprite_frames_picker)
 
 	detail_panel.add_child(section)
 
 
 func _add_battle_configuration_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Battle Configuration")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Battle Configuration"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	# Unit Category
-	var category_container: HBoxContainer = HBoxContainer.new()
-	var category_label: Label = Label.new()
-	category_label.text = "Unit Category:"
-	category_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	category_container.add_child(category_label)
-
+	# Unit Category - need to populate dynamically from registry
 	category_option = OptionButton.new()
 	category_option.tooltip_text = "Determines AI allegiance: player = controllable ally, enemy = hostile AI, boss = high-priority enemy, neutral = non-combatant."
-	# Populate from registry
 	var categories: Array[String] = _get_unit_categories_from_registry()
 	for i: int in range(categories.size()):
 		category_option.add_item(categories[i], i)
-	category_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	category_option.item_selected.connect(_on_basic_field_changed)
-	category_container.add_child(category_option)
-	section.add_child(category_container)
+	form.add_labeled_control("Unit Category:", category_option,
+		"Determines AI allegiance: player = controllable ally, enemy = hostile AI, boss = high-priority enemy, neutral = non-combatant.")
 
-	# Is Unique
-	var unique_container: HBoxContainer = HBoxContainer.new()
-	var unique_label: Label = Label.new()
-	unique_label.text = "Is Unique:"
-	unique_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	unique_container.add_child(unique_label)
+	is_unique_check = form.add_checkbox("Is Unique:", "This is a unique character (not a reusable template)", true,
+		"ON = named character that persists across battles (e.g., Max). OFF = generic template for spawning multiple copies (e.g., Goblin).")
 
-	is_unique_check = CheckBox.new()
-	is_unique_check.button_pressed = true
-	is_unique_check.text = "This is a unique character (not a reusable template)"
-	is_unique_check.tooltip_text = "ON = named character that persists across battles (e.g., Max). OFF = generic template for spawning multiple copies (e.g., Goblin)."
-	is_unique_check.toggled.connect(_on_basic_field_changed)
-	unique_container.add_child(is_unique_check)
-	section.add_child(unique_container)
+	is_hero_check = form.add_checkbox("Is Hero:", "This is the primary Hero/protagonist (only one per party)", false,
+		"The main protagonist. If this character dies, battle is lost. Only one hero per party. Enables special story triggers.")
 
-	# Is Hero
-	var hero_container: HBoxContainer = HBoxContainer.new()
-	var hero_label: Label = Label.new()
-	hero_label.text = "Is Hero:"
-	hero_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	hero_container.add_child(hero_label)
+	is_boss_check = form.add_checkbox("Is Boss:", "This is a boss enemy (allies will protect)", false,
+		"Mark as a boss enemy. Defensive AI will prioritize protecting this unit, and threat calculations are boosted.")
 
-	is_hero_check = CheckBox.new()
-	is_hero_check.button_pressed = false
-	is_hero_check.text = "This is the primary Hero/protagonist (only one per party)"
-	is_hero_check.tooltip_text = "The main protagonist. If this character dies, battle is lost. Only one hero per party. Enables special story triggers."
-	is_hero_check.toggled.connect(_on_basic_field_changed)
-	hero_container.add_child(is_hero_check)
-	section.add_child(hero_container)
+	is_default_party_member_check = form.add_checkbox("Starting Party:", "Include in default starting party", false,
+		"If ON, character joins the party at the start of a new game. Use for starting party members.")
 
-	# Is Boss
-	var boss_container: HBoxContainer = HBoxContainer.new()
-	var boss_label: Label = Label.new()
-	boss_label.text = "Is Boss:"
-	boss_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	boss_container.add_child(boss_label)
-
-	is_boss_check = CheckBox.new()
-	is_boss_check.button_pressed = false
-	is_boss_check.text = "This is a boss enemy (allies will protect)"
-	is_boss_check.tooltip_text = "Mark as a boss enemy. Defensive AI will prioritize protecting this unit, and threat calculations are boosted."
-	is_boss_check.toggled.connect(_on_basic_field_changed)
-	boss_container.add_child(is_boss_check)
-	section.add_child(boss_container)
-
-	# Is Default Party Member
-	var party_member_container: HBoxContainer = HBoxContainer.new()
-	var party_member_label: Label = Label.new()
-	party_member_label.text = "Starting Party:"
-	party_member_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	party_member_container.add_child(party_member_label)
-
-	is_default_party_member_check = CheckBox.new()
-	is_default_party_member_check.button_pressed = false
-	is_default_party_member_check.text = "Include in default starting party"
-	is_default_party_member_check.tooltip_text = "If ON, character joins the party at the start of a new game. Use for starting party members."
-	is_default_party_member_check.toggled.connect(_on_basic_field_changed)
-	party_member_container.add_child(is_default_party_member_check)
-	section.add_child(party_member_container)
-
-	# Default AI Behavior
-	var ai_container: HBoxContainer = HBoxContainer.new()
-	var ai_label: Label = Label.new()
-	ai_label.text = "Default AI:"
-	ai_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	ai_container.add_child(ai_label)
-
+	# Default AI Behavior - need to populate dynamically
 	default_ai_option = OptionButton.new()
-	default_ai_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	default_ai_option.tooltip_text = "AI behavior when this character is an enemy. E.g., Aggressive rushes, Cautious stays back, Healer prioritizes allies."
 	default_ai_option.item_selected.connect(_on_basic_field_changed)
-	ai_container.add_child(default_ai_option)
-	section.add_child(ai_container)
+	form.add_labeled_control("Default AI:", default_ai_option,
+		"AI behavior when this character is an enemy. E.g., Aggressive rushes, Cautious stays back, Healer prioritizes allies.")
 
-	var ai_help: Label = Label.new()
-	ai_help.text = "AI used when this character is an enemy (can override in Battle Editor)"
-	ai_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	ai_help.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(ai_help)
-
-	detail_panel.add_child(section)
+	form.add_help_text("AI used when this character is an enemy (can override in Battle Editor)")
 
 	# Load available AI behaviors after creating the dropdown
 	_load_available_ai_behaviors()
@@ -622,13 +512,12 @@ func _add_ai_threat_configuration_section() -> void:
 	ai_threat_section.title = "AI Threat Configuration"
 	ai_threat_section.start_collapsed = true
 
-	var help_label: Label = Label.new()
-	help_label.text = "Advanced settings for AI targeting behavior"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	ai_threat_section.add_content_child(help_label)
+	var content: VBoxContainer = ai_threat_section.get_content_container()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
+	form.on_change(_mark_dirty)
+	form.add_help_text("Advanced settings for AI targeting behavior")
 
-	# Threat Modifier with slider and preset buttons
+	# Threat Modifier with slider and preset buttons - needs custom layout
 	var modifier_container: VBoxContainer = VBoxContainer.new()
 
 	var modifier_header: HBoxContainer = HBoxContainer.new()
@@ -683,23 +572,13 @@ func _add_ai_threat_configuration_section() -> void:
 		preset_container.add_child(btn)
 
 	modifier_container.add_child(preset_container)
-	ai_threat_section.add_content_child(modifier_container)
+	content.add_child(modifier_container)
 
-	# Separator
-	var sep: HSeparator = HSeparator.new()
-	ai_threat_section.add_content_child(sep)
+	form.add_separator()
 
 	# Threat Tags section
-	var tags_header: Label = Label.new()
-	tags_header.text = "Threat Tags:"
-	tags_header.tooltip_text = "Tags that modify AI targeting behavior"
-	ai_threat_section.add_content_child(tags_header)
-
-	var tags_help: Label = Label.new()
-	tags_help.text = "Click to add common tags, or type custom tags below"
-	tags_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	tags_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	ai_threat_section.add_content_child(tags_help)
+	form.add_section_label("Threat Tags:")
+	form.add_help_text("Click to add common tags, or type custom tags below")
 
 	# Quick-add buttons for common tags
 	var quick_tags_container: HFlowContainer = HFlowContainer.new()
@@ -713,38 +592,41 @@ func _add_ai_threat_configuration_section() -> void:
 		btn.pressed.connect(_on_add_threat_tag.bind(tag))
 		quick_tags_container.add_child(btn)
 
-	ai_threat_section.add_content_child(quick_tags_container)
+	content.add_child(quick_tags_container)
 
 	# Current tags display
 	var current_tags_label: Label = Label.new()
 	current_tags_label.text = "Active Tags:"
-	ai_threat_section.add_content_child(current_tags_label)
+	content.add_child(current_tags_label)
 
 	ai_threat_tags_container = HFlowContainer.new()
 	ai_threat_tags_container.add_theme_constant_override("h_separation", 4)
 	ai_threat_tags_container.add_theme_constant_override("v_separation", 4)
-	ai_threat_section.add_content_child(ai_threat_tags_container)
+	content.add_child(ai_threat_tags_container)
 
 	# Custom tag input
-	var custom_tag_container: HBoxContainer = HBoxContainer.new()
-	var custom_label: Label = Label.new()
-	custom_label.text = "Custom Tag:"
-	custom_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	custom_tag_container.add_child(custom_label)
-
 	ai_threat_custom_tag_edit = LineEdit.new()
-	ai_threat_custom_tag_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ai_threat_custom_tag_edit.placeholder_text = "e.g., flanker, glass_cannon"
 	ai_threat_custom_tag_edit.tooltip_text = "Add custom tags for mod-specific AI behaviors. Use snake_case format."
 	ai_threat_custom_tag_edit.text_submitted.connect(_on_custom_tag_submitted)
-	custom_tag_container.add_child(ai_threat_custom_tag_edit)
+
+	var custom_tag_row: HBoxContainer = HBoxContainer.new()
+	custom_tag_row.add_theme_constant_override("separation", 8)
+
+	var custom_label: Label = Label.new()
+	custom_label.text = "Custom Tag:"
+	custom_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	custom_tag_row.add_child(custom_label)
+
+	ai_threat_custom_tag_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	custom_tag_row.add_child(ai_threat_custom_tag_edit)
 
 	ai_threat_add_tag_button = Button.new()
 	ai_threat_add_tag_button.text = "Add"
 	ai_threat_add_tag_button.pressed.connect(_on_add_custom_tag_pressed)
-	custom_tag_container.add_child(ai_threat_add_tag_button)
+	custom_tag_row.add_child(ai_threat_add_tag_button)
 
-	ai_threat_section.add_content_child(custom_tag_container)
+	content.add_child(custom_tag_row)
 
 	detail_panel.add_child(ai_threat_section)
 
@@ -820,45 +702,24 @@ func _refresh_threat_tags_display() -> void:
 
 
 func _add_stats_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Base Stats")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Base Stats"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	hp_spin = _create_stat_editor("HP:", section, "Hit Points - how much damage the character can take before falling. Typical: 15-25 for mages, 25-40 for warriors.")
-	mp_spin = _create_stat_editor("MP:", section, "Magic Points - resource for casting spells and abilities. Typical: 0 for melee, 15-30 for casters.")
-	str_spin = _create_stat_editor("Strength:", section, "Physical attack power. Higher = more damage with weapons. Typical: 3-6 for casters, 6-10 for fighters.")
-	def_spin = _create_stat_editor("Defense:", section, "Physical damage reduction. Higher = less damage taken from attacks. Typical: 3-5 for mages, 6-10 for tanks.")
-	agi_spin = _create_stat_editor("Agility:", section, "Turn order and evasion. Higher = acts first, harder to hit. Also affects movement range.")
-	int_spin = _create_stat_editor("Intelligence:", section, "Magic attack power and MP growth. Higher = stronger spells. Typical: 6-10 for mages, 2-4 for fighters.")
-	luk_spin = _create_stat_editor("Luck:", section, "Critical hit chance and rare drop rates. Subtle but useful. Typical: 3-7 for most characters.")
-
-	detail_panel.add_child(section)
-
-
-func _create_stat_editor(label_text: String, parent: VBoxContainer, tooltip: String = "") -> SpinBox:
-	var container: HBoxContainer = HBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	if not tooltip.is_empty():
-		label.tooltip_text = tooltip
-	container.add_child(label)
-
-	var spin: SpinBox = SpinBox.new()
-	spin.min_value = 1
-	spin.max_value = 999
-	spin.value = 10
-	if not tooltip.is_empty():
-		spin.tooltip_text = tooltip
-	spin.value_changed.connect(_on_basic_field_changed)
-	container.add_child(spin)
-
-	parent.add_child(container)
-	return spin
+	hp_spin = form.add_number_field("HP:", 1, 999, 10,
+		"Hit Points - how much damage the character can take before falling. Typical: 15-25 for mages, 25-40 for warriors.")
+	mp_spin = form.add_number_field("MP:", 1, 999, 10,
+		"Magic Points - resource for casting spells and abilities. Typical: 0 for melee, 15-30 for casters.")
+	str_spin = form.add_number_field("Strength:", 1, 999, 10,
+		"Physical attack power. Higher = more damage with weapons. Typical: 3-6 for casters, 6-10 for fighters.")
+	def_spin = form.add_number_field("Defense:", 1, 999, 10,
+		"Physical damage reduction. Higher = less damage taken from attacks. Typical: 3-5 for mages, 6-10 for tanks.")
+	agi_spin = form.add_number_field("Agility:", 1, 999, 10,
+		"Turn order and evasion. Higher = acts first, harder to hit. Also affects movement range.")
+	int_spin = form.add_number_field("Intelligence:", 1, 999, 10,
+		"Magic attack power and MP growth. Higher = stronger spells. Typical: 6-10 for mages, 2-4 for fighters.")
+	luk_spin = form.add_number_field("Luck:", 1, 999, 10,
+		"Critical hit chance and rare drop rates. Subtle but useful. Typical: 3-7 for most characters.")
 
 
 func _load_available_ai_behaviors() -> void:
@@ -984,11 +845,10 @@ func _add_equipment_section() -> void:
 	equipment_section.title = "Starting Equipment"
 	equipment_section.start_collapsed = false
 
-	var help_label: Label = Label.new()
-	help_label.text = "Equipment the character starts with when recruited"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 14)
-	equipment_section.add_content_child(help_label)
+	var content: VBoxContainer = equipment_section.get_content_container()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
+	form.on_change(_mark_dirty)
+	form.add_help_text("Equipment the character starts with when recruited")
 
 	# Get available equipment slots from registry
 	var slots: Array[Dictionary] = _get_equipment_slots()
@@ -1008,7 +868,7 @@ func _add_equipment_section() -> void:
 		var picker: ResourcePicker = ResourcePicker.new()
 		picker.resource_type = "item"
 		picker.label_text = display_name + ":"
-		picker.label_min_width = 120
+		picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 		picker.allow_none = true
 		picker.none_text = "(Empty)"
 
@@ -1023,12 +883,12 @@ func _add_equipment_section() -> void:
 		# Add warning label (hidden by default)
 		var warning: Label = Label.new()
 		warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
-		warning.add_theme_font_size_override("font_size", 12)
+		warning.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 		warning.visible = false
 		slot_container.add_child(warning)
 		equipment_warning_labels[slot_id] = warning
 
-		equipment_section.add_content_child(slot_container)
+		content.add_child(slot_container)
 
 	detail_panel.add_child(equipment_section)
 
@@ -1203,16 +1063,15 @@ func _add_inventory_section() -> void:
 	inventory_section.title = "Starting Inventory"
 	inventory_section.start_collapsed = true
 
-	var help_label: Label = Label.new()
-	help_label.text = "Items the character carries (not equipped) when recruited"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	inventory_section.add_content_child(help_label)
+	var content: VBoxContainer = inventory_section.get_content_container()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
+	form.on_change(_mark_dirty)
+	form.add_help_text("Items the character carries (not equipped) when recruited")
 
 	# Container for the list of inventory items
 	inventory_list_container = VBoxContainer.new()
 	inventory_list_container.add_theme_constant_override("separation", 4)
-	inventory_section.add_content_child(inventory_list_container)
+	content.add_child(inventory_list_container)
 
 	# Add Item button
 	var button_container: HBoxContainer = HBoxContainer.new()
@@ -1221,7 +1080,7 @@ func _add_inventory_section() -> void:
 	inventory_add_button.tooltip_text = "Add an item to the character's starting inventory"
 	inventory_add_button.pressed.connect(_on_inventory_add_pressed)
 	button_container.add_child(inventory_add_button)
-	inventory_section.add_content_child(button_container)
+	content.add_child(button_container)
 
 	detail_panel.add_child(inventory_section)
 
@@ -1515,16 +1374,15 @@ func _add_unique_abilities_section() -> void:
 	unique_abilities_section.title = "Unique Abilities"
 	unique_abilities_section.start_collapsed = true
 
-	var help_label: Label = Label.new()
-	help_label.text = "Character-specific abilities that bypass class restrictions"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	unique_abilities_section.add_content_child(help_label)
+	var content: VBoxContainer = unique_abilities_section.get_content_container()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
+	form.on_change(_mark_dirty)
+	form.add_help_text("Character-specific abilities that bypass class restrictions")
 
 	# Container for the list of unique abilities
 	unique_abilities_container = VBoxContainer.new()
 	unique_abilities_container.add_theme_constant_override("separation", 4)
-	unique_abilities_section.add_content_child(unique_abilities_container)
+	content.add_child(unique_abilities_container)
 
 	# Add Unique Ability button
 	var button_container: HBoxContainer = HBoxContainer.new()
@@ -1533,7 +1391,7 @@ func _add_unique_abilities_section() -> void:
 	unique_abilities_add_button.tooltip_text = "Add a character-specific ability that bypasses class restrictions"
 	unique_abilities_add_button.pressed.connect(_on_add_unique_ability)
 	button_container.add_child(unique_abilities_add_button)
-	unique_abilities_section.add_content_child(button_container)
+	content.add_child(button_container)
 
 	detail_panel.add_child(unique_abilities_section)
 
