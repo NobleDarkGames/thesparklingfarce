@@ -130,6 +130,7 @@ func _create_detail_form() -> void:
 ## Section 1: Basic Information
 func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Basic Information")
 
 	battle_name_edit = form.add_text_field("Battle Name:", "Enter battle name",
@@ -145,10 +146,12 @@ func _add_basic_info_section() -> void:
 ## Section 2: Map Selection
 func _add_map_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Map Configuration")
 
 	map_scene_option = OptionButton.new()
 	map_scene_option.item_selected.connect(_on_map_scene_changed)
+	map_scene_option.item_selected.connect(func(_idx: int) -> void: _mark_dirty())
 	form.add_labeled_control("Map Scene:", map_scene_option,
 		"The tilemap scene where combat takes place. Maps are in mods/*/maps/.")
 
@@ -161,6 +164,7 @@ func _add_map_section() -> void:
 	player_spawn_x_spin.max_value = 100
 	player_spawn_x_spin.value = 2
 	player_spawn_x_spin.tooltip_text = "X coordinate for party formation center."
+	player_spawn_x_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	spawn_hbox.add_child(player_spawn_x_spin)
 
 	player_spawn_y_spin = SpinBox.new()
@@ -168,6 +172,7 @@ func _add_map_section() -> void:
 	player_spawn_y_spin.max_value = 100
 	player_spawn_y_spin.value = 2
 	player_spawn_y_spin.tooltip_text = "Y coordinate for party formation center."
+	player_spawn_y_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
 	spawn_hbox.add_child(player_spawn_y_spin)
 
 	form.add_labeled_control("Player Spawn (X, Y):", spawn_hbox,
@@ -180,6 +185,7 @@ func _add_map_section() -> void:
 ## Section 3: Player Forces
 func _add_player_forces_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Player Forces")
 
 	# Use ResourcePicker for cross-mod party selection
@@ -254,17 +260,11 @@ func _add_neutral_forces_section() -> void:
 
 ## Section 5: Victory Conditions
 func _add_victory_conditions_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Victory Conditions"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
-
-	var condition_label: Label = Label.new()
-	condition_label.text = "Victory Condition:"
-	detail_panel.add_child(condition_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Victory Conditions")
 
 	victory_condition_option = OptionButton.new()
-	victory_condition_option.tooltip_text = "How the player wins: kill all, kill boss, survive, reach location, or protect an NPC."
 	victory_condition_option.add_item("Defeat All Enemies", BattleData.VictoryCondition.DEFEAT_ALL_ENEMIES)
 	victory_condition_option.add_item("Defeat Boss", BattleData.VictoryCondition.DEFEAT_BOSS)
 	victory_condition_option.add_item("Survive Turns", BattleData.VictoryCondition.SURVIVE_TURNS)
@@ -272,46 +272,43 @@ func _add_victory_conditions_section() -> void:
 	victory_condition_option.add_item("Protect Unit", BattleData.VictoryCondition.PROTECT_UNIT)
 	victory_condition_option.add_item("Custom", BattleData.VictoryCondition.CUSTOM)
 	victory_condition_option.item_selected.connect(_on_victory_condition_changed)
-	detail_panel.add_child(victory_condition_option)
+	form.add_labeled_control("Victory Condition:", victory_condition_option,
+		"How the player wins: kill all, kill boss, survive, reach location, or protect an NPC.")
 
 	# Container for conditional fields (shown/hidden based on selection)
 	victory_conditional_container = VBoxContainer.new()
-	detail_panel.add_child(victory_conditional_container)
+	form.get_container().add_child(victory_conditional_container)
 
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 ## Section 6: Defeat Conditions
 func _add_defeat_conditions_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Defeat Conditions"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
-
-	var condition_label: Label = Label.new()
-	condition_label.text = "Defeat Condition:"
-	detail_panel.add_child(condition_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Defeat Conditions")
 
 	defeat_condition_option = OptionButton.new()
-	defeat_condition_option.tooltip_text = "How the player loses: all dead, hero dead, turn limit exceeded, or protected unit dies."
 	defeat_condition_option.add_item("All Units Defeated", BattleData.DefeatCondition.ALL_UNITS_DEFEATED)
 	defeat_condition_option.add_item("Leader Defeated", BattleData.DefeatCondition.LEADER_DEFEATED)
 	defeat_condition_option.add_item("Turn Limit", BattleData.DefeatCondition.TURN_LIMIT)
 	defeat_condition_option.add_item("Unit Dies", BattleData.DefeatCondition.UNIT_DIES)
 	defeat_condition_option.add_item("Custom", BattleData.DefeatCondition.CUSTOM)
 	defeat_condition_option.item_selected.connect(_on_defeat_condition_changed)
-	detail_panel.add_child(defeat_condition_option)
+	form.add_labeled_control("Defeat Condition:", defeat_condition_option,
+		"How the player loses: all dead, hero dead, turn limit exceeded, or protected unit dies.")
 
 	# Container for conditional fields
 	defeat_conditional_container = VBoxContainer.new()
-	detail_panel.add_child(defeat_conditional_container)
+	form.get_container().add_child(defeat_conditional_container)
 
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 ## Section 7: Battle Flow & Dialogue
 func _add_battle_flow_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Battle Flow & Dialogue")
 
 	# Use ResourcePicker for cross-mod dialogue selection
@@ -346,23 +343,24 @@ func _add_battle_flow_section() -> void:
 ## Section 8: Audio
 func _add_audio_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Audio")
 
 	# Battle Music dropdown
 	music_id_option = OptionButton.new()
-	music_id_option.tooltip_text = "Background music for this battle. Leave empty for default (battle_theme or boss_theme)."
+	music_id_option.item_selected.connect(func(_idx: int) -> void: _mark_dirty())
 	form.add_labeled_control("Battle Music:", music_id_option,
 		"Music track to play during battle. Empty uses default based on battle type.")
 
 	# Victory Fanfare dropdown
 	victory_music_option = OptionButton.new()
-	victory_music_option.tooltip_text = "Fanfare played on victory. Leave empty for default (battle_victory)."
+	victory_music_option.item_selected.connect(func(_idx: int) -> void: _mark_dirty())
 	form.add_labeled_control("Victory Fanfare:", victory_music_option,
 		"Sound effect or short music played when battle is won.")
 
 	# Defeat Jingle dropdown
 	defeat_music_option = OptionButton.new()
-	defeat_music_option.tooltip_text = "Jingle played on defeat. Leave empty for default (battle_defeat)."
+	defeat_music_option.item_selected.connect(func(_idx: int) -> void: _mark_dirty())
 	form.add_labeled_control("Defeat Jingle:", defeat_music_option,
 		"Sound effect or short music played when battle is lost.")
 
@@ -373,6 +371,7 @@ func _add_audio_section() -> void:
 ## Section 10: Rewards
 func _add_rewards_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Rewards")
 
 	experience_reward_spin = form.add_number_field("Experience Reward:", 0, 10000, 0,
