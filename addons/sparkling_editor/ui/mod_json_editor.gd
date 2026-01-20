@@ -285,18 +285,9 @@ func _create_total_conversion_section() -> void:
 
 
 func _create_dependencies_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Dependencies"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Other mods that must be loaded before this one"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Dependencies")
+	form.add_help_text("Other mods that must be loaded before this one")
 
 	dependencies_container = VBoxContainer.new()
 
@@ -323,10 +314,9 @@ func _create_dependencies_section() -> void:
 	input_row.add_child(remove_dependency_button)
 
 	dependencies_container.add_child(input_row)
-	section.add_child(dependencies_container)
+	form.container.add_child(dependencies_container)
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_custom_types_section() -> void:
@@ -344,18 +334,9 @@ func _create_custom_types_section() -> void:
 
 
 func _create_equipment_slots_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Equipment Slot Layout"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Define custom equipment slots (for total conversions)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 120)
+	form.add_section("Equipment Slot Layout")
+	form.add_help_text("Define custom equipment slots (for total conversions)")
 
 	equipment_slots_container = VBoxContainer.new()
 
@@ -365,43 +346,11 @@ func _create_equipment_slots_section() -> void:
 	equipment_slots_list.item_selected.connect(_on_equipment_slot_selected)
 	equipment_slots_container.add_child(equipment_slots_list)
 
-	# Slot editing fields
-	var slot_edit_container: VBoxContainer = VBoxContainer.new()
-
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Slot ID:"
-	id_label.custom_minimum_size.x = 120
-	id_row.add_child(id_label)
-	slot_id_edit = LineEdit.new()
-	slot_id_edit.placeholder_text = "e.g., weapon, ring_1, ring_2"
-	slot_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_row.add_child(slot_id_edit)
-	slot_edit_container.add_child(id_row)
-
-	var name_row: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = 120
-	name_row.add_child(name_label)
-	slot_display_name_edit = LineEdit.new()
-	slot_display_name_edit.placeholder_text = "e.g., Weapon, Ring 1, Ring 2"
-	slot_display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_row.add_child(slot_display_name_edit)
-	slot_edit_container.add_child(name_row)
-
-	var accepts_row: HBoxContainer = HBoxContainer.new()
-	var accepts_label: Label = Label.new()
-	accepts_label.text = "Accepts Types:"
-	accepts_label.custom_minimum_size.x = 120
-	accepts_row.add_child(accepts_label)
-	slot_accepts_types_edit = LineEdit.new()
-	slot_accepts_types_edit.placeholder_text = "e.g., sword, axe, bow (comma-separated)"
-	slot_accepts_types_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	accepts_row.add_child(slot_accepts_types_edit)
-	slot_edit_container.add_child(accepts_row)
-
-	equipment_slots_container.add_child(slot_edit_container)
+	# Slot editing fields using a nested FormBuilder
+	var edit_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(equipment_slots_container, 120)
+	slot_id_edit = edit_form.add_text_field("Slot ID:", "e.g., weapon, ring_1, ring_2")
+	slot_display_name_edit = edit_form.add_text_field("Display Name:", "e.g., Weapon, Ring 1, Ring 2")
+	slot_accepts_types_edit = edit_form.add_text_field("Accepts Types:", "e.g., sword, axe, bow (comma-separated)")
 
 	# Buttons
 	var button_row: HBoxContainer = HBoxContainer.new()
@@ -422,10 +371,9 @@ func _create_equipment_slots_section() -> void:
 	button_row.add_child(update_slot_button)
 
 	equipment_slots_container.add_child(button_row)
-	section.add_child(equipment_slots_container)
+	form.container.add_child(equipment_slots_container)
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_inventory_config_section() -> void:
@@ -462,18 +410,9 @@ func _create_party_config_section() -> void:
 
 
 func _create_scene_overrides_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Scene Overrides"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Replace engine scenes with custom versions (for total conversions)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 100)
+	form.add_section("Scene Overrides")
+	form.add_help_text("Replace engine scenes with custom versions (for total conversions)")
 
 	scene_overrides_container = VBoxContainer.new()
 
@@ -483,32 +422,10 @@ func _create_scene_overrides_section() -> void:
 	scene_overrides_list.item_selected.connect(_on_scene_override_selected)
 	scene_overrides_container.add_child(scene_overrides_list)
 
-	# Scene override input fields
-	var input_container: VBoxContainer = VBoxContainer.new()
-
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Scene ID:"
-	id_label.custom_minimum_size.x = 100
-	id_row.add_child(id_label)
-	scene_id_edit = LineEdit.new()
-	scene_id_edit.placeholder_text = "e.g., main_menu, battle_scene"
-	scene_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_row.add_child(scene_id_edit)
-	input_container.add_child(id_row)
-
-	var path_row: HBoxContainer = HBoxContainer.new()
-	var path_label: Label = Label.new()
-	path_label.text = "Scene Path:"
-	path_label.custom_minimum_size.x = 100
-	path_row.add_child(path_label)
-	scene_path_edit = LineEdit.new()
-	scene_path_edit.placeholder_text = "Relative path (e.g., scenes/custom_menu.tscn)"
-	scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	path_row.add_child(scene_path_edit)
-	input_container.add_child(path_row)
-
-	scene_overrides_container.add_child(input_container)
+	# Scene override input fields using nested FormBuilder
+	var edit_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(scene_overrides_container, 100)
+	scene_id_edit = edit_form.add_text_field("Scene ID:", "e.g., main_menu, battle_scene")
+	scene_path_edit = edit_form.add_text_field("Scene Path:", "Relative path (e.g., scenes/custom_menu.tscn)")
 
 	# Buttons
 	var button_row: HBoxContainer = HBoxContainer.new()
@@ -524,103 +441,45 @@ func _create_scene_overrides_section() -> void:
 	button_row.add_child(remove_scene_override_button)
 
 	scene_overrides_container.add_child(button_row)
-	section.add_child(scene_overrides_container)
+	form.container.add_child(scene_overrides_container)
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_field_menu_options_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 100)
+	form.add_section("Field Menu Options")
+	form.add_help_text("Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Field Menu Options"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_text)
-
-	# Replace all checkbox (for total conversions)
-	field_menu_replace_all_check = CheckBox.new()
-	field_menu_replace_all_check.text = "Replace all base options (total conversion)"
-	field_menu_replace_all_check.tooltip_text = "When enabled, removes base Item/Magic/Search/Member options.\nUse this only for total conversions that provide their own field menu."
+	field_menu_replace_all_check = form.add_standalone_checkbox(
+		"Replace all base options (total conversion)", false,
+		"When enabled, removes base Item/Magic/Search/Member options.\nUse this only for total conversions that provide their own field menu.")
 	field_menu_replace_all_check.toggled.connect(_on_field_menu_replace_all_toggled)
-	section.add_child(field_menu_replace_all_check)
 
 	# Options list
 	field_menu_options_list = ItemList.new()
 	field_menu_options_list.custom_minimum_size = Vector2(0, 80)
 	field_menu_options_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	field_menu_options_list.item_selected.connect(_on_field_menu_option_selected)
-	section.add_child(field_menu_options_list)
+	form.container.add_child(field_menu_options_list)
 
-	# Input fields container
-	var input_container: VBoxContainer = VBoxContainer.new()
+	# Input fields using nested FormBuilder
+	var edit_form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(form.container, 100)
+	field_menu_option_id_edit = edit_form.add_text_field("Option ID:", "e.g., bestiary, quest_log",
+		"Unique identifier for this option (lowercase, underscores)")
+	field_menu_option_label_edit = edit_form.add_text_field("Label:", "e.g., Bestiary, Quests",
+		"Display text shown in the menu")
+	field_menu_option_scene_path_edit = edit_form.add_text_field("Scene Path:", "scenes/ui/my_panel.tscn",
+		"Relative path to the scene file (from mod folder)")
 
-	# Option ID
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Option ID:"
-	id_label.custom_minimum_size.x = 100
-	id_row.add_child(id_label)
-	field_menu_option_id_edit = LineEdit.new()
-	field_menu_option_id_edit.placeholder_text = "e.g., bestiary, quest_log"
-	field_menu_option_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_id_edit.tooltip_text = "Unique identifier for this option (lowercase, underscores)"
-	id_row.add_child(field_menu_option_id_edit)
-	input_container.add_child(id_row)
-
-	# Label
-	var label_row: HBoxContainer = HBoxContainer.new()
-	var label_label: Label = Label.new()
-	label_label.text = "Label:"
-	label_label.custom_minimum_size.x = 100
-	label_row.add_child(label_label)
-	field_menu_option_label_edit = LineEdit.new()
-	field_menu_option_label_edit.placeholder_text = "e.g., Bestiary, Quests"
-	field_menu_option_label_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_label_edit.tooltip_text = "Display text shown in the menu"
-	label_row.add_child(field_menu_option_label_edit)
-	input_container.add_child(label_row)
-
-	# Scene Path with browse button
-	var path_row: HBoxContainer = HBoxContainer.new()
-	var path_label: Label = Label.new()
-	path_label.text = "Scene Path:"
-	path_label.custom_minimum_size.x = 100
-	path_row.add_child(path_label)
-	field_menu_option_scene_path_edit = LineEdit.new()
-	field_menu_option_scene_path_edit.placeholder_text = "scenes/ui/my_panel.tscn"
-	field_menu_option_scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_scene_path_edit.tooltip_text = "Relative path to the scene file (from mod folder)"
-	path_row.add_child(field_menu_option_scene_path_edit)
-	input_container.add_child(path_row)
-
-	# Position dropdown
-	var position_row: HBoxContainer = HBoxContainer.new()
-	var position_label: Label = Label.new()
-	position_label.text = "Position:"
-	position_label.custom_minimum_size.x = 100
-	position_row.add_child(position_label)
-	field_menu_option_position_dropdown = OptionButton.new()
-	field_menu_option_position_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_position_dropdown.tooltip_text = "Where to insert this option in the menu"
-	# Populate position options with display-friendly labels
-	field_menu_option_position_dropdown.add_item("End (after Member)", 0)
-	field_menu_option_position_dropdown.add_item("Start (before Item)", 1)
-	field_menu_option_position_dropdown.add_item("After Item", 2)
-	field_menu_option_position_dropdown.add_item("After Magic", 3)
-	field_menu_option_position_dropdown.add_item("After Search", 4)
-	field_menu_option_position_dropdown.add_item("After Member", 5)
-	position_row.add_child(field_menu_option_position_dropdown)
-	input_container.add_child(position_row)
-
-	section.add_child(input_container)
+	field_menu_option_position_dropdown = edit_form.add_dropdown("Position:", [
+		{"label": "End (after Member)", "id": 0},
+		{"label": "Start (before Item)", "id": 1},
+		{"label": "After Item", "id": 2},
+		{"label": "After Magic", "id": 3},
+		{"label": "After Search", "id": 4},
+		{"label": "After Member", "id": 5},
+	], "Where to insert this option in the menu")
 
 	# Buttons
 	var button_row: HBoxContainer = HBoxContainer.new()
@@ -640,10 +499,9 @@ func _create_field_menu_options_section() -> void:
 	update_button.pressed.connect(_on_update_field_menu_option)
 	button_row.add_child(update_button)
 
-	section.add_child(button_row)
+	form.container.add_child(button_row)
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_content_paths_section() -> void:
