@@ -36,9 +36,7 @@ var target_field: OptionButton  # For commands with target (actor_id)
 var target_custom_edit: LineEdit  # For custom actor_id entry (scene NPCs)
 
 # UI Components - Metadata
-var cinematic_id_edit: LineEdit
-var cinematic_id_lock_btn: Button
-var cinematic_name_edit: LineEdit
+var name_id_group: NameIdFieldGroup
 var description_edit: TextEdit
 var can_skip_check: CheckBox
 var disable_input_check: CheckBox
@@ -76,9 +74,6 @@ var current_cinematic_path: String = ""
 var current_cinematic_data: Dictionary = {}
 var selected_command_index: int = -1
 var _updating_ui: bool = false
-
-# Track if ID should auto-generate from name (unlocked = auto-generate)
-var _id_is_locked: bool = false
 
 # Unsaved changes dialog
 var _unsaved_changes_dialog: ConfirmationDialog
@@ -322,43 +317,17 @@ func _setup_metadata_section(parent: VBoxContainer) -> void:
 	section.add_theme_constant_override("separation", 4)
 	parent.add_child(section)
 
-	# Name row (moved above ID so name drives ID auto-generation)
-	var name_row: HBoxContainer = HBoxContainer.new()
-	section.add_child(name_row)
-
-	var name_label: Label = Label.new()
-	name_label.text = "Name:"
-	name_label.custom_minimum_size.x = 50
-	name_row.add_child(name_label)
-
-	cinematic_name_edit = LineEdit.new()
-	cinematic_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_name_edit.placeholder_text = "Display name"
-	cinematic_name_edit.text_changed.connect(_on_cinematic_name_changed)
-	name_row.add_child(cinematic_name_edit)
-
-	# ID row
-	var id_row: HBoxContainer = HBoxContainer.new()
-	section.add_child(id_row)
-
-	var id_label: Label = Label.new()
-	id_label.text = "ID:"
-	id_label.custom_minimum_size.x = 50
-	id_row.add_child(id_label)
-
-	cinematic_id_edit = LineEdit.new()
-	cinematic_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_id_edit.placeholder_text = "(auto-generated from name)"
-	cinematic_id_edit.tooltip_text = "Unique ID for this cinematic. Special IDs:\n• 'opening_cinematic' - Becomes the game's opening sequence"
-	cinematic_id_edit.text_changed.connect(_on_cinematic_id_manually_changed)
-	id_row.add_child(cinematic_id_edit)
-
-	cinematic_id_lock_btn = Button.new()
-	cinematic_id_lock_btn.text = "Lock"
-	cinematic_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
-	cinematic_id_lock_btn.custom_minimum_size.x = 60
-	cinematic_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(cinematic_id_lock_btn)
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Name:"
+	name_id_group.id_label = "ID:"
+	name_id_group.name_placeholder = "Display name"
+	name_id_group.id_placeholder = "(auto-generated from name)"
+	name_id_group.name_tooltip = "Display name for this cinematic."
+	name_id_group.id_tooltip = "Unique ID for this cinematic. Special IDs:\n- 'opening_cinematic' - Becomes the game's opening sequence"
+	name_id_group.label_width = 50
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	section.add_child(name_id_group)
 
 	# Options row
 	var opt_row: HBoxContainer = HBoxContainer.new()
@@ -803,17 +772,15 @@ func _clear_actor_editor() -> void:
 
 func _populate_metadata() -> void:
 	_updating_ui = true
-	cinematic_name_edit.text = current_cinematic_data.get("cinematic_name", "")
-	cinematic_id_edit.text = current_cinematic_data.get("cinematic_id", "")
+
+	# Load name/ID using component (auto-detects lock state)
+	var name_val: String = current_cinematic_data.get("cinematic_name", "")
+	var id_val: String = current_cinematic_data.get("cinematic_id", "")
+	name_id_group.set_values(name_val, id_val, true)
+
 	can_skip_check.button_pressed = current_cinematic_data.get("can_skip", true)
 	disable_input_check.button_pressed = current_cinematic_data.get("disable_player_input", true)
 	loop_check.button_pressed = current_cinematic_data.get("loop", false)
-
-	# Determine if ID was manually set (different from auto-generated)
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(current_cinematic_data.get("cinematic_name", ""))
-	var current_id: String = current_cinematic_data.get("cinematic_id", "")
-	_id_is_locked = (current_id != expected_auto_id) and not current_id.is_empty()
-	_update_lock_button()
 
 	_updating_ui = false
 
@@ -1463,9 +1430,9 @@ func _on_save() -> void:
 	_migrate_legacy_format()
 
 	# Collect metadata
-	var new_id: String = cinematic_id_edit.text.strip_edges()
+	var new_id: String = name_id_group.get_id_value()
 	current_cinematic_data["cinematic_id"] = new_id
-	current_cinematic_data["cinematic_name"] = cinematic_name_edit.text.strip_edges()
+	current_cinematic_data["cinematic_name"] = name_id_group.get_name_value()
 	current_cinematic_data["can_skip"] = can_skip_check.button_pressed
 	current_cinematic_data["disable_player_input"] = disable_input_check.button_pressed
 	current_cinematic_data["loop"] = loop_check.button_pressed
@@ -1619,37 +1586,11 @@ func _migrate_legacy_format() -> void:
 # ID Auto-Generation Handlers
 # =============================================================================
 
-## Called when cinematic name changes - auto-generates ID if not locked
-func _on_cinematic_name_changed(new_name: String) -> void:
+## Called when name or ID changes in the NameIdFieldGroup
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		cinematic_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
-
-
-## Called when ID is manually edited
-func _on_cinematic_id_manually_changed(_text: String) -> void:
-	if _updating_ui:
-		return
-	# If user manually edits the ID field while it has focus, lock it
-	if not _id_is_locked and cinematic_id_edit.has_focus():
-		_id_is_locked = true
-		_update_lock_button()
-
-
-## Toggle the ID lock state
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	# If unlocking, regenerate ID from current name
-	if not _id_is_locked:
-		cinematic_id_edit.text = SparklingEditorUtils.generate_id_from_name(cinematic_name_edit.text)
-
-
-## Update the lock button appearance
-func _update_lock_button() -> void:
-	cinematic_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
-	cinematic_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
+	# No additional action needed - component handles auto-generation
 
 
 func _get_active_mod() -> String:

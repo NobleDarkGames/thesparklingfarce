@@ -9,10 +9,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 # =============================================================================
 
 # Basic Info
-var id_edit: LineEdit
-var name_edit: LineEdit
-var id_lock_btn: Button
-var _id_is_locked: bool = false
+var name_id_group: NameIdFieldGroup
 var shop_type_option: OptionButton
 
 # Inventory
@@ -90,19 +87,11 @@ func _load_resource_data() -> void:
 	if not shop:
 		return
 
-	# Basic info
-	if name_edit:
-		name_edit.text = shop.shop_name
-	if id_edit:
-		id_edit.text = shop.shop_id
+	# Basic info - load name/ID using component (auto-detects lock state)
+	if name_id_group:
+		name_id_group.set_values(shop.shop_name, shop.shop_id, true)
 	if shop_type_option:
 		shop_type_option.selected = shop.shop_type
-	
-	# Check if ID was manually set (doesn't match auto-generated from name)
-	if id_edit and name_edit:
-		var auto_id: String = SparklingEditorUtils.generate_id_from_name(shop.shop_name)
-		_id_is_locked = (shop.shop_id != auto_id and not shop.shop_id.is_empty())
-		_update_lock_button()
 
 	# Inventory
 	_current_inventory = shop.inventory.duplicate(true)
@@ -153,8 +142,8 @@ func _save_resource_data() -> void:
 		return
 
 	# Basic info
-	shop.shop_id = id_edit.text.strip_edges()
-	shop.shop_name = name_edit.text.strip_edges()
+	shop.shop_id = name_id_group.get_id_value()
+	shop.shop_name = name_id_group.get_name_value()
 	shop.shop_type = shop_type_option.selected
 
 	# Inventory
@@ -201,10 +190,10 @@ func _validate_resource() -> Dictionary:
 
 	var errors: Array[String] = []
 
-	if id_edit.text.strip_edges().is_empty():
+	if name_id_group.get_id_value().is_empty():
 		errors.append("Shop ID cannot be empty")
 
-	if name_edit.text.strip_edges().is_empty():
+	if name_id_group.get_name_value().is_empty():
 		errors.append("Shop name cannot be empty")
 
 	# Validate inventory item IDs exist
@@ -251,32 +240,24 @@ func _get_resource_display_name(resource: Resource) -> String:
 # =============================================================================
 
 func _add_basic_info_section() -> void:
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
-	form.add_section("Basic Information")
+	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
 
-	# Shop Name (primary field - triggers ID auto-generation)
-	name_edit = form.add_text_field("Shop Name:", "e.g., Granseal Weapon Shop",
-		"Display name shown to the player in menus and when entering the shop.")
-	name_edit.text_changed.connect(_on_name_changed)
-
-	# Shop ID with lock button (matches NPC Editor pattern)
-	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("Shop ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, form.container)
-	id_edit = LineEdit.new()
-	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_edit.placeholder_text = "(auto-generated from name)"
-	id_edit.tooltip_text = "Unique ID for referencing this shop in NPCs and scripts. Auto-generates from name."
-	id_edit.text_changed.connect(_on_id_manually_changed)
-	id_row.add_child(id_edit)
-
-	id_lock_btn = Button.new()
-	id_lock_btn.text = "Lock"
-	id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
-	id_lock_btn.custom_minimum_size.x = 60
-	id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(id_lock_btn)
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Shop Name:"
+	name_id_group.id_label = "Shop ID:"
+	name_id_group.name_placeholder = "e.g., Granseal Weapon Shop"
+	name_id_group.id_placeholder = "(auto-generated from name)"
+	name_id_group.name_tooltip = "Display name shown to the player in menus and when entering the shop."
+	name_id_group.id_tooltip = "Unique ID for referencing this shop in NPCs and scripts. Auto-generates from name."
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	section.add_child(name_id_group)
 
 	# Shop Type - custom dropdown with specific IDs
+	var type_row: HBoxContainer = SparklingEditorUtils.create_field_row("Shop Type:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	shop_type_option = OptionButton.new()
+	shop_type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_type_option.tooltip_text = "Weapon = equipment, Item = consumables, Church = heal/revive, Crafter = forging, Special = unique."
 	shop_type_option.add_item("Weapon", ShopData.ShopType.WEAPON)
 	shop_type_option.add_item("Item", ShopData.ShopType.ITEM)
@@ -284,8 +265,7 @@ func _add_basic_info_section() -> void:
 	shop_type_option.add_item("Crafter", ShopData.ShopType.CRAFTER)
 	shop_type_option.add_item("Special", ShopData.ShopType.SPECIAL)
 	shop_type_option.item_selected.connect(_on_shop_type_changed)
-	form.add_labeled_control("Shop Type:", shop_type_option,
-		"Weapon = equipment, Item = consumables, Church = heal/revive, Crafter = forging, Special = unique.")
+	type_row.add_child(shop_type_option)
 
 
 func _add_inventory_section() -> void:
@@ -710,34 +690,6 @@ func refresh() -> void:
 	super.refresh()
 
 
-## Auto-generate shop_id from shop_name (if unlocked)
-func _on_name_changed(new_name: String) -> void:
+## Called when name or ID changes in the NameIdFieldGroup
+func _on_name_id_changed(_values: Dictionary) -> void:
 	_mark_dirty()
-	
-	# Auto-generate ID from name if not locked
-	if not _id_is_locked and id_edit:
-		id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
-
-
-## User manually typed in ID field - lock auto-generation
-func _on_id_manually_changed(_new_id: String) -> void:
-	_mark_dirty()
-	if not _id_is_locked and id_edit.has_focus():
-		_id_is_locked = true
-		_update_lock_button()
-
-
-## Toggle ID lock button
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	if not _id_is_locked and name_edit and id_edit:
-		id_edit.text = SparklingEditorUtils.generate_id_from_name(name_edit.text)
-
-
-## Update lock button text and tooltip to reflect current state
-func _update_lock_button() -> void:
-	if not id_lock_btn:
-		return
-	id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
-	id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"

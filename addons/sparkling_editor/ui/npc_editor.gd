@@ -16,12 +16,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## - MapPlacementHelper: Scene modification for "Place on Map" (extracted)
 
 # UI field references - Basic Information
-var npc_id_edit: LineEdit
-var npc_id_lock_btn: Button
-var npc_name_edit: LineEdit
-
-# Track if ID should auto-generate from name
-var _id_is_locked: bool = false
+var name_id_group: NameIdFieldGroup
 
 # Appearance Fallback section
 var appearance_section: VBoxContainer
@@ -131,7 +126,7 @@ func _create_detail_form() -> void:
 	# Bind preview panel to data sources
 	# Note: sprite_path is null since we now use MapSpritesheetPicker (which has its own preview)
 	# Note: dialog_text is null since Quick Dialog was removed - preview shows name/portrait only
-	preview_panel.bind_sources(npc_name_edit, null, null, portrait_path_edit, null)
+	preview_panel.bind_sources(name_id_group.get_name_edit(), null, null, portrait_path_edit, null)
 
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
@@ -145,12 +140,8 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	npc_name_edit.text = npc.npc_name
-	npc_id_edit.text = npc.npc_id
-
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(npc.npc_name)
-	_id_is_locked = (npc.npc_id != expected_auto_id) and not npc.npc_id.is_empty()
-	_update_lock_button()
+	# Load name/ID using component (auto-detects lock state)
+	name_id_group.set_values(npc.npc_name, npc.npc_id, true)
 
 	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
 	portrait_path_edit.text = portrait_path
@@ -195,8 +186,8 @@ func _save_resource_data() -> void:
 		return
 	var npc: NPCData = current_resource
 
-	npc.npc_id = npc_id_edit.text.strip_edges()
-	npc.npc_name = npc_name_edit.text.strip_edges()
+	npc.npc_id = name_id_group.get_id_value()
+	npc.npc_name = name_id_group.get_name_value()
 
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
 	npc.portrait = _load_texture(portrait_path)
@@ -222,7 +213,7 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
 
-	var npc_id: String = npc_id_edit.text.strip_edges()
+	var npc_id: String = name_id_group.get_id_value()
 	if npc_id.is_empty():
 		errors.append("NPC ID is required")
 
@@ -309,33 +300,18 @@ func _get_resource_display_name(resource: Resource) -> String:
 func _add_basic_info_section() -> void:
 	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
 
-	# NPC Name
-	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Display Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	npc_name_edit = LineEdit.new()
-	npc_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_name_edit.max_length = 64  # Reasonable limit for dialog box display
-	npc_name_edit.placeholder_text = "Guard, Shopkeeper, Elder..."
-	npc_name_edit.tooltip_text = "Name shown in dialog boxes when this NPC speaks. E.g., 'Guard', 'Old Man', 'Sarah'."
-	npc_name_edit.text_changed.connect(_on_name_changed)
-	name_row.add_child(npc_name_edit)
-
-	# NPC ID
-	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("NPC ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	npc_id_edit = LineEdit.new()
-	npc_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_id_edit.placeholder_text = "(auto-generated from name)"
-	npc_id_edit.tooltip_text = "Unique ID for referencing this NPC in scripts and triggers. Auto-generates from name."
-	npc_id_edit.text_changed.connect(_on_id_manually_changed)
-	id_row.add_child(npc_id_edit)
-
-	npc_id_lock_btn = Button.new()
-	npc_id_lock_btn.text = "Lock"
-	npc_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
-	npc_id_lock_btn.custom_minimum_size.x = 60
-	npc_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(npc_id_lock_btn)
-
-	SparklingEditorUtils.create_help_label("ID auto-generates from name. Click lock to set custom ID.", section)
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "NPC ID:"
+	name_id_group.name_placeholder = "Guard, Shopkeeper, Elder..."
+	name_id_group.id_placeholder = "(auto-generated from name)"
+	name_id_group.name_tooltip = "Name shown in dialog boxes when this NPC speaks. E.g., 'Guard', 'Old Man', 'Sarah'."
+	name_id_group.id_tooltip = "Unique ID for referencing this NPC in scripts and triggers. Auto-generates from name."
+	name_id_group.name_max_length = 64
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	section.add_child(name_id_group)
 
 
 
@@ -839,34 +815,11 @@ func _on_field_changed(_text: String) -> void:
 	_mark_dirty()
 
 
-func _on_name_changed(new_name: String) -> void:
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_update_preview()
 	_mark_dirty()
-
-
-func _on_id_manually_changed(_text: String) -> void:
-	if _updating_ui:
-		return
-	if not _id_is_locked and npc_id_edit.has_focus():
-		_id_is_locked = true
-		_update_lock_button()
-	_mark_dirty()
-
-
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	if not _id_is_locked:
-		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(npc_name_edit.text)
-
-
-func _update_lock_button() -> void:
-	npc_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
-	npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
 
 
 func _on_check_changed(_pressed: bool) -> void:
@@ -938,7 +891,7 @@ func _on_place_on_map_pressed() -> void:
 			if save_dir.is_empty():
 				_show_error("No save directory available. Please set an active mod.")
 				return
-			var npc_id: String = npc_id_edit.text.strip_edges()
+			var npc_id: String = name_id_group.get_id_value()
 			var filename: String = npc_id + ".tres" if not npc_id.is_empty() else "new_npc_%d.tres" % Time.get_unix_time_from_system()
 			save_path = save_dir.path_join(filename)
 
@@ -998,7 +951,7 @@ func _on_place_confirmed() -> void:
 	var npc_path: String = current_resource.resource_path
 	var grid_x: int = int(place_position_x.value)
 	var grid_y: int = int(place_position_y.value)
-	var npc_id: String = npc_id_edit.text.strip_edges()
+	var npc_id: String = name_id_group.get_id_value()
 	var node_name: String = npc_id.to_pascal_case() if not npc_id.is_empty() else "NPC"
 
 	var success: bool = map_placement_helper.place_npc_on_map(map_path, npc_path, node_name, Vector2i(grid_x, grid_y))

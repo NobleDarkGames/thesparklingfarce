@@ -22,14 +22,9 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 # UI FIELD REFERENCES - Basic Information
 # =============================================================================
 
-var interactable_id_edit: LineEdit
-var interactable_id_lock_btn: Button
-var display_name_edit: LineEdit
+var name_id_group: NameIdFieldGroup
 var type_option: OptionButton
 var template_option: OptionButton
-
-# Track if ID should auto-generate from name
-var _id_is_locked: bool = false
 
 # =============================================================================
 # TEMPLATES - Preset configurations for common interactable types
@@ -228,32 +223,17 @@ func _add_basic_info_section() -> void:
 
 	SparklingEditorUtils.create_help_label("Choose a template to pre-fill common interactable types", section)
 
-	# Display Name
-	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Display Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	display_name_edit = LineEdit.new()
-	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display_name_edit.placeholder_text = "Treasure Chest, Dusty Bookshelf..."
-	display_name_edit.tooltip_text = "Name shown in messages and UI. E.g., 'Treasure Chest', 'Old Sign'."
-	display_name_edit.text_changed.connect(_on_name_changed)
-	name_row.add_child(display_name_edit)
-
-	# Interactable ID
-	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("Interactable ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	interactable_id_edit = LineEdit.new()
-	interactable_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	interactable_id_edit.placeholder_text = "(auto-generated from name)"
-	interactable_id_edit.tooltip_text = "Unique ID for referencing this interactable. Auto-generates from name."
-	interactable_id_edit.text_changed.connect(_on_id_manually_changed)
-	id_row.add_child(interactable_id_edit)
-
-	interactable_id_lock_btn = Button.new()
-	interactable_id_lock_btn.text = "Lock"
-	interactable_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
-	interactable_id_lock_btn.custom_minimum_size.x = 60
-	interactable_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(interactable_id_lock_btn)
-
-	SparklingEditorUtils.create_help_label("ID auto-generates from name. Click lock to set custom ID.", section)
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "Interactable ID:"
+	name_id_group.name_placeholder = "Treasure Chest, Dusty Bookshelf..."
+	name_id_group.id_placeholder = "(auto-generated from name)"
+	name_id_group.name_tooltip = "Name shown in messages and UI. E.g., 'Treasure Chest', 'Old Sign'."
+	name_id_group.id_tooltip = "Unique ID for referencing this interactable. Auto-generates from name."
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	section.add_child(name_id_group)
 
 	# Interactable Type
 	var type_row: HBoxContainer = SparklingEditorUtils.create_field_row("Type:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
@@ -592,13 +572,8 @@ func _load_resource_data() -> void:
 	if template_option:
 		template_option.select(0)
 
-	# Basic info
-	display_name_edit.text = interactable.display_name
-	interactable_id_edit.text = interactable.interactable_id
-
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(interactable.display_name)
-	_id_is_locked = (interactable.interactable_id != expected_auto_id) and not interactable.interactable_id.is_empty()
-	_update_lock_button()
+	# Basic info - load name/ID using component (auto-detects lock state)
+	name_id_group.set_values(interactable.display_name, interactable.interactable_id, true)
 
 	type_option.select(int(interactable.interactable_type))
 
@@ -644,8 +619,8 @@ func _save_resource_data() -> void:
 	var interactable: InteractableData = current_resource
 
 	# Basic info
-	interactable.interactable_id = interactable_id_edit.text.strip_edges()
-	interactable.display_name = display_name_edit.text.strip_edges()
+	interactable.interactable_id = name_id_group.get_id_value()
+	interactable.display_name = name_id_group.get_name_value()
 	interactable.interactable_type = type_option.selected as InteractableData.InteractableType
 
 	# Appearance
@@ -676,7 +651,7 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
 
-	var res_id: String = interactable_id_edit.text.strip_edges()
+	var res_id: String = name_id_group.get_id_value()
 	if res_id.is_empty():
 		errors.append("Interactable ID is required")
 
@@ -1069,9 +1044,14 @@ func _on_template_selected(index: int) -> void:
 
 	var template_name: String = template.get("name", "")
 	if not template_name.is_empty():
-		display_name_edit.text = template_name
-		if not _id_is_locked:
-			interactable_id_edit.text = SparklingEditorUtils.generate_id_from_name(template_name)
+		# Set name and auto-generate ID if unlocked
+		var current_id: String = name_id_group.get_id_value()
+		var auto_id: String = SparklingEditorUtils.generate_id_from_name(template_name)
+		if not name_id_group.is_locked():
+			name_id_group.set_values(template_name, auto_id, false)
+		else:
+			# Keep existing ID when locked
+			name_id_group.set_values(template_name, current_id, false)
 
 	var template_type: int = DictUtils.get_int(template, "type", 0)
 	type_option.select(template_type)
@@ -1082,33 +1062,10 @@ func _on_template_selected(index: int) -> void:
 	_mark_dirty()
 
 
-func _on_name_changed(new_name: String) -> void:
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		interactable_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_mark_dirty()
-
-
-func _on_id_manually_changed(_text: String) -> void:
-	if _updating_ui:
-		return
-	if not _id_is_locked and interactable_id_edit.has_focus():
-		_id_is_locked = true
-		_update_lock_button()
-	_mark_dirty()
-
-
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	if not _id_is_locked:
-		interactable_id_edit.text = SparklingEditorUtils.generate_id_from_name(display_name_edit.text)
-
-
-func _update_lock_button() -> void:
-	interactable_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
-	interactable_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
 
 
 func _on_type_changed(_index: int) -> void:
@@ -1296,7 +1253,7 @@ func _on_place_on_map_pressed() -> void:
 			if save_dir.is_empty():
 				_show_error("No save directory available. Please set an active mod.")
 				return
-			var interactable_id: String = interactable_id_edit.text.strip_edges()
+			var interactable_id: String = name_id_group.get_id_value()
 			var filename: String = interactable_id + ".tres" if not interactable_id.is_empty() else "new_interactable_%d.tres" % Time.get_unix_time_from_system()
 			save_path = save_dir.path_join(filename)
 
@@ -1356,7 +1313,7 @@ func _on_place_confirmed() -> void:
 	var interactable_path: String = current_resource.resource_path
 	var grid_x: int = int(place_position_x.value)
 	var grid_y: int = int(place_position_y.value)
-	var interactable_id: String = interactable_id_edit.text.strip_edges()
+	var interactable_id: String = name_id_group.get_id_value()
 	var node_name: String = interactable_id.to_pascal_case() if not interactable_id.is_empty() else "Interactable"
 
 	var success: bool = map_placement_helper.place_interactable_on_map(map_path, interactable_path, node_name, Vector2i(grid_x, grid_y))

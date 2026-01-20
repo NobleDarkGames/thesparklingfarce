@@ -275,6 +275,12 @@ func set_help_text(text: String) -> void:
 		_help_label.text = text
 
 
+## Get the internal name LineEdit for signal binding (e.g., preview panels)
+## Use sparingly - prefer value_changed signal for most cases
+func get_name_edit() -> LineEdit:
+	return _name_edit
+
+
 # =============================================================================
 # INTERNAL HANDLERS
 # =============================================================================
