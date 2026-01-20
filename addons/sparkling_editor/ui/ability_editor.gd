@@ -249,7 +249,9 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 
 func _add_basic_info_section() -> void:
-	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Basic Information")
 
 	# Name/ID using reusable component
 	name_id_group = NameIdFieldGroup.new()
@@ -261,54 +263,42 @@ func _add_basic_info_section() -> void:
 	name_id_group.id_tooltip = "Unique ID for referencing this ability in scripts. Auto-generates from name."
 	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	name_id_group.value_changed.connect(_on_name_id_changed)
-	section.add_child(name_id_group)
+	form.container.add_child(name_id_group)
 
-	# Description field
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	section.add_child(desc_label)
-
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 80
-	description_edit.placeholder_text = "Tooltip text shown when hovering over ability in menus. Describe what it does."
-	description_edit.tooltip_text = "Tooltip text shown when hovering over ability in menus. Describe what it does."
-	section.add_child(description_edit)
+	description_edit = form.add_text_area("Description:", 80,
+		"Tooltip text shown when hovering over ability in menus. Describe what it does.")
 
 
 func _add_type_targeting_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Type & Targeting")
 
-	# Ability Type - custom dropdown with specific IDs
-	ability_type_option = OptionButton.new()
-	ability_type_option.tooltip_text = "Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies."
-	ability_type_option.add_item("Attack", AbilityData.AbilityType.ATTACK)
-	ability_type_option.add_item("Heal", AbilityData.AbilityType.HEAL)
-	ability_type_option.add_item("Support", AbilityData.AbilityType.SUPPORT)
-	ability_type_option.add_item("Debuff", AbilityData.AbilityType.DEBUFF)
-	ability_type_option.add_item("Summon", AbilityData.AbilityType.SUMMON)
-	ability_type_option.add_item("Status", AbilityData.AbilityType.STATUS)
-	ability_type_option.add_item("Counter", AbilityData.AbilityType.COUNTER)
-	ability_type_option.add_item("Special", AbilityData.AbilityType.SPECIAL)
-	ability_type_option.add_item("Custom", AbilityData.AbilityType.CUSTOM)
-	form.add_labeled_control("Ability Type:", ability_type_option,
-		"Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies.")
+	ability_type_option = form.add_dropdown("Ability Type:", [
+		{"label": "Attack", "id": AbilityData.AbilityType.ATTACK},
+		{"label": "Heal", "id": AbilityData.AbilityType.HEAL},
+		{"label": "Support", "id": AbilityData.AbilityType.SUPPORT},
+		{"label": "Debuff", "id": AbilityData.AbilityType.DEBUFF},
+		{"label": "Summon", "id": AbilityData.AbilityType.SUMMON},
+		{"label": "Status", "id": AbilityData.AbilityType.STATUS},
+		{"label": "Counter", "id": AbilityData.AbilityType.COUNTER},
+		{"label": "Special", "id": AbilityData.AbilityType.SPECIAL},
+		{"label": "Custom", "id": AbilityData.AbilityType.CUSTOM},
+	], "Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies.")
 
-	# Target Type - custom dropdown with specific IDs
-	target_type_option = OptionButton.new()
-	target_type_option.tooltip_text = "Who can be targeted. Single = one target. All = entire side. Area = splash around a point."
-	target_type_option.add_item("Single Enemy", AbilityData.TargetType.SINGLE_ENEMY)
-	target_type_option.add_item("Single Ally", AbilityData.TargetType.SINGLE_ALLY)
-	target_type_option.add_item("Self", AbilityData.TargetType.SELF)
-	target_type_option.add_item("All Enemies", AbilityData.TargetType.ALL_ENEMIES)
-	target_type_option.add_item("All Allies", AbilityData.TargetType.ALL_ALLIES)
-	target_type_option.add_item("Area", AbilityData.TargetType.AREA)
-	form.add_labeled_control("Target Type:", target_type_option,
-		"Who can be targeted. Single = one target. All = entire side. Area = splash around a point.")
+	target_type_option = form.add_dropdown("Target Type:", [
+		{"label": "Single Enemy", "id": AbilityData.TargetType.SINGLE_ENEMY},
+		{"label": "Single Ally", "id": AbilityData.TargetType.SINGLE_ALLY},
+		{"label": "Self", "id": AbilityData.TargetType.SELF},
+		{"label": "All Enemies", "id": AbilityData.TargetType.ALL_ENEMIES},
+		{"label": "All Allies", "id": AbilityData.TargetType.ALL_ALLIES},
+		{"label": "Area", "id": AbilityData.TargetType.AREA},
+	], "Who can be targeted. Single = one target. All = entire side. Area = splash around a point.")
 
 
 func _add_range_area_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Range & Area of Effect")
 
 	min_range_spin = form.add_number_field("Min Range:", 0, 20, 1,
@@ -323,6 +313,7 @@ func _add_range_area_section() -> void:
 
 func _add_cost_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Cost")
 
 	mp_cost_spin = form.add_number_field("MP Cost:", 0, 999, 0,
@@ -334,6 +325,7 @@ func _add_cost_section() -> void:
 
 func _add_potency_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Potency")
 
 	potency_spin = form.add_number_field("Potency:", 0, 999, 10,
@@ -345,6 +337,7 @@ func _add_potency_section() -> void:
 
 func _add_effects_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Status Effects")
 
 	# Status Effects picker - custom control with MenuButton + Label
@@ -376,6 +369,7 @@ func _add_effects_section() -> void:
 
 func _add_animation_audio_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Animation & Audio")
 
 	animation_edit = form.add_text_field("Animation Name:", "e.g., slash, heal_sparkle",

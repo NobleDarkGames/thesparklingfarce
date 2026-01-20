@@ -243,15 +243,15 @@ func _add_basic_info_section() -> void:
 
 func _add_movement_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.on_change(_mark_dirty)
 	form.add_section("Movement")
 
-	# Movement Type - custom dropdown with enum IDs
-	movement_type_option = OptionButton.new()
-	movement_type_option.add_item("Walking", ClassData.MovementType.WALKING)
-	movement_type_option.add_item("Flying", ClassData.MovementType.FLYING)
-	movement_type_option.add_item("Floating", ClassData.MovementType.FLOATING)
-	movement_type_option.add_item("Custom", ClassData.MovementType.CUSTOM)
-	form.add_labeled_control("Movement Type:", movement_type_option, "Walking = pays terrain costs. Flying = ignores terrain but NO defense bonus. Floating = ignores terrain AND keeps defense bonus (best type).")
+	movement_type_option = form.add_dropdown("Movement Type:", [
+		{"label": "Walking", "id": ClassData.MovementType.WALKING},
+		{"label": "Flying", "id": ClassData.MovementType.FLYING},
+		{"label": "Floating", "id": ClassData.MovementType.FLOATING},
+		{"label": "Custom", "id": ClassData.MovementType.CUSTOM},
+	], "Walking = pays terrain costs. Flying = ignores terrain but NO defense bonus. Floating = ignores terrain AND keeps defense bonus (best type).")
 
 	movement_range_spin = form.add_number_field("Movement Range:", 1, 20, 4, "Tiles this class can move per turn. Typical: 4-5 infantry, 6-7 cavalry, 5-6 flying.")
 

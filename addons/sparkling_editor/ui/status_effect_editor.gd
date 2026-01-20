@@ -316,17 +316,14 @@ func _add_timing_section() -> void:
 	duration_spin = form.add_number_field("Duration (turns):", 0, 99, 3,
 		"How many turns this effect lasts. 0 = until removed by other means (damage, cure, etc).")
 
-	# Trigger Timing - custom dropdown with specific IDs
-	trigger_timing_option = OptionButton.new()
-	trigger_timing_option.tooltip_text = "When this effect processes each turn"
-	trigger_timing_option.add_item("Turn Start", StatusEffectData.TriggerTiming.TURN_START)
-	trigger_timing_option.add_item("Turn End", StatusEffectData.TriggerTiming.TURN_END)
-	trigger_timing_option.add_item("On Damage", StatusEffectData.TriggerTiming.ON_DAMAGE)
-	trigger_timing_option.add_item("On Action", StatusEffectData.TriggerTiming.ON_ACTION)
-	trigger_timing_option.add_item("Passive", StatusEffectData.TriggerTiming.PASSIVE)
+	trigger_timing_option = form.add_dropdown("Timing:", [
+		{"label": "Turn Start", "id": StatusEffectData.TriggerTiming.TURN_START},
+		{"label": "Turn End", "id": StatusEffectData.TriggerTiming.TURN_END},
+		{"label": "On Damage", "id": StatusEffectData.TriggerTiming.ON_DAMAGE},
+		{"label": "On Action", "id": StatusEffectData.TriggerTiming.ON_ACTION},
+		{"label": "Passive", "id": StatusEffectData.TriggerTiming.PASSIVE},
+	], "When this effect processes each turn")
 	trigger_timing_option.item_selected.connect(_on_option_selected)
-	form.add_labeled_control("Timing:", trigger_timing_option,
-		"When this effect processes each turn")
 
 	form.add_help_text("Turn Start: Poison damage, paralysis checks\nTurn End: After action processing\nOn Damage: When unit takes damage\nOn Action: When unit tries to act\nPassive: Always active (stat modifiers)")
 
@@ -457,17 +454,14 @@ func _add_action_modifiers_section() -> void:
 	form.add_section("Action Modifiers")
 	form.add_help_text("How does this effect modify the unit's actions?")
 
-	# Action Modifier Type - custom dropdown with specific IDs
-	action_modifier_option = OptionButton.new()
-	action_modifier_option.tooltip_text = "How actions are modified"
-	action_modifier_option.add_item("None", StatusEffectData.ActionModifier.NONE)
-	action_modifier_option.add_item("Random Target", StatusEffectData.ActionModifier.RANDOM_TARGET)
-	action_modifier_option.add_item("Attack Allies", StatusEffectData.ActionModifier.ATTACK_ALLIES)
-	action_modifier_option.add_item("Cannot Use Magic", StatusEffectData.ActionModifier.CANNOT_USE_MAGIC)
-	action_modifier_option.add_item("Cannot Use Items", StatusEffectData.ActionModifier.CANNOT_USE_ITEMS)
+	action_modifier_option = form.add_dropdown("Modifier Type:", [
+		{"label": "None", "id": StatusEffectData.ActionModifier.NONE},
+		{"label": "Random Target", "id": StatusEffectData.ActionModifier.RANDOM_TARGET},
+		{"label": "Attack Allies", "id": StatusEffectData.ActionModifier.ATTACK_ALLIES},
+		{"label": "Cannot Use Magic", "id": StatusEffectData.ActionModifier.CANNOT_USE_MAGIC},
+		{"label": "Cannot Use Items", "id": StatusEffectData.ActionModifier.CANNOT_USE_ITEMS},
+	], "How actions are modified")
 	action_modifier_option.item_selected.connect(_on_action_modifier_selected)
-	form.add_labeled_control("Modifier Type:", action_modifier_option,
-		"How actions are modified")
 
 	# Action Modifier Chance - needs visibility control so use wrapper container
 	action_modifier_chance_container = HBoxContainer.new()

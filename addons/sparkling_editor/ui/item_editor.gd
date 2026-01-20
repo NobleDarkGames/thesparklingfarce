@@ -338,14 +338,13 @@ func _add_basic_info_section() -> void:
 	form.add_labeled_control("Icon:", icon_container, "Item icon displayed in menus and inventory")
 
 	# Item Type
-	item_type_option = OptionButton.new()
-	item_type_option.add_item("Weapon", ItemData.ItemType.WEAPON)
-	item_type_option.add_item("Accessory", ItemData.ItemType.ACCESSORY)
-	item_type_option.add_item("Consumable", ItemData.ItemType.CONSUMABLE)
-	item_type_option.add_item("Key Item", ItemData.ItemType.KEY_ITEM)
+	item_type_option = form.add_dropdown("Item Type:", [
+		{"label": "Weapon", "id": ItemData.ItemType.WEAPON},
+		{"label": "Accessory", "id": ItemData.ItemType.ACCESSORY},
+		{"label": "Consumable", "id": ItemData.ItemType.CONSUMABLE},
+		{"label": "Key Item", "id": ItemData.ItemType.KEY_ITEM},
+	], "Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item.")
 	item_type_option.item_selected.connect(_on_item_type_changed)
-	form.add_labeled_control("Item Type:", item_type_option,
-		"Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item.")
 
 	# Equipment Type
 	equipment_type_edit = form.add_text_field("Equipment Type:", "e.g., sword, ring",
