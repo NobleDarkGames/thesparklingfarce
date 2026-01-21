@@ -141,16 +141,7 @@ func set_party(characters: Array[CharacterData]) -> void:
 ## @param to_active: If true, insert into active party (if room), else add to reserves
 ## @return: true if added successfully
 func add_member(character: CharacterData, to_active: bool = true) -> bool:
-	if to_active and party_members.size() < MAX_ACTIVE_SIZE:
-		# Add to active party (before reserves)
-		party_members.append(character)
-	elif to_active:
-		# Active party full, insert at end of active section
-		party_members.insert(MAX_ACTIVE_SIZE, character)
-	else:
-		# Add to reserves (end of roster)
-		party_members.append(character)
-
+	_insert_member(character, to_active)
 	_ensure_save_data(character)
 	member_added.emit(character)
 	return true
@@ -249,18 +240,10 @@ func rejoin_departed_member(character: CharacterData, to_active: bool = true) ->
 	_departed_save_data.erase(uid)
 	_member_save_data[uid] = restored_data
 
-	# Reset availability flags (they're back!)
+	# Reset availability (is_alive is NOT auto-reset - use set_character_status for resurrection)
 	restored_data.is_available = true
-	# Note: is_alive is NOT automatically reset - use set_character_status for resurrection
 
-	# Add to party
-	if to_active and party_members.size() < MAX_ACTIVE_SIZE:
-		party_members.append(character)
-	elif to_active:
-		party_members.insert(MAX_ACTIVE_SIZE, character)
-	else:
-		party_members.append(character)
-
+	_insert_member(character, to_active)
 	member_rejoined.emit(uid)
 
 	return true
@@ -356,75 +339,61 @@ func is_active_party_full() -> bool:
 ## @param reserve_index: Index within reserve party (0-based)
 ## @return: Dictionary with {success: bool, error: String}
 func swap_active_reserve(active_index: int, reserve_index: int) -> Dictionary:
-	var active_count: int = get_active_count()
-	var reserve_count: int = get_reserve_count()
+	var error: String = _validate_active_index(active_index)
+	if not error.is_empty():
+		return _swap_error(error)
 
-	# Validate indices
-	if active_index < 0 or active_index >= active_count:
-		return {"success": false, "error": "Invalid active party index"}
+	error = _validate_reserve_index(reserve_index)
+	if not error.is_empty():
+		return _swap_error(error)
 
-	if reserve_index < 0 or reserve_index >= reserve_count:
-		return {"success": false, "error": "Invalid reserve party index"}
-
-	# SACRED COW: Hero (slot 0) cannot be swapped out
+	# Hero (slot 0) cannot be swapped out
 	if active_index == 0:
-		return {"success": false, "error": "Cannot swap hero out of active party"}
+		return _swap_error("Cannot swap hero out of active party")
 
-	# Calculate actual array indices
-	var active_array_index: int = active_index
 	var reserve_array_index: int = MAX_ACTIVE_SIZE + reserve_index
+	_swap_members(active_index, reserve_array_index)
 
-	# Perform the swap
-	var temp: CharacterData = party_members[active_array_index]
-	party_members[active_array_index] = party_members[reserve_array_index]
-	party_members[reserve_array_index] = temp
-
-	return {"success": true, "error": ""}
+	return _swap_success()
 
 
 ## Move a reserve character to the active party (if room)
 ## @param reserve_index: Index within reserve party (0-based)
 ## @return: Dictionary with {success: bool, error: String}
 func promote_to_active(reserve_index: int) -> Dictionary:
-	var reserve_count: int = get_reserve_count()
-
-	if reserve_index < 0 or reserve_index >= reserve_count:
-		return {"success": false, "error": "Invalid reserve index"}
+	var error: String = _validate_reserve_index(reserve_index)
+	if not error.is_empty():
+		return _swap_error(error)
 
 	if is_active_party_full():
-		return {"success": false, "error": "Active party is full"}
+		return _swap_error("Active party is full")
 
-	# Remove from reserve position and insert at end of active
 	var reserve_array_index: int = MAX_ACTIVE_SIZE + reserve_index
 	var character: CharacterData = party_members[reserve_array_index]
 	party_members.remove_at(reserve_array_index)
 
-	# Insert at end of current active members
 	var insert_pos: int = mini(party_members.size(), MAX_ACTIVE_SIZE - 1)
 	party_members.insert(insert_pos, character)
 
-	return {"success": true, "error": ""}
+	return _swap_success()
 
 
 ## Move an active character to reserves
 ## @param active_index: Index within active party (0 to MAX_ACTIVE_SIZE-1)
 ## @return: Dictionary with {success: bool, error: String}
 func demote_to_reserve(active_index: int) -> Dictionary:
-	var active_count: int = get_active_count()
+	var error: String = _validate_active_index(active_index)
+	if not error.is_empty():
+		return _swap_error(error)
 
-	if active_index < 0 or active_index >= active_count:
-		return {"success": false, "error": "Invalid active index"}
-
-	# SACRED COW: Hero cannot be demoted
 	if active_index == 0:
-		return {"success": false, "error": "Cannot move hero to reserves"}
+		return _swap_error("Cannot move hero to reserves")
 
-	# Move character to beginning of reserves
 	var character: CharacterData = party_members[active_index]
 	party_members.remove_at(active_index)
-	party_members.append(character)  # Goes to end (reserve section)
+	party_members.append(character)
 
-	return {"success": true, "error": ""}
+	return _swap_success()
 
 
 ## Swap two positions within the active party
@@ -432,28 +401,22 @@ func demote_to_reserve(active_index: int) -> Dictionary:
 ## @param idx2: Second index (0 to MAX_ACTIVE_SIZE-1)
 ## @return: Dictionary with {success: bool, error: String}
 func swap_within_active(idx1: int, idx2: int) -> Dictionary:
-	var active_count: int = get_active_count()
+	var error: String = _validate_active_index(idx1, "Invalid first index")
+	if not error.is_empty():
+		return _swap_error(error)
 
-	# Validate indices
-	if idx1 < 0 or idx1 >= active_count:
-		return {"success": false, "error": "Invalid first index"}
-	if idx2 < 0 or idx2 >= active_count:
-		return {"success": false, "error": "Invalid second index"}
+	error = _validate_active_index(idx2, "Invalid second index")
+	if not error.is_empty():
+		return _swap_error(error)
 
-	# SACRED COW: Hero (slot 0) cannot be moved
 	if idx1 == 0 or idx2 == 0:
-		return {"success": false, "error": "Cannot swap hero position"}
+		return _swap_error("Cannot swap hero position")
 
-	# Same position is a no-op
 	if idx1 == idx2:
-		return {"success": true, "error": ""}
+		return _swap_success()
 
-	# Perform the swap
-	var temp: CharacterData = party_members[idx1]
-	party_members[idx1] = party_members[idx2]
-	party_members[idx2] = temp
-
-	return {"success": true, "error": ""}
+	_swap_members(idx1, idx2)
+	return _swap_success()
 
 
 ## Swap two positions within the reserve party
@@ -461,28 +424,67 @@ func swap_within_active(idx1: int, idx2: int) -> Dictionary:
 ## @param idx2: Second index within reserve (0-based)
 ## @return: Dictionary with {success: bool, error: String}
 func swap_within_reserve(idx1: int, idx2: int) -> Dictionary:
-	var reserve_count: int = get_reserve_count()
+	var error: String = _validate_reserve_index(idx1, "Invalid first reserve index")
+	if not error.is_empty():
+		return _swap_error(error)
 
-	# Validate indices
-	if idx1 < 0 or idx1 >= reserve_count:
-		return {"success": false, "error": "Invalid first reserve index"}
-	if idx2 < 0 or idx2 >= reserve_count:
-		return {"success": false, "error": "Invalid second reserve index"}
+	error = _validate_reserve_index(idx2, "Invalid second reserve index")
+	if not error.is_empty():
+		return _swap_error(error)
 
-	# Same position is a no-op
 	if idx1 == idx2:
-		return {"success": true, "error": ""}
+		return _swap_success()
 
-	# Calculate actual array indices (reserve starts after active section)
 	var real_idx1: int = MAX_ACTIVE_SIZE + idx1
 	var real_idx2: int = MAX_ACTIVE_SIZE + idx2
+	_swap_members(real_idx1, real_idx2)
 
-	# Perform the swap
-	var temp: CharacterData = party_members[real_idx1]
-	party_members[real_idx1] = party_members[real_idx2]
-	party_members[real_idx2] = temp
+	return _swap_success()
 
+
+# ============================================================================
+# SWAP HELPER FUNCTIONS
+# ============================================================================
+
+## Insert a character into the party at the appropriate position
+func _insert_member(character: CharacterData, to_active: bool) -> void:
+	if to_active and party_members.size() < MAX_ACTIVE_SIZE:
+		party_members.append(character)
+	elif to_active:
+		party_members.insert(MAX_ACTIVE_SIZE, character)
+	else:
+		party_members.append(character)
+
+
+## Validate an active party index, returns error message or empty string
+func _validate_active_index(index: int, error_msg: String = "Invalid active party index") -> String:
+	if index < 0 or index >= get_active_count():
+		return error_msg
+	return ""
+
+
+## Validate a reserve party index, returns error message or empty string
+func _validate_reserve_index(index: int, error_msg: String = "Invalid reserve party index") -> String:
+	if index < 0 or index >= get_reserve_count():
+		return error_msg
+	return ""
+
+
+## Swap two members at the given array indices
+func _swap_members(idx1: int, idx2: int) -> void:
+	var temp: CharacterData = party_members[idx1]
+	party_members[idx1] = party_members[idx2]
+	party_members[idx2] = temp
+
+
+## Return a success result dictionary
+func _swap_success() -> Dictionary:
 	return {"success": true, "error": ""}
+
+
+## Return an error result dictionary
+func _swap_error(error: String) -> Dictionary:
+	return {"success": false, "error": error}
 
 
 # ============================================================================
@@ -490,7 +492,6 @@ func swap_within_reserve(idx1: int, idx2: int) -> Dictionary:
 # ============================================================================
 
 ## Ensure the hero is always at index 0 (leader position)
-## This is called internally whenever the party composition changes
 func _ensure_hero_is_leader() -> void:
 	if party_members.is_empty():
 		return
@@ -678,54 +679,40 @@ func add_item_to_member(character_uid: String, item_id: String) -> bool:
 ## @param item_id: ID of the item to transfer
 ## @return: Dictionary with {success: bool, error: String}
 func transfer_item_between_members(from_uid: String, to_uid: String, item_id: String) -> Dictionary:
-	# Validate parameters
 	if from_uid.is_empty() or to_uid.is_empty():
-		return {"success": false, "error": "Invalid character UID"}
-
+		return _swap_error("Invalid character UID")
 	if item_id.is_empty():
-		return {"success": false, "error": "Invalid item ID"}
-
+		return _swap_error("Invalid item ID")
 	if from_uid == to_uid:
-		return {"success": false, "error": "Cannot transfer to same character"}
+		return _swap_error("Cannot transfer to same character")
 
-	# Get save data for both characters
 	var from_save: CharacterSaveData = get_member_save_data(from_uid)
 	var to_save: CharacterSaveData = get_member_save_data(to_uid)
 
 	if not from_save:
-		return {"success": false, "error": "Source character not found"}
-
+		return _swap_error("Source character not found")
 	if not to_save:
-		return {"success": false, "error": "Destination character not found"}
-
-	# Check source has the item
+		return _swap_error("Destination character not found")
 	if not from_save.has_item_in_inventory(item_id):
-		return {"success": false, "error": "Item not in source inventory"}
+		return _swap_error("Item not in source inventory")
 
-	# MED-003: Define constant for default max inventory slots
 	const DEFAULT_MAX_INVENTORY_SLOTS: int = 4
-
-	# Check destination has room
 	var max_slots: int = DEFAULT_MAX_INVENTORY_SLOTS
 	if ModLoader and ModLoader.inventory_config:
 		max_slots = ModLoader.inventory_config.get_max_slots()
 
 	if to_save.inventory.size() >= max_slots:
-		return {"success": false, "error": "Destination inventory full"}
+		return _swap_error("Destination inventory full")
 
-	# Perform the transfer
 	if not from_save.remove_item_from_inventory(item_id):
-		return {"success": false, "error": "Failed to remove from source"}
+		return _swap_error("Failed to remove from source")
 
 	if not to_save.add_item_to_inventory(item_id):
-		# Rollback: return item to source
-		from_save.add_item_to_inventory(item_id)
-		return {"success": false, "error": "Failed to add to destination"}
+		from_save.add_item_to_inventory(item_id)  # Rollback
+		return _swap_error("Failed to add to destination")
 
-	# Emit signal for UI updates
 	item_transferred.emit(from_uid, to_uid, item_id)
-
-	return {"success": true, "error": ""}
+	return _swap_success()
 
 
 # ============================================================================
