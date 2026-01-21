@@ -60,14 +60,19 @@ func initialize(p_shop: ShopData, p_save_data: SaveData) -> void:
 	save_data = p_save_data
 	mode = Mode.BUY
 	queue = OrderQueueScript.new()
+	_reset_selection()
+	screen_history.clear()
+	last_result.clear()
+
+
+## Reset selection state
+func _reset_selection() -> void:
 	selected_item_id = ""
 	selected_quantity = 1
 	selected_destination = ""
 	selling_from_uid = ""
 	selected_recipe_id = ""
 	selected_output_index = 0
-	screen_history.clear()
-	last_result.clear()
 
 
 ## Clean up when closing shop
@@ -88,12 +93,17 @@ func is_deals_mode() -> bool:
 
 ## Check if we're in buy mode (includes deals)
 func is_buy_mode() -> bool:
-	return mode == Mode.BUY or mode == Mode.DEALS
+	return mode in [Mode.BUY, Mode.DEALS]
 
 
 ## Check if we're in sell mode
 func is_sell_mode() -> bool:
 	return mode == Mode.SELL
+
+
+## Check if we're in a church service mode
+func is_church_mode() -> bool:
+	return mode in [Mode.HEAL, Mode.REVIVE, Mode.UNCURSE, Mode.PROMOTION]
 
 
 ## Get current gold (real-time, reflects any charges)

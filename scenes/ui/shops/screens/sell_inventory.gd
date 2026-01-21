@@ -1,10 +1,6 @@
 extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 
 ## SellInventory - Browse character inventory to queue items for sale
-
-## Colors matching project standards
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_QUEUED: Color = Color(0.5, 0.8, 0.5, 1.0)  # Green for queued items
 ##
 ## Displays items from the selected character or Caravan.
 ## Items are added to a sell queue, then confirmed in sell_confirm screen.
@@ -35,11 +31,7 @@ func _on_initialized() -> void:
 	if context.selling_from_uid == "caravan":
 		header_label.text = "CARAVAN ITEMS"
 	else:
-		var character: CharacterData = _get_character_by_uid(context.selling_from_uid)
-		if character:
-			header_label.text = "%s'S ITEMS" % character.character_name.to_upper()
-		else:
-			header_label.text = "INVENTORY"
+		header_label.text = "%s'S ITEMS" % get_character_name(context.selling_from_uid).to_upper()
 
 	_populate_item_list()
 	_update_buttons()
@@ -68,7 +60,7 @@ func _populate_item_list() -> void:
 	if items.is_empty():
 		var label: Label = Label.new()
 		label.text = "No items to sell"
-		label.add_theme_color_override("font_color", COLOR_DISABLED)
+		label.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 		item_list.add_child(label)
 		return
 
@@ -118,7 +110,7 @@ func _create_item_button(item_id: String, item_data: ItemData) -> Button:
 
 	# Check if already in queue
 	if context.queue.has_item(item_id):
-		button.add_theme_color_override("font_color", COLOR_QUEUED)
+		button.add_theme_color_override("font_color", UIColors.ITEM_QUEUED)
 
 	return button
 
@@ -189,7 +181,7 @@ func _on_add_pressed() -> void:
 
 	# Update button color to show it's queued
 	if _selected_button:
-		_selected_button.add_theme_color_override("font_color", COLOR_QUEUED)
+		_selected_button.add_theme_color_override("font_color", UIColors.ITEM_QUEUED)
 
 	_update_buttons()
 
@@ -206,12 +198,3 @@ func _on_back_pressed() -> void:
 
 func _on_back_requested() -> void:
 	_on_back_pressed()
-
-
-func _get_character_by_uid(uid: String) -> CharacterData:
-	if not PartyManager:
-		return null
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == uid:
-			return character
-	return null

@@ -6,11 +6,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## Confirms overwrite for occupied slots.
 ## SF-style "Record your adventure" at the church.
 
-## Colors matching ActionMenu standard
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_EMPTY: Color = Color(0.5, 0.5, 0.5, 1.0)
-
 ## Menu items array for keyboard navigation
 var menu_items: Array[Button] = []
 var selected_index: int = 0
@@ -271,25 +266,27 @@ func _on_back_requested() -> void:
 
 ## Clean up signal connections when exiting screen
 func _on_screen_exit() -> void:
-	if is_instance_valid(slot_1_button) and slot_1_button.pressed.is_connected(_on_slot_pressed):
-		slot_1_button.pressed.disconnect(_on_slot_pressed)
-	if is_instance_valid(slot_2_button) and slot_2_button.pressed.is_connected(_on_slot_pressed):
-		slot_2_button.pressed.disconnect(_on_slot_pressed)
-	if is_instance_valid(slot_3_button) and slot_3_button.pressed.is_connected(_on_slot_pressed):
-		slot_3_button.pressed.disconnect(_on_slot_pressed)
-	if is_instance_valid(back_button) and back_button.pressed.is_connected(_on_back_pressed):
-		back_button.pressed.disconnect(_on_back_pressed)
-	if is_instance_valid(confirm_yes_button) and confirm_yes_button.pressed.is_connected(_on_confirm_yes):
-		confirm_yes_button.pressed.disconnect(_on_confirm_yes)
-	if is_instance_valid(confirm_no_button) and confirm_no_button.pressed.is_connected(_on_confirm_no):
-		confirm_no_button.pressed.disconnect(_on_confirm_no)
+	# Disconnect slot buttons
+	var slot_buttons: Array[Button] = [slot_1_button, slot_2_button, slot_3_button]
+	for btn: Button in slot_buttons:
+		_disconnect_if_connected(btn, "pressed", _on_slot_pressed)
+
+	_disconnect_if_connected(back_button, "pressed", _on_back_pressed)
+	_disconnect_if_connected(confirm_yes_button, "pressed", _on_confirm_yes)
+	_disconnect_if_connected(confirm_no_button, "pressed", _on_confirm_no)
 
 	for btn: Button in menu_items:
 		if not is_instance_valid(btn):
 			continue
-		if btn.focus_entered.is_connected(_on_button_focus_entered):
-			btn.focus_entered.disconnect(_on_button_focus_entered)
-		if btn.focus_exited.is_connected(_on_button_focus_exited):
-			btn.focus_exited.disconnect(_on_button_focus_exited)
-		if btn.mouse_entered.is_connected(_on_button_mouse_entered):
-			btn.mouse_entered.disconnect(_on_button_mouse_entered)
+		_disconnect_if_connected(btn, "focus_entered", _on_button_focus_entered)
+		_disconnect_if_connected(btn, "focus_exited", _on_button_focus_exited)
+		_disconnect_if_connected(btn, "mouse_entered", _on_button_mouse_entered)
+
+
+## Helper to safely disconnect a signal
+func _disconnect_if_connected(node: Node, signal_name: String, callable: Callable) -> void:
+	if not is_instance_valid(node):
+		return
+	var sig: Signal = node.get(signal_name) as Signal
+	if sig and sig.is_connected(callable):
+		sig.disconnect(callable)

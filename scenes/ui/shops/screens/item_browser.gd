@@ -1,11 +1,6 @@
 extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 
 ## ItemBrowser - Browse and select items for purchase
-
-## Colors matching project standards
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 ##
 ## Handles both equipment and consumables:
 ## - Equipment: Select item -> push to char_select screen
@@ -98,7 +93,7 @@ func _populate_item_list() -> void:
 		item_list.add_child(button)
 		item_buttons.append(button)
 
-		button.pressed.connect(_on_item_selected.bind(item_id, button))
+		button.pressed.connect(_select_item.bind(item_id, button))
 
 	# Auto-select first item
 	if item_buttons.size() > 0:
@@ -132,10 +127,6 @@ func _create_item_button(item_id: String, item_data: ItemData) -> Button:
 		button.add_theme_color_override("font_color", COLOR_DISABLED)
 
 	return button
-
-
-func _on_item_selected(item_id: String, button: Button) -> void:
-	_select_item(item_id, button)
 
 
 func _select_item(item_id: String, button: Button) -> void:
@@ -261,8 +252,6 @@ func _on_buy_pressed() -> void:
 
 func _on_add_to_queue_pressed() -> void:
 	var price: int = context.get_buy_price(selected_item_id)
-	var available: int = get_available_gold()
-
 	var success: bool = context.queue.add_item(
 		selected_item_id,
 		selected_quantity,
