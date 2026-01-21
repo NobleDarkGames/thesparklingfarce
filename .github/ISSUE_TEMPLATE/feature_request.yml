@@ -1,0 +1,91 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this feature solve? What are you trying to accomplish?
+      placeholder: |
+        I want to be able to...
+        Currently there's no way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How do you think this should work?
+      placeholder: Describe your ideal solution...
+    validations:
+      required: true
+
+  - type: textarea
+    id: sf2-context
+    attributes:
+      label: Shining Force Context
+      description: How does this fit with SF2-style gameplay? Is there a precedent in the original games?
+      placeholder: |
+        In Shining Force 2, this worked by...
+        This would enhance the SF feel because...
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which part of the project would this affect?
+      options:
+        - Combat System
+        - Caravan/Party Management
+        - Map/Exploration
+        - Editor/Tooling
+        - Mod System
+        - Save/Load
+        - UI/Menus
+        - Audio
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: How big of a change is this?
+      options:
+        - Small (minor tweak or addition)
+        - Medium (new feature, moderate effort)
+        - Large (significant new system or overhaul)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you thought of other ways to solve this?
+      placeholder: I also considered...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Screenshots, mockups, links, or other relevant information
+      placeholder: Any other context...
+
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this hasn't already been requested
+          required: true
