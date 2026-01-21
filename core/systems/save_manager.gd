@@ -317,23 +317,17 @@ func copy_slot(from_slot: int, to_slot: int) -> bool:
 ## @param slot_number: Slot number (1-3)
 ## @return: SlotMetadata for the slot
 func get_slot_metadata(slot_number: int) -> SlotMetadata:
-	if not _validate_slot_number(slot_number):
-		var empty_meta: SlotMetadata = SlotMetadata.new()
-		empty_meta.slot_number = slot_number
-		empty_meta.is_occupied = false
-		return empty_meta
+	if _validate_slot_number(slot_number):
+		var all_metadata: Array[SlotMetadata] = _load_metadata_file()
+		var slot_meta: SlotMetadata = _find_slot_metadata(all_metadata, slot_number)
+		if slot_meta:
+			return slot_meta
 
-	var all_metadata: Array[SlotMetadata] = _load_metadata_file()
-
-	for meta: SlotMetadata in all_metadata:
-		if meta.slot_number == slot_number:
-			return meta
-
-	# If not found, return empty metadata
-	var meta: SlotMetadata = SlotMetadata.new()
-	meta.slot_number = slot_number
-	meta.is_occupied = false
-	return meta
+	# Return empty metadata for invalid slot or not found
+	var empty_meta: SlotMetadata = SlotMetadata.new()
+	empty_meta.slot_number = slot_number
+	empty_meta.is_occupied = false
+	return empty_meta
 
 
 ## Get metadata for all slots
@@ -404,28 +398,30 @@ func _save_metadata_file(metadata_array: Array[SlotMetadata]) -> void:
 	_atomic_write_file(metadata_path, json_string)
 
 
+## Find metadata for a specific slot number
+## @param all_metadata: Array of SlotMetadata to search
+## @param slot_number: Slot number to find
+## @return: SlotMetadata or null if not found
+func _find_slot_metadata(all_metadata: Array[SlotMetadata], slot_number: int) -> SlotMetadata:
+	for meta: SlotMetadata in all_metadata:
+		if meta.slot_number == slot_number:
+			return meta
+	return null
+
+
 ## Update metadata for a specific slot
 ## @param slot_number: Slot number (1-3)
 ## @param save_data: SaveData to extract metadata from
 func _update_metadata_for_slot(slot_number: int, save_data: SaveData) -> void:
 	var all_metadata: Array[SlotMetadata] = _load_metadata_file()
-
-	# Find or create metadata for this slot
-	var slot_meta: SlotMetadata = null
-	for meta: SlotMetadata in all_metadata:
-		if meta.slot_number == slot_number:
-			slot_meta = meta
-			break
+	var slot_meta: SlotMetadata = _find_slot_metadata(all_metadata, slot_number)
 
 	if not slot_meta:
 		slot_meta = SlotMetadata.new()
 		slot_meta.slot_number = slot_number
 		all_metadata.append(slot_meta)
 
-	# Populate from save data
 	slot_meta.populate_from_save_data(save_data)
-
-	# Save updated metadata
 	_save_metadata_file(all_metadata)
 
 
@@ -433,17 +429,16 @@ func _update_metadata_for_slot(slot_number: int, save_data: SaveData) -> void:
 ## @param slot_number: Slot number (1-3)
 func _mark_slot_as_empty(slot_number: int) -> void:
 	var all_metadata: Array[SlotMetadata] = _load_metadata_file()
+	var slot_meta: SlotMetadata = _find_slot_metadata(all_metadata, slot_number)
 
-	for meta: SlotMetadata in all_metadata:
-		if meta.slot_number == slot_number:
-			meta.is_occupied = false
-			meta.party_leader_name = ""
-			meta.current_location = ""
-			meta.average_level = 1
-			meta.playtime_seconds = 0
-			meta.last_played_timestamp = 0
-			meta.has_mod_mismatch = false
-			break
+	if slot_meta:
+		slot_meta.is_occupied = false
+		slot_meta.party_leader_name = ""
+		slot_meta.current_location = ""
+		slot_meta.average_level = 1
+		slot_meta.playtime_seconds = 0
+		slot_meta.last_played_timestamp = 0
+		slot_meta.has_mod_mismatch = false
 
 	_save_metadata_file(all_metadata)
 

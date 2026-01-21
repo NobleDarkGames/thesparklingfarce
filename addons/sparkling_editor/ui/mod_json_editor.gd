@@ -1022,15 +1022,8 @@ func _on_total_conversion_toggled(pressed: bool) -> void:
 # Dirty Tracking
 # =============================================================================
 
-## Mark as dirty when LineEdit text changes (takes String parameter)
-func _mark_dirty_on_text_change(_new_text: String) -> void:
-	if _updating_ui:
-		return
-	is_dirty = true
-
-
-## Mark as dirty when TextEdit text changes (no parameter)
-func _mark_dirty() -> void:
+## Mark as dirty when any field changes (accepts optional parameter for signal compatibility)
+func _mark_dirty(_value: Variant = null) -> void:
 	if _updating_ui:
 		return
 	is_dirty = true

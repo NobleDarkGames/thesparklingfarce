@@ -479,35 +479,32 @@ func _update_party_info() -> void:
 	party_info_label.text = info_text
 
 
+## Show feedback message with visual styling
+func _show_feedback(message: String, is_error: bool) -> void:
+	if is_error:
+		push_warning("SaveSlotEditor: " + message)
+	if not feedback_panel or not feedback_label:
+		return
+	var color: Color = SparklingEditorUtils.get_error_color() if is_error else SparklingEditorUtils.get_success_color()
+	var label: String = "Error" if is_error else "Success"
+	var style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style() if is_error else SparklingEditorUtils.create_success_panel_style()
+	feedback_label.text = "[color=#%s][b]%s:[/b] %s[/color]" % [color.to_html(false), label, message]
+	feedback_panel.add_theme_stylebox_override("panel", style)
+	feedback_panel.visible = true
+	# Auto-dismiss (5s for errors, 3s for success)
+	var tween: Tween = create_tween()
+	tween.tween_interval(5.0 if is_error else 3.0)
+	tween.tween_callback(_hide_feedback_panel)
+
+
 ## Show error message with visual feedback
 func _show_error(message: String) -> void:
-	push_warning("SaveSlotEditor: " + message)
-	if feedback_panel and feedback_label:
-		var error_color: Color = SparklingEditorUtils.get_error_color()
-		feedback_label.text = "[color=#%s][b]Error:[/b] %s[/color]" % [error_color.to_html(false), message]
-		var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
-		feedback_panel.add_theme_stylebox_override("panel", error_style)
-		feedback_panel.visible = true
-
-		# Auto-dismiss after 5 seconds
-		var tween: Tween = create_tween()
-		tween.tween_interval(5.0)
-		tween.tween_callback(_hide_feedback_panel)
+	_show_feedback(message, true)
 
 
 ## Show success message with visual feedback
 func _show_success(message: String) -> void:
-	if feedback_panel and feedback_label:
-		var success_color: Color = SparklingEditorUtils.get_success_color()
-		feedback_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
-		var success_style: StyleBoxFlat = SparklingEditorUtils.create_success_panel_style()
-		feedback_panel.add_theme_stylebox_override("panel", success_style)
-		feedback_panel.visible = true
-
-		# Auto-dismiss after 3 seconds
-		var tween: Tween = create_tween()
-		tween.tween_interval(3.0)
-		tween.tween_callback(_hide_feedback_panel)
+	_show_feedback(message, false)
 
 
 ## Hide feedback panel

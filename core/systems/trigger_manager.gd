@@ -284,26 +284,7 @@ func start_battle(battle_id: String) -> void:
 		push_error("  Available battles: %s" % available)
 		return
 
-	# Create transition context so BattleManager knows where to return
-	var current_scene: Node = get_tree().current_scene
-	if current_scene:
-		var context: TransitionContext = TransitionContext.new()
-		context.return_scene_path = current_scene.scene_file_path
-
-		# Try to find and capture hero position for proper return placement
-		var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
-		if heroes.size() > 0:
-			var hero: Node2D = heroes[0] as Node2D
-			if hero:
-				context.hero_world_position = hero.global_position
-				context.hero_grid_position = hero.get("grid_position") if hero.get("grid_position") != null else Vector2i.ZERO
-				if hero.get("facing_direction"):
-					context.hero_facing = hero.facing_direction
-
-		GameState.set_transition_context(context)
-
-	_current_battle_data = battle_data
-	SceneManager.change_scene("res://scenes/battle_loader.tscn")
+	start_battle_with_data(battle_data)
 
 
 ## Start a battle with direct BattleData reference
@@ -313,26 +294,30 @@ func start_battle_with_data(battle_data: BattleData) -> void:
 		push_error("TriggerManager: Cannot start battle with null data")
 		return
 
-	# Create transition context so BattleManager knows where to return
-	var current_scene: Node = get_tree().current_scene
-	if current_scene:
-		var context: TransitionContext = TransitionContext.new()
-		context.return_scene_path = current_scene.scene_file_path
-
-		# Try to find and capture hero position for proper return placement
-		var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
-		if heroes.size() > 0:
-			var hero: Node2D = heroes[0] as Node2D
-			if hero:
-				context.hero_world_position = hero.global_position
-				context.hero_grid_position = hero.get("grid_position") if hero.get("grid_position") != null else Vector2i.ZERO
-				if hero.get("facing_direction"):
-					context.hero_facing = hero.facing_direction
-
-		GameState.set_transition_context(context)
-
+	_capture_transition_context()
 	_current_battle_data = battle_data
 	SceneManager.change_scene("res://scenes/battle_loader.tscn")
+
+
+## Create and store transition context for battle return
+func _capture_transition_context() -> void:
+	var current_scene: Node = get_tree().current_scene
+	if not current_scene:
+		return
+
+	var context: TransitionContext = TransitionContext.new()
+	context.return_scene_path = current_scene.scene_file_path
+
+	var heroes: Array[Node] = get_tree().get_nodes_in_group("hero")
+	if heroes.size() > 0:
+		var hero: Node2D = heroes[0] as Node2D
+		if hero:
+			context.hero_world_position = hero.global_position
+			context.hero_grid_position = hero.get("grid_position") if hero.get("grid_position") != null else Vector2i.ZERO
+			if hero.get("facing_direction"):
+				context.hero_facing = hero.facing_direction
+
+	GameState.set_transition_context(context)
 
 
 ## Return to map after battle ends

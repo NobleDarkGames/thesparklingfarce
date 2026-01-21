@@ -387,14 +387,11 @@ func _get_tab_category_by_control(tab_control: Control) -> String:
 
 
 func _save_last_selected_category(category: String) -> void:
-	var settings: Dictionary = _load_editor_settings()
-	settings["last_selected_category"] = category
-	_save_editor_settings(settings)
+	_save_setting("last_selected_category", category)
 
 
 func _load_last_selected_category() -> String:
-	var settings: Dictionary = _load_editor_settings()
-	return DictUtils.get_string(settings, "last_selected_category", "content")
+	return _load_setting("last_selected_category", "content")
 
 
 func _reload_mod_tabs() -> void:
@@ -577,32 +574,23 @@ func get_active_mod_path() -> String:
 # =============================================================================
 
 func _save_last_selected_mod(mod_id: String) -> void:
-	var settings: Dictionary = _load_editor_settings()
-	settings["last_selected_mod"] = mod_id
-	_save_editor_settings(settings)
+	_save_setting("last_selected_mod", mod_id)
 
 
 func _load_last_selected_mod() -> String:
-	var settings: Dictionary = _load_editor_settings()
-	return DictUtils.get_string(settings, "last_selected_mod", "")
+	return _load_setting("last_selected_mod", "")
 
 
 func _load_editor_settings() -> Dictionary:
 	if not FileAccess.file_exists(EDITOR_SETTINGS_PATH):
 		return {}
-
 	var file: FileAccess = FileAccess.open(EDITOR_SETTINGS_PATH, FileAccess.READ)
 	if not file:
 		return {}
-
 	var json_text: String = file.get_as_text()
 	file.close()
-
 	var parsed: Variant = JSON.parse_string(json_text)
-	if parsed is Dictionary:
-		return parsed
-
-	return {}
+	return parsed if parsed is Dictionary else {}
 
 
 func _save_editor_settings(settings: Dictionary) -> void:
@@ -610,9 +598,21 @@ func _save_editor_settings(settings: Dictionary) -> void:
 	if not file:
 		push_warning("Failed to save editor settings to: " + EDITOR_SETTINGS_PATH)
 		return
-
 	file.store_string(JSON.stringify(settings, "\t"))
 	file.close()
+
+
+## Helper: Save a single setting value
+func _save_setting(key: String, value: Variant) -> void:
+	var settings: Dictionary = _load_editor_settings()
+	settings[key] = value
+	_save_editor_settings(settings)
+
+
+## Helper: Load a single setting value with default
+func _load_setting(key: String, default: Variant) -> Variant:
+	var settings: Dictionary = _load_editor_settings()
+	return settings.get(key, default)
 
 
 # =============================================================================

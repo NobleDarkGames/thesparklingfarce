@@ -466,29 +466,23 @@ func _calculate_stat_increase(growth_rate: int) -> int:
 func _check_learned_abilities(unit: Unit, old_level: int, new_level: int, class_data: ClassData) -> Array[AbilityData]:
 	var learned: Array[AbilityData] = []
 
-	# ==========================================================================
-	# NEW SYSTEM: Check ability_unlock_levels (preferred)
-	# Compare abilities unlocked at old_level vs new_level
-	# ==========================================================================
-	if class_data.class_abilities.size() > 0:
-		var old_abilities: Array[AbilityData] = class_data.get_unlocked_class_abilities(old_level)
-		var new_abilities: Array[AbilityData] = class_data.get_unlocked_class_abilities(new_level)
+	if class_data.class_abilities.is_empty():
+		return learned
 
-		# Find abilities that are in new but not in old
-		for ability: AbilityData in new_abilities:
-			if ability == null:
-				continue
+	var old_abilities: Array[AbilityData] = class_data.get_unlocked_class_abilities(old_level)
+	var new_abilities: Array[AbilityData] = class_data.get_unlocked_class_abilities(new_level)
 
-			var was_unlocked: bool = false
-			for old_ability: AbilityData in old_abilities:
-				if old_ability and old_ability.ability_id == ability.ability_id:
-					was_unlocked = true
-					break
+	# Build set of old ability IDs for efficient lookup
+	var old_ability_ids: Dictionary = {}
+	for ability: AbilityData in old_abilities:
+		if ability:
+			old_ability_ids[ability.ability_id] = true
 
-			if not was_unlocked:
-				# This is a newly unlocked ability!
-				learned.append(ability)
-				unit_learned_ability.emit(unit, ability)
+	# Find abilities that are in new but not in old
+	for ability: AbilityData in new_abilities:
+		if ability and ability.ability_id not in old_ability_ids:
+			learned.append(ability)
+			unit_learned_ability.emit(unit, ability)
 
 	return learned
 

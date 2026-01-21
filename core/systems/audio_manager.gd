@@ -291,29 +291,13 @@ func enable_layer(layer: int, fade_duration: float = DEFAULT_LAYER_FADE) -> void
 		return
 
 	if not _music_layers[layer].stream:
-		# No layer file available for this track
-		return
+		return  # No layer file available
 
 	if _layer_enabled[layer]:
 		return  # Already enabled
 
 	_layer_enabled[layer] = true
-
-	# Cancel existing tween for this layer
-	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
-		_layer_tweens[layer].kill()
-
-	# Fade in
-	var tween: Tween = create_tween()
-	_layer_tweens[layer] = tween
-	tween.tween_method(
-		func(vol: float) -> void:
-			_layer_volumes[layer] = vol
-			_update_layer_volume(layer),
-		_layer_volumes[layer],
-		1.0,
-		fade_duration
-	)
+	_fade_layer(layer, 1.0, fade_duration)
 
 
 ## Disable a music layer (fade out)
@@ -331,12 +315,12 @@ func disable_layer(layer: int, fade_duration: float = DEFAULT_LAYER_FADE) -> voi
 		return  # Already disabled
 
 	_layer_enabled[layer] = false
+	_fade_layer(layer, 0.0, fade_duration)
 
-	# Cancel existing tween for this layer
-	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
-		_layer_tweens[layer].kill()
 
-	# Fade out
+## Fade a layer to target volume
+func _fade_layer(layer: int, target_volume: float, fade_duration: float) -> void:
+	_cancel_layer_tween(layer)
 	var tween: Tween = create_tween()
 	_layer_tweens[layer] = tween
 	tween.tween_method(
@@ -344,9 +328,16 @@ func disable_layer(layer: int, fade_duration: float = DEFAULT_LAYER_FADE) -> voi
 			_layer_volumes[layer] = vol
 			_update_layer_volume(layer),
 		_layer_volumes[layer],
-		0.0,
+		target_volume,
 		fade_duration
 	)
+
+
+## Cancel any active tween for a layer
+func _cancel_layer_tween(layer: int) -> void:
+	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
+		_layer_tweens[layer].kill()
+		_layer_tweens[layer] = null
 
 
 ## Set the volume of a specific layer
@@ -360,27 +351,13 @@ func set_layer_volume(layer: int, volume: float, fade_duration: float = 0.0) -> 
 
 	volume = clampf(volume, 0.0, 1.0)
 
-	# Cancel existing tween for this layer
-	if _layer_tweens[layer] and _layer_tweens[layer].is_valid():
-		_layer_tweens[layer].kill()
-		_layer_tweens[layer] = null
-
 	if fade_duration > 0.0:
-		var tween: Tween = create_tween()
-		_layer_tweens[layer] = tween
-		tween.tween_method(
-			func(vol: float) -> void:
-				_layer_volumes[layer] = vol
-				_update_layer_volume(layer),
-			_layer_volumes[layer],
-			volume,
-			fade_duration
-		)
+		_fade_layer(layer, volume, fade_duration)
 	else:
+		_cancel_layer_tween(layer)
 		_layer_volumes[layer] = volume
 		_update_layer_volume(layer)
 
-	# Update enabled state based on target volume
 	_layer_enabled[layer] = volume > 0.0
 
 

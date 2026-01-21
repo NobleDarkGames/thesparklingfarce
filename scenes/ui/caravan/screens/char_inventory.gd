@@ -4,13 +4,6 @@ extends "res://scenes/ui/caravan/screens/caravan_screen_base.gd"
 ##
 ## Used in STORE mode: Shows selected character's items, allows storing to depot
 
-## Colors matching project standards
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_SUCCESS: Color = Color(0.4, 1.0, 0.4, 1.0)
-const COLOR_ERROR: Color = Color(1.0, 0.4, 0.4, 1.0)
-
 ## Item slot button references
 var item_buttons: Array[Button] = []
 
@@ -58,9 +51,7 @@ func _on_initialized() -> void:
 
 
 func _populate_inventory_grid() -> void:
-	# Clear existing
-	for child: Node in item_grid.get_children():
-		child.queue_free()
+	_clear_container(item_grid)
 	item_buttons.clear()
 	selected_index = -1
 
@@ -86,7 +77,7 @@ func _populate_inventory_grid() -> void:
 		else:
 			button.text = "- Empty -"
 			button.disabled = true
-			button.add_theme_color_override("font_color", COLOR_DISABLED)
+			button.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 		item_grid.add_child(button)
 		item_buttons.append(button)
@@ -108,13 +99,11 @@ func _populate_inventory_grid() -> void:
 
 
 func _focus_first_enabled() -> void:
-	for btn: Button in item_buttons:
-		if is_instance_valid(btn) and not btn.disabled:
-			btn.grab_focus()
-			return
+	_focus_first_in_list(item_buttons)
 	# If all slots are empty, focus back button
-	if is_instance_valid(back_button):
-		back_button.grab_focus()
+	if item_buttons.is_empty() or item_buttons.all(func(b: Button) -> bool: return b.disabled):
+		if is_instance_valid(back_button):
+			back_button.grab_focus()
 
 
 func _count_consumables() -> int:
@@ -141,9 +130,9 @@ func _on_item_pressed(index: int) -> void:
 		if btn.disabled:
 			continue
 		if i == selected_index:
-			btn.add_theme_color_override("font_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_SELECTED)
 		else:
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
+			btn.add_theme_color_override("font_color", UIColors.MENU_NORMAL)
 
 	# Enable store button and auto-focus for consistent confirm flow
 	store_button.disabled = false
@@ -256,12 +245,7 @@ func _on_store_all_pressed() -> void:
 
 
 func _show_result(message: String, success: bool) -> void:
-	result_label.text = message
-	if success:
-		result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
-	else:
-		result_label.add_theme_color_override("font_color", COLOR_ERROR)
-		play_sfx("menu_error")
+	_show_result_on_label(result_label, message, success)
 
 
 func _on_back_pressed() -> void:

@@ -420,14 +420,11 @@ func _on_add_line_pressed() -> void:
 	_mark_dirty()
 
 
-func _add_line_ui(line_dict: Dictionary) -> void:
-	var line_container: VBoxContainer = VBoxContainer.new()
-	line_container.add_theme_constant_override("separation", 4)
-
-	# Header with line number and controls
+## Create header row with line number and control buttons
+func _create_line_header(line_container: VBoxContainer, line_number: int) -> HBoxContainer:
 	var header: HBoxContainer = HBoxContainer.new()
 	var line_num_label: Label = Label.new()
-	line_num_label.text = "Line " + str(lines_list.size() + 1)
+	line_num_label.text = "Line " + str(line_number)
 	line_num_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	header.add_child(line_num_label)
 
@@ -435,26 +432,23 @@ func _add_line_ui(line_dict: Dictionary) -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(spacer)
 
-	# Move up button
-	var up_button: Button = Button.new()
-	up_button.text = "↑"
-	up_button.custom_minimum_size.x = 30
-	up_button.pressed.connect(_on_move_line_up.bind(line_container))
-	header.add_child(up_button)
+	# Control buttons
+	for btn_config: Array in [["↑", _on_move_line_up], ["↓", _on_move_line_down], ["Remove", _on_remove_line]]:
+		var button: Button = Button.new()
+		button.text = btn_config[0]
+		if btn_config[0] in ["↑", "↓"]:
+			button.custom_minimum_size.x = 30
+		button.pressed.connect((btn_config[1] as Callable).bind(line_container))
+		header.add_child(button)
+	return header
 
-	# Move down button
-	var down_button: Button = Button.new()
-	down_button.text = "↓"
-	down_button.custom_minimum_size.x = 30
-	down_button.pressed.connect(_on_move_line_down.bind(line_container))
-	header.add_child(down_button)
 
-	# Remove button
-	var remove_button: Button = Button.new()
-	remove_button.text = "Remove"
-	remove_button.pressed.connect(_on_remove_line.bind(line_container))
-	header.add_child(remove_button)
+func _add_line_ui(line_dict: Dictionary) -> void:
+	var line_container: VBoxContainer = VBoxContainer.new()
+	line_container.add_theme_constant_override("separation", 4)
 
+	# Header with line number and controls
+	var header: HBoxContainer = _create_line_header(line_container, lines_list.size() + 1)
 	line_container.add_child(header)
 
 	# Speaker row with character picker
@@ -672,13 +666,11 @@ func _on_add_choice_pressed() -> void:
 	_mark_dirty()
 
 
-func _add_choice_ui(choice_dict: Dictionary) -> void:
-	var choice_container: VBoxContainer = VBoxContainer.new()
-
-	# Header with choice number and remove button
+## Create header row for choice with number and remove button
+func _create_choice_header(choice_container: VBoxContainer, choice_number: int) -> HBoxContainer:
 	var header: HBoxContainer = HBoxContainer.new()
 	var choice_num_label: Label = Label.new()
-	choice_num_label.text = "Choice " + str(choices_list.size() + 1)
+	choice_num_label.text = "Choice " + str(choice_number)
 	choice_num_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	header.add_child(choice_num_label)
 
@@ -690,7 +682,14 @@ func _add_choice_ui(choice_dict: Dictionary) -> void:
 	remove_button.text = "Remove"
 	remove_button.pressed.connect(_on_remove_choice.bind(choice_container))
 	header.add_child(remove_button)
+	return header
 
+
+func _add_choice_ui(choice_dict: Dictionary) -> void:
+	var choice_container: VBoxContainer = VBoxContainer.new()
+
+	# Header with choice number and remove button
+	var header: HBoxContainer = _create_choice_header(choice_container, choices_list.size() + 1)
 	choice_container.add_child(header)
 
 	# Choice text

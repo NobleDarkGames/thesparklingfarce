@@ -1,36 +1,32 @@
 # The Sparkling Farce - Pending Tasks
 
-This document tracks all pending work items. Verified 2026-01-20.
+This document tracks all pending work items. Verified 2026-01-21.
 
 ---
 
 ## Release Blocking (Priority: CRITICAL)
 
-All 6 items still needed before alpha release:
+2 items remaining before alpha release:
 
 - [ ] Complete modder documentation Tutorial 4 (Abilities and Magic) - Tutorial 3 links to it
-- [ ] Replace 8 [PLACEHOLDER] URLs in README.md
-- [ ] Create CONTRIBUTING.md
-- [ ] Create CODE_OF_CONDUCT.md
-- [ ] Create CREDITS.md with attribution documentation
-- [ ] Create .github/ISSUE_TEMPLATE/ and .github/PULL_REQUEST_TEMPLATE.md
+- [ ] Replace 23 [PLACEHOLDER] entries across README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CREDITS.md, and .github/
 
-**Estimated effort:** 4-7 days focused work
+**Estimated effort:** 1-2 days focused work
 
 ---
 
 ## Test Suite Improvements (Priority: MEDIUM)
 
-### Completed (verified 2026-01-20)
+### Completed (verified 2026-01-21)
 - [x] Phase 5.1: AIBehaviorFactory fixture deployed to 12 AI tests
 - [x] Phase 5.2: UnitStatsFactory fixture created and ready
 - [x] Phase 5.3: All "_base_game" literals replaced with TEST_MOD_ID constants
+- [x] Phase 5.5: Autoload dependencies documented in all 6 fixture files
+- [x] Phase 5.6: GridManager integration tests exist (27 tests)
+- [x] Phase 5.7: GameState unit tests exist (50+ tests)
 
 ### Still Pending
-- [ ] Fix 54 orphan nodes in test_character_editor_validation.gd (use Option A: mock validation logic per docs/plans/test-suite-orphan-fixes.md)
-- [ ] Phase 5.5: Document autoload dependencies in fixture files
-- [ ] Phase 5.6: Add GridManager integration tests
-- [ ] Phase 5.7: Add GameState unit tests
+None - test suite improvements complete!
 
 ---
 
@@ -57,27 +53,40 @@ From `docs/plans/pending-known-limitations.md`:
 
 ---
 
-## Code Simplification (Priority: BACKLOG)
+## Code Simplification (Priority: COMPLETE)
 
-From `docs/code-simplifier-plan.md` - Remaining batches:
+All batches from `docs/code-simplifier-plan.md` are complete:
 
-- [ ] Batch 4.2: Secondary Editor Files (8 files, ~5,700 lines)
-- [ ] Batch 5.1: Remaining Systems (8 files, ~3,500 lines)
-- [ ] Batch 5.2: Caravan & Members UI (12 files, ~2,400 lines)
+- [x] Batches 1.3–4.1: Foundation cleanup (-1,322 lines)
+- [x] Batch 4.2: Secondary Editor Files (-16 lines)
+- [x] Batch 5.1: Remaining Systems (-128 lines)
+- [x] Batch 5.2: Caravan & Members UI (-44 lines)
 
-**Progress:** -1,322 lines across 56 files (Batches 1.3 through 4.1 complete)
+**Total: -1,510 lines removed**
 
 ---
 
 ## Recently Completed
 
+Community documentation (2026-01-21):
+- [x] CONTRIBUTING.md - Development setup, code standards, PR process
+- [x] CODE_OF_CONDUCT.md - Contributor Covenant 2.1
+- [x] CREDITS.md - Attribution for libraries, inspirations, contributors
+- [x] .github/ISSUE_TEMPLATE/ - Bug report and feature request forms
+- [x] .github/PULL_REQUEST_TEMPLATE.md - PR checklist
+
+Test suite orphan fix (2026-01-21):
+- [x] test_character_editor_validation.gd - Refactored to mock-based (525 orphans → 0)
+
+Code simplification batches 4.2–5.2 (2026-01-21):
+- [x] Batch 4.2: -16 lines (editor helpers)
+- [x] Batch 5.1: -128 lines (core system consolidation)
+- [x] Batch 5.2: -44 lines (Caravan/Members UI centralization)
+
 Verified fixed (was in old audit findings):
 - [x] Buff/Debuff spells - Now implemented via _apply_spell_status()
 - [x] BBCode in char_select.gd - Correctly uses RichTextLabel
 - [x] xp_per_level config - Properly initialized from ExperienceConfig
-
-Code simplification batches 1.3-4.1:
-- [x] -1,322 lines across 56 files
 
 Test suite improvements:
 - [x] Test polling migration (GdUnit4 v6.0.2+)

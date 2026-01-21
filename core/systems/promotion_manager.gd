@@ -203,18 +203,13 @@ func has_item_for_promotion(unit: Unit, target_class: ClassData) -> bool:
 ## DEPRECATED: Use has_item_for_promotion instead.
 ## Kept for backward compatibility.
 func has_item_for_special_promotion(unit: Unit, class_data: ClassData = null) -> bool:
-	if class_data == null:
-		class_data = _get_unit_class(unit)
-
-	if not class_data:
+	var unit_class: ClassData = class_data if class_data else _get_unit_class(unit)
+	if not unit_class:
 		return false
 
-	# Find any item-gated path and check if we have its item
-	for path: PromotionPath in class_data.get_promotion_path_resources():
-		if path.requires_item():
-			if _has_required_item(unit, path.required_item):
-				return true
-
+	for path: PromotionPath in unit_class.get_promotion_path_resources():
+		if path.requires_item() and _has_required_item(unit, path.required_item):
+			return true
 	return false
 
 
@@ -408,21 +403,14 @@ func _get_equipment_conflicts(unit: Unit, new_class: ClassData) -> Array:
 ## @return: Array of equipped ItemData
 func _get_unit_equipped_items(unit: Unit) -> Array[ItemData]:
 	var items: Array[ItemData] = []
-	
-	# Get save data to access equipment
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if not save_data:
 		return items
-	
-	# Get equipped items from EquipmentManager
+
 	var equipped_dict: Dictionary = EquipmentManager.get_equipped_items(save_data)
-	
-	# Convert dictionary values to array
-	for slot_id: String in equipped_dict.keys():
-		var item: ItemData = equipped_dict[slot_id] as ItemData
-		if item:
+	for item: Variant in equipped_dict.values():
+		if item is ItemData:
 			items.append(item)
-	
 	return items
 
 
@@ -601,11 +589,7 @@ func _get_cumulative_level(unit: Unit) -> int:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if save_data:
 		return save_data.cumulative_level
-
-	# Fallback: return current level if no save data
-	if unit.stats:
-		return unit.stats.level
-	return 1
+	return unit.stats.level if unit.stats else 1
 
 
 ## Set cumulative level in unit's save data.

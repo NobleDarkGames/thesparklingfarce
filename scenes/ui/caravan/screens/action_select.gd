@@ -5,11 +5,6 @@ extends "res://scenes/ui/caravan/screens/caravan_screen_base.gd"
 ## Displays available actions: Take (from depot), Store (to depot), Exit
 ## Matches SF2's GIVE/GET pattern with modern navigation.
 
-## Colors matching ActionMenu standard
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow (project standard)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-
 ## Menu items array for keyboard navigation
 var menu_items: Array[Button] = []
 var selected_index: int = 0
@@ -131,17 +126,17 @@ func _update_all_colors() -> void:
 	for i: int in range(menu_items.size()):
 		var btn: Button = menu_items[i]
 		if btn.disabled:
-			btn.add_theme_color_override("font_color", COLOR_DISABLED)
-			btn.add_theme_color_override("font_hover_color", COLOR_DISABLED)
-			btn.add_theme_color_override("font_focus_color", COLOR_DISABLED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
+			btn.add_theme_color_override("font_hover_color", UIColors.MENU_DISABLED)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_DISABLED)
 		elif i == selected_index and btn.has_focus():
-			btn.add_theme_color_override("font_color", COLOR_SELECTED)
-			btn.add_theme_color_override("font_hover_color", COLOR_SELECTED)
-			btn.add_theme_color_override("font_focus_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_SELECTED)
+			btn.add_theme_color_override("font_hover_color", UIColors.MENU_SELECTED)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_SELECTED)
 		else:
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
-			btn.add_theme_color_override("font_hover_color", COLOR_SELECTED)
-			btn.add_theme_color_override("font_focus_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_NORMAL)
+			btn.add_theme_color_override("font_hover_color", UIColors.MENU_SELECTED)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_SELECTED)
 
 
 func _update_description(index: int) -> void:

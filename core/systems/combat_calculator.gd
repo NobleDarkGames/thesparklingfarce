@@ -59,23 +59,9 @@ static func _calculate_physical_damage_default(attacker_stats: UnitStats, defend
 		push_error("CombatCalculator: Cannot calculate damage with null stats")
 		return 0
 
-	# Get effective strength (includes equipment bonuses)
-	var attack_power: int = attacker_stats.get_effective_strength()
-
-	# Add weapon attack power
-	attack_power += attacker_stats.get_weapon_attack_power()
-
-	# Get effective defense (includes equipment bonuses)
+	var attack_power: int = attacker_stats.get_effective_strength() + attacker_stats.get_weapon_attack_power()
 	var defense_power: int = defender_stats.get_effective_defense()
-
-	var base_damage: int = attack_power - defense_power
-
-	# Apply variance (±10%)
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
-	var damage: int = int(base_damage * variance)
-
-	# Minimum damage is always 1
-	return maxi(damage, 1)
+	return _apply_damage_variance(attack_power - defense_power)
 
 
 ## Calculate magic attack damage
@@ -102,17 +88,9 @@ static func _calculate_magic_damage_default(
 		push_error("CombatCalculator: Cannot calculate magic damage with null parameters")
 		return 0
 
-	var ability_power: int = ability.potency
-
 	@warning_ignore("integer_division")
-	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
-
-	# Apply variance (±10%)
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
-	var damage: int = int(base_damage * variance)
-
-	# Minimum damage is always 1
-	return maxi(damage, 1)
+	var base_damage: int = ability.potency + attacker_stats.intelligence - (defender_stats.intelligence / 2)
+	return _apply_damage_variance(base_damage)
 
 
 ## Calculate hit chance (percentage) with weapon hit rate
@@ -195,17 +173,9 @@ static func _calculate_healing_default(caster_stats: UnitStats, ability: Ability
 		push_error("CombatCalculator: Cannot calculate healing with null parameters")
 		return 0
 
-	var ability_power: int = ability.potency
-
 	@warning_ignore("integer_division")
-	var base_healing: int = ability_power + (caster_stats.intelligence / 2)
-
-	# Apply variance (±10%)
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
-	var healing: int = int(base_healing * variance)
-
-	# Minimum healing is always 1
-	return maxi(healing, 1)
+	var base_healing: int = ability.potency + (caster_stats.intelligence / 2)
+	return _apply_damage_variance(base_healing)
 
 
 ## Calculate experience gain for defeating an enemy
@@ -454,20 +424,12 @@ static func _calculate_physical_damage_with_terrain_default(
 		push_error("CombatCalculator: Cannot calculate damage with null stats")
 		return 0
 
-	# Get effective strength (includes equipment bonuses)
-	var attack_power: int = attacker_stats.get_effective_strength()
-
-	# Add weapon attack power
-	attack_power += attacker_stats.get_weapon_attack_power()
-
-	# Get effective defense (includes equipment bonuses) + terrain bonus
+	var attack_power: int = attacker_stats.get_effective_strength() + attacker_stats.get_weapon_attack_power()
 	var effective_defense: int = defender_stats.get_effective_defense() + terrain_defense_bonus
+	return _apply_damage_variance(attack_power - effective_defense)
 
-	var base_damage: int = attack_power - effective_defense
 
-	# Apply variance (+/- 10%)
+## Apply variance to base damage and ensure minimum 1
+static func _apply_damage_variance(base_damage: int) -> int:
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
-	var damage: int = int(base_damage * variance)
-
-	# Minimum damage is always 1
-	return maxi(damage, 1)
+	return maxi(int(base_damage * variance), 1)

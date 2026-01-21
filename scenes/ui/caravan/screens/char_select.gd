@@ -6,14 +6,6 @@ extends "res://scenes/ui/caravan/screens/caravan_screen_base.gd"
 ## - TAKE mode: "Who receives this item?" -> Execute transfer and return
 ## - STORE mode: "Whose inventory?" -> Push to char_inventory screen
 
-## Colors matching project standards
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_SUCCESS: Color = Color(0.4, 1.0, 0.4, 1.0)
-const COLOR_ERROR: Color = Color(1.0, 0.4, 0.4, 1.0)
-const COLOR_WARNING: Color = Color(1.0, 0.8, 0.3, 1.0)
-
 ## Character button references
 var char_buttons: Array[Button] = []
 
@@ -59,9 +51,7 @@ func _on_initialized() -> void:
 
 
 func _populate_character_grid() -> void:
-	# Clear existing
-	for child: Node in char_grid.get_children():
-		child.queue_free()
+	_clear_container(char_grid)
 	char_buttons.clear()
 
 	if not PartyManager:
@@ -94,7 +84,7 @@ func _populate_character_grid() -> void:
 
 		button.disabled = should_disable
 		if should_disable:
-			button.add_theme_color_override("font_color", COLOR_DISABLED)
+			button.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 		char_grid.add_child(button)
 		char_buttons.append(button)
@@ -106,7 +96,7 @@ func _populate_character_grid() -> void:
 	if char_buttons.is_empty():
 		var label: Label = Label.new()
 		label.text = "No party members!"
-		label.add_theme_color_override("font_color", COLOR_DISABLED)
+		label.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 		char_grid.add_child(label)
 		return
 
@@ -118,10 +108,7 @@ func _populate_character_grid() -> void:
 
 
 func _focus_first_enabled() -> void:
-	for btn: Button in char_buttons:
-		if is_instance_valid(btn) and not btn.disabled:
-			btn.grab_focus()
-			return
+	_focus_first_in_list(char_buttons)
 
 
 func _on_char_focus_entered(uid: String) -> void:
@@ -134,10 +121,10 @@ func _on_char_pressed(uid: String, button: Button) -> void:
 	# Clear previous selection highlight
 	for btn: Button in char_buttons:
 		if not btn.disabled:
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
+			btn.add_theme_color_override("font_color", UIColors.MENU_NORMAL)
 
 	# Highlight selected
-	button.add_theme_color_override("font_color", COLOR_SELECTED)
+	button.add_theme_color_override("font_color", UIColors.MENU_SELECTED)
 
 	# Store in context
 	if context:
@@ -239,18 +226,11 @@ func _go_to_inventory() -> void:
 
 
 func _show_result(message: String, success: bool) -> void:
-	result_label.text = message
-	if success:
-		result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
-	else:
-		result_label.add_theme_color_override("font_color", COLOR_ERROR)
-		play_sfx("menu_error")
+	_show_result_on_label(result_label, message, success)
 
 
 func _show_warning(message: String) -> void:
-	result_label.text = message
-	result_label.add_theme_color_override("font_color", COLOR_WARNING)
-	play_sfx("menu_error")
+	_show_warning_on_label(result_label, message)
 
 
 func _on_back_pressed() -> void:

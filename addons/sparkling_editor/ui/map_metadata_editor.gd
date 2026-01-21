@@ -875,56 +875,58 @@ func _on_confirm_create_map() -> void:
 	notify_resource_created(map_id)
 
 
+## Generate common export variables used by all map scripts
+func _generate_map_exports(p_map_id: String, p_map_name: String, p_map_type: String) -> PackedStringArray:
+	return PackedStringArray([
+		'@export var map_id: String = "%s"' % p_map_id,
+		'@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "%s"' % p_map_type,
+		'@export var display_name: String = "%s"' % p_map_name
+	])
+
+
 func _generate_map_script(p_map_id: String, p_map_name: String, p_map_type: String) -> String:
 	# Battle maps use a minimal script - BattleLoader handles everything
 	if p_map_type == "BATTLE":
 		return _generate_battle_map_script(p_map_id, p_map_name)
 
-	# Build script content with string concatenation to avoid % formatting issues
-	var lines: PackedStringArray = PackedStringArray()
-	lines.append('extends "res://core/templates/map_template.gd"')
-	lines.append("")
-	lines.append("# =============================================================================")
-	lines.append("# MAP IDENTITY (Scene as Source of Truth)")
-	lines.append("# =============================================================================")
-	lines.append("")
-	lines.append('## Unique identifier for this map (namespaced: "mod_id:map_name")')
-	lines.append('@export var map_id: String = "%s"' % p_map_id)
-	lines.append("")
-	lines.append("## Map type determines Caravan visibility and party follower behavior")
-	lines.append('@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "%s"' % p_map_type)
-	lines.append("")
-	lines.append("## Display name for UI (save menu, map name popups)")
-	lines.append('@export var display_name: String = "%s"' % p_map_name)
-	lines.append("")
-	lines.append("")
-	lines.append("# =============================================================================")
-	lines.append("# LIFECYCLE")
-	lines.append("# =============================================================================")
-	lines.append("")
-	lines.append("func _ready() -> void:")
-	lines.append("\tsuper._ready()")
-	lines.append('\t_debug_print("Map \'%s\' ready!" % display_name)')
-	lines.append("")
-
+	var exports: PackedStringArray = _generate_map_exports(p_map_id, p_map_name, p_map_type)
+	var lines: PackedStringArray = PackedStringArray([
+		'extends "res://core/templates/map_template.gd"',
+		"",
+		"# =============================================================================",
+		"# MAP IDENTITY (Scene as Source of Truth)",
+		"# =============================================================================",
+		"",
+		'## Unique identifier for this map (namespaced: "mod_id:map_name")',
+		exports[0], "",
+		"## Map type determines Caravan visibility and party follower behavior",
+		exports[1], "",
+		"## Display name for UI (save menu, map name popups)",
+		exports[2], "", "",
+		"# =============================================================================",
+		"# LIFECYCLE",
+		"# =============================================================================",
+		"",
+		"func _ready() -> void:",
+		"\tsuper._ready()",
+		'\t_debug_print("Map \'%s\' ready!" % display_name)',
+		""
+	])
 	return "\n".join(lines)
 
 
-## Generate a minimal script for battle maps
-## Battle maps don't need exploration features - BattleLoader handles everything
+## Generate a minimal script for battle maps (BattleLoader handles everything)
 func _generate_battle_map_script(p_map_id: String, p_map_name: String) -> String:
-	var lines: PackedStringArray = PackedStringArray()
-	lines.append("extends Node2D")
-	lines.append("")
-	lines.append("## Battle map - minimal script for BattleLoader compatibility")
-	lines.append("## Battle maps don't need exploration features (party followers, camera, etc.)")
-	lines.append("## The BattleLoader handles all battle-specific setup")
-	lines.append("")
-	lines.append('@export var map_id: String = "%s"' % p_map_id)
-	lines.append('@export_enum("TOWN", "OVERWORLD", "DUNGEON", "INTERIOR", "BATTLE") var map_type: String = "BATTLE"')
-	lines.append('@export var display_name: String = "%s"' % p_map_name)
-	lines.append("")
-
+	var exports: PackedStringArray = _generate_map_exports(p_map_id, p_map_name, "BATTLE")
+	var lines: PackedStringArray = PackedStringArray([
+		"extends Node2D",
+		"",
+		"## Battle map - minimal script for BattleLoader compatibility",
+		"## Battle maps don't need exploration features (party followers, camera, etc.)",
+		"## The BattleLoader handles all battle-specific setup",
+		"",
+		exports[0], exports[1], exports[2], ""
+	])
 	return "\n".join(lines)
 
 
@@ -1026,14 +1028,11 @@ func _clear_ui() -> void:
 	caravan_visible_check.button_pressed = false
 	music_id_edit.text = ""
 	ambient_id_edit.text = ""
-	edge_north_map_dropdown.select(0)
-	edge_north_spawn_edit.text = ""
-	edge_south_map_dropdown.select(0)
-	edge_south_spawn_edit.text = ""
-	edge_east_map_dropdown.select(0)
-	edge_east_spawn_edit.text = ""
-	edge_west_map_dropdown.select(0)
-	edge_west_spawn_edit.text = ""
+	# Clear all edge connections using helper
+	for dropdown: OptionButton in [edge_north_map_dropdown, edge_south_map_dropdown, edge_east_map_dropdown, edge_west_map_dropdown]:
+		dropdown.select(0)
+	for spawn_edit: LineEdit in [edge_north_spawn_edit, edge_south_spawn_edit, edge_east_spawn_edit, edge_west_spawn_edit]:
+		spawn_edit.text = ""
 
 
 # =============================================================================
