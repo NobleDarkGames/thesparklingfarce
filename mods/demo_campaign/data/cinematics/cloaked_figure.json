@@ -6,38 +6,107 @@
 	"commands": [
 		{
 			"params": {
-				"auto_follow": true,
-				"emotion": "neutral",
-				"speaker": "s9svpdr6",
-				"text": "Bla bla dialog"
-			},
-			"type": "dialog_line"
-		},
-		{
-			"params": {
-				"choices": [
+				"flag": "battle1_victory",
+				"if_false": [
 					{
-						"action": "battle",
-						"label": "Battle #1 - Proving Grounds",
-						"on_victory_flags": "battle1_victory",
-						"value": "demo_campaign_battle_1767747082"
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:cloaky",
+							"text": "AHAHAHAHA!  Welcome, child, to your inevitable DOOM!"
+						},
+						"type": "dialog_line"
 					},
 					{
-						"action": "battle",
-						"label": "Battle #2 - Grounds are Proven",
-						"on_victory_flags": "battle2_victory",
-						"value": "demo_campaign_battle_1768074988"
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "rfcd4dp9",
+							"text": "No thanks."
+						},
+						"type": "dialog_line"
 					},
 					{
-						"action": "none",
-						"label": "Nevermind...",
-						"value": ""
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:cloaky",
+							"text": "... what?"
+						},
+						"type": "dialog_line"
+					},
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "rfcd4dp9",
+							"text": "Oh I'm just, like, not really in to doom."
+						},
+						"type": "dialog_line"
+					},
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:cloaky",
+							"text": "Well... you're a protagonist, right? Look, just let me do my lines, then you can do whatever, ok?"
+						},
+						"type": "dialog_line"
+					},
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "rfcd4dp9",
+							"text": "Okay I guess"
+						},
+						"type": "dialog_line"
+					},
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:cloaky",
+							"text": "Well now I've lost the momentum, but the point is that I have the power to teleport you to the first battle!"
+						},
+						"type": "dialog_line"
+					},
+					{
+						"params": {
+							"choices": [
+								{
+									"action": "battle",
+									"label": "Battle 1",
+									"on_victory_flags": "battle1_victory",
+									"value": "demo_campaign_battle_1767747082"
+								},
+								{
+									"action": "none",
+									"label": "Nevermind, weirdo...",
+									"value": ""
+								}
+							]
+						},
+						"type": "show_choice"
 					}
-				]
+				],
+				"if_true": [
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:cloaky",
+							"text": "You uh... nice work.  But you'll never defeat my brothers!"
+						},
+						"type": "dialog_line"
+					}
+				],
+				"negate": false
 			},
-			"type": "show_choice"
+			"type": "check_flag"
 		}
 	],
 	"description": "",
-	"disable_player_input": true
+	"disable_player_input": true,
+	"loop": false
 }

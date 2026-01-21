@@ -5,11 +5,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## Displays available services: Heal, Revive, Uncurse, Exit
 ## Uses ActionMenu-style patterns for consistent UI behavior.
 
-## Colors matching ActionMenu standard
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow (project standard)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-
 ## Menu items array for keyboard navigation
 var menu_items: Array[Button] = []
 var selected_index: int = 0

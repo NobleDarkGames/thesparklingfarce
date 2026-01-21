@@ -1,8 +1,7 @@
 ## InteractionPrompt - Visual indicator shown when player can interact
 ##
 ## Shows a bubble with "!" or "?" above NPCs and interactables when:
-## - Player is adjacent (1 tile away)
-## - Player is facing the object
+## - Player is within 2 tiles (Manhattan distance)
 ## - Object is interactable (not already used for one-shot objects)
 ##
 ## Features smooth fade in/out and gentle bob animation.
@@ -114,12 +113,11 @@ func _update_visibility_state() -> void:
 	if not hero:
 		return
 
-	# Get hero's grid position and facing
-	if not "grid_position" in hero or not "facing_direction" in hero:
+	# Get hero's grid position
+	if not "grid_position" in hero:
 		return
 
 	var hero_grid: Vector2i = hero.grid_position
-	var hero_facing: String = hero.facing_direction
 
 	# Get our parent's grid position
 	var parent_node: Node2D = get_parent() as Node2D
@@ -133,15 +131,10 @@ func _update_visibility_state() -> void:
 		# Fallback: calculate from world position
 		our_grid = GridManager.world_to_cell(parent_node.global_position)
 
-	# Check if hero is exactly 1 tile away (adjacent)
+	# Check if hero is within 2 tiles (Manhattan distance)
 	var delta: Vector2i = our_grid - hero_grid
-	if absi(delta.x) + absi(delta.y) != 1:
-		return  # Not adjacent (diagonal or farther doesn't count)
-
-	# Check if hero is facing us
-	var facing_vec: Vector2i = FacingUtils.string_to_direction(hero_facing)
-	if facing_vec != delta:
-		return  # Hero not facing us
+	if absi(delta.x) + absi(delta.y) > 2:
+		return  # Too far away
 
 	# All checks passed
 	should_show = true
