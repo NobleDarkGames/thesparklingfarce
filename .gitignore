@@ -6,6 +6,8 @@
 *.translation
 *.uid
 *.import
+# Exception: font imports must be tracked for consistent pixel rendering
+!assets/fonts/*.import
 export_presets.cfg
 export/
 
