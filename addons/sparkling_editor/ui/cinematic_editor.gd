@@ -1408,7 +1408,7 @@ func _validate_cinematic() -> Array[String]:
 # =============================================================================
 
 ## Migrate legacy format to current format before saving
-## Converts character_id → speaker in dialog_line commands
+## Converts character_id -> speaker in dialog_line commands
 func _migrate_legacy_format() -> void:
 	var commands: Array = current_cinematic_data.get("commands", [])
 	var migrated_count: int = 0
@@ -1418,7 +1418,7 @@ func _migrate_legacy_format() -> void:
 			var cmd_dict: Dictionary = cmd
 			var cmd_type: String = cmd_dict.get("type", "")
 
-			# Migrate dialog_line: character_id → speaker
+			# Migrate dialog_line: character_id -> speaker
 			if cmd_type == "dialog_line":
 				var params: Variant = cmd_dict.get("params", {})
 				if params is Dictionary:
