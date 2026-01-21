@@ -6,8 +6,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Terrain types define movement costs and combat modifiers for battle map tiles
 
 # Identity fields
-var terrain_id_edit: LineEdit
-var display_name_edit: LineEdit
+var name_id_group: NameIdFieldGroup
 
 # Movement costs
 var walking_cost_spin: SpinBox
@@ -59,9 +58,8 @@ func _load_resource_data() -> void:
 	if not terrain:
 		return
 
-	# Identity
-	terrain_id_edit.text = terrain.terrain_id
-	display_name_edit.text = terrain.display_name
+	# Identity (auto-detects lock state)
+	name_id_group.set_values(terrain.display_name, terrain.terrain_id, true)
 
 	# Movement costs
 	walking_cost_spin.value = terrain.movement_cost_walking
@@ -92,8 +90,8 @@ func _save_resource_data() -> void:
 		return
 
 	# Identity
-	terrain.terrain_id = terrain_id_edit.text.strip_edges().to_lower()
-	terrain.display_name = display_name_edit.text.strip_edges()
+	terrain.terrain_id = name_id_group.get_id_value()
+	terrain.display_name = name_id_group.get_name_value()
 
 	# Movement costs
 	terrain.movement_cost_walking = int(walking_cost_spin.value)
@@ -123,7 +121,7 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 
 	# Validate terrain_id
-	var terrain_id: String = terrain_id_edit.text.strip_edges()
+	var terrain_id: String = name_id_group.get_id_value()
 	if terrain_id.is_empty():
 		errors.append("Terrain ID cannot be empty")
 	elif terrain_id.contains(" "):
@@ -132,7 +130,7 @@ func _validate_resource() -> Dictionary:
 		errors.append("Terrain ID must be a valid identifier (letters, numbers, underscores)")
 
 	# Validate display_name
-	if display_name_edit.text.strip_edges().is_empty():
+	if name_id_group.get_name_value().is_empty():
 		errors.append("Display name cannot be empty")
 
 	# Validate movement costs
@@ -190,11 +188,17 @@ func _add_identity_section() -> void:
 	form.on_change(_mark_dirty)
 	form.add_section("Identity")
 
-	terrain_id_edit = form.add_text_field("Terrain ID:", "e.g., deep_water, lava_flow",
-		"Unique identifier used in map tiles (lowercase, no spaces)")
-
-	display_name_edit = form.add_text_field("Display Name:", "e.g., Deep Water, Lava Flow",
-		"Name shown in game UI when hovering over terrain")
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "Terrain ID:"
+	name_id_group.name_placeholder = "e.g., Deep Water, Lava Flow"
+	name_id_group.id_placeholder = "e.g., deep_water, lava_flow"
+	name_id_group.name_tooltip = "Name shown in game UI when hovering over terrain"
+	name_id_group.id_tooltip = "Unique identifier used in map tiles (lowercase, no spaces)"
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	form.container.add_child(name_id_group)
 
 
 func _add_movement_section() -> void:
@@ -282,6 +286,11 @@ func _add_turn_effects_section() -> void:
 
 ## Called when any manually-connected field changes to mark dirty
 func _on_field_changed(_value: Variant = null) -> void:
+	_mark_dirty()
+
+
+## Called when name or ID changes in the NameIdFieldGroup
+func _on_name_id_changed(_values: Dictionary) -> void:
 	_mark_dirty()
 
 

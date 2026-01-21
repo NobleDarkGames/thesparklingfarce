@@ -3,7 +3,7 @@ class_name NPCNode
 extends Area2D
 
 const FacingUtils = preload("res://core/utils/facing_utils.gd")
-const DEBUG_MODE: bool = true  # TEMP: Enable for patrol debugging
+const DEBUG_MODE: bool = false  # TEMP: Enable for patrol debugging
 
 ## NPCNode - A map entity that players can interact with.
 ## When the player presses the interact button facing this NPC,

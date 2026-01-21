@@ -155,8 +155,8 @@ func _save_resource_data() -> void:
 	shop.deals_discount = deals_discount_spin.value
 
 	# Availability
-	shop.required_flags = _parse_flags(required_flags_edit.text)
-	shop.forbidden_flags = _parse_flags(forbidden_flags_edit.text)
+	shop.required_flags = SparklingEditorUtils.parse_flag_string(required_flags_edit.text)
+	shop.forbidden_flags = SparklingEditorUtils.parse_flag_string(forbidden_flags_edit.text)
 
 	# Features
 	shop.can_sell = can_sell_check.button_pressed
@@ -591,16 +591,6 @@ func _item_exists(item_id: String) -> bool:
 	if ModLoader and ModLoader.registry:
 		return ModLoader.registry.has_resource("item", item_id)
 	return false
-
-
-func _parse_flags(text: String) -> Array[String]:
-	var flags: Array[String] = []
-	var parts: PackedStringArray = text.split(",")
-	for part: String in parts:
-		var trimmed: String = part.strip_edges()
-		if not trimmed.is_empty():
-			flags.append(trimmed)
-	return flags
 
 
 ## Override refresh - no local cache, but refresh ResourcePickers

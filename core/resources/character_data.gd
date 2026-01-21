@@ -185,9 +185,6 @@ func has_abilities(level: int) -> bool:
 # SAFE ASSET GETTERS (with fallbacks)
 # ============================================================================
 
-## Placeholder texture for missing portraits (cached at class level)
-static var _placeholder_portrait: Texture2D = null
-
 ## Get portrait texture with fallback for missing assets
 ## Returns a placeholder if portrait is null or fails to load
 ## Safe to call without null checks - always returns a valid Texture2D
@@ -195,11 +192,7 @@ func get_portrait_safe() -> Texture2D:
 	if portrait != null:
 		return portrait
 
-	# Use cached placeholder
-	if CharacterData._placeholder_portrait == null:
-		CharacterData._placeholder_portrait = _create_placeholder_portrait()
-
-	return CharacterData._placeholder_portrait
+	return _create_placeholder_portrait()
 
 
 ## Get a static texture from sprite_frames for UI contexts (thumbnails, etc.)
@@ -216,10 +209,7 @@ func get_display_texture() -> Texture2D:
 		return portrait
 
 	# Ultimate fallback: placeholder
-	if CharacterData._placeholder_portrait == null:
-		CharacterData._placeholder_portrait = _create_placeholder_portrait()
-
-	return CharacterData._placeholder_portrait
+	return _create_placeholder_portrait()
 
 
 ## Create a simple placeholder portrait (magenta square for visibility)

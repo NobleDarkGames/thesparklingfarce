@@ -35,7 +35,7 @@ func _enter_tree() -> void:
 	panel_button.icon = EditorInterface.get_base_control().get_theme_icon("Favorites", "EditorIcons")
 
 	# Add color pulsing animation
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.tween_property(panel_button, "self_modulate", Color.CORNFLOWER_BLUE, 1.5)
 	tween.tween_property(panel_button, "self_modulate", Color.GOLD, 1.5)
 	tween.set_loops(-1)

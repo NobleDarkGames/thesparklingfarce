@@ -7,6 +7,49 @@ extends GdUnitTestSuite
 
 
 # =============================================================================
+# FLAG STRING PARSING TESTS
+# =============================================================================
+
+func test_parse_flag_string_basic() -> void:
+	var result: Array[String] = SparklingEditorUtils.parse_flag_string("flag1, flag2, flag3")
+	assert_array(result).has_size(3)
+	assert_str(result[0]).is_equal("flag1")
+	assert_str(result[1]).is_equal("flag2")
+	assert_str(result[2]).is_equal("flag3")
+
+
+func test_parse_flag_string_empty_input() -> void:
+	var result: Array[String] = SparklingEditorUtils.parse_flag_string("")
+	assert_array(result).is_empty()
+
+
+func test_parse_flag_string_whitespace_only() -> void:
+	var result: Array[String] = SparklingEditorUtils.parse_flag_string("   ")
+	assert_array(result).is_empty()
+
+
+func test_parse_flag_string_filters_empty_entries() -> void:
+	var result: Array[String] = SparklingEditorUtils.parse_flag_string("flag1,, flag2,   , flag3")
+	assert_array(result).has_size(3)
+	assert_str(result[0]).is_equal("flag1")
+	assert_str(result[1]).is_equal("flag2")
+	assert_str(result[2]).is_equal("flag3")
+
+
+func test_parse_flag_string_strips_whitespace() -> void:
+	var result: Array[String] = SparklingEditorUtils.parse_flag_string("  flag1  ,   flag2   ")
+	assert_array(result).has_size(2)
+	assert_str(result[0]).is_equal("flag1")
+	assert_str(result[1]).is_equal("flag2")
+
+
+func test_parse_flag_string_single_flag() -> void:
+	var result: Array[String] = SparklingEditorUtils.parse_flag_string("only_one")
+	assert_array(result).has_size(1)
+	assert_str(result[0]).is_equal("only_one")
+
+
+# =============================================================================
 # ID GENERATION TESTS
 # =============================================================================
 

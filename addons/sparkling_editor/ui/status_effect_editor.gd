@@ -9,8 +9,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 # IDENTITY FIELDS
 # =============================================================================
 
-var effect_id_edit: LineEdit
-var display_name_edit: LineEdit
+var name_id_group: NameIdFieldGroup
 var description_edit: TextEdit
 
 # =============================================================================
@@ -119,9 +118,8 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	# Identity
-	effect_id_edit.text = effect.effect_id
-	display_name_edit.text = effect.display_name
+	# Identity (auto-detects lock state)
+	name_id_group.set_values(effect.display_name, effect.effect_id, true)
 	description_edit.text = effect.description
 
 	# Visual
@@ -163,8 +161,8 @@ func _save_resource_data() -> void:
 		return
 
 	# Identity
-	effect.effect_id = effect_id_edit.text.strip_edges().to_lower().replace(" ", "_")
-	effect.display_name = display_name_edit.text.strip_edges()
+	effect.effect_id = name_id_group.get_id_value()
+	effect.display_name = name_id_group.get_name_value()
 	effect.description = description_edit.text
 
 	# Visual
@@ -203,14 +201,14 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 
 	# Validate effect_id
-	var effect_id: String = effect_id_edit.text.strip_edges()
+	var effect_id: String = name_id_group.get_id_value()
 	if effect_id.is_empty():
 		errors.append("Effect ID cannot be empty")
 	elif effect_id.contains(" "):
 		errors.append("Effect ID cannot contain spaces (use underscores)")
 
 	# Validate display_name
-	if display_name_edit.text.strip_edges().is_empty():
+	if name_id_group.get_name_value().is_empty():
 		errors.append("Display name cannot be empty")
 
 	# Validate recovery chance
@@ -279,11 +277,17 @@ func _add_identity_section() -> void:
 	form.on_change(_mark_dirty)
 	form.add_section("Identity")
 
-	effect_id_edit = form.add_text_field("Effect ID:", "e.g., poison, sleep, attack_up",
-		"Unique identifier for this effect. Use lowercase with underscores.")
-
-	display_name_edit = form.add_text_field("Display Name:", "e.g., Poisoned, Asleep, Attack Up",
-		"The name displayed to players in battle UI.")
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "Effect ID:"
+	name_id_group.name_placeholder = "e.g., Poisoned, Asleep, Attack Up"
+	name_id_group.id_placeholder = "e.g., poison, sleep, attack_up"
+	name_id_group.name_tooltip = "The name displayed to players in battle UI"
+	name_id_group.id_tooltip = "Unique identifier for this effect. Use lowercase with underscores."
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	form.container.add_child(name_id_group)
 
 	description_edit = form.add_text_area("Description:", 60,
 		"Detailed description shown in help screens and tooltips.")
@@ -543,6 +547,12 @@ func _update_action_modifier_chance_visibility() -> void:
 # =============================================================================
 
 func _on_field_changed(_new_text: String = "") -> void:
+	if _updating_ui:
+		return
+	_mark_dirty()
+
+
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()
