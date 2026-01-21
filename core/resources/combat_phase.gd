@@ -62,6 +62,16 @@ var status_effect_name: String = ""
 var was_resisted: bool = false
 
 
+## Internal helper to create a base phase with common fields
+static func _create_base(p_type: PhaseType, p_attacker: Unit, p_defender: Unit, p_action_name: String = "") -> CombatPhase:
+	var phase: CombatPhase = CombatPhase.new()
+	phase.phase_type = p_type
+	phase.attacker = p_attacker
+	phase.defender = p_defender
+	phase.action_name = p_action_name
+	return phase
+
+
 ## Factory method to create an initial attack phase
 static func create_initial_attack(
 	p_attacker: Unit,
@@ -71,16 +81,10 @@ static func create_initial_attack(
 	p_was_miss: bool,
 	p_weapon_name: String = ""
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.INITIAL_ATTACK
-	phase.attacker = p_attacker
-	phase.defender = p_defender
+	var phase: CombatPhase = _create_base(PhaseType.INITIAL_ATTACK, p_attacker, p_defender, p_weapon_name)
 	phase.damage = p_damage
 	phase.was_critical = p_was_critical
 	phase.was_miss = p_was_miss
-	phase.is_counter = false
-	phase.is_double_attack = false
-	phase.action_name = p_weapon_name
 	return phase
 
 
@@ -93,16 +97,11 @@ static func create_double_attack(
 	p_was_miss: bool,
 	p_weapon_name: String = ""
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.DOUBLE_ATTACK
-	phase.attacker = p_attacker
-	phase.defender = p_defender
+	var phase: CombatPhase = _create_base(PhaseType.DOUBLE_ATTACK, p_attacker, p_defender, p_weapon_name)
 	phase.damage = p_damage
 	phase.was_critical = p_was_critical
 	phase.was_miss = p_was_miss
-	phase.is_counter = false
 	phase.is_double_attack = true
-	phase.action_name = p_weapon_name
 	return phase
 
 
@@ -116,16 +115,11 @@ static func create_counter_attack(
 	p_was_miss: bool,
 	p_weapon_name: String = ""
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.COUNTER_ATTACK
-	phase.attacker = p_counter_attacker
-	phase.defender = p_counter_target
+	var phase: CombatPhase = _create_base(PhaseType.COUNTER_ATTACK, p_counter_attacker, p_counter_target, p_weapon_name)
 	phase.damage = p_damage
 	phase.was_critical = p_was_critical
 	phase.was_miss = p_was_miss
 	phase.is_counter = true
-	phase.is_double_attack = false
-	phase.action_name = p_weapon_name
 	return phase
 
 
@@ -137,16 +131,8 @@ static func create_spell_attack(
 	p_damage: int,
 	p_spell_name: String = ""
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.SPELL_ATTACK
-	phase.attacker = p_caster
-	phase.defender = p_target
+	var phase: CombatPhase = _create_base(PhaseType.SPELL_ATTACK, p_caster, p_target, p_spell_name)
 	phase.damage = p_damage
-	phase.was_critical = false  # Spells don't crit in SF2
-	phase.was_miss = false      # Spells don't miss in SF2
-	phase.is_counter = false
-	phase.is_double_attack = false
-	phase.action_name = p_spell_name
 	return phase
 
 
@@ -158,17 +144,8 @@ static func create_item_heal(
 	p_heal_amount: int,
 	p_item_name: String = ""
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.ITEM_HEAL
-	phase.attacker = p_user      # The one using the item
-	phase.defender = p_target    # The one being healed
-	phase.damage = 0             # No damage
+	var phase: CombatPhase = _create_base(PhaseType.ITEM_HEAL, p_user, p_target, p_item_name)
 	phase.heal_amount = p_heal_amount
-	phase.was_critical = false
-	phase.was_miss = false
-	phase.is_counter = false
-	phase.is_double_attack = false
-	phase.action_name = p_item_name
 	return phase
 
 
@@ -180,17 +157,8 @@ static func create_spell_heal(
 	p_heal_amount: int,
 	p_spell_name: String = ""
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.SPELL_HEAL
-	phase.attacker = p_caster    # The one casting
-	phase.defender = p_target    # The one being healed
-	phase.damage = 0             # No damage
+	var phase: CombatPhase = _create_base(PhaseType.SPELL_HEAL, p_caster, p_target, p_spell_name)
 	phase.heal_amount = p_heal_amount
-	phase.was_critical = false
-	phase.was_miss = false
-	phase.is_counter = false
-	phase.is_double_attack = false
-	phase.action_name = p_spell_name
 	return phase
 
 
@@ -203,62 +171,43 @@ static func create_spell_status(
 	p_status_effect: String,
 	p_was_resisted: bool = false
 ) -> CombatPhase:
-	var phase: CombatPhase = CombatPhase.new()
-	phase.phase_type = PhaseType.SPELL_STATUS
-	phase.attacker = p_caster
-	phase.defender = p_target
-	phase.damage = 0
-	phase.heal_amount = 0
-	phase.was_critical = false
-	phase.was_miss = false
+	var phase: CombatPhase = _create_base(PhaseType.SPELL_STATUS, p_caster, p_target, p_spell_name)
 	phase.was_resisted = p_was_resisted
-	phase.is_counter = false
-	phase.is_double_attack = false
-	phase.action_name = p_spell_name
 	phase.status_effect_name = p_status_effect
 	return phase
 
 
+## Phase type display names for debugging
+const PHASE_TYPE_NAMES: Dictionary = {
+	PhaseType.INITIAL_ATTACK: "Initial",
+	PhaseType.DOUBLE_ATTACK: "Double",
+	PhaseType.COUNTER_ATTACK: "Counter",
+	PhaseType.SPELL_ATTACK: "Spell",
+	PhaseType.SPELL_STATUS: "Status",
+	PhaseType.ITEM_HEAL: "Item Heal",
+	PhaseType.SPELL_HEAL: "Spell Heal"
+}
+
+
 ## Get a human-readable description for debugging
 func get_description() -> String:
-	var type_str: String = ""
-	match phase_type:
-		PhaseType.INITIAL_ATTACK:
-			type_str = "Initial"
-		PhaseType.DOUBLE_ATTACK:
-			type_str = "Double"
-		PhaseType.COUNTER_ATTACK:
-			type_str = "Counter"
-		PhaseType.SPELL_ATTACK:
-			type_str = "Spell"
-		PhaseType.SPELL_STATUS:
-			type_str = "Status"
-		PhaseType.ITEM_HEAL:
-			type_str = "Item Heal"
-		PhaseType.SPELL_HEAL:
-			type_str = "Spell Heal"
-
+	var type_str: String = PHASE_TYPE_NAMES.get(phase_type, "Unknown")
 	var attacker_name: String = _get_unit_display_name(attacker)
 	var defender_name: String = _get_unit_display_name(defender)
 	var action_str: String = " with %s" % action_name if not action_name.is_empty() else ""
 
 	# Handle status phases
 	if phase_type == PhaseType.SPELL_STATUS:
-		if was_resisted:
-			return "%s: %s casts %s on %s - RESISTED" % [type_str, attacker_name, action_name, defender_name]
-		else:
-			return "%s: %s casts %s on %s - %s applied" % [type_str, attacker_name, action_name, defender_name, status_effect_name]
+		var outcome: String = "RESISTED" if was_resisted else "%s applied" % status_effect_name
+		return "%s: %s casts %s on %s - %s" % [type_str, attacker_name, action_name, defender_name, outcome]
 
 	# Handle healing phases
 	if phase_type == PhaseType.ITEM_HEAL or phase_type == PhaseType.SPELL_HEAL:
 		return "%s: %s heals %s%s - %d HP" % [type_str, attacker_name, defender_name, action_str, heal_amount]
 
-	if was_miss:
-		return "%s: %s attacks %s%s - MISS" % [type_str, attacker_name, defender_name, action_str]
-	elif was_critical:
-		return "%s: %s attacks %s%s - CRITICAL %d damage" % [type_str, attacker_name, defender_name, action_str, damage]
-	else:
-		return "%s: %s attacks %s%s - %d damage" % [type_str, attacker_name, defender_name, action_str, damage]
+	# Handle attack phases
+	var outcome: String = "MISS" if was_miss else ("CRITICAL %d damage" % damage if was_critical else "%d damage" % damage)
+	return "%s: %s attacks %s%s - %s" % [type_str, attacker_name, defender_name, action_str, outcome]
 
 
 ## Get display text for combat results panel
@@ -273,89 +222,69 @@ func get_description() -> String:
 func get_result_text() -> String:
 	var attacker_name: String = _get_unit_display_name(attacker)
 	var defender_name: String = _get_unit_display_name(defender)
+	var is_self_target: bool = attacker == defender
+	var has_action: bool = not action_name.is_empty()
+	var upper_action: String = action_name.to_upper()
 
-	# Handle healing phases first (before miss check - heals don't miss)
+	# Handle healing phases first (heals don't miss)
 	if phase_type == PhaseType.ITEM_HEAL:
-		if attacker == defender:
-			# Self-heal
-			if not action_name.is_empty():
-				return "%s used %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), heal_amount]
-			else:
-				return "%s used an item - Recovered %d HP!" % [attacker_name, heal_amount]
-		else:
-			# Heal other
-			if not action_name.is_empty():
-				return "%s used %s on %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), defender_name, heal_amount]
-			else:
-				return "%s healed %s - Recovered %d HP!" % [attacker_name, defender_name, heal_amount]
+		return _format_heal_text(attacker_name, defender_name, is_self_target, has_action, upper_action, "used", "used an item")
 
 	if phase_type == PhaseType.SPELL_HEAL:
-		if attacker == defender:
-			# Self-heal spell
-			if not action_name.is_empty():
-				return "%s cast %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), heal_amount]
-			else:
-				return "%s cast a healing spell - Recovered %d HP!" % [attacker_name, heal_amount]
-		else:
-			# Heal other spell
-			if not action_name.is_empty():
-				return "%s cast %s on %s - Recovered %d HP!" % [attacker_name, action_name.to_upper(), defender_name, heal_amount]
-			else:
-				return "%s healed %s - Recovered %d HP!" % [attacker_name, defender_name, heal_amount]
+		return _format_heal_text(attacker_name, defender_name, is_self_target, has_action, upper_action, "cast", "cast a healing spell")
 
 	# Handle status effect phases
 	if phase_type == PhaseType.SPELL_STATUS:
 		if was_resisted:
-			if not action_name.is_empty():
-				return "%s cast %s on %s - Resisted!" % [attacker_name, action_name.to_upper(), defender_name]
-			else:
-				return "%s's spell was resisted by %s!" % [attacker_name, defender_name]
-		else:
-			if not action_name.is_empty():
-				return "%s cast %s on %s - %s!" % [attacker_name, action_name.to_upper(), defender_name, status_effect_name.capitalize()]
-			else:
-				return "%s inflicted %s on %s!" % [attacker_name, status_effect_name.capitalize(), defender_name]
+			if has_action:
+				return "%s cast %s on %s - Resisted!" % [attacker_name, upper_action, defender_name]
+			return "%s's spell was resisted by %s!" % [attacker_name, defender_name]
+		if has_action:
+			return "%s cast %s on %s - %s!" % [attacker_name, upper_action, defender_name, status_effect_name.capitalize()]
+		return "%s inflicted %s on %s!" % [attacker_name, status_effect_name.capitalize(), defender_name]
 
 	# Handle misses based on phase type
 	if was_miss:
-		match phase_type:
-			PhaseType.COUNTER_ATTACK:
-				return "%s's counter missed!" % attacker_name
-			PhaseType.DOUBLE_ATTACK:
-				return "%s's second attack missed!" % attacker_name
-			_:
-				return "%s missed!" % attacker_name
+		if phase_type == PhaseType.COUNTER_ATTACK:
+			return "%s's counter missed!" % attacker_name
+		if phase_type == PhaseType.DOUBLE_ATTACK:
+			return "%s's second attack missed!" % attacker_name
+		return "%s missed!" % attacker_name
 
-	# Build damage string
-	var damage_str: String = "%d damage" % damage
-	if was_critical:
-		damage_str = "%d CRITICAL damage" % damage
+	# Build damage string for attack phases
+	var damage_str: String = "%d CRITICAL damage" % damage if was_critical else "%d damage" % damage
 
 	# Format based on phase type
-	match phase_type:
-		PhaseType.SPELL_ATTACK:
-			if not action_name.is_empty():
-				return "%s cast %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
-			else:
-				return "%s cast a spell for %s!" % [attacker_name, damage_str]
+	if phase_type == PhaseType.SPELL_ATTACK:
+		if has_action:
+			return "%s cast %s for %s!" % [attacker_name, upper_action, damage_str]
+		return "%s cast a spell for %s!" % [attacker_name, damage_str]
 
-		PhaseType.DOUBLE_ATTACK:
-			if not action_name.is_empty():
-				return "%s struck again with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
-			else:
-				return "%s struck again for %s!" % [attacker_name, damage_str]
+	if phase_type == PhaseType.DOUBLE_ATTACK:
+		if has_action:
+			return "%s struck again with %s for %s!" % [attacker_name, upper_action, damage_str]
+		return "%s struck again for %s!" % [attacker_name, damage_str]
 
-		PhaseType.COUNTER_ATTACK:
-			if not action_name.is_empty():
-				return "%s countered with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
-			else:
-				return "%s countered for %s!" % [attacker_name, damage_str]
+	if phase_type == PhaseType.COUNTER_ATTACK:
+		if has_action:
+			return "%s countered with %s for %s!" % [attacker_name, upper_action, damage_str]
+		return "%s countered for %s!" % [attacker_name, damage_str]
 
-		_:  # INITIAL_ATTACK or unknown
-			if not action_name.is_empty():
-				return "%s hit with %s for %s!" % [attacker_name, action_name.to_upper(), damage_str]
-			else:
-				return "%s hit for %s!" % [attacker_name, damage_str]
+	# INITIAL_ATTACK or unknown
+	if has_action:
+		return "%s hit with %s for %s!" % [attacker_name, upper_action, damage_str]
+	return "%s hit for %s!" % [attacker_name, damage_str]
+
+
+## Helper for formatting heal result text
+func _format_heal_text(attacker_name: String, defender_name: String, is_self: bool, has_action: bool, upper_action: String, verb: String, default_verb: String) -> String:
+	if is_self:
+		if has_action:
+			return "%s %s %s - Recovered %d HP!" % [attacker_name, verb, upper_action, heal_amount]
+		return "%s %s - Recovered %d HP!" % [attacker_name, default_verb, heal_amount]
+	if has_action:
+		return "%s %s %s on %s - Recovered %d HP!" % [attacker_name, verb, upper_action, defender_name, heal_amount]
+	return "%s healed %s - Recovered %d HP!" % [attacker_name, defender_name, heal_amount]
 
 
 ## Helper to safely get a unit's display name

@@ -140,29 +140,27 @@ extends Resource
 # ACCESSORS
 # =============================================================================
 
+const DEFAULT_BEHAVIOR: String = "aggressive"
+
+
 ## Get a threat weight value with fallback to default
 func get_threat_weight(key: String, default: float = 1.0) -> float:
 	var value: Variant = threat_weights.get(key, default)
 	if value is float:
 		return value
 	if value is int:
-		var int_val: int = value
-		return float(int_val)
+		return float(value as int)
 	return default
 
 
 ## Get the effective role, defaulting to "aggressive" if empty
 func get_effective_role() -> String:
-	if role.strip_edges().is_empty():
-		return "aggressive"
-	return role
+	return role if not role.strip_edges().is_empty() else DEFAULT_BEHAVIOR
 
 
 ## Get the effective behavior mode, defaulting to "aggressive" if empty
 func get_effective_mode() -> String:
-	if behavior_mode.strip_edges().is_empty():
-		return "aggressive"
-	return behavior_mode
+	return behavior_mode if not behavior_mode.strip_edges().is_empty() else DEFAULT_BEHAVIOR
 
 
 ## Check if retreat behavior is enabled
@@ -192,53 +190,48 @@ func evaluate_phase_changes(context: Dictionary) -> Dictionary:
 	return changes
 
 
+## Convert a variant to float (handles int/float)
+func _to_float(value: Variant) -> float:
+	if value is float:
+		return value
+	if value is int:
+		return float(value as int)
+	return 0.0
+
+
 ## Check if a single phase trigger is active
 func _is_phase_active(phase: Dictionary, context: Dictionary) -> bool:
 	var trigger: String = DictUtils.get_string(phase, "trigger", "")
 	var value: Variant = phase.get("value")
-	# Pre-convert value to numeric types for type safety
-	var value_float: float = 0.0
-	if value is float:
-		value_float = value
-	elif value is int:
-		var int_val: int = value
-		value_float = float(int_val)
-	elif value != null:
-		value_float = 0.0
+	var value_float: float = _to_float(value)
 	var value_int: int = int(value_float)
 	var value_str: String = str(value) if value != null else ""
 
 	match trigger:
 		"hp_below":
-			var hp_percent: float = DictUtils.get_float(context, "unit_hp_percent", 100.0)
-			return hp_percent < value_float
+			return DictUtils.get_float(context, "unit_hp_percent", 100.0) < value_float
 
 		"hp_above":
-			var hp_percent: float = DictUtils.get_float(context, "unit_hp_percent", 100.0)
-			return hp_percent > value_float
+			return DictUtils.get_float(context, "unit_hp_percent", 100.0) > value_float
 
 		"turn_count":
-			var turn: int = DictUtils.get_int(context, "turn_number", 0)
-			return turn >= value_int
+			return DictUtils.get_int(context, "turn_number", 0) >= value_int
 
 		"ally_died":
 			var dead_allies: Array = DictUtils.get_array(context, "dead_ally_ids", [])
 			return value_str in dead_allies
 
 		"ally_count_below":
-			var ally_count: int = DictUtils.get_int(context, "ally_count", 0)
-			return ally_count < value_int
+			return DictUtils.get_int(context, "ally_count", 0) < value_int
 
 		"enemy_count_below":
-			var enemy_count: int = DictUtils.get_int(context, "enemy_count", 0)
-			return enemy_count < value_int
+			return DictUtils.get_int(context, "enemy_count", 0) < value_int
 
 		"flag_set":
 			var flags: Dictionary = DictUtils.get_dict(context, "story_flags", {})
 			return value_str in flags
 
 		_:
-			# Unknown trigger - log warning and skip
 			if not trigger.is_empty():
 				push_warning("AIBehaviorData: Unknown phase trigger '%s'" % trigger)
 			return false

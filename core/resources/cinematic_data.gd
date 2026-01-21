@@ -71,73 +71,40 @@ enum CommandType {
 @export var condition_script: GDScript
 
 
+## Helper to create and append a command
+func _add_command(cmd_type: String, params: Dictionary, target: String = "") -> void:
+	var command: Dictionary = {"type": cmd_type, "params": params}
+	if not target.is_empty():
+		command["target"] = target
+	commands.append(command)
+
+
 ## Add a move entity command
 func add_move_entity(actor_id: String, path: Array[Variant], speed: float = 3.0, wait: bool = true) -> void:
-	var command: Dictionary = {
-		"type": "move_entity",
-		"target": actor_id,
-		"params": {
-			"path": path,
-			"speed": speed,
-			"wait": wait
-		}
-	}
-	commands.append(command)
+	_add_command("move_entity", {"path": path, "speed": speed, "wait": wait}, actor_id)
 
 
 ## Add a set facing command
 func add_set_facing(actor_id: String, direction: String) -> void:
-	var command: Dictionary = {
-		"type": "set_facing",
-		"target": actor_id,
-		"params": {
-			"direction": direction
-		}
-	}
-	commands.append(command)
+	_add_command("set_facing", {"direction": direction}, actor_id)
 
 
 ## Add a play animation command
 func add_play_animation(actor_id: String, animation: String, wait: bool = true) -> void:
-	var command: Dictionary = {
-		"type": "play_animation",
-		"target": actor_id,
-		"params": {
-			"animation": animation,
-			"wait": wait
-		}
-	}
-	commands.append(command)
+	_add_command("play_animation", {"animation": animation, "wait": wait}, actor_id)
 
 
 ## Add a show dialog command (loads from ModRegistry by ID)
 func add_show_dialog(dialogue_id: String) -> void:
-	var command: Dictionary = {
-		"type": "show_dialog",
-		"params": {
-			"dialogue_id": dialogue_id
-		}
-	}
-	commands.append(command)
+	_add_command("show_dialog", {"dialogue_id": dialogue_id})
 
 
 ## Add a single inline dialog line command
 ## Use this when you need to interleave dialog with other commands (camera shake, movement, etc.)
 ## Each call creates a separate dialog command that waits for player to advance.
 func add_dialog_line(speaker: String, text: String, emotion: String = "neutral") -> void:
-	var line: Dictionary = {
-		"speaker_name": speaker,
-		"text": text,
-		"emotion": emotion
-	}
-
-	var command: Dictionary = {
-		"type": "show_dialog",
-		"params": {
-			"lines": [line]
-		}
-	}
-	commands.append(command)
+	var line: Dictionary = {"speaker_name": speaker, "text": text, "emotion": emotion}
+	_add_command("show_dialog", {"lines": [line]})
 
 
 ## Add multiple inline dialog lines as a single dialog sequence
@@ -147,37 +114,17 @@ func add_inline_dialog(lines: Array[Dictionary]) -> void:
 	if lines.is_empty():
 		push_warning("CinematicData: add_inline_dialog called with empty lines array")
 		return
-
-	var command: Dictionary = {
-		"type": "show_dialog",
-		"params": {
-			"lines": lines
-		}
-	}
-	commands.append(command)
+	_add_command("show_dialog", {"lines": lines})
 
 
 ## Add a camera move command
 func add_camera_move(target_pos: Vector2, speed: float = 2.0, wait: bool = true) -> void:
-	var command: Dictionary = {
-		"type": "camera_move",
-		"params": {
-			"target_pos": target_pos,
-			"speed": speed,
-			"wait": wait
-		}
-	}
-	commands.append(command)
+	_add_command("camera_move", {"target_pos": target_pos, "speed": speed, "wait": wait})
 
 
 ## Add a camera follow command
 func add_camera_follow(actor_id: String) -> void:
-	var command: Dictionary = {
-		"type": "camera_follow",
-		"target": actor_id,
-		"params": {}
-	}
-	commands.append(command)
+	_add_command("camera_follow", {}, actor_id)
 
 
 ## Add a camera shake command for dramatic effect
@@ -186,39 +133,17 @@ func add_camera_follow(actor_id: String) -> void:
 ## frequency: Oscillation frequency (higher = faster shaking)
 ## wait: If true, cinematic waits for shake to complete before continuing
 func add_camera_shake(intensity: float = 6.0, duration: float = 0.5, frequency: float = 30.0, wait: bool = true) -> void:
-	var command: Dictionary = {
-		"type": "camera_shake",
-		"params": {
-			"intensity": intensity,
-			"duration": duration,
-			"frequency": frequency,
-			"wait": wait
-		}
-	}
-	commands.append(command)
+	_add_command("camera_shake", {"intensity": intensity, "duration": duration, "frequency": frequency, "wait": wait})
 
 
 ## Add a wait command
 func add_wait(duration: float) -> void:
-	var command: Dictionary = {
-		"type": "wait",
-		"params": {
-			"duration": duration
-		}
-	}
-	commands.append(command)
+	_add_command("wait", {"duration": duration})
 
 
 ## Add a fade screen command
 func add_fade_screen(fade_type: String, duration: float = 1.0) -> void:
-	var command: Dictionary = {
-		"type": "fade_screen",
-		"params": {
-			"fade_type": fade_type,  # "in" or "out"
-			"duration": duration
-		}
-	}
-	commands.append(command)
+	_add_command("fade_screen", {"fade_type": fade_type, "duration": duration})
 
 
 ## Add an actor to be spawned before commands execute
@@ -254,37 +179,18 @@ func add_actor(actor_id: String, position: Variant, facing: String = "down", cha
 ## Add a spawn entity command (spawns during command execution)
 ## For actors that should exist from the start, use add_actor() instead
 func add_spawn_entity(actor_id: String, position: Vector2, facing: String = "down") -> void:
-	var command: Dictionary = {
-		"type": "spawn_entity",
-		"params": {
-			"actor_id": actor_id,
-			"position": position,
-			"facing": facing
-		}
-	}
-	commands.append(command)
+	_add_command("spawn_entity", {"actor_id": actor_id, "position": position, "facing": facing})
 
 
 ## Add a despawn entity command
 func add_despawn_entity(actor_id: String) -> void:
-	var command: Dictionary = {
-		"type": "despawn_entity",
-		"target": actor_id,
-		"params": {}
-	}
-	commands.append(command)
+	_add_command("despawn_entity", {}, actor_id)
 
 
 ## Add an open shop command
 ## Opens a shop interface, pausing the cinematic until the player exits the shop
 func add_open_shop(shop_id: String) -> void:
-	var command: Dictionary = {
-		"type": "open_shop",
-		"params": {
-			"shop_id": shop_id
-		}
-	}
-	commands.append(command)
+	_add_command("open_shop", {"shop_id": shop_id})
 
 
 ## Add a character to the party (recruitment)
@@ -292,18 +198,10 @@ func add_open_shop(shop_id: String) -> void:
 ## @param to_active: If true, add to active party; if false, add to reserves
 ## @param recruitment_chapter: Optional chapter ID for tracking when they joined
 func add_party_member(character_id: String, to_active: bool = true, recruitment_chapter: String = "") -> void:
-	var params: Dictionary = {
-		"character_id": character_id,
-		"to_active": to_active
-	}
+	var params: Dictionary = {"character_id": character_id, "to_active": to_active}
 	if not recruitment_chapter.is_empty():
 		params["recruitment_chapter"] = recruitment_chapter
-
-	var command: Dictionary = {
-		"type": "add_party_member",
-		"params": params
-	}
-	commands.append(command)
+	_add_command("add_party_member", params)
 
 
 ## Remove a character from the party (departure, death, capture)
@@ -312,16 +210,12 @@ func add_party_member(character_id: String, to_active: bool = true, recruitment_
 ## @param mark_dead: If true, sets is_alive=false (permanent death)
 ## @param mark_unavailable: If true, sets is_available=false (temporary absence)
 func remove_party_member(character_id: String, reason: String = "left", mark_dead: bool = false, mark_unavailable: bool = false) -> void:
-	var command: Dictionary = {
-		"type": "remove_party_member",
-		"params": {
-			"character_id": character_id,
-			"reason": reason,
-			"mark_dead": mark_dead,
-			"mark_unavailable": mark_unavailable
-		}
-	}
-	commands.append(command)
+	_add_command("remove_party_member", {
+		"character_id": character_id,
+		"reason": reason,
+		"mark_dead": mark_dead,
+		"mark_unavailable": mark_unavailable
+	})
 
 
 ## Return a departed character to the party
@@ -329,15 +223,11 @@ func remove_party_member(character_id: String, reason: String = "left", mark_dea
 ## @param to_active: If true, add to active party; if false, add to reserves
 ## @param resurrect: If true, also sets is_alive=true (for previously dead characters)
 func rejoin_party_member(character_id: String, to_active: bool = true, resurrect: bool = false) -> void:
-	var command: Dictionary = {
-		"type": "rejoin_party_member",
-		"params": {
-			"character_id": character_id,
-			"to_active": to_active,
-			"resurrect": resurrect
-		}
-	}
-	commands.append(command)
+	_add_command("rejoin_party_member", {
+		"character_id": character_id,
+		"to_active": to_active,
+		"resurrect": resurrect
+	})
 
 
 ## Set a character's status flags (is_alive, is_available)
@@ -351,12 +241,7 @@ func set_character_status(character_id: String, is_alive: Variant = null, is_ava
 		params["is_alive"] = is_alive
 	if is_available != null:
 		params["is_available"] = is_available
-
-	var command: Dictionary = {
-		"type": "set_character_status",
-		"params": params
-	}
-	commands.append(command)
+	_add_command("set_character_status", params)
 
 
 ## Get a specific command by index
