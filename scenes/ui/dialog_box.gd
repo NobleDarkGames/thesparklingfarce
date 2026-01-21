@@ -106,10 +106,7 @@ func _input(event: InputEvent) -> void:
 
 ## Called when DialogManager changes line
 func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
-	# Cancel any existing fade animation
-	if fade_tween:
-		fade_tween.kill()
-		fade_tween = null
+	_cancel_fade_tween()
 
 	# IMMEDIATELY clear old text content to prevent ANY flash of previous content
 	# This must happen BEFORE any await operations (portrait animations, fade-in, etc.)
@@ -162,41 +159,38 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 
 
 ## Try to load portrait variant based on speaker name and emotion
-## Searches for portraits in pattern: {speaker}_{emotion}.png
-## Example: "max_happy.png", "anri_sad.png"
+## Searches for portraits in pattern: {speaker}_{emotion}.png, then {speaker}.png
 func _try_load_portrait_variant(speaker_name: String, emotion: String) -> Texture2D:
-	# Normalize speaker name (lowercase, remove spaces)
 	var normalized_speaker: String = speaker_name.to_lower().replace(" ", "_")
 	var normalized_emotion: String = emotion.to_lower()
 
-	# Search pattern: {speaker}_{emotion}.png
-	var portrait_filename: String = "%s_%s.png" % [normalized_speaker, normalized_emotion]
-
-	# Common portrait directories to search
-	var search_paths: Array[String] = [
-		"res://mods/_base_game/assets/portraits/%s" % portrait_filename,
-		"res://assets/portraits/%s" % portrait_filename,
+	# Try emotion-specific first, then fallback to just speaker name
+	var filenames: Array[String] = [
+		"%s_%s.png" % [normalized_speaker, normalized_emotion],
+		"%s.png" % normalized_speaker,
 	]
 
-	# Try each path
-	for path: String in search_paths:
+	for filename: String in filenames:
+		var portrait: Texture2D = _load_portrait_from_paths(filename)
+		if portrait:
+			return portrait
+
+	return null
+
+
+func _load_portrait_from_paths(filename: String) -> Texture2D:
+	var search_dirs: Array[String] = [
+		"res://mods/_base_game/assets/portraits/",
+		"res://assets/portraits/",
+	]
+
+	for dir: String in search_dirs:
+		var path: String = dir + filename
 		if ResourceLoader.exists(path):
 			var loaded: Resource = load(path)
-			var portrait: Texture2D = loaded if loaded is Texture2D else null
-			if portrait:
-				return portrait
+			if loaded is Texture2D:
+				return loaded as Texture2D
 
-	# Fallback: try without emotion (just speaker name)
-	var fallback_filename: String = "%s.png" % normalized_speaker
-	for path: String in search_paths:
-		var fallback_path: String = path.replace(portrait_filename, fallback_filename)
-		if ResourceLoader.exists(fallback_path):
-			var loaded_fallback: Resource = load(fallback_path)
-			var portrait: Texture2D = loaded_fallback if loaded_fallback is Texture2D else null
-			if portrait:
-				return portrait
-
-	# No portrait found
 	return null
 
 
@@ -244,10 +238,7 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 
 	# If dialog is still idle after delay, fade out
 	if DialogManager.current_state == DialogManager.State.IDLE:
-		# Cancel any existing fade
-		if fade_tween:
-			fade_tween.kill()
-			fade_tween = null
+		_cancel_fade_tween()
 
 		# Fade out dialog box
 		fade_tween = create_tween()
@@ -255,34 +246,31 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 		await fade_tween.finished
 		fade_tween = null
 
-		hide()
-		modulate.a = 0.0  # Keep at 0 when hidden to prevent flash on next show
+		_hide_and_clear()
 
-		# Clear ALL content after hiding to prevent stale content flash on next dialog
-		_clear_all_content()
-
-	# Always clean up UI elements
-	continue_indicator.hide()
-	blink_animation.stop()
-
-	# Reset state for next dialog
-	is_first_line = true
-	current_portrait = null
+	_reset_dialog_state()
 
 
 ## Called when dialog is cancelled (player backed out)
 func _on_dialog_cancelled() -> void:
-	# Cancel any existing fade
+	_cancel_fade_tween()
+	_hide_and_clear()
+	_reset_dialog_state()
+
+
+func _cancel_fade_tween() -> void:
 	if fade_tween:
 		fade_tween.kill()
 		fade_tween = null
 
-	# Hide immediately (no fade for cancel - feels more responsive)
+
+func _hide_and_clear() -> void:
 	hide()
 	modulate.a = 0.0
-
-	# Clear content and reset state
 	_clear_all_content()
+
+
+func _reset_dialog_state() -> void:
 	continue_indicator.hide()
 	blink_animation.stop()
 	is_first_line = true

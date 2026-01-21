@@ -44,6 +44,14 @@ const MENU_SLIDE_OFFSET: float = 30.0  # Pixels to slide from
 const SELECTION_PULSE_DURATION: float = 0.08
 const SELECTION_BRIGHTNESS_BOOST: Color = Color(1.3, 1.3, 1.0, 1.0)  # Bright flash
 
+## Key shortcuts: number keys 1-4 map to actions
+const KEY_SHORTCUTS: Dictionary = {
+	KEY_1: "Attack",
+	KEY_2: "Magic",
+	KEY_3: "Item",
+	KEY_4: "Stay",
+}
+
 ## Animation state
 var _slide_tween: Tween = null
 var _pulse_tween: Tween = null
@@ -240,31 +248,13 @@ func _input(event: InputEvent) -> void:
 		var key_event: InputEventKey = event
 		if not key_event.pressed:
 			return
-		match key_event.keycode:
-			KEY_1:
-				if "Attack" in available_actions:
-					_select_action_by_name("Attack")
-					_confirm_selection()
-				else:
-					_play_error_sound()
-			KEY_2:
-				if "Magic" in available_actions:
-					_select_action_by_name("Magic")
-					_confirm_selection()
-				else:
-					_play_error_sound()
-			KEY_3:
-				if "Item" in available_actions:
-					_select_action_by_name("Item")
-					_confirm_selection()
-				else:
-					_play_error_sound()
-			KEY_4:
-				if "Stay" in available_actions:
-					_select_action_by_name("Stay")
-					_confirm_selection()
-				else:
-					_play_error_sound()
+		var shortcut_action: String = _get_action_for_key(key_event.keycode)
+		if not shortcut_action.is_empty():
+			if shortcut_action in available_actions:
+				_select_action_by_name(shortcut_action)
+				_confirm_selection()
+			else:
+				_play_error_sound()
 
 
 ## Move selection up or down
@@ -297,27 +287,34 @@ func _select_action_by_name(action: String) -> void:
 			break
 
 
+## Get action name for a key shortcut, or empty string if not a shortcut
+func _get_action_for_key(keycode: Key) -> String:
+	if keycode in KEY_SHORTCUTS:
+		return KEY_SHORTCUTS[keycode]
+	return ""
+
+
 ## Update visual highlighting
 func _update_selection_visual() -> void:
 	for i: int in range(_item_labels.size()):
 		var label: Label = _item_labels[i]
-		var action: String = _item_actions[i]
+		var is_available: bool = _item_actions[i] in available_actions
+		var is_selected: bool = (i == selected_index) and is_available
+		var is_hovered: bool = (i == _hover_index) and is_available
 
-		if i == selected_index and action in available_actions:
-			# Selected item - bright yellow
-			label.modulate = COLOR_SELECTED
+		# Determine color based on state
+		var color: Color = COLOR_DISABLED
+		if is_selected:
+			color = COLOR_SELECTED
+		elif is_hovered:
+			color = COLOR_HOVER
+		elif is_available:
+			color = COLOR_NORMAL
+
+		label.modulate = color
+		if is_selected:
 			label.add_theme_color_override("font_color", COLOR_SELECTED)
-		elif i == _hover_index and action in available_actions:
-			# Hovered but not selected - subtle highlight
-			label.modulate = COLOR_HOVER
-			label.remove_theme_color_override("font_color")
-		elif action in available_actions:
-			# Available but not selected or hovered
-			label.modulate = COLOR_NORMAL
-			label.remove_theme_color_override("font_color")
 		else:
-			# Disabled
-			label.modulate = COLOR_DISABLED
 			label.remove_theme_color_override("font_color")
 
 

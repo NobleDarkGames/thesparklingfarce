@@ -112,6 +112,19 @@ func _input(event: InputEvent) -> void:
 # UI BUILDING
 # =============================================================================
 
+func _create_panel_style() -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = COLOR_PANEL_BG
+	style.border_color = COLOR_PANEL_BORDER
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	return style
+
+
 func _build_ui() -> void:
 	# Fill the screen so we can center the panel within
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -123,17 +136,7 @@ func _build_ui() -> void:
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_panel.custom_minimum_size = Vector2(160, 140)
-
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = COLOR_PANEL_BG
-	panel_style.border_color = COLOR_PANEL_BORDER
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(4)
-	panel_style.content_margin_left = 16
-	panel_style.content_margin_right = 16
-	panel_style.content_margin_top = 12
-	panel_style.content_margin_bottom = 12
-	_panel.add_theme_stylebox_override("panel", panel_style)
+	_panel.add_theme_stylebox_override("panel", _create_panel_style())
 	add_child(_panel)
 
 	# Content container
@@ -263,9 +266,7 @@ func show_menu() -> void:
 		tween.tween_property(_panel, "modulate:a", 1.0, 0.15).set_ease(Tween.EASE_OUT)
 		tween.tween_property(_panel, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
-	# Play open sound
-	if AudioManager:
-		AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
+	_play_sfx("menu_open")
 
 
 ## Hide the menu and deactivate input with smooth transition
@@ -309,45 +310,39 @@ func _move_selection(direction: int) -> void:
 	if new_index != _selected_index:
 		_selected_index = new_index
 		_update_selection_visual()
-
-		# Play cursor sound
-		if AudioManager:
-			AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
+		_play_sfx("cursor_move")
 
 
 func _update_selection_visual() -> void:
 	if _menu_options.is_empty():
 		return
 
-	for i: int in range(_option_labels.size()):
-		if i >= _menu_options.size():
-			break
-
+	for i: int in range(mini(_option_labels.size(), _menu_options.size())):
 		var label: Label = _option_labels[i]
-		var option: Dictionary = _menu_options[i]
-		var is_enabled: bool = option.get("enabled", true)
+		var is_enabled: bool = _menu_options[i].get("enabled", true)
+		var is_selected: bool = (i == _selected_index)
+		var cursor: Label = _get_cursor_for_row(i)
 
-		# Get cursor from row
-		var row: Node = _options_container.get_child(i)
-		var cursor_node: Node = row.get_child(0) if row.get_child_count() > 0 else null
-		var cursor: Label = cursor_node as Label if cursor_node is Label else null
+		# Update label color
+		var color: Color = COLOR_OPTION_DISABLED
+		if is_enabled:
+			color = COLOR_OPTION_SELECTED if is_selected else COLOR_OPTION_NORMAL
+		label.add_theme_color_override("font_color", color)
 
-		if not is_enabled:
-			label.add_theme_color_override("font_color", COLOR_OPTION_DISABLED)
-			if cursor:
-				cursor.visible = false
-		elif i == _selected_index:
-			label.add_theme_color_override("font_color", COLOR_OPTION_SELECTED)
-			if cursor:
-				cursor.visible = true
-		else:
-			label.add_theme_color_override("font_color", COLOR_OPTION_NORMAL)
-			if cursor:
-				cursor.visible = false
+		# Update cursor visibility
+		if cursor:
+			cursor.visible = is_enabled and is_selected
 
 	# Update description
 	if _selected_index < _menu_options.size():
 		_description_label.text = _menu_options[_selected_index].get("description", "")
+
+
+func _get_cursor_for_row(index: int) -> Label:
+	var row: Node = _options_container.get_child(index)
+	if row.get_child_count() > 0 and row.get_child(0) is Label:
+		return row.get_child(0) as Label
+	return null
 
 
 func _confirm_selection() -> void:
@@ -355,24 +350,19 @@ func _confirm_selection() -> void:
 		return
 
 	var option: Dictionary = _menu_options[_selected_index]
-	var option_id: String = option.get("id", "")
 	var is_enabled: bool = option.get("enabled", true)
-	var is_custom: bool = option.get("is_custom", false)
 
 	if not is_enabled:
-		# Play error sound
-		if AudioManager:
-			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
+		_play_sfx("error")
 		return
 
-	# Play confirm sound
-	if AudioManager:
-		AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+	_play_sfx("menu_select")
+
+	var option_id: String = option.get("id", "")
 
 	# Handle custom services from mods
-	if is_custom:
-		var scene_path: String = option.get("scene_path", "")
-		custom_service_requested.emit(option_id, scene_path)
+	if option.get("is_custom", false):
+		custom_service_requested.emit(option_id, option.get("scene_path", ""))
 		option_selected.emit(option_id)
 		return
 
@@ -391,11 +381,13 @@ func _confirm_selection() -> void:
 
 
 func _cancel() -> void:
-	# Play cancel sound
-	if AudioManager:
-		AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
-
+	_play_sfx("menu_cancel")
 	close_requested.emit()
+
+
+func _play_sfx(sfx_name: String) -> void:
+	if AudioManager:
+		AudioManager.play_sfx(sfx_name, AudioManager.SFXCategory.UI)
 
 
 ## Show a temporary message in the description area

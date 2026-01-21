@@ -140,29 +140,25 @@ func _create_item_labels(slot_count: int) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Track mouse hover for visual feedback
 	if not visible:
 		return
 
-	var mouse_pos: Vector2 = get_global_mouse_position()
-	var new_hover: int = -1
+	var new_hover: int = _get_label_index_at_position(get_global_mouse_position())
+	if new_hover == _hover_index:
+		return
 
+	_hover_index = new_hover
+	if new_hover != -1 and new_hover != selected_index:
+		AudioManager.play_sfx("cursor_hover", AudioManager.SFXCategory.UI)
+	_update_selection_visual()
+
+
+## Get the index of the label at the given position, or -1 if none
+func _get_label_index_at_position(pos: Vector2) -> int:
 	for i: int in range(_item_labels.size()):
-		var label: Label = _item_labels[i]
-		var label_rect: Rect2 = label.get_global_rect()
-		if label_rect.has_point(mouse_pos):
-			new_hover = i
-			break
-
-	# Update hover state if changed
-	if new_hover != _hover_index:
-		_hover_index = new_hover
-
-		# Play hover sound when entering a new valid item (not the selected one)
-		if new_hover != -1 and new_hover != selected_index:
-			AudioManager.play_sfx("cursor_hover", AudioManager.SFXCategory.UI)
-
-		_update_selection_visual()
+		if _item_labels[i].get_global_rect().has_point(pos):
+			return i
+	return -1
 
 
 ## Show menu with unit's inventory
@@ -310,29 +306,31 @@ func _select_smart_default(unit: Unit) -> void:
 func _update_selection_visual() -> void:
 	for i: int in range(_item_labels.size()):
 		var label: Label = _item_labels[i]
-		var is_usable: bool = _is_item_usable(i)
-		var is_empty: bool = i >= _item_data_cache.size() or _item_data_cache[i] == null
+		var color: Color = _get_item_color(i)
+		label.modulate = color
 
-		if i == selected_index and (is_usable or is_empty):
-			# Selected item - bright yellow
-			label.modulate = COLOR_SELECTED
-			label.add_theme_color_override("font_color", COLOR_SELECTED)
-		elif i == _hover_index and (is_usable or is_empty):
-			# Hovered but not selected - subtle highlight
-			label.modulate = COLOR_HOVER
-			label.remove_theme_color_override("font_color")
-		elif is_empty:
-			# Empty slot
-			label.modulate = COLOR_EMPTY
-			label.remove_theme_color_override("font_color")
-		elif is_usable:
-			# Usable item - bright white
-			label.modulate = COLOR_NORMAL
-			label.remove_theme_color_override("font_color")
+		if i == selected_index:
+			label.add_theme_color_override("font_color", color)
 		else:
-			# Non-usable item (equipment, key items) - grayed out
-			label.modulate = COLOR_DISABLED
 			label.remove_theme_color_override("font_color")
+
+
+## Get the display color for an item slot
+func _get_item_color(index: int) -> Color:
+	var is_usable: bool = _is_item_usable(index)
+	var is_empty: bool = index >= _item_data_cache.size() or _item_data_cache[index] == null
+	var is_selected: bool = index == selected_index
+	var is_hovered: bool = index == _hover_index
+
+	if is_selected and (is_usable or is_empty):
+		return COLOR_SELECTED
+	if is_hovered and (is_usable or is_empty):
+		return COLOR_HOVER
+	if is_empty:
+		return COLOR_EMPTY
+	if is_usable:
+		return COLOR_NORMAL
+	return COLOR_DISABLED
 
 
 ## Update description label based on selected item
@@ -342,43 +340,46 @@ func _update_description() -> void:
 		return
 
 	var item: ItemData = _item_data_cache[selected_index]
-	if item:
-		var desc: String = ""
-
-		# Start with base description
-		if not item.description.is_empty():
-			desc = item.description
-
-		# Add effect details for usable items (SF-authentic: show power)
-		if item.effect is AbilityData:
-			var ability: AbilityData = item.effect as AbilityData
-			var effect_text: String = ""
-			match ability.ability_type:
-				AbilityData.AbilityType.HEAL:
-					effect_text = "Heals: %d HP" % ability.potency
-				AbilityData.AbilityType.ATTACK:
-					effect_text = "Damage: %d" % ability.potency
-				AbilityData.AbilityType.SUPPORT:
-					effect_text = "Buff effect"
-				AbilityData.AbilityType.DEBUFF:
-					effect_text = "Debuff effect"
-
-			if not effect_text.is_empty():
-				if desc.is_empty():
-					desc = effect_text
-				else:
-					desc += "\n" + effect_text
-
-		# Fallback if no description
-		if desc.is_empty():
-			if _is_item_usable(selected_index):
-				desc = "Use in battle"
-			else:
-				desc = "Cannot use in battle"
-
-		_description_label.text = desc
-	else:
+	if not item:
 		_description_label.text = ""
+		return
+
+	_description_label.text = _build_item_description(item)
+
+
+## Build description text for an item
+func _build_item_description(item: ItemData) -> String:
+	var parts: Array[String] = []
+
+	if not item.description.is_empty():
+		parts.append(item.description)
+
+	var effect_text: String = _get_ability_effect_text(item.effect)
+	if not effect_text.is_empty():
+		parts.append(effect_text)
+
+	if parts.is_empty():
+		return "Use in battle" if _is_item_usable(selected_index) else "Cannot use in battle"
+
+	return "\n".join(parts)
+
+
+## Get effect text for an ability (used by item effects)
+func _get_ability_effect_text(effect: Resource) -> String:
+	if not effect is AbilityData:
+		return ""
+
+	var ability: AbilityData = effect as AbilityData
+	match ability.ability_type:
+		AbilityData.AbilityType.HEAL:
+			return "Heals: %d HP" % ability.potency
+		AbilityData.AbilityType.ATTACK:
+			return "Damage: %d" % ability.potency
+		AbilityData.AbilityType.SUPPORT:
+			return "Buff effect"
+		AbilityData.AbilityType.DEBUFF:
+			return "Debuff effect"
+	return ""
 
 
 ## Resize menu to fit contents
@@ -424,38 +425,44 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 
-	# Mouse click on menu items
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i: int in range(_item_labels.size()):
-				var label: Label = _item_labels[i]
-				var label_rect: Rect2 = label.get_global_rect()
-				if label_rect.has_point(mouse_pos):
-					selected_index = i
-					_update_selection_visual()
-					_update_description()
-					_try_confirm_selection()
-					get_viewport().set_input_as_handled()
-					return
+	if _handle_mouse_click(event):
+		return
 
-	# Navigate up
+	_handle_keyboard_input(event)
+
+
+## Handle mouse click input, returns true if handled
+func _handle_mouse_click(event: InputEvent) -> bool:
+	if not event is InputEventMouseButton:
+		return false
+
+	var mouse_event: InputEventMouseButton = event
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return false
+
+	var clicked_index: int = _get_label_index_at_position(get_global_mouse_position())
+	if clicked_index >= 0:
+		selected_index = clicked_index
+		_update_selection_visual()
+		_update_description()
+		_try_confirm_selection()
+		get_viewport().set_input_as_handled()
+		return true
+
+	return false
+
+
+## Handle keyboard navigation input
+func _handle_keyboard_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_up"):
 		_move_selection(-1)
 		get_viewport().set_input_as_handled()
-
-	# Navigate down
 	elif event.is_action_pressed("ui_down"):
 		_move_selection(1)
 		get_viewport().set_input_as_handled()
-
-	# Confirm selection
 	elif event.is_action_pressed("ui_accept"):
 		_try_confirm_selection()
 		get_viewport().set_input_as_handled()
-
-	# Cancel menu
 	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
 		_cancel_menu()
 		get_viewport().set_input_as_handled()

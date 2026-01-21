@@ -188,36 +188,28 @@ func _gather_unit_data() -> void:
 	_neutral_positions.clear()
 	_has_active_unit = false
 
+	if not BattleManager:
+		return
+
 	var active_unit: Unit = TurnManager.get_active_unit() if TurnManager else null
 
-	# Gather from BattleManager
-	if BattleManager:
-		for unit: Unit in BattleManager.player_units:
-			if unit and unit.is_alive():
-				var pos: Vector2 = Vector2(unit.grid_position)
-				if unit == active_unit:
-					_active_position = pos
-					_has_active_unit = true
-				else:
-					_player_positions.append(pos)
+	_gather_unit_positions(BattleManager.player_units, _player_positions, active_unit)
+	_gather_unit_positions(BattleManager.enemy_units, _enemy_positions, active_unit)
+	_gather_unit_positions(BattleManager.neutral_units, _neutral_positions, active_unit)
 
-		for unit: Unit in BattleManager.enemy_units:
-			if unit and unit.is_alive():
-				var pos: Vector2 = Vector2(unit.grid_position)
-				if unit == active_unit:
-					_active_position = pos
-					_has_active_unit = true
-				else:
-					_enemy_positions.append(pos)
 
-		for unit: Unit in BattleManager.neutral_units:
-			if unit and unit.is_alive():
-				var pos: Vector2 = Vector2(unit.grid_position)
-				if unit == active_unit:
-					_active_position = pos
-					_has_active_unit = true
-				else:
-					_neutral_positions.append(pos)
+## Gather positions from a unit array into a target positions array
+func _gather_unit_positions(units: Array, target: Array[Vector2], active_unit: Unit) -> void:
+	for unit: Unit in units:
+		if not unit or not unit.is_alive():
+			continue
+
+		var pos: Vector2 = Vector2(unit.grid_position)
+		if unit == active_unit:
+			_active_position = pos
+			_has_active_unit = true
+		else:
+			target.append(pos)
 
 
 ## Cache tile colors by sampling the tilemap texture
@@ -350,104 +342,78 @@ func _draw_map_background(map_rect: Rect2) -> void:
 
 
 func _draw_units(map_rect: Rect2) -> void:
-	var cell_width: float = map_rect.size.x / float(_grid_size.x) if _grid_size.x > 0 else 1.0
-	var cell_height: float = map_rect.size.y / float(_grid_size.y) if _grid_size.y > 0 else 1.0
+	var cell_size: Vector2 = _get_cell_size(map_rect)
 
-	# Helper to convert grid pos to screen pos
-	var grid_to_screen: Callable = func(grid_pos: Vector2) -> Vector2:
-		return Vector2(
-			map_rect.position.x + (grid_pos.x + 0.5) * cell_width,
-			map_rect.position.y + (grid_pos.y + 0.5) * cell_height
-		)
+	# Draw unit groups
+	_draw_unit_dots(_player_positions, COLOR_PLAYER, map_rect, cell_size)
+	_draw_unit_dots(_enemy_positions, COLOR_ENEMY, map_rect, cell_size)
+	_draw_unit_dots(_neutral_positions, COLOR_NEUTRAL, map_rect, cell_size)
 
-	# Draw player units
-	for pos: Vector2 in _player_positions:
-		var screen_pos: Vector2 = grid_to_screen.call(pos)
-		draw_circle(screen_pos, DOT_RADIUS, COLOR_PLAYER)
-
-	# Draw enemy units
-	for pos: Vector2 in _enemy_positions:
-		var screen_pos: Vector2 = grid_to_screen.call(pos)
-		draw_circle(screen_pos, DOT_RADIUS, COLOR_ENEMY)
-
-	# Draw neutral units
-	for pos: Vector2 in _neutral_positions:
-		var screen_pos: Vector2 = grid_to_screen.call(pos)
-		draw_circle(screen_pos, DOT_RADIUS, COLOR_NEUTRAL)
-
-	# Draw active unit (pulsing)
+	# Draw active unit with pulse effect
 	if _has_active_unit:
-		var screen_pos: Vector2 = grid_to_screen.call(_active_position)
-
-		# Pulse effect
+		var screen_pos: Vector2 = _grid_to_screen(_active_position, map_rect, cell_size)
 		var pulse: float = (sin(_pulse_time * TAU / PULSE_DURATION) + 1.0) / 2.0
 		var radius: float = DOT_RADIUS + (ACTIVE_DOT_RADIUS - DOT_RADIUS) * pulse
-		var color: Color = COLOR_ACTIVE.lightened(pulse * 0.3)
+		draw_circle(screen_pos, radius, COLOR_ACTIVE.lightened(pulse * 0.3))
 
-		draw_circle(screen_pos, radius, color)
+
+## Get cell size for the map rect
+func _get_cell_size(map_rect: Rect2) -> Vector2:
+	return Vector2(
+		map_rect.size.x / float(_grid_size.x) if _grid_size.x > 0 else 1.0,
+		map_rect.size.y / float(_grid_size.y) if _grid_size.y > 0 else 1.0
+	)
+
+
+## Convert grid position to screen position
+func _grid_to_screen(grid_pos: Vector2, map_rect: Rect2, cell_size: Vector2) -> Vector2:
+	return Vector2(
+		map_rect.position.x + (grid_pos.x + 0.5) * cell_size.x,
+		map_rect.position.y + (grid_pos.y + 0.5) * cell_size.y
+	)
+
+
+## Draw dots for a group of unit positions
+func _draw_unit_dots(positions: Array[Vector2], color: Color, map_rect: Rect2, cell_size: Vector2) -> void:
+	for pos: Vector2 in positions:
+		draw_circle(_grid_to_screen(pos, map_rect, cell_size), DOT_RADIUS, color)
+
+
+## Legend items: [color, label]
+const LEGEND_ITEMS: Array = [
+	[COLOR_PLAYER, "Ally"],
+	[COLOR_ENEMY, "Enemy"],
+	[COLOR_NEUTRAL, "Neutral"],
+	[COLOR_ACTIVE, "Active"],
+]
+const LEGEND_SPACING: float = 80.0
 
 
 func _draw_legend(screen_rect: Rect2) -> void:
 	var legend_y: float = screen_rect.size.y - MAP_PADDING - 10
-	var legend_x: float = MAP_PADDING
 
-	var items: Array[Dictionary] = [
-		{"color": COLOR_PLAYER, "label": "Ally"},
-		{"color": COLOR_ENEMY, "label": "Enemy"},
-		{"color": COLOR_NEUTRAL, "label": "Neutral"},
-		{"color": COLOR_ACTIVE, "label": "Active"},
-	]
+	for i: int in range(LEGEND_ITEMS.size()):
+		var x: float = MAP_PADDING + i * LEGEND_SPACING
+		var color: Color = LEGEND_ITEMS[i][0]
+		var label: String = LEGEND_ITEMS[i][1]
 
-	var spacing: float = 80.0
-
-	for i: int in range(items.size()):
-		var item: Dictionary = items[i]
-		var x: float = legend_x + i * spacing
-		var color: Color = item.get("color", Color.WHITE) as Color
-		var label: String = DictUtils.get_string(item, "label", "")
-
-		# Draw dot
 		draw_circle(Vector2(x, legend_y), 5.0, color)
+		draw_string(MONOGRAM_FONT, Vector2(x + 10, legend_y + 4), label,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Color.WHITE)
 
-		# Draw label
-		draw_string(
-			MONOGRAM_FONT,
-			Vector2(x + 10, legend_y + 4),
-			label,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			FONT_SIZE,
-			Color.WHITE
-		)
+
+const TITLE_FONT_SIZE: int = 24
+const INSTRUCTION_COLOR: Color = Color(0.6, 0.6, 0.6, 1.0)
 
 
 func _draw_title(screen_rect: Rect2) -> void:
-	var title: String = "TACTICAL MAP"
-	var title_pos: Vector2 = Vector2(screen_rect.size.x / 2.0, MAP_PADDING)
+	var center_x: float = screen_rect.size.x / 2.0
 
-	draw_string(
-		MONOGRAM_FONT,
-		title_pos,
-		title,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		-1,
-		24,  # Monogram requires multiples of 8
-		Color.WHITE
-	)
+	draw_string(MONOGRAM_FONT, Vector2(center_x, MAP_PADDING), "TACTICAL MAP",
+		HORIZONTAL_ALIGNMENT_CENTER, -1, TITLE_FONT_SIZE, Color.WHITE)
 
-	# Draw dismiss instruction
-	var instruction: String = "Press B or click to close"
-	var instruction_pos: Vector2 = Vector2(screen_rect.size.x / 2.0, screen_rect.size.y - 8)
-
-	draw_string(
-		MONOGRAM_FONT,
-		instruction_pos,
-		instruction,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		-1,
-		FONT_SIZE,  # Monogram requires multiples of 8 (16)
-		Color(0.6, 0.6, 0.6, 1.0)
-	)
+	draw_string(MONOGRAM_FONT, Vector2(center_x, screen_rect.size.y - 8),
+		"Press B or click to close", HORIZONTAL_ALIGNMENT_CENTER, -1, FONT_SIZE, INSTRUCTION_COLOR)
 
 
 # =============================================================================
@@ -458,22 +424,16 @@ func _input(event: InputEvent) -> void:
 	if not _is_active:
 		return
 
-	# Any mouse click closes overlay
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.pressed:
-			hide_overlay()
-			get_viewport().set_input_as_handled()
-			return
+	# Any interaction closes the overlay
+	var should_close: bool = false
 
-	# Cancel/B button closes overlay
-	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
+	if event is InputEventMouseButton and event.pressed:
+		should_close = true
+	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
+		should_close = true
+	elif event.is_action_pressed("ui_accept") or event.is_action_pressed("sf_confirm"):
+		should_close = true
+
+	if should_close:
 		hide_overlay()
 		get_viewport().set_input_as_handled()
-		return
-
-	# Accept also closes (just viewing)
-	if event.is_action_pressed("ui_accept") or event.is_action_pressed("sf_confirm"):
-		hide_overlay()
-		get_viewport().set_input_as_handled()
-		return

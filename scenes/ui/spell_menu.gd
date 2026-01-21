@@ -161,29 +161,25 @@ func _create_spell_labels(slot_count: int) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Track mouse hover for visual feedback
 	if not visible:
 		return
 
-	var mouse_pos: Vector2 = get_global_mouse_position()
-	var new_hover: int = -1
+	var new_hover: int = _get_label_index_at_position(get_global_mouse_position())
+	if new_hover == _hover_index:
+		return
 
+	_hover_index = new_hover
+	if new_hover != -1 and new_hover != selected_index:
+		AudioManager.play_sfx("cursor_hover", AudioManager.SFXCategory.UI)
+	_update_selection_visual()
+
+
+## Get the index of the label at the given position, or -1 if none
+func _get_label_index_at_position(pos: Vector2) -> int:
 	for i: int in range(_spell_labels.size()):
-		var label: Label = _spell_labels[i]
-		var label_rect: Rect2 = label.get_global_rect()
-		if label_rect.has_point(mouse_pos):
-			new_hover = i
-			break
-
-	# Update hover state if changed
-	if new_hover != _hover_index:
-		_hover_index = new_hover
-
-		# Play hover sound when entering a new valid spell (not the selected one)
-		if new_hover != -1 and new_hover != selected_index:
-			AudioManager.play_sfx("cursor_hover", AudioManager.SFXCategory.UI)
-
-		_update_selection_visual()
+		if _spell_labels[i].get_global_rect().has_point(pos):
+			return i
+	return -1
 
 
 ## Show menu with character's available spells
@@ -275,24 +271,24 @@ func _select_smart_default() -> void:
 func _update_selection_visual() -> void:
 	for i: int in range(_spell_labels.size()):
 		var label: Label = _spell_labels[i]
-		var is_castable: bool = _is_spell_castable(i)
+		var color: Color = _get_spell_color(i)
+		label.modulate = color
 
 		if i == selected_index:
-			# Selected spell - bright yellow
-			label.modulate = COLOR_SELECTED
-			label.add_theme_color_override("font_color", COLOR_SELECTED)
-		elif i == _hover_index:
-			# Hovered but not selected - subtle highlight
-			label.modulate = COLOR_HOVER
-			label.remove_theme_color_override("font_color")
-		elif is_castable:
-			# Castable spell - bright white
-			label.modulate = COLOR_NORMAL
-			label.remove_theme_color_override("font_color")
+			label.add_theme_color_override("font_color", color)
 		else:
-			# Not castable (insufficient MP) - grayed out
-			label.modulate = COLOR_DISABLED
 			label.remove_theme_color_override("font_color")
+
+
+## Get the display color for a spell slot
+func _get_spell_color(index: int) -> Color:
+	if index == selected_index:
+		return COLOR_SELECTED
+	if index == _hover_index:
+		return COLOR_HOVER
+	if _is_spell_castable(index):
+		return COLOR_NORMAL
+	return COLOR_DISABLED
 
 
 ## Update description label based on selected spell
@@ -302,42 +298,59 @@ func _update_description() -> void:
 		return
 
 	var ability: AbilityData = _abilities[selected_index]
-	if ability:
-		var desc: String = ""
-
-		# Start with effect description based on type
-		match ability.ability_type:
-			AbilityData.AbilityType.HEAL:
-				desc = "Heals: %d HP" % ability.potency
-			AbilityData.AbilityType.ATTACK:
-				desc = "Damage: %d" % ability.potency
-			AbilityData.AbilityType.SUPPORT:
-				desc = "Buff effect"
-			AbilityData.AbilityType.DEBUFF:
-				desc = "Debuff effect"
-			AbilityData.AbilityType.STATUS:
-				desc = "Status effect"
-			_:
-				desc = "Special effect"
-
-		# Add range info if not self-only
-		if ability.target_type != AbilityData.TargetType.SELF:
-			if ability.min_range == ability.max_range:
-				desc += " (Range: %d)" % ability.max_range
-			else:
-				desc += " (Range: %d-%d)" % [ability.min_range, ability.max_range]
-
-		# Add custom description if available
-		if not ability.description.is_empty():
-			desc += "\n" + ability.description
-
-		# Show warning if not castable
-		if not _is_spell_castable(selected_index):
-			desc += "\n[Not enough MP]"
-
-		_description_label.text = desc
-	else:
+	if not ability:
 		_description_label.text = ""
+		return
+
+	_description_label.text = _build_spell_description(ability)
+
+
+## Build description text for a spell
+func _build_spell_description(ability: AbilityData) -> String:
+	var parts: Array[String] = []
+
+	# Effect description based on type
+	parts.append(_get_ability_type_text(ability))
+
+	# Range info if not self-only
+	var range_text: String = _get_range_text(ability)
+	if not range_text.is_empty():
+		parts[0] += " " + range_text
+
+	# Custom description
+	if not ability.description.is_empty():
+		parts.append(ability.description)
+
+	# MP warning
+	if not _is_spell_castable(selected_index):
+		parts.append("[Not enough MP]")
+
+	return "\n".join(parts)
+
+
+## Get the effect text for an ability type
+func _get_ability_type_text(ability: AbilityData) -> String:
+	match ability.ability_type:
+		AbilityData.AbilityType.HEAL:
+			return "Heals: %d HP" % ability.potency
+		AbilityData.AbilityType.ATTACK:
+			return "Damage: %d" % ability.potency
+		AbilityData.AbilityType.SUPPORT:
+			return "Buff effect"
+		AbilityData.AbilityType.DEBUFF:
+			return "Debuff effect"
+		AbilityData.AbilityType.STATUS:
+			return "Status effect"
+	return "Special effect"
+
+
+## Get range text for an ability
+func _get_range_text(ability: AbilityData) -> String:
+	if ability.target_type == AbilityData.TargetType.SELF:
+		return ""
+	if ability.min_range == ability.max_range:
+		return "(Range: %d)" % ability.max_range
+	return "(Range: %d-%d)" % [ability.min_range, ability.max_range]
 
 
 ## Resize menu to fit contents
@@ -383,38 +396,44 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 
-	# Mouse click on menu items
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i: int in range(_spell_labels.size()):
-				var label: Label = _spell_labels[i]
-				var label_rect: Rect2 = label.get_global_rect()
-				if label_rect.has_point(mouse_pos):
-					selected_index = i
-					_update_selection_visual()
-					_update_description()
-					_try_confirm_selection()
-					get_viewport().set_input_as_handled()
-					return
+	if _handle_mouse_click(event):
+		return
 
-	# Navigate up
+	_handle_keyboard_input(event)
+
+
+## Handle mouse click input, returns true if handled
+func _handle_mouse_click(event: InputEvent) -> bool:
+	if not event is InputEventMouseButton:
+		return false
+
+	var mouse_event: InputEventMouseButton = event
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return false
+
+	var clicked_index: int = _get_label_index_at_position(get_global_mouse_position())
+	if clicked_index >= 0:
+		selected_index = clicked_index
+		_update_selection_visual()
+		_update_description()
+		_try_confirm_selection()
+		get_viewport().set_input_as_handled()
+		return true
+
+	return false
+
+
+## Handle keyboard navigation input
+func _handle_keyboard_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_up"):
 		_move_selection(-1)
 		get_viewport().set_input_as_handled()
-
-	# Navigate down
 	elif event.is_action_pressed("ui_down"):
 		_move_selection(1)
 		get_viewport().set_input_as_handled()
-
-	# Confirm selection
 	elif event.is_action_pressed("ui_accept"):
 		_try_confirm_selection()
 		get_viewport().set_input_as_handled()
-
-	# Cancel menu
 	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
 		_cancel_menu()
 		get_viewport().set_input_as_handled()
