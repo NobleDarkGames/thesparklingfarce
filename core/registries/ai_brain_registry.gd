@@ -58,6 +58,36 @@ var _brain_instances: Dictionary = {}
 var _lru_order: Array[String] = []
 
 # =============================================================================
+# INTERNAL HELPERS
+# =============================================================================
+
+## Get a field from a brain entry, with fallback
+func _get_brain_field(brain_id: String, field: String, fallback: String = "") -> String:
+	var lower: String = brain_id.to_lower()
+	if lower in _brains:
+		return _brains[lower].get(field, fallback)
+	return fallback
+
+
+## Remove an entry from the LRU cache
+func _remove_from_cache(brain_id: String) -> void:
+	if brain_id in _brain_instances:
+		_brain_instances.erase(brain_id)
+	var idx: int = _lru_order.find(brain_id)
+	if idx >= 0:
+		_lru_order.remove_at(idx)
+
+
+## Remove entries from a dictionary by mod_id, returns list of removed keys
+func _collect_entries_by_mod(entries: Dictionary, mod_id: String) -> Array[String]:
+	var to_remove: Array[String] = []
+	for entry_id: String in entries.keys():
+		if entries[entry_id].get("source_mod", "") == mod_id:
+			to_remove.append(entry_id)
+	return to_remove
+
+
+# =============================================================================
 # REGISTRATION API
 # =============================================================================
 
@@ -109,12 +139,8 @@ func _register_brain(mod_id: String, brain_id: String, data: Dictionary, mod_dir
 		"source_mod": mod_id
 	}
 
-	# Clear cached instance if overriding (also remove from LRU tracking)
-	if id_lower in _brain_instances:
-		_brain_instances.erase(id_lower)
-		var lru_idx: int = _lru_order.find(id_lower)
-		if lru_idx >= 0:
-			_lru_order.remove_at(lru_idx)
+	# Clear cached instance if overriding
+	_remove_from_cache(id_lower)
 
 
 ## Auto-discover AI brains from a mod's ai_brains/ directory
@@ -180,8 +206,7 @@ func get_all_brain_ids() -> Array[String]:
 func get_all_brains() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for brain_id: String in _brains.keys():
-		var entry: Dictionary = _brains[brain_id]
-		result.append(entry.duplicate())
+		result.append(_brains[brain_id].duplicate())
 	# Sort by display name for consistent UI ordering
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a.get("display_name", "") < b.get("display_name", "")
@@ -194,36 +219,24 @@ func get_all_brains() -> Array[Dictionary]:
 func get_brain(brain_id: String) -> Dictionary:
 	var lower: String = brain_id.to_lower()
 	if lower in _brains:
-		var entry: Dictionary = _brains[lower]
-		return entry.duplicate()
+		return _brains[lower].duplicate()
 	return {}
 
 
 ## Get the display name for a brain
 func get_display_name(brain_id: String) -> String:
-	var lower: String = brain_id.to_lower()
-	if lower in _brains:
-		var entry: Dictionary = _brains[lower]
-		return entry.get("display_name", brain_id.capitalize())
-	return brain_id.capitalize()
+	var result: String = _get_brain_field(brain_id, "display_name")
+	return result if not result.is_empty() else brain_id.capitalize()
 
 
 ## Get the description for a brain
 func get_description(brain_id: String) -> String:
-	var lower: String = brain_id.to_lower()
-	if lower in _brains:
-		var entry: Dictionary = _brains[lower]
-		return entry.get("description", "")
-	return ""
+	return _get_brain_field(brain_id, "description")
 
 
 ## Get the script path for a brain
 func get_brain_path(brain_id: String) -> String:
-	var lower: String = brain_id.to_lower()
-	if lower in _brains:
-		var entry: Dictionary = _brains[lower]
-		return entry.get("path", "")
-	return ""
+	return _get_brain_field(brain_id, "path")
 
 
 ## Check if a brain is registered
@@ -233,11 +246,7 @@ func has_brain(brain_id: String) -> bool:
 
 ## Get which mod provides a brain
 func get_source_mod(brain_id: String) -> String:
-	var lower: String = brain_id.to_lower()
-	if lower in _brains:
-		var entry: Dictionary = _brains[lower]
-		return entry.get("source_mod", "")
-	return ""
+	return _get_brain_field(brain_id, "source_mod")
 
 
 ## Get an instance of the AI brain Resource
@@ -316,26 +325,15 @@ func get_all_brain_instances() -> Array[Resource]:
 
 ## Unregister all brains from a specific mod
 func unregister_mod(mod_id: String) -> void:
-	var changed: bool = false
-	var to_remove: Array[String] = []
-	
-	for brain_id: String in _brains.keys():
-		var entry: Dictionary = _brains[brain_id]
-		if entry.get("source_mod", "") == mod_id:
-			to_remove.append(brain_id)
-	
+	var to_remove: Array[String] = _collect_entries_by_mod(_brains, mod_id)
+	if to_remove.is_empty():
+		return
+
 	for brain_id: String in to_remove:
 		_brains.erase(brain_id)
-		# Also clear cached instance
-		if brain_id in _brain_instances:
-			_brain_instances.erase(brain_id)
-			var lru_idx: int = _lru_order.find(brain_id)
-			if lru_idx >= 0:
-				_lru_order.remove_at(lru_idx)
-		changed = true
-	
-	if changed:
-		registrations_changed.emit()
+		_remove_from_cache(brain_id)
+
+	registrations_changed.emit()
 
 
 ## Clear all registrations (called on mod reload)

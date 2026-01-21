@@ -53,6 +53,41 @@ signal registrations_changed()
 var _tilesets: Dictionary = {}
 
 # =============================================================================
+# INTERNAL HELPERS
+# =============================================================================
+
+## Get a field from a tileset entry, with fallback
+func _get_tileset_field(tileset_id: String, field: String, fallback: String = "") -> String:
+	var lower: String = tileset_id.to_lower()
+	if lower in _tilesets:
+		return _tilesets[lower].get(field, fallback)
+	return fallback
+
+
+## Create a tileset entry dictionary
+func _make_tileset_entry(id: String, path: String, display_name: String, source_mod: String, description: String = "") -> Dictionary:
+	return {
+		"id": id,
+		"path": path,
+		"display_name": display_name,
+		"description": description,
+		"source_mod": source_mod,
+		"resource": null
+	}
+
+
+## Remove entries from a dictionary by mod_id, returns count removed
+func _remove_entries_by_mod(entries: Dictionary, mod_id: String) -> int:
+	var to_remove: Array[String] = []
+	for entry_id: String in entries.keys():
+		if entries[entry_id].get("source_mod", "") == mod_id:
+			to_remove.append(entry_id)
+	for entry_id: String in to_remove:
+		entries.erase(entry_id)
+	return to_remove.size()
+
+
+# =============================================================================
 # REGISTRATION API
 # =============================================================================
 
@@ -95,14 +130,13 @@ func _register_tileset(mod_id: String, tileset_id: String, data: Dictionary, mod
 			mod_id, tileset_id, existing.get("source_mod", "unknown")
 		])
 
-	_tilesets[id_lower] = {
-		"id": id_lower,
-		"path": full_path,
-		"display_name": str(data.get("display_name", tileset_id.capitalize())),
-		"description": str(data.get("description", "")),
-		"source_mod": mod_id,
-		"resource": null  # Lazy-loaded
-	}
+	_tilesets[id_lower] = _make_tileset_entry(
+		id_lower,
+		full_path,
+		str(data.get("display_name", tileset_id.capitalize())),
+		mod_id,
+		str(data.get("description", ""))
+	)
 
 
 ## Auto-discover tilesets from a mod's tilesets/ directory
@@ -123,30 +157,21 @@ func discover_from_directory(mod_id: String, mod_directory: String) -> int:
 
 	while file_name != "":
 		if not dir.current_is_dir():
-			# Strip .remap suffix when listing directories (for export builds)
-			var original_name: String = file_name
-			if file_name.ends_with(".remap"):
-				original_name = file_name.substr(0, file_name.length() - 6)
+			# Strip .remap suffix for export builds
+			var original_name: String = file_name.trim_suffix(".remap")
 
 			if original_name.ends_with(".tres"):
-				var full_path: String = tilesets_dir.path_join(original_name)
 				var tileset_id: String = original_name.get_basename().to_lower()
-
 				# Only register if not already declared in mod.json
 				if tileset_id not in _tilesets:
-					_tilesets[tileset_id] = {
-						"id": tileset_id,
-						"path": full_path,
-						"display_name": original_name.get_basename().capitalize(),
-						"description": "",
-						"source_mod": mod_id,
-						"resource": null
-					}
+					var full_path: String = tilesets_dir.path_join(original_name)
+					_tilesets[tileset_id] = _make_tileset_entry(
+						tileset_id,
+						full_path,
+						original_name.get_basename().capitalize(),
+						mod_id
+					)
 					count += 1
-				else:
-					# Update path if the mod is overriding (higher priority wins)
-					# This is handled by load order - later mods override earlier ones
-					pass
 
 		file_name = dir.get_next()
 
@@ -201,29 +226,18 @@ func get_tileset_info(tileset_id: String) -> Dictionary:
 
 ## Get the display name for a tileset
 func get_display_name(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("display_name", tileset_id.capitalize())
-	return tileset_id.capitalize()
+	var result: String = _get_tileset_field(tileset_id, "display_name")
+	return result if not result.is_empty() else tileset_id.capitalize()
 
 
 ## Get the description for a tileset
 func get_description(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("description", "")
-	return ""
+	return _get_tileset_field(tileset_id, "description")
 
 
 ## Get the path for a tileset
 func get_tileset_path(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("path", "")
-	return ""
+	return _get_tileset_field(tileset_id, "path")
 
 
 ## Check if a tileset is registered
@@ -233,11 +247,7 @@ func has_tileset(tileset_id: String) -> bool:
 
 ## Get which mod provides a tileset
 func get_source_mod(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("source_mod", "")
-	return ""
+	return _get_tileset_field(tileset_id, "source_mod")
 
 
 ## Get the TileSet resource (lazy-loaded)
@@ -302,19 +312,8 @@ func get_all_tileset_paths() -> Array[String]:
 
 ## Unregister all tilesets from a specific mod
 func unregister_mod(mod_id: String) -> void:
-	var changed: bool = false
-	var to_remove: Array[String] = []
-	
-	for tileset_id: String in _tilesets.keys():
-		var entry: Dictionary = _tilesets[tileset_id]
-		if entry.get("source_mod", "") == mod_id:
-			to_remove.append(tileset_id)
-	
-	for tileset_id: String in to_remove:
-		_tilesets.erase(tileset_id)
-		changed = true
-	
-	if changed:
+	var removed: int = _remove_entries_by_mod(_tilesets, mod_id)
+	if removed > 0:
 		registrations_changed.emit()
 
 

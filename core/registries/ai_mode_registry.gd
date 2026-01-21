@@ -57,6 +57,10 @@ const DEFAULT_MODES: Dictionary = {
 ## Registered modes from mods: {mode_id: {display_name, description, source_mod}}
 var _mod_modes: Dictionary = {}
 
+## Cached merged modes (defaults + mod overrides), invalidated on registration changes
+var _merged_cache: Dictionary = {}
+var _cache_valid: bool = false
+
 # =============================================================================
 # REGISTRATION API
 # =============================================================================
@@ -70,6 +74,7 @@ func register_from_config(mod_id: String, config: Dictionary) -> void:
 		if mode_data is Dictionary:
 			_register_mode(mod_id, mode_id, mode_data)
 
+	_invalidate_cache()
 	registrations_changed.emit()
 
 
@@ -100,25 +105,26 @@ func _register_mode(mod_id: String, mode_id: String, data: Dictionary) -> void:
 
 ## Unregister all modes from a mod (called when mod is unloaded)
 func unregister_mod(mod_id: String) -> void:
-	var changed: bool = false
 	var to_remove: Array[String] = []
-
 	for mode_id: String in _mod_modes.keys():
 		var mode_entry: Dictionary = _mod_modes[mode_id]
 		if mode_entry.get("source_mod") == mod_id:
 			to_remove.append(mode_id)
 
+	if to_remove.is_empty():
+		return
+
 	for mode_id: String in to_remove:
 		_mod_modes.erase(mode_id)
-		changed = true
 
-	if changed:
-		registrations_changed.emit()
+	_invalidate_cache()
+	registrations_changed.emit()
 
 
 ## Clear all mod registrations (called on full mod reload)
 func clear_mod_registrations() -> void:
 	_mod_modes.clear()
+	_invalidate_cache()
 	registrations_changed.emit()
 
 
@@ -154,38 +160,27 @@ func get_all_modes() -> Array[Dictionary]:
 ## Get a specific mode's metadata
 ## Returns empty dictionary if not found
 func get_mode(mode_id: String) -> Dictionary:
-	var all_modes: Dictionary = _get_merged_modes()
-	var lower: String = mode_id.to_lower()
-	if lower in all_modes:
-		var entry: Dictionary = all_modes[lower]
-		return entry.duplicate()
-	return {}
+	var entry: Dictionary = _get_mode_entry(mode_id)
+	return entry.duplicate() if not entry.is_empty() else {}
 
 
 ## Get the display name for a mode
 func get_display_name(mode_id: String) -> String:
-	var all_modes: Dictionary = _get_merged_modes()
-	var lower: String = mode_id.to_lower()
-	if lower in all_modes:
-		var entry: Dictionary = all_modes[lower]
+	var entry: Dictionary = _get_mode_entry(mode_id)
+	if not entry.is_empty():
 		return entry.get("display_name", mode_id.capitalize())
 	return mode_id.capitalize()
 
 
 ## Get the description for a mode
 func get_description(mode_id: String) -> String:
-	var all_modes: Dictionary = _get_merged_modes()
-	var lower: String = mode_id.to_lower()
-	if lower in all_modes:
-		var entry: Dictionary = all_modes[lower]
-		return entry.get("description", "")
-	return ""
+	var entry: Dictionary = _get_mode_entry(mode_id)
+	return entry.get("description", "")
 
 
 ## Check if a mode is valid
 func is_valid_mode(mode_id: String) -> bool:
-	var all_modes: Dictionary = _get_merged_modes()
-	return mode_id.to_lower() in all_modes
+	return not _get_mode_entry(mode_id).is_empty()
 
 
 ## Check if a mode is one of the built-in defaults
@@ -195,41 +190,50 @@ func is_default_mode(mode_id: String) -> bool:
 
 ## Get which mod registered a mode (or "base" for defaults)
 func get_mode_source(mode_id: String) -> String:
-	var lower: String = mode_id.to_lower()
-	if lower in DEFAULT_MODES and lower not in _mod_modes:
-		return "base"
-	if lower in _mod_modes:
-		var entry: Dictionary = _mod_modes[lower]
-		return entry.get("source_mod", "")
-	return ""
+	var entry: Dictionary = _get_mode_entry(mode_id)
+	return entry.get("source_mod", "")
 
 
 # =============================================================================
 # INTERNAL HELPERS
 # =============================================================================
 
-## Compute merged modes dictionary fresh (defaults + mod overrides)
-func _get_merged_modes() -> Dictionary:
-	var result: Dictionary = {}
+## Invalidate the merged modes cache
+func _invalidate_cache() -> void:
+	_cache_valid = false
+	_merged_cache.clear()
 
-	# Start with defaults
+
+## Get a mode entry by ID (returns empty dict if not found)
+func _get_mode_entry(mode_id: String) -> Dictionary:
+	var all_modes: Dictionary = _get_merged_modes()
+	var lower: String = mode_id.to_lower()
+	if lower in all_modes:
+		return all_modes[lower]
+	return {}
+
+
+## Get merged modes dictionary (defaults + mod overrides), using cache
+func _get_merged_modes() -> Dictionary:
+	if _cache_valid:
+		return _merged_cache
+
+	# Build defaults
 	for mode_id: String in DEFAULT_MODES.keys():
 		var mode_data: Dictionary = DEFAULT_MODES[mode_id]
-		var display_name: String = mode_data.get("display_name", "")
-		var description: String = mode_data.get("description", "")
-		result[mode_id] = {
+		_merged_cache[mode_id] = {
 			"id": mode_id,
-			"display_name": display_name,
-			"description": description,
+			"display_name": mode_data.get("display_name", ""),
+			"description": mode_data.get("description", ""),
 			"source_mod": "base"
 		}
 
 	# Add/override with mod modes
 	for mode_id: String in _mod_modes.keys():
-		var entry: Dictionary = _mod_modes[mode_id]
-		result[mode_id] = entry.duplicate()
+		_merged_cache[mode_id] = _mod_modes[mode_id].duplicate()
 
-	return result
+	_cache_valid = true
+	return _merged_cache
 
 
 # =============================================================================
