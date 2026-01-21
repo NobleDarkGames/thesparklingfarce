@@ -553,7 +553,7 @@ func _has_valid_conditional() -> bool:
 
 
 
-func _on_field_changed(_text: String) -> void:
+func _on_field_changed(_value: Variant = null) -> void:
 	if _updating_ui:
 		return
 	_update_preview()

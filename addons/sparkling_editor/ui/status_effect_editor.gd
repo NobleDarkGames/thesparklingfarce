@@ -546,7 +546,7 @@ func _update_action_modifier_chance_visibility() -> void:
 # SIGNAL HANDLERS
 # =============================================================================
 
-func _on_field_changed(_new_text: String = "") -> void:
+func _on_field_changed(_value: Variant = null) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()
