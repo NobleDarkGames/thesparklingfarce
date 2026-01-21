@@ -52,6 +52,9 @@ var grid_position: Vector2i = Vector2i.ZERO
 ## Reference to auto-created CinematicActor child
 var cinematic_actor: Node = null
 
+## Reference to interaction prompt indicator
+var _interaction_prompt: Control = null
+
 ## Signal emitted when interaction starts (before cinematic plays)
 signal interaction_started(npc: NPCNode, player: Node2D)
 
@@ -103,6 +106,9 @@ func _ready() -> void:
 	# Setup visual from npc_data if sprite not manually set
 	if not sprite:
 		sprite = _find_or_create_sprite()
+
+	# Create interaction prompt indicator ("!" bubble)
+	_create_interaction_prompt()
 
 	# Start ambient patrol if configured
 	if DEBUG_MODE:
@@ -197,6 +203,24 @@ func _create_cinematic_actor() -> void:
 
 	# CinematicActor will auto-register with CinematicsManager in its _ready()
 	add_child(cinematic_actor)
+
+
+## Create the interaction prompt indicator ("!" bubble)
+## Shows when player is adjacent and facing this NPC
+func _create_interaction_prompt() -> void:
+	_interaction_prompt = InteractionPrompt.new()
+	_interaction_prompt.name = "InteractionPrompt"
+	_interaction_prompt.prompt_symbol = "!"
+	# Only show prompt if NPC has interaction cinematics (not just ambient patrol)
+	_interaction_prompt.can_interact_callback = func() -> bool:
+		if not npc_data:
+			return false
+		return (
+			not npc_data.interaction_cinematic_id.is_empty() or
+			not npc_data.fallback_cinematic_id.is_empty() or
+			not npc_data.conditional_cinematics.is_empty()
+		)
+	add_child(_interaction_prompt)
 
 
 ## Find existing sprite or create one from npc_data

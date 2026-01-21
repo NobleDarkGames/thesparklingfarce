@@ -438,6 +438,7 @@ func _create_placeholder_sprite(unit: Unit) -> Control:
 	panel.add_child(vbox)
 
 	var initial: Label = Label.new()
+	initial.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	initial.text = unit.character_data.character_name.substr(0, 1).to_upper()
 	initial.add_theme_font_override("font", monogram_font)
 	initial.add_theme_font_size_override("font_size", 64)
@@ -448,6 +449,7 @@ func _create_placeholder_sprite(unit: Unit) -> Control:
 	vbox.add_child(initial)
 
 	var face: Label = Label.new()
+	face.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	face.text = ".-."
 	face.add_theme_font_override("font", monogram_font)
 	face.add_theme_font_size_override("font_size", 24)
@@ -533,6 +535,7 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	_apply_damage_at_impact(damage, target)
 
 	_flash_sprite(def_sprite, Color.RED, _get_duration(BASE_FLASH_DURATION))
+	_spawn_hit_particles(false)  # Normal hit particles
 	_show_damage_number(damage, false)
 
 	# Update defender HP bar
@@ -566,6 +569,7 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	_apply_damage_at_impact(damage, target)
 
 	_flash_sprite(def_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
+	_spawn_hit_particles(true)  # Critical hit particles (more dramatic)
 	_show_damage_number(damage, true)
 
 	var hp_tween: Tween = _get_pooled_tween()
@@ -690,6 +694,7 @@ func _show_heal_number(heal_amount: int) -> void:
 
 
 ## Show damage number with float animation
+## Uses brightness pop and horizontal drift for dynamic feel
 func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.text = str(damage)
 	damage_label.add_theme_font_override("font", monogram_font)
@@ -698,15 +703,47 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	damage_label.add_theme_constant_override("outline_size", 3)
 
+	var start_x: float = damage_label.position.x
 	var start_y: float = damage_label.position.y
 	damage_label.visible = true
-	damage_label.modulate.a = 1.0
 
-	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
+	# Brightness pop settings based on hit type
+	var bright_color: Color
+	var target_color: Color
+	var pop_duration: float
+	var horizontal_drift: float
+	var float_duration: float
+
+	if is_critical:
+		# Critical: golden flash, larger drift, longer float
+		bright_color = Color(2.0, 1.8, 0.5, 1.0)
+		target_color = Color(1.0, 1.0, 0.3, 1.0)
+		pop_duration = _get_duration(0.2)
+		horizontal_drift = randf_range(-15.0, 15.0)
+		float_duration = _get_duration(BASE_DAMAGE_FLOAT_DURATION * 1.2)
+	else:
+		# Normal: bright white flash, small drift
+		bright_color = Color(1.5, 1.5, 1.5, 1.0)
+		target_color = Color(1.0, 1.0, 1.0, 1.0)
+		pop_duration = _get_duration(0.15)
+		horizontal_drift = randf_range(-8.0, 8.0)
+		float_duration = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
+
+	# Start with bright modulate
+	damage_label.modulate = bright_color
+
 	var tween: Tween = _get_pooled_tween()
 	tween.set_parallel(true)
+
+	# Brightness pop: ease from bright to normal color
+	tween.tween_property(damage_label, "modulate", target_color, pop_duration).set_ease(Tween.EASE_OUT)
+
+	# Float up with horizontal drift
 	tween.tween_property(damage_label, "position:y", start_y - DAMAGE_FLOAT_DISTANCE, float_duration)
-	tween.tween_property(damage_label, "modulate:a", 0.0, float_duration)
+	tween.tween_property(damage_label, "position:x", start_x + horizontal_drift, float_duration)
+
+	# Fade out alpha (chain after pop completes to preserve brightness transition)
+	tween.chain().tween_property(damage_label, "modulate:a", 0.0, float_duration - pop_duration)
 
 
 ## Flash a sprite with a color
@@ -715,6 +752,81 @@ func _flash_sprite(sprite: Control, flash_color: Color, duration: float) -> void
 	sprite.modulate = flash_color
 	await get_tree().create_timer(duration).timeout
 	sprite.modulate = original_modulate
+
+
+## Create hit particle effect at defender position
+## is_critical: true for critical hits (more particles, yellow/orange), false for normal (fewer, white)
+func _spawn_hit_particles(is_critical: bool) -> void:
+	var def_sprite: Control = _get_defender_sprite()
+	if def_sprite == null:
+		return
+
+	var particles: CPUParticles2D = CPUParticles2D.new()
+
+	# Position at defender sprite center
+	var sprite_center: Vector2 = def_sprite.global_position + (def_sprite.size / 2.0)
+	particles.global_position = sprite_center
+
+	# One-shot burst - auto cleanup
+	particles.emitting = true
+	particles.one_shot = true
+	particles.explosiveness = 1.0  # All particles at once
+
+	# Particle count based on hit type
+	particles.amount = 10 if is_critical else 5
+
+	# Lifetime (short burst)
+	particles.lifetime = 0.3 if is_critical else 0.25
+
+	# Emission shape - small point source
+	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = 8.0
+
+	# Direction - burst outward in all directions
+	particles.direction = Vector2.ZERO
+	particles.spread = 180.0  # Full sphere
+
+	# Velocity - critical hits are more dramatic
+	particles.initial_velocity_min = 80.0 if is_critical else 50.0
+	particles.initial_velocity_max = 150.0 if is_critical else 100.0
+
+	# Gravity - slight downward pull
+	particles.gravity = Vector2(0, 100)
+
+	# Scale - small sparks that shrink
+	particles.scale_amount_min = 3.0 if is_critical else 2.0
+	particles.scale_amount_max = 5.0 if is_critical else 3.0
+	particles.scale_amount_curve = _create_spark_scale_curve()
+
+	# Color - white/yellow for normal, yellow/orange for critical
+	if is_critical:
+		var gradient: Gradient = Gradient.new()
+		gradient.set_color(0, Color(1.0, 1.0, 0.6, 1.0))  # Bright yellow
+		gradient.set_color(1, Color(1.0, 0.5, 0.0, 0.0))  # Orange fade out
+		particles.color_ramp = gradient
+	else:
+		var gradient: Gradient = Gradient.new()
+		gradient.set_color(0, Color(1.0, 1.0, 1.0, 1.0))  # White
+		gradient.set_color(1, Color(1.0, 1.0, 0.7, 0.0))  # Pale yellow fade out
+		particles.color_ramp = gradient
+
+	add_child(particles)
+
+	# Auto-cleanup after emission completes
+	var cleanup_timer: SceneTreeTimer = get_tree().create_timer(particles.lifetime + 0.1)
+	cleanup_timer.timeout.connect(func() -> void:
+		if is_instance_valid(particles):
+			particles.queue_free()
+	)
+
+
+## Create scale curve for spark particles (shrink over lifetime)
+func _create_spark_scale_curve() -> Curve:
+	var curve: Curve = Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))  # Full size at start
+	curve.add_point(Vector2(0.5, 0.6))  # Shrink
+	curve.add_point(Vector2(1.0, 0.0))  # Gone at end
+	return curve
 
 
 ## Screen shake effect
@@ -738,6 +850,7 @@ func _screen_shake() -> void:
 ## Uses slide-in + brightness flash (pixel-perfect, no scaling)
 func show_custom_banner(text: String, color: Color) -> void:
 	var banner_label: Label = Label.new()
+	banner_label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	banner_label.text = text
 	banner_label.add_theme_font_override("font", monogram_font)
 	banner_label.add_theme_font_size_override("font_size", 64)
@@ -986,6 +1099,7 @@ func _create_xp_panel() -> PanelContainer:
 
 	var label: RichTextLabel = RichTextLabel.new()
 	label.name = "XPLabel"
+	label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	label.bbcode_enabled = true
 	label.fit_content = true
 	label.scroll_active = false

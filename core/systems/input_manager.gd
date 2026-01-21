@@ -21,6 +21,19 @@
 ##   SELECTING_ITEM_TARGET -> EXECUTING | SELECTING_ACTION (cancel)
 ##   SELECTING_SPELL_TARGET -> EXECUTING | SELECTING_ACTION (cancel)
 ##   EXECUTING -> WAITING (turn ends via BattleManager)
+##
+## State Entry/Exit Handlers:
+##   Each state has an _on_enter_* handler that initializes state
+##   States with cleanup needs have _on_exit_* handlers:
+##     - _on_exit_direct_movement: Resets is_direct_moving flag
+##     - _on_exit_targeting: Clears attack targets, hides combat forecast
+##     - _on_exit_selecting_spell_target: Clears spell targets
+##     - _on_exit_selecting_item_target: Clears item targets
+##
+## Async Safety:
+##   After await operations, always validate:
+##   - is_instance_valid(active_unit) before accessing unit
+##   - current_state matches expected state before continuing
 extends Node
 
 # Note: FacingUtils, UnitUtils, InputManagerHelpers, GridCursor all have class_name
@@ -78,9 +91,8 @@ var _spell_valid_targets: Array[Vector2i] = []  # Valid target cells for spell t
 ## Attack targeting state
 var _attack_valid_targets: Array[Vector2i] = []  # Valid enemy target cells for attack targeting
 
-## Unified targeting context (used for attack/item/spell targeting)
-var _targeting_context: InputManagerHelpers.TargetingContext = null
-var _unified_valid_targets: Array[Vector2i] = []  # Valid targets for current targeting mode
+## Unified targeting - valid targets for current targeting mode
+var _unified_valid_targets: Array[Vector2i] = []
 
 ## References (set by battle scene or autoload setup)
 var camera: Camera2D = null
@@ -103,6 +115,11 @@ var path_visuals: Array[Node2D] = []
 var _input_delay: float = 0.0
 const INPUT_DELAY_INITIAL: float = 0.15  # Delay before repeat starts (SF2-responsive)
 const INPUT_DELAY_REPEAT: float = 0.08   # Delay between repeats (SF2-responsive)
+
+## Constants for magic numbers
+const DEFAULT_MOVEMENT_RANGE: int = 4    # Fallback when unit has no class
+const DEFAULT_MOVEMENT_TYPE: int = 0     # FOOT movement type
+const ACTION_MENU_OFFSET: Vector2 = Vector2(40, -20)  # Offset from unit position
 
 ## Direct movement tracking (SF2-style tile-by-tile control)
 var movement_path_taken: Array[Vector2i] = []  # Cells walked through in order
@@ -437,8 +454,8 @@ func start_player_turn(unit: Unit) -> void:
 	current_cursor_position = unit.grid_position
 
 	# Calculate walkable cells
-	var movement_range: int = 4  # Default fallback
-	var movement_type: int = 0   # Default: FOOT
+	var movement_range: int = DEFAULT_MOVEMENT_RANGE
+	var movement_type: int = DEFAULT_MOVEMENT_TYPE
 	var current_class: ClassData = unit.get_current_class()
 	if current_class:
 		movement_range = current_class.movement_range
@@ -469,12 +486,26 @@ func start_player_turn(unit: Unit) -> void:
 ## Change input state
 func set_state(new_state: InputState) -> void:
 	var old_state: InputState = current_state
-	current_state = new_state
 
 	# Warn on unexpected transition to WAITING
 	if new_state == InputState.WAITING and old_state == InputState.EXPLORING_MOVEMENT:
 		push_warning("InputManager: Unexpected transition from EXPLORING_MOVEMENT to WAITING!")
 
+	# Call exit handler for old state BEFORE changing state
+	match old_state:
+		InputState.DIRECT_MOVEMENT:
+			_on_exit_direct_movement()
+		InputState.TARGETING:
+			_on_exit_targeting()
+		InputState.SELECTING_SPELL_TARGET:
+			_on_exit_selecting_spell_target()
+		InputState.SELECTING_ITEM_TARGET:
+			_on_exit_selecting_item_target()
+
+	# Now change state
+	current_state = new_state
+
+	# Call enter handler for new state
 	match new_state:
 		InputState.WAITING:
 			_on_enter_waiting()
@@ -773,6 +804,38 @@ func _on_enter_executing() -> void:
 		combat_forecast_panel.hide_forecast()
 
 
+# =============================================================================
+# STATE EXIT HANDLERS
+# =============================================================================
+
+## Exit handler for DIRECT_MOVEMENT state - cleanup movement tracking
+func _on_exit_direct_movement() -> void:
+	# Reset animation blocking flag to prevent stuck state
+	is_direct_moving = false
+
+
+## Exit handler for TARGETING state - cleanup targeting UI
+func _on_exit_targeting() -> void:
+	# Clear attack targets cache
+	_attack_valid_targets.clear()
+
+	# Hide combat forecast
+	if combat_forecast_panel and combat_forecast_panel.has_method("hide_forecast"):
+		combat_forecast_panel.hide_forecast()
+
+
+## Exit handler for SELECTING_SPELL_TARGET state - cleanup spell targeting
+func _on_exit_selecting_spell_target() -> void:
+	# Clear spell targets cache (spell data cleared by cancel handler if needed)
+	_spell_valid_targets.clear()
+
+
+## Exit handler for SELECTING_ITEM_TARGET state - cleanup item targeting
+func _on_exit_selecting_item_target() -> void:
+	# Clear item targets cache (item data cleared by cancel handler if needed)
+	_item_valid_targets.clear()
+
+
 ## Handle continuous key presses (for cursor movement when held)
 func _process(delta: float) -> void:
 	# Don't process game input while debug console is open
@@ -837,6 +900,10 @@ func _input(event: InputEvent) -> void:
 
 ## Handle inspecting mode input (free cursor)
 func _handle_inspecting_input(event: InputEvent) -> void:
+	# Guard: Need active_unit for state transitions back to movement
+	if not is_instance_valid(active_unit):
+		return
+
 	var handled: bool = false
 
 	# Arrow keys move cursor freely (no restrictions)
@@ -876,6 +943,10 @@ func _handle_inspecting_input(event: InputEvent) -> void:
 
 ## Handle movement exploration input
 func _handle_movement_input(event: InputEvent) -> void:
+	# Guard: Need active_unit for movement operations
+	if not is_instance_valid(active_unit):
+		return
+
 	var handled: bool = false
 
 	# Mouse click to select destination
@@ -1212,7 +1283,7 @@ func _show_action_menu() -> void:
 		var viewport: Viewport = active_unit.get_viewport()
 		var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
 		# Offset to right of unit
-		action_menu.position = unit_screen_pos + Vector2(40, -20)
+		action_menu.position = unit_screen_pos + ACTION_MENU_OFFSET
 
 	# Show menu with available actions AND current session ID
 	# The session ID will be returned with any signals to prevent stale signals
@@ -1282,7 +1353,7 @@ func _show_item_menu() -> void:
 	var viewport: Viewport = active_unit.get_viewport()
 	var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
 	# Offset to right of unit
-	item_menu.position = unit_screen_pos + Vector2(40, -20)
+	item_menu.position = unit_screen_pos + ACTION_MENU_OFFSET
 
 
 ## Select action from menu
@@ -1488,6 +1559,10 @@ func _show_targeting_range() -> void:
 
 ## Handle targeting input
 func _handle_targeting_input(event: InputEvent) -> void:
+	# Guard: Need active_unit for targeting operations
+	if not is_instance_valid(active_unit):
+		return
+
 	var handled: bool = false
 
 	# Mouse click to select target
@@ -1755,6 +1830,11 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 
 	await step_tween.finished
 
+	# Guard: Validate state IMMEDIATELY after async operation, BEFORE accessing active_unit
+	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
+		is_direct_moving = false
+		return
+
 	# Emit cell_entered for terrain panel updates
 	if active_unit.has_signal("cell_entered"):
 		active_unit.cell_entered.emit(target_cell)
@@ -1763,18 +1843,13 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	if active_unit.has_method("_play_directional_animation"):
 		active_unit._play_directional_animation()
 
-	# Guard: Validate state after async operation
-	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
-		is_direct_moving = false
-		return
-
 	is_direct_moving = false
 
 	# Update visual feedback (remaining movement display)
 	_update_direct_movement_range()
 
 	# Update camera to follow unit
-	if camera and camera is CameraController:
+	if is_instance_valid(camera) and camera is CameraController:
 		(camera as CameraController).move_to_cell(target_cell)
 
 
@@ -1820,6 +1895,11 @@ func _undo_last_step() -> void:
 
 	await step_tween.finished
 
+	# Guard: Validate state IMMEDIATELY after async operation, BEFORE accessing active_unit
+	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
+		is_direct_moving = false
+		return
+
 	# Emit cell_entered for terrain panel updates
 	if active_unit.has_signal("cell_entered"):
 		active_unit.cell_entered.emit(previous_cell)
@@ -1828,23 +1908,22 @@ func _undo_last_step() -> void:
 	if active_unit.has_method("_play_directional_animation"):
 		active_unit._play_directional_animation()
 
-	# Guard: Validate state after async operation
-	if not is_instance_valid(active_unit) or current_state != InputState.DIRECT_MOVEMENT:
-		is_direct_moving = false
-		return
-
 	is_direct_moving = false
 
 	# Update visual feedback
 	_update_direct_movement_range()
 
 	# Update camera to follow unit
-	if camera and camera is CameraController:
+	if is_instance_valid(camera) and camera is CameraController:
 		(camera as CameraController).move_to_cell(previous_cell)
 
 
 ## Handle direct movement input (SF2-style)
 func _handle_direct_movement_input(event: InputEvent) -> void:
+	# Guard: Need active_unit for direct movement
+	if not is_instance_valid(active_unit):
+		return
+
 	var handled: bool = false
 
 	# Block all input during step animation
@@ -1900,6 +1979,10 @@ func _can_confirm_direct_position() -> bool:
 
 ## Handle input during item target selection
 func _handle_item_target_input(event: InputEvent) -> void:
+	# Guard: Need active_unit for item targeting
+	if not is_instance_valid(active_unit):
+		return
+
 	var handled: bool = false
 
 	# Mouse click to select target
@@ -2145,6 +2228,10 @@ func _show_spell_menu() -> void:
 
 ## Handle spell target selection input
 func _handle_spell_target_input(event: InputEvent) -> void:
+	# Guard: Need active_unit for spell targeting
+	if not is_instance_valid(active_unit):
+		return
+
 	var handled: bool = false
 
 	# Mouse click to select target

@@ -34,6 +34,9 @@ var sprite: Sprite2D = null
 ## Grid position (updated when placed or moved)
 var grid_position: Vector2i = Vector2i.ZERO
 
+## Reference to interaction prompt indicator
+var _interaction_prompt: Control = null
+
 ## Signal emitted BEFORE interaction processing begins (allows mods to cancel)
 ## Connect to this signal and set result["cancel"] = true to block the interaction
 ## Optionally set result["reason"] to show a custom message explaining why
@@ -68,6 +71,9 @@ func _ready() -> void:
 
 	# Setup visual from interactable_data
 	_setup_sprite()
+
+	# Create interaction prompt indicator ("?" bubble)
+	_create_interaction_prompt()
 
 
 func _notification(what: int) -> void:
@@ -124,6 +130,27 @@ func _setup_sprite() -> void:
 
 	# Update texture based on current state
 	_update_sprite_texture()
+
+
+## Create the interaction prompt indicator ("?" bubble)
+## Shows when player is adjacent, facing this object, and it can be interacted with
+func _create_interaction_prompt() -> void:
+	_interaction_prompt = InteractionPrompt.new()
+	_interaction_prompt.name = "InteractionPrompt"
+	_interaction_prompt.prompt_symbol = "?"
+	# Check if interactable can still be used (not already opened for one-shot)
+	_interaction_prompt.can_interact_callback = _can_show_prompt
+	add_child(_interaction_prompt)
+
+
+## Callback for interaction prompt - checks if we should show the prompt
+## Returns false for one-shot objects that have been opened
+func _can_show_prompt() -> bool:
+	if not interactable_data:
+		return false
+	# Use can_interact() which checks opened state, required flags, etc.
+	var check: Dictionary = interactable_data.can_interact()
+	return check.get("can_interact", false)
 
 
 ## Update sprite texture based on opened state
