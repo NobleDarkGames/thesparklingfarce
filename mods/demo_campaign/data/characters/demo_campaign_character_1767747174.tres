@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_mxged"]
 [ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres" id="2_t15sv"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_s7g4s"]
-[ext_resource type="Texture2D" uid="uid://cfnrkrw5b78e2" path="res://mods/demo_campaign/assets/sprites/map/archer_spritesheet.png" id="4_by0vw"]
+[ext_resource type="Texture2D" uid="uid://bngbcdqnpfivi" path="res://mods/demo_campaign/assets/sprites/map/archer_spritesheet.png" id="4_by0vw"]
 [ext_resource type="Resource" path="res://mods/demo_campaign/data/combat_animations/badguy_combat_anim.tres" id="5_combat"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5xqqv"]

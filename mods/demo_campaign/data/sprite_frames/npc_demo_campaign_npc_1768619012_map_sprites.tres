@@ -1,6 +1,6 @@
 [gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://bf7rfwwysuue3"]
 
-[ext_resource type="Texture2D" uid="uid://kmwwqvw0s53o" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic1(1).png" id="1_b61gf"]
+[ext_resource type="Texture2D" uid="uid://dt4dklpy1ar8v" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic1(1).png" id="1_b61gf"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_a5swx"]
 atlas = ExtResource("1_b61gf")

@@ -6,7 +6,7 @@
 [ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="4_spawn"]
 [ext_resource type="PackedScene" uid="uid://ds6el5acnlojt" path="res://core/components/map_trigger.tscn" id="5_86ayf"]
 [ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_du2nu"]
-[ext_resource type="Texture2D" uid="uid://fd8v2mvcjw4x" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="7_ig6fl"]
+[ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="7_ig6fl"]
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="8_1m5rn"]
 [ext_resource type="Resource" uid="uid://cj7mluuuqsoax" path="res://mods/demo_campaign/data/npcs/demo_campaign_npc_1768418565.tres" id="9_1m5rn"]
 [ext_resource type="Script" uid="uid://i5nu3buy36ri" path="res://core/components/interactable_node.gd" id="9_ig6fl"]
@@ -61,8 +61,8 @@ destination_scene = "uid://cic5vl64gxyim"
 spawn_point = "from_mudford"
 
 [node name="KurtTrigger" parent="." instance=ExtResource("5_86ayf")]
-position = Vector2(175, 571)
-scale = Vector2(4.6400003, 0.4377502)
+position = Vector2(175, 566)
+scale = Vector2(4.6400003, 0.55775505)
 trigger_type = 4
 trigger_id = "unlock_kurt"
 cinematic_id = "meet_kurt"
