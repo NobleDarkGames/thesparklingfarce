@@ -361,7 +361,7 @@ func _add_identity_section() -> void:
 	is_default_check = form.add_standalone_checkbox(
 		"Default Configuration (used when starting a new game)", false,
 		"Only one config per mod should be marked as default")
-	is_default_check.toggled.connect(_on_default_toggled)
+	is_default_check.toggled.connect(_on_field_changed)
 
 	form.add_separator()
 
@@ -432,7 +432,7 @@ func _add_caravan_section() -> void:
 
 	caravan_unlocked_check = form.add_standalone_checkbox("Caravan Unlocked at Start", false,
 		"If checked, the Caravan is available from the beginning. In SF2, the Caravan is acquired early in the game.")
-	caravan_unlocked_check.toggled.connect(_on_caravan_toggled)
+	caravan_unlocked_check.toggled.connect(_on_field_changed)
 
 	form.add_help_text("Controls whether the Caravan (party storage, shops access) is available. Uncheck for authentic SF2 experience where the Caravan is unlocked through story progression.")
 	form.add_separator()
@@ -470,12 +470,6 @@ func _add_story_flags_section() -> void:
 	detail_panel.add_child(add_flag_button)
 
 	SparklingEditorUtils.add_separator(detail_panel)
-
-
-# =============================================================================
-# RESOURCE LOADING
-# =============================================================================
-
 
 
 # =============================================================================
@@ -556,43 +550,19 @@ func _update_party_preview(is_auto: bool) -> void:
 	for child: Node in party_preview_container.get_children():
 		child.queue_free()
 
-	var members: Array = []
+	# Get member names (already formatted with [Hero] prefix)
+	var member_names: Array = []
 	var preview_title: String = ""
 
 	if is_auto:
-		# Get the auto-detected party from ModLoader
-		if ModLoader:
-			var default_party: Array = ModLoader.get_default_party()
-			for character: Resource in default_party:
-				if character and "character_name" in character:
-					var is_hero: bool = character.is_hero if "is_hero" in character else false
-					members.append({
-						"name": character.character_name,
-						"is_hero": is_hero
-					})
+		member_names = _get_auto_detected_party_members()
 		preview_title = "Auto-detected Party:"
 	else:
-		# Get the selected party template - query registry directly
-		var party_id: String = _get_selected_party_id()
-		if not party_id.is_empty() and ModLoader and ModLoader.registry:
-			var party_data: PartyData = ModLoader.registry.get_party(party_id)
-			if party_data:
-				# PartyData has member_ids array
-				if "member_ids" in party_data:
-					for member_id: String in party_data.member_ids:
-						var char_data: CharacterData = ModLoader.registry.get_character(member_id)
-						if char_data and "character_name" in char_data:
-							var is_hero: bool = char_data.is_hero if "is_hero" in char_data else false
-							members.append({
-								"name": char_data.character_name,
-								"is_hero": is_hero
-							})
-						else:
-							members.append({"name": member_id, "is_hero": false})
+		member_names = _get_party_template_members(_get_selected_party_id())
 		preview_title = "Party Template Members:"
 
 	# Build preview UI
-	if members.is_empty():
+	if member_names.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "No party members found"
 		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_warning_color())
@@ -607,20 +577,18 @@ func _update_party_preview(is_auto: bool) -> void:
 		var members_hbox: HBoxContainer = HBoxContainer.new()
 		members_hbox.add_theme_constant_override("separation", 10)
 
-		for i: int in range(members.size()):
-			var member: Dictionary = members[i]
+		for i: int in range(member_names.size()):
+			var name: String = member_names[i]
+			var is_hero: bool = name.begins_with("[Hero]")
 			var member_label: Label = Label.new()
-			var prefix: String = "[Hero] " if member.is_hero else ""
-			member_label.text = prefix + member.name
-			if member.is_hero:
-				member_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))  # Gold for hero
-			else:
-				member_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+			member_label.text = name
+			member_label.add_theme_color_override("font_color",
+				Color(1.0, 0.9, 0.4) if is_hero else SparklingEditorUtils.get_help_color())
 			member_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 			members_hbox.add_child(member_label)
 
 			# Add separator between members (except last)
-			if i < members.size() - 1:
+			if i < member_names.size() - 1:
 				var sep: Label = Label.new()
 				sep.text = "|"
 				sep.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
@@ -646,7 +614,7 @@ func _add_depot_item_ui(item_id: String) -> void:
 	item_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_populate_item_dropdown(item_option)
 	_select_item_in_dropdown(item_option, item_id)
-	item_option.item_selected.connect(_on_depot_item_selected)
+	item_option.item_selected.connect(_on_field_changed)
 	item_hbox.add_child(item_option)
 
 	var remove_button: Button = Button.new()
@@ -763,7 +731,7 @@ func _add_story_flag_ui(flag_name: String, flag_value: bool) -> void:
 	var value_check: CheckBox = CheckBox.new()
 	value_check.text = "true"
 	value_check.button_pressed = flag_value
-	value_check.toggled.connect(_on_flag_toggled)
+	value_check.toggled.connect(_on_field_changed)
 	flag_hbox.add_child(value_check)
 
 	var remove_button: Button = Button.new()
@@ -802,48 +770,16 @@ func _clear_story_flags_ui() -> void:
 # EVENT HANDLERS (for dirty tracking)
 # =============================================================================
 
+## Shared dirty-tracking handler for most field changes
 func _on_field_changed(_new_value: Variant = null) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
+	if not _updating_ui:
+		_mark_dirty()
 
 
-func _on_spin_changed(_new_value: float) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_default_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
+## Party selection needs additional logic for updating help text
 func _on_party_selected(index: int) -> void:
-	var is_auto: bool = (index <= 0)
-	_update_party_help(is_auto)
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_depot_item_selected(_index: int) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_flag_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_caravan_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
+	_update_party_help(index <= 0)
+	_on_field_changed()
 
 
 # =============================================================================
@@ -1090,41 +1026,37 @@ func _get_active_default_config() -> NewGameConfigData:
 	return ModLoader.registry.get_new_game_config(active_default_config_id)
 
 
+## Format character name with hero prefix if applicable
+func _format_member_name(char_name: String, is_hero: bool) -> String:
+	return "[Hero] " + char_name if is_hero else char_name
+
+
 ## Get auto-detected party member names
 func _get_auto_detected_party_members() -> Array:
-	var members: Array = []
-
 	if not ModLoader:
-		return members
+		return []
 
-	var default_party: Array = ModLoader.get_default_party()
-	for character: Resource in default_party:
+	var members: Array = []
+	for character: Resource in ModLoader.get_default_party():
 		if character and "character_name" in character:
-			var name: String = character.character_name
-			if "is_hero" in character and character.is_hero:
-				name = "[Hero] " + name
-			members.append(name)
-
+			var is_hero: bool = character.is_hero if "is_hero" in character else false
+			members.append(_format_member_name(character.character_name, is_hero))
 	return members
 
 
 ## Get party template member names
 func _get_party_template_members(party_id: String) -> Array:
-	var members: Array = []
-
 	if not ModLoader or not ModLoader.registry:
-		return members
+		return []
 
 	var party_data: PartyData = ModLoader.registry.get_party(party_id)
 	if not party_data:
-		return members
+		return []
+
+	var members: Array = []
 	for member_dict: Dictionary in party_data.members:
 		if "character" in member_dict and member_dict.character:
 			var char_data: CharacterData = member_dict.character as CharacterData
 			if char_data:
-				var name: String = char_data.character_name
-				if char_data.is_hero:
-					name = "[Hero] " + name
-				members.append(name)
-
+				members.append(_format_member_name(char_data.character_name, char_data.is_hero))
 	return members

@@ -733,32 +733,19 @@ func _on_create_new() -> void:
 	if err == OK:
 		# Update resource_id properties to match filename for registry consistency
 		_sync_resource_id_to_filename(new_resource, full_path)
-		
+
 		# Force Godot to rescan filesystem and reload the resource
 		EditorInterface.get_resource_filesystem().scan()
-		# Wait a frame for the scan to complete, then refresh
 		await get_tree().process_frame
-		# Safety check: node may have been freed during await
 		if not is_instance_valid(self) or not is_inside_tree():
 			return
 		_refresh_list()
 
-		# Register with ModLoader.registry so it's immediately available in pickers
-		var resource_id: String = full_path.get_file().get_basename()
-		if ModLoader and ModLoader.registry:
-			ModLoader.registry.register_resource(new_resource, resource_type_id, resource_id, active_mod_id)
-
-		# Notify other editors AFTER filesystem scan so resource is available
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
+		# Register and notify
+		_register_and_notify_resource(new_resource, full_path, active_mod_id, true)
 
 		# Auto-select the newly created resource
-		for i: int in range(resource_list.item_count):
-			if resource_list.get_item_metadata(i) == full_path:
-				resource_list.select(i)
-				_on_resource_selected(i)
-				break
+		_select_resource_by_path(full_path)
 	else:
 		push_error("Failed to create " + resource_type_name.to_lower() + ": " + str(err))
 
@@ -828,27 +815,15 @@ func _on_duplicate_resource() -> void:
 		# Refresh and select the new resource
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
-		# Safety check: node may have been freed during await
 		if not is_instance_valid(self) or not is_inside_tree():
 			return
 		_refresh_list()
 
-		# Register with ModLoader.registry so it's immediately available in pickers
-		var resource_id: String = full_path.get_file().get_basename()
-		if ModLoader and ModLoader.registry:
-			ModLoader.registry.register_resource(new_resource, resource_type_id, resource_id, active_mod_id)
-
-		# Notify other editors AFTER filesystem scan so resource is available
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
+		# Register and notify
+		_register_and_notify_resource(new_resource, full_path, active_mod_id, true)
 
 		# Select the newly created resource
-		for i: int in range(resource_list.item_count):
-			if resource_list.get_item_metadata(i) == full_path:
-				resource_list.select(i)
-				_on_resource_selected(i)
-				break
+		_select_resource_by_path(full_path)
 
 		_show_success_message("Duplicated '%s' successfully!" % original_name)
 	else:
@@ -1135,27 +1110,15 @@ func _on_copy_to_mod() -> void:
 		# Refresh and select the new resource
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
-		# Safety check: node may have been freed during await
 		if not is_instance_valid(self) or not is_inside_tree():
 			return
 		_refresh_list()
 
-		# Register with ModLoader.registry so it's immediately available in pickers
-		var resource_id: String = full_path.get_file().get_basename()
-		if ModLoader and ModLoader.registry:
-			ModLoader.registry.register_resource(new_resource, resource_type_id, resource_id, active_mod.mod_id)
-
-		# Notify other editors AFTER filesystem scan so resource is available
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, full_path, new_resource)
+		# Register and notify
+		_register_and_notify_resource(new_resource, full_path, active_mod.mod_id, true)
 
 		# Select the newly created resource
-		for i: int in range(resource_list.item_count):
-			if resource_list.get_item_metadata(i) == full_path:
-				resource_list.select(i)
-				_on_resource_selected(i)
-				break
+		_select_resource_by_path(full_path)
 
 		_hide_errors()
 	else:
@@ -1240,7 +1203,6 @@ func _perform_create_override(override_path: String) -> void:
 		# Refresh and select the override
 		EditorInterface.get_resource_filesystem().scan()
 		await get_tree().process_frame
-		# Safety check: node may have been freed during await
 		if not is_instance_valid(self) or not is_inside_tree():
 			_operation_in_progress = false
 			return
@@ -1250,22 +1212,11 @@ func _perform_create_override(override_path: String) -> void:
 		var active_mod: ModManifest = ModLoader.get_active_mod() if ModLoader else null
 		var active_mod_id: String = active_mod.mod_id if active_mod else ""
 
-		# Register with ModLoader.registry so it's immediately available in pickers
-		var resource_id: String = override_path.get_file().get_basename()
-		if ModLoader and ModLoader.registry:
-			ModLoader.registry.register_resource(override_resource, resource_type_id, resource_id, active_mod_id)
-
-		# Notify other editors AFTER filesystem scan so resource is available
-		var event_bus: Node = get_node_or_null("/root/EditorEventBus")
-		if event_bus:
-			event_bus.notify_resource_created(resource_type_id, override_path, override_resource)
+		# Register and notify
+		_register_and_notify_resource(override_resource, override_path, active_mod_id, true)
 
 		# Select the override
-		for i: int in range(resource_list.item_count):
-			if resource_list.get_item_metadata(i) == override_path:
-				resource_list.select(i)
-				_on_resource_selected(i)
-				break
+		_select_resource_by_path(override_path)
 
 		_hide_errors()
 	else:
@@ -1409,6 +1360,82 @@ func _show_info_message(title: String, message: String) -> void:
 		error_panel.add_theme_stylebox_override("panel", info_style)
 
 	error_panel.show()
+
+
+# =============================================================================
+# Resource List Selection Helpers
+# =============================================================================
+
+## Select a resource in the list by its file path
+## Returns true if the resource was found and selected
+func _select_resource_by_path(path: String) -> bool:
+	for i: int in range(resource_list.item_count):
+		if resource_list.get_item_metadata(i) == path:
+			resource_list.select(i)
+			_on_resource_selected(i)
+			return true
+	return false
+
+
+## Register a resource with ModLoader and notify other editors
+## Call after saving/creating a resource successfully
+func _register_and_notify_resource(resource: Resource, path: String, mod_id: String, is_new: bool = false) -> void:
+	var resource_id: String = path.get_file().get_basename()
+
+	# Register with ModLoader.registry
+	if ModLoader and ModLoader.registry:
+		ModLoader.registry.register_resource(resource, resource_type_id, resource_id, mod_id)
+
+	# Notify other editors
+	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	if event_bus:
+		if is_new:
+			event_bus.notify_resource_created(resource_type_id, path, resource)
+		else:
+			event_bus.notify_resource_saved(resource_type_id, path, resource)
+
+
+# =============================================================================
+# Resource Picker Dialog Helper
+# =============================================================================
+
+## Show a resource picker dialog and call the callback with the selected resource
+## @param title: Dialog title
+## @param picker_type: Resource type for the picker (e.g., "item", "ability")
+## @param label_text: Label text for the picker
+## @param on_selected: Callback with signature func(resource: Resource) -> void
+func _show_resource_picker_dialog(title: String, picker_type: String, label_text: String, on_selected: Callable) -> void:
+	var dialog: AcceptDialog = AcceptDialog.new()
+	dialog.title = title
+	dialog.min_size = Vector2(400, 100)
+
+	var picker: ResourcePicker = ResourcePicker.new()
+	picker.resource_type = picker_type
+	picker.label_text = label_text
+	picker.label_min_width = 60
+	picker.allow_none = false
+	dialog.add_child(picker)
+
+	dialog.set_meta("picker", picker)
+	dialog.set_meta("callback", on_selected)
+
+	dialog.confirmed.connect(_on_picker_dialog_confirmed.bind(dialog))
+	dialog.canceled.connect(dialog.queue_free)
+
+	EditorInterface.popup_dialog_centered(dialog)
+
+
+## Internal: Handle confirmation of resource picker dialog
+func _on_picker_dialog_confirmed(dialog: AcceptDialog) -> void:
+	var picker: ResourcePicker = dialog.get_meta("picker") as ResourcePicker
+	var callback: Callable = dialog.get_meta("callback") as Callable
+
+	if picker and picker.has_selection() and callback.is_valid():
+		var resource: Resource = picker.get_selected_resource()
+		if resource:
+			callback.call(resource)
+
+	dialog.queue_free()
 
 
 # =============================================================================
@@ -1740,6 +1767,13 @@ func _mark_dirty() -> void:
 	if _is_loading:
 		return
 	is_dirty = true
+
+
+## Signal handler for fields that should mark dirty when changed
+## Use this as a direct signal connection: field.text_changed.connect(_on_field_changed)
+## Accepts any parameter signature since it ignores the value
+func _on_field_changed(_value: Variant = null) -> void:
+	_mark_dirty()
 
 
 ## Clear the dirty flag (typically after saving)

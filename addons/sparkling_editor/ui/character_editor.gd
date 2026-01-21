@@ -73,8 +73,7 @@ var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 # Filter buttons (will be created by _setup_filter_buttons)
 var filter_buttons: Dictionary = {}  # {category: Button}
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
+# Note: Uses _is_loading from base class to prevent signal feedback loops during UI updates
 
 
 func _ready() -> void:
@@ -166,8 +165,6 @@ func _load_resource_data() -> void:
 	if not character:
 		return
 
-	_updating_ui = true
-
 	name_edit.text = character.character_name
 	uid_edit.text = character.character_uid
 	level_spin.value = character.starting_level
@@ -233,8 +230,6 @@ func _load_resource_data() -> void:
 
 	# Load AI threat configuration
 	_load_ai_threat_configuration(character)
-
-	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -431,7 +426,7 @@ func _add_basic_info_section() -> void:
 	class_picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
 	class_picker.allow_none = true
 	class_picker.tooltip_text = "Determines stat growth, abilities, and equippable weapon types. E.g., Warrior, Mage, Archer."
-	class_picker.resource_selected.connect(_on_class_picker_selected)
+	class_picker.resource_selected.connect(_on_field_changed)
 	form.container.add_child(class_picker)
 
 	level_spin = form.add_number_field("Starting Level:", 1, 99, 1,
@@ -478,7 +473,7 @@ func _add_battle_configuration_section() -> void:
 	var categories: Array[String] = _get_unit_categories_from_registry()
 	for i: int in range(categories.size()):
 		category_option.add_item(categories[i], i)
-	category_option.item_selected.connect(_on_basic_field_changed)
+	category_option.item_selected.connect(_on_field_changed)
 	form.add_labeled_control("Unit Category:", category_option,
 		"Determines AI allegiance: player = controllable ally, enemy = hostile AI, boss = high-priority enemy, neutral = non-combatant.")
 
@@ -497,7 +492,7 @@ func _add_battle_configuration_section() -> void:
 	# Default AI Behavior - need to populate dynamically
 	default_ai_option = OptionButton.new()
 	default_ai_option.tooltip_text = "AI behavior when this character is an enemy. E.g., Aggressive rushes, Cautious stays back, Healer prioritizes allies."
-	default_ai_option.item_selected.connect(_on_basic_field_changed)
+	default_ai_option.item_selected.connect(_on_field_changed)
 	form.add_labeled_control("Default AI:", default_ai_option,
 		"AI behavior when this character is an enemy. E.g., Aggressive rushes, Cautious stays back, Healer prioritizes allies.")
 
@@ -633,16 +628,12 @@ func _add_ai_threat_configuration_section() -> void:
 
 func _on_threat_modifier_changed(value: float) -> void:
 	ai_threat_modifier_value_label.text = "%.1f" % value
-	if _updating_ui:
-		return
 	_mark_dirty()
 
 
 func _on_threat_modifier_preset(value: float) -> void:
 	ai_threat_modifier_slider.value = value
 	ai_threat_modifier_value_label.text = "%.1f" % value
-	if _updating_ui:
-		return
 	_mark_dirty()
 
 
@@ -1106,45 +1097,21 @@ func _save_inventory_to_character(character: CharacterData) -> void:
 
 ## Handle Add Item button press - opens a ResourcePicker dialog
 func _on_inventory_add_pressed() -> void:
-	# Create a popup dialog with a ResourcePicker
-	var dialog: AcceptDialog = AcceptDialog.new()
-	dialog.title = "Add Inventory Item"
-	dialog.min_size = Vector2(400, 100)
-
-	var picker: ResourcePicker = ResourcePicker.new()
-	picker.resource_type = "item"
-	picker.label_text = "Item:"
-	picker.label_min_width = 60
-	picker.allow_none = false
-
-	dialog.add_child(picker)
-
-	# Store reference for the confirmation callback
-	dialog.set_meta("picker", picker)
-
-	dialog.confirmed.connect(_on_inventory_add_confirmed.bind(dialog))
-	dialog.canceled.connect(dialog.queue_free)
-
-	# Add to editor and show
-	EditorInterface.popup_dialog_centered(dialog)
+	_show_resource_picker_dialog("Add Inventory Item", "item", "Item:", _on_inventory_item_selected)
 
 
-## Handle confirmation of adding an inventory item
-func _on_inventory_add_confirmed(dialog: AcceptDialog) -> void:
-	var picker_val: Variant = dialog.get_meta("picker")
-	var picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-	if picker and picker.has_selection():
-		var item_val: Resource = picker.get_selected_resource()
-		var item: ItemData = item_val if item_val is ItemData else null
-		if item:
-			# Extract item_id from resource path (filename without extension)
-			var item_id: String = item.resource_path.get_file().get_basename()
-			if item_id not in _current_inventory_items:
-				_current_inventory_items.append(item_id)
-				_refresh_inventory_list_display()
-				_mark_dirty()
+## Handle selection of an inventory item from the dialog
+func _on_inventory_item_selected(resource: Resource) -> void:
+	var item: ItemData = resource as ItemData
+	if not item:
+		return
 
-	dialog.queue_free()
+	# Extract item_id from resource path (filename without extension)
+	var item_id: String = item.resource_path.get_file().get_basename()
+	if item_id not in _current_inventory_items:
+		_current_inventory_items.append(item_id)
+		_refresh_inventory_list_display()
+		_mark_dirty()
 
 
 ## Handle removing an item from the inventory list
@@ -1264,22 +1231,8 @@ func _generate_sprite_frames_path(character: CharacterData) -> String:
 
 
 # =============================================================================
-# BASIC FIELD SIGNAL HANDLERS
+# SIGNAL HANDLERS
 # =============================================================================
-
-## Called when any basic form field changes to mark the editor as dirty
-func _on_basic_field_changed(_value: Variant = null) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-## Called when the class picker selection changes
-func _on_class_picker_selected(_metadata: Dictionary) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
 
 ## Called when the UID copy button is pressed
 func _on_uid_copy_pressed() -> void:
@@ -1292,37 +1245,24 @@ func _on_uid_copy_pressed() -> void:
 		uid_copy_btn.text = original_text
 
 
-# =============================================================================
-# APPEARANCE SIGNAL HANDLERS
-# =============================================================================
-
+## Appearance signal handlers - delegate to _mark_dirty via _on_field_changed
 func _on_portrait_selected(_path: String, _texture: Texture2D) -> void:
-	if _updating_ui:
-		return
 	_mark_dirty()
 
 
 func _on_portrait_cleared() -> void:
-	if _updating_ui:
-		return
 	_mark_dirty()
 
 
 func _on_spritesheet_selected(_path: String, _texture: Texture2D) -> void:
-	if _updating_ui:
-		return
 	_mark_dirty()
 
 
 func _on_spritesheet_cleared() -> void:
-	if _updating_ui:
-		return
 	_mark_dirty()
 
 
 func _on_sprite_frames_generated(sprite_frames: SpriteFrames) -> void:
-	if _updating_ui:
-		return
 	_mark_dirty()
 	if sprite_frames:
 		_show_success_message("SpriteFrames generated successfully")
@@ -1420,42 +1360,12 @@ func _save_unique_abilities(character: CharacterData) -> void:
 
 ## Handle Add Unique Ability button press - opens a ResourcePicker dialog
 func _on_add_unique_ability() -> void:
-	# Create a popup dialog with a ResourcePicker
-	var dialog: AcceptDialog = AcceptDialog.new()
-	dialog.title = "Add Unique Ability"
-	dialog.min_size = Vector2(400, 100)
-
-	var picker: ResourcePicker = ResourcePicker.new()
-	picker.resource_type = "ability"
-	picker.label_text = "Ability:"
-	picker.label_min_width = 60
-	picker.allow_none = false
-
-	dialog.add_child(picker)
-
-	# Store reference for the confirmation callback
-	dialog.set_meta("picker", picker)
-
-	dialog.confirmed.connect(_on_add_unique_ability_confirmed.bind(dialog))
-	dialog.canceled.connect(dialog.queue_free)
-
-	# Add to editor and show
-	EditorInterface.popup_dialog_centered(dialog)
+	_show_resource_picker_dialog("Add Unique Ability", "ability", "Ability:", _on_unique_ability_selected)
 
 
-## Handle confirmation of adding a unique ability
-func _on_add_unique_ability_confirmed(dialog: AcceptDialog) -> void:
-	if not dialog.has_meta("picker"):
-		dialog.queue_free()
-		return
-	var picker: ResourcePicker = dialog.get_meta("picker") as ResourcePicker
-	if not picker:
-		dialog.queue_free()
-		return
-
-	var ability: AbilityData = picker.get_selected_resource() as AbilityData
-	dialog.queue_free()
-
+## Handle selection of a unique ability from the dialog
+func _on_unique_ability_selected(resource: Resource) -> void:
+	var ability: AbilityData = resource as AbilityData
 	if not ability:
 		return
 

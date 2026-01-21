@@ -11,6 +11,51 @@ extends JsonEditorBase
 const DialogLinePopupScript = preload("res://addons/sparkling_editor/ui/components/dialog_line_popup.gd")
 const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
 
+# =============================================================================
+# UI CONSTANTS
+# =============================================================================
+
+## Label width for inspector fields
+const INSPECTOR_LABEL_WIDTH: int = 130
+
+## Label width for actor detail fields
+const ACTOR_LABEL_WIDTH: int = 70
+
+## Minimum width for file list panel
+const FILE_LIST_MIN_WIDTH: int = 200
+
+## Minimum width for command list panel
+const COMMAND_LIST_MIN_WIDTH: int = 280
+
+## Minimum width for inspector panel
+const INSPECTOR_MIN_WIDTH: int = 320
+
+## Command type colors for visual distinction in command list
+const COMMAND_COLORS: Dictionary = {
+	"dialog": Color(0.4, 0.8, 0.4),       # Green - dialog commands
+	"movement": Color(0.4, 0.6, 1.0),     # Blue - movement commands
+	"camera": Color(0.9, 0.7, 0.3),       # Orange - camera commands
+	"timing": Color(0.7, 0.5, 0.9),       # Purple - timing commands
+	"audio": Color(0.3, 0.8, 0.8),        # Cyan - audio commands
+	"entity": Color(0.8, 0.4, 0.4),       # Red - entity commands
+	"variable": Color(0.6, 0.6, 0.6),     # Gray - variable commands
+	"default": Color(1.0, 1.0, 1.0)       # White - unknown commands
+}
+
+## Facing direction options
+const FACING_OPTIONS: Array[String] = ["down", "up", "left", "right"]
+
+## Entity type options with metadata
+const ENTITY_TYPES: Array[Dictionary] = [
+	{"label": "Character", "value": "character"},
+	{"label": "Interactable", "value": "interactable"},
+	{"label": "NPC", "value": "npc"},
+	{"label": "Virtual (Off-Screen)", "value": "virtual"}
+]
+
+## Available actions for show_choice command
+const CHOICE_ACTIONS: Array[String] = ["none", "battle", "set_flag", "cinematic", "set_variable", "shop"]
+
 # Widget context for the new widget system
 var _widget_context: EditorWidgetContext
 
@@ -156,7 +201,7 @@ func _setup_ui() -> void:
 
 func _setup_file_list_panel(parent: HSplitContainer) -> void:
 	var left_panel: VBoxContainer = VBoxContainer.new()
-	left_panel.custom_minimum_size.x = 200
+	left_panel.custom_minimum_size.x = FILE_LIST_MIN_WIDTH
 	left_panel.add_theme_constant_override("separation", 4)
 	parent.add_child(left_panel)
 
@@ -202,7 +247,7 @@ func _setup_file_list_panel(parent: HSplitContainer) -> void:
 
 func _setup_command_list_panel(parent: HSplitContainer) -> void:
 	var center_panel: VBoxContainer = VBoxContainer.new()
-	center_panel.custom_minimum_size.x = 280
+	center_panel.custom_minimum_size.x = COMMAND_LIST_MIN_WIDTH
 	center_panel.add_theme_constant_override("separation", 4)
 	parent.add_child(center_panel)
 
@@ -364,7 +409,7 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 
 func _setup_inspector_panel(parent: HSplitContainer) -> void:
 	var right_panel: VBoxContainer = VBoxContainer.new()
-	right_panel.custom_minimum_size.x = 320
+	right_panel.custom_minimum_size.x = INSPECTOR_MIN_WIDTH
 	right_panel.add_theme_constant_override("separation", 4)
 	parent.add_child(right_panel)
 
@@ -687,21 +732,21 @@ func _format_command_display(cmd: Dictionary, index: int) -> String:
 func _get_command_color(cmd_type: String) -> Color:
 	match cmd_type:
 		"dialog_line", "show_dialog":
-			return Color(0.4, 0.8, 0.4)  # Green
+			return COMMAND_COLORS["dialog"]
 		"move_entity", "set_facing", "play_animation":
-			return Color(0.4, 0.6, 1.0)  # Blue
+			return COMMAND_COLORS["movement"]
 		"camera_move", "camera_follow", "camera_shake":
-			return Color(0.9, 0.7, 0.3)  # Orange
+			return COMMAND_COLORS["camera"]
 		"fade_screen", "wait":
-			return Color(0.7, 0.5, 0.9)  # Purple
+			return COMMAND_COLORS["timing"]
 		"play_sound", "play_music":
-			return Color(0.3, 0.8, 0.8)  # Cyan
+			return COMMAND_COLORS["audio"]
 		"spawn_entity", "despawn_entity":
-			return Color(0.8, 0.4, 0.4)  # Red
+			return COMMAND_COLORS["entity"]
 		"set_variable":
-			return Color(0.6, 0.6, 0.6)  # Gray
+			return COMMAND_COLORS["variable"]
 		_:
-			return Color(1.0, 1.0, 1.0)
+			return COMMAND_COLORS["default"]
 
 
 func _get_character_name(character_uid: String) -> String:
@@ -804,7 +849,7 @@ func _build_inspector_for_command(index: int) -> void:
 
 		var target_label: Label = Label.new()
 		target_label.text = "Target:"
-		target_label.custom_minimum_size.x = 130
+		target_label.custom_minimum_size.x = INSPECTOR_LABEL_WIDTH
 		target_row.add_child(target_label)
 
 		target_field = OptionButton.new()
@@ -917,7 +962,7 @@ func _create_param_field(param_name: String, param_def: Dictionary, current_valu
 
 		var label: Label = Label.new()
 		label.text = param_name.replace("_", " ").capitalize() + ":"
-		label.custom_minimum_size.x = 130
+		label.custom_minimum_size.x = INSPECTOR_LABEL_WIDTH
 		label.tooltip_text = param_def.get("hint", "")
 		row.add_child(label)
 
@@ -967,7 +1012,7 @@ func _create_fallback_param_field(param_name: String, param_def: Dictionary, cur
 
 	var label: Label = Label.new()
 	label.text = param_name.replace("_", " ").capitalize() + ":"
-	label.custom_minimum_size.x = 130
+	label.custom_minimum_size.x = INSPECTOR_LABEL_WIDTH
 	label.tooltip_text = param_def.get("hint", "")
 	row.add_child(label)
 
@@ -1477,25 +1522,17 @@ func _build_actor_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionar
 	if entity_type.is_empty():
 		entity_type = "character"
 
-	# Entity type picker
+	# Entity type picker - populated from ENTITY_TYPES constant
 	fields["entity_type"] = OptionButton.new()
-	fields["entity_type"].add_item("Character", 0)
-	fields["entity_type"].add_item("Interactable", 1)
-	fields["entity_type"].add_item("NPC", 2)
-	fields["entity_type"].add_item("Virtual (Off-Screen)", 3)
-	fields["entity_type"].set_item_metadata(0, "character")
-	fields["entity_type"].set_item_metadata(1, "interactable")
-	fields["entity_type"].set_item_metadata(2, "npc")
-	fields["entity_type"].set_item_metadata(3, "virtual")
+	var type_idx: int = 0
+	for i: int in range(ENTITY_TYPES.size()):
+		var type_info: Dictionary = ENTITY_TYPES[i]
+		fields["entity_type"].add_item(type_info["label"], i)
+		fields["entity_type"].set_item_metadata(i, type_info["value"])
+		if type_info["value"] == entity_type:
+			type_idx = i
 	form.add_labeled_control("Type:", fields["entity_type"],
 		"Character: Playable characters with stats and portraits\nInteractable: Objects like chests, signs, doors\nNPC: Non-playable characters for dialog\nVirtual: Off-screen actors for dialog_line speakers that don't need map sprites")
-
-	var type_idx: int = 0
-	match entity_type:
-		"character": type_idx = 0
-		"interactable": type_idx = 1
-		"npc": type_idx = 2
-		"virtual": type_idx = 3
 	fields["entity_type"].select(type_idx)
 
 	# Entity picker - populate based on type
@@ -1516,7 +1553,7 @@ func _build_actor_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionar
 
 	var pos_label: Label = Label.new()
 	pos_label.text = "Position:"
-	pos_label.custom_minimum_size.x = 70
+	pos_label.custom_minimum_size.x = ACTOR_LABEL_WIDTH
 	pos_row.add_child(pos_label)
 
 	var x_label: Label = Label.new()
@@ -1547,21 +1584,15 @@ func _build_actor_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionar
 		fields["pos_x"].value = pos[0]
 		fields["pos_y"].value = pos[1]
 
-	# Facing picker
+	# Facing picker - populated from FACING_OPTIONS constant
 	fields["facing"] = OptionButton.new()
-	fields["facing"].add_item("down", 0)
-	fields["facing"].add_item("up", 1)
-	fields["facing"].add_item("left", 2)
-	fields["facing"].add_item("right", 3)
-	form.add_labeled_control("Facing:", fields["facing"], "Initial facing direction")
-
 	var facing: String = data.get("facing", "down")
 	var facing_idx: int = 0
-	match facing:
-		"down": facing_idx = 0
-		"up": facing_idx = 1
-		"left": facing_idx = 2
-		"right": facing_idx = 3
+	for i: int in range(FACING_OPTIONS.size()):
+		fields["facing"].add_item(FACING_OPTIONS[i], i)
+		if FACING_OPTIONS[i] == facing:
+			facing_idx = i
+	form.add_labeled_control("Facing:", fields["facing"], "Initial facing direction")
 	fields["facing"].select(facing_idx)
 
 	# Store field references for later access
@@ -1719,12 +1750,7 @@ func _extract_actor_data(fields: Dictionary) -> Dictionary:
 		entity_id = str(metadata) if metadata else ""
 
 	var facing_idx: int = fields["facing"].selected
-	var facing: String = "down"
-	match facing_idx:
-		0: facing = "down"
-		1: facing = "up"
-		2: facing = "left"
-		3: facing = "right"
+	var facing: String = FACING_OPTIONS[facing_idx] if facing_idx >= 0 and facing_idx < FACING_OPTIONS.size() else "down"
 
 	return {
 		"actor_id": fields["actor_id"].text.strip_edges(),
@@ -1748,29 +1774,9 @@ func _get_current_actor_ids() -> Array[String]:
 	return result
 
 
-## Convert Variant to float with type safety
-func _variant_to_float(value: Variant, default: float = 0.0) -> float:
-	if value is float:
-		return value
-	if value is int:
-		var int_val: int = value
-		return float(int_val)
-	return default
-
-
-## Convert Variant to bool with type safety
-func _variant_to_bool(value: Variant, default: bool = false) -> bool:
-	if value is bool:
-		return value
-	return default
-
-
 # =============================================================================
 # CHOICES EDITOR SECTION (for show_choice command)
 # =============================================================================
-
-## Available actions for show_choice command
-const CHOICE_ACTIONS: Array[String] = ["none", "battle", "set_flag", "cinematic", "set_variable", "shop"]
 
 ## Create a UI row for editing a single choice
 func _create_choice_row(index: int, choice_data: Dictionary, param_name: String, container: VBoxContainer) -> PanelContainer:
@@ -1885,7 +1891,7 @@ func _add_battle_options_to_choice(container: VBoxContainer, choice_data: Dictio
 	container.add_child(victory_cin_row)
 	var victory_cin_lbl: Label = Label.new()
 	victory_cin_lbl.text = "On Victory:"
-	victory_cin_lbl.custom_minimum_size.x = 70
+	victory_cin_lbl.custom_minimum_size.x = ACTOR_LABEL_WIDTH
 	victory_cin_row.add_child(victory_cin_lbl)
 	var victory_cin_picker: OptionButton = _create_cinematic_picker_for_battle_choice(
 		choice_data.get("on_victory_cinematic", ""),
@@ -1900,7 +1906,7 @@ func _add_battle_options_to_choice(container: VBoxContainer, choice_data: Dictio
 	container.add_child(defeat_cin_row)
 	var defeat_cin_lbl: Label = Label.new()
 	defeat_cin_lbl.text = "On Defeat:"
-	defeat_cin_lbl.custom_minimum_size.x = 70
+	defeat_cin_lbl.custom_minimum_size.x = ACTOR_LABEL_WIDTH
 	defeat_cin_row.add_child(defeat_cin_lbl)
 	var defeat_cin_picker: OptionButton = _create_cinematic_picker_for_battle_choice(
 		choice_data.get("on_defeat_cinematic", ""),
@@ -1915,7 +1921,7 @@ func _add_battle_options_to_choice(container: VBoxContainer, choice_data: Dictio
 	container.add_child(victory_flags_row)
 	var victory_flags_lbl: Label = Label.new()
 	victory_flags_lbl.text = "Victory Flags:"
-	victory_flags_lbl.custom_minimum_size.x = 70
+	victory_flags_lbl.custom_minimum_size.x = ACTOR_LABEL_WIDTH
 	victory_flags_row.add_child(victory_flags_lbl)
 	var victory_flags_edit: LineEdit = LineEdit.new()
 	victory_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1931,7 +1937,7 @@ func _add_battle_options_to_choice(container: VBoxContainer, choice_data: Dictio
 	container.add_child(defeat_flags_row)
 	var defeat_flags_lbl: Label = Label.new()
 	defeat_flags_lbl.text = "Defeat Flags:"
-	defeat_flags_lbl.custom_minimum_size.x = 70
+	defeat_flags_lbl.custom_minimum_size.x = ACTOR_LABEL_WIDTH
 	defeat_flags_row.add_child(defeat_flags_lbl)
 	var defeat_flags_edit: LineEdit = LineEdit.new()
 	defeat_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2033,100 +2039,61 @@ func _create_choice_value_control(action: String, current_value: String, choice_
 			return line_edit
 
 
-## Create battle picker dropdown for choice value - queries registry directly
+## Create a resource picker dropdown for choice values
+## Unified helper that consolidates battle/shop picker logic
+func _create_resource_picker_for_choice(resource_type: String, id_property: String, name_property: String,
+		placeholder: String, current_value: String, choice_index: int, param_name: String) -> OptionButton:
+	var picker: OptionButton = OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.add_item(placeholder, 0)
+	picker.set_item_metadata(0, "")
+
+	var selected_idx: int = 0
+	var item_idx: int = 1
+
+	var resources: Array[Resource] = []
+	if ModLoader and ModLoader.registry:
+		resources = ModLoader.registry.get_all_resources(resource_type)
+
+	for res: Resource in resources:
+		if not res:
+			continue
+
+		var res_id: String = str(res.get(id_property)) if id_property in res else ""
+		var res_name: String = str(res.get(name_property)) if name_property in res else ""
+
+		if res_id.is_empty():
+			res_id = res.resource_path.get_file().get_basename()
+		if res_name.is_empty():
+			res_name = res_id
+
+		var mod_id: String = ""
+		if ModLoader and ModLoader.registry:
+			mod_id = ModLoader.registry.get_resource_source(res.resource_path.get_file().get_basename())
+
+		var display_name: String = "[%s] %s" % [mod_id, res_name] if not mod_id.is_empty() else res_name
+		picker.add_item(display_name, item_idx)
+		picker.set_item_metadata(item_idx, res_id)
+
+		if res_id == current_value:
+			selected_idx = item_idx
+		item_idx += 1
+
+	picker.select(selected_idx)
+	picker.item_selected.connect(_on_choice_value_picker_changed.bind(choice_index, param_name, picker))
+	return picker
+
+
+## Create battle picker dropdown for choice value
 func _create_battle_picker(current_value: String, choice_index: int, param_name: String) -> OptionButton:
-	var picker: OptionButton = OptionButton.new()
-	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	picker.add_item("(Select battle)", 0)
-	picker.set_item_metadata(0, "")
-
-	var selected_idx: int = 0
-	var item_idx: int = 1
-
-	var battles: Array[Resource] = []
-	if ModLoader and ModLoader.registry:
-		battles = ModLoader.registry.get_all_resources("battle")
-
-	for battle_res: Resource in battles:
-		if battle_res:
-			var battle_id: String = ""
-			var battle_name: String = ""
-
-			if "battle_id" in battle_res:
-				battle_id = str(battle_res.get("battle_id"))
-			if "battle_name" in battle_res:
-				battle_name = str(battle_res.get("battle_name"))
-
-			if battle_id.is_empty():
-				battle_id = battle_res.resource_path.get_file().get_basename()
-			if battle_name.is_empty():
-				battle_name = battle_id
-
-			# Get source mod
-			var mod_id: String = ""
-			if ModLoader and ModLoader.registry:
-				var resource_id: String = battle_res.resource_path.get_file().get_basename()
-				mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-			var display_name: String = "[%s] %s" % [mod_id, battle_name] if not mod_id.is_empty() else battle_name
-			picker.add_item(display_name, item_idx)
-			picker.set_item_metadata(item_idx, battle_id)
-
-			if battle_id == current_value:
-				selected_idx = item_idx
-			item_idx += 1
-
-	picker.select(selected_idx)
-	picker.item_selected.connect(_on_choice_value_picker_changed.bind(choice_index, param_name, picker))
-	return picker
+	return _create_resource_picker_for_choice("battle", "battle_id", "battle_name",
+		"(Select battle)", current_value, choice_index, param_name)
 
 
-## Create shop picker dropdown for choice value - queries registry directly
+## Create shop picker dropdown for choice value
 func _create_shop_picker_for_choice(current_value: String, choice_index: int, param_name: String) -> OptionButton:
-	var picker: OptionButton = OptionButton.new()
-	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	picker.add_item("(Select shop)", 0)
-	picker.set_item_metadata(0, "")
-
-	var selected_idx: int = 0
-	var item_idx: int = 1
-
-	var shops: Array[Resource] = []
-	if ModLoader and ModLoader.registry:
-		shops = ModLoader.registry.get_all_resources("shop")
-
-	for shop_res: Resource in shops:
-		if shop_res:
-			var shop_id: String = ""
-			var shop_name: String = ""
-
-			if "shop_id" in shop_res:
-				shop_id = str(shop_res.get("shop_id"))
-			if "shop_name" in shop_res:
-				shop_name = str(shop_res.get("shop_name"))
-
-			if shop_id.is_empty():
-				shop_id = shop_res.resource_path.get_file().get_basename()
-			if shop_name.is_empty():
-				shop_name = shop_id
-
-			# Get source mod
-			var mod_id: String = ""
-			if ModLoader and ModLoader.registry:
-				var resource_id: String = shop_res.resource_path.get_file().get_basename()
-				mod_id = ModLoader.registry.get_resource_source(resource_id)
-
-			var display_name: String = "[%s] %s" % [mod_id, shop_name] if not mod_id.is_empty() else shop_name
-			picker.add_item(display_name, item_idx)
-			picker.set_item_metadata(item_idx, shop_id)
-
-			if shop_id == current_value:
-				selected_idx = item_idx
-			item_idx += 1
-
-	picker.select(selected_idx)
-	picker.item_selected.connect(_on_choice_value_picker_changed.bind(choice_index, param_name, picker))
-	return picker
+	return _create_resource_picker_for_choice("shop", "shop_id", "shop_name",
+		"(Select shop)", current_value, choice_index, param_name)
 
 
 ## Create cinematic picker dropdown for choice value
