@@ -10,6 +10,7 @@ const CinematicData = preload("res://core/resources/cinematic_data.gd")
 const CinematicActor = preload("res://core/components/cinematic_actor.gd")
 const CinematicCommandExecutor = preload("res://core/systems/cinematic_command_executor.gd")
 const SpawnableEntityHandler = preload("res://core/systems/cinematic_spawners/spawnable_entity_handler.gd")
+const InteractableDataScript = preload("res://core/resources/interactable_data.gd")
 
 ## Cinematic execution states
 enum State {
@@ -50,7 +51,13 @@ var _actor_display_data: Dictionary = {}
 
 ## Cinematic chain tracking (prevents circular references)
 var _cinematic_chain_stack: Array[String] = []
+
+## Constants
 const MAX_CINEMATIC_CHAIN_DEPTH: int = 5
+const DEFAULT_FADE_DURATION: float = 0.5
+const SKIP_FADE_DURATION: float = 0.3
+const SPAWNED_ACTOR_Z_INDEX: int = 10
+const AUTO_INTERACTABLE_PREFIX: String = "__auto_interactable__"
 
 ## Command executor registry (command_type -> CinematicCommandExecutor)
 ## Mods can register custom executors via register_command_executor()
@@ -91,7 +98,7 @@ var _spawned_actor_nodes: Array[Node] = []
 ## Used by change_scene command to defer scene transition until after cinematic_ended signal
 var _next_destination: String = ""
 var _next_destination_fade: bool = true
-var _next_destination_fade_duration: float = 0.5
+var _next_destination_fade_duration: float = DEFAULT_FADE_DURATION
 
 ## Flag indicating a backdrop scene is being loaded
 ## When true, map_template and other gameplay scenes should skip gameplay initialization
@@ -294,10 +301,7 @@ func unregister_command_executor(command_type: String) -> void:
 ## Get list of all registered command types
 ## Used by editor to discover available commands dynamically
 func get_registered_command_types() -> Array[String]:
-	var types: Array[String] = []
-	for key: String in _command_executors.keys():
-		types.append(key)
-	return types
+	return Array(_command_executors.keys(), TYPE_STRING, "", null)
 
 
 ## Get editor metadata for a specific command type
@@ -426,10 +430,7 @@ func get_spawnable_handler(type_id: String) -> SpawnableEntityHandler:
 ## Get all registered spawnable type IDs
 ## Useful for editor dropdowns
 func get_spawnable_types() -> Array[String]:
-	var types: Array[String] = []
-	for key: String in _spawnable_handlers.keys():
-		types.append(key)
-	return types
+	return Array(_spawnable_handlers.keys(), TYPE_STRING, "", null)
 
 
 ## Get all registered spawnable handlers
@@ -495,14 +496,14 @@ func _find_camera_recursive(node: Node) -> Camera2D:
 
 
 ## Play a cinematic by ID (looks up in ModRegistry)
-## Supports auto-generated cinematics for interactables (ID starts with "__auto_interactable__")
+## Supports auto-generated cinematics for interactables (ID starts with AUTO_INTERACTABLE_PREFIX)
 func play_cinematic(cinematic_id: String) -> bool:
 	if current_state != State.IDLE:
 		push_warning("CinematicsManager: Cannot play cinematic '%s' - cinematic already active" % cinematic_id)
 		return false
 
 	# Check for auto-generated interactable cinematic
-	if cinematic_id.begins_with("__auto_interactable__"):
+	if cinematic_id.begins_with(AUTO_INTERACTABLE_PREFIX):
 		var auto_cinematic: CinematicData = _generate_interactable_auto_cinematic(cinematic_id)
 		if auto_cinematic:
 			return play_cinematic_from_resource(auto_cinematic)
@@ -734,7 +735,7 @@ func _end_cinematic() -> void:
 
 	# Handle pending scene destination (from change_scene command)
 	# This happens AFTER cinematic_ended signal so listeners can handle it
-	if not _next_destination.is_empty():
+	if not _next_destination.is_empty() and SceneManager:
 		var dest: String = _next_destination
 		var use_fade: bool = _next_destination_fade
 		_next_destination = ""  # Clear to prevent re-entry
@@ -789,7 +790,7 @@ func skip_cinematic() -> void:
 
 		# Now fade to black if not already faded
 		if not SceneManager.is_faded_to_black:
-			await SceneManager.fade_to_black(0.3)
+			await SceneManager.fade_to_black(SKIP_FADE_DURATION)
 			# Guard against node being freed during await
 			if not is_instance_valid(self):
 				return
@@ -800,7 +801,7 @@ func skip_cinematic() -> void:
 ## Set the next destination for scene change after cinematic ends
 ## Used by change_scene command to defer transition until cinematic_ended signal fires
 ## This ensures listeners (like startup.gd) can handle the signal before scene changes
-func set_next_destination(scene_path: String, use_fade: bool = true, fade_duration: float = 0.5) -> void:
+func set_next_destination(scene_path: String, use_fade: bool = true, fade_duration: float = DEFAULT_FADE_DURATION) -> void:
 	_next_destination = scene_path
 	_next_destination_fade = use_fade
 	_next_destination_fade_duration = fade_duration
@@ -918,6 +919,44 @@ func _spawn_actors_from_data(cinematic: CinematicData) -> void:
 		_spawn_single_actor(actor_def)
 
 
+## Parse position from actor definition (supports Array, Vector2, Vector2i)
+func _parse_grid_position(pos_param: Variant) -> Vector2i:
+	if pos_param is Array and pos_param.size() >= 2:
+		return Vector2i(int(pos_param[0]), int(pos_param[1]))
+	if pos_param is Vector2:
+		return Vector2i(pos_param)
+	if pos_param is Vector2i:
+		return pos_param
+	return Vector2i.ZERO
+
+
+## Validate and normalize facing direction
+func _normalize_facing(facing_raw: Variant) -> String:
+	var facing: String = str(facing_raw).to_lower()
+	if facing in ["up", "down", "left", "right"]:
+		return facing
+	return "down"
+
+
+## Resolve entity type and ID from actor definition (handles legacy character_id format)
+func _resolve_entity_type(actor_def: Dictionary) -> Dictionary:
+	var entity_type: String = actor_def.get("entity_type", "")
+	var entity_id: String = actor_def.get("entity_id", "")
+
+	# Backward compatibility: character_id maps to entity_type="character"
+	if entity_type.is_empty() and entity_id.is_empty():
+		var character_id: String = actor_def.get("character_id", "")
+		if not character_id.is_empty():
+			entity_type = "character"
+			entity_id = character_id
+
+	# Default to "character" if still empty
+	if entity_type.is_empty():
+		entity_type = "character"
+
+	return {"entity_type": entity_type, "entity_id": entity_id}
+
+
 ## Spawn a single actor from a definition dictionary
 ## Format: {actor_id, entity_type, entity_id, position: [x, y], facing}
 ## Virtual actors: {actor_id, entity_type: "virtual", display_source: "npc:id" or character_uid}
@@ -932,40 +971,19 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	if get_actor(actor_id) != null:
 		push_warning("CinematicsManager: Actor '%s' already exists from actors array" % actor_id)
 
-	# Determine entity type and ID (with backward compatibility for character_id)
-	var entity_type: String = actor_def.get("entity_type", "")
-	var entity_id: String = actor_def.get("entity_id", "")
-
-	# Backward compatibility: character_id maps to entity_type="character"
-	if entity_type.is_empty() and entity_id.is_empty():
-		var character_id: String = actor_def.get("character_id", "")
-		if not character_id.is_empty():
-			entity_type = "character"
-			entity_id = character_id
-
-	# Default to "character" if still empty (unless virtual)
-	if entity_type.is_empty():
-		entity_type = "character"
+	# Resolve entity type and ID
+	var resolved: Dictionary = _resolve_entity_type(actor_def)
+	var entity_type: String = resolved["entity_type"]
+	var entity_id: String = resolved["entity_id"]
 
 	# Handle virtual actors - no sprite, no node, just cache display data
 	if entity_type == "virtual":
 		_spawn_virtual_actor(actor_id, actor_def)
 		return
 
-	# Parse position (grid coordinates)
-	var grid_pos: Vector2i = Vector2i.ZERO
-	var pos_param: Variant = actor_def.get("position", [0, 0])
-	if pos_param is Array and pos_param.size() >= 2:
-		grid_pos = Vector2i(int(pos_param[0]), int(pos_param[1]))
-	elif pos_param is Vector2:
-		grid_pos = Vector2i(pos_param)
-	elif pos_param is Vector2i:
-		grid_pos = pos_param
-
-	# Get facing direction
-	var facing: String = str(actor_def.get("facing", "down")).to_lower()
-	if facing not in ["up", "down", "left", "right"]:
-		facing = "down"
+	# Parse position and facing
+	var grid_pos: Vector2i = _parse_grid_position(actor_def.get("position", [0, 0]))
+	var facing: String = _normalize_facing(actor_def.get("facing", "down"))
 
 	# Create the spawned entity structure
 	var entity: CharacterBody2D = CharacterBody2D.new()
@@ -975,7 +993,7 @@ func _spawn_single_actor(actor_def: Dictionary) -> void:
 	entity.global_position = GridManager.cell_to_world(grid_pos)
 
 	# Ensure spawned actors render above backdrop tilemaps
-	entity.z_index = 10
+	entity.z_index = SPAWNED_ACTOR_Z_INDEX
 
 	# Create sprite using the registry handler
 	var sprite_node: Node2D = null
@@ -1129,14 +1147,11 @@ func play_inline_cinematic(commands: Array, cinematic_id: String = "") -> bool:
 # INTERACTABLE AUTO-CINEMATICS
 # =============================================================================
 
-## Preload InteractableData for type access
-const InteractableDataScript = preload("res://core/resources/interactable_data.gd")
-
 ## Generate auto-cinematic for interactable objects (chests, bookshelves, etc.)
-## Format: __auto_interactable__{interactable_id}
+## Format: AUTO_INTERACTABLE_PREFIX + interactable_id
 func _generate_interactable_auto_cinematic(cinematic_id: String) -> CinematicData:
-	# Parse the interactable ID (format: __auto_interactable__{id})
-	var interactable_id: String = cinematic_id.substr(21)  # Skip "__auto_interactable__"
+	# Parse the interactable ID from prefix
+	var interactable_id: String = cinematic_id.substr(AUTO_INTERACTABLE_PREFIX.length())
 
 	if interactable_id.is_empty():
 		push_error("CinematicsManager: Invalid auto-interactable cinematic ID: %s" % cinematic_id)

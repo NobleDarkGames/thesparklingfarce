@@ -67,6 +67,30 @@ const RETURN_TO_MAP_DELAY: float = 2.0  ## Pause before transitioning back to ma
 const DEATH_FADE_DURATION: float = 0.5  ## How long unit fade-out takes on death
 const EXIT_MESSAGE_DURATION: float = 1.5  ## How long Egress/exit message displays
 
+## XP award constants (SF2-authentic)
+const HEALER_ITEM_XP: int = 10  ## XP for healers using items
+const NON_HEALER_ITEM_XP: int = 1  ## XP for non-healers using items
+const HEAL_SPELL_XP: int = 10  ## XP for casting heal spells
+const ATTACK_SPELL_BASE_XP: int = 8  ## Base XP for damage spells
+const GENERIC_SPELL_XP: int = 5  ## XP for other spell types
+
+## Status effect constants
+const CONFUSION_TRIGGER_CHANCE: int = 50  ## % chance confusion redirects target
+const DEFAULT_STATUS_DURATION: int = 3  ## Default duration for status effects
+
+## Spawn position constants
+const DEFAULT_PLAYER_SPAWN: Vector2i = Vector2i(2, 2)  ## Default spawn point for player units
+
+## Audio layer constants
+const COMBAT_AUDIO_LAYER: int = 1  ## Music layer for combat intensity
+const BOSS_AUDIO_LAYER: int = 2  ## Music layer for boss battles
+const AUDIO_LAYER_FADE_DURATION: float = 0.4  ## Fade duration for layer transitions
+
+## UI constants
+const EXIT_MESSAGE_LAYER: int = 100  ## CanvasLayer for exit message
+const EXIT_MESSAGE_FONT_SIZE: int = 32  ## Font size for exit message
+const EXIT_MESSAGE_BG_ALPHA: float = 0.7  ## Background alpha for exit message
+
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
 
@@ -136,7 +160,7 @@ func _initialize_audio() -> void:
 
 	# Enable boss layer immediately for boss battles
 	if is_boss_battle:
-		AudioManager.enable_layer(2, 0.4)
+		AudioManager.enable_layer(BOSS_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
 
 
 ## Check if any enemy unit in this battle is a boss
@@ -241,7 +265,7 @@ func _spawn_all_units() -> void:
 	# Spawn player units from PartyManager
 	if not PartyManager.is_empty():
 		# Get player spawn point from BattleData or use default
-		var player_spawn_point: Vector2i = Vector2i(2, 2)  # Default position
+		var player_spawn_point: Vector2i = DEFAULT_PLAYER_SPAWN
 		if current_battle_data.get("player_spawn_point") != null:
 			player_spawn_point = current_battle_data.player_spawn_point
 
@@ -409,7 +433,7 @@ func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 			# Legacy fallback for hardcoded effects not yet in registry
 			if effect_type == "confusion":
 				var confusion_roll: int = randi_range(1, 100)
-				if confusion_roll <= 50:
+				if confusion_roll <= CONFUSION_TRIGGER_CHANCE:
 					# Confused! Attack a random unit (friend or foe, including self)
 					var random_target: Unit = _get_random_confusion_target(unit)
 					return random_target
@@ -440,56 +464,58 @@ func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 	return intended_target
 
 
+## Filter living units based on criteria
+## @param exclude_self: If true, exclude the acting_unit from results
+## @param same_faction_only: If true, only include units with same faction as acting_unit
+## @return: Array of units matching the criteria
+func _get_living_units(acting_unit: Unit, exclude_self: bool = false, same_faction_only: bool = false) -> Array[Unit]:
+	var result: Array[Unit] = []
+	for unit_node: Unit in all_units:
+		if not unit_node or not unit_node.is_alive():
+			continue
+		if exclude_self and unit_node == acting_unit:
+			continue
+		if same_faction_only and unit_node.faction != acting_unit.faction:
+			continue
+		result.append(unit_node)
+	return result
+
+
+## Get a random unit from a filtered list, with fallback to acting_unit
+func _get_random_from_units(units: Array[Unit], fallback: Unit) -> Unit:
+	if units.is_empty():
+		return fallback
+	return units[randi() % units.size()]
+
+
 ## Get a random target for a confused unit (any living unit on the battlefield, including self)
 func _get_random_confusion_target(confused_unit: Unit) -> Unit:
-	var valid_targets: Array[Unit] = []
-
-	for unit_node: Unit in all_units:
-		if unit_node and unit_node.is_alive():
-			valid_targets.append(unit_node)
-
-	if valid_targets.is_empty():
-		return confused_unit  # Fallback to self if somehow no targets
-
-	return valid_targets[randi() % valid_targets.size()]
+	var targets: Array[Unit] = _get_living_units(confused_unit, false, false)
+	return _get_random_from_units(targets, confused_unit)
 
 
 ## Get a random unit except the specified one (for RANDOM_TARGET modifier)
 func _get_random_unit_except_self(acting_unit: Unit) -> Unit:
-	var valid_targets: Array[Unit] = []
-
-	for unit_node: Unit in all_units:
-		if unit_node and unit_node.is_alive() and unit_node != acting_unit:
-			valid_targets.append(unit_node)
-
-	if valid_targets.is_empty():
-		return acting_unit  # Fallback to self if somehow no other targets
-
-	return valid_targets[randi() % valid_targets.size()]
+	var targets: Array[Unit] = _get_living_units(acting_unit, true, false)
+	return _get_random_from_units(targets, acting_unit)
 
 
 ## Get a random ally of the unit (for ATTACK_ALLIES modifier like berserk/charm)
 func _get_random_ally(acting_unit: Unit) -> Unit:
-	var allies: Array[Unit] = []
+	var allies: Array[Unit] = _get_living_units(acting_unit, true, true)
+	return _get_random_from_units(allies, acting_unit)
 
-	for unit_node: Unit in all_units:
-		if unit_node and unit_node.is_alive() and unit_node != acting_unit and unit_node.faction == acting_unit.faction:
-			allies.append(unit_node)
 
-	if allies.is_empty():
-		return acting_unit  # Fallback to self if no other allies
-
-	return allies[randi() % allies.size()]
+## Helper to end a unit's turn and reset input state
+## Used after completing an action (attack, spell, item, stay)
+func _finish_unit_turn(unit: Unit) -> void:
+	InputManager.reset_to_waiting()
+	TurnManager.end_unit_turn(unit)
 
 
 ## Execute Stay action (end turn)
 func _execute_stay(unit: Unit) -> void:
-
-	# Reset InputManager to waiting state
-	InputManager.reset_to_waiting()
-
-	# End unit's turn
-	TurnManager.end_unit_turn(unit)
+	_finish_unit_turn(unit)
 
 
 ## Handle item use request from InputManager
@@ -504,14 +530,12 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 
 	if not item:
 		push_warning("BattleManager: Item '%s' not found in registry" % item_id)
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(unit)
+		_finish_unit_turn(unit)
 		return
 
 	if not item.effect or not item.effect is AbilityData:
 		push_warning("BattleManager: Item '%s' has no effect ability" % item_id)
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(unit)
+		_finish_unit_turn(unit)
 		return
 
 	var ability: AbilityData = item.effect as AbilityData
@@ -547,19 +571,16 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 				return  # Early return - battle is over
 			else:
 				push_warning("BattleManager: Unknown SPECIAL item ability: %s" % ability.ability_id)
-				InputManager.reset_to_waiting()
-				TurnManager.end_unit_turn(unit)
+				_finish_unit_turn(unit)
 				return
 		_:
 			push_warning("BattleManager: Item ability type '%s' not yet supported" % ability.ability_type)
-			InputManager.reset_to_waiting()
-			TurnManager.end_unit_turn(unit)
+			_finish_unit_turn(unit)
 			return
 
 	if phases.is_empty():
 		push_warning("BattleManager: Could not create combat phase for item '%s'" % item_id)
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(unit)
+		_finish_unit_turn(unit)
 		return
 
 	# Consume item from inventory BEFORE the animation
@@ -571,11 +592,7 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 	# Award XP for item usage AFTER the combat session (SF-authentic: healers get XP)
 	_award_item_use_xp(unit, target, item)
 
-	# Reset InputManager to waiting state
-	InputManager.reset_to_waiting()
-
-	# End unit's turn
-	TurnManager.end_unit_turn(unit)
+	_finish_unit_turn(unit)
 
 
 ## Consume item from unit's inventory
@@ -613,7 +630,7 @@ func _award_item_use_xp(user: Unit, target: Unit, item: ItemData) -> void:
 					break
 
 	# Award XP based on whether user is a healer
-	var xp_amount: int = 10 if is_healer else 1
+	var xp_amount: int = HEALER_ITEM_XP if is_healer else NON_HEALER_ITEM_XP
 
 	# Award through ExperienceManager (using support XP for item usage)
 	ExperienceManager.award_support_xp(user, "item_use", target, xp_amount)
@@ -632,22 +649,19 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 	# Validate ability
 	if not ability:
 		push_warning("BattleManager: Received null ability for spell cast")
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(caster)
+		_finish_unit_turn(caster)
 		return
 
 	# Check and deduct MP cost
 	if not caster.stats:
 		push_error("BattleManager: Caster has no stats")
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(caster)
+		_finish_unit_turn(caster)
 		return
 
 	if caster.stats.current_mp < ability.mp_cost:
 		push_warning("BattleManager: Insufficient MP for spell '%s'" % ability.ability_id)
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(caster)
+		_finish_unit_turn(caster)
 		return
 
 	# Deduct MP cost
@@ -661,8 +675,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 
 	if targets.is_empty():
 		push_warning("BattleManager: No valid targets for spell '%s'" % ability.ability_id)
-		InputManager.reset_to_waiting()
-		TurnManager.end_unit_turn(caster)
+		_finish_unit_turn(caster)
 		return
 
 	# Apply the spell effect to all targets
@@ -687,8 +700,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 						# Refund MP since spell couldn't execute
 						caster.stats.current_mp += ability.mp_cost
 						InputManager.refresh_stats_panel()
-						InputManager.reset_to_waiting()
-						TurnManager.end_unit_turn(caster)
+						_finish_unit_turn(caster)
 						return
 					# Egress exits battle immediately - no per-target loop needed
 					await _execute_battle_exit(caster, BattleExitReason.EGRESS)
@@ -705,11 +717,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 			_award_spell_xp(caster, spell_target, ability)
 			any_effect_applied = true
 
-	# Reset InputManager to waiting state
-	InputManager.reset_to_waiting()
-
-	# End caster's turn
-	TurnManager.end_unit_turn(caster)
+	_finish_unit_turn(caster)
 
 
 ## Get all targets for a spell (handles single-target and AoE)
@@ -861,7 +869,7 @@ func _apply_spell_status(caster: Unit, target: Unit, ability: AbilityData) -> bo
 		else:
 			# Look up effect data to get duration
 			var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect)
-			var duration: int = effect_data.duration if effect_data else 3
+			var duration: int = effect_data.duration if effect_data else DEFAULT_STATUS_DURATION
 			target.add_status_effect(effect, duration, ability.potency)
 			any_effect_applied = true
 
@@ -882,17 +890,17 @@ func _award_spell_xp(caster: Unit, target: Unit, ability: AbilityData) -> void:
 	match ability.ability_type:
 		AbilityData.AbilityType.HEAL:
 			# Healers get XP for healing (SF2-authentic)
-			xp_amount = 10
+			xp_amount = HEAL_SPELL_XP
 			xp_source = "heal_spell"
 		AbilityData.AbilityType.ATTACK:
 			# Damage spells award XP based on enemy level differential
 			if target and target.stats:
 				var caster_level: int = caster.stats.level if caster.stats else 1
 				var target_level: int = target.stats.level if target.stats else 1
-				xp_amount = CombatCalculator.calculate_experience_gain(caster_level, target_level, 8)
+				xp_amount = CombatCalculator.calculate_experience_gain(caster_level, target_level, ATTACK_SPELL_BASE_XP)
 				xp_source = "attack_spell"
 		_:
-			xp_amount = 5
+			xp_amount = GENERIC_SPELL_XP
 			xp_source = "spell_cast"
 
 	if xp_amount > 0:
@@ -1017,6 +1025,10 @@ func execute_ai_item_use(user: Unit, item_id: String, target: Unit) -> bool:
 ## SF-AUTHENTIC: All phases (initial, double, counter) execute in a SINGLE
 ## battle screen session - one fade in, one fade out, no jarring transitions.
 func _execute_attack(attacker: Unit, defender: Unit) -> void:
+	if not attacker or not defender:
+		push_error("BattleManager: Cannot execute attack with null attacker or defender")
+		return
+
 	# Face the target before attacking (SF2-authentic)
 	if attacker.has_method("face_toward"):
 		attacker.face_toward(defender.grid_position)
@@ -1140,6 +1152,10 @@ func _calculate_attack_phase(
 	terrain_evasion: int,
 	is_double: bool
 ) -> CombatPhase:
+	if not attacker or not attacker.stats or not defender or not defender.stats:
+		push_error("BattleManager: Cannot calculate attack phase with null units or stats")
+		return CombatPhase.create_initial_attack(attacker, defender, 0, false, true, "")
+
 	var attacker_stats: UnitStats = attacker.stats
 	var defender_stats: UnitStats = defender.stats
 
@@ -1182,6 +1198,10 @@ func _calculate_counter_phase(
 	terrain_defense: int,
 	terrain_evasion: int
 ) -> CombatPhase:
+	if not counter_attacker or not counter_attacker.stats or not counter_target or not counter_target.stats:
+		push_error("BattleManager: Cannot calculate counter phase with null units or stats")
+		return null
+
 	var attacker_stats: UnitStats = counter_attacker.stats
 	var target_stats: UnitStats = counter_target.stats
 
@@ -1295,7 +1315,7 @@ func _execute_combat_session(
 		combat_anim_instance.damage_applied.connect(damage_handler)
 
 		# ADAPTIVE MUSIC: Enable attack layer during combat animation
-		AudioManager.enable_layer(1, 0.4)
+		AudioManager.enable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
 
 		# Start the session (fade in ONCE)
 		await combat_anim_instance.start_session(initial_attacker, initial_defender)
@@ -1327,7 +1347,7 @@ func _execute_combat_session(
 		await combat_anim_instance.finish_session()
 
 		# ADAPTIVE MUSIC: Disable attack layer after combat animation
-		AudioManager.disable_layer(1, 0.4)
+		AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
 
 		# Disconnect handlers
 		if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
@@ -1975,10 +1995,10 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 
 	# Create full-screen container for proper centering
 	var canvas: CanvasLayer = CanvasLayer.new()
-	canvas.layer = 100
+	canvas.layer = EXIT_MESSAGE_LAYER
 
 	var background: ColorRect = ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
+	background.color = Color(0, 0, 0, EXIT_MESSAGE_BG_ALPHA)
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	canvas.add_child(background)
 
@@ -1989,7 +2009,7 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 	var label: Label = Label.new()
 	label.text = message
 	label.add_theme_font_override("font", preload("res://assets/fonts/monogram.ttf"))
-	label.add_theme_font_size_override("font_size", 32)
+	label.add_theme_font_size_override("font_size", EXIT_MESSAGE_FONT_SIZE)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(label)
