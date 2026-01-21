@@ -15,6 +15,11 @@ extends Node
 
 const MODS_DIRECTORY: String = "res://mods/"
 
+# Magic number constants
+const TOTAL_CONVERSION_PRIORITY: int = 9000  # Priority threshold for total conversion mods
+const REMAP_SUFFIX: String = ".remap"  # Godot adds this suffix in export builds
+const REMAP_SUFFIX_LENGTH: int = 6  # Length of ".remap" for substring operations
+
 # Resource type mappings: file path pattern -> resource type name
 const RESOURCE_TYPE_DIRS: Dictionary = {
 	"characters": "character",
@@ -233,56 +238,34 @@ func _discover_mods() -> Array[ModManifest]:
 
 ## Load a single mod and register all its resources
 func _load_mod(manifest: ModManifest) -> void:
-	# Check dependencies (simple check - just verify they're loaded)
-	for dep_id: String in manifest.dependencies:
-		if not _is_mod_loaded(dep_id):
-			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
-			return
+	if not _check_mod_dependencies(manifest):
+		return
 
-	# Register custom type definitions from manifest
 	_register_mod_type_definitions(manifest)
 
 	# Load resources from data directory
 	var data_dir: String = manifest.get_data_directory()
-	var loaded_count: int = 0
-
-	var resource_dir_keys: Array = RESOURCE_TYPE_DIRS.keys()
-	for dir_name_variant: Variant in resource_dir_keys:
-		var dir_name: String = str(dir_name_variant)
-		var resource_type_variant: Variant = RESOURCE_TYPE_DIRS[dir_name]
-		var resource_type: String = str(resource_type_variant)
+	for dir_name: String in RESOURCE_TYPE_DIRS:
+		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
 		var type_dir: String = data_dir.path_join(dir_name)
-		loaded_count += _load_resources_from_directory(type_dir, resource_type, manifest.mod_id)
+		_load_resources_from_directory(type_dir, resource_type, manifest.mod_id)
 
-	# Register scenes from manifest
-	var scene_count: int = _register_mod_scenes(manifest)
-
-	# Discover and register trigger scripts and tilesets
-	_discover_trigger_scripts(manifest)
-	_discover_tilesets(manifest)
-
-	# Mark mod as loaded
-	manifest.is_loaded = true
-	loaded_mods.append(manifest)
+	_finalize_mod_loading(manifest)
 
 
 ## Load a single mod asynchronously using threaded resource loading
 func _load_mod_async(manifest: ModManifest) -> void:
-	# Check dependencies (simple check - just verify they're loaded)
-	for dep_id: String in manifest.dependencies:
-		if not _is_mod_loaded(dep_id):
-			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
-			return
+	if not _check_mod_dependencies(manifest):
+		return
+
+	_register_mod_type_definitions(manifest)
 
 	# Collect all resource paths from data directory
 	var data_dir: String = manifest.get_data_directory()
 	var resource_requests: Array[Dictionary] = []
 
-	var async_resource_dir_keys: Array = RESOURCE_TYPE_DIRS.keys()
-	for dir_name_variant: Variant in async_resource_dir_keys:
-		var dir_name: String = str(dir_name_variant)
-		var resource_type_variant: Variant = RESOURCE_TYPE_DIRS[dir_name]
-		var resource_type: String = str(resource_type_variant)
+	for dir_name: String in RESOURCE_TYPE_DIRS:
+		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
 		var type_dir: String = data_dir.path_join(dir_name)
 		var requests: Array[Dictionary] = _collect_resource_paths(type_dir, resource_type, manifest.mod_id)
 		resource_requests.append_array(requests)
@@ -299,43 +282,24 @@ func _load_mod_async(manifest: ModManifest) -> void:
 	if not tres_paths.is_empty():
 		await _wait_for_threaded_loads(tres_paths)
 
-	# Now retrieve and register all resources
-	var loaded_count: int = 0
+	# Retrieve and register all resources
 	for req: Dictionary in resource_requests:
-		var resource: Resource = null
 		var req_path: String = DictUtils.get_string(req, "path", "")
 		var req_resource_type: String = DictUtils.get_string(req, "resource_type", "")
 		var req_resource_id: String = DictUtils.get_string(req, "resource_id", "")
 
+		var resource: Resource = null
 		if req_path.ends_with(".tres"):
-			# Get the threaded-loaded resource
 			resource = ResourceLoader.load_threaded_get(req_path)
 		elif req_path.ends_with(".json"):
-			# JSON resources are loaded synchronously (they're small text files)
 			resource = _load_json_resource(req_path, req_resource_type)
 
 		if resource:
-			registry.register_resource(resource, req_resource_type, req_resource_id, manifest.mod_id)
-			# Special handling for terrain resources - also register with terrain_registry
-			if req_resource_type == "terrain" and resource is TerrainData:
-				terrain_registry.register_terrain(resource, manifest.mod_id)
-			# Special handling for status effect resources - also register with status_effect_registry
-			if req_resource_type == "status_effect" and resource is StatusEffectData:
-				status_effect_registry.register_effect(resource, manifest.mod_id)
-			loaded_count += 1
+			_register_resource_with_type_handling(resource, req_resource_type, req_resource_id, manifest.mod_id)
 		else:
 			push_warning("ModLoader: Failed to load resource: " + req_path)
 
-	# Register scenes from manifest
-	var scene_count: int = _register_mod_scenes(manifest)
-
-	# Discover and register trigger scripts and tilesets
-	_discover_trigger_scripts(manifest)
-	_discover_tilesets(manifest)
-
-	# Mark mod as loaded
-	manifest.is_loaded = true
-	loaded_mods.append(manifest)
+	_finalize_mod_loading(manifest)
 
 
 ## Collect all resource file paths from a directory (without loading them)
@@ -355,8 +319,8 @@ func _collect_resource_paths(directory: String, resource_type: String, mod_id: S
 		if not dir.current_is_dir():
 			# Strip .remap suffix when listing directories (for export builds)
 			var original_name: String = file_name
-			if file_name.ends_with(".remap"):
-				original_name = file_name.substr(0, file_name.length() - 6)
+			if file_name.ends_with(REMAP_SUFFIX):
+				original_name = file_name.substr(0, file_name.length() - REMAP_SUFFIX_LENGTH)
 
 			if original_name.ends_with(".tres"):
 				var full_path: String = directory.path_join(original_name)
@@ -438,8 +402,8 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 		if not dir.current_is_dir():
 			# In exports, Godot creates .remap files - strip the suffix to get original name
 			var original_name: String = file_name
-			if file_name.ends_with(".remap"):
-				original_name = file_name.substr(0, file_name.length() - 6)  # Remove ".remap"
+			if file_name.ends_with(REMAP_SUFFIX):
+				original_name = file_name.substr(0, file_name.length() - REMAP_SUFFIX_LENGTH)  # Remove ".remap"
 
 			var full_path: String = directory.path_join(original_name)
 			var resource: Resource = null
@@ -462,13 +426,7 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 					resource.resource_path = full_path
 
 			if resource:
-				registry.register_resource(resource, resource_type, resource_id, mod_id)
-				# Special handling for terrain resources - also register with terrain_registry
-				if resource_type == "terrain" and resource is TerrainData:
-					terrain_registry.register_terrain(resource, mod_id)
-				# Special handling for status effect resources - also register with status_effect_registry
-				if resource_type == "status_effect" and resource is StatusEffectData:
-					status_effect_registry.register_effect(resource, mod_id)
+				_register_resource_with_type_handling(resource, resource_type, resource_id, mod_id)
 				# Debug: Log character registrations
 				if resource_type == "character" and resource is CharacterData and OS.is_debug_build():
 					var char: CharacterData = resource
@@ -495,6 +453,36 @@ func _load_json_resource(json_path: String, resource_type: String) -> Resource:
 		_:
 			push_warning("ModLoader: JSON loading not supported for resource type: " + resource_type)
 			return null
+
+
+## Register a resource and handle special type-specific registrations
+func _register_resource_with_type_handling(resource: Resource, resource_type: String, resource_id: String, mod_id: String) -> void:
+	registry.register_resource(resource, resource_type, resource_id, mod_id)
+	# Special handling for terrain resources - also register with terrain_registry
+	if resource_type == "terrain" and resource is TerrainData:
+		terrain_registry.register_terrain(resource, mod_id)
+	# Special handling for status effect resources - also register with status_effect_registry
+	if resource_type == "status_effect" and resource is StatusEffectData:
+		status_effect_registry.register_effect(resource, mod_id)
+
+
+## Complete mod loading by registering scenes, triggers, tilesets and marking as loaded
+func _finalize_mod_loading(manifest: ModManifest) -> void:
+	_register_mod_scenes(manifest)
+	_discover_trigger_scripts(manifest)
+	_discover_tilesets(manifest)
+	manifest.is_loaded = true
+	loaded_mods.append(manifest)
+
+
+## Check if all dependencies for a mod are loaded
+## Returns true if all dependencies are satisfied, false otherwise (with error logging)
+func _check_mod_dependencies(manifest: ModManifest) -> bool:
+	for dep_id: String in manifest.dependencies:
+		if not _is_mod_loaded(dep_id):
+			push_error("ModLoader: Mod '%s' requires dependency '%s' which is not loaded" % [manifest.mod_id, dep_id])
+			return false
+	return true
 
 
 ## Register custom type definitions from a mod manifest
@@ -547,11 +535,8 @@ func _register_mod_type_definitions(manifest: ModManifest) -> void:
 func _register_mod_scenes(manifest: ModManifest) -> int:
 	var count: int = 0
 
-	var scene_keys: Array = manifest.scenes.keys()
-	for scene_id_variant: Variant in scene_keys:
-		var scene_id: String = str(scene_id_variant)
-		var relative_path_variant: Variant = manifest.scenes[scene_id]
-		var relative_path: String = str(relative_path_variant)
+	for scene_id: String in manifest.scenes:
+		var relative_path: String = manifest.scenes[scene_id]
 		var full_path: String = manifest.mod_directory.path_join(relative_path)
 
 		# Verify scene file exists - use ResourceLoader.exists() for export compatibility
@@ -655,6 +640,14 @@ func _is_mod_loaded(mod_id: String) -> bool:
 # Scene Override System (Phase 2.1)
 # =============================================================================
 
+## Load a scene from a path, returning null if not found or not a PackedScene
+func _load_scene_from_path(path: String) -> PackedScene:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	var loaded: Resource = load(path)
+	return loaded if loaded is PackedScene else null
+
+
 ## Get a scene by registry ID, with fallback to default path
 ## Used by systems like BattleManager to allow mods to override core scenes
 ##
@@ -664,30 +657,18 @@ func _is_mod_loaded(mod_id: String) -> bool:
 func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedScene:
 	# First check if a mod has registered this scene
 	var mod_path: String = registry.get_scene_path(scene_id)
-	if not mod_path.is_empty():
-		# Use ResourceLoader.exists() for export compatibility (.tscn -> .tscn.remap)
-		if ResourceLoader.exists(mod_path):
-			var loaded: Resource = load(mod_path)
-			var scene: PackedScene = loaded if loaded is PackedScene else null
-			if scene:
-				return scene
-			else:
-				push_warning("ModLoader: Failed to load mod scene '%s' at: %s, using fallback" % [scene_id, mod_path])
-		else:
-			push_warning("ModLoader: Mod scene '%s' not found at: %s, using fallback" % [scene_id, mod_path])
+	var scene: PackedScene = _load_scene_from_path(mod_path)
+	if scene:
+		return scene
+	elif not mod_path.is_empty():
+		push_warning("ModLoader: Failed to load mod scene '%s' at: %s, using fallback" % [scene_id, mod_path])
 
 	# Fallback to default path
-	if not fallback_path.is_empty():
-		# Use ResourceLoader.exists() for export compatibility
-		if ResourceLoader.exists(fallback_path):
-			var loaded_fallback: Resource = load(fallback_path)
-			var scene: PackedScene = loaded_fallback if loaded_fallback is PackedScene else null
-			if scene:
-				return scene
-			else:
-				push_error("ModLoader: Failed to load fallback scene '%s' at: %s" % [scene_id, fallback_path])
-		else:
-			push_error("ModLoader: Fallback scene '%s' not found at: %s" % [scene_id, fallback_path])
+	scene = _load_scene_from_path(fallback_path)
+	if scene:
+		return scene
+	elif not fallback_path.is_empty():
+		push_error("ModLoader: Failed to load fallback scene '%s' at: %s" % [scene_id, fallback_path])
 
 	return null
 
@@ -932,28 +913,28 @@ func _emit_active_mod_changed() -> void:
 		active_mod_changed.emit(MODS_DIRECTORY.path_join(active_mod_id))
 
 
-## Reload all mods synchronously (useful for editor/development)
-## Blocks until all mods are loaded - safe but may cause brief freeze
-func reload_mods() -> void:
+## Clear all loaded mods and registries (used before reload)
+func _clear_all_registries() -> void:
 	loaded_mods.clear()
 	registry.clear()
-	# Clear type registries
 	equipment_registry.clear_mod_registrations()
 	unit_category_registry.clear_mod_registrations()
 	animation_offset_registry.clear_mod_registrations()
 	trigger_type_registry.clear_mod_registrations()
 	terrain_registry.clear_mod_registrations()
-	# Clear equipment system registries
 	equipment_slot_registry.clear_mod_registrations()
 	equipment_type_registry.clear_mod_registrations()
 	inventory_config.reset_to_defaults()
-	# Clear AI brain and tileset registries
 	ai_brain_registry.clear_mod_registrations()
 	tileset_registry.clear_mod_registrations()
-	# Clear AI mode registry
 	ai_mode_registry.clear_mod_registrations()
-	# Clear status effect registry
 	status_effect_registry.clear_mod_registrations()
+
+
+## Reload all mods synchronously (useful for editor/development)
+## Blocks until all mods are loaded - safe but may cause brief freeze
+func reload_mods() -> void:
+	_clear_all_registries()
 	_discover_and_load_mods()
 	mods_loaded.emit()
 
@@ -968,25 +949,7 @@ func reload_mods() -> void:
 ##   2. Await the mods_loaded signal before accessing mod resources
 ## Failure to do so will result in missing resources during the reload window.
 func reload_mods_async() -> void:
-	loaded_mods.clear()
-	registry.clear()
-	# Clear type registries
-	equipment_registry.clear_mod_registrations()
-	unit_category_registry.clear_mod_registrations()
-	animation_offset_registry.clear_mod_registrations()
-	trigger_type_registry.clear_mod_registrations()
-	terrain_registry.clear_mod_registrations()
-	# Clear equipment system registries
-	equipment_slot_registry.clear_mod_registrations()
-	equipment_type_registry.clear_mod_registrations()
-	inventory_config.reset_to_defaults()
-	# Clear AI brain and tileset registries
-	ai_brain_registry.clear_mod_registrations()
-	tileset_registry.clear_mod_registrations()
-	# Clear AI mode registry
-	ai_mode_registry.clear_mod_registrations()
-	# Clear status effect registry
-	status_effect_registry.clear_mod_registrations()
+	_clear_all_registries()
 	await _discover_and_load_mods_async()
 	mods_loaded.emit()
 
@@ -1000,11 +963,8 @@ func get_resource_directories(mod_id: String) -> Dictionary:
 	var dirs: Dictionary = {}
 	var data_dir: String = manifest.get_data_directory()
 
-	var dirs_keys: Array = RESOURCE_TYPE_DIRS.keys()
-	for dir_name_variant: Variant in dirs_keys:
-		var dir_name: String = str(dir_name_variant)
-		var resource_type_variant: Variant = RESOURCE_TYPE_DIRS[dir_name]
-		var resource_type: String = str(resource_type_variant)
+	for dir_name: String in RESOURCE_TYPE_DIRS:
+		var resource_type: String = RESOURCE_TYPE_DIRS[dir_name]
 		dirs[resource_type] = data_dir.path_join(dir_name)
 
 	return dirs
@@ -1106,7 +1066,7 @@ func is_total_conversion(mod_id: String) -> bool:
 	var manifest: ModManifest = get_mod(mod_id)
 	if not manifest:
 		return false
-	return manifest.load_priority >= 9000
+	return manifest.load_priority >= TOTAL_CONVERSION_PRIORITY
 
 
 ## Check if the active mod is a total conversion
@@ -1118,7 +1078,7 @@ func is_active_mod_total_conversion() -> bool:
 func get_total_conversion_mods() -> Array[ModManifest]:
 	var result: Array[ModManifest] = []
 	for manifest: ModManifest in loaded_mods:
-		if manifest.load_priority >= 9000:
+		if manifest.load_priority >= TOTAL_CONVERSION_PRIORITY:
 			result.append(manifest)
 	return result
 
