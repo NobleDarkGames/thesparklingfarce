@@ -94,48 +94,36 @@ func initialize(
 
 	# Create stats
 	stats = UnitStatsScript.new()
-	stats.owner_unit = self  # Set reference for level-up callbacks
+	stats.owner_unit = self
 	stats.calculate_from_character(character_data)
 
-	# Set visual (placeholder for now)
-	_update_visual()
+	_finalize_initialization()
 
-	# Set name label
+
+## Common setup after stats initialization
+func _finalize_initialization() -> void:
+	_update_visual()
 	if name_label:
 		name_label.text = character_data.character_name
-
-	# Update health bar (no animation on initialization)
 	_update_health_bar(false)
-
-	# Hide selection indicator by default
 	if selection_indicator:
 		selection_indicator.visible = false
 
 
-
 ## Update sprite based on character data (SF2-authentic: same sprite for map and battle)
 func _update_visual() -> void:
-	# If sprite isn't ready yet, defer until _ready()
-	if not is_node_ready():
+	if not is_node_ready() or not sprite:
 		return
 
-	if not sprite:
-		return
-
-	# Try to load sprite_frames from character data
-	if character_data and character_data.sprite_frames:
+	var has_character_sprite: bool = character_data and character_data.sprite_frames
+	if has_character_sprite:
 		sprite.sprite_frames = character_data.sprite_frames
-		# SF2-authentic: walk animation plays continuously (even when stationary)
-		if character_data.sprite_frames.has_animation("walk_down"):
-			sprite.animation = "walk_down"
-			sprite.play()
-		sprite.modulate = _get_faction_modulate(true)
 	else:
-		# Fallback: Create placeholder sprite_frames with colored square
 		sprite.sprite_frames = _create_placeholder_sprite_frames()
-		sprite.animation = "walk_down"
-		sprite.play()
-		sprite.modulate = _get_faction_modulate(false)
+
+	# SF2-authentic: walk animation plays continuously (even when stationary)
+	_play_animation_if_exists("walk_down")
+	sprite.modulate = _get_faction_modulate(has_character_sprite)
 
 
 ## Path to default character spritesheet in core assets
@@ -220,10 +208,7 @@ func _update_health_bar(animate: bool = true) -> void:
 			should_animate = game_juice.animate_stat_bars
 
 	if should_animate:
-		# Kill existing health bar tween
-		if _health_bar_tween and _health_bar_tween.is_valid():
-			_health_bar_tween.kill()
-
+		_kill_tween(_health_bar_tween)
 		var duration: float = health_bar_tween_duration
 		# Try to get adjusted duration from GameJuice
 		if get_node_or_null("/root/GameJuice"):
@@ -237,39 +222,40 @@ func _update_health_bar(animate: bool = true) -> void:
 		health_bar.value = stats.current_hp
 
 
+## Validate that a target cell can be moved to
+## Returns true if valid, false if invalid (and logs error)
+func _validate_move_target(target_cell: Vector2i) -> bool:
+	if not GridManager.is_within_bounds(target_cell):
+		push_error("Unit: Cannot move to %s (out of bounds)" % target_cell)
+		return false
+	if GridManager.is_cell_occupied(target_cell):
+		push_error("Unit: Cannot move to %s (occupied)" % target_cell)
+		return false
+	return true
+
+
+## Connect moved signal to tween completion or emit immediately
+func _emit_moved_on_complete(tween: Tween, from: Vector2i, to: Vector2i) -> void:
+	if tween:
+		tween.finished.connect(func() -> void: moved.emit(from, to))
+	else:
+		moved.emit(from, to)
+
+
 ## Move unit to new grid position (direct movement, no path following)
 ## Does NOT handle pathfinding - caller must validate path
 ## NOTE: Prefer move_along_path() for visible path following
 func move_to(target_cell: Vector2i) -> void:
-	if not GridManager.is_within_bounds(target_cell):
-		push_error("Unit: Cannot move to %s (out of bounds)" % target_cell)
-		return
-
-	if GridManager.is_cell_occupied(target_cell):
-		push_error("Unit: Cannot move to %s (occupied)" % target_cell)
+	if not _validate_move_target(target_cell):
 		return
 
 	var old_position: Vector2i = grid_position
-
-	# Update GridManager occupation
 	GridManager.move_unit(self, old_position, target_cell)
-
-	# Update internal position
 	grid_position = target_cell
-
-	# Mark as moved this turn
 	has_moved = true
 
-	# Animate movement to new position
 	var tween: Tween = _animate_movement_to(target_cell)
-
-	# Emit moved signal AFTER animation completes (not before)
-	if tween:
-		tween.finished.connect(func() -> void: moved.emit(old_position, target_cell))
-	else:
-		# No animation, emit immediately
-		moved.emit(old_position, target_cell)
-
+	_emit_moved_on_complete(tween, old_position, target_cell)
 
 
 ## Move unit along a pathfinding path, animating through each cell
@@ -278,53 +264,28 @@ func move_along_path(path: Array[Vector2i]) -> void:
 	if path.is_empty():
 		push_warning("Unit: Cannot move along empty path")
 		return
-
 	if path.size() == 1:
-		# Path only contains current position, no movement needed
 		return
 
 	var end_cell: Vector2i = path[path.size() - 1]
-
-	# Validate end position
-	if not GridManager.is_within_bounds(end_cell):
-		push_error("Unit: Cannot move to %s (out of bounds)" % end_cell)
-		return
-
-	if GridManager.is_cell_occupied(end_cell):
-		push_error("Unit: Cannot move to %s (occupied)" % end_cell)
+	if not _validate_move_target(end_cell):
 		return
 
 	var old_position: Vector2i = grid_position
-
-	# Update GridManager occupation (only at start and end)
 	GridManager.move_unit(self, old_position, end_cell)
-
-	# Update internal position to final destination
 	grid_position = end_cell
-
-	# Mark as moved this turn
 	has_moved = true
 
-	# Animate movement along the full path
 	var tween: Tween = _animate_movement_along_path(path)
-
-	# Emit moved signal AFTER animation completes (not before)
-	if tween:
-		tween.finished.connect(func() -> void: moved.emit(old_position, end_cell))
-	else:
-		# No animation, emit immediately
-		moved.emit(old_position, end_cell)
+	_emit_moved_on_complete(tween, old_position, end_cell)
 
 
 
 ## Animate smooth movement to target cell
 func _animate_movement_to(target_cell: Vector2i) -> Tween:
-	# Kill any existing movement tween
-	if _movement_tween and _movement_tween.is_valid():
-		_movement_tween.kill()
-		_movement_tween = null
+	_kill_tween(_movement_tween)
+	_movement_tween = null
 
-	# Get target world position
 	var target_position: Vector2 = GridManager.cell_to_world(target_cell)
 
 	# Calculate distance and duration
@@ -353,10 +314,8 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 
 ## Animate movement along a path, stepping through each cell
 func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
-	# Kill any existing movement tween
-	if _movement_tween and _movement_tween.is_valid():
-		_movement_tween.kill()
-		_movement_tween = null
+	_kill_tween(_movement_tween)
+	_movement_tween = null
 
 	# Create tween for the entire path
 	_movement_tween = create_tween()
@@ -693,11 +652,20 @@ func _play_directional_animation() -> void:
 		return
 
 	var anim_name: String = "walk_" + facing_direction
-	if sprite.sprite_frames.has_animation(anim_name):
-		if sprite.animation != anim_name:
-			sprite.play(anim_name)
-	elif sprite.sprite_frames.has_animation("walk_down"):
-		sprite.play("walk_down")
+	if not _play_animation_if_exists(anim_name):
+		_play_animation_if_exists("walk_down")
+
+
+## Play animation if it exists in sprite_frames
+## Returns true if animation was played
+func _play_animation_if_exists(anim_name: String) -> bool:
+	if not sprite or not sprite.sprite_frames:
+		return false
+	if not sprite.sprite_frames.has_animation(anim_name):
+		return false
+	if sprite.animation != anim_name:
+		sprite.play(anim_name)
+	return true
 
 
 ## Update facing direction based on movement from one cell to another
@@ -746,51 +714,23 @@ func initialize_from_save_data(
 	faction = p_faction
 	ai_behavior = p_ai_behavior
 
-	# Create stats
+	# Create stats and load from save data
 	stats = UnitStatsScript.new()
 	stats.owner_unit = self
+	stats.load_from_save_data(p_save_data, p_character_data)
 
-	# Load base stats from save data instead of character data
-	stats.level = p_save_data.level
-	stats.current_xp = p_save_data.current_xp
-	stats.max_hp = p_save_data.max_hp
-	stats.current_hp = p_save_data.current_hp
-	stats.max_mp = p_save_data.max_mp
-	stats.current_mp = p_save_data.current_mp
-	stats.strength = p_save_data.strength
-	stats.defense = p_save_data.defense
-	stats.agility = p_save_data.agility
-	stats.intelligence = p_save_data.intelligence
-	stats.luck = p_save_data.luck
-
-	# Store character and class references
-	stats.character_data = p_character_data
-	# Get class from save data (handles promoted characters) with fallback to template
-	stats.class_data = p_save_data.get_current_class(p_character_data)
-
-	# Load equipment from save data
-	stats.load_equipment_from_save(p_save_data)
-
-	# Set visual (placeholder for now)
-	_update_visual()
-
-	# Set name label
-	if name_label:
-		name_label.text = character_data.character_name
-
-	# Update health bar (no animation on initialization)
-	_update_health_bar(false)
-
-	# Hide selection indicator by default
-	if selection_indicator:
-		selection_indicator.visible = false
+	_finalize_initialization()
 
 
 func _exit_tree() -> void:
 	# Kill any active tweens to prevent callbacks on freed node
-	if _movement_tween and _movement_tween.is_valid():
-		_movement_tween.kill()
-		_movement_tween = null
-	if _health_bar_tween and _health_bar_tween.is_valid():
-		_health_bar_tween.kill()
-		_health_bar_tween = null
+	_kill_tween(_movement_tween)
+	_movement_tween = null
+	_kill_tween(_health_bar_tween)
+	_health_bar_tween = null
+
+
+## Kill a tween if it exists and is valid
+func _kill_tween(tween: Tween) -> void:
+	if tween and tween.is_valid():
+		tween.kill()

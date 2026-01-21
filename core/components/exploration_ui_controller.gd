@@ -130,80 +130,62 @@ func setup_field_menu(field_menu: ExplorationFieldMenu) -> void:
 
 
 func _connect_signals() -> void:
-	if party_equipment_menu:
-		if not party_equipment_menu.close_requested.is_connected(_on_inventory_close_requested):
-			party_equipment_menu.close_requested.connect(_on_inventory_close_requested)
-		if not party_equipment_menu.depot_requested.is_connected(_on_depot_requested):
-			party_equipment_menu.depot_requested.connect(_on_depot_requested)
+	# Party equipment menu (deprecated)
+	_safe_connect(party_equipment_menu, "close_requested", _on_inventory_close_requested)
+	_safe_connect(party_equipment_menu, "depot_requested", _on_depot_requested)
 
-	if caravan_interface:
-		# CaravanInterfaceController emits depot_closed signal
-		if caravan_interface.has_signal("depot_closed"):
-			if not caravan_interface.depot_closed.is_connected(_on_depot_close_requested):
-				caravan_interface.depot_closed.connect(_on_depot_close_requested)
-
-	if members_interface:
-		# MembersInterfaceController emits members_closed signal
-		if members_interface.has_signal("members_closed"):
-			if not members_interface.members_closed.is_connected(_on_members_close_requested):
-				members_interface.members_closed.connect(_on_members_close_requested)
-
-	if field_items_interface:
-		# FieldItemInterfaceController emits field_items_closed signal
-		if field_items_interface.has_signal("field_items_closed"):
-			if not field_items_interface.field_items_closed.is_connected(_on_field_items_close_requested):
-				field_items_interface.field_items_closed.connect(_on_field_items_close_requested)
+	# Interface controllers
+	_safe_connect(caravan_interface, "depot_closed", _on_depot_close_requested)
+	_safe_connect(members_interface, "members_closed", _on_members_close_requested)
+	_safe_connect(field_items_interface, "field_items_closed", _on_field_items_close_requested)
 
 	_connect_field_menu_signals()
 
 
 func _connect_field_menu_signals() -> void:
-	if exploration_field_menu:
-		if not exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
-			exploration_field_menu.close_requested.connect(_on_field_menu_close_requested)
-		if not exploration_field_menu.item_requested.is_connected(_on_field_menu_item_requested):
-			exploration_field_menu.item_requested.connect(_on_field_menu_item_requested)
-		if not exploration_field_menu.member_requested.is_connected(_on_field_menu_member_requested):
-			exploration_field_menu.member_requested.connect(_on_field_menu_member_requested)
-		if not exploration_field_menu.search_requested.is_connected(_on_field_menu_search_requested):
-			exploration_field_menu.search_requested.connect(_on_field_menu_search_requested)
-		if not exploration_field_menu.magic_requested.is_connected(_on_field_menu_magic_requested):
-			exploration_field_menu.magic_requested.connect(_on_field_menu_magic_requested)
+	if not exploration_field_menu:
+		return
+	_safe_connect(exploration_field_menu, "close_requested", _on_field_menu_close_requested)
+	_safe_connect(exploration_field_menu, "item_requested", _on_field_menu_item_requested)
+	_safe_connect(exploration_field_menu, "member_requested", _on_field_menu_member_requested)
+	_safe_connect(exploration_field_menu, "search_requested", _on_field_menu_search_requested)
+	_safe_connect(exploration_field_menu, "magic_requested", _on_field_menu_magic_requested)
 
 
 func _disconnect_signals() -> void:
-	if party_equipment_menu:
-		if party_equipment_menu.close_requested.is_connected(_on_inventory_close_requested):
-			party_equipment_menu.close_requested.disconnect(_on_inventory_close_requested)
-		if party_equipment_menu.depot_requested.is_connected(_on_depot_requested):
-			party_equipment_menu.depot_requested.disconnect(_on_depot_requested)
+	# Party equipment menu (deprecated)
+	_safe_disconnect(party_equipment_menu, "close_requested", _on_inventory_close_requested)
+	_safe_disconnect(party_equipment_menu, "depot_requested", _on_depot_requested)
 
-	if caravan_interface:
-		if caravan_interface.has_signal("depot_closed"):
-			if caravan_interface.depot_closed.is_connected(_on_depot_close_requested):
-				caravan_interface.depot_closed.disconnect(_on_depot_close_requested)
+	# Interface controllers
+	_safe_disconnect(caravan_interface, "depot_closed", _on_depot_close_requested)
+	_safe_disconnect(members_interface, "members_closed", _on_members_close_requested)
+	_safe_disconnect(field_items_interface, "field_items_closed", _on_field_items_close_requested)
 
-	if members_interface:
-		if members_interface.has_signal("members_closed"):
-			if members_interface.members_closed.is_connected(_on_members_close_requested):
-				members_interface.members_closed.disconnect(_on_members_close_requested)
+	# Field menu
+	_safe_disconnect(exploration_field_menu, "close_requested", _on_field_menu_close_requested)
+	_safe_disconnect(exploration_field_menu, "item_requested", _on_field_menu_item_requested)
+	_safe_disconnect(exploration_field_menu, "member_requested", _on_field_menu_member_requested)
+	_safe_disconnect(exploration_field_menu, "search_requested", _on_field_menu_search_requested)
+	_safe_disconnect(exploration_field_menu, "magic_requested", _on_field_menu_magic_requested)
 
-	if field_items_interface:
-		if field_items_interface.has_signal("field_items_closed"):
-			if field_items_interface.field_items_closed.is_connected(_on_field_items_close_requested):
-				field_items_interface.field_items_closed.disconnect(_on_field_items_close_requested)
 
-	if exploration_field_menu:
-		if exploration_field_menu.close_requested.is_connected(_on_field_menu_close_requested):
-			exploration_field_menu.close_requested.disconnect(_on_field_menu_close_requested)
-		if exploration_field_menu.item_requested.is_connected(_on_field_menu_item_requested):
-			exploration_field_menu.item_requested.disconnect(_on_field_menu_item_requested)
-		if exploration_field_menu.member_requested.is_connected(_on_field_menu_member_requested):
-			exploration_field_menu.member_requested.disconnect(_on_field_menu_member_requested)
-		if exploration_field_menu.search_requested.is_connected(_on_field_menu_search_requested):
-			exploration_field_menu.search_requested.disconnect(_on_field_menu_search_requested)
-		if exploration_field_menu.magic_requested.is_connected(_on_field_menu_magic_requested):
-			exploration_field_menu.magic_requested.disconnect(_on_field_menu_magic_requested)
+## Safely connect a signal if object exists and signal isn't already connected
+func _safe_connect(obj: Object, signal_name: String, callable: Callable) -> void:
+	if not obj or not obj.has_signal(signal_name):
+		return
+	var sig: Signal = Signal(obj, signal_name)
+	if not sig.is_connected(callable):
+		sig.connect(callable)
+
+
+## Safely disconnect a signal if object exists and signal is connected
+func _safe_disconnect(obj: Object, signal_name: String, callable: Callable) -> void:
+	if not obj or not obj.has_signal(signal_name):
+		return
+	var sig: Signal = Signal(obj, signal_name)
+	if sig.is_connected(callable):
+		sig.disconnect(callable)
 
 # =============================================================================
 # INPUT HANDLING
@@ -362,80 +344,69 @@ func _on_field_menu_close_requested() -> void:
 
 ## Field menu Item option - open hero's inventory (SF2 authentic)
 func _on_field_menu_item_requested() -> void:
-	# Close field menu first
-	if exploration_field_menu:
-		exploration_field_menu.hide_menu()
+	_close_field_menu()
 
-	# Open new FieldItemsInterface (SF2 authentic: hero only, no GIVE)
+	# Open FieldItemsInterface (SF2 authentic: hero only, no GIVE)
 	if field_items_interface and field_items_interface.has_method("open_field_items"):
 		_set_state(UIState.FIELD_ITEMS)
 		field_items_interface.open_field_items()
 	else:
-		# Fallback to deprecated PartyEquipmentMenu
-		_set_state(UIState.INVENTORY)
-		if party_equipment_menu:
-			party_equipment_menu.refresh()
-			party_equipment_menu.visible = true
+		_open_fallback_inventory()
 
 
 ## Field menu Member option - open the new Members interface
 func _on_field_menu_member_requested() -> void:
-	# Close field menu first
-	if exploration_field_menu:
-		exploration_field_menu.hide_menu()
+	_close_field_menu()
 
-	# Open the new MembersInterface (screen-based, keyboard/gamepad friendly)
+	# Open MembersInterface (screen-based, keyboard/gamepad friendly)
 	if members_interface and members_interface.has_method("open_members"):
 		_set_state(UIState.MEMBERS)
 		members_interface.open_members()
 	else:
-		# Fallback to old PartyEquipmentMenu if MembersInterface not available
-		_set_state(UIState.INVENTORY)
-		if party_equipment_menu:
-			party_equipment_menu.refresh()
-			party_equipment_menu.visible = true
+		_open_fallback_inventory()
 
 
-## Members interface closed - return to exploration
+## Members/FieldItems interface closed - return to exploration
 func _on_members_close_requested() -> void:
 	_set_state(UIState.EXPLORING)
 
 
-## Field items interface closed - return to exploration
 func _on_field_items_close_requested() -> void:
 	_set_state(UIState.EXPLORING)
 
 
-## Field menu Search option - examine current tile
+## Field menu Search option - examine current tile (placeholder)
 func _on_field_menu_search_requested() -> void:
-	# Close field menu first
-	if exploration_field_menu:
-		exploration_field_menu.hide_menu()
-
-	_set_state(UIState.EXPLORING)
-
-	# Phase 1: Show placeholder message via DialogManager
-	# Phase 3 will implement hidden item detection and tile descriptions
-	if DialogManager:
-		DialogManager.show_message("Nothing unusual here.")
-	else:
-		push_warning("ExplorationUIController: DialogManager not available for Search message")
+	_close_field_menu_and_show_message("Nothing unusual here.")
 
 
-## Field menu Magic option - open magic selection (Phase 2)
+## Field menu Magic option - open magic selection (placeholder)
 func _on_field_menu_magic_requested() -> void:
-	# Close field menu first
+	_close_field_menu_and_show_message("No field magic available.")
+
+
+## Helper: close field menu
+func _close_field_menu() -> void:
 	if exploration_field_menu:
 		exploration_field_menu.hide_menu()
 
-	_set_state(UIState.EXPLORING)
 
-	# Phase 1: Show placeholder message
-	# Phase 2 will implement FieldMagicMenu for Egress/Detox
+## Helper: close field menu and show a message via DialogManager
+func _close_field_menu_and_show_message(message: String) -> void:
+	_close_field_menu()
+	_set_state(UIState.EXPLORING)
 	if DialogManager:
-		DialogManager.show_message("No field magic available.")
+		DialogManager.show_message(message)
 	else:
-		push_warning("ExplorationUIController: DialogManager not available for Magic message")
+		push_warning("ExplorationUIController: DialogManager not available")
+
+
+## Helper: fallback to deprecated PartyEquipmentMenu
+func _open_fallback_inventory() -> void:
+	_set_state(UIState.INVENTORY)
+	if party_equipment_menu:
+		party_equipment_menu.refresh()
+		party_equipment_menu.visible = true
 
 
 # =============================================================================
