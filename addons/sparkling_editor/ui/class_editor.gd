@@ -237,6 +237,7 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.on_change(_mark_dirty)
 	form.add_section("Basic Information")
 	name_edit = form.add_text_field("Class Name:", "", "Display name shown for this class. E.g., Warrior, Mage, Knight.")
 

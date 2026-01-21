@@ -15,7 +15,6 @@ var shop_type_option: OptionButton
 # Inventory
 var inventory_container: VBoxContainer
 var inventory_list: DynamicRowList
-var item_picker_popup: PopupMenu
 
 # Deals
 var deals_container: VBoxContainer
@@ -286,11 +285,6 @@ func _add_inventory_section() -> void:
 	inventory_list.data_changed.connect(_on_inventory_data_changed)
 	inventory_container.add_child(inventory_list)
 
-	# Item picker popup (still needed for "Add Item..." button behavior)
-	item_picker_popup = PopupMenu.new()
-	item_picker_popup.id_pressed.connect(_on_item_picker_selected)
-	add_child(item_picker_popup)
-
 	detail_panel.add_child(inventory_container)
 
 
@@ -552,31 +546,6 @@ func _extract_deal_data(row: HBoxContainer) -> Dictionary:
 ## Called when deal data changes via DynamicRowList
 func _on_deal_data_changed() -> void:
 	_mark_dirty()
-
-
-## =============================================================================
-## LEGACY ITEM PICKER POPUP (for backward compatibility)
-## =============================================================================
-
-var _adding_to_deals: bool = false
-var _picker_items: Array[Resource] = []  # Temporary for popup selection
-
-func _on_item_picker_selected(id: int) -> void:
-	if id < 0 or id >= _picker_items.size():
-		return
-
-	var item: ItemData = _picker_items[id] as ItemData
-	if not item:
-		return
-
-	# Get item_id from the item
-	var item_id: String = _get_item_id(item)
-	if item_id.is_empty():
-		return
-
-	# This is no longer used since we switched to DynamicRowList
-	# The row factory handles adding items via ResourcePicker
-	pass
 
 
 # =============================================================================
