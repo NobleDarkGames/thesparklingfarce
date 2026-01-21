@@ -728,7 +728,7 @@ func _load_available_ai_behaviors() -> void:
 				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else behavior_id.capitalize()
 				var label: String = SparklingEditorUtils.get_display_with_mod_by_id("ai_behavior", behavior_id, display_name)
 				default_ai_option.add_item(label, index)
-				default_ai_option.set_item_metadata(index + 1, ai_behavior)
+				default_ai_option.set_item_metadata(default_ai_option.item_count - 1, ai_behavior)
 				index += 1
 
 

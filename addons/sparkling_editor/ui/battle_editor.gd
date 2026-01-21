@@ -601,7 +601,7 @@ func _select_audio_in_dropdown(option: OptionButton, audio_id: String) -> void:
 
 	# ID not found - might be custom, add it
 	var item_index: int = option.item_count
-	option.add_item("[custom] %s" % audio_id, item_index - 1)
+	option.add_item("[custom] %s" % audio_id, item_index)
 	option.set_item_metadata(item_index, audio_id)
 	option.selected = item_index
 
@@ -630,7 +630,7 @@ func _update_ai_dropdown(option: OptionButton) -> void:
 				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else behavior_id.capitalize()
 				var label: String = SparklingEditorUtils.get_display_with_mod_by_id("ai_behavior", behavior_id, display_name)
 				option.add_item(label, index)
-				option.set_item_metadata(index + 1, ai_behavior)
+				option.set_item_metadata(option.item_count - 1, ai_behavior)
 				index += 1
 
 

@@ -293,7 +293,14 @@ func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String])
 		var checkbox: CheckBox = CheckBox.new()
 		checkbox.text = type_name.capitalize()
 		checkbox.set_meta("equipment_type", type_name)
+		checkbox.toggled.connect(_on_equipment_checkbox_toggled)
 		parent.add_child(checkbox)
+
+
+## Called when any equipment type checkbox is toggled
+func _on_equipment_checkbox_toggled(_pressed: bool) -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 func _add_promotion_section() -> void:

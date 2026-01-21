@@ -1295,6 +1295,11 @@ func _on_delete_cinematic() -> void:
 		current_cinematic_data = {}
 		_clear_inspector()
 	)
+	# Free dialog when closed (confirmed, canceled, or X button)
+	confirm.visibility_changed.connect(func() -> void:
+		if not confirm.visible:
+			confirm.queue_free()
+	)
 	add_child(confirm)
 	confirm.popup_centered()
 

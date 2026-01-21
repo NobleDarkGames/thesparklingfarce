@@ -440,6 +440,11 @@ func _on_browse_wagon_sprite() -> void:
 	dialog.add_filter("*.webp", "WebP Images")
 	dialog.add_filter("*.svg", "SVG Images")
 	dialog.file_selected.connect(_on_wagon_sprite_selected)
+	# Free dialog when closed (file selected, canceled, or X button)
+	dialog.visibility_changed.connect(func() -> void:
+		if not dialog.visible:
+			dialog.queue_free()
+	)
 	add_child(dialog)
 	dialog.popup_centered_ratio(0.7)
 

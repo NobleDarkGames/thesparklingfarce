@@ -433,6 +433,8 @@ func _on_status_effect_toggled(index: int) -> void:
 		popup.set_item_checked(index, true)
 
 	_update_status_effects_display()
+	if not _updating_ui:
+		_mark_dirty()
 
 
 ## Update the label showing currently selected effects

@@ -1,6 +1,30 @@
 # The Sparkling Farce - Pending Tasks
 
-This document tracks all pending work items. Verified 2026-01-21.
+This document tracks all pending work items. Updated 2026-01-21.
+
+---
+
+## Editor Bugs (Priority: HIGH)
+
+Critical bugs found in Sparkling Editor code review:
+
+### Off-by-One Metadata Bugs
+- [ ] `battle_editor.gd:633` - AI dropdown metadata at wrong index
+- [ ] `battle_editor.gd:604` - Audio dropdown item ID off by one
+- [ ] `character_editor.gd:731` - AI behavior dropdown metadata off by one
+
+### Missing Dirty Tracking
+- [ ] `class_editor.gd:261-269` - Equipment section never calls `_mark_dirty`
+- [ ] `ability_editor.gd:435` - Status effect changes don't trigger dirty flag
+
+### Memory Leaks
+- [ ] `cinematic_editor.gd:1289-1299` - ConfirmationDialog never freed
+- [ ] `caravan_editor.gd:443-444` - EditorFileDialog not freed
+
+### Data Integrity
+- [ ] `save_slot_editor.gd:942-968` - Creates orphaned/duplicate metadata entries
+
+**Full report:** `docs/untracked/EDITOR_CODE_REVIEW.md`
 
 ---
 
@@ -8,45 +32,30 @@ This document tracks all pending work items. Verified 2026-01-21.
 
 2 items remaining before alpha release:
 
-- [ ] Complete modder documentation Tutorial 4 (Abilities and Magic) - Tutorial 3 links to it
-- [ ] Replace 23 [PLACEHOLDER] entries across README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CREDITS.md, and .github/
-
-**Estimated effort:** 1-2 days focused work
+- [ ] Complete modder documentation Tutorial 4 (Abilities and Magic)
+- [ ] Replace 23 [PLACEHOLDER] entries across community docs
 
 ---
 
-## Test Suite Improvements (Priority: MEDIUM)
+## Editor Code Quality (Priority: MEDIUM)
 
-### Completed (verified 2026-01-21)
-- [x] Phase 5.1: AIBehaviorFactory fixture deployed to 12 AI tests
-- [x] Phase 5.2: UnitStatsFactory fixture created and ready
-- [x] Phase 5.3: All "_base_game" literals replaced with TEST_MOD_ID constants
-- [x] Phase 5.5: Autoload dependencies documented in all 6 fixture files
-- [x] Phase 5.6: GridManager integration tests exist (27 tests)
-- [x] Phase 5.7: GameState unit tests exist (50+ tests)
+From code review - consolidation opportunities:
 
-### Still Pending
-None - test suite improvements complete!
+### Duplication to Consolidate
+- [ ] Place on Map sections (~100 lines duplicated in npc_editor.gd, interactable_editor.gd)
+- [ ] CRAFTER_TYPES constant (duplicated in crafter_editor.gd, crafting_recipe_editor.gd)
+- [ ] `_updating_ui` pattern (5 editors duplicate base class `_is_loading`)
+- [ ] Texture loading helpers (same code in 3+ files)
+- [ ] Registry fallback patterns (4 files have identical lookup code)
 
----
-
-## Test Coverage Gaps (Priority: COMPLETE)
-
-All high-risk systems now have coverage:
-
-- [x] InputManager (2,392 lines) - 95 tests
-- [x] SceneManager (263 lines) - 37 tests
-- [x] SettingsManager - 69 tests
-- [x] CraftingManager - 48 tests
-- [x] RandomManager - 27 tests (pre-existing)
-
-**Note**: Async methods (fade animations, scene transitions) would benefit from integration tests.
+### Large Files to Split
+- [ ] `cinematic_editor.gd` (2,231 lines) - Split into components
+- [ ] `character_editor.gd` (1,428 lines) - Extract sections
+- [ ] `base_resource_editor.gd` (1,817 lines) - Decompose setup method
 
 ---
 
 ## Deferred Features (Priority: BACKLOG)
-
-From `docs/plans/pending-known-limitations.md`:
 
 - [ ] Dialog box auto-positioning (avoid portrait overlap)
 - [ ] Mod field menu options (position parameter support)
@@ -57,50 +66,8 @@ From `docs/plans/pending-known-limitations.md`:
 
 ---
 
-## Code Simplification (Priority: COMPLETE)
-
-All batches from `docs/code-simplifier-plan.md` are complete:
-
-- [x] Batches 1.3–4.1: Foundation cleanup (-1,322 lines)
-- [x] Batch 4.2: Secondary Editor Files (-16 lines)
-- [x] Batch 5.1: Remaining Systems (-128 lines)
-- [x] Batch 5.2: Caravan & Members UI (-44 lines)
-
-**Total: -1,510 lines removed**
-
----
-
-## Recently Completed
-
-Community documentation (2026-01-21):
-- [x] CONTRIBUTING.md - Development setup, code standards, PR process
-- [x] CODE_OF_CONDUCT.md - Contributor Covenant 2.1
-- [x] CREDITS.md - Attribution for libraries, inspirations, contributors
-- [x] .github/ISSUE_TEMPLATE/ - Bug report and feature request forms
-- [x] .github/PULL_REQUEST_TEMPLATE.md - PR checklist
-
-Test suite orphan fix (2026-01-21):
-- [x] test_character_editor_validation.gd - Refactored to mock-based (525 orphans → 0)
-
-Code simplification batches 4.2–5.2 (2026-01-21):
-- [x] Batch 4.2: -16 lines (editor helpers)
-- [x] Batch 5.1: -128 lines (core system consolidation)
-- [x] Batch 5.2: -44 lines (Caravan/Members UI centralization)
-
-Verified fixed (was in old audit findings):
-- [x] Buff/Debuff spells - Now implemented via _apply_spell_status()
-- [x] BBCode in char_select.gd - Correctly uses RichTextLabel
-- [x] xp_per_level config - Properly initialized from ExperienceConfig
-
-Test suite improvements:
-- [x] Test polling migration (GdUnit4 v6.0.2+)
-- [x] Test suite cleanup phases 1-4
-- [x] InputManager basic coverage (95 tests)
-
----
-
 ## Reference Documents
 
 - `docs/untracked/PHASE_STATUS.md` - High-level project status
-- `docs/untracked/RELEASE_READINESS_ASSESSMENT.md` - Release criteria details
+- `docs/untracked/EDITOR_CODE_REVIEW.md` - Full editor code review findings
 - `docs/specs/platform-specification.md` - Technical specification

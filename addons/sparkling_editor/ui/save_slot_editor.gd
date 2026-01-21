@@ -958,8 +958,10 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 	var slot_meta: SlotMetadata = SlotMetadata.new()
 	slot_meta.populate_from_save_data(save_data)
 	slot_meta_dict = slot_meta.serialize_to_dict()
+	# Ensure slot_number matches the target slot (not save_data's slot_number)
+	slot_meta_dict["slot_number"] = slot_number
 
-	# Find and replace in array
+	# Find and replace in array (or update newly-appended placeholder)
 	for i: int in range(all_metadata.size()):
 		var check_meta: Dictionary = all_metadata[i]
 		var check_slot: int = check_meta.get("slot_number", 0)
