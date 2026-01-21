@@ -101,8 +101,6 @@ func _exit_tree() -> void:
 func _on_mods_reloaded() -> void:
 	_invalidate_widget_context()
 	_refresh_cinematic_list()
-	if actor_entity_picker:
-		_populate_actor_entity_picker()
 
 
 ## Called when any resource is saved or created
@@ -110,8 +108,6 @@ func _on_resource_changed(resource_type: String, _resource_id: String, _resource
 	# Invalidate widget context so it queries registry fresh
 	if resource_type in ["character", "characters", "npc", "npcs", "shop", "battle", "map", "interactable"]:
 		_invalidate_widget_context()
-		if actor_entity_picker:
-			_populate_actor_entity_picker()
 		# Rebuild inspector if a command is selected (to refresh dropdowns)
 		if selected_command_index >= 0:
 			_build_inspector_for_command(selected_command_index)
@@ -361,9 +357,6 @@ func _setup_actors_section(parent: VBoxContainer) -> void:
 	actors_editor.display_formatter = _format_actor_display
 	actors_editor.data_factory = _create_new_actor
 	actors_editor.data_extractor = _extract_actor_data
-
-	# Connect dirty tracking
-	actors_editor.data_changed.connect(_mark_dirty)
 
 	actors_container.add_child(actors_editor)
 	form.add_separator()
