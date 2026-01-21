@@ -130,34 +130,39 @@ func _input(event: InputEvent) -> void:
 	if not _active:
 		return
 
-	var handled: bool = false
-
+	# Navigation input mapping
 	if event.is_action_pressed("ui_up"):
 		_move_selection(Vector2i(0, -1))
-		handled = true
 	elif event.is_action_pressed("ui_down"):
 		_move_selection(Vector2i(0, 1))
-		handled = true
 	elif event.is_action_pressed("ui_left"):
 		_move_selection(Vector2i(-1, 0))
-		handled = true
 	elif event.is_action_pressed("ui_right"):
 		_move_selection(Vector2i(1, 0))
-		handled = true
 	elif event.is_action_pressed("ui_accept") or event.is_action_pressed("sf_confirm"):
 		_confirm_selection()
-		handled = true
 	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
 		_cancel()
-		handled = true
+	else:
+		return  # No action matched
 
-	if handled:
-		get_viewport().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 # =============================================================================
 # UI BUILDING
 # =============================================================================
+
+func _create_styled_label(text: String, font_size: int, color: Color, h_align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+	## Helper to create a label with monogram font styling
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_font_override("font", MONOGRAM_FONT)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.horizontal_alignment = h_align
+	return label
+
 
 func _build_ui() -> void:
 	# Fill screen for centering
@@ -189,12 +194,7 @@ func _build_ui() -> void:
 	_panel.add_child(content)
 
 	# Title
-	_title_label = Label.new()
-	_title_label.text = "Party Management"
-	_title_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_title_label.add_theme_font_size_override("font_size", 24)
-	_title_label.add_theme_color_override("font_color", COLOR_PANEL_BORDER)
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_label = _create_styled_label("Party Management", 24, COLOR_PANEL_BORDER, HORIZONTAL_ALIGNMENT_CENTER)
 	content.add_child(_title_label)
 
 	# Separator
@@ -211,11 +211,7 @@ func _build_ui() -> void:
 	active_section.add_theme_constant_override("separation", 4)
 	split.add_child(active_section)
 
-	var active_label: Label = Label.new()
-	active_label.text = "Active Party"
-	active_label.add_theme_font_override("font", MONOGRAM_FONT)
-	active_label.add_theme_font_size_override("font_size", 16)
-	active_label.add_theme_color_override("font_color", COLOR_TEXT_NORMAL)
+	var active_label: Label = _create_styled_label("Active Party", 16, COLOR_TEXT_NORMAL)
 	active_section.add_child(active_label)
 
 	_active_grid = GridContainer.new()
@@ -236,11 +232,7 @@ func _build_ui() -> void:
 	right_section.custom_minimum_size.x = 140
 	split.add_child(right_section)
 
-	var reserve_label: Label = Label.new()
-	reserve_label.text = "Reserves"
-	reserve_label.add_theme_font_override("font", MONOGRAM_FONT)
-	reserve_label.add_theme_font_size_override("font_size", 16)
-	reserve_label.add_theme_color_override("font_color", COLOR_TEXT_NORMAL)
+	var reserve_label: Label = _create_styled_label("Reserves", 16, COLOR_TEXT_NORMAL)
 	right_section.add_child(reserve_label)
 
 	# Reserve slots container (scrollable if needed later)
@@ -266,59 +258,31 @@ func _build_ui() -> void:
 	info_content.add_theme_constant_override("separation", 2)
 	_info_panel.add_child(info_content)
 
-	_info_name = Label.new()
-	_info_name.text = "---"
-	_info_name.add_theme_font_override("font", MONOGRAM_FONT)
-	_info_name.add_theme_font_size_override("font_size", 16)
-	_info_name.add_theme_color_override("font_color", COLOR_TEXT_SELECTED)
+	_info_name = _create_styled_label("---", 16, COLOR_TEXT_SELECTED)
 	info_content.add_child(_info_name)
 
-	_info_class = Label.new()
-	_info_class.text = ""
-	_info_class.add_theme_font_override("font", MONOGRAM_FONT)
-	_info_class.add_theme_font_size_override("font_size", 16)
-	_info_class.add_theme_color_override("font_color", COLOR_TEXT_NORMAL)
+	_info_class = _create_styled_label("", 16, COLOR_TEXT_NORMAL)
 	info_content.add_child(_info_class)
 
-	_info_level = Label.new()
-	_info_level.text = ""
-	_info_level.add_theme_font_override("font", MONOGRAM_FONT)
-	_info_level.add_theme_font_size_override("font_size", 16)
-	_info_level.add_theme_color_override("font_color", COLOR_TEXT_NORMAL)
+	_info_level = _create_styled_label("", 16, COLOR_TEXT_NORMAL)
 	info_content.add_child(_info_level)
 
 	# Hint text at bottom
 	var sep2: HSeparator = HSeparator.new()
 	content.add_child(sep2)
 
-	_hint_label = Label.new()
-	_hint_label.text = "Select character to swap"
-	_hint_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_hint_label.add_theme_font_size_override("font_size", 16)
-	_hint_label.add_theme_color_override("font_color", COLOR_TEXT_DISABLED)
-	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label = _create_styled_label("Select character to swap", 16, COLOR_TEXT_DISABLED, HORIZONTAL_ALIGNMENT_CENTER)
 	content.add_child(_hint_label)
 
 
 func _create_slot(index: int, is_active: bool) -> PanelContainer:
 	var slot: PanelContainer = PanelContainer.new()
 	slot.custom_minimum_size = SLOT_SIZE
-
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = COLOR_SLOT_EMPTY
-	style.set_border_width_all(2)
-	style.border_color = Color(0.3, 0.3, 0.35, 0.8)
-	style.set_corner_radius_all(2)
-	slot.add_theme_stylebox_override("panel", style)
+	slot.add_theme_stylebox_override("panel", _style_empty)
 
 	# Character name label (centered)
-	var label: Label = Label.new()
+	var label: Label = _create_styled_label("", 16, COLOR_TEXT_NORMAL, HORIZONTAL_ALIGNMENT_CENTER)
 	label.name = "NameLabel"
-	label.text = ""
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", COLOR_TEXT_NORMAL)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	slot.add_child(label)
@@ -328,6 +292,16 @@ func _create_slot(index: int, is_active: bool) -> PanelContainer:
 	slot.set_meta("is_active", is_active)
 
 	return slot
+
+
+# =============================================================================
+# AUDIO HELPER
+# =============================================================================
+
+func _play_sfx(sfx_name: String) -> void:
+	## Play UI sound effect if AudioManager is available
+	if AudioManager:
+		AudioManager.play_sfx(sfx_name, AudioManager.SFXCategory.UI)
 
 
 # =============================================================================
@@ -345,8 +319,7 @@ func show_panel() -> void:
 	_active = true
 	set_process_input(true)
 
-	if AudioManager:
-		AudioManager.play_sfx("menu_open", AudioManager.SFXCategory.UI)
+	_play_sfx("menu_open")
 
 
 ## Hide the panel
@@ -394,31 +367,17 @@ func _refresh_slots() -> void:
 
 	# If no reserves, show placeholder
 	if reserve_party.is_empty():
-		var placeholder: Label = Label.new()
-		placeholder.text = "(none)"
-		placeholder.add_theme_font_override("font", MONOGRAM_FONT)
-		placeholder.add_theme_font_size_override("font_size", 16)
-		placeholder.add_theme_color_override("font_color", COLOR_TEXT_DISABLED)
+		var placeholder: Label = _create_styled_label("(none)", 16, COLOR_TEXT_DISABLED)
 		_reserve_container.add_child(placeholder)
 
 
 func _create_reserve_slot(index: int, character: CharacterData) -> PanelContainer:
 	var slot: PanelContainer = PanelContainer.new()
 	slot.custom_minimum_size = Vector2(120, 28)
+	slot.add_theme_stylebox_override("panel", _style_filled)
 
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = COLOR_SLOT_FILLED
-	style.set_border_width_all(1)
-	style.border_color = Color(0.3, 0.3, 0.35, 0.8)
-	style.set_corner_radius_all(2)
-	slot.add_theme_stylebox_override("panel", style)
-
-	var label: Label = Label.new()
+	var label: Label = _create_styled_label(_truncate_name(character.character_name, 12), 16, COLOR_TEXT_NORMAL)
 	label.name = "NameLabel"
-	label.text = _truncate_name(character.character_name, 12)
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", COLOR_TEXT_NORMAL)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	slot.add_child(label)
 
@@ -494,8 +453,7 @@ func _move_selection(direction: Vector2i) -> void:
 	_update_selection_visual()
 	_update_info_panel()
 
-	if AudioManager:
-		AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
+	_play_sfx("cursor_move")
 
 
 func _update_selection_visual() -> void:
@@ -577,16 +535,14 @@ func _confirm_selection() -> void:
 
 	# If selecting empty slot, ignore
 	if not character:
-		if AudioManager:
-			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
+		_play_sfx("error")
 		return
 
 	# Cannot select hero for swap
 	var sel_section: String = DictUtils.get_string(_selection, "section", "")
 	var sel_index: int = DictUtils.get_int(_selection, "index", 0)
 	if sel_section == "active" and sel_index == 0:
-		if AudioManager:
-			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
+		_play_sfx("error")
 		return
 
 	# First selection - set swap source
@@ -594,8 +550,7 @@ func _confirm_selection() -> void:
 		_swap_source = _selection.duplicate()
 		_update_selection_visual()
 		_update_info_panel()
-		if AudioManager:
-			AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+		_play_sfx("menu_select")
 		return
 
 	# Second selection - perform swap
@@ -623,28 +578,27 @@ func _perform_swap() -> void:
 	var sel_section: String = DictUtils.get_string(_selection, "section", "")
 	var sel_index: int = DictUtils.get_int(_selection, "index", 0)
 
-	# Determine swap type
-	if swap_section == "active" and sel_section == "reserve":
+	# Determine swap type and execute
+	var both_active: bool = swap_section == "active" and sel_section == "active"
+	var both_reserve: bool = swap_section == "reserve" and sel_section == "reserve"
+
+	if both_active:
+		result = PartyManager.swap_within_active(swap_index, sel_index)
+	elif both_reserve:
+		result = PartyManager.swap_within_reserve(swap_index, sel_index)
+	elif swap_section == "active":
 		# Active -> Reserve swap
 		result = PartyManager.swap_active_reserve(swap_index, sel_index)
-	elif swap_section == "reserve" and sel_section == "active":
+	else:
 		# Reserve -> Active swap
 		result = PartyManager.swap_active_reserve(sel_index, swap_index)
-	elif swap_section == "active" and sel_section == "active":
-		# Swap within active (just reorder)
-		result = _swap_within_active(swap_index, sel_index)
-	elif swap_section == "reserve" and sel_section == "reserve":
-		# Swap within reserve (just reorder)
-		result = _swap_within_reserve(swap_index, sel_index)
 
 	var success: bool = DictUtils.get_bool(result, "success", false)
 	if success:
-		if AudioManager:
-			AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
+		_play_sfx("menu_select")
 		party_changed.emit()
 	else:
-		if AudioManager:
-			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
+		_play_sfx("error")
 		var error_msg: String = DictUtils.get_string(result, "error", "Unknown error")
 		push_warning("PartyManagementPanel: Swap failed - %s" % error_msg)
 
@@ -655,30 +609,14 @@ func _perform_swap() -> void:
 	_update_info_panel()
 
 
-func _swap_within_active(idx1: int, idx2: int) -> Dictionary:
-	if not PartyManager:
-		return {"success": false, "error": "No PartyManager"}
-
-	return PartyManager.swap_within_active(idx1, idx2)
-
-
-func _swap_within_reserve(idx1: int, idx2: int) -> Dictionary:
-	if not PartyManager:
-		return {"success": false, "error": "No PartyManager"}
-
-	return PartyManager.swap_within_reserve(idx1, idx2)
-
-
 func _cancel() -> void:
+	_play_sfx("menu_cancel")
+
 	if not _swap_source.is_empty():
 		# Cancel swap mode
 		_swap_source = {}
 		_update_selection_visual()
 		_update_info_panel()
-		if AudioManager:
-			AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 	else:
 		# Close panel
-		if AudioManager:
-			AudioManager.play_sfx("menu_cancel", AudioManager.SFXCategory.UI)
 		close_requested.emit()

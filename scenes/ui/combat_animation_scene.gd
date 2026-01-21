@@ -89,6 +89,24 @@ const BASE_XP_DISPLAY_DURATION: float = 1.2
 const BASE_XP_ENTRY_STAGGER: float = 0.6
 const BASE_PHASE_TRANSITION_PAUSE: float = 0.4  ## Pause between phases (role swap, etc.)
 
+## Visual style constants
+const COLOR_HIT_FLASH: Color = Color.RED
+const COLOR_CRIT_FLASH: Color = Color.YELLOW
+const COLOR_HEAL_FLASH: Color = Color.GREEN
+const COLOR_STATUS_APPLIED: Color = Color(0.8, 0.4, 1.0)  # Purple
+const COLOR_DOUBLE_ATTACK_BANNER: Color = Color(0.2, 0.8, 1.0)
+const COLOR_COUNTER_BANNER: Color = Color(1.0, 0.6, 0.0)
+const COLOR_XP_PANEL_BG: Color = Color(0.05, 0.1, 0.25, 0.95)
+const COLOR_XP_PANEL_BORDER: Color = Color(0.4, 0.5, 0.8, 1.0)
+const COLOR_XP_DEFAULT_TEXT: Color = Color(1.0, 0.95, 0.7, 1.0)
+
+## Sprite and panel sizes
+const SPRITE_CONTAINER_SIZE: Vector2 = Vector2(180, 180)
+const BANNER_FONT_SIZE: int = 64
+const DAMAGE_FONT_SIZE_NORMAL: int = 32
+const DAMAGE_FONT_SIZE_CRIT: int = 48
+const XP_PANEL_FONT_SIZE: int = 16
+
 ## Speed multiplier (set by BattleManager based on GameJuice settings)
 var _speed_multiplier: float = 1.0
 
@@ -144,6 +162,65 @@ func _get_pooled_tween() -> Tween:
 
 	# All tweens busy - create a new one (fallback, shouldn't happen often)
 	return create_tween()
+
+
+## Configure a label with consistent styling
+func _style_label(label: Label, text: String, color: Color, font_size: int = 32) -> void:
+	label.text = text
+	label.add_theme_font_override("font", monogram_font)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 3)
+
+
+## Update combat log with styled text
+func _set_combat_log(text: String, color: Color) -> void:
+	combat_log.text = text
+	combat_log.add_theme_font_override("font", monogram_font)
+	combat_log.add_theme_color_override("font_color", color)
+
+
+## Check if a unit is dead (handles both method and property access)
+func _is_unit_dead(unit: Unit) -> bool:
+	if unit == null:
+		return true
+	if unit.has_method("is_dead"):
+		return unit.is_dead()
+	return unit.stats.current_hp <= 0
+
+
+## Create a rounded StyleBoxFlat with border
+func _create_bordered_stylebox(bg_color: Color, border_color: Color, border_width: int = 4, corner_radius: int = 8) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_width_left = border_width
+	style.border_width_right = border_width
+	style.border_width_top = border_width
+	style.border_width_bottom = border_width
+	style.border_color = border_color
+	style.corner_radius_top_left = corner_radius
+	style.corner_radius_top_right = corner_radius
+	style.corner_radius_bottom_left = corner_radius
+	style.corner_radius_bottom_right = corner_radius
+	return style
+
+
+## Wrap text in BBCode color tag
+func _bbcode_color(text: String, hex_color: String) -> String:
+	return "[color=%s]%s[/color]" % [hex_color, text]
+
+
+## Get XP entry color based on source type
+func _get_xp_source_color(source: String) -> String:
+	if source == "kill":
+		return "#FFFF66"  # Bright yellow for kills
+	elif source == "formation":
+		return "#B3D9FF"  # Light blue for formation
+	elif source in ["heal", "buff", "debuff"]:
+		return "#B3FFB3"  # Light green for support
+	else:
+		return "#FFF2B3"  # Default warm yellow
 
 
 # =============================================================================
@@ -202,9 +279,9 @@ func execute_all_phases() -> void:
 
 		# Show appropriate banner
 		if phase.is_double_attack:
-			await show_custom_banner("DOUBLE ATTACK!", Color(0.2, 0.8, 1.0))
+			await show_custom_banner("DOUBLE ATTACK!", COLOR_DOUBLE_ATTACK_BANNER)
 		elif phase.is_counter:
-			await show_custom_banner("COUNTER!", Color(1.0, 0.6, 0.0))
+			await show_custom_banner("COUNTER!", COLOR_COUNTER_BANNER)
 
 		# Execute the phase animation
 		await _execute_phase(phase)
@@ -295,12 +372,12 @@ func _execute_phase(phase: CombatPhase) -> void:
 		await _play_hit_animation(phase.damage, phase.defender)
 
 	# Check for death after this phase
-	if phase.defender == _initial_attacker and _initial_attacker:
-		_initial_attacker_died = _initial_attacker.is_dead() if _initial_attacker.has_method("is_dead") else _initial_attacker.stats.current_hp <= 0
+	if phase.defender == _initial_attacker:
+		_initial_attacker_died = _is_unit_dead(_initial_attacker)
 		if _initial_attacker_died:
 			await _play_death_animation()
-	elif phase.defender == _initial_defender and _initial_defender:
-		_initial_defender_died = _initial_defender.is_dead() if _initial_defender.has_method("is_dead") else _initial_defender.stats.current_hp <= 0
+	elif phase.defender == _initial_defender:
+		_initial_defender_died = _is_unit_dead(_initial_defender)
 		if _initial_defender_died:
 			await _play_death_animation()
 
@@ -415,20 +492,12 @@ func _get_defender_name() -> Label:
 ## Create placeholder portrait using colored panel and character initial
 func _create_placeholder_sprite(unit: Unit) -> Control:
 	var panel: PanelContainer = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(180, 180)
+	panel.custom_minimum_size = SPRITE_CONTAINER_SIZE
 
-	var style_box: StyleBoxFlat = StyleBoxFlat.new()
 	# Simple faction-based color for placeholder sprites
-	style_box.bg_color = Color(0.2, 0.3, 0.5) if unit.is_player_unit() else Color(0.5, 0.2, 0.2)
-	style_box.border_width_left = 4
-	style_box.border_width_right = 4
-	style_box.border_width_top = 4
-	style_box.border_width_bottom = 4
-	style_box.border_color = Color.WHITE if unit.is_player_unit() else Color(0.8, 0.8, 0.8)
-	style_box.corner_radius_top_left = 8
-	style_box.corner_radius_top_right = 8
-	style_box.corner_radius_bottom_left = 8
-	style_box.corner_radius_bottom_right = 8
+	var bg_color: Color = Color(0.2, 0.3, 0.5) if unit.is_player_unit() else Color(0.5, 0.2, 0.2)
+	var border_color: Color = Color.WHITE if unit.is_player_unit() else Color(0.8, 0.8, 0.8)
+	var style_box: StyleBoxFlat = _create_bordered_stylebox(bg_color, border_color)
 	style_box.shadow_color = Color(0, 0, 0, 0.5)
 	style_box.shadow_size = 4
 	panel.add_theme_stylebox_override("panel", style_box)
@@ -484,15 +553,15 @@ func _create_real_sprite(unit: Unit) -> Control:
 
 	# Use CenterContainer to properly center the sprite
 	var container: CenterContainer = CenterContainer.new()
-	container.custom_minimum_size = Vector2(180, 180)
+	container.custom_minimum_size = SPRITE_CONTAINER_SIZE
 
 	# Wrap sprite in a Control for proper sizing
 	var sprite_wrapper: Control = Control.new()
-	sprite_wrapper.custom_minimum_size = Vector2(180, 180)
+	sprite_wrapper.custom_minimum_size = SPRITE_CONTAINER_SIZE
 	sprite_wrapper.add_child(sprite_node)
 
-	# Center the sprite within the wrapper
-	sprite_node.position = Vector2(90, 90) + anim_data.sprite_offset
+	# Center the sprite within the wrapper (half of container size)
+	sprite_node.position = (SPRITE_CONTAINER_SIZE / 2.0) + anim_data.sprite_offset
 
 	container.add_child(sprite_wrapper)
 
@@ -516,8 +585,7 @@ func _get_attack_direction() -> float:
 
 ## Play standard hit animation
 func _play_hit_animation(damage: int, target: Unit) -> void:
-	combat_log.text = "Hit!"
-	combat_log.add_theme_color_override("font_color", Color.WHITE)
+	_set_combat_log("Hit!", Color.WHITE)
 
 	var atk_sprite: Control = _get_attacker_sprite()
 	var def_sprite: Control = _get_defender_sprite()
@@ -534,7 +602,7 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	# Apply damage at impact
 	_apply_damage_at_impact(damage, target)
 
-	_flash_sprite(def_sprite, Color.RED, _get_duration(BASE_FLASH_DURATION))
+	_flash_sprite(def_sprite, COLOR_HIT_FLASH, _get_duration(BASE_FLASH_DURATION))
 	_spawn_hit_particles(false)  # Normal hit particles
 	_show_damage_number(damage, false)
 
@@ -549,9 +617,7 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 
 ## Play critical hit animation
 func _play_critical_animation(damage: int, target: Unit) -> void:
-	combat_log.text = "Critical Hit!"
-	combat_log.add_theme_font_override("font", monogram_font)
-	combat_log.add_theme_color_override("font_color", Color.YELLOW)
+	_set_combat_log("Critical Hit!", COLOR_CRIT_FLASH)
 
 	var atk_sprite: Control = _get_attacker_sprite()
 	var def_sprite: Control = _get_defender_sprite()
@@ -568,7 +634,7 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	# Apply damage at impact
 	_apply_damage_at_impact(damage, target)
 
-	_flash_sprite(def_sprite, Color.YELLOW, _get_duration(BASE_FLASH_DURATION))
+	_flash_sprite(def_sprite, COLOR_CRIT_FLASH, _get_duration(BASE_FLASH_DURATION))
 	_spawn_hit_particles(true)  # Critical hit particles (more dramatic)
 	_show_damage_number(damage, true)
 
@@ -584,9 +650,7 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 
 ## Play miss animation
 func _play_miss_animation() -> void:
-	combat_log.text = "Miss!"
-	combat_log.add_theme_font_override("font", monogram_font)
-	combat_log.add_theme_color_override("font_color", Color.GRAY)
+	_set_combat_log("Miss!", Color.GRAY)
 
 	var atk_sprite: Control = _get_attacker_sprite()
 	var def_sprite: Control = _get_defender_sprite()
@@ -605,9 +669,7 @@ func _play_miss_animation() -> void:
 
 	await attack_tween.finished
 
-	damage_label.text = "MISS"
-	damage_label.add_theme_font_override("font", monogram_font)
-	damage_label.add_theme_color_override("font_color", Color.GRAY)
+	_style_label(damage_label, "MISS", Color.GRAY)
 	damage_label.visible = true
 	damage_label.modulate.a = 1.0
 
@@ -626,12 +688,10 @@ func _play_miss_animation() -> void:
 
 ## Play healing animation (for item heal and spell heal phases)
 func _play_heal_animation(heal_amount: int, target: Unit) -> void:
-	combat_log.text = "Heal!"
-	combat_log.add_theme_font_override("font", monogram_font)
-	combat_log.add_theme_color_override("font_color", Color.GREEN)
+	_set_combat_log("Heal!", COLOR_HEAL_FLASH)
 
 	# Flash the target green
-	_flash_sprite(_get_defender_sprite(), Color.GREEN, _get_duration(BASE_FLASH_DURATION))
+	_flash_sprite(_get_defender_sprite(), COLOR_HEAL_FLASH, _get_duration(BASE_FLASH_DURATION))
 
 	# Play healing sound
 	AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
@@ -655,18 +715,12 @@ func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 func _play_status_animation(was_resisted: bool, status_name: String, _target: Unit) -> void:
 	var def_sprite: Control = _get_defender_sprite()
 	if was_resisted:
-		# Similar to miss - white flash, "Resisted!" text
-		combat_log.text = "Resisted!"
-		combat_log.add_theme_font_override("font", monogram_font)
-		combat_log.add_theme_color_override("font_color", Color.WHITE)
+		_set_combat_log("Resisted!", Color.WHITE)
 		_flash_sprite(def_sprite, Color.WHITE, _get_duration(BASE_FLASH_DURATION))
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 	else:
-		# Status applied - purple flash, show status name
-		combat_log.text = status_name.capitalize() + "!"
-		combat_log.add_theme_font_override("font", monogram_font)
-		combat_log.add_theme_color_override("font_color", Color(0.8, 0.4, 1.0))  # Purple
-		_flash_sprite(def_sprite, Color(0.8, 0.4, 1.0), _get_duration(BASE_FLASH_DURATION))
+		_set_combat_log(status_name.capitalize() + "!", COLOR_STATUS_APPLIED)
+		_flash_sprite(def_sprite, COLOR_STATUS_APPLIED, _get_duration(BASE_FLASH_DURATION))
 		AudioManager.play_sfx("spell_cast", AudioManager.SFXCategory.COMBAT)
 
 	# Brief pause
@@ -675,16 +729,10 @@ func _play_status_animation(was_resisted: bool, status_name: String, _target: Un
 
 ## Show healing number with float animation (green color)
 func _show_heal_number(heal_amount: int) -> void:
-	damage_label.text = "+%d" % heal_amount
-	damage_label.add_theme_font_override("font", monogram_font)
-	damage_label.add_theme_font_size_override("font_size", 32)
-	damage_label.add_theme_color_override("font_color", Color.GREEN)
-	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	damage_label.add_theme_constant_override("outline_size", 3)
-
-	var start_y: float = damage_label.position.y
+	_style_label(damage_label, "+%d" % heal_amount, COLOR_HEAL_FLASH, DAMAGE_FONT_SIZE_NORMAL)
 	damage_label.visible = true
 	damage_label.modulate.a = 1.0
+	var start_y: float = damage_label.position.y
 
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 	var tween: Tween = _get_pooled_tween()
@@ -696,12 +744,9 @@ func _show_heal_number(heal_amount: int) -> void:
 ## Show damage number with float animation
 ## Uses brightness pop and horizontal drift for dynamic feel
 func _show_damage_number(damage: int, is_critical: bool) -> void:
-	damage_label.text = str(damage)
-	damage_label.add_theme_font_override("font", monogram_font)
-	damage_label.add_theme_font_size_override("font_size", 48 if is_critical else 32)
-	damage_label.add_theme_color_override("font_color", Color.YELLOW if is_critical else Color.WHITE)
-	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	damage_label.add_theme_constant_override("outline_size", 3)
+	var font_size: int = DAMAGE_FONT_SIZE_CRIT if is_critical else DAMAGE_FONT_SIZE_NORMAL
+	var font_color: Color = COLOR_CRIT_FLASH if is_critical else Color.WHITE
+	_style_label(damage_label, str(damage), font_color, font_size)
 
 	var start_x: float = damage_label.position.x
 	var start_y: float = damage_label.position.y
@@ -851,16 +896,11 @@ func _screen_shake() -> void:
 func show_custom_banner(text: String, color: Color) -> void:
 	var banner_label: Label = Label.new()
 	banner_label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	banner_label.text = text
-	banner_label.add_theme_font_override("font", monogram_font)
-	banner_label.add_theme_font_size_override("font_size", 64)
-	banner_label.add_theme_color_override("font_color", color)
-	banner_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_style_label(banner_label, text, color, BANNER_FONT_SIZE)
 	banner_label.add_theme_constant_override("outline_size", 4)
 	banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner_label.set_anchors_preset(Control.PRESET_CENTER)
-
 	add_child(banner_label)
 
 	# Start above screen, invisible, with bright flash color
@@ -906,9 +946,7 @@ func _apply_damage_at_impact(damage: int, target: Unit) -> void:
 		target.stats.current_hp -= damage
 		target.stats.current_hp = maxi(0, target.stats.current_hp)
 
-	var target_died: bool = target.is_dead() if target.has_method("is_dead") else target.stats.current_hp <= 0
-
-	damage_applied.emit(target, damage, target_died)
+	damage_applied.emit(target, damage, _is_unit_dead(target))
 
 
 ## Apply healing to target at the animation moment
@@ -943,9 +981,7 @@ func _play_death_animation() -> void:
 	if def_sprite == null:
 		return
 
-	combat_log.text = "Defeated!"
-	combat_log.add_theme_font_override("font", monogram_font)
-	combat_log.add_theme_color_override("font_color", Color.RED)
+	_set_combat_log("Defeated!", Color.RED)
 
 	await get_tree().create_timer(_get_pause(0.2)).timeout
 
@@ -998,14 +1034,8 @@ func _display_xp_entries() -> void:
 
 	# First: Display combat actions (attack/spell info)
 	for action: Dictionary in _combat_actions:
-		var line: String = action.text
-		if action.is_miss:
-			line = "[color=#999999]%s[/color]" % line  # Gray for misses
-		elif action.is_critical:
-			line = "[color=#FF9933]%s[/color]" % line  # Orange for crits
-		else:
-			line = "[color=#FFFFFF]%s[/color]" % line  # White for normal hits
-
+		var color: String = "#999999" if action.is_miss else ("#FF9933" if action.is_critical else "#FFFFFF")
+		var line: String = _bbcode_color(action.text, color)
 		displayed_lines.append(line)
 
 		if displayed_lines.size() > max_visible_lines:
@@ -1026,19 +1056,10 @@ func _display_xp_entries() -> void:
 		var entry_amount: int = DictUtils.get_int(entry, "amount", 0)
 		var entry_source: String = DictUtils.get_string(entry, "source", "")
 		# Format source for display (damage/kill -> combat, others as-is)
-		var source_display: String = entry_source
-		if entry_source == "damage" or entry_source == "kill":
-			source_display = "combat"
-		var line: String = "%s gained %d %s XP" % [entry_name, entry_amount, source_display]
-		if entry_source == "kill":
-			line = "[color=#FFFF66]%s![/color]" % line
-		elif entry_source == "formation":
-			line = "[color=#B3D9FF]%s[/color]" % line  # Light blue for formation
-		elif entry_source in ["heal", "buff", "debuff"]:
-			line = "[color=#B3FFB3]%s[/color]" % line  # Light green for support
-		else:
-			line = "[color=#FFF2B3]%s[/color]" % line
-
+		var source_display: String = "combat" if entry_source in ["damage", "kill"] else entry_source
+		var suffix: String = "!" if entry_source == "kill" else ""
+		var line_text: String = "%s gained %d %s XP%s" % [entry_name, entry_amount, source_display, suffix]
+		var line: String = _bbcode_color(line_text, _get_xp_source_color(entry_source))
 		displayed_lines.append(line)
 
 		if displayed_lines.size() > max_visible_lines:
@@ -1076,17 +1097,7 @@ func _create_xp_panel() -> PanelContainer:
 	panel.offset_top = -panel_height - 10
 	panel.offset_bottom = -10
 
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.1, 0.25, 0.95)
-	style.border_width_left = 3
-	style.border_width_right = 3
-	style.border_width_top = 3
-	style.border_width_bottom = 3
-	style.border_color = Color(0.4, 0.5, 0.8, 1.0)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	var style: StyleBoxFlat = _create_bordered_stylebox(COLOR_XP_PANEL_BG, COLOR_XP_PANEL_BORDER, 3, 4)
 	panel.add_theme_stylebox_override("panel", style)
 
 	var margin: MarginContainer = MarginContainer.new()
@@ -1109,13 +1120,13 @@ func _create_xp_panel() -> PanelContainer:
 	label.add_theme_font_override("italics_font", monogram_font)
 	label.add_theme_font_override("bold_italics_font", monogram_font)
 	label.add_theme_font_override("mono_font", monogram_font)
-	label.add_theme_font_size_override("normal_font_size", 16)
-	label.add_theme_font_size_override("bold_font_size", 16)
-	label.add_theme_font_size_override("italics_font_size", 16)
-	label.add_theme_font_size_override("bold_italics_font_size", 16)
-	label.add_theme_font_size_override("mono_font_size", 16)
+	label.add_theme_font_size_override("normal_font_size", XP_PANEL_FONT_SIZE)
+	label.add_theme_font_size_override("bold_font_size", XP_PANEL_FONT_SIZE)
+	label.add_theme_font_size_override("italics_font_size", XP_PANEL_FONT_SIZE)
+	label.add_theme_font_size_override("bold_italics_font_size", XP_PANEL_FONT_SIZE)
+	label.add_theme_font_size_override("mono_font_size", XP_PANEL_FONT_SIZE)
 	label.add_theme_constant_override("outline_size", 0)
-	label.add_theme_color_override("default_color", Color(1.0, 0.95, 0.7, 1.0))
+	label.add_theme_color_override("default_color", COLOR_XP_DEFAULT_TEXT)
 	margin.add_child(label)
 
 	panel.modulate.a = 0.0

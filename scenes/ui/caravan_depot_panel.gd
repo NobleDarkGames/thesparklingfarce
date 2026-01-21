@@ -30,7 +30,13 @@ signal item_stored(item_id: String, character_uid: String)
 
 const COLOR_PANEL_BG: Color = Color(0.12, 0.12, 0.16, 0.98)
 const COLOR_SLOT_BG: Color = Color(0.15, 0.15, 0.2, 0.9)
+const COLOR_BORDER: Color = Color(0.5, 0.5, 0.6, 1.0)
+const COLOR_DESC_BG: Color = Color(0.08, 0.08, 0.12, 0.95)
+const COLOR_DESC_BORDER: Color = Color(0.4, 0.4, 0.5, 0.9)
+const COLOR_DESC_TEXT: Color = Color(0.7, 0.7, 0.8, 1.0)
+const COLOR_COUNT_TEXT: Color = Color(0.5, 0.5, 0.6, 1.0)
 const ITEMS_PER_ROW: int = 5  # 5*32 + 4*4 = 176px fits in 180px scroll width
+const DEFAULT_MAX_INVENTORY_SLOTS: int = 4
 
 # =============================================================================
 # PRELOADS
@@ -96,6 +102,49 @@ var _slot_pool: Array[Control] = []
 var _inventory_slot_pool: Array[Control] = []
 
 # =============================================================================
+# HELPERS
+# =============================================================================
+
+## Get max inventory slots from ModLoader config or default
+func _get_max_inventory_slots() -> int:
+	if ModLoader and ModLoader.inventory_config:
+		return ModLoader.inventory_config.get_max_slots()
+	return DEFAULT_MAX_INVENTORY_SLOTS
+
+
+## Get the currently selected character's save data, or null if invalid
+func _get_selected_save_data() -> CharacterSaveData:
+	if _party_save_data.is_empty():
+		return null
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_save_data.size():
+		return null
+	return _party_save_data[target_index]
+
+
+## Get the currently selected character's data, or null if invalid
+func _get_selected_character_data() -> CharacterData:
+	if _party_character_data.is_empty():
+		return null
+	var target_index: int = _char_dropdown.get_selected_id()
+	if target_index < 0 or target_index >= _party_character_data.size():
+		return null
+	return _party_character_data[target_index]
+
+
+## Clear selection state on all depot slots
+func _clear_depot_selection() -> void:
+	for slot: Control in _depot_grid.get_children():
+		slot.set_selected(false)
+
+
+## Clear selection state on all inventory slots
+func _clear_inventory_selection() -> void:
+	for slot: Control in _inventory_grid.get_children():
+		slot.set_selected(false)
+
+
+# =============================================================================
 # LIFECYCLE
 # =============================================================================
 
@@ -138,7 +187,7 @@ func _build_ui() -> void:
 	panel_style.border_width_left = 1
 	panel_style.border_width_right = 1
 	panel_style.border_width_top = 1
-	panel_style.border_color = Color(0.5, 0.5, 0.6, 1.0)
+	panel_style.border_color = COLOR_BORDER
 	panel_style.content_margin_bottom = 4
 	panel_style.content_margin_left = 4
 	panel_style.content_margin_right = 4
@@ -264,12 +313,12 @@ func _build_ui() -> void:
 	_description_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var desc_style: StyleBoxFlat = StyleBoxFlat.new()
-	desc_style.bg_color = Color(0.08, 0.08, 0.12, 0.95)
+	desc_style.bg_color = COLOR_DESC_BG
 	desc_style.border_width_bottom = 1
 	desc_style.border_width_left = 1
 	desc_style.border_width_right = 1
 	desc_style.border_width_top = 1
-	desc_style.border_color = Color(0.4, 0.4, 0.5, 0.9)
+	desc_style.border_color = COLOR_DESC_BORDER
 	desc_style.content_margin_bottom = 2
 	desc_style.content_margin_left = 2
 	desc_style.content_margin_right = 2
@@ -281,7 +330,7 @@ func _build_ui() -> void:
 	_description_label.add_theme_font_override("font", MONOGRAM_FONT)
 	_description_label.add_theme_font_size_override("font_size", 16)
 	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_description_label.modulate = Color(0.7, 0.7, 0.8, 1.0)
+	_description_label.modulate = COLOR_DESC_TEXT
 	_description_label.text = "Select an item..."
 	_description_panel.add_child(_description_label)
 
@@ -354,7 +403,7 @@ func _build_ui() -> void:
 	_item_count_label = Label.new()
 	_item_count_label.add_theme_font_override("font", MONOGRAM_FONT)
 	_item_count_label.add_theme_font_size_override("font_size", 16)
-	_item_count_label.modulate = Color(0.5, 0.5, 0.6, 1.0)
+	_item_count_label.modulate = COLOR_COUNT_TEXT
 	_item_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	bottom_bar.add_child(_item_count_label)
 
@@ -377,13 +426,11 @@ func _refresh_party_data() -> void:
 
 func _populate_character_dropdown() -> void:
 	_char_dropdown.clear()
+	var max_slots: int = _get_max_inventory_slots()
 	for i: int in range(_party_character_data.size()):
 		var character: CharacterData = _party_character_data[i]
 		var save_data: CharacterSaveData = _party_save_data[i]
 		var slots_used: int = save_data.inventory.size()
-		var max_slots: int = 4
-		if ModLoader and ModLoader.inventory_config:
-			max_slots = ModLoader.inventory_config.get_max_slots()
 		_char_dropdown.add_item("%s (%d/%d)" % [character.character_name, slots_used, max_slots], i)
 
 
@@ -487,27 +534,15 @@ func _update_take_button() -> void:
 		_take_button.text = "Take"
 		return
 
-	if _party_save_data.is_empty():
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	if not save_data:
 		_take_button.disabled = true
-		_take_button.text = "No party"
+		_take_button.text = "No party" if _party_save_data.is_empty() else "Take"
 		return
 
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
-		_take_button.disabled = true
-		return
-
-	var save_data: CharacterSaveData = _party_save_data[target_index]
-	var max_slots: int = 4
-	if ModLoader and ModLoader.inventory_config:
-		max_slots = ModLoader.inventory_config.get_max_slots()
-
-	if save_data.inventory.size() >= max_slots:
-		_take_button.disabled = true
-		_take_button.text = "Full"
-	else:
-		_take_button.disabled = false
-		_take_button.text = "Take"
+	var is_full: bool = save_data.inventory.size() >= _get_max_inventory_slots()
+	_take_button.disabled = is_full
+	_take_button.text = "Full" if is_full else "Take"
 
 
 # =============================================================================
@@ -515,35 +550,25 @@ func _update_take_button() -> void:
 # =============================================================================
 
 func _refresh_inventory_display() -> void:
-	if _party_save_data.is_empty():
-		# Clear grid
-		for child: Node in _inventory_grid.get_children():
-			_inventory_grid.remove_child(child)
+	# Clear grid first
+	for child: Node in _inventory_grid.get_children():
+		_inventory_grid.remove_child(child)
+
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	if not save_data:
 		_update_store_button()
 		return
 
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
-		return
-
-	var save_data: CharacterSaveData = _party_save_data[target_index]
 	var inventory: Array[String] = save_data.inventory
+	var max_slots: int = _get_max_inventory_slots()
 
 	# Ensure enough slots in pool
-	var max_slots: int = 4
-	if ModLoader and ModLoader.inventory_config:
-		max_slots = ModLoader.inventory_config.get_max_slots()
-
 	while _inventory_slot_pool.size() < max_slots:
 		var slot: Control = ItemSlotScript.new()
 		# NOTE: clicked signal is connected per-slot below with index capture
 		slot.hovered.connect(_on_slot_hovered)
 		slot.hover_exited.connect(_on_slot_hover_exited)
 		_inventory_slot_pool.append(slot)
-
-	# Clear grid
-	for child: Node in _inventory_grid.get_children():
-		_inventory_grid.remove_child(child)
 
 	# Add slots for inventory items (show empty slots too)
 	for i: int in range(max_slots):
@@ -614,15 +639,13 @@ func _on_sort_changed(index: int) -> void:
 
 func _on_slot_clicked(item_id: String) -> void:
 	_selected_depot_item_id = item_id
-	# Deselect inventory item when depot item is selected
-	_selected_inventory_item_id = ""
+	_selected_inventory_item_id = ""  # Deselect inventory item
 	_selected_inventory_index = -1
 
 	# Update selection visuals
 	for slot: Control in _depot_grid.get_children():
 		slot.set_selected(slot.item_id == item_id)
-	for slot: Control in _inventory_grid.get_children():
-		slot.set_selected(false)
+	_clear_inventory_selection()
 
 	_update_take_button()
 	_update_store_button()
@@ -634,29 +657,22 @@ func _on_inventory_slot_clicked_at_index(item_id: String, slot_index: int) -> vo
 	if item_id.is_empty():
 		return  # Don't select empty slots
 
-	# Validate the character selection
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	if not save_data:
 		return
 
-	var save_data: CharacterSaveData = _party_save_data[target_index]
-	var inventory: Array[String] = save_data.inventory
-
 	# Validate the slot index
-	if slot_index < 0 or slot_index >= inventory.size():
+	if slot_index < 0 or slot_index >= save_data.inventory.size():
 		return
 
 	_selected_inventory_item_id = item_id
 	_selected_inventory_index = slot_index
-	# Deselect depot item when inventory item is selected
-	_selected_depot_item_id = ""
+	_selected_depot_item_id = ""  # Deselect depot item
 
 	# Update selection visuals
-	for slot: Control in _depot_grid.get_children():
-		slot.set_selected(false)
+	_clear_depot_selection()
 	for i: int in range(_inventory_grid.get_child_count()):
-		var child: Node = _inventory_grid.get_child(i)
-		var slot: Control = child if child is Control else null
+		var slot: Control = _inventory_grid.get_child(i) as Control
 		if slot:
 			slot.set_selected(i == slot_index)
 
@@ -691,56 +707,54 @@ func _on_take_pressed() -> void:
 	if _selected_depot_item_id.is_empty():
 		return
 
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	var character: CharacterData = _get_selected_character_data()
+	if not save_data or not character:
 		return
 
-	var save_data: CharacterSaveData = _party_save_data[target_index]
-	var character: CharacterData = _party_character_data[target_index]
-
 	# Remove from depot
-	if StorageManager.remove_from_depot(_selected_depot_item_id):
-		# Add to character inventory
-		if save_data.add_item_to_inventory(_selected_depot_item_id):
-			AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
-			item_taken.emit(_selected_depot_item_id, character.character_uid)
-			_selected_depot_item_id = ""
-			_description_label.text = "Item taken!"
-			_refresh_inventory_display()
-		else:
-			# Rollback - put back in depot
-			StorageManager.add_to_depot(_selected_depot_item_id)
-			AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-			_description_label.text = "Inventory full!"
-	else:
+	if not StorageManager.remove_from_depot(_selected_depot_item_id):
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	# Add to character inventory
+	if save_data.add_item_to_inventory(_selected_depot_item_id):
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+		item_taken.emit(_selected_depot_item_id, character.character_uid)
+		_selected_depot_item_id = ""
+		_description_label.text = "Item taken!"
+		_refresh_inventory_display()
+	else:
+		# Rollback - put back in depot
+		StorageManager.add_to_depot(_selected_depot_item_id)
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		_description_label.text = "Inventory full!"
 
 
 func _on_store_pressed() -> void:
 	if _selected_inventory_item_id.is_empty() or _selected_inventory_index < 0:
 		return
 
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	var character: CharacterData = _get_selected_character_data()
+	if not save_data or not character:
 		return
 
-	var save_data: CharacterSaveData = _party_save_data[target_index]
-	var character: CharacterData = _party_character_data[target_index]
-
 	# Remove from character inventory (uses item_id, not index)
-	if save_data.remove_item_from_inventory(_selected_inventory_item_id):
-		# Add to depot
-		StorageManager.add_to_depot(_selected_inventory_item_id)
-		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
-		item_stored.emit(_selected_inventory_item_id, character.character_uid)
-		_description_label.text = "Item stored!"
-		_selected_inventory_item_id = ""
-		_selected_inventory_index = -1
-		_refresh_inventory_display()
-		_populate_character_dropdown()
-	else:
+	if not save_data.remove_item_from_inventory(_selected_inventory_item_id):
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		_description_label.text = "Failed to remove item!"
+		return
+
+	# Add to depot
+	StorageManager.add_to_depot(_selected_inventory_item_id)
+	AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+	item_stored.emit(_selected_inventory_item_id, character.character_uid)
+	_description_label.text = "Item stored!"
+	_selected_inventory_item_id = ""
+	_selected_inventory_index = -1
+	_refresh_inventory_display()
+	_populate_character_dropdown()
 
 
 func _on_character_changed(_index: int) -> void:
@@ -759,19 +773,13 @@ func _on_close_pressed() -> void:
 
 func _on_store_all_pressed() -> void:
 	## Store all consumables from the selected character's inventory
-	if _party_save_data.is_empty():
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	if not save_data:
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
-
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
-		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-		return
-
-	var save_data: CharacterSaveData = _party_save_data[target_index]
-	var items_to_store: Array[String] = []
 
 	# Find all consumables in inventory
+	var items_to_store: Array[String] = []
 	for item_id: String in save_data.inventory:
 		var item_data: ItemData = ModLoader.registry.get_item(item_id)
 		if item_data and item_data.item_type == ItemData.ItemType.CONSUMABLE:
@@ -800,25 +808,18 @@ func _on_store_all_pressed() -> void:
 
 func _on_take_all_pressed() -> void:
 	## Take all filtered items from depot (as many as will fit)
-	if _party_save_data.is_empty():
+	var save_data: CharacterSaveData = _get_selected_save_data()
+	if not save_data:
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
-
-	var target_index: int = _char_dropdown.get_selected_id()
-	if target_index < 0 or target_index >= _party_save_data.size():
-		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-		return
-
-	var save_data: CharacterSaveData = _party_save_data[target_index]
-	var max_slots: int = 4
-	if ModLoader and ModLoader.inventory_config:
-		max_slots = ModLoader.inventory_config.get_max_slots()
 
 	var items_to_take: Array[String] = _get_filtered_items()
 	if items_to_take.is_empty():
 		_description_label.text = "Nothing to take"
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
 		return
+
+	var max_slots: int = _get_max_inventory_slots()
 
 	# Take items until inventory is full
 	var taken_count: int = 0

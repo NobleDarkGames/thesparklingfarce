@@ -156,15 +156,19 @@ func _refresh_character_display() -> void:
 
 
 func _update_cycle_hint() -> void:
-	if _supports_character_cycling():
-		var party_size: int = get_party_size()
-		if party_size > 1:
-			cycle_hint_label.text = "L/R: Switch | A: Select | B: Back"
-		else:
-			cycle_hint_label.text = "A: Select | B: Back"
-	else:
-		cycle_hint_label.text = "A: Select | B: Back"
+	var can_cycle: bool = _supports_character_cycling() and get_party_size() > 1
+	cycle_hint_label.text = "L/R: Switch | A: Select | B: Back" if can_cycle else "A: Select | B: Back"
 	cycle_hint_label.visible = true
+
+
+func _create_list_button(height: int = 26) -> Button:
+	## Helper to create a styled list button
+	var button: Button = Button.new()
+	button.custom_minimum_size = Vector2(0, height)
+	button.focus_mode = Control.FOCUS_ALL
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_font_size_override("font_size", 16)
+	return button
 
 
 func _rebuild_equipment_list() -> void:
@@ -190,12 +194,7 @@ func _rebuild_equipment_list() -> void:
 		var item_id: String = EquipmentManager.get_equipped_item_id(save_data, slot_id)
 		var is_cursed: bool = EquipmentManager.is_slot_cursed(save_data, slot_id)
 
-		# Create button
-		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 26)
-		button.focus_mode = Control.FOCUS_ALL
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", 16)
+		var button: Button = _create_list_button(26)
 
 		# Format text: "Weapon: Bronze Sword" or "Weapon: (empty)"
 		if item_id.is_empty():
@@ -213,10 +212,17 @@ func _rebuild_equipment_list() -> void:
 		equipment_buttons[slot_id] = button
 
 		# Connect signals with captured slot_id
-		var captured_slot_id: String = slot_id
-		var captured_item_id: String = item_id
-		button.pressed.connect(_on_equipment_button_pressed.bind(captured_slot_id, captured_item_id))
-		button.focus_entered.connect(_on_equipment_focus_entered.bind(captured_slot_id, captured_item_id))
+		button.pressed.connect(_on_equipment_button_pressed.bind(slot_id, item_id))
+		button.focus_entered.connect(_on_equipment_focus_entered.bind(slot_id, item_id))
+
+
+func _create_info_label(text: String, color: Color) -> Label:
+	## Helper to create a styled info label
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_font_size_override("font_size", 16)
+	return label
 
 
 func _rebuild_inventory_list() -> void:
@@ -236,11 +242,7 @@ func _rebuild_inventory_list() -> void:
 		var item_id: String = save_data.inventory[i]
 		var item_data: ItemData = get_item_data(item_id)
 
-		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 24)
-		button.focus_mode = Control.FOCUS_ALL
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", 16)
+		var button: Button = _create_list_button(24)
 
 		if item_data:
 			button.text = item_data.item_name
@@ -252,27 +254,18 @@ func _rebuild_inventory_list() -> void:
 		inventory_buttons.append(button)
 
 		# Connect signals with captured index
-		var captured_index: int = i
-		var captured_item_id: String = item_id
-		button.pressed.connect(_on_inventory_button_pressed.bind(captured_index, captured_item_id))
-		button.focus_entered.connect(_on_inventory_focus_entered.bind(captured_index, captured_item_id))
+		button.pressed.connect(_on_inventory_button_pressed.bind(i, item_id))
+		button.focus_entered.connect(_on_inventory_focus_entered.bind(i, item_id))
 
 	# Show empty slot indicator if inventory has room
-	if save_data.inventory.size() < max_slots:
-		var empty_slots: int = max_slots - save_data.inventory.size()
-		var label: Label = Label.new()
-		label.text = "(%d empty slot%s)" % [empty_slots, "s" if empty_slots > 1 else ""]
-		label.add_theme_color_override("font_color", UIColors.ITEM_EMPTY)
-		label.add_theme_font_size_override("font_size", 16)
-		inventory_list.add_child(label)
+	var empty_slots: int = max_slots - save_data.inventory.size()
+	if empty_slots > 0:
+		var plural: String = "s" if empty_slots > 1 else ""
+		inventory_list.add_child(_create_info_label("(%d empty slot%s)" % [empty_slots, plural], UIColors.ITEM_EMPTY))
 
 	# Handle completely empty inventory
 	if save_data.inventory.is_empty():
-		var label: Label = Label.new()
-		label.text = "No items"
-		label.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
-		label.add_theme_font_size_override("font_size", 16)
-		inventory_list.add_child(label)
+		inventory_list.add_child(_create_info_label("No items", UIColors.MENU_DISABLED))
 
 
 func _focus_first_button() -> void:
@@ -421,18 +414,16 @@ func _on_item_action_cancelled() -> void:
 
 
 func _return_focus_to_source() -> void:
-	# If we came from equipment slot, return there
-	if not focused_slot_id.is_empty() and focused_slot_id in equipment_buttons:
-		var button: Button = equipment_buttons[focused_slot_id]
-		if is_instance_valid(button):
-			button.grab_focus()
-			return
+	var button: Button = null
 
-	# Otherwise return to inventory button
-	if focused_inventory_index >= 0 and focused_inventory_index < inventory_buttons.size():
-		var button: Button = inventory_buttons[focused_inventory_index]
-		if is_instance_valid(button):
-			button.grab_focus()
+	# Determine which button to return focus to
+	if not focused_slot_id.is_empty() and focused_slot_id in equipment_buttons:
+		button = equipment_buttons[focused_slot_id]
+	elif focused_inventory_index >= 0 and focused_inventory_index < inventory_buttons.size():
+		button = inventory_buttons[focused_inventory_index]
+
+	if is_instance_valid(button):
+		button.grab_focus()
 
 
 func _handle_use_action(item_id: String) -> void:
@@ -600,15 +591,16 @@ func _update_item_details(item_id: String) -> void:
 
 
 func _get_item_type_string(item: ItemData) -> String:
+	var base_name: String = ""
+	var show_subtype: bool = false
+
 	match item.item_type:
 		ItemData.ItemType.WEAPON:
-			if not item.equipment_type.is_empty():
-				return "Weapon (%s)" % item.equipment_type.capitalize()
-			return "Weapon"
+			base_name = "Weapon"
+			show_subtype = true
 		ItemData.ItemType.ACCESSORY:
-			if not item.equipment_type.is_empty():
-				return "Accessory (%s)" % item.equipment_type.capitalize()
-			return "Accessory"
+			base_name = "Accessory"
+			show_subtype = true
 		ItemData.ItemType.CONSUMABLE:
 			return "Consumable"
 		ItemData.ItemType.KEY_ITEM:
@@ -616,24 +608,32 @@ func _get_item_type_string(item: ItemData) -> String:
 		_:
 			return ""
 
+	if show_subtype and not item.equipment_type.is_empty():
+		return "%s (%s)" % [base_name, item.equipment_type.capitalize()]
+	return base_name
+
 
 func _get_item_stats_string(item: ItemData) -> String:
 	var parts: Array[String] = []
 
-	if item.attack_power > 0:
-		parts.append("ATK +%d" % item.attack_power)
-	if item.defense_modifier != 0:
-		parts.append("DEF %+d" % item.defense_modifier)
-	if item.strength_modifier != 0:
-		parts.append("STR %+d" % item.strength_modifier)
-	if item.agility_modifier != 0:
-		parts.append("AGI %+d" % item.agility_modifier)
-	if item.intelligence_modifier != 0:
-		parts.append("INT %+d" % item.intelligence_modifier)
-	if item.hp_modifier != 0:
-		parts.append("HP %+d" % item.hp_modifier)
-	if item.mp_modifier != 0:
-		parts.append("MP %+d" % item.mp_modifier)
+	# Stat display pairs: [value, label, use_plus_format]
+	var stats: Array = [
+		[item.attack_power, "ATK", false],
+		[item.defense_modifier, "DEF", true],
+		[item.strength_modifier, "STR", true],
+		[item.agility_modifier, "AGI", true],
+		[item.intelligence_modifier, "INT", true],
+		[item.hp_modifier, "HP", true],
+		[item.mp_modifier, "MP", true],
+	]
+
+	for stat: Array in stats:
+		var value: int = stat[0]
+		var label: String = stat[1]
+		var use_plus: bool = stat[2]
+		if value != 0:
+			var format: String = "%s %+d" if use_plus else "%s +%d"
+			parts.append(format % [label, value])
 
 	return "  ".join(parts)
 

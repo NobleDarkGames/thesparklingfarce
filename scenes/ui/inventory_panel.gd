@@ -52,6 +52,15 @@ const COLOR_VALID_TARGET: Color = Color(0.3, 0.8, 0.3, 0.5)
 const COLOR_INSTRUCTION_ACTIVE: Color = Color(1.0, 1.0, 0.5, 1.0)
 const COLOR_INSTRUCTION_INACTIVE: Color = Color(0.5, 0.5, 0.6, 0.8)
 
+## BBCode colors for item display
+const BBCODE_COLOR_POSITIVE: String = "#44FF44"
+const BBCODE_COLOR_NEGATIVE: String = "#FF4444"
+const BBCODE_COLOR_ITEM_NAME: String = "#FFFFFF"
+const BBCODE_COLOR_EQUIPPED_NAME: String = "#FFDD44"
+const BBCODE_COLOR_CURSED: String = "#FF4444"
+const BBCODE_COLOR_SUBDUED: String = "#888888"
+const BBCODE_COLOR_TEXT: String = "#CCCCCC"
+
 const SLOT_SPACING: int = 4
 const SECTION_SPACING: int = 4
 const PANEL_PADDING: int = 6
@@ -353,8 +362,7 @@ func _rebuild_slots() -> void:
 
 
 func _create_item_slot() -> ItemSlot:
-	var slot: ItemSlot = ItemSlot.new()
-	return slot
+	return ItemSlot.new()
 
 
 func _update_character_info() -> void:
@@ -761,7 +769,7 @@ func _handle_info_action(item_id: String) -> void:
 		_update_description(_format_item_info(item_data, "inventory", ""))
 		_update_instruction("Press any key to continue")
 	else:
-		_update_description("[color=#FF6666]Unknown item: %s[/color]" % item_id)
+		_update_description("[color=%s]Unknown item: %s[/color]" % [BBCODE_COLOR_NEGATIVE, item_id])
 
 
 ## Check if item action menu is currently showing
@@ -778,9 +786,9 @@ func _on_slot_hovered(item_id: String, slot_type: String, slot_key: String) -> v
 		# Show slot type name for empty slots
 		if slot_type == "equipment":
 			var display_name: String = ModLoader.equipment_slot_registry.get_slot_display_name(slot_key)
-			_update_description("[color=#888888]%s (empty)[/color]" % display_name)
+			_update_description("[color=%s]%s (empty)[/color]" % [BBCODE_COLOR_SUBDUED, display_name])
 		else:
-			_update_description("[color=#888888]Empty slot[/color]")
+			_update_description("[color=%s]Empty slot[/color]" % BBCODE_COLOR_SUBDUED)
 		return
 
 	# Get item data and show formatted description
@@ -788,111 +796,91 @@ func _on_slot_hovered(item_id: String, slot_type: String, slot_key: String) -> v
 	if item_data:
 		_update_description(_format_item_info(item_data, slot_type, slot_key))
 	else:
-		_update_description("[color=#FF6666]Unknown item: %s[/color]" % item_id)
+		_update_description("[color=%s]Unknown item: %s[/color]" % [BBCODE_COLOR_NEGATIVE, item_id])
 
 
 ## Format complete item info for description panel (SF2-style)
-func _format_item_info(item: ItemData, slot_type: String, slot_key: String) -> String:
+func _format_item_info(item: ItemData, slot_type: String, _slot_key: String) -> String:
 	var lines: Array[String] = []
 
 	# Line 1: Item name (bold, colored based on cursed status)
-	var name_color: String = "#FFDD44" if slot_type == "equipment" else "#FFFFFF"
+	var name_color: String = BBCODE_COLOR_EQUIPPED_NAME if slot_type == "equipment" else BBCODE_COLOR_ITEM_NAME
 	if item.is_cursed:
-		name_color = "#FF4444"
+		name_color = BBCODE_COLOR_CURSED
 	lines.append("[b][color=%s]%s[/color][/b]" % [name_color, item.item_name.to_upper()])
 
 	# Line 2: Slot type
-	var slot_display: String = _get_item_slot_display(item)
-	lines.append("[color=#888888]%s[/color]" % slot_display)
+	lines.append("[color=%s]%s[/color]" % [BBCODE_COLOR_SUBDUED, _get_item_slot_display(item)])
 
 	# Line 3: Stats (color-coded)
 	var stats_text: String = _format_item_stats_colored(item)
 	if not stats_text.is_empty():
 		lines.append(stats_text)
 
-	# Line 4+: Description (white, wrapped)
+	# Line 4+: Description
 	if not item.description.is_empty():
-		lines.append("[color=#CCCCCC]%s[/color]" % item.description)
+		lines.append("[color=%s]%s[/color]" % [BBCODE_COLOR_TEXT, item.description])
 
 	# Warning for cursed items
 	if item.is_cursed:
-		lines.append("[color=#FF4444][!] Cursed - cannot be removed![/color]")
+		lines.append("[color=%s][!] Cursed - cannot be removed![/color]" % BBCODE_COLOR_CURSED)
 
 	return "\n".join(lines)
 
 
 ## Get display string for item's slot type
 func _get_item_slot_display(item: ItemData) -> String:
-	var type_str: String = ""
+	var base_type: String = ""
+
 	match item.item_type:
 		ItemData.ItemType.WEAPON:
-			type_str = "Weapon"
-			if not item.equipment_type.is_empty():
-				type_str += " (%s)" % item.equipment_type.capitalize()
+			base_type = "Weapon"
 		ItemData.ItemType.ACCESSORY:
-			type_str = "Accessory"
-			if not item.equipment_type.is_empty():
-				type_str += " (%s)" % item.equipment_type.capitalize()
+			base_type = "Accessory"
 		ItemData.ItemType.CONSUMABLE:
-			type_str = "Consumable"
+			return "Consumable"
 		ItemData.ItemType.KEY_ITEM:
-			type_str = "Key Item"
+			return "Key Item"
 		_:
-			if not item.equipment_type.is_empty():
-				type_str = item.equipment_type.capitalize()
-			else:
-				type_str = "Item"
-	return type_str
+			if item.equipment_type.is_empty():
+				return "Item"
+			return item.equipment_type.capitalize()
+
+	# Append equipment subtype for weapons/accessories
+	if not item.equipment_type.is_empty():
+		return "%s (%s)" % [base_type, item.equipment_type.capitalize()]
+	return base_type
 
 
 ## Format item stats with color coding (green +, red -)
 func _format_item_stats_colored(item: ItemData) -> String:
 	var parts: Array[String] = []
 
-	# Helper to format a stat with color
-	var format_stat: Callable = func(label: String, value: int) -> String:
-		if value == 0:
-			return ""
-		var color: String = "#44FF44" if value > 0 else "#FF4444"
-		return "[color=%s]%s %+d[/color]" % [color, label, value]
-
 	# Attack power (always positive display)
 	if item.attack_power > 0:
-		parts.append("[color=#44FF44]ATK +%d[/color]" % item.attack_power)
+		parts.append("[color=%s]ATK +%d[/color]" % [BBCODE_COLOR_POSITIVE, item.attack_power])
 
-	# Other stats
-	var def_text: String = format_stat.call("DEF", item.defense_modifier)
-	if not def_text.is_empty():
-		parts.append(def_text)
+	# Other stats - collect non-zero values
+	var stats: Array[Array] = [
+		["DEF", item.defense_modifier],
+		["STR", item.strength_modifier],
+		["AGI", item.agility_modifier],
+		["INT", item.intelligence_modifier],
+		["HP", item.hp_modifier],
+		["MP", item.mp_modifier],
+		["LCK", item.luck_modifier],
+	]
 
-	var str_text: String = format_stat.call("STR", item.strength_modifier)
-	if not str_text.is_empty():
-		parts.append(str_text)
-
-	var agi_text: String = format_stat.call("AGI", item.agility_modifier)
-	if not agi_text.is_empty():
-		parts.append(agi_text)
-
-	var int_text: String = format_stat.call("INT", item.intelligence_modifier)
-	if not int_text.is_empty():
-		parts.append(int_text)
-
-	var hp_text: String = format_stat.call("HP", item.hp_modifier)
-	if not hp_text.is_empty():
-		parts.append(hp_text)
-
-	var mp_text: String = format_stat.call("MP", item.mp_modifier)
-	if not mp_text.is_empty():
-		parts.append(mp_text)
-
-	var luck_text: String = format_stat.call("LCK", item.luck_modifier)
-	if not luck_text.is_empty():
-		parts.append(luck_text)
+	for stat: Array in stats:
+		var label: String = stat[0]
+		var value: int = stat[1]
+		if value != 0:
+			var color: String = BBCODE_COLOR_POSITIVE if value > 0 else BBCODE_COLOR_NEGATIVE
+			parts.append("[color=%s]%s %+d[/color]" % [color, label, value])
 
 	if parts.is_empty():
 		return ""
 
-	# Join with spaces for compact display
 	return "  ".join(parts)
 
 

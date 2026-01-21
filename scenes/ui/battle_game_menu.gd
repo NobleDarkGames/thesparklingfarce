@@ -260,6 +260,16 @@ func set_map_overlay(overlay: BattleMapOverlay) -> void:
 # OPTION BUILDING
 # =============================================================================
 
+func _create_option_label(text: String) -> Label:
+	## Helper to create a styled menu option label
+	var label: Label = Label.new()
+	label.text = "  " + text  # Indent for cursor space
+	label.add_theme_font_override("font", MONOGRAM_FONT)
+	label.add_theme_font_size_override("font_size", FONT_SIZE)
+	label.add_theme_color_override("font_color", TEXT_NORMAL)
+	return label
+
+
 func _rebuild_option_labels() -> void:
 	# Clear existing labels
 	for label: Label in _option_labels:
@@ -271,12 +281,8 @@ func _rebuild_option_labels() -> void:
 	var options: Array[Dictionary] = _get_menu_options()
 
 	for option: Dictionary in options:
-		var label: Label = Label.new()
 		var option_text: String = DictUtils.get_string(option, "label", "")
-		label.text = "  " + option_text  # Indent for cursor space
-		label.add_theme_font_override("font", MONOGRAM_FONT)
-		label.add_theme_font_size_override("font_size", FONT_SIZE)
-		label.add_theme_color_override("font_color", TEXT_NORMAL)
+		var label: Label = _create_option_label(option_text)
 		_options_container.add_child(label)
 		_option_labels.append(label)
 
@@ -337,26 +343,21 @@ func _update_selection_visual() -> void:
 		var option: Dictionary = options[i]
 		var option_label: String = DictUtils.get_string(option, "label", "")
 		var is_enabled: bool = DictUtils.get_bool(option, "enabled", true)
+		var is_selected: bool = i == _selected_index
 
+		# Determine text color
+		var color: Color = TEXT_NORMAL
 		if not is_enabled:
-			# Disabled option
-			label.add_theme_color_override("font_color", TEXT_DISABLED)
-			if i == _selected_index:
-				label.text = CURSOR_CHAR + " " + option_label
-			else:
-				label.text = "  " + option_label
-		elif i == _selected_index:
-			# Selected: show cursor and yellow text
-			label.add_theme_color_override("font_color", TEXT_SELECTED)
-			label.text = CURSOR_CHAR + " " + option_label
+			color = TEXT_DISABLED
+		elif is_selected:
+			color = TEXT_SELECTED
 		elif i == _hover_index:
-			# Hovered: lighter text, no cursor
-			label.add_theme_color_override("font_color", TEXT_HOVER)
-			label.text = "  " + option_label
-		else:
-			# Normal: default text, no cursor
-			label.add_theme_color_override("font_color", TEXT_NORMAL)
-			label.text = "  " + option_label
+			color = TEXT_HOVER
+
+		# Apply cursor prefix for selected items
+		var prefix: String = CURSOR_CHAR + " " if is_selected else "  "
+		label.text = prefix + option_label
+		label.add_theme_color_override("font_color", color)
 
 
 ## Position the menu in bottom-left corner
@@ -386,43 +387,43 @@ func _input(event: InputEvent) -> void:
 	if not _is_active:
 		return
 
-	# Mouse click
+	# Handle mouse click
 	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i: int in range(_option_labels.size()):
-				var label: Label = _option_labels[i]
-				var label_rect: Rect2 = label.get_global_rect()
-				if label_rect.has_point(mouse_pos):
-					_selected_index = i
-					_confirm_selection()
-					get_viewport().set_input_as_handled()
-					return
+		_handle_mouse_click(event as InputEventMouseButton)
+		return
 
-			# Click outside panel - cancel
-			if not _panel.get_global_rect().has_point(mouse_pos):
-				_cancel_menu()
-				get_viewport().set_input_as_handled()
-				return
-
-	# Navigate up
+	# Handle keyboard/gamepad navigation
 	if event.is_action_pressed("ui_up"):
 		_move_selection(-1)
-		get_viewport().set_input_as_handled()
-
-	# Navigate down
 	elif event.is_action_pressed("ui_down"):
 		_move_selection(1)
-		get_viewport().set_input_as_handled()
-
-	# Confirm selection
 	elif event.is_action_pressed("ui_accept") or event.is_action_pressed("sf_confirm"):
 		_confirm_selection()
-		get_viewport().set_input_as_handled()
-
-	# Cancel menu
 	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
+		_cancel_menu()
+	else:
+		return  # No action matched
+
+	get_viewport().set_input_as_handled()
+
+
+func _handle_mouse_click(mouse_event: InputEventMouseButton) -> void:
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+
+	var mouse_pos: Vector2 = get_global_mouse_position()
+
+	# Check if clicked on an option
+	for i: int in range(_option_labels.size()):
+		var label: Label = _option_labels[i]
+		if label.get_global_rect().has_point(mouse_pos):
+			_selected_index = i
+			_confirm_selection()
+			get_viewport().set_input_as_handled()
+			return
+
+	# Click outside panel - cancel
+	if not _panel.get_global_rect().has_point(mouse_pos):
 		_cancel_menu()
 		get_viewport().set_input_as_handled()
 
