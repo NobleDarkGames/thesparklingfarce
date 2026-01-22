@@ -95,12 +95,6 @@ var combat_anim_instance: CombatAnimationScene = null
 var _pending_level_ups: Array[Dictionary] = []
 var _showing_level_up: bool = false
 
-## XP entries queue for combat results panel
-var _pending_xp_entries: Array[Dictionary] = []
-
-## Combat actions queue for combat results panel (e.g., "Max hit with CHAOS BREAKER for 12 damage!")
-var _pending_combat_actions: Array[Dictionary] = []
-
 
 ## Initialize battle manager with scene references
 func setup(battle_scene: Node, units_container: Node2D) -> void:
@@ -374,14 +368,8 @@ func _connect_signals() -> void:
 		InputManager.spell_cast_requested.connect(_on_spell_cast_requested)
 
 	# ExperienceManager signals
-	if not ExperienceManager.unit_gained_xp.is_connected(_on_unit_gained_xp):
-		ExperienceManager.unit_gained_xp.connect(_on_unit_gained_xp)
-
 	if not ExperienceManager.unit_leveled_up.is_connected(_on_unit_leveled_up):
 		ExperienceManager.unit_leveled_up.connect(_on_unit_leveled_up)
-
-	if not ExperienceManager.unit_learned_ability.is_connected(_on_unit_learned_ability):
-		ExperienceManager.unit_learned_ability.connect(_on_unit_learned_ability)
 
 
 ## Handle action selection from InputManager
@@ -1401,13 +1389,6 @@ func _execute_combat_session(
 			if phase.defender == initial_defender and defender_died:
 				continue
 
-			# Queue combat action for results panel
-			_pending_combat_actions.append({
-				"text": phase.get_result_text(),
-				"is_critical": phase.was_critical,
-				"is_miss": phase.was_miss
-			})
-
 			# Handle healing phases (ITEM_HEAL, SPELL_HEAL)
 			if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
 				# Play healing sound
@@ -1461,9 +1442,6 @@ func _execute_combat_session(
 				pool["total_damage"],
 				pool["got_kill"]
 			)
-
-		# Show combat results panel (skip mode shows XP on map)
-		await _show_combat_results()
 
 
 ## Helper to find current phase for damage handler
@@ -1720,17 +1698,6 @@ func _show_defeat_screen() -> bool:
 	return false
 
 
-## Handle unit gaining XP
-func _on_unit_gained_xp(unit: Unit, amount: int, source: String) -> void:
-
-	# Queue XP entry for combat results panel
-	_pending_xp_entries.append({
-		"unit_name": UnitUtils.get_display_name(unit),
-		"amount": amount,
-		"source": source
-	})
-
-
 ## Handle unit level up
 func _on_unit_leveled_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
 	# Queue the level-up for display
@@ -1792,50 +1759,6 @@ func _wait_for_level_ups() -> void:
 			break
 
 
-## Handle unit learning ability
-func _on_unit_learned_ability(unit: Unit, ability: AbilityData) -> void:
-	pass  # Future: Show ability learned notification
-
-
-## Show combat results panel with queued combat actions and XP entries
-func _show_combat_results() -> void:
-	# Skip in headless mode
-	if TurnManager.is_headless:
-		_pending_combat_actions.clear()
-		_pending_xp_entries.clear()
-		return
-
-	# Skip if no entries
-	if _pending_combat_actions.is_empty() and _pending_xp_entries.is_empty():
-		return
-
-	# Create and populate the results panel
-	var results_panel: CanvasLayer = _get_cached_scene("combat_results_scene").instantiate()
-	battle_scene_root.add_child(results_panel)
-
-	# Add all queued combat actions first
-	for action: Dictionary in _pending_combat_actions:
-		results_panel.add_combat_action(action.text, action.is_critical, action.is_miss)
-
-	# Clear the combat actions queue
-	_pending_combat_actions.clear()
-
-	# Add all queued XP entries
-	for entry: Dictionary in _pending_xp_entries:
-		results_panel.add_xp_entry(entry.unit_name, entry.amount, entry.source)
-
-	# Clear the XP queue
-	_pending_xp_entries.clear()
-
-	# Show and wait for dismissal
-	results_panel.show_results()
-	await results_panel.results_dismissed
-
-	# HIGH-003: Validate state after await on UI signal
-	if is_instance_valid(results_panel):
-		results_panel.queue_free()
-
-
 ## Clean up battle state and free all battle-related resources.
 ## Delegates to BattleCleanup for the actual cleanup operations.
 func end_battle() -> void:
@@ -1847,7 +1770,6 @@ func end_battle() -> void:
 	context.enemy_units = enemy_units
 	context.neutral_units = neutral_units
 	context.map_instance = map_instance
-	context.death_callback = _on_unit_died
 
 	# Execute cleanup (this clears the arrays and frees nodes)
 	BattleCleanup.execute(context)

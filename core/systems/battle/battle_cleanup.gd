@@ -1,11 +1,10 @@
 ## Handles cleanup of battle state when a battle ends.
 ##
 ## This class is responsible for:
-## - Disconnecting unit signals to prevent callbacks during cleanup
 ## - Freeing combat animation instances
+## - Freeing unit nodes (signal connections are cleaned up automatically by queue_free)
 ## - Clearing unit tracking arrays
 ## - Freeing map instances
-## - Resetting battle data
 ## - Clearing TurnManager and GridManager state
 ##
 ## Extracted from BattleManager to improve modularity and testability.
@@ -18,7 +17,7 @@ extends RefCounted
 class CleanupContext:
 	## Combat animation instance to free
 	var combat_anim_instance: CombatAnimationScene = null
-	## All units in the battle (for signal disconnection and freeing)
+	## All units in the battle (to be freed)
 	var all_units: Array[Unit] = []
 	## Player units array to clear
 	var player_units: Array[Unit] = []
@@ -28,12 +27,10 @@ class CleanupContext:
 	var neutral_units: Array[Unit] = []
 	## Map instance to free
 	var map_instance: Node2D = null
-	## Callback to disconnect from unit died signals
-	var death_callback: Callable = Callable()
 
 
 ## Perform full battle cleanup using the provided context.
-## This disconnects signals, frees nodes, and clears all battle state.
+## This frees nodes and clears all battle state.
 ## @param context: CleanupContext containing all references to clean up
 ## @return Dictionary with cleanup results (for testing/debugging)
 static func execute(context: CleanupContext) -> Dictionary:
@@ -48,14 +45,15 @@ static func execute(context: CleanupContext) -> Dictionary:
 		context.combat_anim_instance.queue_free()
 		result.combat_anim_freed = true
 
-	# Disconnect death signals and free units
+	# Free all units
+	# Note: We intentionally do NOT attempt to manually disconnect death signals here.
+	# GDScript bound callables are not comparable by value - two separately created
+	# bound callables (even with identical bindings) are different objects, so
+	# is_connected() would always return false. Since queue_free() automatically
+	# cleans up all signal connections when the node is freed, manual disconnection
+	# is both broken and unnecessary.
 	for unit_node: Unit in context.all_units:
 		if is_instance_valid(unit_node):
-			# Disconnect the death signal to prevent callbacks during cleanup
-			if unit_node.has_signal("died") and context.death_callback.is_valid():
-				var bound_callback: Callable = context.death_callback.bind(unit_node)
-				if unit_node.died.is_connected(bound_callback):
-					unit_node.died.disconnect(bound_callback)
 			unit_node.queue_free()
 			result.units_freed += 1
 
