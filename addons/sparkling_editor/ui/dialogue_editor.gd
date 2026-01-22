@@ -11,6 +11,7 @@ var dialogue_title_edit: LineEdit
 # Lines section
 var lines_container: VBoxContainer
 var lines_list: Array[Dictionary] = []  # Track line UI elements
+var add_line_button: Button
 
 # Character cache for picker dropdowns
 var _cached_characters: Array[Resource] = []
@@ -21,6 +22,7 @@ const EMOTIONS: Array[String] = ["neutral", "happy", "sad", "angry", "worried", 
 # Choices section
 var choices_container: VBoxContainer
 var choices_list: Array[Dictionary] = []  # Track choice UI elements
+var add_choice_button: Button
 
 # Flow control
 var next_dialogue_option: OptionButton
@@ -42,6 +44,9 @@ func _ready() -> void:
 
 	_refresh_character_cache()
 	super._ready()
+
+	# Start with editing disabled until a resource is selected
+	_set_editing_enabled(false)
 
 
 ## Called when a dependent resource type changes (character created/saved/deleted)
@@ -139,7 +144,11 @@ func _create_detail_form() -> void:
 func _load_resource_data() -> void:
 	var dialogue: DialogueData = current_resource as DialogueData
 	if not dialogue:
+		_set_editing_enabled(false)
 		return
+
+	# Enable editing now that we have a valid resource
+	_set_editing_enabled(true)
 
 	dialogue_id_edit.text = dialogue.dialogue_id
 	dialogue_title_edit.text = dialogue.dialogue_title
@@ -334,6 +343,16 @@ func _get_resource_display_name(resource: Resource) -> String:
 	return "Unnamed Dialogue"
 
 
+## Override: Clear current resource state and disable editing
+func _clear_current_resource() -> void:
+	super._clear_current_resource()
+	# Disable editing when no resource is selected
+	_set_editing_enabled(false)
+	# Clear UI state
+	_clear_lines_ui()
+	_clear_choices_ui()
+
+
 func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.add_section("Basic Information")
@@ -352,6 +371,51 @@ func _on_field_changed(_new_value: Variant = null) -> void:
 	_mark_dirty()
 
 
+## Enable or disable the lines and choices editing areas based on selection state.
+## Called when resource selection changes to prevent editing when no resource is loaded.
+func _set_editing_enabled(enabled: bool) -> void:
+	# Lines section
+	if lines_container:
+		for child: Node in lines_container.get_children():
+			if child is Control:
+				(child as Control).mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
+				_set_control_tree_enabled(child as Control, enabled)
+	if add_line_button:
+		add_line_button.disabled = not enabled
+
+	# Choices section
+	if choices_container:
+		for child: Node in choices_container.get_children():
+			if child is Control:
+				(child as Control).mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
+				_set_control_tree_enabled(child as Control, enabled)
+	if add_choice_button:
+		add_choice_button.disabled = not enabled
+
+
+## Recursively enable/disable all interactive controls in a tree.
+## Used by _set_editing_enabled to properly disable nested UI elements.
+func _set_control_tree_enabled(control: Control, enabled: bool) -> void:
+	# Disable specific interactive control types
+	if control is Button:
+		(control as Button).disabled = not enabled
+	elif control is LineEdit:
+		(control as LineEdit).editable = enabled
+	elif control is TextEdit:
+		(control as TextEdit).editable = enabled
+	elif control is SpinBox:
+		(control as SpinBox).editable = enabled
+	elif control is OptionButton:
+		(control as OptionButton).disabled = not enabled
+	elif control is CheckBox:
+		(control as CheckBox).disabled = not enabled
+
+	# Recurse into children
+	for child: Node in control.get_children():
+		if child is Control:
+			_set_control_tree_enabled(child as Control, enabled)
+
+
 func _add_lines_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
 	form.add_section("Dialogue Lines")
@@ -361,7 +425,7 @@ func _add_lines_section() -> void:
 	form.container.add_child(lines_container)
 
 	# Add line button
-	var add_line_button: Button = Button.new()
+	add_line_button = Button.new()
 	add_line_button.text = "Add Line"
 	add_line_button.pressed.connect(_on_add_line_pressed)
 	form.container.add_child(add_line_button)
@@ -377,7 +441,7 @@ func _add_choices_section() -> void:
 	form.container.add_child(choices_container)
 
 	# Add choice button
-	var add_choice_button: Button = Button.new()
+	add_choice_button = Button.new()
 	add_choice_button.text = "Add Choice"
 	add_choice_button.pressed.connect(_on_add_choice_pressed)
 	form.container.add_child(add_choice_button)
