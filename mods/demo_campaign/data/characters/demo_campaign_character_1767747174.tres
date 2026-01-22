@@ -1,104 +1,26 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=17 format=3 uid="uid://c40nyf8i5fwfc"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=8 format=3 uid="uid://c40nyf8i5fwfc"]
 
 [ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_ld0t0"]
 [ext_resource type="Resource" uid="uid://b8a8yw15vvqlr" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1767747144.tres" id="1_ypq2g"]
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_mxged"]
 [ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres" id="2_t15sv"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_s7g4s"]
-[ext_resource type="Texture2D" uid="uid://bngbcdqnpfivi" path="res://mods/demo_campaign/assets/sprites/map/archer_spritesheet.png" id="4_by0vw"]
 [ext_resource type="Resource" path="res://mods/demo_campaign/data/combat_animations/badguy_combat_anim.tres" id="5_combat"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_5xqqv"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ow88t"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(32, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_oavgw"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(0, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ewk22"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(32, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_5d878"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(0, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_fexbm"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(32, 64, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_uuoye"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(0, 96, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_xgqb1"]
-atlas = ExtResource("4_by0vw")
-region = Rect2(32, 96, 32, 32)
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_t15sv"]
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_5xqqv")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ow88t")
-}],
-"loop": true,
-"name": &"walk_down",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_oavgw")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ewk22")
-}],
-"loop": true,
-"name": &"walk_left",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_5d878")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_fexbm")
-}],
-"loop": true,
-"name": &"walk_right",
-"speed": 4.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_uuoye")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_xgqb1")
-}],
-"loop": true,
-"name": &"walk_up",
-"speed": 4.0
-}]
+[ext_resource type="SpriteFrames" uid="uid://yfbtdnnstrik" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1767747174_map_sprites.tres" id="5_t15sv"]
 
 [resource]
 script = ExtResource("1_ld0t0")
 character_uid = "4wgr822s"
 character_name = "Big Rat"
 character_class = ExtResource("1_ypq2g")
+base_hp = 5
 base_mp = 1
 base_strength = 3
-base_defense = 3
-base_agility = 3
-base_intelligence = 3
-base_luck = 3
-sprite_frames = SubResource("SpriteFrames_t15sv")
+base_defense = 2
+base_agility = 2
+base_intelligence = 1
+base_luck = 1
+sprite_frames = ExtResource("5_t15sv")
 combat_animation_data = ExtResource("5_combat")
 unit_category = "enemy"
 is_unique = false
