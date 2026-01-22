@@ -19,6 +19,7 @@ extends Node
 
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
 const BattleRewardsDistributor = preload("res://core/systems/battle/battle_rewards_distributor.gd")
+const BattleCleanup = preload("res://core/systems/battle/battle_cleanup.gd")
 
 ## Signals for battle events
 signal battle_started(battle_data: BattleData)
@@ -1840,35 +1841,25 @@ func _show_combat_results() -> void:
 		results_panel.queue_free()
 
 
-## Clean up battle
+## Clean up battle state and free all battle-related resources.
+## Delegates to BattleCleanup for the actual cleanup operations.
 func end_battle() -> void:
-	# Note: battle_active proxies to TurnManager - no need to set here
+	# Build cleanup context with all references needed
+	var context: BattleCleanup.CleanupContext = BattleCleanup.CleanupContext.new()
+	context.combat_anim_instance = combat_anim_instance
+	context.all_units = all_units
+	context.player_units = player_units
+	context.enemy_units = enemy_units
+	context.neutral_units = neutral_units
+	context.map_instance = map_instance
+	context.death_callback = _on_unit_died
 
-	# Clean up any lingering combat animation
-	if combat_anim_instance and is_instance_valid(combat_anim_instance):
-		combat_anim_instance.queue_free()
-		combat_anim_instance = null
+	# Execute cleanup (this clears the arrays and frees nodes)
+	BattleCleanup.execute(context)
 
-	# Clear units - disconnect death signals before freeing to prevent callback on freed object
-	for unit_node: Unit in all_units:
-		if is_instance_valid(unit_node):
-			# Disconnect the death signal to prevent _on_unit_died callback during cleanup
-			if unit_node.has_signal("died"):
-				var callback: Callable = _on_unit_died.bind(unit_node)
-				if unit_node.died.is_connected(callback):
-					unit_node.died.disconnect(callback)
-			unit_node.queue_free()
-
-	all_units.clear()
-	player_units.clear()
-	enemy_units.clear()
-	neutral_units.clear()
-
-	# Remove map
-	if map_instance and is_instance_valid(map_instance):
-		map_instance.queue_free()
-		map_instance = null
-
+	# Clear local references (arrays were cleared by BattleCleanup)
+	combat_anim_instance = null
+	map_instance = null
 	current_battle_data = null
 
 
