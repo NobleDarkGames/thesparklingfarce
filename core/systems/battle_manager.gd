@@ -18,6 +18,7 @@
 extends Node
 
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
+const BattleRewardsDistributor = preload("res://core/systems/battle/battle_rewards_distributor.gd")
 
 ## Signals for battle events
 signal battle_started(battle_data: BattleData)
@@ -1688,37 +1689,9 @@ func _show_victory_screen() -> bool:
 
 ## Distribute battle rewards (gold and items) to the player
 ## Returns Dictionary with {gold: int, items: Array[String]} of actual rewards given
+## Note: Delegates to BattleRewardsDistributor.distribute() - kept as wrapper for backward compatibility
 func _distribute_battle_rewards() -> Dictionary:
-	var rewards: Dictionary = {"gold": 0, "items": []}
-
-	if not current_battle_data:
-		return rewards
-
-	# Read rewards from battle data
-	rewards.gold = current_battle_data.gold_reward if "gold_reward" in current_battle_data else 0
-
-	# Collect item IDs from item_rewards array
-	if "item_rewards" in current_battle_data and current_battle_data.item_rewards:
-		for item: ItemData in current_battle_data.item_rewards:
-			if item and item.item_id:
-				rewards.items.append(item.item_id)
-
-	# Allow mods to modify rewards before distribution
-	GameEventBus.pre_battle_rewards.emit(current_battle_data, rewards)
-
-	# Distribute gold
-	if rewards.gold > 0:
-		SaveManager.add_current_gold(rewards.gold)
-
-	# Distribute items to depot
-	if not rewards.items.is_empty() and SaveManager.current_save:
-		for item_id: String in rewards.items:
-			SaveManager.current_save.depot_items.append(item_id)
-
-	# Notify mods that rewards were distributed
-	GameEventBus.post_battle_rewards.emit(current_battle_data, rewards)
-
-	return rewards
+	return BattleRewardsDistributor.distribute(current_battle_data)
 
 
 ## Show defeat screen (SF2-authentic automatic flow) and wait for player input
