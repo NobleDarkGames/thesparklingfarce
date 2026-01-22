@@ -6,48 +6,48 @@ This document tracks all pending work items. Updated 2026-01-21.
 
 ## Critical Async Safety Bugs (Priority: CRITICAL)
 
-From multi-agent code review 2026-01-21. These are crash/corruption risks under edge conditions.
+From multi-agent code review 2026-01-21. Fixed in commit 74adaab.
 
 ### BattleManager Async Issues
-- [ ] `battle_manager.gd:2027-2030` - Unchecked canvas reference after timer await (crash if scene transitions during delay)
-- [ ] `battle_manager.gd:1559` - Unguarded unit access after tween.finished
-- [ ] `battle_manager.gd:1783-1785` - `_wait_for_level_ups` infinite loop without timeout (deadlock risk)
-- [ ] `battle_manager.gd:1366` - Unguarded get_tree() after timer await
-- [ ] `battle_manager.gd:340-344` - Unit signal callback binding reference leak (no disconnect in end_battle)
-- [ ] `battle_manager.gd:121-125` - Null cached scene returned without validation
-- [ ] `battle_manager.gd:1320-1356` - combat_anim_instance validity not checked after multiple awaits
+- [x] `battle_manager.gd:2027-2030` - Unchecked canvas reference after timer await
+- [x] `battle_manager.gd:1559` - Unguarded unit access after tween.finished
+- [x] `battle_manager.gd:1783-1785` - `_wait_for_level_ups` infinite loop without timeout
+- [x] `battle_manager.gd:1366` - Unguarded get_tree() after timer await
+- [x] `battle_manager.gd:340-344` - Unit signal callback binding reference leak
+- [x] `battle_manager.gd:121-125` - Null cached scene returned without validation
+- [x] `battle_manager.gd:1320-1356` - combat_anim_instance validity not checked after multiple awaits
 
 ### SceneManager Async Issues
-- [ ] `scene_manager.gd:146-172` - Double-await state corruption in fade_to_black (no guard after await)
-- [ ] `scene_manager.gd:150-151,182-183` - Concurrent fade requests cause deadlock (caller awaiting rejected fade never completes)
-- [ ] `scene_manager.gd:256-262` - go_back() overwrites previous_scene_path breaking double back-navigation
+- [x] `scene_manager.gd:146-172` - Double-await state corruption in fade_to_black
+- [x] `scene_manager.gd:150-151,182-183` - Concurrent fade requests cause deadlock
+- [x] `scene_manager.gd:256-262` - go_back() overwrites previous_scene_path
 
 ### ShopManager Transaction Safety
-- [ ] `shop_manager.gd:905-927` - Rollback failure in `_add_items_with_rollback` causes silent inventory corruption
+- [x] `shop_manager.gd:905-927` - Rollback failure in `_add_items_with_rollback`
 
 ### CinematicsManager State Issues
-- [ ] `cinematics_manager.gd:658-663` - `_on_dialog_ended` doesn't verify current_cinematic validity before proceeding
-- [ ] `cinematics_manager.gd:630` - Off-by-one command index tracking (increments even on failure)
+- [x] `cinematics_manager.gd:658-663` - `_on_dialog_ended` doesn't verify current_cinematic validity
+- [x] `cinematics_manager.gd:630` - Off-by-one command index tracking (increments even on failure)
 
 ---
 
 ## High Severity Bugs (Priority: HIGH)
 
-### Singleton Issues
-- [ ] `caravan_controller.gd:383-386` - Menu state restoration incorrect on scene change
-- [ ] `caravan_controller.gd:627-628` - `is_spawned()` doesn't use is_instance_valid()
-- [ ] `debug_console.gd:390-394` - Mod command callback errors not handled (crashes console)
-- [ ] `turn_manager.gd:59` - `_active_popup_labels` not cleaned on battle exit
+### Singleton Issues (Fixed in commit 74adaab)
+- [x] `caravan_controller.gd:383-386` - Menu state restoration incorrect on scene change
+- [x] `caravan_controller.gd:627-628` - `is_spawned()` doesn't use is_instance_valid()
+- [x] `debug_console.gd:390-394` - Mod command callback errors not handled
+- [x] `turn_manager.gd:59` - `_active_popup_labels` not cleaned on battle exit
 
-### UI Async Issues
-- [ ] `dialog_box.gd:237-251` - `_on_dialog_ended` awaits without guard
-- [ ] `promotion_ceremony.gd:72-73` - Never disconnects PromotionManager signal (memory leak)
-- [ ] `choice_selector.gd:126-134` - Hide animation race with `_on_choices_ready`
-- [ ] `shops/shop_controller.gd:127-138` - Close-shop re-entrancy through signal chain
+### UI Async Issues (Fixed in commit 74adaab)
+- [x] `dialog_box.gd:237-251` - `_on_dialog_ended` awaits without guard
+- [x] `promotion_ceremony.gd:72-73` - Never disconnects PromotionManager signal
+- [x] `choice_selector.gd:126-134` - Hide animation race with `_on_choices_ready`
+- [x] `shops/shop_controller.gd:127-138` - Close-shop re-entrancy through signal chain
 
-### ModLoader Issues
-- [ ] `mod_loader.gd:688-695` - Path traversal detection swallows error silently
-- [ ] `mod_loader.gd:349-378` - Async load missing cancellation mechanism
+### ModLoader Issues (Fixed)
+- [x] `mod_loader.gd:688-695` - Path traversal now emits `path_security_violation` signal
+- [x] `mod_loader.gd:349-378` - Added async load cancellation mechanism
 
 ---
 
@@ -81,21 +81,21 @@ From Chief Engineer O'Brien's architecture review.
 
 Critical bugs found in Sparkling Editor code review:
 
-### Off-by-One Metadata Bugs
-- [ ] `battle_editor.gd:633` - AI dropdown metadata at wrong index
-- [ ] `battle_editor.gd:604` - Audio dropdown item ID off by one
-- [ ] `character_editor.gd:731` - AI behavior dropdown metadata off by one
+### Off-by-One Metadata Bugs (Fixed)
+- [x] `battle_editor.gd:633` - AI dropdown metadata at wrong index
+- [x] `battle_editor.gd:604` - Audio dropdown item ID off by one
+- [x] `character_editor.gd:731` - AI behavior dropdown metadata off by one
 
-### Missing Dirty Tracking
-- [ ] `class_editor.gd:261-269` - Equipment section never calls `_mark_dirty`
-- [ ] `ability_editor.gd:435` - Status effect changes don't trigger dirty flag
+### Missing Dirty Tracking (Already Fixed)
+- [x] `class_editor.gd:261-269` - Equipment section already calls `_mark_dirty`
+- [x] `ability_editor.gd:435` - Status effect changes already trigger dirty flag
 
-### Memory Leaks
-- [ ] `cinematic_editor.gd:1289-1299` - ConfirmationDialog never freed
-- [ ] `caravan_editor.gd:443-444` - EditorFileDialog not freed
+### Memory Leaks (Already Fixed)
+- [x] `cinematic_editor.gd:1289-1299` - ConfirmationDialog cleanup via visibility_changed
+- [x] `caravan_editor.gd:443-444` - EditorFileDialog cleanup via visibility_changed
 
-### Data Integrity
-- [ ] `save_slot_editor.gd:942-968` - Creates orphaned/duplicate metadata entries
+### Data Integrity (Fixed)
+- [x] `save_slot_editor.gd:942-968` - Simplified to single-loop pattern, no orphans
 
 **Full report:** `docs/untracked/EDITOR_CODE_REVIEW.md`
 

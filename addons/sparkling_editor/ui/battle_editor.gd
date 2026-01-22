@@ -600,10 +600,9 @@ func _select_audio_in_dropdown(option: OptionButton, audio_id: String) -> void:
 			return
 
 	# ID not found - might be custom, add it
-	var item_index: int = option.item_count
-	option.add_item("[custom] %s" % audio_id, item_index)
-	option.set_item_metadata(item_index, audio_id)
-	option.selected = item_index
+	option.add_item("[custom] %s" % audio_id)
+	option.set_item_metadata(option.item_count - 1, audio_id)
+	option.selected = option.item_count - 1
 
 
 ## Get selected audio ID from dropdown (empty string if default selected)
@@ -623,15 +622,13 @@ func _update_ai_dropdown(option: OptionButton) -> void:
 	# Query registry fresh each time - no local cache
 	if ModLoader and ModLoader.registry:
 		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
-		var index: int = 0
 		for ai_behavior: AIBehaviorData in behaviors:
 			if ai_behavior:
 				var behavior_id: String = ai_behavior.behavior_id if not ai_behavior.behavior_id.is_empty() else ai_behavior.resource_path.get_file().get_basename()
 				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else behavior_id.capitalize()
 				var label: String = SparklingEditorUtils.get_display_with_mod_by_id("ai_behavior", behavior_id, display_name)
-				option.add_item(label, index)
+				option.add_item(label)
 				option.set_item_metadata(option.item_count - 1, ai_behavior)
-				index += 1
 
 
 ## Select an AI behavior in the dropdown

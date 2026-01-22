@@ -939,35 +939,27 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 					all_metadata.append(meta_dict)
 			file.close()
 
-	# Find or create metadata for this slot
-	var slot_meta_dict: Dictionary = {}
-	var found: bool = false
+	# Create the new metadata entry first
+	var slot_meta: SlotMetadata = SlotMetadata.new()
+	slot_meta.populate_from_save_data(save_data)
+	var slot_meta_dict: Dictionary = slot_meta.serialize_to_dict()
+	# Ensure slot_number matches the target slot (not save_data's slot_number)
+	slot_meta_dict["slot_number"] = slot_number
+
+	# Find existing entry index for this slot (if any)
+	var existing_index: int = -1
 	for i: int in range(all_metadata.size()):
 		var existing_meta: Dictionary = all_metadata[i]
 		var existing_slot: int = existing_meta.get("slot_number", 0)
 		if existing_slot == slot_number:
-			slot_meta_dict = existing_meta
-			found = true
+			existing_index = i
 			break
 
-	if not found:
-		slot_meta_dict = {"slot_number": slot_number}
+	# Replace existing entry or append new one
+	if existing_index >= 0:
+		all_metadata[existing_index] = slot_meta_dict
+	else:
 		all_metadata.append(slot_meta_dict)
-
-	# Update metadata from save data
-	var slot_meta: SlotMetadata = SlotMetadata.new()
-	slot_meta.populate_from_save_data(save_data)
-	slot_meta_dict = slot_meta.serialize_to_dict()
-	# Ensure slot_number matches the target slot (not save_data's slot_number)
-	slot_meta_dict["slot_number"] = slot_number
-
-	# Find and replace in array (or update newly-appended placeholder)
-	for i: int in range(all_metadata.size()):
-		var check_meta: Dictionary = all_metadata[i]
-		var check_slot: int = check_meta.get("slot_number", 0)
-		if check_slot == slot_number:
-			all_metadata[i] = slot_meta_dict
-			break
 
 	# Save metadata file
 	var json_string: String = JSON.stringify(all_metadata, "\t")

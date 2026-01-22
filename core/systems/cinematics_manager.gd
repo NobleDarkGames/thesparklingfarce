@@ -611,7 +611,7 @@ func _execute_next_command() -> void:
 
 	# Execute command based on type
 	var command_type: String = command.get("type", "")
-	command_executed.emit(command_type, current_command_index)
+	var execution_succeeded: bool = false
 
 	# Check custom executor registry first (allows mods to add/override commands)
 	if command_type in _command_executors:
@@ -621,13 +621,18 @@ func _execute_next_command() -> void:
 		if completed:
 			_command_completed = true
 		# else: executor will set _command_completed = true when async operation finishes
+		execution_succeeded = true
 	else:
 		# No executor registered for this command type
 		push_warning("CinematicsManager: Unknown command type '%s' - no executor registered" % command_type)
 		_command_completed = true
+		# Still count as "executed" for index tracking - command was processed, just unknown
+		execution_succeeded = true
 
-	# Increment index for signal/debugging compatibility
-	current_command_index += 1
+	# Emit signal after execution attempt, then increment index
+	command_executed.emit(command_type, current_command_index)
+	if execution_succeeded:
+		current_command_index += 1
 
 	# If command doesn't wait, continue immediately
 	if not _current_command_waits and not _is_waiting:
