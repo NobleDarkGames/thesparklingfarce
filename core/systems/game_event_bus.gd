@@ -14,6 +14,18 @@ extends Node
 ##   Pre-event handlers can set event_cancelled = true to prevent the action.
 ##   The game system is responsible for checking this flag.
 ##
+## Cancellable Events:
+##   - pre_attack: Cancel individual attack
+##   - pre_damage: Cancel damage application (return -1 from emit helper)
+##   - pre_move: Cancel unit movement
+##   - pre_ability_cast: Cancel spell/ability cast
+##   - pre_item_use: Cancel item usage
+##   - pre_combat_session: Cancel entire combat exchange
+##   - pre_battle_start: Cancel battle initialization
+##   - pre_turn_start: Cancel turn start (skip turn)
+##   - pre_shop_transaction: Cancel purchase/sale
+##   - pre_save: Cancel save operation
+##
 ## Usage (game systems):
 ##   GameEventBus.emit_pre_attack(attacker, defender, weapon)
 ##   if GameEventBus.event_cancelled:
@@ -104,6 +116,13 @@ signal pre_shop_transaction(transaction_type: String, item: ItemData, price: int
 ## @param slot_number: The save slot
 signal pre_save(save_data: SaveData, slot_number: int)
 
+## Before a combat session (full attack exchange including counters)
+## A combat session encompasses multiple phases (attack, counter, double attack, etc.)
+## @param attacker: The initiating unit
+## @param defender: The defending unit
+## @param phases: Array of phase names that will execute (can be modified)
+signal pre_combat_session(attacker: Unit, defender: Unit, phases: Array)
+
 
 # ============================================================================
 # POST-EVENT SIGNALS (mods can react, cannot cancel)
@@ -147,11 +166,20 @@ signal post_ability_cast(caster: Node, ability: AbilityData, targets: Array, res
 ## @param result: Dictionary with usage outcome
 signal post_item_use(user: Node, item: ItemData, target: Node, result: Dictionary)
 
+## After a battle begins (units spawned, turn system started)
+## @param battle_data: The battle that started
+signal post_battle_start(battle_data: BattleData)
+
 ## After a battle ends
 ## @param battle_data: The battle that ended
 ## @param victory: Whether the player won
 ## @param stats: Dictionary with battle statistics
 signal post_battle_end(battle_data: BattleData, victory: bool, stats: Dictionary)
+
+## After a unit is spawned in battle
+## @param unit: The spawned unit node
+## @param faction: The unit's faction ("player", "enemy", "neutral")
+signal post_unit_spawned(unit: Node, faction: String)
 
 ## Before battle rewards are distributed (mods can modify rewards)
 ## @param battle_data: The completed battle
@@ -183,6 +211,12 @@ signal post_shop_transaction(transaction_type: String, item: ItemData, price: in
 ## @param save_data: The loaded SaveData
 ## @param slot_number: The save slot
 signal post_load(save_data: SaveData, slot_number: int)
+
+## After a combat session completes (full attack exchange)
+## @param attacker: The initiating unit
+## @param defender: The defending unit
+## @param result: Dictionary with session outcome (phases_executed, total_damage, kills, etc.)
+signal post_combat_session(attacker: Unit, defender: Unit, result: Dictionary)
 
 
 # ============================================================================
@@ -258,3 +292,34 @@ func emit_pre_level_up(unit: Node, new_level: int, stat_gains: Dictionary) -> Di
 	pre_level_up.emit(unit, new_level, stat_gains)
 	# Even if "cancelled", return the stat gains (cancellation = skip animation, not skip levelup)
 	return stat_gains
+
+
+## Emit pre-combat-session and check for cancellation
+## @param attacker: The initiating unit
+## @param defender: The defending unit
+## @param phases: Array of phase names (can be modified by handlers)
+## @return: true if combat should proceed, false if cancelled
+func emit_pre_combat_session(attacker: Unit, defender: Unit, phases: Array) -> bool:
+	reset_cancellation()
+	pre_combat_session.emit(attacker, defender, phases)
+	return not check_and_reset_cancellation()
+
+
+## Emit pre-item-use and check for cancellation
+## @param unit: The unit using the item
+## @param item: The ItemData being used
+## @param target: The target of the item
+## @return: true if item use should proceed, false if cancelled
+func emit_pre_item_use(unit: Node, item: ItemData, target: Node) -> bool:
+	reset_cancellation()
+	pre_item_use.emit(unit, item, target)
+	return not check_and_reset_cancellation()
+
+
+## Emit pre-battle-start and check for cancellation
+## @param battle_data: The BattleData for the upcoming battle
+## @return: true if battle should proceed, false if cancelled
+func emit_pre_battle_start(battle_data: BattleData) -> bool:
+	reset_cancellation()
+	pre_battle_start.emit(battle_data)
+	return not check_and_reset_cancellation()

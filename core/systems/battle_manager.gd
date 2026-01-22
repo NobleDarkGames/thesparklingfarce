@@ -31,13 +31,12 @@ signal combat_resolved(attacker: Unit, defender: Unit, damage: int, hit: bool, c
 ## Current battle data (loaded from mods/)
 var current_battle_data: BattleData = null
 
-## Battle state - delegates to TurnManager as single source of truth
-## This prevents desync bugs between BattleManager and TurnManager
+## Battle state - read-only accessor delegating to TurnManager as single source of truth
+## This prevents desync bugs between BattleManager and TurnManager.
+## To modify battle state, use TurnManager directly (e.g., TurnManager.battle_active = false).
 var battle_active: bool:
 	get:
 		return TurnManager.battle_active
-	set(value):
-		push_warning("BattleManager.battle_active should not be set directly - use TurnManager")
 
 ## Unit tracking
 var all_units: Array[Unit] = []
@@ -341,6 +340,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 
 		units.append(unit)
 		unit_spawned.emit(unit)
+		GameEventBus.post_unit_spawned.emit(unit, faction)
 
 	return units
 
@@ -1433,6 +1433,11 @@ func _execute_combat_session(
 
 			# Emit combat resolved signal
 			combat_resolved.emit(phase.attacker, phase.defender, phase.damage, not phase.was_miss, phase.was_critical)
+			GameEventBus.post_attack.emit(phase.attacker, phase.defender, {
+				"hit": not phase.was_miss,
+				"crit": phase.was_critical,
+				"damage": phase.damage
+			})
 
 		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
 		for pool: Dictionary in xp_pools.values():
@@ -1619,6 +1624,7 @@ func _on_battle_ended(victory: bool) -> void:
 
 	# Emit battle_ended AFTER victory screen is dismissed
 	battle_ended.emit(true)
+	GameEventBus.post_battle_end.emit(current_battle_data, true, {})
 
 	# Reset external handler flag
 	GameState.external_battle_handler = false

@@ -55,25 +55,25 @@ From multi-agent code review 2026-01-21. Fixed in commit 74adaab.
 
 From Chief Engineer O'Brien's architecture review.
 
-### BattleManager Decomposition
-- [ ] Extract `CombatSessionExecutor` - combat animation session, phase execution, XP pooling
-- [ ] Extract `BattleExitController` - Egress, Angel Wing, defeat transitions
-- [ ] Extract `BattleRewardsDistributor` - XP and loot distribution
-- [ ] Create `BattleCleanup.execute()` to encapsulate all cleanup calls
+### BattleManager Decomposition (Complete)
+- [x] Extract `BattleRewardsDistributor` - gold and item distribution (commit 7bc03d4)
+- [x] Extract `BattleCleanup` - encapsulate all cleanup calls (commit 2b6e403)
+- [x] Extract `BattleExitController` - Egress, Angel Wing, defeat transitions (commit 8b182e3)
+- [x] Extract `CombatSessionExecutor` - combat animation session, XP pooling (commit 7fc5d5c)
 
 ### Event System Consistency
-- [ ] Route BattleManager signals through GameEventBus for mod hook consistency
-- [ ] Add pre/post events for item use, spell cast to GameEventBus
-- [ ] Document which events support cancellation
+- [x] Route BattleManager signals through GameEventBus for mod hook consistency
+- [x] Add pre/post events for item use, spell cast to GameEventBus
+- [x] Document which events support cancellation
 
 ### State Management
-- [ ] Resolve TurnManager.battle_active state duplication with BattleManager
+- [x] Resolve TurnManager.battle_active state duplication with BattleManager
 - [ ] Consider separating GridManager battle functions from exploration utilities
 
 ### Test Coverage Gaps
-- [ ] InputManager (2,419 lines, HIGH risk, untested) - Add state machine tests
-- [ ] CaravanController (860 lines, untested)
-- [ ] DebugConsole (1,148 lines, untested)
+- [x] InputManager (2,419 lines) - 95 test cases in test_input_manager.gd (808 lines)
+- [x] CaravanController (860 lines) - 96 test cases in test_caravan_controller.gd (1,126 lines)
+- [x] DebugConsole (1,148 lines) - 126 test cases in test_debug_console.gd (1,034 lines)
 
 ---
 

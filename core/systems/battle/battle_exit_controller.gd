@@ -105,6 +105,7 @@ static func execute(context: ExitContext, initiator: Unit, reason: BattleExitRea
 	# 6. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
 	# External handlers (like trigger_battle) listen to this and handle transitions
 	context.battle_ended_signal.emit(false)
+	GameEventBus.post_battle_end.emit(context.current_battle_data, false, {})
 
 	# 7. Clean up battle state and reset external handler flag
 	if context.end_battle_callable.is_valid():

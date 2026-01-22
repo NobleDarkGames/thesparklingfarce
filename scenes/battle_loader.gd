@@ -341,9 +341,19 @@ func _ready() -> void:
 			if not is_instance_valid(self):
 				return
 
+	# Emit pre-battle event (mods can cancel)
+	if not GameEventBus.emit_pre_battle_start(battle_data):
+		push_warning("BattleLoader: Battle cancelled by mod")
+		TriggerManager.return_to_map()
+		return
+
 	# Start turn-based battle (this will emit signals immediately)
 	var all_units: Array[Unit] = _player_units + _enemy_units + _neutral_units
 	TurnManager.start_battle(all_units)
+
+	# Emit battle started signals for mod hooks
+	BattleManager.battle_started.emit(battle_data)
+	GameEventBus.post_battle_start.emit(battle_data)
 
 	# Connect InputManager signals to BattleManager (for combat execution)
 	if not InputManager.action_selected.is_connected(BattleManager._on_action_selected):
