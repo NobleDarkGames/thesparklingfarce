@@ -20,6 +20,7 @@ extends Node
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
 const BattleRewardsDistributor = preload("res://core/systems/battle/battle_rewards_distributor.gd")
 const BattleCleanup = preload("res://core/systems/battle/battle_cleanup.gd")
+const BattleExitController = preload("res://core/systems/battle/battle_exit_controller.gd")
 
 ## Signals for battle events
 signal battle_started(battle_data: BattleData)
@@ -67,7 +68,6 @@ var _scene_cache: Dictionary = {}
 const BATTLEFIELD_SETTLE_DELAY: float = 1.2  ## Pause after combat to let player read results
 const RETURN_TO_MAP_DELAY: float = 2.0  ## Pause before transitioning back to map
 const DEATH_FADE_DURATION: float = 0.5  ## How long unit fade-out takes on death
-const EXIT_MESSAGE_DURATION: float = 1.5  ## How long Egress/exit message displays
 
 ## XP award constants (SF2-authentic)
 const HEALER_ITEM_XP: int = 10  ## XP for healers using items
@@ -87,11 +87,6 @@ const DEFAULT_PLAYER_SPAWN: Vector2i = Vector2i(2, 2)  ## Default spawn point fo
 const COMBAT_AUDIO_LAYER: int = 1  ## Music layer for combat intensity
 const BOSS_AUDIO_LAYER: int = 2  ## Music layer for boss battles
 const AUDIO_LAYER_FADE_DURATION: float = 0.4  ## Fade duration for layer transitions
-
-## UI constants
-const EXIT_MESSAGE_LAYER: int = 100  ## CanvasLayer for exit message
-const EXIT_MESSAGE_FONT_SIZE: int = 32  ## Font size for exit message
-const EXIT_MESSAGE_BG_ALPHA: float = 0.7  ## Background alpha for exit message
 
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
@@ -574,7 +569,7 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 				# Consume the item first
 				_consume_item_from_inventory(unit, item_id)
 				# Execute battle exit
-				await _execute_battle_exit(unit, BattleExitReason.ANGEL_WING)
+				await _execute_battle_exit(unit, BattleExitController.BattleExitReason.ANGEL_WING)
 				return  # Early return - battle is over
 			else:
 				push_warning("BattleManager: Unknown SPECIAL item ability: %s" % ability.ability_id)
@@ -710,7 +705,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 						_finish_unit_turn(caster)
 						return
 					# Egress exits battle immediately - no per-target loop needed
-					await _execute_battle_exit(caster, BattleExitReason.EGRESS)
+					await _execute_battle_exit(caster, BattleExitController.BattleExitReason.EGRESS)
 					return  # Early return - battle is over, don't continue loop
 				else:
 					push_warning("BattleManager: Unknown SPECIAL ability: %s" % ability.ability_id)
@@ -1865,112 +1860,35 @@ func end_battle() -> void:
 
 # =============================================================================
 # Battle Exit System (Egress, Angel Wing, Hero Death)
+# Delegated to BattleExitController for modularity
 # =============================================================================
 
-## Reasons for exiting battle early (not victory/defeat)
-enum BattleExitReason {
-	EGRESS,      ## Player cast Egress spell
-	ANGEL_WING,  ## Player used Angel Wing item
-	HERO_DEATH,  ## Hero (is_hero character) died
-	PARTY_WIPE,  ## All player units dead
-	MENU_QUIT    ## Player quit from game menu
-}
-
-
-## Execute battle exit - revive all party members, return to safe location
+## Execute battle exit - delegates to BattleExitController
 ## This handles Egress spell, Angel Wing item, and automatic exits from death
 ## @param initiator: The unit that triggered the exit (for Egress/Angel Wing) or null (for death)
 ## @param reason: Why we're exiting the battle
-func _execute_battle_exit(initiator: Unit, reason: BattleExitReason) -> void:
-	# Prevent re-entry if already exiting
-	if not battle_active:
-		return
-
-	# Mark battle as inactive (set on TurnManager directly)
-	TurnManager.battle_active = false
-
-	# 1. Handle party restoration based on exit reason (SF2-authentic)
-	# DEFEAT scenarios (HERO_DEATH, PARTY_WIPE): Full restoration (HP + MP)
-	# ESCAPE scenarios (EGRESS, ANGEL_WING): No restoration (keep current state)
-	var is_defeat: bool = reason == BattleExitReason.HERO_DEATH or reason == BattleExitReason.PARTY_WIPE
-	_revive_all_party_members(is_defeat)
-
-	# 2. Set battle outcome to RETREAT in transition context
-	var context: TransitionContext = GameState.get_transition_context()
-	if context:
-		context.battle_outcome = TransitionContext.BattleOutcome.RETREAT
-
-	# 3. Determine return location
-	var return_path: String = GameState.get_last_safe_location()
-	if return_path.is_empty():
-		push_warning("BattleManager: No safe location set, using transition context fallback")
-		if context and context.is_valid():
-			return_path = context.return_scene_path
-
-	if return_path.is_empty():
-		push_error("BattleManager: Cannot exit battle - no return location available")
-		TurnManager.battle_active = true  # Re-enable battle since we can't exit
-		return
-
-	# 4. Show brief exit message for voluntary exits (Egress/Angel Wing only)
-	# HERO_DEATH uses the full defeat screen shown earlier
-	if not TurnManager.is_headless and reason != BattleExitReason.HERO_DEATH:
-		await _show_exit_message(reason)
-
-	# 5. Check if external code (e.g., trigger_battle command) is handling post-battle transition
-	var external_handles_transition: bool = GameState.external_battle_handler
-
-	# 6. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
-	# External handlers (like trigger_battle) listen to this and handle transitions
-	battle_ended.emit(false)
-
-	# 7. Clean up battle state and reset external handler flag
-	end_battle()
-	GameState.external_battle_handler = false
-
-	# 8. Transition to safe location ONLY if external code is NOT handling it
-	# For trigger_battle cinematics, they handle the on_defeat transition
-	if not external_handles_transition:
-		await SceneManager.change_scene(return_path)
+func _execute_battle_exit(initiator: Unit, reason: BattleExitController.BattleExitReason) -> void:
+	var context: BattleExitController.ExitContext = _build_exit_context()
+	await BattleExitController.execute(context, initiator, reason)
 
 
-## Revive all party members (SF2-authentic behavior depends on reason)
-## @param full_restoration: If true (defeat), restore HP AND MP. If false (escape), no restoration.
-func _revive_all_party_members(full_restoration: bool) -> void:
-	if not full_restoration:
-		# EGRESS / ANGEL_WING: No restoration - party keeps current state
-		# SF2-AUTHENTIC: Egress exits with whatever HP/MP you had
-		return
-
-	# DEFEAT (HERO_DEATH / PARTY_WIPE): Full restoration
-	# SF2-AUTHENTIC: On defeat, party wakes up at church fully healed (HP + MP)
-	for character: CharacterData in PartyManager.party_members:
-		var uid: String = character.character_uid
-		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
-		if save_data:
-			save_data.is_alive = true
-			save_data.current_hp = save_data.max_hp
-			save_data.current_mp = save_data.max_mp
-			# Status effects auto-clear when Units are freed (battle-only, not persisted)
+## Build an ExitContext with current battle state for the controller
+func _build_exit_context() -> BattleExitController.ExitContext:
+	var context: BattleExitController.ExitContext = BattleExitController.ExitContext.new()
+	context.battle_manager = self
+	context.current_battle_data = current_battle_data
+	context.player_units = player_units
+	context.battle_scene_root = battle_scene_root
+	context.scene_tree = get_tree()
+	context.end_battle_callable = end_battle
+	context.battle_ended_signal = battle_ended
+	return context
 
 
 ## Sync all surviving player units' HP/MP to their CharacterSaveData after battle
 ## Called after victory to persist current state (dead units already marked via _persist_unit_death)
 func _sync_surviving_units_to_save_data() -> void:
-	for unit: Unit in player_units:
-		if not is_instance_valid(unit):
-			continue
-		if not unit.is_alive():
-			continue
-		if not unit.character_data:
-			continue
-		var char_uid: String = unit.character_data.character_uid
-		if char_uid.is_empty():
-			continue
-		var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
-		if save_data and unit.stats:
-			save_data.current_hp = unit.stats.current_hp
-			save_data.current_mp = unit.stats.current_mp
+	BattleExitController.sync_surviving_units_to_save_data(player_units)
 
 
 ## Quit battle from game menu - public API for InputManager
@@ -1984,59 +1902,7 @@ func quit_battle_from_menu() -> void:
 		push_warning("BattleManager: Cannot quit a story battle from menu")
 		return
 
-	_execute_battle_exit(null, BattleExitReason.MENU_QUIT)
-
-
-## Show a brief exit message for voluntary battle exits (Egress/Angel Wing/Menu Quit)
-func _show_exit_message(reason: BattleExitReason) -> void:
-	var message: String = ""
-	match reason:
-		BattleExitReason.EGRESS:
-			message = "Egress!"
-		BattleExitReason.ANGEL_WING:
-			message = "Angel Wing!"
-		BattleExitReason.MENU_QUIT:
-			message = "Retreating..."
-		_:
-			return  # No message for other reasons
-
-	# Create full-screen container for proper centering
-	var canvas: CanvasLayer = CanvasLayer.new()
-	canvas.layer = EXIT_MESSAGE_LAYER
-
-	var background: ColorRect = ColorRect.new()
-	background.color = Color(0, 0, 0, EXIT_MESSAGE_BG_ALPHA)
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	canvas.add_child(background)
-
-	var center: CenterContainer = CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	canvas.add_child(center)
-
-	var label: Label = Label.new()
-	label.text = message
-	label.add_theme_font_override("font", preload("res://assets/fonts/monogram.ttf"))
-	label.add_theme_font_size_override("font_size", EXIT_MESSAGE_FONT_SIZE)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(label)
-
-	if battle_scene_root:
-		battle_scene_root.add_child(canvas)
-	elif get_tree().current_scene:
-		get_tree().current_scene.add_child(canvas)
-	else:
-		# Rare edge case: no valid scene root during transition
-		push_warning("BattleManager: Cannot show exit message - no scene root available")
-		canvas.queue_free()
-		return
-
-	# Brief pause for player to read message
-	await get_tree().create_timer(EXIT_MESSAGE_DURATION).timeout
-
-	# HIGH-003: Validate state after await - canvas may be invalid if scene transitioned
-	if is_instance_valid(canvas):
-		canvas.queue_free()
+	_execute_battle_exit(null, BattleExitController.BattleExitReason.MENU_QUIT)
 
 
 ## Handle hero death - show defeat screen then exit battle (called from TurnManager signal)
@@ -2051,4 +1917,4 @@ func _on_hero_died_in_battle() -> void:
 		await _show_defeat_screen()
 
 	# Now execute battle exit with full party restoration
-	await _execute_battle_exit(null, BattleExitReason.HERO_DEATH)
+	await _execute_battle_exit(null, BattleExitController.BattleExitReason.HERO_DEATH)
