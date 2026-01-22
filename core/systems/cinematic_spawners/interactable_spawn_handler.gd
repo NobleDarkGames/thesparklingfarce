@@ -13,26 +13,10 @@ func get_display_name() -> String:
 
 
 func get_available_entities() -> Array[Dictionary]:
-	var entities: Array[Dictionary] = []
-
-	if not ModLoader or not ModLoader.registry:
-		return entities
-
-	var interactables: Array = ModLoader.registry.get_all_resources("interactable")
-	for entry: Dictionary in interactables:
-		if "resource" not in entry:
-			continue
-		var inter_data: InteractableData = entry["resource"] as InteractableData
-		if inter_data:
-			var entity_id: String = str(entry["id"]) if "id" in entry else ""
-			var display_name: String = inter_data.display_name if not inter_data.display_name.is_empty() else entity_id
-			entities.append({
-				"id": entity_id,
-				"name": display_name,
-				"resource": inter_data
-			})
-
-	return entities
+	return _build_entity_list_from_registry("interactable", func(res: Resource, fallback_id: String) -> String:
+		var inter_data: InteractableData = res as InteractableData
+		return inter_data.display_name if inter_data and not inter_data.display_name.is_empty() else fallback_id
+	)
 
 
 func create_sprite_node(entity_id: String, facing: String) -> Node2D:

@@ -49,9 +49,6 @@ var sell_price_spin: SpinBox
 # Item Management
 var is_crafting_material_check: CheckBox
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "item"

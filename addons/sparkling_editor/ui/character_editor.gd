@@ -73,7 +73,7 @@ var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 # Filter buttons (will be created by _setup_filter_buttons)
 var filter_buttons: Dictionary = {}  # {category: Button}
 
-# Note: Uses _is_loading from base class to prevent signal feedback loops during UI updates
+# Note: Uses _updating_ui from base class to prevent signal feedback loops during UI updates
 
 
 func _ready() -> void:
@@ -714,20 +714,7 @@ func _add_stats_section() -> void:
 
 
 func _load_available_ai_behaviors() -> void:
-	default_ai_option.clear()
-	default_ai_option.add_item("(None)", 0)
-
-	# Query registry fresh each time - no local cache
-	if ModLoader and ModLoader.registry:
-		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
-		for resource: Resource in behaviors:
-			var ai_behavior: AIBehaviorData = resource as AIBehaviorData
-			if ai_behavior:
-				var behavior_id: String = ai_behavior.behavior_id if not ai_behavior.behavior_id.is_empty() else ai_behavior.resource_path.get_file().get_basename()
-				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else behavior_id.capitalize()
-				var label: String = SparklingEditorUtils.get_display_with_mod_by_id("ai_behavior", behavior_id, display_name)
-				default_ai_option.add_item(label)
-				default_ai_option.set_item_metadata(default_ai_option.item_count - 1, ai_behavior)
+	SparklingEditorUtils.populate_ai_behavior_dropdown(default_ai_option)
 
 
 func _setup_filter_buttons() -> void:

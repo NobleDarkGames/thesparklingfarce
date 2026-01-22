@@ -44,9 +44,6 @@ var spam_threshold_heavy_spin: SpinBox
 var xp_per_level_spin: SpinBox
 var max_level_spin: SpinBox
 
-# Guard to prevent false dirty state during UI population
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "experience_config"

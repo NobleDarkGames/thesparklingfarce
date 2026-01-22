@@ -69,9 +69,6 @@ var action_modifier_option: OptionButton
 var action_modifier_chance_spin: SpinBox
 var action_modifier_chance_container: HBoxContainer
 
-# Guard to prevent false dirty state during UI population
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "status_effect"

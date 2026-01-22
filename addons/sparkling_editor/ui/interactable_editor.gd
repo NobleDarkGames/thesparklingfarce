@@ -148,9 +148,6 @@ var map_placement_helper: MapPlacementHelper
 # STATE TRACKING
 # =============================================================================
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_name = "Interactable"
@@ -597,10 +594,10 @@ func _save_resource_data() -> void:
 
 	# Appearance
 	var closed_path: String = sprite_closed_path_edit.text.strip_edges()
-	interactable.sprite_closed = _load_texture(closed_path)
+	interactable.sprite_closed = SparklingEditorUtils.load_texture(closed_path)
 
 	var opened_path: String = sprite_opened_path_edit.text.strip_edges()
-	interactable.sprite_opened = _load_texture(opened_path)
+	interactable.sprite_opened = SparklingEditorUtils.load_texture(opened_path)
 
 	# Rewards
 	interactable.gold_reward = int(gold_reward_spin.value)
@@ -962,12 +959,6 @@ func _load_sprite_preview(preview: TextureRect, path: String) -> void:
 		preview.tooltip_text = "File not found: " + clean_path
 
 
-## Helper to safely load a texture from path
-func _load_texture(path: String) -> Texture2D:
-	if path.is_empty() or not ResourceLoader.exists(path):
-		return null
-	var loaded: Resource = load(path)
-	return loaded if loaded is Texture2D else null
 
 
 # =============================================================================

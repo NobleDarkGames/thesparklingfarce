@@ -159,27 +159,20 @@ func _on_name_confirmed(hero_name: String) -> void:
 
 
 func _start_new_game(hero_name: String) -> void:
-	print("SaveSlotSelector._start_new_game: Starting new game for slot %d, hero='%s'" % [_selected_slot, hero_name])
-
 	# Get default party
 	var party: Array[CharacterData] = ModLoader.get_default_party()
 	if party.is_empty():
 		push_error("SaveSlotSelector: No default party found!")
-		print("SaveSlotSelector._start_new_game: FAILED - no default party")
 		return
-
-	print("SaveSlotSelector._start_new_game: Got %d party members from ModLoader" % party.size())
 
 	# Apply hero name to first character (the hero)
 	# We need to duplicate to avoid modifying the original resource
 	var original_path: String = party[0].resource_path
-	print("SaveSlotSelector._start_new_game: Hero original resource_path='%s'" % original_path)
 	var hero: CharacterData = party[0].duplicate()
 	# Use take_over_path() instead of direct assignment - Godot 4 protects resource_path
 	hero.take_over_path(original_path)
 	hero.character_name = hero_name
 	party[0] = hero
-	print("SaveSlotSelector._start_new_game: Hero duplicated, resource_path='%s'" % hero.resource_path)
 
 	# Initialize party
 	PartyManager.set_party(party)
@@ -187,19 +180,11 @@ func _start_new_game(hero_name: String) -> void:
 	# Get new game config
 	var config: NewGameConfigData = ModLoader.get_new_game_config() as NewGameConfigData
 	if config:
-		print("SaveSlotSelector._start_new_game: Got new game config, starting_scene='%s'" % config.starting_scene_path)
-
 		# Set starting gold
 		SaveManager.current_save = SaveData.new()
 		SaveManager.current_save.slot_number = _selected_slot
 		SaveManager.current_save.gold = config.starting_gold
 		SaveManager.current_save.current_location = config.starting_location_label
-
-		print("SaveSlotSelector._start_new_game: Created current_save - version=%d, slot=%d, game_version='%s'" % [
-			SaveManager.current_save.save_version,
-			SaveManager.current_save.slot_number,
-			SaveManager.current_save.game_version
-		])
 
 		# Set starting story flags
 		var starting_flags: Dictionary = config.starting_story_flags
@@ -212,7 +197,6 @@ func _start_new_game(hero_name: String) -> void:
 
 		if scene_path.is_empty():
 			push_warning("SaveSlotSelector: No starting_scene_path in config")
-			print("SaveSlotSelector._start_new_game: FAILED - no starting scene path")
 			_show_no_scene_error()
 			return
 
@@ -222,16 +206,13 @@ func _start_new_game(hero_name: String) -> void:
 
 		# Play intro cinematic if specified, then load scene
 		if not config.intro_cinematic_id.is_empty():
-			print("SaveSlotSelector._start_new_game: Playing intro cinematic '%s'" % config.intro_cinematic_id)
 			CinematicsManager.cinematic_ended.connect(_on_intro_cinematic_ended.bind(scene_path), CONNECT_ONE_SHOT)
 			CinematicsManager.play_cinematic(config.intro_cinematic_id)
 		else:
 			# Load starting scene directly
-			print("SaveSlotSelector._start_new_game: Changing scene to '%s'" % scene_path)
 			SceneManager.change_scene(scene_path)
 	else:
 		push_warning("SaveSlotSelector: No new game config found")
-		print("SaveSlotSelector._start_new_game: FAILED - no new game config")
 		_show_no_scene_error()
 
 
@@ -271,23 +252,16 @@ func _on_error_cinematic_ended(_cinematic_id: String) -> void:
 
 
 func _load_game() -> void:
-	print("SaveSlotSelector._load_game: Loading from slot %d" % _selected_slot)
 	var save_data: SaveData = SaveManager.load_from_slot(_selected_slot)
 	if not save_data:
 		push_error("SaveSlotSelector: Failed to load save from slot %d" % _selected_slot)
-		print("SaveSlotSelector._load_game: FAILED - load_from_slot returned null")
 		return
-
-	print("SaveSlotSelector._load_game: Loaded save with scene='%s', party=%d members" % [
-		save_data.current_scene_path, save_data.party_members.size()
-	])
 
 	# Set as current save
 	SaveManager.current_save = save_data
 
 	# Restore story flags
 	var saved_flags: Dictionary = save_data.story_flags
-	print("SaveSlotSelector._load_game: Restoring %d story flags" % saved_flags.size())
 	for flag_name: String in saved_flags:
 		var flag_value: bool = saved_flags[flag_name]
 		GameState.set_flag(flag_name, flag_value)
@@ -297,16 +271,13 @@ func _load_game() -> void:
 		GameState.set_last_safe_location(save_data.last_safe_location)
 
 	# Restore party from save
-	print("SaveSlotSelector._load_game: Importing %d party members" % save_data.party_members.size())
 	PartyManager.import_from_save(save_data.party_members)
 
 	# Load saved scene
 	if not save_data.current_scene_path.is_empty():
-		print("SaveSlotSelector._load_game: Changing scene to '%s'" % save_data.current_scene_path)
 		SceneManager.change_scene(save_data.current_scene_path)
 	else:
 		push_warning("SaveSlotSelector: No scene path in save, returning to main menu")
-		print("SaveSlotSelector._load_game: FAILED - no scene path, going to main menu")
 		SceneManager.goto_main_menu()
 
 

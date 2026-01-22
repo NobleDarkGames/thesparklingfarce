@@ -115,18 +115,18 @@ Critical bugs found in Sparkling Editor code review:
 From code review - consolidation opportunities (~650 lines reducible).
 
 ### Duplication to Consolidate
-- [ ] `_updating_ui` pattern - 17 editors declare own var instead of using inherited `_is_loading` (~200 lines)
+- [x] `_updating_ui` pattern - 15 editors now use inherited var from base class (~30 lines removed)
 - [ ] Place on Map sections (~80 lines duplicated in npc_editor.gd, interactable_editor.gd)
 - [ ] Advanced Options section duplication (npc_editor.gd, interactable_editor.gd) (~60 lines)
 - [ ] Conditional cinematics section duplication (~40 lines)
-- [ ] `_load_texture` helper duplication (npc_editor.gd:815, interactable_editor.gd:966) (~12 lines)
-- [ ] Spawn handler boilerplate in cinematic_spawners/ (~30 lines)
-- [ ] CRAFTER_TYPES constant (duplicated in crafter_editor.gd, crafting_recipe_editor.gd)
-- [ ] Registry fallback patterns (4 files have identical lookup code)
+- [x] `_load_texture` helper moved to SparklingEditorUtils.load_texture()
+- [x] Spawn handler boilerplate - added _build_entity_list_from_registry() helper (~45 lines consolidated)
+- [x] CRAFTER_TYPES constant moved to SparklingEditorUtils
+- [x] Registry fallback patterns - added populate_registry_dropdown() helper (3 files consolidated)
 
 ### Debug Code Cleanup
-- [ ] `cinematic_editor.gd:1475` - Migration print should be push_warning or removed
-- [ ] `save_slot_selector.gd:162-309` - 17 debug print() calls to remove
+- [x] `cinematic_editor.gd:1522` - Migration print converted to push_warning
+- [x] `save_slot_selector.gd` - 17 debug print() calls removed
 
 ### Large Files to Split
 - [ ] `cinematic_editor.gd` (2,236 lines) - Split into base, command inspector, actor panel

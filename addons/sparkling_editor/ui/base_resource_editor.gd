@@ -51,9 +51,10 @@ var available_resources: Array[Resource] = []
 # Track unsaved changes
 var is_dirty: bool = false
 
-# Guard against marking dirty during data loading (prevents false positives)
-# When true, _mark_dirty() calls are ignored
-var _is_loading: bool = false
+# Guard against marking dirty during UI updates (prevents signal feedback loops)
+# When true, _mark_dirty() calls are ignored. Child editors should use this
+# inherited variable instead of declaring their own.
+var _updating_ui: bool = false
 
 # Guard against concurrent async operations (e.g., rapid "New" button clicks)
 # Prevents race conditions during filesystem scan awaits
@@ -584,9 +585,9 @@ func _do_resource_selection(index: int) -> void:
 	_check_and_show_namespace_info(path)
 
 	# Load data with guard to prevent false dirty flags from signal triggers
-	_is_loading = true
+	_updating_ui = true
 	_load_resource_data()
-	_is_loading = false
+	_updating_ui = false
 
 	# Clear dirty flag AFTER loading (loading triggers signals that would set it)
 	is_dirty = false
@@ -1652,9 +1653,9 @@ func _do_save_resource(path: String) -> void:
 ## Internal: Refresh UI after undo/redo
 func _refresh_current_resource_ui() -> void:
 	if current_resource:
-		_is_loading = true
+		_updating_ui = true
 		_load_resource_data()
-		_is_loading = false
+		_updating_ui = false
 
 
 ## Compare two values for equality (handles arrays and dictionaries)
@@ -1764,7 +1765,7 @@ func _on_unsaved_dialog_cancel() -> void:
 ## Call this from subclasses when user modifies any field
 ## Ignored during data loading to prevent false positives
 func _mark_dirty() -> void:
-	if _is_loading:
+	if _updating_ui:
 		return
 	is_dirty = true
 
@@ -1787,7 +1788,7 @@ func _clear_current_resource() -> void:
 	current_resource_path = ""
 	current_resource_source_mod = ""
 	is_dirty = false
-	_is_loading = false
+	_updating_ui = false
 
 
 ## Sync resource ID properties to match filename for registry consistency

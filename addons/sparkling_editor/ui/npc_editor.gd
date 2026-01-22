@@ -57,9 +57,6 @@ var preview_panel: NPCPreviewPanel
 var map_placement_helper: MapPlacementHelper
 
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_name = "NPC"
@@ -182,7 +179,7 @@ func _save_resource_data() -> void:
 	npc.npc_name = name_id_group.get_name_value()
 
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
-	npc.portrait = _load_texture(portrait_path)
+	npc.portrait = SparklingEditorUtils.load_texture(portrait_path)
 
 	# Save sprite_frames from MapSpritesheetPicker
 	if map_spritesheet_picker:
@@ -260,7 +257,7 @@ func _create_new_resource() -> Resource:
 
 	# Set default placeholder portrait (from core, always available)
 	if ResourceLoader.exists(DEFAULT_NPC_PORTRAIT):
-		new_npc.portrait = _load_texture(DEFAULT_NPC_PORTRAIT)
+		new_npc.portrait = SparklingEditorUtils.load_texture(DEFAULT_NPC_PORTRAIT)
 
 	# Note: sprite_frames will be set by MapSpritesheetPicker when user selects a spritesheet
 	# Default NPC spritesheet is applied at runtime by NPCNode if no sprite_frames set
@@ -811,9 +808,3 @@ func _get_default_asset_path(asset_type: String) -> String:
 	return mod_path
 
 
-## Helper to safely load a texture from path
-func _load_texture(path: String) -> Texture2D:
-	if path.is_empty() or not ResourceLoader.exists(path):
-		return null
-	var loaded: Resource = load(path)
-	return loaded if loaded is Texture2D else null

@@ -64,9 +64,6 @@ const MAP_TYPES: Array[String] = ["TOWN", "OVERWORLD", "DUNGEON", "BATTLE", "INT
 var confirmation_dialog: ConfirmationDialog
 var _pending_confirmation_action: Callable
 
-# Guard to prevent marking dirty during UI population
-var _updating_ui: bool = false
-
 
 func _init() -> void:
 	# Configure base class settings

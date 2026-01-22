@@ -67,9 +67,6 @@ var item_rewards_list: DynamicRowList
 
 # AI Behavior - no local cache, query registry directly
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "battle"
@@ -83,6 +80,198 @@ func _ready() -> void:
 	resource_dependencies = ["character", "party", "dialogue", "item", "ai_behavior"]
 
 	super._ready()
+
+	# Start with editing disabled until a resource is selected
+	_set_editing_enabled(false)
+
+
+## Enable or disable all editable sub-components
+## Called when selection state changes to prevent editing "nothing"
+func _set_editing_enabled(enabled: bool) -> void:
+	# Basic info fields
+	if battle_name_edit:
+		battle_name_edit.editable = enabled
+	if battle_description_edit:
+		battle_description_edit.editable = enabled
+
+	# Map configuration
+	if map_scene_option:
+		map_scene_option.disabled = not enabled
+	if player_spawn_x_spin:
+		player_spawn_x_spin.editable = enabled
+	if player_spawn_y_spin:
+		player_spawn_y_spin.editable = enabled
+
+	# Player party picker
+	if player_party_picker:
+		player_party_picker.set_process_input(enabled)
+		player_party_picker.modulate.a = 1.0 if enabled else 0.5
+
+	# Enemy forces - disable DynamicRowList add button and modulate
+	if enemies_list:
+		if enemies_list._add_button:
+			enemies_list._add_button.disabled = not enabled
+		enemies_list.modulate.a = 1.0 if enabled else 0.5
+
+	# Neutral forces - disable DynamicRowList add button and modulate
+	if neutrals_list:
+		if neutrals_list._add_button:
+			neutrals_list._add_button.disabled = not enabled
+		neutrals_list.modulate.a = 1.0 if enabled else 0.5
+
+	# Victory conditions
+	if victory_condition_option:
+		victory_condition_option.disabled = not enabled
+
+	# Defeat conditions
+	if defeat_condition_option:
+		defeat_condition_option.disabled = not enabled
+
+	# Dialogue pickers
+	if pre_battle_dialogue_picker:
+		pre_battle_dialogue_picker.set_process_input(enabled)
+		pre_battle_dialogue_picker.modulate.a = 1.0 if enabled else 0.5
+	if victory_dialogue_picker:
+		victory_dialogue_picker.set_process_input(enabled)
+		victory_dialogue_picker.modulate.a = 1.0 if enabled else 0.5
+	if defeat_dialogue_picker:
+		defeat_dialogue_picker.set_process_input(enabled)
+		defeat_dialogue_picker.modulate.a = 1.0 if enabled else 0.5
+
+	# Audio options
+	if music_id_option:
+		music_id_option.disabled = not enabled
+	if victory_music_option:
+		victory_music_option.disabled = not enabled
+	if defeat_music_option:
+		defeat_music_option.disabled = not enabled
+
+	# Rewards
+	if experience_reward_spin:
+		experience_reward_spin.editable = enabled
+	if gold_reward_spin:
+		gold_reward_spin.editable = enabled
+
+	# Item rewards - disable DynamicRowList add button and modulate
+	if item_rewards_list:
+		if item_rewards_list._add_button:
+			item_rewards_list._add_button.disabled = not enabled
+		item_rewards_list.modulate.a = 1.0 if enabled else 0.5
+
+	# Save/Delete buttons
+	if save_button:
+		save_button.disabled = not enabled
+	if delete_button:
+		delete_button.disabled = not enabled
+
+
+## Override: Called after resource selection completes
+## Enables editing controls after successful selection
+func _load_resource_data() -> void:
+	var battle: BattleData = current_resource as BattleData
+	if not battle:
+		return
+
+	# Enable editing now that we have a valid resource
+	_set_editing_enabled(true)
+
+	_updating_ui = true
+
+	# Basic info
+	battle_name_edit.text = battle.battle_name
+	battle_description_edit.text = battle.battle_description
+
+	# Map scene
+	_update_map_dropdown()
+	_select_map_in_dropdown(battle.map_scene)
+
+	# Player spawn point
+	player_spawn_x_spin.value = battle.player_spawn_point.x
+	player_spawn_y_spin.value = battle.player_spawn_point.y
+
+	# Player party - use ResourcePicker
+	if battle.player_party:
+		player_party_picker.select_resource(battle.player_party)
+	else:
+		player_party_picker.select_none()
+
+	# Load enemies into DynamicRowList
+	enemies_list.load_data(battle.enemies)
+
+	# Load neutrals into DynamicRowList
+	neutrals_list.load_data(battle.neutrals)
+
+	# Victory condition
+	victory_condition_option.selected = battle.victory_condition
+	_on_victory_condition_changed(battle.victory_condition)
+
+	# Set victory conditional values
+	match battle.victory_condition:
+		BattleData.VictoryCondition.DEFEAT_BOSS:
+			if victory_boss_index_spin:
+				victory_boss_index_spin.value = battle.victory_boss_index
+		BattleData.VictoryCondition.SURVIVE_TURNS:
+			if victory_turn_count_spin:
+				victory_turn_count_spin.value = battle.victory_turn_count
+		BattleData.VictoryCondition.REACH_LOCATION:
+			if victory_target_x_spin and victory_target_y_spin:
+				victory_target_x_spin.value = battle.victory_target_position.x
+				victory_target_y_spin.value = battle.victory_target_position.y
+		BattleData.VictoryCondition.PROTECT_UNIT:
+			if victory_protect_index_spin:
+				victory_protect_index_spin.value = battle.victory_protect_index
+
+	# Defeat condition
+	defeat_condition_option.selected = battle.defeat_condition
+	_on_defeat_condition_changed(battle.defeat_condition)
+
+	# Set defeat conditional values
+	match battle.defeat_condition:
+		BattleData.DefeatCondition.TURN_LIMIT:
+			if defeat_turn_limit_spin:
+				defeat_turn_limit_spin.value = battle.defeat_turn_limit
+		BattleData.DefeatCondition.UNIT_DIES:
+			if defeat_protect_index_spin:
+				defeat_protect_index_spin.value = battle.defeat_protect_index
+
+	# Dialogues - use ResourcePickers
+	if battle.pre_battle_dialogue:
+		pre_battle_dialogue_picker.select_resource(battle.pre_battle_dialogue)
+	else:
+		pre_battle_dialogue_picker.select_none()
+
+	if battle.victory_dialogue:
+		victory_dialogue_picker.select_resource(battle.victory_dialogue)
+	else:
+		victory_dialogue_picker.select_none()
+
+	if battle.defeat_dialogue:
+		defeat_dialogue_picker.select_resource(battle.defeat_dialogue)
+	else:
+		defeat_dialogue_picker.select_none()
+
+	# Audio settings
+	_update_music_dropdown(music_id_option)
+	_update_sfx_dropdown(victory_music_option)
+	_update_sfx_dropdown(defeat_music_option)
+	_select_audio_in_dropdown(music_id_option, battle.music_id)
+	_select_audio_in_dropdown(victory_music_option, battle.victory_music_id)
+	_select_audio_in_dropdown(defeat_music_option, battle.defeat_music_id)
+
+	# Rewards
+	experience_reward_spin.value = battle.experience_reward
+	gold_reward_spin.value = battle.gold_reward
+
+	# Load item rewards (convert from ItemData array to DynamicRowList format)
+	_load_item_rewards_from_array(battle.item_rewards)
+
+	_updating_ui = false
+
+
+## Override: Clear current resource state and disable editing
+func _clear_current_resource() -> void:
+	super._clear_current_resource()
+	_set_editing_enabled(false)
 
 
 ## Called when a dependent resource type changes
@@ -616,19 +805,7 @@ func _get_selected_audio_id(option: OptionButton) -> String:
 
 ## Update AI dropdown with available AI behaviors - queries registry directly
 func _update_ai_dropdown(option: OptionButton) -> void:
-	option.clear()
-	option.add_item("(None)", -1)
-
-	# Query registry fresh each time - no local cache
-	if ModLoader and ModLoader.registry:
-		var behaviors: Array[Resource] = ModLoader.registry.get_all_resources("ai_behavior")
-		for ai_behavior: AIBehaviorData in behaviors:
-			if ai_behavior:
-				var behavior_id: String = ai_behavior.behavior_id if not ai_behavior.behavior_id.is_empty() else ai_behavior.resource_path.get_file().get_basename()
-				var display_name: String = ai_behavior.display_name if ai_behavior.display_name else behavior_id.capitalize()
-				var label: String = SparklingEditorUtils.get_display_with_mod_by_id("ai_behavior", behavior_id, display_name)
-				option.add_item(label)
-				option.set_item_metadata(option.item_count - 1, ai_behavior)
+	SparklingEditorUtils.populate_ai_behavior_dropdown(option)
 
 
 ## Select an AI behavior in the dropdown
@@ -826,107 +1003,6 @@ func _on_defeat_condition_changed(index: int) -> void:
 			label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 			label.add_theme_font_size_override("font_size", 12)
 			defeat_conditional_container.add_child(label)
-
-
-## Override: Load battle data from resource into UI
-func _load_resource_data() -> void:
-	var battle: BattleData = current_resource as BattleData
-	if not battle:
-		return
-
-	_updating_ui = true
-
-	# Basic info
-	battle_name_edit.text = battle.battle_name
-	battle_description_edit.text = battle.battle_description
-
-	# Map scene
-	_update_map_dropdown()
-	_select_map_in_dropdown(battle.map_scene)
-
-	# Player spawn point
-	player_spawn_x_spin.value = battle.player_spawn_point.x
-	player_spawn_y_spin.value = battle.player_spawn_point.y
-
-	# Player party - use ResourcePicker
-	if battle.player_party:
-		player_party_picker.select_resource(battle.player_party)
-	else:
-		player_party_picker.select_none()
-
-	# Load enemies into DynamicRowList
-	enemies_list.load_data(battle.enemies)
-
-	# Load neutrals into DynamicRowList
-	neutrals_list.load_data(battle.neutrals)
-
-	# Victory condition
-	victory_condition_option.selected = battle.victory_condition
-	_on_victory_condition_changed(battle.victory_condition)
-
-	# Set victory conditional values
-	match battle.victory_condition:
-		BattleData.VictoryCondition.DEFEAT_BOSS:
-			if victory_boss_index_spin:
-				victory_boss_index_spin.value = battle.victory_boss_index
-		BattleData.VictoryCondition.SURVIVE_TURNS:
-			if victory_turn_count_spin:
-				victory_turn_count_spin.value = battle.victory_turn_count
-		BattleData.VictoryCondition.REACH_LOCATION:
-			if victory_target_x_spin and victory_target_y_spin:
-				victory_target_x_spin.value = battle.victory_target_position.x
-				victory_target_y_spin.value = battle.victory_target_position.y
-		BattleData.VictoryCondition.PROTECT_UNIT:
-			if victory_protect_index_spin:
-				victory_protect_index_spin.value = battle.victory_protect_index
-
-	# Defeat condition
-	defeat_condition_option.selected = battle.defeat_condition
-	_on_defeat_condition_changed(battle.defeat_condition)
-
-	# Set defeat conditional values
-	match battle.defeat_condition:
-		BattleData.DefeatCondition.TURN_LIMIT:
-			if defeat_turn_limit_spin:
-				defeat_turn_limit_spin.value = battle.defeat_turn_limit
-		BattleData.DefeatCondition.UNIT_DIES:
-			if defeat_protect_index_spin:
-				defeat_protect_index_spin.value = battle.defeat_protect_index
-
-	# Dialogues - use ResourcePickers
-	if battle.pre_battle_dialogue:
-		pre_battle_dialogue_picker.select_resource(battle.pre_battle_dialogue)
-	else:
-		pre_battle_dialogue_picker.select_none()
-
-	if battle.victory_dialogue:
-		victory_dialogue_picker.select_resource(battle.victory_dialogue)
-	else:
-		victory_dialogue_picker.select_none()
-
-	if battle.defeat_dialogue:
-		defeat_dialogue_picker.select_resource(battle.defeat_dialogue)
-	else:
-		defeat_dialogue_picker.select_none()
-
-	# Audio settings
-	_update_music_dropdown(music_id_option)
-	_update_sfx_dropdown(victory_music_option)
-	_update_sfx_dropdown(defeat_music_option)
-	_select_audio_in_dropdown(music_id_option, battle.music_id)
-	_select_audio_in_dropdown(victory_music_option, battle.victory_music_id)
-	_select_audio_in_dropdown(defeat_music_option, battle.defeat_music_id)
-
-	# Rewards
-	experience_reward_spin.value = battle.experience_reward
-	gold_reward_spin.value = battle.gold_reward
-
-	# Load item rewards (convert from ItemData array to DynamicRowList format)
-	_load_item_rewards_from_array(battle.item_rewards)
-
-	_updating_ui = false
-
-
 
 
 ## =============================================================================

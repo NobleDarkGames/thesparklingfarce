@@ -66,9 +66,6 @@ var preview_label: RichTextLabel
 # =============================================================================
 var _threat_weight_rows: Array[HBoxContainer] = []
 
-# Guard to prevent false dirty state during UI population
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "ai_behavior"

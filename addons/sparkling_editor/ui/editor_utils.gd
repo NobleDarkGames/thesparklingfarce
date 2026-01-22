@@ -13,6 +13,17 @@ extends RefCounted
 ## Standard label width for form fields (ensures alignment across editors)
 const DEFAULT_LABEL_WIDTH: int = 140
 
+## Common crafter types used by CrafterEditor and CraftingRecipeEditor
+const CRAFTER_TYPES: Array[String] = [
+	"(Custom)",
+	"blacksmith",
+	"enchanter",
+	"alchemist",
+	"jeweler",
+	"tailor",
+	"weaponsmith"
+]
+
 ## Font size for section headers
 const SECTION_FONT_SIZE: int = 16
 
@@ -252,6 +263,87 @@ static func get_active_mod_folder() -> String:
 	if active_mod:
 		return active_mod.mod_directory.get_file()
 	return ""
+
+
+# =============================================================================
+# Resource Loading Helpers
+# =============================================================================
+
+## Safely load a texture from path, returning null if invalid
+static func load_texture(path: String) -> Texture2D:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	var loaded: Resource = load(path)
+	return loaded if loaded is Texture2D else null
+
+
+# =============================================================================
+# Registry Dropdown Helpers
+# =============================================================================
+
+## Populate an OptionButton with resources from the registry
+## This handles the common pattern of querying resources and adding them to a dropdown
+## with mod attribution labels. Returns the number of items added (excluding none item).
+##
+## Parameters:
+## - option: The OptionButton to populate
+## - resource_type: Registry resource type (e.g., "ai_behavior", "party")
+## - none_label: Text for the "none" option (e.g., "(None)")
+## - id_extractor: Callable(resource) -> String that extracts the ID
+## - name_extractor: Callable(resource) -> String that extracts the display name
+## - store_resource: If true, stores resource as metadata; if false, stores ID string
+static func populate_registry_dropdown(
+	option: OptionButton,
+	resource_type: String,
+	none_label: String,
+	id_extractor: Callable,
+	name_extractor: Callable,
+	store_resource: bool = true
+) -> int:
+	option.clear()
+	option.add_item(none_label, -1)
+	if not store_resource:
+		option.set_item_metadata(0, "")
+
+	var count: int = 0
+	if ModLoader and ModLoader.registry:
+		var resources: Array[Resource] = ModLoader.registry.get_all_resources(resource_type)
+		for resource: Resource in resources:
+			if not resource:
+				continue
+			var resource_id: String = id_extractor.call(resource)
+			var display_name: String = name_extractor.call(resource)
+			var label: String = get_display_with_mod_by_id(resource_type, resource_id, display_name)
+			option.add_item(label)
+			var metadata: Variant = resource if store_resource else resource_id
+			option.set_item_metadata(option.item_count - 1, metadata)
+			count += 1
+
+	return count
+
+
+## Populate an OptionButton with AI behaviors from the registry
+## Convenience method for the common AI behavior dropdown pattern
+static func populate_ai_behavior_dropdown(option: OptionButton, none_label: String = "(None)") -> int:
+	return populate_registry_dropdown(
+		option,
+		"ai_behavior",
+		none_label,
+		func(res: Resource) -> String:
+			var ai: AIBehaviorData = res as AIBehaviorData
+			if ai and not ai.behavior_id.is_empty():
+				return ai.behavior_id
+			return res.resource_path.get_file().get_basename(),
+		func(res: Resource) -> String:
+			var ai: AIBehaviorData = res as AIBehaviorData
+			if ai and ai.display_name:
+				return ai.display_name
+			var fallback_id: String = res.resource_path.get_file().get_basename()
+			if ai and not ai.behavior_id.is_empty():
+				fallback_id = ai.behavior_id
+			return fallback_id.capitalize(),
+		true  # Store resource as metadata
+	)
 
 
 # =============================================================================
