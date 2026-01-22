@@ -118,10 +118,15 @@ func clear_scene_cache() -> void:
 
 ## Get a cached scene with lazy loading and mod override support
 ## @param key: Scene key matching SCENE_DEFAULTS (e.g., "unit_scene")
+## @return: Cached PackedScene, or null if scene failed to load
 func _get_cached_scene(key: String) -> PackedScene:
 	if key not in _scene_cache:
 		var default_path: String = SCENE_DEFAULTS.get(key, "")
-		_scene_cache[key] = ModLoader.get_scene_or_fallback(key, default_path)
+		var loaded_scene: PackedScene = ModLoader.get_scene_or_fallback(key, default_path)
+		if loaded_scene == null:
+			push_error("BattleManager: Failed to load scene for key '%s' (default: %s)" % [key, default_path])
+			return null
+		_scene_cache[key] = loaded_scene
 	return _scene_cache[key]
 
 
@@ -1320,6 +1325,13 @@ func _execute_combat_session(
 		# Start the session (fade in ONCE)
 		await combat_anim_instance.start_session(initial_attacker, initial_defender)
 
+		# HIGH-003: Validate combat_anim_instance after await - may be freed during session start
+		if not is_instance_valid(combat_anim_instance):
+			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
+			AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
+			_show_battlefield()
+			return
+
 		# Queue all phases and their combat action text
 		for phase: CombatPhase in phases:
 			combat_anim_instance.queue_phase(phase)
@@ -1332,6 +1344,13 @@ func _execute_combat_session(
 
 		# Execute all phases (no fading between them!)
 		await combat_anim_instance.execute_all_phases()
+
+		# HIGH-003: Validate combat_anim_instance after await - may be freed during phase execution
+		if not is_instance_valid(combat_anim_instance):
+			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
+			AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
+			_show_battlefield()
+			return
 
 		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
 		# (This happens after all phases complete, so double attacks show as one XP entry)
@@ -1352,11 +1371,12 @@ func _execute_combat_session(
 		# Disconnect handlers
 		if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
 			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-		if combat_anim_instance and is_instance_valid(combat_anim_instance) and combat_anim_instance.damage_applied.is_connected(damage_handler):
-			combat_anim_instance.damage_applied.disconnect(damage_handler)
 
-		# Clean up
-		combat_anim_instance.queue_free()
+		# HIGH-003: Validate combat_anim_instance after await before cleanup
+		if combat_anim_instance and is_instance_valid(combat_anim_instance):
+			if combat_anim_instance.damage_applied.is_connected(damage_handler):
+				combat_anim_instance.damage_applied.disconnect(damage_handler)
+			combat_anim_instance.queue_free()
 		combat_anim_instance = null
 
 		# Restore battlefield
@@ -1364,6 +1384,10 @@ func _execute_combat_session(
 
 		# Battlefield settle delay
 		await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
+
+		# HIGH-003: Validate state after await - BattleManager may have been freed during delay
+		if not is_instance_valid(self) or not get_tree():
+			return
 
 	# =========================================================================
 	# SKIP MODE / HEADLESS: Apply damage directly, no animations
@@ -1557,6 +1581,10 @@ func _on_unit_died(unit: Unit) -> void:
 		var tween: Tween = create_tween()
 		tween.tween_property(unit, "modulate:a", 0.0, DEATH_FADE_DURATION)
 		await tween.finished
+
+		# HIGH-003: Validate unit still exists after await - may have been freed during battle cleanup
+		if not is_instance_valid(unit):
+			return
 
 	# Unit stays in scene but is marked dead
 	# TurnManager will skip dead units
@@ -1780,9 +1808,19 @@ func _process_level_up_queue() -> void:
 
 ## Wait for all pending level-up celebrations to finish
 ## Used before showing victory/defeat screens to prevent overlap
+## Has timeout guard to prevent infinite loop if level-up UI gets stuck
+const LEVEL_UP_WAIT_TIMEOUT_FRAMES: int = 600  ## ~10 seconds at 60fps
+
 func _wait_for_level_ups() -> void:
+	var frames_waited: int = 0
 	while _showing_level_up or not _pending_level_ups.is_empty():
 		await get_tree().process_frame
+		frames_waited += 1
+		if frames_waited >= LEVEL_UP_WAIT_TIMEOUT_FRAMES:
+			push_warning("BattleManager: _wait_for_level_ups() timed out after %d frames - clearing queue" % frames_waited)
+			_pending_level_ups.clear()
+			_showing_level_up = false
+			break
 
 
 ## Handle unit learning ability
@@ -1838,9 +1876,14 @@ func end_battle() -> void:
 		combat_anim_instance.queue_free()
 		combat_anim_instance = null
 
-	# Clear units
+	# Clear units - disconnect death signals before freeing to prevent callback on freed object
 	for unit_node: Unit in all_units:
 		if is_instance_valid(unit_node):
+			# Disconnect the death signal to prevent _on_unit_died callback during cleanup
+			if unit_node.has_signal("died"):
+				var callback: Callable = _on_unit_died.bind(unit_node)
+				if unit_node.died.is_connected(callback):
+					unit_node.died.disconnect(callback)
 			unit_node.queue_free()
 
 	all_units.clear()
@@ -2027,7 +2070,9 @@ func _show_exit_message(reason: BattleExitReason) -> void:
 	# Brief pause for player to read message
 	await get_tree().create_timer(EXIT_MESSAGE_DURATION).timeout
 
-	canvas.queue_free()
+	# HIGH-003: Validate state after await - canvas may be invalid if scene transitioned
+	if is_instance_valid(canvas):
+		canvas.queue_free()
 
 
 ## Handle hero death - show defeat screen then exit battle (called from TurnManager signal)

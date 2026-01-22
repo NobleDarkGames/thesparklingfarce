@@ -916,10 +916,13 @@ func _add_items_with_rollback(target: String, item_id: String, quantity: int) ->
 		if not result.success:
 			# Rollback: remove items already added
 			for j: int in range(items_added):
+				var rollback_result: Dictionary
 				if is_caravan:
-					_remove_from_caravan(item_id)
+					rollback_result = _remove_from_caravan(item_id)
 				else:
-					_remove_from_character(target, item_id)
+					rollback_result = _remove_from_character(target, item_id)
+				if not rollback_result.success:
+					push_error("ShopManager: CRITICAL - Rollback failed during _add_items_with_rollback. Inventory may be corrupted. Target: %s, Item: %s, Rollback error: %s" % [target, item_id, rollback_result.error])
 			return result
 
 		items_added += 1
@@ -942,10 +945,13 @@ func _remove_items_with_rollback(source: String, item_id: String, quantity: int)
 		if not result.success:
 			# Rollback: restore items already removed
 			for j: int in range(items_removed):
+				var rollback_result: Dictionary
 				if is_caravan:
-					_add_to_caravan(item_id)
+					rollback_result = _add_to_caravan(item_id)
 				else:
-					_add_to_character(source, item_id)
+					rollback_result = _add_to_character(source, item_id)
+				if not rollback_result.success:
+					push_error("ShopManager: CRITICAL - Rollback failed during _remove_items_with_rollback. Inventory may be corrupted. Source: %s, Item: %s, Rollback error: %s" % [source, item_id, rollback_result.error])
 			return result
 
 		items_removed += 1

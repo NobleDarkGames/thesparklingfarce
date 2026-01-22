@@ -73,6 +73,12 @@ func _ready() -> void:
 		PromotionManager.promotion_completed.connect(_on_promotion_completed)
 
 
+func _exit_tree() -> void:
+	# Disconnect from PromotionManager to prevent stale references
+	if PromotionManager and PromotionManager.promotion_completed.is_connected(_on_promotion_completed):
+		PromotionManager.promotion_completed.disconnect(_on_promotion_completed)
+
+
 ## Show the promotion ceremony
 ## @param unit: Unit being promoted
 ## @param old_class: Previous ClassData

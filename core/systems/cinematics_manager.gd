@@ -657,6 +657,9 @@ func _on_animation_completed() -> void:
 
 ## Called when dialog ends
 func _on_dialog_ended(dialogue_data: DialogueData) -> void:
+	# Check if cinematic was skipped during dialog
+	if current_cinematic == null:
+		return
 	if current_state == State.WAITING_FOR_DIALOG:
 		current_state = State.PLAYING
 		_is_waiting = false  # Clear the waiting flag set by DialogExecutor

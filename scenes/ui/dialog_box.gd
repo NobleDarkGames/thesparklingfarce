@@ -236,6 +236,10 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 	# Check after a brief delay to see if another dialog started
 	await get_tree().create_timer(0.05).timeout
 
+	# Guard: node may have been freed during await
+	if not is_instance_valid(self):
+		return
+
 	# If dialog is still idle after delay, fade out
 	if DialogManager.current_state == DialogManager.State.IDLE:
 		_cancel_fade_tween()

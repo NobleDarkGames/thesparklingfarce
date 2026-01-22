@@ -389,8 +389,15 @@ func _execute_command(raw_input: String) -> void:
 	# Priority 2: Mod-registered commands
 	if full_command in mod_commands:
 		var cmd_data: Dictionary = mod_commands[full_command]
-		var result: String = cmd_data.callback.call(args)
-		_print_line(result)
+		var callback: Callable = cmd_data.callback
+		if not callback.is_valid():
+			_print_error("Command '%s' callback is no longer valid (mod unloaded?)" % full_command)
+			return
+		var result: Variant = callback.call(args)
+		if result is String:
+			_print_line(result)
+		else:
+			_print_error("Command '%s' returned non-String result" % full_command)
 		return
 
 	_print_error("Unknown command: %s. Type 'help' for available commands." % full_command)
