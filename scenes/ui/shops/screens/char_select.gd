@@ -1,9 +1,6 @@
 extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 
 ## CharSelect - "Who equips this?" screen for equipment purchases
-
-## Colors matching project standards
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 ##
 ## Shows party members who can equip the selected item, plus a Caravan option.
 ## SF2 authentic: selecting a character completes the purchase immediately.

@@ -1,9 +1,6 @@
 extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 
 ## SellCharSelect - "Who's selling?" screen for sell mode
-
-## Colors matching project standards
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 ##
 ## Shows party members and Caravan as sources for selling.
 ## Selecting a source proceeds to sell_inventory screen.
