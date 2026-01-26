@@ -24,7 +24,7 @@ var mod_info_label: Label
 # Two-tier category navigation
 var category_bar: HBoxContainer
 var category_buttons: Dictionary[String, Button] = {}  # category_id -> Button
-var current_category: String = "content"  # Default to Content category
+var current_category: String = "system"  # Default to System category (Overview)
 
 # Mod Creation Wizard
 var create_mod_dialog: ConfirmationDialog
@@ -95,6 +95,9 @@ func _setup_ui() -> void:
 
 	# Create category bar after tabs are registered (needs category info)
 	_create_category_bar()
+
+	# Connect tab change signal to persist sub-tab selection
+	tab_container.tab_changed.connect(_on_tab_changed)
 
 
 # =============================================================================
@@ -353,6 +356,8 @@ func _apply_category_filter() -> void:
 		return
 
 	var first_visible_index: int = -1
+	var last_tab_id: String = _load_last_tab_for_category(current_category)
+	var last_tab_index: int = -1
 	var tab_count: int = tab_container.get_tab_count()
 
 	for i: int in range(tab_count):
@@ -366,14 +371,21 @@ func _apply_category_filter() -> void:
 
 		tab_container.set_tab_hidden(i, not should_show)
 
-		if should_show and first_visible_index < 0:
-			first_visible_index = i
+		if should_show:
+			if first_visible_index < 0:
+				first_visible_index = i
+			# Check if this is the last selected tab for this category
+			if not last_tab_id.is_empty():
+				var tab_id: String = _get_tab_id_by_control(tab_control)
+				if tab_id == last_tab_id:
+					last_tab_index = i
 
-	# Select first visible tab if current selection is hidden
-	if first_visible_index >= 0:
+	# Select the last used tab for this category, or first visible as fallback
+	var target_index: int = last_tab_index if last_tab_index >= 0 else first_visible_index
+	if target_index >= 0:
 		var current_tab: int = tab_container.current_tab
-		if current_tab < 0 or tab_container.is_tab_hidden(current_tab):
-			tab_container.current_tab = first_visible_index
+		if current_tab < 0 or tab_container.is_tab_hidden(current_tab) or current_tab != target_index:
+			tab_container.current_tab = target_index
 
 
 func _get_tab_category_by_control(tab_control: Control) -> String:
@@ -391,7 +403,40 @@ func _save_last_selected_category(category: String) -> void:
 
 
 func _load_last_selected_category() -> String:
-	return _load_setting("last_selected_category", "content")
+	return _load_setting("last_selected_category", "system")
+
+
+func _on_tab_changed(tab_index: int) -> void:
+	## Called when user switches tabs - persist the selection for current category
+	var tab_control: Control = tab_container.get_tab_control(tab_index)
+	if not tab_control:
+		return
+
+	var tab_id: String = _get_tab_id_by_control(tab_control)
+	if not tab_id.is_empty():
+		_save_last_tab_for_category(current_category, tab_id)
+
+
+func _get_tab_id_by_control(tab_control: Control) -> String:
+	## Get the tab ID from a Control instance
+	for tab_id: String in tab_registry.get_all_tab_ids():
+		var instance: Control = tab_registry.get_instance(tab_id)
+		if instance == tab_control:
+			return tab_id
+	return ""
+
+
+func _save_last_tab_for_category(category: String, tab_id: String) -> void:
+	## Save the last selected tab for a category
+	var tabs_per_category: Dictionary = _load_setting("last_tab_per_category", {})
+	tabs_per_category[category] = tab_id
+	_save_setting("last_tab_per_category", tabs_per_category)
+
+
+func _load_last_tab_for_category(category: String) -> String:
+	## Load the last selected tab for a category (empty string if none)
+	var tabs_per_category: Dictionary = _load_setting("last_tab_per_category", {})
+	return tabs_per_category.get(category, "")
 
 
 func _reload_mod_tabs() -> void:

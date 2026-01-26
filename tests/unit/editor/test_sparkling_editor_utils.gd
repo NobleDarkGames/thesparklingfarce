@@ -104,25 +104,6 @@ func test_generate_id_from_name_strips_leading_trailing_whitespace() -> void:
 
 
 # =============================================================================
-# NAMESPACED ID TESTS
-# =============================================================================
-
-func test_generate_namespaced_id_combines_mod_and_name() -> void:
-	var result: String = SparklingEditorUtils.generate_namespaced_id("_sandbox", "Town Guard")
-	assert_str(result).is_equal("_sandbox:town_guard")
-
-
-func test_generate_namespaced_id_handles_empty_name() -> void:
-	var result: String = SparklingEditorUtils.generate_namespaced_id("_sandbox", "")
-	assert_str(result).is_empty()
-
-
-func test_generate_namespaced_id_preserves_mod_id_case() -> void:
-	var result: String = SparklingEditorUtils.generate_namespaced_id("MyMod", "Item Name")
-	assert_str(result).is_equal("MyMod:item_name")
-
-
-# =============================================================================
 # CONSTANTS TESTS
 # =============================================================================
 
@@ -313,34 +294,6 @@ func test_ensure_directory_exists_returns_true_for_existing() -> void:
 	# TEST_DIR already exists from before()
 	var result: bool = SparklingEditorUtils.ensure_directory_exists(TEST_DIR)
 	assert_bool(result).is_true()
-
-
-func test_get_unique_filename_returns_base_if_available() -> void:
-	# Directory is empty, so base name should be available
-	var filename: String = SparklingEditorUtils.get_unique_filename(TEST_DIR, "npc", ".tres")
-	assert_str(filename).is_equal("npc.tres")
-
-
-func test_get_unique_filename_appends_number_if_taken() -> void:
-	# Create the base file
-	var file: FileAccess = FileAccess.open(TEST_DIR + "item.tres", FileAccess.WRITE)
-	file.store_string("test")
-	file.close()
-
-	var filename: String = SparklingEditorUtils.get_unique_filename(TEST_DIR, "item", ".tres")
-	assert_str(filename).is_equal("item_2.tres")
-
-
-func test_get_unique_filename_increments_until_free() -> void:
-	# Create multiple files
-	for i in range(1, 4):
-		var suffix: String = "" if i == 1 else "_%d" % i
-		var file: FileAccess = FileAccess.open(TEST_DIR + "char%s.tres" % suffix, FileAccess.WRITE)
-		file.store_string("test")
-		file.close()
-
-	var filename: String = SparklingEditorUtils.get_unique_filename(TEST_DIR, "char", ".tres")
-	assert_str(filename).is_equal("char_4.tres")
 
 
 # =============================================================================

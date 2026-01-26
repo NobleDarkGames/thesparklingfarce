@@ -36,10 +36,10 @@ extends RefCounted
 ## Tab categories for logical grouping (two-tier navigation)
 ## Primary categories shown in category bar, secondary tabs shown below
 const CATEGORIES: Array[String] = [
+	"system",      # Overview, mod settings, new game configs, save editing (first for onboarding)
 	"content",     # Characters, classes, items, abilities (core content creation)
 	"battle",      # Maps, terrain, battles, AI (tactical scenario design)
 	"story",       # NPCs, cinematics, campaigns, shops (narrative elements)
-	"system",      # Overview, mod settings, new game configs, save editing
 	"mod"          # Mod-provided custom tabs (always last)
 ]
 
