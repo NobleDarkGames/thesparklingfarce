@@ -95,7 +95,7 @@ The platform auto-discovers these resource types from `data/` subfolders:
 
 Each folder maps to a resource type. Place your `.tres` files in the appropriate folder and they register automatically.
 
-*NOTE* Early testing suggests that some platforms might have trouble with automatically generating empty directories on mod creation. If you get unexpected issues creating certain types of assets, ensure you have the approriate skeleton dir listed above.
+*NOTE* Each mod directory contains `_README.txt` files explaining what goes in each folder. If you're starting from scratch, copy the `_starter_kit` mod as a template.
 
 ## Accessing Resources at Runtime
 
