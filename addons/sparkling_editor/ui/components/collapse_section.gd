@@ -51,8 +51,9 @@ var _pending_children: Array[Node] = []
 
 
 func _init() -> void:
-	# Nothing here - setup in _ready
-	pass
+	# Create content container early so get_content_container() works before _ready
+	_content_container = VBoxContainer.new()
+	_content_container.name = "ContentContainer"
 
 
 func _ready() -> void:
@@ -101,9 +102,7 @@ func _setup_ui() -> void:
 	header_hbox.add_child(_title_label)
 	_update_header_text()
 
-	# Content container
-	_content_container = VBoxContainer.new()
-	_content_container.name = "ContentContainer"
+	# Add content container to tree (created in _init)
 	add_child(_content_container)
 
 

@@ -30,4 +30,3 @@ use_buff_items = false
 alert_range = 3
 engagement_range = 1
 seek_terrain_advantage = false
-max_idle_turns = 0

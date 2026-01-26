@@ -75,3 +75,24 @@ func _show_result_on_label(label: Label, message: String, success: bool) -> void
 		label.add_theme_color_override("font_color", UIColors.RESULT_ERROR)
 		if not message.is_empty():
 			play_sfx("menu_error")
+
+
+## Show warning message with warning styling
+func _show_warning_on_label(label: Label, message: String) -> void:
+	label.text = message
+	label.add_theme_color_override("font_color", UIColors.RESULT_WARNING)
+	play_sfx("menu_error")
+
+
+## Focus first enabled button in a list of buttons
+func _focus_first_in_list(buttons: Array[Button]) -> void:
+	for btn: Button in buttons:
+		if is_instance_valid(btn) and not btn.disabled:
+			btn.grab_focus()
+			return
+
+
+## Clear all children from a container (for grid repopulation)
+func _clear_container(container: Control) -> void:
+	for child: Node in container.get_children():
+		child.queue_free()

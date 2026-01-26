@@ -1,9 +1,6 @@
 extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 
 ## PlacementMode - Distribute queued items to characters (PAY-PER-PLACEMENT)
-
-## Colors matching project standards
-const COLOR_ERROR: Color = Color(1.0, 0.4, 0.4, 1.0)  # Soft red for errors
 ##
 ## This is the core of Captain's Rule #2: "Gold is charged per placement, not upfront."
 ## - Each click on a character places ONE item and charges ONE item's gold
@@ -65,17 +62,12 @@ func _create_character_button(character: CharacterData) -> Button:
 	btn.focus_mode = Control.FOCUS_ALL
 	btn.add_theme_font_size_override("font_size", 16)  # Monogram requires 16 or 24
 
-	# Get inventory status
-	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
-	var slots_used: int = save_data.inventory.size() if save_data else 0
-	var slots_max: int = 4  # Default max inventory
-
-	if slots_used >= slots_max:
+	var inv: Dictionary = get_inventory_status(character.character_uid)
+	if inv.full:
 		btn.disabled = true
 		btn.text = "%s\nFULL" % character.character_name
 	else:
-		# Compact: just name and slots (instructions explain what clicking does)
-		btn.text = "%s\n(%d/%d)" % [character.character_name, slots_used, slots_max]
+		btn.text = "%s\n(%d/%d)" % [character.character_name, inv.used, inv.max]
 
 	return btn
 
@@ -133,16 +125,14 @@ func _refresh_character_buttons() -> void:
 			break
 
 		var btn: Button = character_buttons[idx]
-		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
-		var slots_used: int = save_data.inventory.size() if save_data else 0
-		var slots_max: int = 4
+		var inv: Dictionary = get_inventory_status(character.character_uid)
 
-		if slots_used >= slots_max:
+		if inv.full:
 			btn.disabled = true
 			btn.text = "%s\nFULL" % character.character_name
 		else:
 			btn.disabled = false
-			btn.text = "%s\n(%d/%d)" % [character.character_name, slots_used, slots_max]
+			btn.text = "%s\n(%d/%d)" % [character.character_name, inv.used, inv.max]
 
 		idx += 1
 

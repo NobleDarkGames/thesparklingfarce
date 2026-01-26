@@ -7,10 +7,19 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## - REVIVE: dead members (is_alive == false)
 ## - UNCURSE: members with cursed equipment
 
-## Colors matching project standards
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
+## Mode-specific header and empty messages
+const MODE_HEADERS: Dictionary = {
+	ShopContextScript.Mode.HEAL: "WHO SHALL BE HEALED?",
+	ShopContextScript.Mode.REVIVE: "WHO SHALL BE REVIVED?",
+	ShopContextScript.Mode.UNCURSE: "WHO BEARS A CURSED ITEM?",
+	ShopContextScript.Mode.PROMOTION: "WHO SEEKS PROMOTION?",
+}
+const MODE_EMPTY_MESSAGES: Dictionary = {
+	ShopContextScript.Mode.HEAL: "All party members are at full health.",
+	ShopContextScript.Mode.REVIVE: "No fallen party members.",
+	ShopContextScript.Mode.UNCURSE: "No one bears cursed equipment.",
+	ShopContextScript.Mode.PROMOTION: "No one is ready for promotion.",
+}
 
 var character_buttons: Array[Button] = []
 var selected_index: int = 0
@@ -36,17 +45,7 @@ func _on_initialized() -> void:
 
 
 func _update_header() -> void:
-	match context.mode:
-		ShopContextScript.Mode.HEAL:
-			header_label.text = "WHO SHALL BE HEALED?"
-		ShopContextScript.Mode.REVIVE:
-			header_label.text = "WHO SHALL BE REVIVED?"
-		ShopContextScript.Mode.UNCURSE:
-			header_label.text = "WHO BEARS A CURSED ITEM?"
-		ShopContextScript.Mode.PROMOTION:
-			header_label.text = "WHO SEEKS PROMOTION?"
-		_:
-			header_label.text = "SELECT CHARACTER"
+	header_label.text = MODE_HEADERS.get(context.mode, "SELECT CHARACTER")
 
 
 func _populate_character_grid() -> void:
@@ -82,15 +81,7 @@ func _populate_character_grid() -> void:
 	# Show empty message if no valid characters
 	empty_label.visible = not any_valid
 	if not any_valid:
-		match context.mode:
-			ShopContextScript.Mode.HEAL:
-				empty_label.text = "All party members are at full health."
-			ShopContextScript.Mode.REVIVE:
-				empty_label.text = "No fallen party members."
-			ShopContextScript.Mode.UNCURSE:
-				empty_label.text = "No one bears cursed equipment."
-			ShopContextScript.Mode.PROMOTION:
-				empty_label.text = "No one is ready for promotion."
+		empty_label.text = MODE_EMPTY_MESSAGES.get(context.mode, "No valid characters.")
 
 
 func _should_show_character(save_data: CharacterSaveData) -> bool:
@@ -155,16 +146,7 @@ func _create_character_button(character: CharacterData, save_data: CharacterSave
 
 	var cost: int = _get_service_cost(save_data)
 	var can_afford: bool = _get_gold() >= cost
-
-	var status_line: String = ""
-	if context.mode == ShopContextScript.Mode.HEAL:
-		status_line = "HP: %d/%d  MP: %d/%d" % [save_data.current_hp, save_data.max_hp, save_data.current_mp, save_data.max_mp]
-	elif context.mode == ShopContextScript.Mode.REVIVE:
-		status_line = "FALLEN"
-	elif context.mode == ShopContextScript.Mode.UNCURSE:
-		status_line = "Cursed: " + ",".join(PackedStringArray(_get_cursed_slots(save_data)))
-	elif context.mode == ShopContextScript.Mode.PROMOTION:
-		status_line = "Lv%d %s" % [save_data.level, _get_character_class_name(character, save_data)]
+	var status_line: String = _get_status_line(character, save_data)
 
 	button.text = "%s\n%s\n%d G" % [character.character_name, status_line, cost]
 
@@ -173,6 +155,20 @@ func _create_character_button(character: CharacterData, save_data: CharacterSave
 		button.add_theme_color_override("font_color", COLOR_DISABLED)
 
 	return button
+
+
+func _get_status_line(character: CharacterData, save_data: CharacterSaveData) -> String:
+	match context.mode:
+		ShopContextScript.Mode.HEAL:
+			return "HP: %d/%d  MP: %d/%d" % [save_data.current_hp, save_data.max_hp, save_data.current_mp, save_data.max_mp]
+		ShopContextScript.Mode.REVIVE:
+			return "FALLEN"
+		ShopContextScript.Mode.UNCURSE:
+			return "Cursed: " + ",".join(PackedStringArray(_get_cursed_slots(save_data)))
+		ShopContextScript.Mode.PROMOTION:
+			return "Lv%d %s" % [save_data.level, _get_character_class_name(character, save_data)]
+		_:
+			return ""
 
 
 func _get_service_cost(save_data: CharacterSaveData) -> int:
@@ -282,19 +278,6 @@ func _update_all_colors() -> void:
 
 func _on_back_pressed() -> void:
 	go_back()
-
-
-func _input(event: InputEvent) -> void:
-	if not visible:
-		return
-
-	# Keyboard navigation for grid
-	if event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down"):
-		# Let the grid handle it naturally
-		pass
-	elif event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
-		# Let the grid handle it naturally
-		pass
 
 
 func _on_screen_exit() -> void:

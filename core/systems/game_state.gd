@@ -286,24 +286,14 @@ func get_potential_flag_conflicts() -> Array[String]:
 	var seen_short_names: Dictionary = {}  # short_name -> Array[String]
 
 	for flag_name: String in story_flags:
-		var short_name: String = flag_name
-		if ":" in flag_name:
-			short_name = flag_name.split(":")[1]
-
+		var short_name: String = flag_name.split(":")[-1]  # Gets last part, or whole string if no ":"
 		if short_name not in seen_short_names:
-			var new_list: Array[String] = []
-			seen_short_names[short_name] = new_list
-		var list_val: Variant = seen_short_names.get(short_name)
-		if list_val is Array:
-			var short_name_list: Array = list_val
-			short_name_list.append(flag_name)
+			seen_short_names[short_name] = []
+		seen_short_names[short_name].append(flag_name)
 
 	# Find short names used by multiple full names
 	for short_name: String in seen_short_names:
-		var names_val: Variant = seen_short_names.get(short_name)
-		if not names_val is Array:
-			continue
-		var full_names: Array = names_val
+		var full_names: Array = seen_short_names[short_name]
 		if full_names.size() > 1:
 			for full_name: String in full_names:
 				if full_name not in conflicts:

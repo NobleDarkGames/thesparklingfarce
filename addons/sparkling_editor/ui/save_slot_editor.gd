@@ -109,19 +109,11 @@ func _setup_ui() -> void:
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll_container.add_child(main_vbox)
 
-	# Title
-	var title_label: Label = Label.new()
-	title_label.text = "Save Slot Party Editor"
-	title_label.add_theme_font_size_override("font_size", 18)
-	main_vbox.add_child(title_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Edit party composition for save slots. Select a slot, modify the party, then save changes."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", 14)
-	main_vbox.add_child(help_label)
-
-	SparklingEditorUtils.add_separator(main_vbox)
+	# Use FormBuilder for header section
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(main_vbox)
+	form.add_section_label("Save Slot Party Editor")
+	form.add_help_text("Edit party composition for save slots. Select a slot, modify the party, then save changes.")
+	form.add_separator()
 
 	# Save slot selector section
 	_create_save_slot_selector(main_vbox)
@@ -156,15 +148,12 @@ func _create_save_slot_selector(parent: VBoxContainer) -> void:
 	var selector_container: VBoxContainer = VBoxContainer.new()
 	parent.add_child(selector_container)
 
-	# Slot selection row
+	# Slot selection row with label, dropdown, and buttons
 	var slot_row: HBoxContainer = HBoxContainer.new()
+	slot_row.add_theme_constant_override("separation", 8)
 	selector_container.add_child(slot_row)
 
-	var slot_label: Label = Label.new()
-	slot_label.text = "Select Save Slot:"
-	slot_label.custom_minimum_size.x = 120
-	slot_row.add_child(slot_label)
-
+	# Create slot selector dropdown
 	save_slot_selector = OptionButton.new()
 	save_slot_selector.add_item("Slot 1", 0)
 	save_slot_selector.add_item("Slot 2", 1)
@@ -172,7 +161,10 @@ func _create_save_slot_selector(parent: VBoxContainer) -> void:
 	save_slot_selector.selected = 0
 	save_slot_selector.custom_minimum_size.x = 150
 	save_slot_selector.item_selected.connect(_on_slot_selected)
-	slot_row.add_child(save_slot_selector)
+
+	# Use FormBuilder for the labeled dropdown
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(slot_row, 120)
+	form.add_labeled_control("Select Save Slot:", save_slot_selector)
 
 	# Spacer
 	var spacer: Control = Control.new()
@@ -210,10 +202,9 @@ func _create_current_party_panel(parent: Control) -> void:
 	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(left_panel)
 
-	var current_label: Label = Label.new()
-	current_label.text = "Current Party Members"
-	current_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	left_panel.add_child(current_label)
+	# Use FormBuilder for section header
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(left_panel)
+	form.add_section_label("Current Party Members")
 
 	# Party members list
 	player_members_list = ItemList.new()
@@ -249,10 +240,9 @@ func _create_available_characters_panel(parent: Control) -> void:
 	right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(right_panel)
 
-	var available_label: Label = Label.new()
-	available_label.text = "Available Characters"
-	available_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	right_panel.add_child(available_label)
+	# Use FormBuilder for section header and preview label
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(right_panel)
+	form.add_section_label("Available Characters")
 
 	# Available characters list
 	available_characters_list = ItemList.new()
@@ -267,11 +257,8 @@ func _create_available_characters_panel(parent: Control) -> void:
 	add_to_party_button.pressed.connect(_on_add_to_party)
 	right_panel.add_child(add_to_party_button)
 
-	# Character preview
-	var preview_label: Label = Label.new()
-	preview_label.text = "Character Preview:"
-	preview_label.add_theme_font_size_override("font_size", 14)
-	right_panel.add_child(preview_label)
+	# Character preview (use section label for consistent styling)
+	form.add_section_label("Character Preview")
 
 	character_preview_label = RichTextLabel.new()
 	character_preview_label.custom_minimum_size = Vector2(0, 150)
@@ -282,10 +269,9 @@ func _create_available_characters_panel(parent: Control) -> void:
 
 ## Create party info panel (bottom)
 func _create_party_info_panel(parent: VBoxContainer) -> void:
-	var info_label: Label = Label.new()
-	info_label.text = "Party Statistics:"
-	info_label.add_theme_font_size_override("font_size", 14)
-	parent.add_child(info_label)
+	# Use FormBuilder for section header
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(parent)
+	form.add_section_label("Party Statistics")
 
 	party_info_label = RichTextLabel.new()
 	party_info_label.custom_minimum_size = Vector2(0, 100)
@@ -493,35 +479,32 @@ func _update_party_info() -> void:
 	party_info_label.text = info_text
 
 
+## Show feedback message with visual styling
+func _show_feedback(message: String, is_error: bool) -> void:
+	if is_error:
+		push_warning("SaveSlotEditor: " + message)
+	if not feedback_panel or not feedback_label:
+		return
+	var color: Color = SparklingEditorUtils.get_error_color() if is_error else SparklingEditorUtils.get_success_color()
+	var label: String = "Error" if is_error else "Success"
+	var style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style() if is_error else SparklingEditorUtils.create_success_panel_style()
+	feedback_label.text = "[color=#%s][b]%s:[/b] %s[/color]" % [color.to_html(false), label, message]
+	feedback_panel.add_theme_stylebox_override("panel", style)
+	feedback_panel.visible = true
+	# Auto-dismiss (5s for errors, 3s for success)
+	var tween: Tween = create_tween()
+	tween.tween_interval(5.0 if is_error else 3.0)
+	tween.tween_callback(_hide_feedback_panel)
+
+
 ## Show error message with visual feedback
 func _show_error(message: String) -> void:
-	push_warning("SaveSlotEditor: " + message)
-	if feedback_panel and feedback_label:
-		var error_color: Color = SparklingEditorUtils.get_error_color()
-		feedback_label.text = "[color=#%s][b]Error:[/b] %s[/color]" % [error_color.to_html(false), message]
-		var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
-		feedback_panel.add_theme_stylebox_override("panel", error_style)
-		feedback_panel.visible = true
-
-		# Auto-dismiss after 5 seconds
-		var tween: Tween = create_tween()
-		tween.tween_interval(5.0)
-		tween.tween_callback(_hide_feedback_panel)
+	_show_feedback(message, true)
 
 
 ## Show success message with visual feedback
 func _show_success(message: String) -> void:
-	if feedback_panel and feedback_label:
-		var success_color: Color = SparklingEditorUtils.get_success_color()
-		feedback_label.text = "[color=#%s][b]Success:[/b] %s[/color]" % [success_color.to_html(false), message]
-		var success_style: StyleBoxFlat = SparklingEditorUtils.create_success_panel_style()
-		feedback_panel.add_theme_stylebox_override("panel", success_style)
-		feedback_panel.visible = true
-
-		# Auto-dismiss after 3 seconds
-		var tween: Tween = create_tween()
-		tween.tween_interval(3.0)
-		tween.tween_callback(_hide_feedback_panel)
+	_show_feedback(message, false)
 
 
 ## Hide feedback panel
@@ -975,8 +958,10 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 	var slot_meta: SlotMetadata = SlotMetadata.new()
 	slot_meta.populate_from_save_data(save_data)
 	slot_meta_dict = slot_meta.serialize_to_dict()
+	# Ensure slot_number matches the target slot (not save_data's slot_number)
+	slot_meta_dict["slot_number"] = slot_number
 
-	# Find and replace in array
+	# Find and replace in array (or update newly-appended placeholder)
 	for i: int in range(all_metadata.size()):
 		var check_meta: Dictionary = all_metadata[i]
 		var check_slot: int = check_meta.get("slot_number", 0)

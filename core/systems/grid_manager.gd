@@ -289,27 +289,19 @@ func expand_waypoint_path(waypoints: Array[Vector2i], movement_type: int = 0, st
 
 	var complete_path: Array[Vector2i] = []
 	var current_pos: Vector2i = start_pos if start_pos != Vector2i(-1, -1) else waypoints[0]
-
-	# Start path with current position
 	complete_path.append(current_pos)
 
-	# Expand each waypoint segment
 	for waypoint: Vector2i in waypoints:
-		# Skip if waypoint is current position
 		if waypoint == current_pos:
 			continue
 
-		# Find path from current position to waypoint
 		var segment_path: Array[Vector2i] = find_path(current_pos, waypoint, movement_type)
-
 		if segment_path.is_empty():
 			push_error("GridManager: No path found from %s to %s during waypoint expansion" % [current_pos, waypoint])
 			return []
 
-		# Add segment to complete path (skip first to avoid duplicates)
-		for i: int in range(1, segment_path.size()):
-			complete_path.append(segment_path[i])
-
+		# Append segment excluding first point (already in path)
+		complete_path.append_array(segment_path.slice(1))
 		current_pos = waypoint
 
 	return complete_path
@@ -513,16 +505,9 @@ func show_attack_range_band(from: Vector2i, min_range: int, max_range: int) -> v
 		push_warning("GridManager: Cannot show attack range - no highlight layer set")
 		return
 
-	# Use Grid's range band method for consistent calculation
 	var attack_cells: Array[Vector2i] = grid.get_cells_in_range_band(from, min_range, max_range)
-
-	# Filter out the center cell (can't attack yourself)
-	var filtered_cells: Array[Vector2i] = []
-	for cell: Vector2i in attack_cells:
-		if cell != from:
-			filtered_cells.append(cell)
-
-	highlight_cells(filtered_cells, HIGHLIGHT_RED)
+	attack_cells = attack_cells.filter(func(cell: Vector2i) -> bool: return cell != from)
+	highlight_cells(attack_cells, HIGHLIGHT_RED)
 
 
 ## Highlight specific target cells (yellow tiles)

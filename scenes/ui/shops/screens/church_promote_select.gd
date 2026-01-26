@@ -6,11 +6,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## If only one path exists, executes promotion immediately.
 ## Otherwise, lets player choose their path.
 
-## Colors matching project standards
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-
 var path_buttons: Array[Button] = []
 var selected_index: int = 0
 var _available_paths: Array[Dictionary] = []
@@ -43,19 +38,8 @@ func _on_initialized() -> void:
 
 
 func _update_header() -> void:
-	var character_uid: String = context.selected_destination
-	var character: CharacterData = _get_character_data(character_uid)
-	var char_name: String = character.character_name if character else "Character"
+	var char_name: String = get_character_name(context.selected_destination)
 	header_label.text = "CHOOSE %s'S PATH" % char_name.to_upper()
-
-
-func _get_character_data(character_uid: String) -> CharacterData:
-	if not PartyManager:
-		return null
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == character_uid:
-			return character
-	return null
 
 
 func _get_promotion_paths(character_uid: String) -> Array[Dictionary]:
@@ -63,7 +47,7 @@ func _get_promotion_paths(character_uid: String) -> Array[Dictionary]:
 	if not save_data:
 		return []
 
-	var character: CharacterData = _get_character_data(character_uid)
+	var character: CharacterData = get_character_by_uid(character_uid)
 	if not character:
 		return []
 
@@ -112,7 +96,7 @@ func _populate_path_grid() -> void:
 		return
 
 	var cost: int = save_data.level * 100
-	var can_afford: bool = _get_gold() >= cost
+	var can_afford: bool = get_current_gold() >= cost
 
 	for path_info: Dictionary in _available_paths:
 		var target_class: ClassData = path_info.get("target_class") as ClassData
@@ -138,7 +122,7 @@ func _populate_path_grid() -> void:
 		# Disable if can't afford or item requirement not met
 		if not can_afford or not is_available:
 			button.disabled = true
-			button.add_theme_color_override("font_color", COLOR_DISABLED)
+			button.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 		path_grid.add_child(button)
 		path_buttons.append(button)
@@ -149,29 +133,22 @@ func _populate_path_grid() -> void:
 		button.mouse_entered.connect(_on_button_mouse_entered.bind(button))
 
 
-func _get_gold() -> int:
-	if context and context.save_data:
-		return context.save_data.gold
-	return 0
-
-
 func _on_path_selected(target_class: ClassData) -> void:
 	_execute_promotion(target_class)
 
 
 func _execute_promotion(target_class: ClassData) -> void:
 	var character_uid: String = context.selected_destination
-	var character: CharacterData = _get_character_data(character_uid)
+	var character: CharacterData = get_character_by_uid(character_uid)
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
-	
+
 	# Capture old class BEFORE promotion
 	var old_class: ClassData = save_data.get_current_class(character) if save_data else null
-	
+
 	var result: Dictionary = ShopManager.church_promote(character_uid, target_class)
 
 	if result.get("success", false):
-		var char_name: String = character.character_name if character else "Character"
-
+		var char_name: String = get_character_name(character_uid)
 		context.last_result = {
 			"type": "promotion_complete",
 			"success": true,
@@ -193,7 +170,7 @@ func _execute_promotion(target_class: ClassData) -> void:
 
 
 func _show_promotion_ceremony(character_uid: String, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
-	var character: CharacterData = _get_character_data(character_uid)
+	var character: CharacterData = get_character_by_uid(character_uid)
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character_uid)
 	if not character or not save_data:
 		push_screen("transaction_result")
@@ -265,10 +242,9 @@ func _update_all_colors() -> void:
 		var btn: Button = path_buttons[i]
 		if btn.disabled:
 			continue
-		if i == selected_index and btn.has_focus():
-			btn.add_theme_color_override("font_color", COLOR_SELECTED)
-		else:
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
+		var is_focused: bool = i == selected_index and btn.has_focus()
+		var color: Color = UIColors.MENU_SELECTED if is_focused else UIColors.MENU_NORMAL
+		btn.add_theme_color_override("font_color", color)
 
 
 func _on_back_pressed() -> void:

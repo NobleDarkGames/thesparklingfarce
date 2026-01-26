@@ -265,14 +265,18 @@ func attempt_move(direction: Vector2i) -> bool:
 	# Always update facing direction, even if blocked (SF-authentic)
 	facing_direction = FacingUtils.direction_to_string(direction)
 	_update_interaction_ray()
-	_update_sprite_animation()
 
 	# Calculate target grid position
 	var target_grid: Vector2i = grid_position + direction
 
 	# Check if target is walkable
 	if not _is_tile_walkable(target_grid):
+		# Blocked - ensure we're at idle speed (fixes desync when held against wall)
+		_play_idle_animation()
 		return false
+
+	# Movement will happen - set fast animation speed
+	_update_sprite_animation()
 
 	# Start movement
 	target_position = grid_to_world(target_grid)

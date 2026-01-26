@@ -6,13 +6,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## Shows recipe name, output item, required materials, and gold cost.
 ## Recipes the player cannot afford are grayed out.
 
-## Colors matching project standards
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_GOLD: Color = Color(0.8, 0.8, 0.2, 1.0)
-const COLOR_MISSING: Color = Color(0.8, 0.3, 0.3, 1.0)
-
 ## Currently selected recipe ID
 var selected_recipe_id: String = ""
 
@@ -89,7 +82,7 @@ func _populate_recipe_list() -> void:
 		recipe_list.add_child(button)
 		recipe_buttons.append(button)
 
-		button.pressed.connect(_on_recipe_selected.bind(recipe_id, button))
+		button.pressed.connect(_select_recipe.bind(recipe_id, button))
 
 	# Auto-select first recipe
 	if recipe_buttons.size() > 0:
@@ -181,10 +174,6 @@ func _count_material(material_id: String) -> int:
 	return count
 
 
-func _on_recipe_selected(recipe_id: String, button: Button) -> void:
-	_select_recipe(recipe_id, button)
-
-
 func _select_recipe(recipe_id: String, button: Button) -> void:
 	# Clear previous selection
 	if _selected_button:
@@ -235,32 +224,24 @@ func _update_details_panel() -> void:
 			output_text += "%s -> %s" % [base_name, result_name]
 	output_label.text = output_text
 
-	# Materials
-	var materials_lines: Array[String] = []
-	materials_lines.append("Materials Required:")
+	# Materials - build display and check if any are missing in single pass
+	var materials_lines: Array[String] = ["Materials Required:"]
+	var missing_any: bool = false
+
 	for input: Dictionary in recipe.inputs:
 		var material_id: String = DictUtils.get_string(input, "material_id", "")
 		var required_qty: int = DictUtils.get_int(input, "quantity", 1)
 		var owned_qty: int = _count_material(material_id)
-
 		var item: ItemData = get_item_data(material_id)
 		var material_name: String = item.item_name if item else material_id
-
 		var line: String = "  %s x%d" % [material_name, required_qty]
+
 		if owned_qty < required_qty:
 			line += " (have %d)" % owned_qty
-		materials_lines.append(line)
-	materials_label.text = "\n".join(materials_lines)
-
-	# Update materials label color based on affordability
-	var missing_any: bool = false
-	for input_check: Dictionary in recipe.inputs:
-		var mat_id: String = DictUtils.get_string(input_check, "material_id", "")
-		var req_qty: int = DictUtils.get_int(input_check, "quantity", 1)
-		if _count_material(mat_id) < req_qty:
 			missing_any = true
-			break
+		materials_lines.append(line)
 
+	materials_label.text = "\n".join(materials_lines)
 	if missing_any:
 		materials_label.add_theme_color_override("font_color", COLOR_MISSING)
 	else:
@@ -293,10 +274,6 @@ func _on_craft_pressed() -> void:
 
 
 func _on_back_pressed() -> void:
-	go_back()
-
-
-func _on_back_requested() -> void:
 	go_back()
 
 

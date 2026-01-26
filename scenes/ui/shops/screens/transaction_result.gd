@@ -6,11 +6,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## No Continue/Done choice - assumes you have more to do (SF2 pattern).
 ## Press B to skip directly to action menu if desired.
 
-## Use shared color constants for consistency
-const COLOR_SUCCESS: Color = UIColors.RESULT_SUCCESS
-const COLOR_ERROR: Color = UIColors.RESULT_ERROR
-const COLOR_WARNING: Color = UIColors.RESULT_WARNING
-
 ## Auto-return delay in seconds (SF2-style quick feedback)
 const AUTO_RETURN_DELAY: float = 1.5
 
@@ -72,13 +67,13 @@ func _show_purchase_success(result: Dictionary) -> void:
 	var cost: int = result.get("total_cost", 0)
 
 	result_label.text = "PURCHASE COMPLETE!"
-	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_SUCCESS)
 
 	var dest: String = result.get("destination", "")
 	if dest == "caravan":
 		details_label.text = "%s stored in Caravan.\nSpent %dG" % [item_name, cost]
 	else:
-		var char_name: String = _get_character_name(dest)
+		var char_name: String = get_character_name(dest)
 		details_label.text = "%s equipped %s!\nSpent %dG" % [char_name, item_name, cost]
 
 
@@ -86,7 +81,7 @@ func _show_purchase_failed(result: Dictionary) -> void:
 	var error: String = result.get("error", "Unknown error")
 
 	result_label.text = "PURCHASE FAILED"
-	result_label.add_theme_color_override("font_color", COLOR_ERROR)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_ERROR)
 	details_label.text = error
 
 
@@ -95,7 +90,7 @@ func _show_placement_complete(result: Dictionary) -> void:
 	var spent: int = result.get("total_spent", 0)
 
 	result_label.text = "ITEMS DISTRIBUTED!"
-	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_SUCCESS)
 	details_label.text = "Placed %d items.\nTotal spent: %dG" % [placed, spent]
 
 
@@ -105,7 +100,7 @@ func _show_placement_cancelled(result: Dictionary) -> void:
 	var spent: int = result.get("total_spent", 0)
 
 	result_label.text = "ORDER CANCELLED"
-	result_label.add_theme_color_override("font_color", COLOR_WARNING)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_WARNING)
 
 	if placed > 0:
 		details_label.text = "Kept %d items (spent %dG).\n%d items returned to shop." % [placed, spent, cancelled]
@@ -118,7 +113,7 @@ func _show_sell_complete(result: Dictionary) -> void:
 	var earned: int = result.get("total_earned", 0)
 
 	result_label.text = "SALE COMPLETE!"
-	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_SUCCESS)
 	details_label.text = "Sold %d items.\nEarned %dG" % [items_sold, earned]
 
 
@@ -127,7 +122,7 @@ func _show_promotion_complete(result: Dictionary) -> void:
 	var cost: int = result.get("gold_spent", 0)
 
 	result_label.text = "PROMOTION COMPLETE!"
-	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_SUCCESS)
 	details_label.text = "%s\nSpent %dG" % [message, cost]
 
 
@@ -136,7 +131,7 @@ func _show_generic_success(result: Dictionary) -> void:
 	var cost: int = result.get("gold_spent", 0)
 
 	result_label.text = "SERVICE COMPLETE!"
-	result_label.add_theme_color_override("font_color", COLOR_SUCCESS)
+	result_label.add_theme_color_override("font_color", UIColors.RESULT_SUCCESS)
 	if cost > 0:
 		details_label.text = "%s\nSpent %dG" % [message, cost]
 	else:
@@ -178,24 +173,11 @@ func _on_auto_return() -> void:
 
 
 func _is_church_mode() -> bool:
-	if not context:
-		return false
-	return context.mode in [ShopContextScript.Mode.HEAL, ShopContextScript.Mode.REVIVE, ShopContextScript.Mode.UNCURSE, ShopContextScript.Mode.PROMOTION]
+	return context and context.is_church_mode()
 
 
 func _is_crafter_mode() -> bool:
-	if not context:
-		return false
-	return context.mode == ShopContextScript.Mode.CRAFT
-
-
-func _get_character_name(uid: String) -> String:
-	if not PartyManager:
-		return uid
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == uid:
-			return character.character_name
-	return uid
+	return context and context.is_craft_mode()
 
 
 ## B button skips directly to action menu (escape hatch)

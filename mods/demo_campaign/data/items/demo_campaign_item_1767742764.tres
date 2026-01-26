@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3 uid="uid://ckthfm6d41jgh"]
 
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_lsocc"]
-[ext_resource type="Texture2D" uid="uid://bybkmqeq14cl5" path="res://mods/demo_campaign/assets/icons/items/SwordOfKurt.png" id="1_w628p"]
+[ext_resource type="Texture2D" uid="uid://i4akr2kfprlf" path="res://mods/demo_campaign/assets/icons/items/SwordOfKurt.png" id="1_w628p"]
 
 [resource]
 script = ExtResource("1_lsocc")

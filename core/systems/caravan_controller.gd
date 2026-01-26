@@ -121,51 +121,48 @@ var _previous_pause_state: bool = false
 # =============================================================================
 
 func _ready() -> void:
-	# Defer initialization to ensure other autoloads are ready
 	call_deferred("_initialize")
 
 
 func _exit_tree() -> void:
-	# Clean up UI layer to prevent orphaned nodes
 	if _ui_layer and is_instance_valid(_ui_layer):
 		_ui_layer.queue_free()
 		_ui_layer = null
-
-
-# NOTE: Caravan interaction is now handled via hero's interaction_requested signal,
-# unified with NPC interaction mechanics. See _on_hero_interaction_requested().
 
 
 func _initialize() -> void:
 	if _initialized:
 		return
 
-	# Create UI layer and menu
 	_setup_ui()
-
-	# Load caravan configuration from mods
 	_load_caravan_config()
 
 	# Connect to scene changes
-	# MED-004: Add is_connected() check before connecting signals
-	if SceneManager:
-		if SceneManager.has_signal("scene_transition_completed"):
-			if not SceneManager.scene_transition_completed.is_connected(_on_scene_changed):
-				SceneManager.scene_transition_completed.connect(_on_scene_changed)
-		if SceneManager.has_signal("scene_transition_started"):
-			if not SceneManager.scene_transition_started.is_connected(_on_scene_transition_started):
-				SceneManager.scene_transition_started.connect(_on_scene_transition_started)
+	_safe_connect(SceneManager, "scene_transition_completed", _on_scene_changed)
+	_safe_connect(SceneManager, "scene_transition_started", _on_scene_transition_started)
 
 	# Connect to battle state changes
-	if BattleManager:
-		if BattleManager.has_signal("battle_started"):
-			if not BattleManager.battle_started.is_connected(_on_battle_started):
-				BattleManager.battle_started.connect(_on_battle_started)
-		if BattleManager.has_signal("battle_ended"):
-			if not BattleManager.battle_ended.is_connected(_on_battle_ended):
-				BattleManager.battle_ended.connect(_on_battle_ended)
+	_safe_connect(BattleManager, "battle_started", _on_battle_started)
+	_safe_connect(BattleManager, "battle_ended", _on_battle_ended)
 
 	_initialized = true
+
+
+## Safely connect a signal if it exists and isn't already connected
+func _safe_connect(target: Object, signal_name: String, callback: Callable) -> void:
+	if not target:
+		return
+	if not target.has_signal(signal_name):
+		return
+	var sig: Signal = target.get(signal_name)
+	if not sig.is_connected(callback):
+		sig.connect(callback)
+
+
+## Call a method on an object if it exists
+func _safe_call(target: Object, method_name: String, args: Array = []) -> void:
+	if target and target.has_method(method_name):
+		target.callv(method_name, args)
 
 
 func _load_caravan_config() -> void:
@@ -275,21 +272,13 @@ func _connect_menu_signals() -> void:
 	if not _main_menu:
 		return
 
-	if _main_menu.has_signal("close_requested"):
-		_main_menu.close_requested.connect(_on_menu_close_requested)
-	if _main_menu.has_signal("party_requested"):
-		_main_menu.party_requested.connect(_on_party_requested)
-	if _main_menu.has_signal("items_requested"):
-		_main_menu.items_requested.connect(_on_items_requested)
-	if _main_menu.has_signal("rest_requested"):
-		_main_menu.rest_requested.connect(_on_rest_requested)
-	if _main_menu.has_signal("custom_service_requested"):
-		_main_menu.custom_service_requested.connect(_on_custom_service_requested)
+	_safe_connect(_main_menu, "close_requested", _on_menu_close_requested)
+	_safe_connect(_main_menu, "party_requested", _on_party_requested)
+	_safe_connect(_main_menu, "items_requested", _on_items_requested)
+	_safe_connect(_main_menu, "rest_requested", _on_rest_requested)
+	_safe_connect(_main_menu, "custom_service_requested", _on_custom_service_requested)
 
-	# Connect party panel signals
-	if _party_panel:
-		if _party_panel.has_signal("close_requested"):
-			_party_panel.close_requested.connect(_on_party_panel_closed)
+	_safe_connect(_party_panel, "close_requested", _on_party_panel_closed)
 
 
 func _on_menu_close_requested() -> void:
@@ -297,21 +286,13 @@ func _on_menu_close_requested() -> void:
 
 
 func _on_party_requested() -> void:
-	# Hide main menu and show party panel
-	if _main_menu and _main_menu.has_method("hide_menu"):
-		_main_menu.hide_menu()
-
-	if _party_panel and _party_panel.has_method("show_panel"):
-		_party_panel.show_panel()
+	_safe_call(_main_menu, "hide_menu")
+	_safe_call(_party_panel, "show_panel")
 
 
 func _on_party_panel_closed() -> void:
-	# Hide party panel and return to main menu
-	if _party_panel and _party_panel.has_method("hide_panel"):
-		_party_panel.hide_panel()
-
-	if _main_menu and _main_menu.has_method("show_menu"):
-		_main_menu.show_menu()
+	_safe_call(_party_panel, "hide_panel")
+	_safe_call(_main_menu, "show_menu")
 
 
 func _on_items_requested() -> void:
@@ -323,29 +304,23 @@ func _on_items_requested() -> void:
 
 func _on_rest_requested() -> void:
 	rest_and_heal()
-	# Show brief confirmation before closing
 	if _main_menu and _main_menu.has_method("show_message"):
 		_main_menu.show_message("Party fully healed!")
-		# Delay close to let user see message
 		await get_tree().create_timer(1.0).timeout
-		# CRIT-001: Validate _main_menu still valid after await
 		if not is_instance_valid(_main_menu):
 			return
 	close_menu()
 
 
 func _on_custom_service_requested(service_id: String, scene_path: String) -> void:
-	# Handle custom service from mods
 	if scene_path.is_empty():
 		push_warning("CaravanController: Custom service '%s' has no scene_path" % service_id)
 		return
 
-	# Verify the scene exists
 	if not ResourceLoader.exists(scene_path):
 		push_error("CaravanController: Custom service scene not found: %s" % scene_path)
 		return
 
-	# Load and instantiate the custom service scene
 	var loaded: Resource = load(scene_path)
 	var scene: PackedScene = loaded if loaded is PackedScene else null
 	if not scene:
@@ -356,30 +331,23 @@ func _on_custom_service_requested(service_id: String, scene_path: String) -> voi
 	var instance: Control = instantiated if instantiated is Control else null
 	if not instance:
 		push_error("CaravanController: Custom service scene is not a Control: %s" % scene_path)
-		instantiated.queue_free()  # Free orphaned node to prevent memory leak
+		instantiated.queue_free()
 		return
 
-	# Hide main menu while custom service is active
-	if _main_menu and _main_menu.has_method("hide_menu"):
-		_main_menu.hide_menu()
+	_safe_call(_main_menu, "hide_menu")
 
-	# Add to UI layer
 	instance.process_mode = Node.PROCESS_MODE_ALWAYS
 	_ui_layer.add_child(instance)
 
-	# Connect close signal if available (standard pattern for custom services)
+	# Connect close signal if available
+	var close_callback: Callable = func() -> void:
+		instance.queue_free()
+		_safe_call(_main_menu, "show_menu")
+
 	if instance.has_signal("close_requested"):
-		instance.close_requested.connect(func() -> void:
-			instance.queue_free()
-			if _main_menu and _main_menu.has_method("show_menu"):
-				_main_menu.show_menu()
-		)
+		instance.close_requested.connect(close_callback)
 	elif instance.has_signal("closed"):
-		instance.closed.connect(func() -> void:
-			instance.queue_free()
-			if _main_menu and _main_menu.has_method("show_menu"):
-				_main_menu.show_menu()
-		)
+		instance.closed.connect(close_callback)
 
 
 ## Show a brief floating notification when caravan access is denied
@@ -604,14 +572,10 @@ func _setup_interaction_area() -> void:
 	if not _caravan_instance:
 		return
 
-	# Create interaction area if not already present
 	var area: Area2D = _caravan_instance.get_node_or_null("InteractionArea") as Area2D
 	if area:
-		# Already has area, just connect signals
-		if not area.body_entered.is_connected(_on_body_entered_range):
-			area.body_entered.connect(_on_body_entered_range)
-		if not area.body_exited.is_connected(_on_body_exited_range):
-			area.body_exited.connect(_on_body_exited_range)
+		_safe_connect(area, "body_entered", _on_body_entered_range)
+		_safe_connect(area, "body_exited", _on_body_exited_range)
 
 
 func _on_body_entered_range(body: Node2D) -> void:
@@ -628,53 +592,31 @@ func _on_body_exited_range(body: Node2D) -> void:
 
 ## Connect to hero's interaction_requested signal for unified NPC-style interaction
 func _connect_hero_interaction() -> void:
-	if not _hero:
-		return
-
-	if _hero.has_signal("interaction_requested"):
-		if not _hero.interaction_requested.is_connected(_on_hero_interaction_requested):
-			_hero.interaction_requested.connect(_on_hero_interaction_requested)
+	_safe_connect(_hero, "interaction_requested", _on_hero_interaction_requested)
 
 
 ## Disconnect from hero's interaction signal (called on despawn)
 func _disconnect_hero_interaction() -> void:
-	if not _hero:
+	if not _hero or not _hero.has_signal("interaction_requested"):
 		return
-
-	if _hero.has_signal("interaction_requested"):
-		if _hero.interaction_requested.is_connected(_on_hero_interaction_requested):
-			_hero.interaction_requested.disconnect(_on_hero_interaction_requested)
+	if _hero.interaction_requested.is_connected(_on_hero_interaction_requested):
+		_hero.interaction_requested.disconnect(_on_hero_interaction_requested)
 
 
 ## Handle hero interaction - check if player is trying to interact with caravan
-## This is the unified interaction mechanic used by NPCs and other interactables
 func _on_hero_interaction_requested(interaction_position: Vector2i) -> void:
-	if not is_spawned():
+	if not is_spawned() or _menu_open:
 		return
 
-	if _menu_open:
-		return  # Already interacting
-
-	# Check if the interaction position matches the caravan's grid position
 	var caravan_grid_pos: Vector2i = get_grid_position()
+	var hero_grid_pos: Vector2i = _hero.grid_position if _hero else Vector2i.ZERO
 
-	# Also get hero's current position - they may be standing ON the caravan
-	# (this happens because caravan follows hero, so walking toward it causes overlap)
-	var hero_grid_pos: Vector2i = Vector2i.ZERO
-	if _hero:
-		hero_grid_pos = _hero.grid_position
-
-	# Allow interaction if:
-	# 1. Player is facing the caravan (interaction_position == caravan), OR
-	# 2. Player is standing on the caravan's tile (overlap from following)
+	# Allow interaction if facing caravan OR standing on same tile (overlap from following)
 	var facing_caravan: bool = (interaction_position == caravan_grid_pos)
 	var standing_on_caravan: bool = (hero_grid_pos == caravan_grid_pos)
 
-	if not facing_caravan and not standing_on_caravan:
-		return  # Not interacting with caravan
-
-	# Player is interacting with caravan - open menu
-	open_menu()
+	if facing_caravan or standing_on_caravan:
+		open_menu()
 
 
 # =============================================================================
@@ -717,56 +659,21 @@ func get_grid_position() -> Vector2i:
 
 ## Get all available menu options for the caravan menu
 ## Returns array of dictionaries with: id, label, description, enabled, is_custom
-## This allows mods to add custom services that appear in the menu
 func get_menu_options() -> Array[Dictionary]:
 	var options: Array[Dictionary] = []
 
 	# Built-in services (order matters for SF2-authentic feel)
 	if current_config:
 		if current_config.has_party_management:
-			options.append({
-				"id": "party",
-				"label": "Party",
-				"description": "Manage party members",
-				"enabled": true,
-				"is_custom": false
-			})
-
+			options.append(_make_menu_option("party", "Party", "Manage party members"))
 		if current_config.has_item_storage:
-			options.append({
-				"id": "items",
-				"label": "Items",
-				"description": "Access item storage",
-				"enabled": true,
-				"is_custom": false
-			})
-
+			options.append(_make_menu_option("items", "Items", "Access item storage"))
 		if current_config.has_rest_service:
-			options.append({
-				"id": "rest",
-				"label": "Rest",
-				"description": "Heal all party members",
-				"enabled": true,
-				"is_custom": false
-			})
-
+			options.append(_make_menu_option("rest", "Rest", "Heal all party members"))
 		if current_config.has_shop_service:
-			options.append({
-				"id": "shop",
-				"label": "Shop",
-				"description": "Buy and sell items",
-				"enabled": true,
-				"is_custom": false
-			})
-
+			options.append(_make_menu_option("shop", "Shop", "Buy and sell items"))
 		if current_config.has_promotion_service:
-			options.append({
-				"id": "promotion",
-				"label": "Promote",
-				"description": "Promote characters",
-				"enabled": true,
-				"is_custom": false
-			})
+			options.append(_make_menu_option("promotion", "Promote", "Promote characters"))
 
 	# Custom services from mods
 	for service_id: String in _custom_services.keys():
@@ -780,22 +687,25 @@ func get_menu_options() -> Array[Dictionary]:
 			"scene_path": service.get("scene_path", "")
 		})
 
-	# Exit is always last
-	options.append({
-		"id": "exit",
-		"label": "Exit",
-		"description": "Leave the Caravan",
-		"enabled": true,
-		"is_custom": false
-	})
+	options.append(_make_menu_option("exit", "Exit", "Leave the Caravan"))
 
 	return options
+
+
+## Create a standard menu option dictionary
+func _make_menu_option(id: String, label: String, description: String) -> Dictionary:
+	return {
+		"id": id,
+		"label": label,
+		"description": description,
+		"enabled": true,
+		"is_custom": false
+	}
 
 
 ## Open the caravan main menu
 func open_menu() -> void:
 	if not _current_map or not _current_map.caravan_accessible:
-		# Provide user feedback when caravan is not accessible
 		var reason: String = "Caravan not accessible here"
 		if AudioManager:
 			AudioManager.play_sfx("error", AudioManager.SFXCategory.UI)
@@ -807,12 +717,9 @@ func open_menu() -> void:
 		return
 
 	_menu_open = true
-
-	# Save previous pause state and pause the game tree to stop player movement
 	_previous_pause_state = get_tree().paused
 	get_tree().paused = true
 
-	# Configure disabled options based on caravan config
 	var disabled: Array[String] = []
 	if current_config:
 		if not current_config.has_rest_service:
@@ -820,12 +727,8 @@ func open_menu() -> void:
 		if not current_config.has_party_management:
 			disabled.append("party")
 
-	# Show the main menu
-	if _main_menu:
-		if _main_menu.has_method("set_disabled_options"):
-			_main_menu.set_disabled_options(disabled)
-		if _main_menu.has_method("show_menu"):
-			_main_menu.show_menu()
+	_safe_call(_main_menu, "set_disabled_options", [disabled])
+	_safe_call(_main_menu, "show_menu")
 
 	menu_opened.emit()
 
@@ -836,12 +739,7 @@ func close_menu() -> void:
 		return
 
 	_menu_open = false
-
-	# Hide the main menu
-	if _main_menu and _main_menu.has_method("hide_menu"):
-		_main_menu.hide_menu()
-
-	# Restore previous pause state
+	_safe_call(_main_menu, "hide_menu")
 	get_tree().paused = _previous_pause_state
 
 	menu_closed.emit()

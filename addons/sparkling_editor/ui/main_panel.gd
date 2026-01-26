@@ -28,8 +28,7 @@ var current_category: String = "content"  # Default to Content category
 
 # Mod Creation Wizard
 var create_mod_dialog: ConfirmationDialog
-var wizard_mod_id_edit: LineEdit
-var wizard_mod_name_edit: LineEdit
+var wizard_name_id_group: NameIdFieldGroup
 var wizard_author_edit: LineEdit
 var wizard_description_edit: TextEdit
 var wizard_type_dropdown: OptionButton
@@ -58,8 +57,8 @@ func _exit_tree() -> void:
 	if is_instance_valid(create_mod_dialog) and create_mod_dialog.confirmed.is_connected(_on_create_mod_confirmed):
 		create_mod_dialog.confirmed.disconnect(_on_create_mod_confirmed)
 
-	if is_instance_valid(wizard_mod_id_edit) and wizard_mod_id_edit.text_changed.is_connected(_on_wizard_mod_id_changed):
-		wizard_mod_id_edit.text_changed.disconnect(_on_wizard_mod_id_changed)
+	if is_instance_valid(wizard_name_id_group) and wizard_name_id_group.id_changed.is_connected(_on_wizard_id_changed):
+		wizard_name_id_group.id_changed.disconnect(_on_wizard_id_changed)
 
 	# Note: Category button signal cleanup is not needed because:
 	# 1. Buttons are children of this node and will be freed with it
@@ -388,14 +387,11 @@ func _get_tab_category_by_control(tab_control: Control) -> String:
 
 
 func _save_last_selected_category(category: String) -> void:
-	var settings: Dictionary = _load_editor_settings()
-	settings["last_selected_category"] = category
-	_save_editor_settings(settings)
+	_save_setting("last_selected_category", category)
 
 
 func _load_last_selected_category() -> String:
-	var settings: Dictionary = _load_editor_settings()
-	return DictUtils.get_string(settings, "last_selected_category", "content")
+	return _load_setting("last_selected_category", "content")
 
 
 func _reload_mod_tabs() -> void:
@@ -578,32 +574,23 @@ func get_active_mod_path() -> String:
 # =============================================================================
 
 func _save_last_selected_mod(mod_id: String) -> void:
-	var settings: Dictionary = _load_editor_settings()
-	settings["last_selected_mod"] = mod_id
-	_save_editor_settings(settings)
+	_save_setting("last_selected_mod", mod_id)
 
 
 func _load_last_selected_mod() -> String:
-	var settings: Dictionary = _load_editor_settings()
-	return DictUtils.get_string(settings, "last_selected_mod", "")
+	return _load_setting("last_selected_mod", "")
 
 
 func _load_editor_settings() -> Dictionary:
 	if not FileAccess.file_exists(EDITOR_SETTINGS_PATH):
 		return {}
-
 	var file: FileAccess = FileAccess.open(EDITOR_SETTINGS_PATH, FileAccess.READ)
 	if not file:
 		return {}
-
 	var json_text: String = file.get_as_text()
 	file.close()
-
 	var parsed: Variant = JSON.parse_string(json_text)
-	if parsed is Dictionary:
-		return parsed
-
-	return {}
+	return parsed if parsed is Dictionary else {}
 
 
 func _save_editor_settings(settings: Dictionary) -> void:
@@ -611,9 +598,21 @@ func _save_editor_settings(settings: Dictionary) -> void:
 	if not file:
 		push_warning("Failed to save editor settings to: " + EDITOR_SETTINGS_PATH)
 		return
-
 	file.store_string(JSON.stringify(settings, "\t"))
 	file.close()
+
+
+## Helper: Save a single setting value
+func _save_setting(key: String, value: Variant) -> void:
+	var settings: Dictionary = _load_editor_settings()
+	settings[key] = value
+	_save_editor_settings(settings)
+
+
+## Helper: Load a single setting value with default
+func _load_setting(key: String, default: Variant) -> Variant:
+	var settings: Dictionary = _load_editor_settings()
+	return settings.get(key, default)
 
 
 # =============================================================================
@@ -624,8 +623,7 @@ func _show_create_mod_wizard() -> void:
 	if not create_mod_dialog:
 		_create_mod_wizard_dialog()
 
-	wizard_mod_id_edit.text = ""
-	wizard_mod_name_edit.text = ""
+	wizard_name_id_group.clear()
 	wizard_author_edit.text = ""
 	wizard_description_edit.text = ""
 	wizard_type_dropdown.select(0)
@@ -647,22 +645,18 @@ func _create_mod_wizard_dialog() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	create_mod_dialog.add_child(vbox)
 
-	var id_label: Label = Label.new()
-	id_label.text = "Mod ID (folder name, no spaces):"
-	vbox.add_child(id_label)
-
-	wizard_mod_id_edit = LineEdit.new()
-	wizard_mod_id_edit.placeholder_text = "my_awesome_mod"
-	wizard_mod_id_edit.text_changed.connect(_on_wizard_mod_id_changed)
-	vbox.add_child(wizard_mod_id_edit)
-
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	vbox.add_child(name_label)
-
-	wizard_mod_name_edit = LineEdit.new()
-	wizard_mod_name_edit.placeholder_text = "My Awesome Mod"
-	vbox.add_child(wizard_mod_name_edit)
+	# Use NameIdFieldGroup component for name/ID fields
+	wizard_name_id_group = NameIdFieldGroup.new()
+	wizard_name_id_group.name_label = "Mod Name:"
+	wizard_name_id_group.id_label = "Mod ID (folder name):"
+	wizard_name_id_group.name_placeholder = "My Awesome Mod"
+	wizard_name_id_group.id_placeholder = "my_awesome_mod"
+	wizard_name_id_group.name_tooltip = "Display name for your mod shown in mod lists"
+	wizard_name_id_group.id_tooltip = "Folder name and unique identifier. Auto-generates from name."
+	wizard_name_id_group.show_lock_button = false  # Wizard context - no lock needed
+	wizard_name_id_group.set_help_visible(false)  # Compact wizard layout
+	wizard_name_id_group.id_changed.connect(_on_wizard_id_changed)
+	vbox.add_child(wizard_name_id_group)
 
 	var author_label: Label = Label.new()
 	author_label.text = "Author:"
@@ -686,17 +680,14 @@ func _create_mod_wizard_dialog() -> void:
 	vbox.add_child(type_label)
 
 	wizard_type_dropdown = OptionButton.new()
-	wizard_type_dropdown.add_item("Content Expansion (Priority 100-199)")
+	wizard_type_dropdown.add_item("Content Mod (Priority 100-8999)")
 	wizard_type_dropdown.set_item_metadata(0, {"priority": 100, "type": "expansion"})
-	wizard_type_dropdown.add_item("Override Pack (Priority 500-899)")
-	wizard_type_dropdown.set_item_metadata(1, {"priority": 500, "type": "override"})
 	wizard_type_dropdown.add_item("Total Conversion (Priority 9000+)")
-	wizard_type_dropdown.set_item_metadata(2, {"priority": 9000, "type": "total_conversion"})
+	wizard_type_dropdown.set_item_metadata(1, {"priority": 9000, "type": "total_conversion"})
 	vbox.add_child(wizard_type_dropdown)
 
 	var type_help: Label = Label.new()
-	type_help.text = "Content Expansion: Adds new content alongside base game\n" + \
-		"Override Pack: Replaces specific base game content\n" + \
+	type_help.text = "Content Mod: Adds or overrides content (campaigns, patches, expansions)\n" + \
 		"Total Conversion: Completely replaces the base game"
 	type_help.add_theme_color_override("font_color", SparklingEditorUtils.get_disabled_color())
 	type_help.add_theme_font_size_override("font_size", 12)
@@ -708,17 +699,9 @@ func _create_mod_wizard_dialog() -> void:
 	vbox.add_child(wizard_error_label)
 
 
-func _on_wizard_mod_id_changed(new_id: String) -> void:
-	# Auto-generate display name from ID
-	if wizard_mod_name_edit.text.is_empty() or _is_auto_generated_name(wizard_mod_name_edit.text):
-		var words: PackedStringArray = new_id.split("_")
-		var title_words: Array = []
-		for word: String in words:
-			if not word.is_empty():
-				title_words.append(word.capitalize())
-		wizard_mod_name_edit.text = " ".join(title_words)
-
-	# Real-time validation feedback
+func _on_wizard_id_changed(new_id: String) -> void:
+	# Real-time validation feedback when ID changes
+	# (NameIdFieldGroup handles auto-generation and lock state internally)
 	_validate_wizard_mod_id(new_id)
 
 
@@ -740,19 +723,9 @@ func _validate_wizard_mod_id(mod_id: String) -> bool:
 	return true
 
 
-func _is_auto_generated_name(name: String) -> bool:
-	var id: String = wizard_mod_id_edit.text
-	var words: PackedStringArray = id.split("_")
-	var title_words: Array = []
-	for word: String in words:
-		if not word.is_empty():
-			title_words.append(word.capitalize())
-	return name == " ".join(title_words)
-
-
 func _on_create_mod_confirmed() -> void:
-	var mod_id: String = wizard_mod_id_edit.text.strip_edges()
-	var mod_name: String = wizard_mod_name_edit.text.strip_edges()
+	var mod_id: String = wizard_name_id_group.get_id_value()
+	var mod_name: String = wizard_name_id_group.get_name_value()
 	var author: String = wizard_author_edit.text.strip_edges()
 	var description: String = wizard_description_edit.text.strip_edges()
 	var type_data_value: Variant = wizard_type_dropdown.get_item_metadata(wizard_type_dropdown.selected)
@@ -866,10 +839,7 @@ func _create_mod_structure(mod_id: String, mod_name: String, author: String, des
 
 	var type_str: String = DictUtils.get_string(type_data, "type", "")
 	if type_str == "total_conversion":
-		mod_json["hidden_campaigns"] = ["_base_game:*"]
 		mod_json["party_config"] = {"replaces_lower_priority": true}
-	elif type_str == "override":
-		mod_json["party_config"] = {"replaces_lower_priority": false}
 
 	var json_path: String = mod_path + "mod.json"
 	var file: FileAccess = FileAccess.open(json_path, FileAccess.WRITE)
@@ -892,7 +862,7 @@ func _create_default_new_game_config(mod_path: String, mod_name: String) -> void
 	var config_path: String = mod_path + "data/new_game_configs/default_config.tres"
 
 	# Use preload to get the script reference
-	var config_script = preload("res://core/resources/new_game_config_data.gd")
+	var config_script: Script = preload("res://core/resources/new_game_config_data.gd")
 	var config: Resource = config_script.new()
 
 	# Set default values
@@ -900,7 +870,6 @@ func _create_default_new_game_config(mod_path: String, mod_name: String) -> void
 	config.config_name = mod_name + " Default"
 	config.config_description = "Default starting configuration for " + mod_name + ". Customize starting conditions here."
 	config.is_default = true
-	config.starting_campaign_id = ""
 	config.starting_location_label = ""
 	config.starting_gold = 0
 	config.starting_depot_items = []

@@ -4,9 +4,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Ability Editor UI
 ## Allows browsing and editing AbilityData resources
 
-var name_edit: LineEdit
-var ability_id_edit: LineEdit
-var ability_id_lock_btn: Button
+var name_id_group: NameIdFieldGroup
 var ability_type_option: OptionButton
 var target_type_option: OptionButton
 var description_edit: TextEdit
@@ -32,9 +30,6 @@ var effect_chance_spin: SpinBox
 
 # Track selected status effects
 var _selected_effects: Array[String] = []
-
-# Track if ID should auto-generate from name
-var _id_is_locked: bool = false
 
 # Animation and Audio
 var animation_edit: LineEdit
@@ -85,13 +80,8 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	name_edit.text = ability.ability_name
-	ability_id_edit.text = ability.ability_id
-
-	# Determine if ID is locked (custom ID different from auto-generated)
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(ability.ability_name)
-	_id_is_locked = (ability.ability_id != expected_auto_id) and not ability.ability_id.is_empty()
-	_update_lock_button()
+	# Load name/ID using component (auto-detects lock state)
+	name_id_group.set_values(ability.ability_name, ability.ability_id, true)
 
 	ability_type_option.selected = ability.ability_type
 	target_type_option.selected = ability.target_type
@@ -133,8 +123,8 @@ func _save_resource_data() -> void:
 		return
 
 	# Update ability data from UI
-	ability.ability_name = name_edit.text
-	ability.ability_id = ability_id_edit.text.strip_edges()
+	ability.ability_name = name_id_group.get_name_value()
+	ability.ability_id = name_id_group.get_id_value()
 	ability.ability_type = ability_type_option.selected
 	ability.target_type = target_type_option.selected
 	ability.description = description_edit.text
@@ -169,7 +159,7 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 
 	# Validate UI state (not resource state) since validation runs before _save_resource_data()
-	var ability_name: String = name_edit.text.strip_edges() if name_edit else ""
+	var ability_name: String = name_id_group.get_name_value() if name_id_group else ""
 	var min_range_val: int = int(min_range_spin.value) if min_range_spin else 0
 	var max_range_val: int = int(max_range_spin.value) if max_range_spin else 0
 	var area_of_effect_val: int = int(area_of_effect_spin.value) if area_of_effect_spin else 0
@@ -260,32 +250,20 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Basic Information")
 
-	name_edit = form.add_text_field("Ability Name:", "",
-		"Display name shown in battle menus. E.g., Blaze, Heal, Bolt.")
-	name_edit.text_changed.connect(_on_name_changed)
-
-	# Ability ID row with lock button
-	var id_container: HBoxContainer = HBoxContainer.new()
-	id_container.add_theme_constant_override("separation", 4)
-
-	ability_id_edit = LineEdit.new()
-	ability_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ability_id_edit.placeholder_text = "(auto-generated from name)"
-	ability_id_edit.tooltip_text = "Unique ID for referencing this ability in scripts. Auto-generates from name."
-	ability_id_edit.text_changed.connect(_on_id_manually_changed)
-	id_container.add_child(ability_id_edit)
-
-	ability_id_lock_btn = Button.new()
-	ability_id_lock_btn.text = "Lock"
-	ability_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
-	ability_id_lock_btn.custom_minimum_size.x = 60
-	ability_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_container.add_child(ability_id_lock_btn)
-
-	form.add_labeled_control("Ability ID:", id_container,
-		"Unique ID for referencing this ability. Auto-generates from name. Click lock to set custom ID.")
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Ability Name:"
+	name_id_group.id_label = "Ability ID:"
+	name_id_group.name_placeholder = "e.g., Blaze, Heal, Bolt"
+	name_id_group.id_placeholder = "(auto-generated from name)"
+	name_id_group.name_tooltip = "Display name shown in battle menus. E.g., Blaze, Heal, Bolt."
+	name_id_group.id_tooltip = "Unique ID for referencing this ability in scripts. Auto-generates from name."
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	form.container.add_child(name_id_group)
 
 	description_edit = form.add_text_area("Description:", 80,
 		"Tooltip text shown when hovering over ability in menus. Describe what it does.")
@@ -293,38 +271,34 @@ func _add_basic_info_section() -> void:
 
 func _add_type_targeting_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Type & Targeting")
 
-	# Ability Type - custom dropdown with specific IDs
-	ability_type_option = OptionButton.new()
-	ability_type_option.tooltip_text = "Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies."
-	ability_type_option.add_item("Attack", AbilityData.AbilityType.ATTACK)
-	ability_type_option.add_item("Heal", AbilityData.AbilityType.HEAL)
-	ability_type_option.add_item("Support", AbilityData.AbilityType.SUPPORT)
-	ability_type_option.add_item("Debuff", AbilityData.AbilityType.DEBUFF)
-	ability_type_option.add_item("Summon", AbilityData.AbilityType.SUMMON)
-	ability_type_option.add_item("Status", AbilityData.AbilityType.STATUS)
-	ability_type_option.add_item("Counter", AbilityData.AbilityType.COUNTER)
-	ability_type_option.add_item("Special", AbilityData.AbilityType.SPECIAL)
-	ability_type_option.add_item("Custom", AbilityData.AbilityType.CUSTOM)
-	form.add_labeled_control("Ability Type:", ability_type_option,
-		"Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies.")
+	ability_type_option = form.add_dropdown("Ability Type:", [
+		{"label": "Attack", "id": AbilityData.AbilityType.ATTACK},
+		{"label": "Heal", "id": AbilityData.AbilityType.HEAL},
+		{"label": "Support", "id": AbilityData.AbilityType.SUPPORT},
+		{"label": "Debuff", "id": AbilityData.AbilityType.DEBUFF},
+		{"label": "Summon", "id": AbilityData.AbilityType.SUMMON},
+		{"label": "Status", "id": AbilityData.AbilityType.STATUS},
+		{"label": "Counter", "id": AbilityData.AbilityType.COUNTER},
+		{"label": "Special", "id": AbilityData.AbilityType.SPECIAL},
+		{"label": "Custom", "id": AbilityData.AbilityType.CUSTOM},
+	], "Category for AI and UI. Attack = damage. Heal = restore HP. Support = buffs. Debuff = weaken enemies.")
 
-	# Target Type - custom dropdown with specific IDs
-	target_type_option = OptionButton.new()
-	target_type_option.tooltip_text = "Who can be targeted. Single = one target. All = entire side. Area = splash around a point."
-	target_type_option.add_item("Single Enemy", AbilityData.TargetType.SINGLE_ENEMY)
-	target_type_option.add_item("Single Ally", AbilityData.TargetType.SINGLE_ALLY)
-	target_type_option.add_item("Self", AbilityData.TargetType.SELF)
-	target_type_option.add_item("All Enemies", AbilityData.TargetType.ALL_ENEMIES)
-	target_type_option.add_item("All Allies", AbilityData.TargetType.ALL_ALLIES)
-	target_type_option.add_item("Area", AbilityData.TargetType.AREA)
-	form.add_labeled_control("Target Type:", target_type_option,
-		"Who can be targeted. Single = one target. All = entire side. Area = splash around a point.")
+	target_type_option = form.add_dropdown("Target Type:", [
+		{"label": "Single Enemy", "id": AbilityData.TargetType.SINGLE_ENEMY},
+		{"label": "Single Ally", "id": AbilityData.TargetType.SINGLE_ALLY},
+		{"label": "Self", "id": AbilityData.TargetType.SELF},
+		{"label": "All Enemies", "id": AbilityData.TargetType.ALL_ENEMIES},
+		{"label": "All Allies", "id": AbilityData.TargetType.ALL_ALLIES},
+		{"label": "Area", "id": AbilityData.TargetType.AREA},
+	], "Who can be targeted. Single = one target. All = entire side. Area = splash around a point.")
 
 
 func _add_range_area_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Range & Area of Effect")
 
 	min_range_spin = form.add_number_field("Min Range:", 0, 20, 1,
@@ -339,6 +313,7 @@ func _add_range_area_section() -> void:
 
 func _add_cost_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Cost")
 
 	mp_cost_spin = form.add_number_field("MP Cost:", 0, 999, 0,
@@ -350,6 +325,7 @@ func _add_cost_section() -> void:
 
 func _add_potency_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Potency")
 
 	potency_spin = form.add_number_field("Potency:", 0, 999, 10,
@@ -361,6 +337,7 @@ func _add_potency_section() -> void:
 
 func _add_effects_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Status Effects")
 
 	# Status Effects picker - custom control with MenuButton + Label
@@ -392,6 +369,7 @@ func _add_effects_section() -> void:
 
 func _add_animation_audio_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Animation & Audio")
 
 	animation_edit = form.add_text_field("Animation Name:", "e.g., slash, heal_sparkle",
@@ -455,6 +433,8 @@ func _on_status_effect_toggled(index: int) -> void:
 		popup.set_item_checked(index, true)
 
 	_update_status_effects_display()
+	if not _updating_ui:
+		_mark_dirty()
 
 
 ## Update the label showing currently selected effects
@@ -487,40 +467,11 @@ func _refresh_menu_checkboxes() -> void:
 
 
 # =============================================================================
-# ID AUTO-GENERATION HANDLERS
+# NAME/ID CHANGE HANDLER
 # =============================================================================
 
-## Called when the ability name changes - auto-generates ID if not locked
-func _on_name_changed(new_name: String) -> void:
+## Called when name or ID changes in the NameIdFieldGroup
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		ability_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_mark_dirty()
-
-
-## Called when the ID field is manually edited
-func _on_id_manually_changed(_text: String) -> void:
-	if _updating_ui:
-		return
-	# If user is editing the ID field directly, lock it
-	if not _id_is_locked and ability_id_edit.has_focus():
-		_id_is_locked = true
-		_update_lock_button()
-	_mark_dirty()
-
-
-## Called when the lock/unlock button is pressed
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	# If unlocking, regenerate the ID from current name
-	if not _id_is_locked:
-		ability_id_edit.text = SparklingEditorUtils.generate_id_from_name(name_edit.text)
-	_mark_dirty()
-
-
-## Update the lock button text and tooltip based on lock state
-func _update_lock_button() -> void:
-	ability_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
-	ability_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"

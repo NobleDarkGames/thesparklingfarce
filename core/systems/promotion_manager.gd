@@ -48,26 +48,11 @@ signal equipment_unequipped(unit: Unit, items: Array)
 
 
 # ============================================================================
-# CONFIGURATION
-# ============================================================================
-
-## Reference to ExperienceConfig for promotion bonuses.
-## Set automatically from ExperienceManager.
-var _experience_config: ExperienceConfig = null
-
-
-# ============================================================================
 # INITIALIZATION
 # ============================================================================
 
 func _ready() -> void:
-	# Get config from ExperienceManager when available
-	call_deferred("_connect_to_experience_manager")
-
-
-func _connect_to_experience_manager() -> void:
-	if ExperienceManager and ExperienceManager.config:
-		_experience_config = ExperienceManager.config
+	pass
 
 
 # ============================================================================
@@ -192,9 +177,8 @@ func _has_required_item(_unit: Unit, required_item: ItemData) -> bool:
 			if item_slot == required_item.resource_path:
 				return true
 	
-	# Fallback: assume item is available
-	push_warning("PromotionManager: Required item not found in inventory, allowing promotion")
-	return true
+	# Item not found in inventory - promotion not allowed
+	return false
 
 
 ## Check if unit has the required item for a specific promotion path.
@@ -219,18 +203,13 @@ func has_item_for_promotion(unit: Unit, target_class: ClassData) -> bool:
 ## DEPRECATED: Use has_item_for_promotion instead.
 ## Kept for backward compatibility.
 func has_item_for_special_promotion(unit: Unit, class_data: ClassData = null) -> bool:
-	if class_data == null:
-		class_data = _get_unit_class(unit)
-
-	if not class_data:
+	var unit_class: ClassData = class_data if class_data else _get_unit_class(unit)
+	if not unit_class:
 		return false
 
-	# Find any item-gated path and check if we have its item
-	for path: PromotionPath in class_data.get_promotion_path_resources():
-		if path.requires_item():
-			if _has_required_item(unit, path.required_item):
-				return true
-
+	for path: PromotionPath in unit_class.get_promotion_path_resources():
+		if path.requires_item() and _has_required_item(unit, path.required_item):
+			return true
 	return false
 
 
@@ -289,8 +268,8 @@ func execute_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	var cumulative_before: int = _get_cumulative_level(unit)
 	var current_level: int = unit.stats.level
 
-	# Apply promotion stat bonuses
-	stat_changes = _calculate_promotion_bonuses()
+	# Apply promotion stat bonuses from the target class
+	stat_changes = _calculate_promotion_bonuses(target_class)
 	_apply_stat_bonuses(unit, stat_changes)
 
 	# Update class reference
@@ -352,7 +331,7 @@ func preview_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	preview["valid"] = target_class in get_available_promotions(unit)
 	preview["old_class_name"] = old_class.display_name
 	preview["new_class_name"] = target_class.display_name
-	preview["stat_bonuses"] = _calculate_promotion_bonuses()
+	preview["stat_bonuses"] = _calculate_promotion_bonuses(target_class)
 	preview["is_special_promotion"] = _is_item_gated_promotion(old_class, target_class)
 
 	# Equipment compatibility check
@@ -424,21 +403,14 @@ func _get_equipment_conflicts(unit: Unit, new_class: ClassData) -> Array:
 ## @return: Array of equipped ItemData
 func _get_unit_equipped_items(unit: Unit) -> Array[ItemData]:
 	var items: Array[ItemData] = []
-	
-	# Get save data to access equipment
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if not save_data:
 		return items
-	
-	# Get equipped items from EquipmentManager
+
 	var equipped_dict: Dictionary = EquipmentManager.get_equipped_items(save_data)
-	
-	# Convert dictionary values to array
-	for slot_id: String in equipped_dict.keys():
-		var item: ItemData = equipped_dict[slot_id] as ItemData
-		if item:
+	for item: Variant in equipped_dict.values():
+		if item is ItemData:
 			items.append(item)
-	
 	return items
 
 
@@ -446,21 +418,24 @@ func _get_unit_equipped_items(unit: Unit) -> Array[ItemData]:
 # STAT BONUSES
 # ============================================================================
 
-## Calculate promotion stat bonuses from config.
+## Calculate promotion stat bonuses from the target class.
+## Promotion bonuses come from the TARGET class (the class being promoted to),
+## applied instantly on promotion.
+## @param target_class: The ClassData being promoted to
 ## @return: Dictionary of stat bonuses {stat_name: bonus_value}
-func _calculate_promotion_bonuses() -> Dictionary:
+func _calculate_promotion_bonuses(target_class: ClassData) -> Dictionary:
 	var bonuses: Dictionary = {}
 
-	if not _experience_config:
+	if not target_class:
 		return bonuses
 
-	# Check for promotion bonus properties in config
+	# Read promotion bonus properties from the target class
 	var bonus_stats: Array[String] = ["hp", "mp", "strength", "defense", "agility", "intelligence", "luck"]
 
 	for stat: String in bonus_stats:
-		var config_key: String = "promotion_bonus_" + stat
-		if config_key in _experience_config:
-			var bonus: int = _experience_config.get(config_key)
+		var property_key: String = "promotion_bonus_" + stat
+		if property_key in target_class:
+			var bonus: int = target_class.get(property_key)
 			if bonus > 0:
 				bonuses[stat] = bonus
 
@@ -614,11 +589,7 @@ func _get_cumulative_level(unit: Unit) -> int:
 	var save_data: CharacterSaveData = _get_unit_save_data(unit)
 	if save_data:
 		return save_data.cumulative_level
-
-	# Fallback: return current level if no save data
-	if unit.stats:
-		return unit.stats.level
-	return 1
+	return unit.stats.level if unit.stats else 1
 
 
 ## Set cumulative level in unit's save data.

@@ -72,13 +72,16 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	# Clean up ShopManager signal connections to prevent stale references
-	if ShopManager:
-		if ShopManager.shop_opened.is_connected(_on_shop_manager_opened):
-			ShopManager.shop_opened.disconnect(_on_shop_manager_opened)
-		if ShopManager.shop_closed.is_connected(_on_shop_manager_closed):
-			ShopManager.shop_closed.disconnect(_on_shop_manager_closed)
-		if ShopManager.gold_changed.is_connected(_on_gold_changed):
-			ShopManager.gold_changed.disconnect(_on_gold_changed)
+	if not ShopManager:
+		return
+	_disconnect_if_connected(ShopManager.shop_opened, _on_shop_manager_opened)
+	_disconnect_if_connected(ShopManager.shop_closed, _on_shop_manager_closed)
+	_disconnect_if_connected(ShopManager.gold_changed, _on_gold_changed)
+
+
+func _disconnect_if_connected(sig: Signal, method: Callable) -> void:
+	if sig.is_connected(method):
+		sig.disconnect(method)
 
 
 ## Called when ShopManager opens a shop
@@ -202,24 +205,20 @@ func _transition_to_screen(screen_name: String) -> void:
 func _get_screen_scene(screen_name: String) -> PackedScene:
 	# Return cached if available
 	if screen_name in _screen_scenes:
-		var cached: Variant = _screen_scenes[screen_name]
-		return cached if cached is PackedScene else null
+		return _screen_scenes[screen_name] as PackedScene
 
 	# Check if path exists
 	if screen_name not in SCREEN_PATHS:
 		push_error("ShopController: Unknown screen name '%s'" % screen_name)
 		return null
 
-	var path: String = DictUtils.get_string(SCREEN_PATHS, screen_name, "")
-
-	# Check if file exists before loading
+	var path: String = SCREEN_PATHS[screen_name]
 	if not ResourceLoader.exists(path):
 		push_error("ShopController: Screen scene not found at '%s'" % path)
 		return null
 
 	# Load and cache
-	var loaded: Resource = load(path)
-	var scene: PackedScene = loaded if loaded is PackedScene else null
+	var scene: PackedScene = load(path) as PackedScene
 	if scene:
 		_screen_scenes[screen_name] = scene
 	return scene

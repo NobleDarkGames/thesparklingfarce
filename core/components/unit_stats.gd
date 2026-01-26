@@ -110,37 +110,34 @@ func calculate_from_character(character: CharacterData) -> void:
 	current_hp = max_hp
 	current_mp = max_mp
 
+	# Initialize XP threshold from config (allows mods to customize progression)
+	if ExperienceManager.config:
+		xp_to_next_level = ExperienceManager.config.xp_per_level
+
+
+## Apply or remove equipment stat modifiers
+## multiplier: 1 to apply, -1 to remove
+func _modify_stats_from_item(item: ItemData, multiplier: int) -> void:
+	if item == null:
+		return
+	max_hp += item.hp_modifier * multiplier
+	max_mp += item.mp_modifier * multiplier
+	strength += item.strength_modifier * multiplier
+	defense += item.defense_modifier * multiplier
+	agility += item.agility_modifier * multiplier
+	intelligence += item.intelligence_modifier * multiplier
+	luck += item.luck_modifier * multiplier
+
 
 ## Apply bonuses from equipped item
 func apply_equipment_bonus(item: ItemData) -> void:
-	if item == null:
-		return
-
-	# Apply stat modifiers
-	max_hp += item.hp_modifier
-	max_mp += item.mp_modifier
-	strength += item.strength_modifier
-	defense += item.defense_modifier
-	agility += item.agility_modifier
-	intelligence += item.intelligence_modifier
-	luck += item.luck_modifier
+	_modify_stats_from_item(item, 1)
 
 
 ## Remove bonuses from equipped item (when unequipping)
 func remove_equipment_bonus(item: ItemData) -> void:
-	if item == null:
-		return
-
-	# Remove stat modifiers
-	max_hp -= item.hp_modifier
-	max_mp -= item.mp_modifier
-	strength -= item.strength_modifier
-	defense -= item.defense_modifier
-	agility -= item.agility_modifier
-	intelligence -= item.intelligence_modifier
-	luck -= item.luck_modifier
-
-	# Clamp current HP/MP
+	_modify_stats_from_item(item, -1)
+	# Clamp current HP/MP after removal
 	current_hp = mini(current_hp, max_hp)
 	current_mp = mini(current_mp, max_mp)
 
@@ -188,6 +185,29 @@ func load_equipment_from_save(save_data: CharacterSaveData) -> void:
 		equipment_agility_bonus += item.agility_modifier
 		equipment_intelligence_bonus += item.intelligence_modifier
 		equipment_luck_bonus += item.luck_modifier
+
+
+## Load stats from CharacterSaveData (preserves persistent state)
+func load_from_save_data(save_data: CharacterSaveData, p_character_data: CharacterData) -> void:
+	# Load base stats from save data
+	level = save_data.level
+	current_xp = save_data.current_xp
+	max_hp = save_data.max_hp
+	current_hp = save_data.current_hp
+	max_mp = save_data.max_mp
+	current_mp = save_data.current_mp
+	strength = save_data.strength
+	defense = save_data.defense
+	agility = save_data.agility
+	intelligence = save_data.intelligence
+	luck = save_data.luck
+
+	# Store character and class references
+	character_data = p_character_data
+	class_data = save_data.get_current_class(p_character_data)
+
+	# Load equipment from save data
+	load_equipment_from_save(save_data)
 
 
 ## Get weapon attack power (0 if no weapon equipped)
@@ -244,89 +264,75 @@ func get_weapon_crit_rate() -> int:
 	return 5
 
 
-## Get effective strength (base + equipment + buffs)
-func get_effective_strength() -> int:
-	var total: int = strength + equipment_strength_bonus
-
-	# Add strength buffs
+## Helper to sum stat modifiers from all active status effects (data-driven)
+func _get_status_stat_modifier(stat_name: String) -> int:
+	var total: int = 0
 	for effect: Dictionary in status_effects:
 		var effect_type: String = effect.get("type", "")
-		var effect_potency: int = effect.get("potency", 0)
-		if effect_type == "attack_up":
-			total += effect_potency
-		elif effect_type == "attack_down":
-			total -= effect_potency
+		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
+		if effect_data:
+			total += effect_data.get_stat_modifier(stat_name)
+	return total
 
-	return maxi(0, total)
+
+## Calculate effective stat value (base + equipment + status effects)
+func _get_effective_stat(base: int, equipment_bonus: int, stat_name: String, min_value: int = 0) -> int:
+	var total: int = base + equipment_bonus + _get_status_stat_modifier(stat_name)
+	return maxi(min_value, total)
+
+
+## Get effective strength (base + equipment + buffs)
+func get_effective_strength() -> int:
+	return _get_effective_stat(strength, equipment_strength_bonus, "strength")
 
 
 ## Get effective defense (base + equipment + buffs)
 func get_effective_defense() -> int:
-	var total: int = defense + equipment_defense_bonus
-
-	# Add defense buffs
-	for effect: Dictionary in status_effects:
-		var effect_type: String = effect.get("type", "")
-		var effect_potency: int = effect.get("potency", 0)
-		if effect_type == "defense_up":
-			total += effect_potency
-		elif effect_type == "defense_down":
-			total -= effect_potency
-
-	return maxi(0, total)
+	return _get_effective_stat(defense, equipment_defense_bonus, "defense")
 
 
 ## Get effective agility (base + equipment + buffs)
 func get_effective_agility() -> int:
-	var total: int = agility + equipment_agility_bonus
-
-	# Add agility buffs
-	for effect: Dictionary in status_effects:
-		var effect_type: String = effect.get("type", "")
-		var effect_potency: int = effect.get("potency", 0)
-		if effect_type == "speed_up":
-			total += effect_potency
-		elif effect_type == "speed_down":
-			total -= effect_potency
-
-	return maxi(0, total)
+	return _get_effective_stat(agility, equipment_agility_bonus, "agility")
 
 
 ## Get effective intelligence (base + equipment + buffs)
 func get_effective_intelligence() -> int:
-	var total: int = intelligence + equipment_intelligence_bonus
-	return maxi(0, total)
+	return _get_effective_stat(intelligence, equipment_intelligence_bonus, "intelligence")
 
 
-## Get effective luck (base + equipment)
+## Get effective luck (base + equipment + buffs)
 func get_effective_luck() -> int:
-	return maxi(0, luck + equipment_luck_bonus)
+	return _get_effective_stat(luck, equipment_luck_bonus, "luck")
 
 
-## Get effective max HP (base + equipment)
+## Get effective max HP (base + equipment + buffs)
 func get_effective_max_hp() -> int:
-	return maxi(1, max_hp + equipment_hp_bonus)
+	return _get_effective_stat(max_hp, equipment_hp_bonus, "max_hp", 1)
 
 
-## Get effective max MP (base + equipment)
+## Get effective max MP (base + equipment + buffs)
 func get_effective_max_mp() -> int:
-	return maxi(0, max_mp + equipment_mp_bonus)
+	return _get_effective_stat(max_mp, equipment_mp_bonus, "max_mp")
+
+
+## Find status effect by type, returns null if not found
+func _find_status_effect(effect_type: String) -> Dictionary:
+	for effect: Dictionary in status_effects:
+		if effect.get("type", "") == effect_type:
+			return effect
+	return {}
 
 
 ## Add a status effect
 func add_status_effect(effect_type: String, duration: int, potency: int = 0) -> void:
-	# Check if effect already exists
-	for effect: Dictionary in status_effects:
-		var existing_type: String = effect.get("type", "")
-		if existing_type == effect_type:
-			# Refresh duration and potency
-			var existing_duration: int = effect.get("duration", 0)
-			var existing_potency: int = effect.get("potency", 0)
-			effect["duration"] = maxi(existing_duration, duration)
-			effect["potency"] = maxi(existing_potency, potency)
-			return
+	var existing: Dictionary = _find_status_effect(effect_type)
+	if not existing.is_empty():
+		# Refresh duration and potency to higher values
+		existing["duration"] = maxi(existing.get("duration", 0), duration)
+		existing["potency"] = maxi(existing.get("potency", 0), potency)
+		return
 
-	# Add new effect
 	status_effects.append({
 		"type": effect_type,
 		"duration": duration,
@@ -337,19 +343,13 @@ func add_status_effect(effect_type: String, duration: int, potency: int = 0) -> 
 ## Remove a status effect by type
 func remove_status_effect(effect_type: String) -> void:
 	for i: int in range(status_effects.size() - 1, -1, -1):
-		var effect: Dictionary = status_effects[i]
-		var existing_type: String = effect.get("type", "")
-		if existing_type == effect_type:
+		if status_effects[i].get("type", "") == effect_type:
 			status_effects.remove_at(i)
 
 
 ## Check if unit has a specific status effect
 func has_status_effect(effect_type: String) -> bool:
-	for effect: Dictionary in status_effects:
-		var existing_type: String = effect.get("type", "")
-		if existing_type == effect_type:
-			return true
-	return false
+	return not _find_status_effect(effect_type).is_empty()
 
 
 ## Process status effects at end of turn

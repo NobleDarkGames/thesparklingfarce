@@ -419,67 +419,32 @@ func get_turn_number() -> int:
 ## Process terrain effects for a unit at the start of their turn
 ## Returns true if the unit died from terrain damage
 func _process_terrain_effects(unit: Unit) -> bool:
-	if not unit or not unit.is_alive():
+	if not _is_valid_living_unit(unit):
 		return false
 
-	# Get terrain at unit's position
 	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit.grid_position)
 	if terrain == null:
 		return false
 
-	# Flying units are immune to ground-based terrain damage
-	var unit_class: ClassData = unit.get_current_class()
-	if unit_class:
-		var movement_type: int = unit_class.movement_type
-		if movement_type == ClassData.MovementType.FLYING:
-			return false  # Flying units ignore terrain DoT
+	# Flying units are immune to ALL terrain effects (damage AND healing)
+	if _is_flying_unit(unit):
+		return false
 
 	# Apply terrain damage
 	if terrain.damage_per_turn > 0:
 		if not is_headless:
-			_show_terrain_popup(unit, "-%d (%s)" % [terrain.damage_per_turn, terrain.display_name], Color.RED)
-
-		if unit.has_method("take_damage"):
-			unit.take_damage(terrain.damage_per_turn)
-		elif unit.stats:
-			unit.stats.current_hp -= terrain.damage_per_turn
-			unit.stats.current_hp = maxi(0, unit.stats.current_hp)
-
-		# Check if unit died
-		if unit.has_method("is_dead"):
-			if unit.is_dead():
-				return true
-		elif unit.stats and unit.stats.current_hp <= 0:
+			_show_popup(unit, "-%d (%s)" % [terrain.damage_per_turn, terrain.display_name], Color.RED)
+		_apply_damage_to_unit(unit, terrain.damage_per_turn)
+		if _is_unit_dead(unit):
 			return true
 
 	# Apply terrain healing
 	if terrain.healing_per_turn > 0 and unit.stats:
-		var max_hp: int = unit.stats.get_effective_max_hp() if unit.stats.has_method("get_effective_max_hp") else unit.stats.max_hp
-		var old_hp: int = unit.stats.current_hp
-		unit.stats.current_hp = mini(unit.stats.current_hp + terrain.healing_per_turn, max_hp)
-		var healed: int = unit.stats.current_hp - old_hp
+		var healed: int = _apply_healing_to_unit(unit, terrain.healing_per_turn)
 		if healed > 0 and not is_headless:
-			_show_terrain_popup(unit, "+%d (%s)" % [healed, terrain.display_name], Color.GREEN)
+			_show_popup(unit, "+%d (%s)" % [healed, terrain.display_name], Color.GREEN)
 
 	return false
-
-
-## Show a popup for terrain effects (damage or healing)
-func _show_terrain_popup(unit: Unit, message: String, color: Color) -> void:
-	var label: Label = Label.new()
-	label.text = message
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_font_size_override("font_size", 16)
-	label.position = unit.position + Vector2(0, -20)
-	label.z_index = 100
-
-	if unit.get_parent():
-		unit.get_parent().add_child(label)
-		_active_popup_labels.append(label)
-		var tween: Tween = label.create_tween()
-		tween.tween_property(label, "position:y", label.position.y - 30, 0.8)
-		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)
-		tween.tween_callback(_remove_popup_label.bind(label))
 
 
 ## Process status effects for a unit at the start of their turn
@@ -491,7 +456,7 @@ func _show_terrain_popup(unit: Unit, message: String, color: Color) -> void:
 func _process_status_effects(unit: Unit) -> Dictionary:
 	var result: Dictionary = {"skip_turn": false, "died": false}
 
-	if not unit or not unit.is_alive() or not unit.stats:
+	if not _is_valid_living_unit(unit) or not unit.stats:
 		return result
 
 	var stats: UnitStats = unit.stats
@@ -520,7 +485,7 @@ func _process_status_effects(unit: Unit) -> Dictionary:
 			# Still show visual feedback for non-TURN_START effects
 			if effect_data.trigger_timing == StatusEffectData.TriggerTiming.ON_ACTION:
 				if not is_headless:
-					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+					_show_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
 					showed_popup = true
 			continue
 
@@ -532,31 +497,24 @@ func _process_status_effects(unit: Unit) -> Dictionary:
 					# Recovered!
 					effects_to_remove.append(effect_type)
 					if not is_headless:
-						_show_status_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
+						_show_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
 						showed_popup = true
 					continue
 
 			# Still affected - skip turn
 			result.skip_turn = true
 			if not is_headless:
-				_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+				_show_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
 				showed_popup = true
 
 		# Handle damage over time
 		if effect_data.damage_per_turn != 0:
+			if not is_headless:
+				_show_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
+				showed_popup = true
+
 			if effect_data.damage_per_turn > 0:
-				# Damage
-				if not is_headless:
-					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
-					showed_popup = true
-
-				if unit.has_method("take_damage"):
-					unit.take_damage(effect_data.damage_per_turn)
-				else:
-					stats.current_hp -= effect_data.damage_per_turn
-					stats.current_hp = maxi(0, stats.current_hp)
-
-				# Check for death
+				_apply_damage_to_unit(unit, effect_data.damage_per_turn)
 				if not unit.is_alive():
 					result.died = true
 					return result
@@ -567,10 +525,6 @@ func _process_status_effects(unit: Unit) -> Dictionary:
 					unit.heal(heal_amount)
 				else:
 					stats.current_hp = mini(stats.current_hp + heal_amount, stats.max_hp)
-
-				if not is_headless:
-					_show_status_popup(unit, effect_data.get_popup_text(), effect_data.popup_color)
-					showed_popup = true
 
 		# Decrement duration
 		effect_state.duration -= 1
@@ -603,14 +557,14 @@ func _process_legacy_status_effect(
 			# Poison damage is handled at END of turn via UnitStats.process_status_effects()
 			# Just show visual feedback here at turn start
 			if not is_headless:
-				_show_status_popup(unit, "Poisoned!", Color(0.6, 0.2, 0.8))
+				_show_popup(unit, "Poisoned!", Color(0.6, 0.2, 0.8))
 				result.showed_popup = true
 
 		"sleep":
 			# Sleep: skip turn, show message
 			result.skip_turn = true
 			if not is_headless:
-				_show_status_popup(unit, "Asleep!", Color(0.4, 0.4, 1.0))
+				_show_popup(unit, "Asleep!", Color(0.4, 0.4, 1.0))
 				result.showed_popup = true
 
 		"paralysis":
@@ -620,20 +574,20 @@ func _process_legacy_status_effect(
 				# Recovered from paralysis!
 				effects_to_remove.append("paralysis")
 				if not is_headless:
-					_show_status_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
+					_show_popup(unit, "Recovered!", Color(0.2, 1.0, 0.2))
 					result.showed_popup = true
 			else:
 				# Still paralyzed
 				result.skip_turn = true
 				if not is_headless:
-					_show_status_popup(unit, "Paralyzed!", Color(1.0, 1.0, 0.2))
+					_show_popup(unit, "Paralyzed!", Color(1.0, 1.0, 0.2))
 					result.showed_popup = true
 
 		"confusion":
 			# Confusion is handled during action selection, not here
 			# Just show visual feedback
 			if not is_headless:
-				_show_status_popup(unit, "Confused!", Color(1.0, 0.5, 0.7))
+				_show_popup(unit, "Confused!", Color(1.0, 0.5, 0.7))
 				result.showed_popup = true
 
 		"attack_up", "attack_down", "defense_up", "defense_down", "speed_up", "speed_down":
@@ -644,7 +598,7 @@ func _process_legacy_status_effect(
 		"regen":
 			# Regen healing is handled at END of turn via UnitStats.process_status_effects()
 			if not is_headless:
-				_show_status_popup(unit, "Regenerating", Color(0.2, 1.0, 0.5))
+				_show_popup(unit, "Regenerating", Color(0.2, 1.0, 0.5))
 				result.showed_popup = true
 
 		_:
@@ -659,23 +613,23 @@ func _process_legacy_status_effect(
 	return result
 
 
-## Show a status effect popup above unit
-func _show_status_popup(unit: Unit, message: String, color: Color) -> void:
+## Show a popup above unit (unified for terrain and status effects)
+## offset_y: vertical offset from unit position (negative = above)
+## duration: animation duration in seconds
+func _show_popup(unit: Unit, message: String, color: Color, offset_y: float = -30.0, duration: float = 0.6) -> void:
 	var label: Label = Label.new()
 	label.text = message
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_font_size_override("font_size", 16)
-	label.position = unit.position + Vector2(0, -30)
+	label.position = unit.position + Vector2(0, offset_y)
 	label.z_index = 100
 
 	if unit.get_parent():
 		unit.get_parent().add_child(label)
 		_active_popup_labels.append(label)
-
-		# Animate and remove
 		var tween: Tween = label.create_tween()
-		tween.tween_property(label, "position:y", label.position.y - 20, 0.6)
-		tween.parallel().tween_property(label, "modulate:a", 0.0, 0.6)
+		tween.tween_property(label, "position:y", label.position.y - 20, duration)
+		tween.parallel().tween_property(label, "modulate:a", 0.0, duration)
 		tween.tween_callback(_remove_popup_label.bind(label))
 
 
@@ -691,6 +645,51 @@ func _remove_popup_label(label: Label) -> void:
 	_active_popup_labels.erase(label)
 	if is_instance_valid(label):
 		label.queue_free()
+
+
+# =============================================================================
+# UNIT HELPERS
+# =============================================================================
+
+## Check if unit is valid and alive
+func _is_valid_living_unit(unit: Unit) -> bool:
+	return unit != null and unit.is_alive()
+
+
+## Check if unit is a flying unit (immune to terrain effects)
+func _is_flying_unit(unit: Unit) -> bool:
+	var unit_class: ClassData = unit.get_current_class()
+	if unit_class:
+		return unit_class.movement_type == ClassData.MovementType.FLYING
+	return false
+
+
+## Check if unit is dead using available methods
+func _is_unit_dead(unit: Unit) -> bool:
+	if unit.has_method("is_dead"):
+		return unit.is_dead()
+	if unit.stats:
+		return unit.stats.current_hp <= 0
+	return false
+
+
+## Apply damage to unit using best available method
+func _apply_damage_to_unit(unit: Unit, damage: int) -> void:
+	if unit.has_method("take_damage"):
+		unit.take_damage(damage)
+	elif unit.stats:
+		unit.stats.current_hp -= damage
+		unit.stats.current_hp = maxi(0, unit.stats.current_hp)
+
+
+## Apply healing to unit. Returns actual amount healed.
+func _apply_healing_to_unit(unit: Unit, amount: int) -> int:
+	if not unit.stats:
+		return 0
+	var max_hp: int = unit.stats.get_effective_max_hp() if unit.stats.has_method("get_effective_max_hp") else unit.stats.max_hp
+	var old_hp: int = unit.stats.current_hp
+	unit.stats.current_hp = mini(unit.stats.current_hp + amount, max_hp)
+	return unit.stats.current_hp - old_hp
 
 
 ## Clear battle state (call when exiting battle)

@@ -5,6 +5,13 @@
 class_name TestPromotionManager
 extends GdUnitTestSuite
 
+
+# =============================================================================
+# TEST CONSTANTS
+# =============================================================================
+
+const TEST_MOD_ID: String = "_test_promotion_manager"
+
 # Preload resources that may not be indexed yet during test runs
 const PromotionPathScript = preload("res://core/resources/promotion_path.gd")
 const ClassDataScript = preload("res://core/resources/class_data.gd")
@@ -294,20 +301,20 @@ func test_character_save_data_serialization_includes_promotion() -> void:
 	var save_data: CharacterSaveData = CharacterSaveData.new()
 	save_data.cumulative_level = 15
 	save_data.promotion_count = 1
-	save_data.current_class_mod_id = "_base_game"
+	save_data.current_class_mod_id = TEST_MOD_ID
 	save_data.current_class_resource_id = "gladiator"
 
 	var serialized: Dictionary = save_data.serialize_to_dict()
 
 	assert_int(serialized.cumulative_level).is_equal(15)
 	assert_int(serialized.promotion_count).is_equal(1)
-	assert_str(serialized.current_class_mod_id).is_equal("_base_game")
+	assert_str(serialized.current_class_mod_id).is_equal(TEST_MOD_ID)
 	assert_str(serialized.current_class_resource_id).is_equal("gladiator")
 
 
 func test_character_save_data_deserialization_handles_promotion() -> void:
 	var data: Dictionary = {
-		"character_mod_id": "_base_game",
+		"character_mod_id": TEST_MOD_ID,
 		"character_resource_id": "max",
 		"fallback_character_name": "Max",
 		"fallback_class_name": "Warrior",
@@ -330,7 +337,7 @@ func test_character_save_data_deserialization_handles_promotion() -> void:
 		"recruitment_chapter": "",
 		"cumulative_level": 25,
 		"promotion_count": 2,
-		"current_class_mod_id": "_base_game",
+		"current_class_mod_id": TEST_MOD_ID,
 		"current_class_resource_id": "hero"
 	}
 
@@ -339,14 +346,14 @@ func test_character_save_data_deserialization_handles_promotion() -> void:
 
 	assert_int(save_data.cumulative_level).is_equal(25)
 	assert_int(save_data.promotion_count).is_equal(2)
-	assert_str(save_data.current_class_mod_id).is_equal("_base_game")
+	assert_str(save_data.current_class_mod_id).is_equal(TEST_MOD_ID)
 	assert_str(save_data.current_class_resource_id).is_equal("hero")
 
 
 func test_character_save_data_deserialization_handles_missing_promotion_fields() -> void:
 	# Test backward compatibility with saves without promotion fields
 	var data: Dictionary = {
-		"character_mod_id": "_base_game",
+		"character_mod_id": TEST_MOD_ID,
 		"character_resource_id": "max",
 		"fallback_character_name": "Max",
 		"fallback_class_name": "Warrior",

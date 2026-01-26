@@ -73,6 +73,80 @@ var _save_data: SaveData = null
 
 
 # ============================================================================
+# RESULT HELPERS
+# ============================================================================
+
+## Create a failed transaction result
+func _fail(error: String, extra: Dictionary = {}) -> Dictionary:
+	var result: Dictionary = {success = false, error = error, transaction = {}}
+	result.merge(extra)
+	return result
+
+
+## Create a failed church result
+func _fail_church(error: String, cost: int = 0) -> Dictionary:
+	return {success = false, error = error, cost = cost}
+
+
+## Create a failed church promotion result
+func _fail_promotion(error: String, cost: int = 0) -> Dictionary:
+	return {success = false, error = error, cost = cost, stat_changes = {}}
+
+
+# ============================================================================
+# VALIDATION HELPERS
+# ============================================================================
+
+## Validate basic buy parameters. Returns error string or empty if valid.
+func _validate_buy_basics(item_id: String, quantity: int) -> String:
+	if not current_shop:
+		return "No shop is open"
+	if item_id.is_empty():
+		return "Invalid item ID"
+	if quantity < 1:
+		return "Invalid quantity"
+	return ""
+
+
+## Validate basic sell parameters. Returns error string or empty if valid.
+func _validate_sell_basics(item_id: String, quantity: int, source: String) -> String:
+	if not current_shop:
+		return "No shop is open"
+	if not current_shop.can_sell:
+		return "This shop doesn't buy items"
+	if item_id.is_empty():
+		return "Invalid item ID"
+	if quantity < 1:
+		return "Invalid quantity"
+	if source == "caravan" and not current_shop.can_sell_from_caravan:
+		return "Cannot sell from Caravan at this shop"
+	return ""
+
+
+## Validate church service is available. Returns error string or empty if valid.
+func _validate_church() -> String:
+	if not current_shop:
+		return "No shop is open"
+	if current_shop.shop_type != ShopData.ShopType.CHURCH:
+		return "Not a church"
+	return ""
+
+
+## Deduct gold and emit change signal
+func _deduct_gold(cost: int) -> void:
+	var old_gold: int = _get_gold()
+	_set_gold(old_gold - cost)
+	gold_changed.emit(old_gold, old_gold - cost)
+
+
+## Add gold and emit change signal
+func _add_gold(amount: int) -> void:
+	var old_gold: int = _get_gold()
+	_set_gold(old_gold + amount)
+	gold_changed.emit(old_gold, old_gold + amount)
+
+
+# ============================================================================
 # SHOP LIFECYCLE
 # ============================================================================
 
@@ -119,34 +193,28 @@ func get_current_shop() -> ShopData:
 ## @param target: "caravan" or character_uid
 ## @return: Dictionary {success: bool, error: String, transaction: Dictionary}
 func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
-	# Validation
-	if not current_shop:
-		purchase_failed.emit("No shop is open")
-		return {success = false, error = "No shop is open", transaction = {}}
-
-	if item_id.is_empty():
-		purchase_failed.emit("Invalid item ID")
-		return {success = false, error = "Invalid item ID", transaction = {}}
-
-	if quantity < 1:
-		purchase_failed.emit("Invalid quantity")
-		return {success = false, error = "Invalid quantity", transaction = {}}
+	# Basic validation
+	var validation_error: String = _validate_buy_basics(item_id, quantity)
+	if not validation_error.is_empty():
+		purchase_failed.emit(validation_error)
+		return _fail(validation_error)
 
 	# Check item exists and is in stock
 	var item_data: ItemData = _get_item_data(item_id)
 	if not item_data:
 		purchase_failed.emit("Item not found: %s" % item_id)
-		return {success = false, error = "Item not found", transaction = {}}
+		return _fail("Item not found")
 
 	if not current_shop.has_item_in_stock(item_id):
 		purchase_failed.emit("Item out of stock")
-		return {success = false, error = "Item out of stock", transaction = {}}
+		return _fail("Item out of stock")
 
 	# Check stock quantity
 	var stock: int = current_shop.get_item_stock(item_id)
 	if stock > 0 and stock < quantity:
-		purchase_failed.emit("Not enough in stock (have %d)" % stock)
-		return {success = false, error = "Not enough in stock", transaction = {}}
+		var error: String = "Not enough in stock (have %d)" % stock
+		purchase_failed.emit(error)
+		return _fail("Not enough in stock")
 
 	# Calculate total cost
 	var is_deal: bool = item_id in current_shop.deals_inventory
@@ -156,8 +224,9 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 	# Check gold
 	var current_gold: int = _get_gold()
 	if current_gold < total_cost:
-		purchase_failed.emit("Not enough gold (need %d, have %d)" % [total_cost, current_gold])
-		return {success = false, error = "Not enough gold", transaction = {}}
+		var error: String = "Not enough gold (need %d, have %d)" % [total_cost, current_gold]
+		purchase_failed.emit(error)
+		return _fail("Not enough gold")
 
 	# Custom validation hook
 	var validation_context: Dictionary = {
@@ -173,50 +242,23 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 
 	if not validation_result.allowed:
 		purchase_failed.emit(validation_result.reason)
-		return {success = false, error = validation_result.reason, transaction = {}}
+		return _fail(validation_result.reason)
 
-	# Equipment-specific validation
-	if item_data.is_equippable() and target != "caravan":
-		var equip_check: Dictionary = _can_character_receive_item(target, item_id)
-		if not equip_check.success:
-			purchase_failed.emit(equip_check.error)
-			return {success = false, error = equip_check.error, transaction = {}}
-
-	# Non-equipment character inventory check
-	if not item_data.is_equippable() and target != "caravan":
+	# Character inventory check (applies to both equipment and consumables)
+	if target != "caravan":
 		var inventory_check: Dictionary = _can_character_receive_item(target, item_id)
 		if not inventory_check.success:
 			purchase_failed.emit(inventory_check.error)
-			return {success = false, error = inventory_check.error, transaction = {}}
+			return _fail(inventory_check.error)
 
 	# Execute transaction with rollback support
-	var add_result: Dictionary = {success = false, error = ""}
-	var items_added: int = 0  # Track for rollback
+	var add_result: Dictionary = _add_items_with_rollback(target, item_id, quantity)
+	if not add_result.success:
+		purchase_failed.emit(add_result.error)
+		return _fail(add_result.error)
 
-	for i: int in range(quantity):
-		if target == "caravan":
-			add_result = _add_to_caravan(item_id)
-		else:
-			add_result = _add_to_character(target, item_id)
-
-		if not add_result.success:
-			# Rollback: remove any items already added
-			for j: int in range(items_added):
-				if target == "caravan":
-					_remove_from_caravan(item_id)
-				else:
-					_remove_from_character(target, item_id)
-			purchase_failed.emit(add_result.error)
-			return {success = false, error = add_result.error, transaction = {}}
-
-		items_added += 1
-
-	# Deduct gold
-	var old_gold: int = current_gold
-	_set_gold(current_gold - total_cost)
-	gold_changed.emit(old_gold, current_gold - total_cost)
-
-	# Decrement shop stock
+	# Deduct gold and decrement shop stock
+	_deduct_gold(total_cost)
 	current_shop.decrement_stock(item_id, quantity)
 
 	# Build transaction record
@@ -259,40 +301,25 @@ func buy_deal_item(item_id: String, quantity: int, target: String) -> Dictionary
 ## @param quantity: Number to sell (must have that many)
 ## @return: Dictionary {success: bool, error: String, transaction: Dictionary}
 func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary:
-	# Validation
-	if not current_shop:
-		sale_failed.emit("No shop is open")
-		return {success = false, error = "No shop is open", transaction = {}}
+	# Basic validation
+	var validation_error: String = _validate_sell_basics(item_id, quantity, source)
+	if not validation_error.is_empty():
+		sale_failed.emit(validation_error)
+		return _fail(validation_error)
 
-	if not current_shop.can_sell:
-		sale_failed.emit("This shop doesn't buy items")
-		return {success = false, error = "This shop doesn't buy items", transaction = {}}
-
-	if item_id.is_empty():
-		sale_failed.emit("Invalid item ID")
-		return {success = false, error = "Invalid item ID", transaction = {}}
-
-	if quantity < 1:
-		sale_failed.emit("Invalid quantity")
-		return {success = false, error = "Invalid quantity", transaction = {}}
-
-	# Check source type
 	var is_caravan: bool = source == "caravan"
-	if is_caravan and not current_shop.can_sell_from_caravan:
-		sale_failed.emit("Cannot sell from Caravan at this shop")
-		return {success = false, error = "Cannot sell from Caravan at this shop", transaction = {}}
 
 	# Get item data
 	var item_data: ItemData = _get_item_data(item_id)
 	if not item_data:
 		sale_failed.emit("Item not found: %s" % item_id)
-		return {success = false, error = "Item not found", transaction = {}}
+		return _fail("Item not found")
 
 	# Check source has the item(s)
 	var has_result: Dictionary = _source_has_items(source, item_id, quantity)
 	if not has_result.success:
 		sale_failed.emit(has_result.error)
-		return {success = false, error = has_result.error, transaction = {}}
+		return _fail(has_result.error)
 
 	# Check if selling equipped item
 	var is_equipped: bool = false
@@ -320,34 +347,16 @@ func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary
 
 	if not validation_result.allowed:
 		sale_failed.emit(validation_result.reason)
-		return {success = false, error = validation_result.reason, transaction = {}}
+		return _fail(validation_result.reason)
 
 	# Execute removal with rollback support
-	var remove_result: Dictionary = {success = false, error = ""}
-	var items_removed: int = 0  # Track for rollback
-
-	for i: int in range(quantity):
-		if is_caravan:
-			remove_result = _remove_from_caravan(item_id)
-		else:
-			remove_result = _remove_from_character(source, item_id)
-
-		if not remove_result.success:
-			# Rollback: restore any items already removed
-			for j: int in range(items_removed):
-				if is_caravan:
-					_add_to_caravan(item_id)
-				else:
-					_add_to_character(source, item_id)
-			sale_failed.emit(remove_result.error)
-			return {success = false, error = remove_result.error, transaction = {}}
-
-		items_removed += 1
+	var remove_result: Dictionary = _remove_items_with_rollback(source, item_id, quantity)
+	if not remove_result.success:
+		sale_failed.emit(remove_result.error)
+		return _fail(remove_result.error)
 
 	# Add gold
-	var old_gold: int = _get_gold()
-	_set_gold(old_gold + total_earned)
-	gold_changed.emit(old_gold, old_gold + total_earned)
+	_add_gold(total_earned)
 
 	# Build transaction record
 	var transaction: Dictionary = {
@@ -530,32 +539,26 @@ func character_has_inventory_room(character_uid: String) -> bool:
 ## @param character_uid: Character to heal
 ## @return: Dictionary {success: bool, error: String, cost: int}
 func church_heal(character_uid: String) -> Dictionary:
-	if not current_shop:
-		return {success = false, error = "No shop is open", cost = 0}
-
-	if current_shop.shop_type != ShopData.ShopType.CHURCH:
-		return {success = false, error = "Not a church", cost = 0}
+	var church_error: String = _validate_church()
+	if not church_error.is_empty():
+		return _fail_church(church_error)
 
 	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
 	if not save_data:
-		return {success = false, error = "Character not found", cost = 0}
+		return _fail_church("Character not found")
 
 	# Check if healing is needed
 	if save_data.current_hp >= save_data.max_hp and save_data.current_mp >= save_data.max_mp:
-		return {success = false, error = "Character is already at full health", cost = 0}
+		return _fail_church("Character is already at full health")
 
 	var cost: int = current_shop.heal_cost
 	if _get_gold() < cost:
-		return {success = false, error = "Not enough gold", cost = cost}
+		return _fail_church("Not enough gold", cost)
 
 	# Restore HP and MP to max
 	save_data.current_hp = save_data.max_hp
 	save_data.current_mp = save_data.max_mp
-
-	# Deduct gold
-	var old_gold: int = _get_gold()
-	_set_gold(old_gold - cost)
-	gold_changed.emit(old_gold, old_gold - cost)
+	_deduct_gold(cost)
 
 	return {success = true, error = "", cost = cost}
 
@@ -564,23 +567,20 @@ func church_heal(character_uid: String) -> Dictionary:
 ## @param character_uid: Character to revive
 ## @return: Dictionary {success: bool, error: String, cost: int}
 func church_revive(character_uid: String) -> Dictionary:
-	if not current_shop:
-		return {success = false, error = "No shop is open", cost = 0}
-
-	if current_shop.shop_type != ShopData.ShopType.CHURCH:
-		return {success = false, error = "Not a church", cost = 0}
+	var church_error: String = _validate_church()
+	if not church_error.is_empty():
+		return _fail_church(church_error)
 
 	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
 	if not save_data:
-		return {success = false, error = "Character not found", cost = 0}
+		return _fail_church("Character not found")
 
-	# Check if character is actually dead
 	if save_data.is_alive:
-		return {success = false, error = "Character is not dead", cost = 0}
+		return _fail_church("Character is not dead")
 
 	var cost: int = current_shop.get_revival_cost(save_data.level)
 	if _get_gold() < cost:
-		return {success = false, error = "Not enough gold", cost = cost}
+		return _fail_church("Not enough gold", cost)
 
 	# Revive with HP based on global setting
 	save_data.is_alive = true
@@ -590,11 +590,7 @@ func church_revive(character_uid: String) -> Dictionary:
 	else:
 		save_data.current_hp = maxi(1, save_data.max_hp * hp_percent / 100)
 
-	# Deduct gold
-	var old_gold: int = _get_gold()
-	_set_gold(old_gold - cost)
-	gold_changed.emit(old_gold, old_gold - cost)
-
+	_deduct_gold(cost)
 	return {success = true, error = "", cost = cost}
 
 
@@ -603,34 +599,27 @@ func church_revive(character_uid: String) -> Dictionary:
 ## @param slot_id: Slot containing cursed item
 ## @return: Dictionary {success: bool, error: String, cost: int}
 func church_uncurse(character_uid: String, slot_id: String) -> Dictionary:
-	if not current_shop:
-		return {success = false, error = "No shop is open", cost = 0}
-
-	if current_shop.shop_type != ShopData.ShopType.CHURCH:
-		return {success = false, error = "Not a church", cost = 0}
+	var church_error: String = _validate_church()
+	if not church_error.is_empty():
+		return _fail_church(church_error)
 
 	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
 	if not save_data:
-		return {success = false, error = "Character not found", cost = 0}
+		return _fail_church("Character not found")
 
-	# Check if slot has a cursed item
 	if not EquipmentManager.is_slot_cursed(save_data, slot_id):
-		return {success = false, error = "Item is not cursed", cost = 0}
+		return _fail_church("Item is not cursed")
 
 	var cost: int = current_shop.uncurse_base_cost
 	if _get_gold() < cost:
-		return {success = false, error = "Not enough gold", cost = cost}
+		return _fail_church("Not enough gold", cost)
 
 	# Use existing EquipmentManager uncurse functionality
 	var uncurse_result: Dictionary = EquipmentManager.attempt_uncurse(save_data, slot_id, "church")
 	if not uncurse_result.success:
-		return {success = false, error = uncurse_result.error, cost = cost}
+		return _fail_church(uncurse_result.error, cost)
 
-	# Deduct gold
-	var old_gold: int = _get_gold()
-	_set_gold(old_gold - cost)
-	gold_changed.emit(old_gold, old_gold - cost)
-
+	_deduct_gold(cost)
 	return {success = true, error = "", cost = cost}
 
 
@@ -639,49 +628,41 @@ func church_uncurse(character_uid: String, slot_id: String) -> Dictionary:
 ## @param target_class: ClassData to promote to
 ## @return: Dictionary {success: bool, error: String, cost: int, stat_changes: Dictionary}
 func church_promote(character_uid: String, target_class: ClassData) -> Dictionary:
-	if not current_shop:
-		return {success = false, error = "No shop is open", cost = 0, stat_changes = {}}
-
-	if current_shop.shop_type != ShopData.ShopType.CHURCH:
-		return {success = false, error = "Not a church", cost = 0, stat_changes = {}}
+	var church_error: String = _validate_church()
+	if not church_error.is_empty():
+		return _fail_promotion(church_error)
 
 	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
 	if not save_data:
-		return {success = false, error = "Character not found", cost = 0, stat_changes = {}}
+		return _fail_promotion("Character not found")
 
 	if not target_class:
-		return {success = false, error = "Invalid promotion target", cost = 0, stat_changes = {}}
+		return _fail_promotion("Invalid promotion target")
 
 	# Build a Unit for PromotionManager (it needs Unit, not CharacterSaveData)
 	var unit: Unit = _build_unit_for_promotion(character_uid, save_data)
 	if not unit:
-		return {success = false, error = "Failed to build unit for promotion", cost = 0, stat_changes = {}}
+		return _fail_promotion("Failed to build unit for promotion")
 
 	# Check if promotion is valid via PromotionManager
 	if not PromotionManager.can_promote(unit):
 		unit.queue_free()
-		return {success = false, error = "Character cannot promote", cost = 0, stat_changes = {}}
+		return _fail_promotion("Character cannot promote")
 
 	var available_promotions: Array[ClassData] = PromotionManager.get_available_promotions(unit)
 	if target_class not in available_promotions:
 		unit.queue_free()
-		return {success = false, error = "Invalid promotion path", cost = 0, stat_changes = {}}
+		return _fail_promotion("Invalid promotion path")
 
 	# Calculate cost: level * 100 (SF2-authentic formula)
 	var cost: int = _get_promotion_cost(save_data.level)
 	if _get_gold() < cost:
 		unit.queue_free()
-		return {success = false, error = "Not enough gold", cost = cost, stat_changes = {}}
+		return _fail_promotion("Not enough gold", cost)
 
 	# Execute promotion
 	var stat_changes: Dictionary = PromotionManager.execute_promotion(unit, target_class)
-
-	# Deduct gold
-	var old_gold: int = _get_gold()
-	_set_gold(old_gold - cost)
-	gold_changed.emit(old_gold, old_gold - cost)
-
-	# Clean up temporary unit
+	_deduct_gold(cost)
 	unit.queue_free()
 
 	return {success = true, error = "", cost = cost, stat_changes = stat_changes}
@@ -914,3 +895,59 @@ func _unequip_item(character_uid: String, item_id: String) -> Dictionary:
 			return {success = false, error = result.error}
 
 	return {success = false, error = "Item not equipped"}
+
+
+# ============================================================================
+# TRANSACTION ROLLBACK HELPERS
+# ============================================================================
+
+## Add multiple items to target with automatic rollback on failure
+func _add_items_with_rollback(target: String, item_id: String, quantity: int) -> Dictionary:
+	var is_caravan: bool = target == "caravan"
+	var items_added: int = 0
+
+	for i: int in range(quantity):
+		var result: Dictionary
+		if is_caravan:
+			result = _add_to_caravan(item_id)
+		else:
+			result = _add_to_character(target, item_id)
+
+		if not result.success:
+			# Rollback: remove items already added
+			for j: int in range(items_added):
+				if is_caravan:
+					_remove_from_caravan(item_id)
+				else:
+					_remove_from_character(target, item_id)
+			return result
+
+		items_added += 1
+
+	return {success = true, error = ""}
+
+
+## Remove multiple items from source with automatic rollback on failure
+func _remove_items_with_rollback(source: String, item_id: String, quantity: int) -> Dictionary:
+	var is_caravan: bool = source == "caravan"
+	var items_removed: int = 0
+
+	for i: int in range(quantity):
+		var result: Dictionary
+		if is_caravan:
+			result = _remove_from_caravan(item_id)
+		else:
+			result = _remove_from_character(source, item_id)
+
+		if not result.success:
+			# Rollback: restore items already removed
+			for j: int in range(items_removed):
+				if is_caravan:
+					_add_to_caravan(item_id)
+				else:
+					_add_to_character(source, item_id)
+			return result
+
+		items_removed += 1
+
+	return {success = true, error = ""}

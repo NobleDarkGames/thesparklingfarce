@@ -339,26 +339,17 @@ func _deserialize_learned_abilities(data: Dictionary) -> void:
 ## Validate that character save data is complete and valid
 ## @return: true if valid, false if corrupted/invalid
 func validate() -> bool:
-	if character_mod_id.is_empty():
-		push_error("CharacterSaveData: character_mod_id is empty for '%s'" % fallback_character_name)
-		return false
-
-	if character_resource_id.is_empty():
-		push_error("CharacterSaveData: character_resource_id is empty for '%s'" % fallback_character_name)
-		return false
-
-	if fallback_character_name.is_empty():
-		push_error("CharacterSaveData: fallback_character_name is empty")
-		return false
-
-	if level < 1:
-		push_error("CharacterSaveData: Invalid level: %d" % level)
-		return false
-
-	if max_hp < 1:
-		push_error("CharacterSaveData: Invalid max_hp: %d" % max_hp)
-		return false
-
+	var checks: Array = [
+		[character_mod_id.is_empty(), "character_mod_id is empty for '%s'" % fallback_character_name],
+		[character_resource_id.is_empty(), "character_resource_id is empty for '%s'" % fallback_character_name],
+		[fallback_character_name.is_empty(), "fallback_character_name is empty"],
+		[level < 1, "Invalid level: %d" % level],
+		[max_hp < 1, "Invalid max_hp: %d" % max_hp],
+	]
+	for check: Array in checks:
+		if check[0]:
+			push_error("CharacterSaveData: " + check[1])
+			return false
 	return true
 
 
@@ -366,46 +357,40 @@ func validate() -> bool:
 # MOD COMPATIBILITY HELPERS
 # ============================================================================
 
-## Get mod_id for a resource by searching ModRegistry
-## @param resource: Resource to find mod_id for
-## @return: mod_id string, or "" if not found
-func _get_mod_id_for_resource(resource: Resource) -> String:
+## Extract mod_id and resource_id from a resource's path
+## @param resource: Resource to extract IDs from
+## @return: Dictionary with "mod_id" and "resource_id" keys (empty strings if not found)
+static func _extract_resource_ids(resource: Resource) -> Dictionary:
+	var result: Dictionary = {"mod_id": "", "resource_id": ""}
 	if not resource:
-		return ""
+		return result
 
-	# Search through ModRegistry to find which mod owns this resource
 	var resource_path: String = resource.resource_path
 	if resource_path.is_empty():
 		push_warning("CharacterSaveData: Resource has no resource_path")
-		return ""
+		return result
 
-	# Extract mod_id from path (e.g., "res://mods/_base_game/..." → "_base_game")
+	# Extract mod_id from path (e.g., "res://mods/_base_game/..." -> "_base_game")
 	if resource_path.begins_with("res://mods/"):
 		var path_parts: PackedStringArray = resource_path.split("/")
-		if path_parts.size() >= 3:
-			return path_parts[2]  # mods/[mod_id]/...
+		if path_parts.size() >= 4:
+			result["mod_id"] = path_parts[3]
+		else:
+			push_warning("CharacterSaveData: Could not determine mod_id from path: %s" % resource_path)
 
-	push_warning("CharacterSaveData: Could not determine mod_id from path: %s" % resource_path)
-	return ""
+	# Extract resource_id (filename without extension)
+	result["resource_id"] = resource_path.get_file().get_basename()
+	return result
 
 
-## Get resource_id for a resource (filename without extension)
-## @param resource: Resource to get ID for
-## @return: resource_id string, or "" if not found
+## Get mod_id for a resource (convenience wrapper)
+func _get_mod_id_for_resource(resource: Resource) -> String:
+	return _extract_resource_ids(resource)["mod_id"]
+
+
+## Get resource_id for a resource (convenience wrapper)
 func _get_resource_id_for_resource(resource: Resource) -> String:
-	if not resource:
-		return ""
-
-	var resource_path: String = resource.resource_path
-	if resource_path.is_empty():
-		push_warning("CharacterSaveData: Resource has no resource_path")
-		return ""
-
-	# Extract filename without extension
-	var filename: String = resource_path.get_file()
-	var resource_id: String = filename.get_basename()
-
-	return resource_id
+	return _extract_resource_ids(resource)["resource_id"]
 
 
 # ============================================================================
@@ -461,11 +446,7 @@ func has_item_in_inventory(item_id: String) -> bool:
 ## @param item_id: ID of the item to count
 ## @return: Number of this item in inventory
 func get_item_count(item_id: String) -> int:
-	var count: int = 0
-	for inv_item: String in inventory:
-		if inv_item == item_id:
-			count += 1
-	return count
+	return inventory.count(item_id)
 
 
 # ============================================================================

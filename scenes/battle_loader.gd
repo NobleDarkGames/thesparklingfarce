@@ -36,6 +36,7 @@ const SpellMenuScene: PackedScene = preload("res://scenes/ui/spell_menu.tscn")
 const GridCursorScene: PackedScene = preload("res://core/components/grid_cursor.tscn")
 const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
 const ChoiceSelectorScene: PackedScene = preload("res://scenes/ui/choice_selector.tscn")
+const BattleGameMenuScene: PackedScene = preload("res://scenes/ui/battle_game_menu.tscn")
 
 ## Battle data - set via TriggerManager or Inspector for testing
 @export var battle_data: BattleData
@@ -48,6 +49,8 @@ var _neutral_units: Array[Unit] = []  # All neutral units
 var _action_menu: ActionMenu = null
 var _item_menu: ItemMenu = null
 var _spell_menu: SpellMenu = null
+var _game_menu: BattleGameMenu = null
+var _map_overlay: BattleMapOverlay = null
 var _grid_cursor: Node2D = null  # Grid cursor visual
 var _stats_panel: ActiveUnitStatsPanel = null  # Stats display panel
 var _terrain_panel: TerrainInfoPanel = null  # Terrain info panel
@@ -232,6 +235,22 @@ func _ready() -> void:
 		return
 	$UI.add_child(_spell_menu)
 	InputManager.set_spell_menu(_spell_menu)
+
+	# Setup battle game menu UI (Map, Speed, Status, Quit)
+	_game_menu = BattleGameMenuScene.instantiate()
+	if not _game_menu:
+		push_error("BattleLoader: Failed to instantiate BattleGameMenu")
+		return
+	$UI.add_child(_game_menu)
+
+	# Setup map overlay (created programmatically since it's simple)
+	_map_overlay = BattleMapOverlay.new()
+	_map_overlay.name = "BattleMapOverlay"
+	$UI.add_child(_map_overlay)
+
+	# Wire up game menu with map overlay and InputManager
+	_game_menu.set_map_overlay(_map_overlay)
+	InputManager.set_game_menu(_game_menu)
 
 	# Setup dialog box for pre/post battle dialogue
 	_dialog_box = DialogBoxScene.instantiate()
@@ -521,7 +540,7 @@ func _update_turn_order_display(active_unit: Unit) -> void:
 
 
 func _on_combat_resolved(_attacker: Unit, _defender: Unit, _damage: int, _hit: bool, _crit: bool) -> void:
-	# TODO: Show damage numbers (Phase 3)
+	# Damage display handled by combat_animation_scene.gd via _show_damage_number()
 	pass
 
 

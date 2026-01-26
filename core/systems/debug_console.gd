@@ -62,6 +62,9 @@ var _slide_tween: Tween = null
 ## Re-entry guard to prevent toggle spam during animation
 var _is_animating: bool = false
 
+## Error message for no active save
+const ERROR_NO_SAVE: String = "No active save - load a game first or use debug.create_test_save"
+
 
 # =============================================================================
 # LIFECYCLE
@@ -416,47 +419,36 @@ func _execute_hero_command(command: String, args: Array) -> void:
 
 
 func _cmd_hero_gold(args: Array) -> void:
-	if not SaveManager.has_current_save():
-		_print_error("No active save - load a game first or use debug.create_test_save")
+	if not _require_save():
 		return
-
-	var gold: int = SaveManager.get_current_gold()
-	_print_info("Current gold: %d" % gold)
+	_print_info("Current gold: %d" % SaveManager.get_current_gold())
 
 
 func _cmd_hero_set_gold(args: Array) -> void:
 	if args.is_empty() or not args[0] is int:
 		_print_error("Usage: hero.set_gold <amount>")
 		return
-
 	var amount: int = args[0]
 	if amount < 0:
 		_print_error("Gold amount cannot be negative")
 		return
-
-	if not SaveManager.has_current_save():
-		_print_error("No active save - load a game first or use debug.create_test_save")
+	if not _require_save():
 		return
-
 	var old_gold: int = SaveManager.get_current_gold()
 	SaveManager.set_current_gold(amount)
-	_print_success("Gold: %d → %d" % [old_gold, amount])
+	_print_success("Gold: %d -> %d" % [old_gold, amount])
 
 
 func _cmd_hero_give_gold(args: Array) -> void:
 	if args.is_empty() or not args[0] is int:
 		_print_error("Usage: hero.give_gold <amount>")
 		return
-
-	var amount: int = args[0]
-
-	if not SaveManager.has_current_save():
-		_print_error("No active save - load a game first or use debug.create_test_save")
+	if not _require_save():
 		return
-
+	var amount: int = args[0]
 	var old_gold: int = SaveManager.get_current_gold()
 	var new_gold: int = SaveManager.add_current_gold(amount)
-	_print_success("Gold: %d → %d (%+d)" % [old_gold, new_gold, amount])
+	_print_success("Gold: %d -> %d (%+d)" % [old_gold, new_gold, amount])
 
 
 func _cmd_hero_set_level(args: Array) -> void:
@@ -494,27 +486,17 @@ func _cmd_hero_give_item(args: Array) -> void:
 	if args.is_empty():
 		_print_error("Usage: hero.give_item <item_id> [count]")
 		return
-
 	var item_id: String = str(args[0])
 	var count: int = args[1] if args.size() > 1 and args[1] is int else 1
-
-	# Verify item exists
 	if not ModLoader.registry.has_resource("item", item_id):
 		_print_error("Item not found: %s" % item_id)
 		return
-
 	var hero: CharacterData = PartyManager.get_hero()
 	if not hero:
 		_print_error("No hero found in party")
 		return
-
-	var added: int = 0
-	for i: int in range(count):
-		if PartyManager.add_item_to_member(hero.character_uid, item_id):
-			added += 1
-		else:
-			break
-
+	var add_func: Callable = func(id: String) -> bool: return PartyManager.add_item_to_member(hero.character_uid, id)
+	var added: int = _add_items_to_inventory(add_func, item_id, count)
 	if added > 0:
 		_print_success("Added %d x %s to hero inventory" % [added, item_id])
 	else:
@@ -545,26 +527,15 @@ func _cmd_party_grant_xp(args: Array) -> void:
 	if args.size() < 2:
 		_print_error("Usage: party.grant_xp <name> <amount>")
 		return
-
 	var name_arg: String = str(args[0])
 	var amount: int = args[1] if args[1] is int else 0
-
 	if amount <= 0:
 		_print_error("XP amount must be positive")
 		return
-
-	# Find character by name
-	var found: CharacterData = null
-	for member: CharacterData in PartyManager.party_members:
-		if member.character_name.to_lower() == name_arg.to_lower():
-			found = member
-			break
-
+	var found: CharacterData = _find_party_member_by_name(name_arg)
 	if not found:
 		_print_error("Character not found: %s" % name_arg)
 		return
-
-	# Grant XP through save data
 	var save_data: CharacterSaveData = PartyManager.get_member_save_data(found.character_uid)
 	if save_data:
 		save_data.current_xp += amount
@@ -596,20 +567,11 @@ func _cmd_party_remove(args: Array) -> void:
 	if args.is_empty():
 		_print_error("Usage: party.remove <name>")
 		return
-
 	var name_arg: String = str(args[0])
-
-	# Find character by name
-	var found: CharacterData = null
-	for member: CharacterData in PartyManager.party_members:
-		if member.character_name.to_lower() == name_arg.to_lower():
-			found = member
-			break
-
+	var found: CharacterData = _find_party_member_by_name(name_arg)
 	if not found:
 		_print_error("Character not found in party: %s" % name_arg)
 		return
-
 	if PartyManager.remove_member(found):
 		_print_success("Removed %s from party" % found.character_name)
 	else:
@@ -782,26 +744,15 @@ func _cmd_caravan_add_item(args: Array) -> void:
 	if args.is_empty():
 		_print_error("Usage: caravan.add_item <item_id> [count]")
 		return
-
 	var item_id: String = str(args[0])
 	var count: int = args[1] if args.size() > 1 and args[1] is int else 1
-
-	# Verify item exists
 	if not ModLoader.registry.has_resource("item", item_id):
 		_print_error("Item not found: %s" % item_id)
 		return
-
 	if not StorageManager:
 		_print_error("StorageManager not available")
 		return
-
-	var added: int = 0
-	for i: int in range(count):
-		if StorageManager.add_to_depot(item_id):
-			added += 1
-		else:
-			break
-
+	var added: int = _add_items_to_inventory(StorageManager.add_to_depot, item_id, count)
 	if added > 0:
 		_print_success("Added %d x %s to caravan depot" % [added, item_id])
 	else:
@@ -830,13 +781,7 @@ func _cmd_battle_win(args: Array) -> void:
 	if not BattleManager.battle_active:
 		_print_error("No battle is currently active")
 		return
-
-	# Force victory by killing all enemies
-	for enemy: Unit in BattleManager.enemy_units:
-		if is_instance_valid(enemy) and enemy.has_method("take_damage"):
-			var hp: int = enemy.stats.current_hp if enemy.stats else 9999
-			enemy.take_damage(hp)
-
+	_kill_all_units(BattleManager.enemy_units)
 	_print_success("Battle forced to victory")
 
 
@@ -844,13 +789,7 @@ func _cmd_battle_lose(args: Array) -> void:
 	if not BattleManager.battle_active:
 		_print_error("No battle is currently active")
 		return
-
-	# Force defeat by killing all player units
-	for unit: Unit in BattleManager.player_units:
-		if is_instance_valid(unit) and unit.has_method("take_damage"):
-			var hp: int = unit.stats.current_hp if unit.stats else 9999
-			unit.take_damage(hp)
-
+	_kill_all_units(BattleManager.player_units)
 	_print_success("Battle forced to defeat")
 
 
@@ -1167,3 +1106,43 @@ func _print_error(text: String) -> void:
 
 func _print_info(text: String) -> void:
 	output_label.append_text("%s%s%s\n" % [COLOR_INFO, text, COLOR_END])
+
+
+# =============================================================================
+# HELPER METHODS
+# =============================================================================
+
+## Check for active save and print error if missing. Returns true if save exists.
+func _require_save() -> bool:
+	if not SaveManager.has_current_save():
+		_print_error(ERROR_NO_SAVE)
+		return false
+	return true
+
+
+## Find party member by name (case-insensitive). Returns null if not found.
+func _find_party_member_by_name(name_arg: String) -> CharacterData:
+	var lower_name: String = name_arg.to_lower()
+	for member: CharacterData in PartyManager.party_members:
+		if member.character_name.to_lower() == lower_name:
+			return member
+	return null
+
+
+## Add multiple items to an inventory. Returns count of items successfully added.
+func _add_items_to_inventory(add_func: Callable, item_id: String, count: int) -> int:
+	var added: int = 0
+	for i: int in range(count):
+		if add_func.call(item_id):
+			added += 1
+		else:
+			break
+	return added
+
+
+## Kill all units in an array by dealing lethal damage
+func _kill_all_units(units: Array) -> void:
+	for unit: Unit in units:
+		if is_instance_valid(unit) and unit.has_method("take_damage"):
+			var hp: int = unit.stats.current_hp if unit.stats else 9999
+			unit.take_damage(hp)

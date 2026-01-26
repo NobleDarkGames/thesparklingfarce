@@ -126,13 +126,6 @@ func test_spawn_entity_requires_actor_id() -> void:
 	assert_object(_mock_manager.get_actor("")).is_null()
 
 
-func test_spawn_entity_with_valid_actor_id() -> void:
-	# SKIP: Requires full scene tree context (current_scene must exist)
-	# The executor accesses manager.get_tree().current_scene to add spawned entities
-	# Covered by: tests/integration/cinematics/test_cinematic_spawn_flow.gd
-	assert_bool(true).is_true()  # Explicit pass to indicate intentional skip
-
-
 func test_spawn_entity_empty_actor_id_returns_true() -> void:
 	var command: Dictionary = _create_command({
 		"actor_id": ""
@@ -177,13 +170,6 @@ func test_position_defaults_to_zero() -> void:
 	assert_bool(pos_param is Array).is_true()
 	assert_int(pos_param[0]).is_equal(0)
 	assert_int(pos_param[1]).is_equal(0)
-
-
-func test_invalid_position_format_handled() -> void:
-	# SKIP: Requires full scene tree context (current_scene must exist)
-	# The executor proceeds past position parsing when actor_id is valid
-	# Covered by: tests/integration/cinematics/test_cinematic_spawn_flow.gd
-	assert_bool(true).is_true()  # Explicit pass to indicate intentional skip
 
 
 func test_position_from_vector2() -> void:
@@ -427,13 +413,6 @@ func test_editor_metadata_entity_id_param() -> void:
 # =============================================================================
 # RETURN VALUE TESTS
 # =============================================================================
-
-func test_execute_always_returns_true() -> void:
-	# SKIP: Requires full scene tree context (current_scene must exist)
-	# The executor accesses manager.get_tree().current_scene to add spawned entities
-	# Covered by: tests/integration/cinematics/test_cinematic_spawn_flow.gd
-	assert_bool(true).is_true()  # Explicit pass to indicate intentional skip
-
 
 func test_execute_with_error_returns_true() -> void:
 	# Even on error (missing actor_id), should return true to continue cinematic

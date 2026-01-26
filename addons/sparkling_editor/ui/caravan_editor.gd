@@ -48,9 +48,6 @@ var menu_close_sfx_edit: LineEdit
 var heal_sfx_edit: LineEdit
 var ambient_sfx_edit: LineEdit
 
-# Guard to prevent false dirty state during UI population
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "caravan"
@@ -60,13 +57,16 @@ func _ready() -> void:
 
 ## Override: Create the caravan-specific detail form
 func _create_detail_form() -> void:
-	_add_identity_section()
-	_add_appearance_section()
-	_add_following_section()
-	_add_terrain_section()
-	_add_services_section()
-	_add_interior_section()
-	_add_audio_section()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+
+	_add_identity_section(form)
+	_add_appearance_section(form)
+	_add_following_section(form)
+	_add_terrain_section(form)
+	_add_services_section(form)
+	_add_interior_section(form)
+	_add_audio_section(form)
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
@@ -77,8 +77,6 @@ func _load_resource_data() -> void:
 	var caravan: CaravanData = current_resource as CaravanData
 	if not caravan:
 		return
-
-	_updating_ui = true
 
 	# Identity
 	caravan_id_edit.text = caravan.caravan_id
@@ -117,8 +115,6 @@ func _load_resource_data() -> void:
 	menu_close_sfx_edit.text = caravan.menu_close_sfx
 	heal_sfx_edit.text = caravan.heal_sfx
 	ambient_sfx_edit.text = caravan.ambient_sfx
-
-	_updating_ui = false
 
 
 ## Override: Save UI data to resource
@@ -267,438 +263,156 @@ func _get_resource_display_name(resource: Resource) -> String:
 # UI CREATION HELPERS
 # =============================================================================
 
-func _add_identity_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_identity_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Identity")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	caravan_id_edit = form.add_text_field("Caravan ID:", "e.g., base_game:default_caravan",
+		"Unique identifier (namespaced: 'mod_id:caravan_id')")
 
-	# Caravan ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Caravan ID:"
-	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	id_label.tooltip_text = "Unique identifier (namespaced: 'mod_id:caravan_id')"
-	id_container.add_child(id_label)
-
-	caravan_id_edit = LineEdit.new()
-	caravan_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	caravan_id_edit.placeholder_text = "e.g., base_game:default_caravan"
-	caravan_id_edit.text_changed.connect(_on_field_changed)
-	id_container.add_child(caravan_id_edit)
-	section.add_child(id_container)
-
-	# Display Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_label.tooltip_text = "Name shown in UI (e.g., 'Caravan Headquarters')"
-	name_container.add_child(name_label)
-
-	display_name_edit = LineEdit.new()
-	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display_name_edit.placeholder_text = "e.g., Caravan Headquarters"
-	display_name_edit.text_changed.connect(_on_field_changed)
-	name_container.add_child(display_name_edit)
-	section.add_child(name_container)
-
-	detail_panel.add_child(section)
+	display_name_edit = form.add_text_field("Display Name:", "e.g., Caravan Headquarters",
+		"Name shown in UI")
 
 
-func _add_appearance_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_appearance_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Appearance")
+	form.add_help_text("Visual appearance of the caravan wagon on the overworld")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Appearance"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Visual appearance of the caravan wagon on the overworld"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Wagon Sprite
-	var sprite_container: HBoxContainer = HBoxContainer.new()
-	var sprite_label: Label = Label.new()
-	sprite_label.text = "Wagon Sprite:"
-	sprite_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	sprite_label.tooltip_text = "Main wagon texture (single frame or idle state)"
-	sprite_container.add_child(sprite_label)
+	# Wagon Sprite with browse button
+	var sprite_row: HBoxContainer = HBoxContainer.new()
+	sprite_row.add_theme_constant_override("separation", 8)
 
 	wagon_sprite_path_edit = LineEdit.new()
 	wagon_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wagon_sprite_path_edit.placeholder_text = "res://path/to/wagon.png"
-	wagon_sprite_path_edit.text_changed.connect(_on_field_changed)
-	sprite_container.add_child(wagon_sprite_path_edit)
+	wagon_sprite_path_edit.text_changed.connect(func(_t: String) -> void: _mark_dirty())
+	sprite_row.add_child(wagon_sprite_path_edit)
 
 	wagon_sprite_picker_btn = Button.new()
 	wagon_sprite_picker_btn.text = "..."
 	wagon_sprite_picker_btn.tooltip_text = "Browse for texture file"
 	wagon_sprite_picker_btn.pressed.connect(_on_browse_wagon_sprite)
-	sprite_container.add_child(wagon_sprite_picker_btn)
-	section.add_child(sprite_container)
+	sprite_row.add_child(wagon_sprite_picker_btn)
 
-	# Animation Frames
-	var anim_container: HBoxContainer = HBoxContainer.new()
-	var anim_label: Label = Label.new()
-	anim_label.text = "Animation Frames:"
-	anim_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	anim_label.tooltip_text = "SpriteFrames for directional movement (optional)"
-	anim_container.add_child(anim_label)
+	form.add_labeled_control("Wagon Sprite:", sprite_row,
+		"Main wagon texture (single frame or idle state)")
 
-	wagon_animation_path_edit = LineEdit.new()
-	wagon_animation_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wagon_animation_path_edit.placeholder_text = "res://path/to/wagon_animations.tres (optional)"
-	wagon_animation_path_edit.text_changed.connect(_on_field_changed)
-	anim_container.add_child(wagon_animation_path_edit)
-	section.add_child(anim_container)
+	wagon_animation_path_edit = form.add_text_field("Animation Frames:",
+		"res://path/to/wagon_animations.tres (optional)",
+		"SpriteFrames for directional movement (optional)")
 
-	# Scale
-	var scale_container: HBoxContainer = HBoxContainer.new()
-	var scale_label: Label = Label.new()
-	scale_label.text = "Scale:"
-	scale_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	scale_label.tooltip_text = "Scale factor for the wagon sprite"
-	scale_container.add_child(scale_label)
+	# Scale fields (custom row with X/Y labels)
+	var scale_row: HBoxContainer = HBoxContainer.new()
+	scale_row.add_theme_constant_override("separation", 8)
 
 	var x_label: Label = Label.new()
 	x_label.text = "X:"
-	scale_container.add_child(x_label)
+	scale_row.add_child(x_label)
 
 	wagon_scale_x_spin = SpinBox.new()
 	wagon_scale_x_spin.min_value = 0.1
 	wagon_scale_x_spin.max_value = 10.0
 	wagon_scale_x_spin.step = 0.1
 	wagon_scale_x_spin.value = 1.0
-	wagon_scale_x_spin.value_changed.connect(_on_spin_changed)
-	scale_container.add_child(wagon_scale_x_spin)
+	wagon_scale_x_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	scale_row.add_child(wagon_scale_x_spin)
 
 	var y_label: Label = Label.new()
 	y_label.text = "Y:"
-	scale_container.add_child(y_label)
+	scale_row.add_child(y_label)
 
 	wagon_scale_y_spin = SpinBox.new()
 	wagon_scale_y_spin.min_value = 0.1
 	wagon_scale_y_spin.max_value = 10.0
 	wagon_scale_y_spin.step = 0.1
 	wagon_scale_y_spin.value = 1.0
-	wagon_scale_y_spin.value_changed.connect(_on_spin_changed)
-	scale_container.add_child(wagon_scale_y_spin)
-	section.add_child(scale_container)
+	wagon_scale_y_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
+	scale_row.add_child(wagon_scale_y_spin)
 
-	# Z-Index Offset
-	var z_container: HBoxContainer = HBoxContainer.new()
-	var z_label: Label = Label.new()
-	z_label.text = "Z-Index Offset:"
-	z_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	z_label.tooltip_text = "Rendering order offset (higher = in front)"
-	z_container.add_child(z_label)
+	form.add_labeled_control("Scale:", scale_row, "Scale factor for the wagon sprite")
 
-	z_index_spin = SpinBox.new()
-	z_index_spin.min_value = -100
-	z_index_spin.max_value = 100
-	z_index_spin.value = 0
-	z_index_spin.value_changed.connect(_on_spin_changed)
-	z_container.add_child(z_index_spin)
-	section.add_child(z_container)
-
-	detail_panel.add_child(section)
+	z_index_spin = form.add_number_field("Z-Index Offset:", -100, 100, 0,
+		"Rendering order offset (higher = in front)")
 
 
-func _add_following_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_following_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Following Behavior")
+	form.add_help_text("How the caravan follows the party on overworld maps")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Following Behavior"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "How the caravan follows the party on overworld maps"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Follow Distance
-	var dist_container: HBoxContainer = HBoxContainer.new()
-	var dist_label: Label = Label.new()
-	dist_label.text = "Follow Distance:"
-	dist_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	dist_label.tooltip_text = "Tiles behind the last party member (SF2 default: 2-3)"
-	dist_container.add_child(dist_label)
-
-	follow_distance_spin = SpinBox.new()
-	follow_distance_spin.min_value = 1
-	follow_distance_spin.max_value = 10
-	follow_distance_spin.value = 3
+	follow_distance_spin = form.add_number_field("Follow Distance:", 1, 10, 3,
+		"Tiles behind the last party member (SF2 default: 2-3)")
 	follow_distance_spin.suffix = " tiles"
-	follow_distance_spin.value_changed.connect(_on_spin_changed)
-	dist_container.add_child(follow_distance_spin)
-	section.add_child(dist_container)
 
-	# Follow Speed
-	var speed_container: HBoxContainer = HBoxContainer.new()
-	var speed_label: Label = Label.new()
-	speed_label.text = "Follow Speed:"
-	speed_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	speed_label.tooltip_text = "Movement speed in pixels per second"
-	speed_container.add_child(speed_label)
-
-	follow_speed_spin = SpinBox.new()
-	follow_speed_spin.min_value = 16.0
-	follow_speed_spin.max_value = 512.0
-	follow_speed_spin.step = 8.0
-	follow_speed_spin.value = 96.0
+	follow_speed_spin = form.add_number_field("Follow Speed:", 16.0, 512.0, 96.0,
+		"Movement speed in pixels per second", 8.0)
 	follow_speed_spin.suffix = " px/s"
-	follow_speed_spin.value_changed.connect(_on_spin_changed)
-	speed_container.add_child(follow_speed_spin)
-	section.add_child(speed_container)
 
-	# Chain Following
-	use_chain_check = CheckBox.new()
-	use_chain_check.text = "Use Chain Following (SF2-Authentic)"
-	use_chain_check.tooltip_text = "Follow breadcrumb trail instead of direct pathfinding"
-	use_chain_check.button_pressed = true
-	use_chain_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(use_chain_check)
+	use_chain_check = form.add_standalone_checkbox("Use Chain Following (SF2-Authentic)", true,
+		"Follow breadcrumb trail instead of direct pathfinding")
 
-	# Max History Size
-	var history_container: HBoxContainer = HBoxContainer.new()
-	var history_label: Label = Label.new()
-	history_label.text = "Max History Size:"
-	history_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	history_label.tooltip_text = "Maximum tiles of movement history to maintain"
-	history_container.add_child(history_label)
-
-	max_history_spin = SpinBox.new()
-	max_history_spin.min_value = 5
-	max_history_spin.max_value = 100
-	max_history_spin.value = 20
+	max_history_spin = form.add_number_field("Max History Size:", 5, 100, 20,
+		"Maximum tiles of movement history to maintain")
 	max_history_spin.suffix = " tiles"
-	max_history_spin.value_changed.connect(_on_spin_changed)
-	history_container.add_child(max_history_spin)
-	section.add_child(history_container)
-
-	detail_panel.add_child(section)
 
 
-func _add_terrain_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_terrain_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Terrain Restrictions")
+	form.add_help_text("Where the caravan can and cannot travel")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Terrain Restrictions"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	can_cross_water_check = form.add_standalone_checkbox("Can Cross Water (ferries, bridges)", true,
+		"Allow the caravan to use water crossings")
 
-	var help_label: Label = Label.new()
-	help_label.text = "Where the caravan can and cannot travel"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
+	can_enter_forest_check = form.add_standalone_checkbox("Can Enter Forest", false,
+		"Allow the caravan to enter forest tiles")
 
-	# Can Cross Water
-	can_cross_water_check = CheckBox.new()
-	can_cross_water_check.text = "Can Cross Water (ferries, bridges)"
-	can_cross_water_check.tooltip_text = "Allow the caravan to use water crossings"
-	can_cross_water_check.button_pressed = true
-	can_cross_water_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(can_cross_water_check)
-
-	# Can Enter Forest
-	can_enter_forest_check = CheckBox.new()
-	can_enter_forest_check.text = "Can Enter Forest"
-	can_enter_forest_check.tooltip_text = "Allow the caravan to enter forest tiles"
-	can_enter_forest_check.button_pressed = false
-	can_enter_forest_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(can_enter_forest_check)
-
-	# Blocked Terrain Types
-	var blocked_container: HBoxContainer = HBoxContainer.new()
-	var blocked_label: Label = Label.new()
-	blocked_label.text = "Blocked Terrain:"
-	blocked_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	blocked_label.tooltip_text = "Terrain types the caravan cannot traverse (comma-separated)"
-	blocked_container.add_child(blocked_label)
-
-	blocked_terrain_edit = LineEdit.new()
-	blocked_terrain_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	blocked_terrain_edit.placeholder_text = "mountain, deep_water, wall"
-	blocked_terrain_edit.text_changed.connect(_on_field_changed)
-	blocked_container.add_child(blocked_terrain_edit)
-	section.add_child(blocked_container)
-
-	detail_panel.add_child(section)
+	blocked_terrain_edit = form.add_text_field("Blocked Terrain:", "mountain, deep_water, wall",
+		"Terrain types the caravan cannot traverse (comma-separated)")
 
 
-func _add_services_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_services_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Services Available")
+	form.add_help_text("Features offered by this caravan to the player")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Services Available"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	has_item_storage_check = form.add_standalone_checkbox("Item Storage (SF2's Depot)", true,
+		"Enable storing items in the caravan")
 
-	var help_label: Label = Label.new()
-	help_label.text = "Features offered by this caravan to the player"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
+	has_party_management_check = form.add_standalone_checkbox("Party Management", true,
+		"Enable swapping active/reserve members")
 
-	# Item Storage
-	has_item_storage_check = CheckBox.new()
-	has_item_storage_check.text = "Item Storage (SF2's Depot)"
-	has_item_storage_check.tooltip_text = "Enable storing items in the caravan"
-	has_item_storage_check.button_pressed = true
-	has_item_storage_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(has_item_storage_check)
+	has_rest_check = form.add_standalone_checkbox("Rest Service (heal all party members)", true,
+		"Enable free full heal for the party")
 
-	# Party Management
-	has_party_management_check = CheckBox.new()
-	has_party_management_check.text = "Party Management"
-	has_party_management_check.tooltip_text = "Enable swapping active/reserve members"
-	has_party_management_check.button_pressed = true
-	has_party_management_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(has_party_management_check)
+	has_shop_check = form.add_standalone_checkbox("Shop Service (typically false for base game)", false,
+		"Enable buy/sell items inside the caravan")
 
-	# Rest Service
-	has_rest_check = CheckBox.new()
-	has_rest_check.text = "Rest Service (heal all party members)"
-	has_rest_check.tooltip_text = "Enable free full heal for the party"
-	has_rest_check.button_pressed = true
-	has_rest_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(has_rest_check)
-
-	# Shop Service
-	has_shop_check = CheckBox.new()
-	has_shop_check.text = "Shop Service (typically false for base game)"
-	has_shop_check.tooltip_text = "Enable buy/sell items inside the caravan"
-	has_shop_check.button_pressed = false
-	has_shop_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(has_shop_check)
-
-	# Promotion Service
-	has_promotion_check = CheckBox.new()
-	has_promotion_check.text = "Promotion Service (class promotion)"
-	has_promotion_check.tooltip_text = "Enable class promotion inside the caravan"
-	has_promotion_check.button_pressed = false
-	has_promotion_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(has_promotion_check)
-
-	detail_panel.add_child(section)
+	has_promotion_check = form.add_standalone_checkbox("Promotion Service (class promotion)", false,
+		"Enable class promotion inside the caravan")
 
 
-func _add_interior_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_interior_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Interior (Future)")
+	form.add_help_text("Optional walkable interior scene (leave empty for standard menu)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Interior (Future)"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	interior_scene_edit = form.add_text_field("Interior Scene:",
+		"res://path/to/interior.tscn (optional)",
+		"Path to a walkable interior scene (.tscn)")
 
-	var help_label: Label = Label.new()
-	help_label.text = "Optional walkable interior scene (leave empty for standard menu)"
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Interior Scene Path
-	var interior_container: HBoxContainer = HBoxContainer.new()
-	var interior_label: Label = Label.new()
-	interior_label.text = "Interior Scene:"
-	interior_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	interior_label.tooltip_text = "Path to a walkable interior scene (.tscn)"
-	interior_container.add_child(interior_label)
-
-	interior_scene_edit = LineEdit.new()
-	interior_scene_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	interior_scene_edit.placeholder_text = "res://path/to/interior.tscn (optional)"
-	interior_scene_edit.text_changed.connect(_on_field_changed)
-	interior_container.add_child(interior_scene_edit)
-	section.add_child(interior_container)
-
-	var note_label: Label = Label.new()
-	note_label.text = "Note: Interior NPCs can be configured in the Godot Inspector"
-	note_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	note_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(note_label)
-
-	detail_panel.add_child(section)
+	form.add_help_text("Note: Interior NPCs can be configured in the Godot Inspector")
 
 
-func _add_audio_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_audio_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Audio")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Audio"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	menu_open_sfx_edit = form.add_text_field("Menu Open SFX:", "e.g., caravan_open",
+		"Sound when opening the caravan menu")
 
-	# Menu Open SFX
-	var open_container: HBoxContainer = HBoxContainer.new()
-	var open_label: Label = Label.new()
-	open_label.text = "Menu Open SFX:"
-	open_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	open_label.tooltip_text = "Sound when opening the caravan menu"
-	open_container.add_child(open_label)
+	menu_close_sfx_edit = form.add_text_field("Menu Close SFX:", "e.g., caravan_close",
+		"Sound when closing the caravan menu")
 
-	menu_open_sfx_edit = LineEdit.new()
-	menu_open_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	menu_open_sfx_edit.placeholder_text = "e.g., caravan_open"
-	menu_open_sfx_edit.text_changed.connect(_on_field_changed)
-	open_container.add_child(menu_open_sfx_edit)
-	section.add_child(open_container)
+	heal_sfx_edit = form.add_text_field("Heal/Rest SFX:", "e.g., heal_jingle",
+		"Sound when using the rest service")
 
-	# Menu Close SFX
-	var close_container: HBoxContainer = HBoxContainer.new()
-	var close_label: Label = Label.new()
-	close_label.text = "Menu Close SFX:"
-	close_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	close_label.tooltip_text = "Sound when closing the caravan menu"
-	close_container.add_child(close_label)
-
-	menu_close_sfx_edit = LineEdit.new()
-	menu_close_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	menu_close_sfx_edit.placeholder_text = "e.g., caravan_close"
-	menu_close_sfx_edit.text_changed.connect(_on_field_changed)
-	close_container.add_child(menu_close_sfx_edit)
-	section.add_child(close_container)
-
-	# Heal SFX
-	var heal_container: HBoxContainer = HBoxContainer.new()
-	var heal_label: Label = Label.new()
-	heal_label.text = "Heal/Rest SFX:"
-	heal_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	heal_label.tooltip_text = "Sound when using the rest service"
-	heal_container.add_child(heal_label)
-
-	heal_sfx_edit = LineEdit.new()
-	heal_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	heal_sfx_edit.placeholder_text = "e.g., heal_jingle"
-	heal_sfx_edit.text_changed.connect(_on_field_changed)
-	heal_container.add_child(heal_sfx_edit)
-	section.add_child(heal_container)
-
-	# Ambient SFX
-	var ambient_container: HBoxContainer = HBoxContainer.new()
-	var ambient_label: Label = Label.new()
-	ambient_label.text = "Ambient SFX:"
-	ambient_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	ambient_label.tooltip_text = "Ambient sound while menu is open (optional)"
-	ambient_container.add_child(ambient_label)
-
-	ambient_sfx_edit = LineEdit.new()
-	ambient_sfx_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ambient_sfx_edit.placeholder_text = "e.g., campfire_crackle (optional)"
-	ambient_sfx_edit.text_changed.connect(_on_field_changed)
-	ambient_container.add_child(ambient_sfx_edit)
-	section.add_child(ambient_container)
-
-	detail_panel.add_child(section)
+	ambient_sfx_edit = form.add_text_field("Ambient SFX:", "e.g., campfire_crackle (optional)",
+		"Ambient sound while menu is open (optional)")
 
 
 # =============================================================================
@@ -726,6 +440,11 @@ func _on_browse_wagon_sprite() -> void:
 	dialog.add_filter("*.webp", "WebP Images")
 	dialog.add_filter("*.svg", "SVG Images")
 	dialog.file_selected.connect(_on_wagon_sprite_selected)
+	# Free dialog when closed (file selected, canceled, or X button)
+	dialog.visibility_changed.connect(func() -> void:
+		if not dialog.visible:
+			dialog.queue_free()
+	)
 	add_child(dialog)
 	dialog.popup_centered_ratio(0.7)
 
@@ -733,29 +452,4 @@ func _on_browse_wagon_sprite() -> void:
 ## Handle wagon sprite file selection
 func _on_wagon_sprite_selected(path: String) -> void:
 	wagon_sprite_path_edit.text = path
-	_mark_dirty()
-
-
-# =============================================================================
-# SIGNAL HANDLERS (with guard check)
-# =============================================================================
-
-## Called when text field changes - mark dirty if not populating UI
-func _on_field_changed(_new_text: String = "") -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-## Called when spinbox value changes - mark dirty if not populating UI
-func _on_spin_changed(_new_value: float) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-## Called when checkbox is toggled - mark dirty if not populating UI
-func _on_checkbox_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
 	_mark_dirty()

@@ -12,6 +12,10 @@ extends Node
 const ConfigurableAIBrainScript = preload("res://core/systems/ai/configurable_ai_brain.gd")
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
+## Emitted when AI turn processing completes (for test synchronization)
+## Emitted BEFORE end_unit_turn so tests can check state while unit is active
+signal turn_completed(unit: Unit)
+
 ## Configurable delays for enemy actions (in seconds)
 @export var delay_before_turn_start: float = 0.5  # Pause before enemy starts thinking
 @export var delay_after_movement: float = 0.5      # Pause after moving before attacking
@@ -25,6 +29,7 @@ func process_enemy_turn(unit: Unit) -> void:
 
 	if not unit.is_alive():
 		# Dead units don't act, end turn immediately
+		turn_completed.emit(unit)
 		TurnManager.end_unit_turn(unit)
 		return
 
@@ -59,6 +64,9 @@ func process_enemy_turn(unit: Unit) -> void:
 		# No AI behavior assigned - use default aggressive
 		push_warning("AIController: Unit %s has no ai_behavior assigned, using default aggressive" % UnitUtils.get_display_name(unit))
 		await brain.execute_async(unit, context)
+
+	# Emit signal BEFORE ending turn (so tests can check state while unit is active)
+	turn_completed.emit(unit)
 
 	# End turn (only if not already ended by BattleManager during attack)
 	# This handles cases where AI doesn't attack (movement only, or stationary with no targets)

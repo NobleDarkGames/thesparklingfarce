@@ -9,8 +9,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 # IDENTITY FIELDS
 # =============================================================================
 
-var effect_id_edit: LineEdit
-var display_name_edit: LineEdit
+var name_id_group: NameIdFieldGroup
 var description_edit: TextEdit
 
 # =============================================================================
@@ -119,9 +118,8 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	# Identity
-	effect_id_edit.text = effect.effect_id
-	display_name_edit.text = effect.display_name
+	# Identity (auto-detects lock state)
+	name_id_group.set_values(effect.display_name, effect.effect_id, true)
 	description_edit.text = effect.description
 
 	# Visual
@@ -163,8 +161,8 @@ func _save_resource_data() -> void:
 		return
 
 	# Identity
-	effect.effect_id = effect_id_edit.text.strip_edges().to_lower().replace(" ", "_")
-	effect.display_name = display_name_edit.text.strip_edges()
+	effect.effect_id = name_id_group.get_id_value()
+	effect.display_name = name_id_group.get_name_value()
 	effect.description = description_edit.text
 
 	# Visual
@@ -203,14 +201,14 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 
 	# Validate effect_id
-	var effect_id: String = effect_id_edit.text.strip_edges()
+	var effect_id: String = name_id_group.get_id_value()
 	if effect_id.is_empty():
 		errors.append("Effect ID cannot be empty")
 	elif effect_id.contains(" "):
 		errors.append("Effect ID cannot contain spaces (use underscores)")
 
 	# Validate display_name
-	if display_name_edit.text.strip_edges().is_empty():
+	if name_id_group.get_name_value().is_empty():
 		errors.append("Display name cannot be empty")
 
 	# Validate recovery chance
@@ -279,11 +277,17 @@ func _add_identity_section() -> void:
 	form.on_change(_mark_dirty)
 	form.add_section("Identity")
 
-	effect_id_edit = form.add_text_field("Effect ID:", "e.g., poison, sleep, attack_up",
-		"Unique identifier for this effect. Use lowercase with underscores.")
-
-	display_name_edit = form.add_text_field("Display Name:", "e.g., Poisoned, Asleep, Attack Up",
-		"The name displayed to players in battle UI.")
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "Effect ID:"
+	name_id_group.name_placeholder = "e.g., Poisoned, Asleep, Attack Up"
+	name_id_group.id_placeholder = "e.g., poison, sleep, attack_up"
+	name_id_group.name_tooltip = "The name displayed to players in battle UI"
+	name_id_group.id_tooltip = "Unique identifier for this effect. Use lowercase with underscores."
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	form.container.add_child(name_id_group)
 
 	description_edit = form.add_text_area("Description:", 60,
 		"Detailed description shown in help screens and tooltips.")
@@ -316,17 +320,14 @@ func _add_timing_section() -> void:
 	duration_spin = form.add_number_field("Duration (turns):", 0, 99, 3,
 		"How many turns this effect lasts. 0 = until removed by other means (damage, cure, etc).")
 
-	# Trigger Timing - custom dropdown with specific IDs
-	trigger_timing_option = OptionButton.new()
-	trigger_timing_option.tooltip_text = "When this effect processes each turn"
-	trigger_timing_option.add_item("Turn Start", StatusEffectData.TriggerTiming.TURN_START)
-	trigger_timing_option.add_item("Turn End", StatusEffectData.TriggerTiming.TURN_END)
-	trigger_timing_option.add_item("On Damage", StatusEffectData.TriggerTiming.ON_DAMAGE)
-	trigger_timing_option.add_item("On Action", StatusEffectData.TriggerTiming.ON_ACTION)
-	trigger_timing_option.add_item("Passive", StatusEffectData.TriggerTiming.PASSIVE)
+	trigger_timing_option = form.add_dropdown("Timing:", [
+		{"label": "Turn Start", "id": StatusEffectData.TriggerTiming.TURN_START},
+		{"label": "Turn End", "id": StatusEffectData.TriggerTiming.TURN_END},
+		{"label": "On Damage", "id": StatusEffectData.TriggerTiming.ON_DAMAGE},
+		{"label": "On Action", "id": StatusEffectData.TriggerTiming.ON_ACTION},
+		{"label": "Passive", "id": StatusEffectData.TriggerTiming.PASSIVE},
+	], "When this effect processes each turn")
 	trigger_timing_option.item_selected.connect(_on_option_selected)
-	form.add_labeled_control("Timing:", trigger_timing_option,
-		"When this effect processes each turn")
 
 	form.add_help_text("Turn Start: Poison damage, paralysis checks\nTurn End: After action processing\nOn Damage: When unit takes damage\nOn Action: When unit tries to act\nPassive: Always active (stat modifiers)")
 
@@ -457,17 +458,14 @@ func _add_action_modifiers_section() -> void:
 	form.add_section("Action Modifiers")
 	form.add_help_text("How does this effect modify the unit's actions?")
 
-	# Action Modifier Type - custom dropdown with specific IDs
-	action_modifier_option = OptionButton.new()
-	action_modifier_option.tooltip_text = "How actions are modified"
-	action_modifier_option.add_item("None", StatusEffectData.ActionModifier.NONE)
-	action_modifier_option.add_item("Random Target", StatusEffectData.ActionModifier.RANDOM_TARGET)
-	action_modifier_option.add_item("Attack Allies", StatusEffectData.ActionModifier.ATTACK_ALLIES)
-	action_modifier_option.add_item("Cannot Use Magic", StatusEffectData.ActionModifier.CANNOT_USE_MAGIC)
-	action_modifier_option.add_item("Cannot Use Items", StatusEffectData.ActionModifier.CANNOT_USE_ITEMS)
+	action_modifier_option = form.add_dropdown("Modifier Type:", [
+		{"label": "None", "id": StatusEffectData.ActionModifier.NONE},
+		{"label": "Random Target", "id": StatusEffectData.ActionModifier.RANDOM_TARGET},
+		{"label": "Attack Allies", "id": StatusEffectData.ActionModifier.ATTACK_ALLIES},
+		{"label": "Cannot Use Magic", "id": StatusEffectData.ActionModifier.CANNOT_USE_MAGIC},
+		{"label": "Cannot Use Items", "id": StatusEffectData.ActionModifier.CANNOT_USE_ITEMS},
+	], "How actions are modified")
 	action_modifier_option.item_selected.connect(_on_action_modifier_selected)
-	form.add_labeled_control("Modifier Type:", action_modifier_option,
-		"How actions are modified")
 
 	# Action Modifier Chance - needs visibility control so use wrapper container
 	action_modifier_chance_container = HBoxContainer.new()
@@ -548,7 +546,13 @@ func _update_action_modifier_chance_visibility() -> void:
 # SIGNAL HANDLERS
 # =============================================================================
 
-func _on_field_changed(_new_text: String = "") -> void:
+func _on_field_changed(_value: Variant = null) -> void:
+	if _updating_ui:
+		return
+	_mark_dirty()
+
+
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()

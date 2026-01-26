@@ -108,16 +108,16 @@ Player ATK vs Enemy DEF ratio: ~1.5-2x throughout game (players have advantage)
 ## Current Defaults (ClassData)
 
 ```gdscript
-@export_range(0, 200) var hp_growth: int = 80
-@export_range(0, 200) var mp_growth: int = 50
-@export_range(0, 200) var strength_growth: int = 50
-@export_range(0, 200) var defense_growth: int = 50
-@export_range(0, 200) var agility_growth: int = 50
-@export_range(0, 200) var intelligence_growth: int = 50
+@export_range(0, 200) var hp_growth: int = 100
+@export_range(0, 200) var mp_growth: int = 60
+@export_range(0, 200) var strength_growth: int = 80
+@export_range(0, 200) var defense_growth: int = 80
+@export_range(0, 200) var agility_growth: int = 70
+@export_range(0, 200) var intelligence_growth: int = 70
 @export_range(0, 200) var luck_growth: int = 50
 ```
 
-**TODO:** Update defaults based on whether promotion system is standard or optional.
+These defaults represent a balanced "Recruit" class suitable for pre-promotion characters.
 
 ## Files Modified
 

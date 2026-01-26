@@ -3,6 +3,9 @@ extends RefCounted
 
 ## Registry for tileset declarations from mod manifests
 ##
+## NOTE: This class cannot use class_name references for TileSetAutoGenerator
+## because autoloads aren't available when this class loads. We use preload instead.
+##
 ## Instead of just scanning directories, mods can declare their tilesets
 ## in mod.json with metadata. This provides:
 ## - Display names and descriptions for editor dropdowns
@@ -29,6 +32,13 @@ extends RefCounted
 ## directories that aren't explicitly declared in mod.json.
 
 # =============================================================================
+# PRELOADS
+# =============================================================================
+
+## TileSetAutoGenerator for auto-populating tile definitions on first access
+const TileSetAutoGeneratorClass = preload("res://core/tools/tileset_auto_generator.gd")
+
+# =============================================================================
 # SIGNALS
 # =============================================================================
 
@@ -41,6 +51,41 @@ signal registrations_changed()
 
 ## Registered tilesets: {tileset_id: {path, display_name, description, source_mod, resource}}
 var _tilesets: Dictionary = {}
+
+# =============================================================================
+# INTERNAL HELPERS
+# =============================================================================
+
+## Get a field from a tileset entry, with fallback
+func _get_tileset_field(tileset_id: String, field: String, fallback: String = "") -> String:
+	var lower: String = tileset_id.to_lower()
+	if lower in _tilesets:
+		return _tilesets[lower].get(field, fallback)
+	return fallback
+
+
+## Create a tileset entry dictionary
+func _make_tileset_entry(id: String, path: String, display_name: String, source_mod: String, description: String = "") -> Dictionary:
+	return {
+		"id": id,
+		"path": path,
+		"display_name": display_name,
+		"description": description,
+		"source_mod": source_mod,
+		"resource": null
+	}
+
+
+## Remove entries from a dictionary by mod_id, returns count removed
+func _remove_entries_by_mod(entries: Dictionary, mod_id: String) -> int:
+	var to_remove: Array[String] = []
+	for entry_id: String in entries.keys():
+		if entries[entry_id].get("source_mod", "") == mod_id:
+			to_remove.append(entry_id)
+	for entry_id: String in to_remove:
+		entries.erase(entry_id)
+	return to_remove.size()
+
 
 # =============================================================================
 # REGISTRATION API
@@ -85,14 +130,13 @@ func _register_tileset(mod_id: String, tileset_id: String, data: Dictionary, mod
 			mod_id, tileset_id, existing.get("source_mod", "unknown")
 		])
 
-	_tilesets[id_lower] = {
-		"id": id_lower,
-		"path": full_path,
-		"display_name": str(data.get("display_name", tileset_id.capitalize())),
-		"description": str(data.get("description", "")),
-		"source_mod": mod_id,
-		"resource": null  # Lazy-loaded
-	}
+	_tilesets[id_lower] = _make_tileset_entry(
+		id_lower,
+		full_path,
+		str(data.get("display_name", tileset_id.capitalize())),
+		mod_id,
+		str(data.get("description", ""))
+	)
 
 
 ## Auto-discover tilesets from a mod's tilesets/ directory
@@ -113,30 +157,21 @@ func discover_from_directory(mod_id: String, mod_directory: String) -> int:
 
 	while file_name != "":
 		if not dir.current_is_dir():
-			# Strip .remap suffix when listing directories (for export builds)
-			var original_name: String = file_name
-			if file_name.ends_with(".remap"):
-				original_name = file_name.substr(0, file_name.length() - 6)
+			# Strip .remap suffix for export builds
+			var original_name: String = file_name.trim_suffix(".remap")
 
 			if original_name.ends_with(".tres"):
-				var full_path: String = tilesets_dir.path_join(original_name)
 				var tileset_id: String = original_name.get_basename().to_lower()
-
 				# Only register if not already declared in mod.json
 				if tileset_id not in _tilesets:
-					_tilesets[tileset_id] = {
-						"id": tileset_id,
-						"path": full_path,
-						"display_name": original_name.get_basename().capitalize(),
-						"description": "",
-						"source_mod": mod_id,
-						"resource": null
-					}
+					var full_path: String = tilesets_dir.path_join(original_name)
+					_tilesets[tileset_id] = _make_tileset_entry(
+						tileset_id,
+						full_path,
+						original_name.get_basename().capitalize(),
+						mod_id
+					)
 					count += 1
-				else:
-					# Update path if the mod is overriding (higher priority wins)
-					# This is handled by load order - later mods override earlier ones
-					pass
 
 		file_name = dir.get_next()
 
@@ -191,29 +226,18 @@ func get_tileset_info(tileset_id: String) -> Dictionary:
 
 ## Get the display name for a tileset
 func get_display_name(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("display_name", tileset_id.capitalize())
-	return tileset_id.capitalize()
+	var result: String = _get_tileset_field(tileset_id, "display_name")
+	return result if not result.is_empty() else tileset_id.capitalize()
 
 
 ## Get the description for a tileset
 func get_description(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("description", "")
-	return ""
+	return _get_tileset_field(tileset_id, "description")
 
 
 ## Get the path for a tileset
 func get_tileset_path(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("path", "")
-	return ""
+	return _get_tileset_field(tileset_id, "path")
 
 
 ## Check if a tileset is registered
@@ -223,31 +247,54 @@ func has_tileset(tileset_id: String) -> bool:
 
 ## Get which mod provides a tileset
 func get_source_mod(tileset_id: String) -> String:
-	var lower: String = tileset_id.to_lower()
-	if lower in _tilesets:
-		var entry: Dictionary = _tilesets[lower]
-		return entry.get("source_mod", "")
-	return ""
+	return _get_tileset_field(tileset_id, "source_mod")
 
 
 ## Get the TileSet resource (lazy-loaded)
 ## Returns null if not found or failed to load
+## Auto-generates tile definitions based on texture dimensions on first access
 func get_tileset(tileset_id: String) -> TileSet:
 	var lower: String = tileset_id.to_lower()
 
 	if lower not in _tilesets:
+		push_warning("TilesetRegistry: TileSet '%s' not found in registry" % tileset_id)
 		return null
 
 	var entry: Dictionary = _tilesets[lower]
+	var entry_resource: Variant = entry.get("resource")
+	var entry_path: String = entry.get("path", "")
+	var auto_populated: bool = entry.get("auto_populated", false)
 
 	# Lazy-load the resource on first access
-	if entry.resource == null:
-		entry.resource = load(entry.path) as TileSet
-		if entry.resource == null:
-			push_error("TilesetRegistry: Failed to load TileSet from: %s" % entry.path)
+	if entry_resource == null:
+		var loaded: Resource = load(entry_path)
+		entry_resource = loaded if loaded is TileSet else null
+		entry["resource"] = entry_resource
+		if entry_resource == null:
+			push_error("TilesetRegistry: Failed to load TileSet from: %s" % entry_path)
 			return null
 
-	return entry.resource
+	# Auto-discover textures and populate tile definitions (once per tileset)
+	if entry_resource is TileSet and not auto_populated:
+		var tileset: TileSet = entry_resource as TileSet
+
+		# First, repair any invalid atlas sources (no texture, out-of-bounds tiles)
+		var repaired: int = TileSetAutoGeneratorClass.repair_tileset(tileset, lower)
+		if repaired > 0:
+			print("TilesetRegistry: Repaired %d issue(s) in TileSet '%s'" % [repaired, lower])
+
+		# Then, discover any new textures in the tileset's texture directory
+		var discovered: int = TileSetAutoGeneratorClass.auto_discover_textures(tileset, entry_path, lower)
+		if discovered > 0 and OS.is_debug_build():
+			print("TilesetRegistry: Discovered %d new texture(s) for TileSet '%s'" % [discovered, lower])
+
+		# Then, auto-populate tile definitions for all atlas sources
+		var generated: int = TileSetAutoGeneratorClass.auto_populate_tileset(tileset, lower)
+		entry["auto_populated"] = true
+		if generated > 0 and OS.is_debug_build():
+			print("TilesetRegistry: Auto-generated %d tile(s) for TileSet '%s'" % [generated, lower])
+
+	return entry_resource if entry_resource is TileSet else null
 
 
 ## Get all tileset paths (for backwards compatibility with editors)
@@ -265,19 +312,8 @@ func get_all_tileset_paths() -> Array[String]:
 
 ## Unregister all tilesets from a specific mod
 func unregister_mod(mod_id: String) -> void:
-	var changed: bool = false
-	var to_remove: Array[String] = []
-	
-	for tileset_id: String in _tilesets.keys():
-		var entry: Dictionary = _tilesets[tileset_id]
-		if entry.get("source_mod", "") == mod_id:
-			to_remove.append(tileset_id)
-	
-	for tileset_id: String in to_remove:
-		_tilesets.erase(tileset_id)
-		changed = true
-	
-	if changed:
+	var removed: int = _remove_entries_by_mod(_tilesets, mod_id)
+	if removed > 0:
 		registrations_changed.emit()
 
 

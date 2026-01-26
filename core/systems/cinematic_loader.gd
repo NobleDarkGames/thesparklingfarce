@@ -83,6 +83,9 @@ static func _build_cinematic_from_dict(data: Dictionary, source_path: String) ->
 	if "disable_player_input" in data:
 		cinematic.disable_player_input = bool(data["disable_player_input"])
 
+	if "loop" in data:
+		cinematic.loop = bool(data["loop"])
+
 	if "fade_in_duration" in data:
 		cinematic.fade_in_duration = float(data["fade_in_duration"])
 
@@ -142,13 +145,16 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 
 	# Normalize dialog_line to show_dialog with inline lines array
 	# This allows simple single-line dialog commands in JSON:
-	#   {"type": "dialog_line", "params": {"character_id": "xyz", "text": "Hello!", "emotion": "happy"}}
+	#   {"type": "dialog_line", "params": {"speaker": "xyz", "text": "Hello!", "emotion": "happy"}}
 	# Converted to:
-	#   {"type": "show_dialog", "params": {"lines": [{"character_id": "xyz", "text": "Hello!", "emotion": "happy"}], "auto_follow": true}}
+	#   {"type": "show_dialog", "params": {"lines": [{"speaker": "xyz", "text": "Hello!", "emotion": "happy"}], "auto_follow": true}}
 	if cmd_type == "dialog_line":
 		cmd_type = "show_dialog"
 		var line_data: Dictionary = {}
-		if "character_id" in params:
+		# Support both "speaker" (current) and "character_id" (legacy)
+		if "speaker" in params:
+			line_data["speaker"] = params["speaker"]
+		elif "character_id" in params:
 			line_data["character_id"] = params["character_id"]
 		if "speaker_name" in params:
 			line_data["speaker_name"] = params["speaker_name"]

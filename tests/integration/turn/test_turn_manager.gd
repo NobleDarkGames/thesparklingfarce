@@ -1,0 +1,436 @@
+## TurnManager Integration Test
+##
+## Tests the TurnManager autoload functionality:
+## - Battle initialization and state
+## - Turn order calculation (AGI-based)
+## - Turn cycle management
+## - Victory/defeat condition detection
+## - Signal emissions
+class_name TestTurnManager
+extends GdUnitTestSuite
+
+const GridSetupScript = preload("res://tests/fixtures/grid_setup.gd")
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
+
+# Test data
+var _player_unit: Unit
+var _enemy_unit: Unit
+var _hero_unit: Unit
+var _units_container: Node2D
+var _grid_setup: GridSetup
+
+# Signal tracking
+var _turn_cycle_events: Array[int] = []
+var _player_turn_events: Array[Unit] = []
+var _enemy_turn_events: Array[Unit] = []
+var _unit_turn_ended_events: Array[Unit] = []
+var _battle_ended_events: Array[bool] = []
+var _hero_died_events: int = 0
+var _tracker: SignalTracker
+
+func before() -> void:
+	# Clear signal tracking
+	_turn_cycle_events.clear()
+	_player_turn_events.clear()
+	_enemy_turn_events.clear()
+	_unit_turn_ended_events.clear()
+	_battle_ended_events.clear()
+	_hero_died_events = 0
+	_tracker = SignalTrackerScript.new()
+
+	# Create units container
+	_units_container = Node2D.new()
+	add_child(_units_container)
+
+	# Setup grid using fixture
+	_grid_setup = GridSetupScript.new()
+	_grid_setup.create_grid(_units_container)
+
+	# Connect signals via tracker
+	_tracker.track_with_callback(TurnManager.turn_cycle_started, _on_turn_cycle_started)
+	_tracker.track_with_callback(TurnManager.player_turn_started, _on_player_turn_started)
+	_tracker.track_with_callback(TurnManager.enemy_turn_started, _on_enemy_turn_started)
+	_tracker.track_with_callback(TurnManager.unit_turn_ended, _on_unit_turn_ended)
+	_tracker.track_with_callback(TurnManager.battle_ended, _on_battle_ended)
+	_tracker.track_with_callback(TurnManager.hero_died_in_battle, _on_hero_died)
+
+
+func after() -> void:
+	# Disconnect all tracked signals FIRST
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
+
+	# Clear TurnManager state
+	TurnManager.clear_battle()
+
+	# Clean up units
+	_cleanup_units()
+
+	# Clean up grid
+	_grid_setup.cleanup()
+	_grid_setup = null
+
+	# Clean up container
+	if _units_container and is_instance_valid(_units_container):
+		_units_container.queue_free()
+		_units_container = null
+
+func before_test() -> void:
+	_turn_cycle_events.clear()
+	_player_turn_events.clear()
+	_enemy_turn_events.clear()
+	_unit_turn_ended_events.clear()
+	_battle_ended_events.clear()
+	_hero_died_events = 0
+
+	# Clear any existing battle state
+	TurnManager.clear_battle()
+
+
+# =============================================================================
+# TEST: Battle Initialization
+# =============================================================================
+
+func test_start_battle_initializes_state() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	var all_units: Array[Unit] = [_player_unit, _enemy_unit]
+	TurnManager.start_battle(all_units)
+
+	assert_bool(TurnManager.is_battle_active()).is_true()
+	assert_int(TurnManager.turn_number).is_equal(1)
+	assert_int(TurnManager.all_units.size()).is_equal(2)
+
+
+func test_start_battle_emits_turn_cycle_signal() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	var all_units: Array[Unit] = [_player_unit, _enemy_unit]
+	TurnManager.start_battle(all_units)
+
+	assert_int(_turn_cycle_events.size()).is_equal(1)
+	assert_int(_turn_cycle_events[0]).is_equal(1)
+
+
+func test_start_battle_with_no_units_fails() -> void:
+	var empty_units: Array[Unit] = []
+
+	# Should not crash, just log error
+	TurnManager.start_battle(empty_units)
+
+	assert_bool(TurnManager.is_battle_active()).is_false()
+
+
+# =============================================================================
+# TEST: Turn Order Calculation
+# =============================================================================
+
+func test_turn_priority_based_on_agility() -> void:
+	# Create two characters with different agility
+	var fast_char: CharacterData = CharacterFactory.create_character("FastHero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 20, "is_hero": true})  # AGI 20
+	var slow_char: CharacterData = CharacterFactory.create_combatant("SlowGoblin", 30, 0, 8, 5, 5)   # AGI 5
+
+	var fast_unit: Unit = UnitFactory.spawn_unit(fast_char, Vector2i(5, 5), "player", _units_container)
+	var slow_unit: Unit = UnitFactory.spawn_unit(slow_char, Vector2i(6, 5), "enemy", _units_container)
+
+	# Calculate priorities multiple times to account for randomness
+	var fast_priorities: Array[float] = []
+	var slow_priorities: Array[float] = []
+
+	for i: int in range(10):
+		fast_priorities.append(TurnManager.calculate_turn_priority(fast_unit))
+		slow_priorities.append(TurnManager.calculate_turn_priority(slow_unit))
+
+	# Average priority of fast unit should be higher than slow unit
+	var fast_avg: float = 0.0
+	var slow_avg: float = 0.0
+	for i: int in range(10):
+		fast_avg += fast_priorities[i]
+		slow_avg += slow_priorities[i]
+	fast_avg /= 10.0
+	slow_avg /= 10.0
+
+	assert_float(fast_avg).is_greater(slow_avg)
+
+	# Clean up test units
+	UnitFactory.cleanup_unit(fast_unit)
+	UnitFactory.cleanup_unit(slow_unit)
+
+
+func test_calculate_turn_order_sorts_by_priority() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 15, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 10)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	TurnManager.all_units = [_player_unit, _enemy_unit]
+	TurnManager.calculate_turn_order()
+
+	# Should have 2 units in queue
+	assert_int(TurnManager.turn_queue.size()).is_equal(2)
+
+	# First unit should have higher priority
+	var first: Unit = TurnManager.turn_queue[0]
+	var second: Unit = TurnManager.turn_queue[1]
+	assert_float(first.turn_priority).is_greater_equal(second.turn_priority)
+
+
+func test_dead_units_excluded_from_turn_order() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 15, "is_hero": true})
+	var dead_char: CharacterData = CharacterFactory.create_combatant("DeadGoblin", 30, 0, 8, 5, 10)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(dead_char, Vector2i(6, 5), "enemy", _units_container)
+
+	# Kill the enemy
+	_enemy_unit.stats.current_hp = 0
+
+	TurnManager.all_units = [_player_unit, _enemy_unit]
+	TurnManager.calculate_turn_order()
+
+	# Only living unit should be in queue
+	assert_int(TurnManager.turn_queue.size()).is_equal(1)
+	assert_object(TurnManager.turn_queue[0]).is_same(_player_unit)
+
+
+# =============================================================================
+# TEST: Active Unit Management
+# =============================================================================
+
+func test_get_active_unit_returns_current() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+
+	TurnManager.active_unit = _player_unit
+
+	assert_object(TurnManager.get_active_unit()).is_same(_player_unit)
+
+
+func test_is_player_turn_returns_correct_value() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	# No active unit
+	TurnManager.active_unit = null
+	assert_bool(TurnManager.is_player_turn()).is_false()
+
+	# Player unit active
+	TurnManager.active_unit = _player_unit
+	assert_bool(TurnManager.is_player_turn()).is_true()
+
+	# Enemy unit active
+	TurnManager.active_unit = _enemy_unit
+	assert_bool(TurnManager.is_player_turn()).is_false()
+
+
+# =============================================================================
+# TEST: Query Functions
+# =============================================================================
+
+func test_is_battle_active() -> void:
+	assert_bool(TurnManager.is_battle_active()).is_false()
+
+	TurnManager.battle_active = true
+	assert_bool(TurnManager.is_battle_active()).is_true()
+
+	TurnManager.battle_active = false
+	assert_bool(TurnManager.is_battle_active()).is_false()
+
+
+func test_get_turn_number() -> void:
+	assert_int(TurnManager.get_turn_number()).is_equal(0)
+
+	TurnManager.turn_number = 5
+	assert_int(TurnManager.get_turn_number()).is_equal(5)
+
+
+func test_get_remaining_turn_queue() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	TurnManager.turn_queue = [_player_unit, _enemy_unit]
+
+	var remaining: Array[Unit] = TurnManager.get_remaining_turn_queue()
+
+	assert_int(remaining.size()).is_equal(2)
+	# Should be a duplicate, not the original
+	remaining.clear()
+	assert_int(TurnManager.turn_queue.size()).is_equal(2)
+
+
+# =============================================================================
+# TEST: Victory/Defeat Conditions
+# =============================================================================
+
+func test_victory_when_all_enemies_defeated() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	TurnManager.all_units = [_player_unit, _enemy_unit]
+	TurnManager.battle_active = true
+
+	# Kill all enemies
+	_enemy_unit.stats.current_hp = 0
+
+	# Check should detect victory
+	var result: bool = TurnManager._check_battle_end()
+
+	assert_bool(result).is_true()
+	assert_int(_battle_ended_events.size()).is_equal(1)
+	assert_bool(_battle_ended_events[0]).is_true()  # Victory
+
+
+func test_defeat_when_hero_dies() -> void:
+	var hero_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_hero_unit = UnitFactory.spawn_unit(hero_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	TurnManager.all_units = [_hero_unit, _enemy_unit]
+	TurnManager.battle_active = true
+
+	# Kill the hero
+	_hero_unit.stats.current_hp = 0
+
+	# Check should detect defeat
+	var result: bool = TurnManager._check_battle_end()
+
+	assert_bool(result).is_true()
+	assert_int(_hero_died_events).is_equal(1)
+
+
+func test_no_battle_end_when_both_sides_alive() -> void:
+	var hero_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_hero_unit = UnitFactory.spawn_unit(hero_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	TurnManager.all_units = [_hero_unit, _enemy_unit]
+	TurnManager.battle_active = true
+
+	# Both units alive
+	var result: bool = TurnManager._check_battle_end()
+
+	assert_bool(result).is_false()
+	assert_int(_battle_ended_events.size()).is_equal(0)
+	assert_int(_hero_died_events).is_equal(0)
+
+
+# =============================================================================
+# TEST: Clear Battle
+# =============================================================================
+
+func test_clear_battle_resets_state() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+
+	# Set some state
+	TurnManager.all_units = [_player_unit]
+	TurnManager.turn_queue = [_player_unit]
+	TurnManager.active_unit = _player_unit
+	TurnManager.turn_number = 5
+	TurnManager.battle_active = true
+
+	# Clear
+	TurnManager.clear_battle()
+
+	assert_int(TurnManager.all_units.size()).is_equal(0)
+	assert_int(TurnManager.turn_queue.size()).is_equal(0)
+	assert_object(TurnManager.active_unit).is_null()
+	assert_int(TurnManager.turn_number).is_equal(0)
+	assert_bool(TurnManager.battle_active).is_false()
+
+
+# =============================================================================
+# TEST: End Unit Turn
+# =============================================================================
+
+func test_end_unit_turn_emits_signal() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+
+	TurnManager.active_unit = _player_unit
+	TurnManager.battle_active = true
+	TurnManager.all_units = [_player_unit]
+	TurnManager.turn_queue = []
+
+	# End the turn (will auto-advance which starts new cycle with only player)
+	TurnManager.end_unit_turn(_player_unit)
+
+	# Should have emitted unit_turn_ended
+	assert_int(_unit_turn_ended_events.size()).is_equal(1)
+	assert_object(_unit_turn_ended_events[0]).is_same(_player_unit)
+
+
+func test_end_wrong_unit_turn_warns() -> void:
+	var player_char: CharacterData = CharacterFactory.create_character("Hero", {"hp": 50, "mp": 10, "strength": 15, "defense": 10, "agility": 10, "is_hero": true})
+	var enemy_char: CharacterData = CharacterFactory.create_combatant("Goblin", 30, 0, 8, 5, 5)
+
+	_player_unit = UnitFactory.spawn_unit(player_char, Vector2i(5, 5), "player", _units_container)
+	_enemy_unit = UnitFactory.spawn_unit(enemy_char, Vector2i(6, 5), "enemy", _units_container)
+
+	TurnManager.active_unit = _player_unit
+
+	# Try to end enemy's turn when player is active
+	TurnManager.end_unit_turn(_enemy_unit)
+
+	# Should not emit signal for wrong unit
+	assert_int(_unit_turn_ended_events.size()).is_equal(0)
+
+
+# =============================================================================
+# SIGNAL HANDLERS
+# =============================================================================
+
+func _on_turn_cycle_started(turn_number: int) -> void:
+	_turn_cycle_events.append(turn_number)
+
+
+func _on_player_turn_started(unit: Unit) -> void:
+	_player_turn_events.append(unit)
+
+
+func _on_enemy_turn_started(unit: Unit) -> void:
+	_enemy_turn_events.append(unit)
+
+
+func _on_unit_turn_ended(unit: Unit) -> void:
+	_unit_turn_ended_events.append(unit)
+
+
+func _on_battle_ended(victory: bool) -> void:
+	_battle_ended_events.append(victory)
+
+
+func _on_hero_died() -> void:
+	_hero_died_events += 1
+
+
+func _cleanup_units() -> void:
+	UnitFactory.cleanup_unit(_player_unit)
+	_player_unit = null
+	UnitFactory.cleanup_unit(_enemy_unit)
+	_enemy_unit = null
+	UnitFactory.cleanup_unit(_hero_unit)
+	_hero_unit = null

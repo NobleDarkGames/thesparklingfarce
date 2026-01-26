@@ -121,25 +121,16 @@ func get_spawn_point(spawn_id: String) -> Dictionary:
 ## Get the default spawn point for this map
 ## Returns empty Dictionary if no default is defined
 func get_default_spawn_point() -> Dictionary:
-	for spawn_id_key: Variant in spawn_points.keys():
-		var spawn_id: String = str(spawn_id_key)
-		var data_val: Variant = spawn_points.get(spawn_id)
-		if not data_val is Dictionary:
-			continue
-		var data: Dictionary = data_val
-		var is_default: bool = DictUtils.get_bool(data, "is_default", false)
-		if is_default:
-			data["spawn_id"] = spawn_id
-			return data
+	var result: Dictionary = _find_spawn_by_flag("is_default")
+	if not result.is_empty():
+		return result
 
 	# Fallback: return first spawn point if no default
 	if not spawn_points.is_empty():
-		var all_keys: Array = spawn_points.keys()
-		var first_id: String = str(all_keys[0])
+		var first_id: String = str(spawn_points.keys()[0])
 		var first_val: Variant = spawn_points.get(first_id)
 		if first_val is Dictionary:
-			var first_entry: Dictionary = first_val
-			var data: Dictionary = first_entry.duplicate()
+			var data: Dictionary = first_val.duplicate()
 			data["spawn_id"] = first_id
 			return data
 
@@ -149,14 +140,18 @@ func get_default_spawn_point() -> Dictionary:
 ## Get the caravan spawn point for this map
 ## Returns empty Dictionary if no caravan spawn is defined
 func get_caravan_spawn_point() -> Dictionary:
+	return _find_spawn_by_flag("is_caravan_spawn")
+
+
+## Find a spawn point by a boolean flag (is_default, is_caravan_spawn)
+func _find_spawn_by_flag(flag_name: String) -> Dictionary:
 	for spawn_id_key: Variant in spawn_points.keys():
 		var spawn_id: String = str(spawn_id_key)
 		var data_val: Variant = spawn_points.get(spawn_id)
 		if not data_val is Dictionary:
 			continue
 		var data: Dictionary = data_val
-		var is_caravan_spawn: bool = DictUtils.get_bool(data, "is_caravan_spawn", false)
-		if is_caravan_spawn:
+		if DictUtils.get_bool(data, flag_name, false):
 			data["spawn_id"] = spawn_id
 			return data
 	return {}
@@ -234,26 +229,10 @@ func get_edge_connection(edge: String) -> Dictionary:
 ## Apply default settings based on map type
 ## Call this after setting map_type to apply recommended defaults
 func apply_type_defaults() -> void:
-	match map_type:
-		MapType.TOWN:
-			caravan_visible = false
-			caravan_accessible = false
-
-		MapType.OVERWORLD:
-			caravan_visible = true
-			caravan_accessible = true
-
-		MapType.DUNGEON:
-			caravan_visible = false
-			caravan_accessible = false
-
-		MapType.INTERIOR:
-			caravan_visible = false
-			caravan_accessible = false
-
-		MapType.BATTLE:
-			caravan_visible = false
-			caravan_accessible = false
+	# Only OVERWORLD has caravan visible/accessible by default
+	var is_overworld: bool = map_type == MapType.OVERWORLD
+	caravan_visible = is_overworld
+	caravan_accessible = is_overworld
 
 
 # =============================================================================
@@ -359,23 +338,7 @@ static func from_dict(data: Dictionary) -> MapMetadata:
 
 	metadata.map_id = DictUtils.get_string(data, "map_id", "")
 	metadata.display_name = DictUtils.get_string(data, "display_name", "")
-
-	# Parse map type from string
-	var type_str: String = DictUtils.get_string(data, "map_type", "TOWN")
-	match type_str.to_upper():
-		"TOWN":
-			metadata.map_type = MapType.TOWN
-		"OVERWORLD":
-			metadata.map_type = MapType.OVERWORLD
-		"DUNGEON":
-			metadata.map_type = MapType.DUNGEON
-		"BATTLE":
-			metadata.map_type = MapType.BATTLE
-		"INTERIOR":
-			metadata.map_type = MapType.INTERIOR
-		_:
-			metadata.map_type = MapType.TOWN
-
+	metadata.map_type = parse_map_type(DictUtils.get_string(data, "map_type", "TOWN"))
 	metadata.caravan_accessible = DictUtils.get_bool(data, "caravan_accessible", false)
 	metadata.caravan_visible = DictUtils.get_bool(data, "caravan_visible", false)
 	metadata.scene_path = DictUtils.get_string(data, "scene_path", "")
@@ -393,6 +356,21 @@ static func from_dict(data: Dictionary) -> MapMetadata:
 ## Get human-readable map type name
 func get_type_name() -> String:
 	return MapType.keys()[map_type]
+
+
+## Parse a map type string to enum value, returns TOWN as default
+static func parse_map_type(type_str: String) -> MapType:
+	var type_map: Dictionary = {
+		"TOWN": MapType.TOWN,
+		"OVERWORLD": MapType.OVERWORLD,
+		"DUNGEON": MapType.DUNGEON,
+		"BATTLE": MapType.BATTLE,
+		"INTERIOR": MapType.INTERIOR
+	}
+	var upper: String = type_str.to_upper()
+	if upper in type_map:
+		return type_map[upper]
+	return MapType.TOWN
 
 
 # =============================================================================
@@ -419,21 +397,11 @@ func _extract_identity_from_scene(scene_root: Node) -> void:
 	if display_name.is_empty() and "display_name" in scene_root:
 		display_name = str(scene_root.get("display_name"))
 
-	# Extract map_type if scene has it
+	# Extract map_type if scene has it as a string
 	if "map_type" in scene_root:
 		var scene_type: Variant = scene_root.get("map_type")
 		if scene_type is String:
-			match scene_type.to_upper():
-				"TOWN":
-					map_type = MapType.TOWN
-				"OVERWORLD":
-					map_type = MapType.OVERWORLD
-				"DUNGEON":
-					map_type = MapType.DUNGEON
-				"BATTLE":
-					map_type = MapType.BATTLE
-				"INTERIOR":
-					map_type = MapType.INTERIOR
+			map_type = MapMetadata.parse_map_type(scene_type)
 
 
 ## Extract spawn points from SpawnPoint nodes in the scene

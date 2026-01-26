@@ -49,8 +49,14 @@ extends Resource
 ## Current scene path (where to load when resuming)
 @export var current_scene_path: String = ""
 
-## Current spawn point ID within the scene (optional)
+## Current spawn point ID within the scene (optional, used if player_position not set)
 @export var current_spawn_point: String = ""
+
+## Player's exact grid position when saved (takes priority over spawn point)
+@export var player_grid_position: Vector2i = Vector2i(-1, -1)
+
+## Player's facing direction when saved
+@export var player_facing: String = ""
 
 ## Last safe location scene path (for Egress/defeat returns)
 @export var last_safe_location: String = ""
@@ -58,22 +64,6 @@ extends Resource
 ## Current location name (for display in save menu)
 ## Example: "Mudford", "Overworld", "Ancient Shrine"
 @export var current_location: String = "headquarters"
-
-# ============================================================================
-# LEGACY CAMPAIGN FIELDS (kept for backwards compatibility with old saves)
-# ============================================================================
-
-## @deprecated Use current_scene_path instead
-@export var current_campaign_id: String = ""
-
-## @deprecated Use current_scene_path instead
-@export var current_node_id: String = ""
-
-## @deprecated No longer used
-@export var campaign_node_history: Array[String] = []
-
-## @deprecated Use last_safe_location instead
-@export var last_hub_id: String = ""
 
 ## Story flags (quest completion, dialogue choices, etc.)
 ## Format: {"flag_name": bool}
@@ -132,6 +122,53 @@ extends Resource
 # SERIALIZATION
 # ============================================================================
 
+## Helper to deserialize a typed string array from save data
+## @param data: Source dictionary
+## @param key: Key to look up
+## @param target: Array to populate (will be cleared first)
+static func _deserialize_string_array(data: Dictionary, key: String, target: Array[String]) -> void:
+	if key not in data:
+		return
+	target.clear()
+	var source: Variant = data.get(key)
+	if source is Array:
+		for entry: Variant in source:
+			if entry is String:
+				target.append(entry)
+
+
+## Helper to deserialize a typed dictionary array from save data
+## @param data: Source dictionary
+## @param key: Key to look up
+## @param target: Array to populate (will be cleared first)
+static func _deserialize_dict_array(data: Dictionary, key: String, target: Array[Dictionary]) -> void:
+	if key not in data:
+		return
+	target.clear()
+	var source: Variant = data.get(key)
+	if source is Array:
+		for entry: Variant in source:
+			if entry is Dictionary:
+				target.append(entry)
+
+
+## Helper to deserialize CharacterSaveData array from save data
+## @param data: Source dictionary
+## @param key: Key to look up
+## @param target: Array to populate (will be cleared first)
+static func _deserialize_character_array(data: Dictionary, key: String, target: Array[CharacterSaveData]) -> void:
+	if key not in data:
+		return
+	target.clear()
+	var source: Variant = data.get(key)
+	if source is Array:
+		for entry: Variant in source:
+			if entry is Dictionary:
+				var char_save: CharacterSaveData = CharacterSaveData.new()
+				char_save.deserialize_from_dict(entry)
+				target.append(char_save)
+
+
 ## Serialize save data to Dictionary for JSON export
 ## @return: Dictionary representation of all save data
 func serialize_to_dict() -> Dictionary:
@@ -146,13 +183,10 @@ func serialize_to_dict() -> Dictionary:
 		# Scene progress
 		"current_scene_path": current_scene_path,
 		"current_spawn_point": current_spawn_point,
+		"player_grid_position": {"x": player_grid_position.x, "y": player_grid_position.y},
+		"player_facing": player_facing,
 		"last_safe_location": last_safe_location,
 		"current_location": current_location,
-		# Legacy campaign fields (for backwards compatibility)
-		"current_campaign_id": current_campaign_id,
-		"current_node_id": current_node_id,
-		"campaign_node_history": campaign_node_history.duplicate(),
-		"last_hub_id": last_hub_id,
 		"story_flags": story_flags.duplicate(),
 		"completed_battles": completed_battles.duplicate(),
 		"available_battles": available_battles.duplicate(),
@@ -188,119 +222,66 @@ func serialize_to_dict() -> Dictionary:
 ## Uses type coercion helpers for safety against corrupted/malformed data
 ## @param data: Dictionary loaded from JSON file
 func deserialize_from_dict(data: Dictionary) -> void:
-	# Metadata - with type safety using .get() to avoid Variant warnings
+	# Metadata
 	save_version = DictUtils.get_int(data, "save_version", 1)
 	created_timestamp = DictUtils.get_int(data, "created_timestamp", 0)
 	last_played_timestamp = DictUtils.get_int(data, "last_played_timestamp", 0)
 	playtime_seconds = maxi(0, DictUtils.get_int(data, "playtime_seconds", 0))
 	slot_number = clampi(DictUtils.get_int(data, "slot_number", 1), 1, 3)
-	if "active_mods" in data:
-		active_mods.clear()
-		var mods_data: Variant = data.get("active_mods")
-		if mods_data is Array:
-			var mods_array: Array = mods_data
-			for mod_entry: Variant in mods_array:
-				if mod_entry is Dictionary:
-					active_mods.append(mod_entry)
+	_deserialize_dict_array(data, "active_mods", active_mods)
 	game_version = DictUtils.get_string(data, "game_version", "0.1.0")
 
-	# Scene progress - with type safety
+	# Scene progress
 	current_scene_path = DictUtils.get_string(data, "current_scene_path", "")
 	current_spawn_point = DictUtils.get_string(data, "current_spawn_point", "")
+	player_facing = DictUtils.get_string(data, "player_facing", "")
+	player_grid_position = _deserialize_vector2i(data, "player_grid_position", Vector2i(-1, -1))
 	last_safe_location = DictUtils.get_string(data, "last_safe_location", "")
 	current_location = DictUtils.get_string(data, "current_location", "headquarters")
 
-	# Legacy campaign fields - for backwards compatibility with old saves
-	current_campaign_id = DictUtils.get_string(data, "current_campaign_id", "")
-	current_node_id = DictUtils.get_string(data, "current_node_id", "")
-	if "campaign_node_history" in data:
-		campaign_node_history.clear()
-		var history_data: Variant = data.get("campaign_node_history")
-		if history_data is Array:
-			var history_array: Array = history_data
-			for node_entry: Variant in history_array:
-				if node_entry is String:
-					campaign_node_history.append(node_entry)
-	last_hub_id = DictUtils.get_string(data, "last_hub_id", "")
+	# Story state
 	if "story_flags" in data:
 		var flags_data: Variant = data.get("story_flags")
 		if flags_data is Dictionary:
-			var flags_dict: Dictionary = flags_data
-			story_flags = flags_dict.duplicate()
+			story_flags = flags_data.duplicate()
 		else:
 			push_warning("SaveData: story_flags is not a Dictionary, using empty")
 			story_flags = {}
-	if "completed_battles" in data:
-		completed_battles.clear()
-		var completed_data: Variant = data.get("completed_battles")
-		if completed_data is Array:
-			var completed_array: Array = completed_data
-			for battle_entry: Variant in completed_array:
-				if battle_entry is String:
-					completed_battles.append(battle_entry)
-	if "available_battles" in data:
-		available_battles.clear()
-		var available_data: Variant = data.get("available_battles")
-		if available_data is Array:
-			var available_array: Array = available_data
-			for battle_entry: Variant in available_array:
-				if battle_entry is String:
-					available_battles.append(battle_entry)
+	_deserialize_string_array(data, "completed_battles", completed_battles)
+	_deserialize_string_array(data, "available_battles", available_battles)
 
-	# Party/Inventory - with type safety and bounds checking
+	# Party/Inventory
 	max_party_size = clampi(DictUtils.get_int(data, "max_party_size", 8), 1, 30)
 	gold = maxi(0, DictUtils.get_int(data, "gold", 0))
-	if "inventory" in data:
-		inventory.clear()
-		var inventory_data: Variant = data.get("inventory")
-		if inventory_data is Array:
-			var inventory_array: Array = inventory_data
-			for item_entry: Variant in inventory_array:
-				if item_entry is Dictionary:
-					inventory.append(item_entry)
-	if "depot_items" in data:
-		depot_items.clear()
-		var depot_data: Variant = data.get("depot_items")
-		if depot_data is Array:
-			var depot_array: Array = depot_data
-			for item_entry: Variant in depot_array:
-				if item_entry is String:
-					depot_items.append(item_entry)
+	_deserialize_dict_array(data, "inventory", inventory)
+	_deserialize_string_array(data, "depot_items", depot_items)
 
-	# Statistics - with type safety and non-negative enforcement
+	# Statistics (non-negative enforcement)
 	total_battles = maxi(0, DictUtils.get_int(data, "total_battles", 0))
 	battles_won = maxi(0, DictUtils.get_int(data, "battles_won", 0))
 	total_enemies_defeated = maxi(0, DictUtils.get_int(data, "total_enemies_defeated", 0))
 	total_damage_dealt = maxi(0, DictUtils.get_int(data, "total_damage_dealt", 0))
 	total_healing_done = maxi(0, DictUtils.get_int(data, "total_healing_done", 0))
 
-	# Deserialize party members
-	party_members.clear()
-	if "party_members" in data:
-		var party_data: Variant = data.get("party_members")
-		if party_data is Array:
-			var party_array: Array = party_data
-			for i: int in range(party_array.size()):
-				var char_entry: Variant = party_array[i]
-				if char_entry is Dictionary:
-					var char_dict: Dictionary = char_entry
-					var char_save: CharacterSaveData = CharacterSaveData.new()
-					char_save.deserialize_from_dict(char_dict)
-					party_members.append(char_save)
+	# Party and reserve members
+	_deserialize_character_array(data, "party_members", party_members)
+	_deserialize_character_array(data, "reserve_members", reserve_members)
 
-	# Deserialize reserve members
-	reserve_members.clear()
-	if "reserve_members" in data:
-		var reserve_data: Variant = data.get("reserve_members")
-		if reserve_data is Array:
-			var reserve_array: Array = reserve_data
-			for i: int in range(reserve_array.size()):
-				var char_entry: Variant = reserve_array[i]
-				if char_entry is Dictionary:
-					var char_dict: Dictionary = char_entry
-					var char_save: CharacterSaveData = CharacterSaveData.new()
-					char_save.deserialize_from_dict(char_dict)
-					reserve_members.append(char_save)
+
+## Helper to deserialize a Vector2i from save data
+## @param data: Source dictionary
+## @param key: Key to look up
+## @param default: Default value if key missing or invalid
+static func _deserialize_vector2i(data: Dictionary, key: String, default: Vector2i) -> Vector2i:
+	if key not in data:
+		return default
+	var pos_data: Variant = data.get(key)
+	if pos_data is Dictionary:
+		return Vector2i(
+			DictUtils.get_int(pos_data, "x", default.x),
+			DictUtils.get_int(pos_data, "y", default.y)
+		)
+	return default
 
 
 # ============================================================================
@@ -310,24 +291,20 @@ func deserialize_from_dict(data: Dictionary) -> void:
 ## Validate that save data is complete and valid
 ## @return: true if valid, false if corrupted/invalid
 func validate() -> bool:
-	if save_version < 1:
-		push_error("SaveData: Invalid save_version: %d" % save_version)
-		return false
-
-	if slot_number < 1 or slot_number > 3:
-		push_error("SaveData: Invalid slot_number: %d (must be 1-3)" % slot_number)
-		return false
-
-	if game_version.is_empty():
-		push_error("SaveData: game_version is empty")
-		return false
-
-	# Validate party members
-	for i: int in range(party_members.size()):
-		var char_save: CharacterSaveData = party_members[i]
-		if not char_save.validate():
+	var checks: Array = [
+		[save_version < 1, "Invalid save_version: %d" % save_version],
+		[slot_number < 1 or slot_number > 3, "Invalid slot_number: %d (must be 1-3)" % slot_number],
+		[game_version.is_empty(), "game_version is empty"],
+	]
+	for check: Array in checks:
+		if check[0]:
+			push_error("SaveData: " + check[1])
 			return false
 
+	# Validate party members
+	for char_save: CharacterSaveData in party_members:
+		if not char_save.validate():
+			return false
 	return true
 
 
@@ -388,17 +365,13 @@ func _format_playtime() -> String:
 ##   orphaned_items: Array[String] - items from missing mods
 ##   orphaned_characters: Array[String] - characters from missing mods
 func validate_mod_dependencies() -> Dictionary:
-	# Use typed arrays for type safety
 	var missing_mods: Array[String] = []
 	var orphaned_items: Array[String] = []
 	var orphaned_characters: Array[String] = []
 	var is_valid: bool = true
 
 	# Get currently loaded mod IDs
-	var loaded_mods: Array[String] = []
-	if ModLoader:
-		for mod: ModManifest in ModLoader.loaded_mods:
-			loaded_mods.append(mod.mod_id)
+	var loaded_mods: Array[String] = _get_loaded_mod_ids()
 
 	# Check active_mods against loaded mods
 	for mod_info: Dictionary in active_mods:
@@ -424,23 +397,15 @@ func validate_mod_dependencies() -> Dictionary:
 				orphaned_items.append(item_id)
 				is_valid = false
 
-	# Check party members
-	for char_save: CharacterSaveData in party_members:
-		if not char_save.character_mod_id.is_empty():
-			if char_save.character_mod_id not in loaded_mods:
-				orphaned_characters.append(char_save.fallback_character_name)
-				if char_save.character_mod_id not in missing_mods:
-					missing_mods.append(char_save.character_mod_id)
-				is_valid = false
-
-	# Check reserve members
-	for char_save: CharacterSaveData in reserve_members:
-		if not char_save.character_mod_id.is_empty():
-			if char_save.character_mod_id not in loaded_mods:
-				orphaned_characters.append(char_save.fallback_character_name)
-				if char_save.character_mod_id not in missing_mods:
-					missing_mods.append(char_save.character_mod_id)
-				is_valid = false
+	# Check all characters (party and reserve)
+	for char_save: CharacterSaveData in _get_all_characters():
+		if char_save.character_mod_id.is_empty():
+			continue
+		if char_save.character_mod_id not in loaded_mods:
+			orphaned_characters.append(char_save.fallback_character_name)
+			if char_save.character_mod_id not in missing_mods:
+				missing_mods.append(char_save.character_mod_id)
+			is_valid = false
 
 	return {
 		"valid": is_valid,
@@ -448,6 +413,23 @@ func validate_mod_dependencies() -> Dictionary:
 		"orphaned_items": orphaned_items,
 		"orphaned_characters": orphaned_characters
 	}
+
+
+## Get list of currently loaded mod IDs
+func _get_loaded_mod_ids() -> Array[String]:
+	var loaded_mods: Array[String] = []
+	if ModLoader:
+		for mod: ModManifest in ModLoader.loaded_mods:
+			loaded_mods.append(mod.mod_id)
+	return loaded_mods
+
+
+## Get all characters (party + reserve) for iteration
+func _get_all_characters() -> Array[CharacterSaveData]:
+	var all_chars: Array[CharacterSaveData] = []
+	all_chars.append_array(party_members)
+	all_chars.append_array(reserve_members)
+	return all_chars
 
 
 ## Remove content from mods that are no longer loaded
@@ -459,30 +441,39 @@ func remove_orphaned_content(mod_check: Dictionary) -> void:
 	var orphaned_characters_list: Array = orphaned_characters_variant if orphaned_characters_variant is Array else []
 
 	# Remove orphaned inventory items
-	var valid_inventory: Array[Dictionary] = []
-	for item_dict: Dictionary in inventory:
-		var item_id: String = DictUtils.get_string(item_dict, "item_id", "")
-		if item_id not in orphaned_items_list:
-			valid_inventory.append(item_dict)
-	inventory = valid_inventory
+	inventory = _filter_inventory(inventory, orphaned_items_list)
 
 	# Remove orphaned depot items
-	var valid_depot: Array[String] = []
-	for item_id: String in depot_items:
-		if item_id not in orphaned_items_list:
-			valid_depot.append(item_id)
-	depot_items = valid_depot
+	depot_items = _filter_string_array(depot_items, orphaned_items_list)
 
-	# Remove orphaned party members
-	var valid_party: Array[CharacterSaveData] = []
-	for char_save: CharacterSaveData in party_members:
-		if char_save.fallback_character_name not in orphaned_characters_list:
-			valid_party.append(char_save)
-	party_members = valid_party
+	# Remove orphaned characters from party and reserve
+	party_members = _filter_characters(party_members, orphaned_characters_list)
+	reserve_members = _filter_characters(reserve_members, orphaned_characters_list)
 
-	# Remove orphaned reserve members
-	var valid_reserve: Array[CharacterSaveData] = []
-	for char_save: CharacterSaveData in reserve_members:
-		if char_save.fallback_character_name not in orphaned_characters_list:
-			valid_reserve.append(char_save)
-	reserve_members = valid_reserve
+
+## Filter inventory to exclude orphaned items
+func _filter_inventory(source: Array[Dictionary], orphaned: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for item_dict: Dictionary in source:
+		var item_id: String = DictUtils.get_string(item_dict, "item_id", "")
+		if item_id not in orphaned:
+			result.append(item_dict)
+	return result
+
+
+## Filter string array to exclude orphaned entries
+func _filter_string_array(source: Array[String], orphaned: Array) -> Array[String]:
+	var result: Array[String] = []
+	for entry: String in source:
+		if entry not in orphaned:
+			result.append(entry)
+	return result
+
+
+## Filter character array to exclude orphaned characters by name
+func _filter_characters(source: Array[CharacterSaveData], orphaned: Array) -> Array[CharacterSaveData]:
+	var result: Array[CharacterSaveData] = []
+	for char_save: CharacterSaveData in source:
+		if char_save.fallback_character_name not in orphaned:
+			result.append(char_save)
+	return result

@@ -20,6 +20,54 @@ class_name ConfigurableAIBrain
 ## If randomization is ever needed (e.g., tie-breaking between equal scores),
 ## use RandomManager.ai_rng to maintain save/replay compatibility.
 
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+## Scoring constants
+const SCORE_MIN: float = -999.0
+const SCORE_MAX_DISTANCE: int = 20
+const SCORE_MAX_ENEMY_DISTANCE: int = 999
+
+## Targeting weights
+const WOUNDED_PRIORITY_MULTIPLIER: float = 100.0
+const PROXIMITY_MULTIPLIER: float = 5.0
+const ENEMY_DISTANCE_MULTIPLIER: float = 10.0
+const HEALER_DISTANCE_WEIGHT: float = 5.0
+
+## Heal threshold (heal allies below this HP percentage)
+const HEAL_HP_THRESHOLD: float = 0.8
+
+## Default behavior ranges (when behavior data is null)
+const DEFAULT_ALERT_RANGE: int = 8
+const DEFAULT_ENGAGEMENT_RANGE: int = 5
+const DEFAULT_BUFF_RANGE: int = 3
+
+## Defense stat threshold for low-defense bonus
+const LOW_DEFENSE_THRESHOLD: int = 10
+
+## Threat base values
+const HEALER_THREAT_BASE: float = 30.0
+const DEBUFFER_THREAT_BASE: float = 20.0
+const SUPPORT_THREAT_BASE: float = 15.0
+const UNKNOWN_THREAT_BASE: float = 5.0
+
+## Priority bonuses
+const BOSS_HEAL_PRIORITY: float = 50.0
+const BOSS_VIP_PRIORITY: float = 200.0
+const VIP_TAG_PRIORITY: float = 150.0
+const HEALER_VIP_PRIORITY: float = 50.0
+const UNBUFFED_TARGET_BONUS: float = 30.0
+const ALREADY_BUFFED_PENALTY: float = 20.0
+const BOSS_BUFF_PRIORITY: float = 25.0
+const STRONG_UNIT_BUFF_BONUS: float = 10.0
+const STRONG_UNIT_THRESHOLD: int = 15
+const SELF_HEAL_BONUS: float = 5.0
+const SELF_BUFF_BONUS: float = 5.0
+const AOE_HEAL_EFFICIENCY_BONUS: float = 20.0
+const PREFERRED_EFFECT_BONUS: float = 50.0
+const ATTACK_OPPORTUNITY_BONUS: float = 10.0
+
 ## Singleton instance for use by AIController
 static var _instance: AIBrain = null  # Use base class type to avoid self-reference issue
 
@@ -48,6 +96,29 @@ func _get_delay(context: Dictionary, delay_key: String, default: float = 0.3) ->
 	return delays.get(delay_key, default)
 
 
+## Calculate HP percentage for a unit (0.0 to 1.0)
+func _get_hp_percent(unit: Unit) -> float:
+	if not unit or not unit.stats or unit.stats.max_hp <= 0:
+		return 1.0
+	return float(unit.stats.current_hp) / float(unit.stats.max_hp)
+
+
+## Get opposing units based on faction
+func _get_opponents(unit: Unit, context: Dictionary) -> Array[Unit]:
+	if unit.faction == "enemy":
+		return get_player_units(context)
+	elif unit.faction == "player":
+		return get_enemy_units(context)
+	else:
+		# Neutral units don't typically have opponents in standard gameplay
+		return []
+
+
+## Check if unit has character_data
+func _has_character_data(unit: Unit) -> bool:
+	return "character_data" in unit and unit.character_data != null
+
+
 ## Execute AI behavior based on AIBehaviorData configuration
 func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
 	if not behavior:
@@ -70,6 +141,13 @@ func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehavior
 			role = phase_changes["role"]
 		if "behavior_mode" in phase_changes:
 			mode = phase_changes["behavior_mode"]
+
+	# Pre-combat: try to use buff items on self or nearby allies
+	# This happens before any movement or combat actions
+	if behavior.use_buff_items:
+		var buffed: bool = await _try_use_buff_item(unit, context, behavior)
+		if buffed:
+			return  # Turn consumed by item use
 
 	# Execute based on ROLE first (what the AI prioritizes)
 	# Then fall back to MODE (how it executes attacks)
@@ -164,8 +242,8 @@ func _execute_cautious(unit: Unit, context: Dictionary, behavior: AIBehaviorData
 		return
 
 	var distance: int = GridManager.grid.get_manhattan_distance(unit.grid_position, nearest.grid_position)
-	var alert_range: int = behavior.alert_range if behavior else 8
-	var engagement_range: int = behavior.engagement_range if behavior else 5
+	var alert_range: int = behavior.alert_range if behavior else DEFAULT_ALERT_RANGE
+	var engagement_range: int = behavior.engagement_range if behavior else DEFAULT_ENGAGEMENT_RANGE
 
 	# Only react to enemies within alert range
 	if distance > alert_range:
@@ -235,7 +313,7 @@ func _execute_retreat(unit: Unit, enemies: Array[Unit], context: Dictionary) -> 
 	if not unit_class:
 		return
 
-	var behavior: AIBehaviorData = unit.ai_behavior if "ai_behavior" in unit else null
+	var behavior: AIBehaviorData = unit.ai_behavior if "ai_behavior" in unit and unit.ai_behavior else null
 	var movement_range: int = unit_class.movement_range
 	var reachable: Array[Vector2i] = GridManager.get_walkable_cells(unit.grid_position, movement_range, unit_class.movement_type, unit.faction)
 
@@ -249,7 +327,7 @@ func _execute_retreat(unit: Unit, enemies: Array[Unit], context: Dictionary) -> 
 
 	# Find best retreat cell
 	var best_cell: Vector2i = unit.grid_position
-	var best_score: float = -999.0
+	var best_score: float = SCORE_MIN
 
 	for cell: Vector2i in reachable:
 		if cell != unit.grid_position and GridManager.is_cell_occupied(cell):
@@ -258,17 +336,17 @@ func _execute_retreat(unit: Unit, enemies: Array[Unit], context: Dictionary) -> 
 		var score: float = 0.0
 
 		# Distance from enemies (want to maximize)
-		var min_enemy_dist: int = 999
+		var min_enemy_dist: int = SCORE_MAX_ENEMY_DISTANCE
 		for enemy: Unit in enemies:
 			if enemy.is_alive():
 				var dist: int = GridManager.grid.get_manhattan_distance(cell, enemy.grid_position)
 				min_enemy_dist = mini(min_enemy_dist, dist)
-		score += min_enemy_dist * 10.0
+		score += min_enemy_dist * ENEMY_DISTANCE_MULTIPLIER
 
 		# Distance to healer (want to minimize)
 		if healer_target:
 			var healer_dist: int = GridManager.grid.get_manhattan_distance(cell, healer_target.grid_position)
-			score -= healer_dist * 5.0  # Less weight than enemy avoidance
+			score -= healer_dist * HEALER_DISTANCE_WEIGHT
 
 		if score > best_score:
 			best_score = score
@@ -286,7 +364,7 @@ func _find_best_target(unit: Unit, targets: Array[Unit], behavior: AIBehaviorDat
 		return null
 
 	var best_target: Unit = null
-	var best_score: float = -999.0
+	var best_score: float = SCORE_MIN
 
 	var wounded_weight: float = behavior.get_threat_weight("wounded_target", 1.0) if behavior else 1.0
 	var proximity_weight: float = behavior.get_threat_weight("proximity", 1.0) if behavior else 1.0
@@ -302,13 +380,12 @@ func _find_best_target(unit: Unit, targets: Array[Unit], behavior: AIBehaviorDat
 			score += _calculate_unit_threat(target, behavior)
 
 		# Wounded target priority
-		if target.stats:
-			var hp_percent: float = float(target.stats.current_hp) / float(target.stats.max_hp)
-			score += (1.0 - hp_percent) * wounded_weight * 100.0
+		var hp_percent: float = _get_hp_percent(target)
+		score += (1.0 - hp_percent) * wounded_weight * WOUNDED_PRIORITY_MULTIPLIER
 
 		# Proximity bonus
 		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, target.grid_position)
-		score += (20 - dist) * proximity_weight * 5.0
+		score += (SCORE_MAX_DISTANCE - dist) * proximity_weight * PROXIMITY_MULTIPLIER
 
 		if score > best_score:
 			best_score = score
@@ -330,7 +407,7 @@ func _calculate_unit_threat(unit: Unit, behavior: AIBehaviorData) -> float:
 		return threat
 
 	# Check for character_data - may not exist on all units
-	if not "character_data" in unit or unit.character_data == null:
+	if not _has_character_data(unit):
 		return threat
 
 	# Get unit's class for ability lookup
@@ -357,7 +434,7 @@ func _calculate_unit_threat(unit: Unit, behavior: AIBehaviorData) -> float:
 		match ability.ability_type:
 			AbilityData.AbilityType.HEAL:
 				# Healers are high-value targets
-				var base_threat: float = 30.0 + ability.potency * 0.5
+				var base_threat: float = HEALER_THREAT_BASE + ability.potency * 0.5
 				var weight: float = behavior.get_threat_weight("healer", 1.0)
 				threat += base_threat * contribution * weight
 
@@ -369,19 +446,17 @@ func _calculate_unit_threat(unit: Unit, behavior: AIBehaviorData) -> float:
 
 			AbilityData.AbilityType.DEBUFF, AbilityData.AbilityType.STATUS:
 				# Debuffers can swing battles
-				var base_threat: float = 20.0
 				var weight: float = behavior.get_threat_weight("debuffer", 1.0)
-				threat += base_threat * contribution * weight
+				threat += DEBUFFER_THREAT_BASE * contribution * weight
 
 			AbilityData.AbilityType.SUPPORT:
 				# Buffers help their team
-				var base_threat: float = 15.0
 				var weight: float = behavior.get_threat_weight("support", 1.0)
-				threat += base_threat * contribution * weight
+				threat += SUPPORT_THREAT_BASE * contribution * weight
 
 			_:
 				# Other types: small contribution
-				threat += 5.0 * contribution
+				threat += UNKNOWN_THREAT_BASE * contribution
 
 	# Add stat-based threat (high attack = dangerous)
 	var attack_stat: int = unit.stats.strength if unit.stats else 0
@@ -391,8 +466,8 @@ func _calculate_unit_threat(unit: Unit, behavior: AIBehaviorData) -> float:
 	# Low defense = vulnerable = good target
 	var defense_stat: int = unit.stats.defense if unit.stats else 0
 	var defense_weight: float = behavior.get_threat_weight("low_defense", 1.0)
-	if defense_stat < 10:
-		threat += (10 - defense_stat) * 2.0 * defense_weight
+	if defense_stat < LOW_DEFENSE_THRESHOLD:
+		threat += (LOW_DEFENSE_THRESHOLD - defense_stat) * 2.0 * defense_weight
 
 	# Apply character's threat modifier (bosses = 2.0, fodder = 0.5)
 	var char_modifier: float = unit.character_data.ai_threat_modifier
@@ -482,18 +557,14 @@ func _get_allied_units(unit: Unit, context: Dictionary) -> Array[Unit]:
 
 
 ## Find wounded allies that could benefit from healing
-func _find_wounded_allies(allies: Array[Unit], behavior: AIBehaviorData) -> Array[Unit]:
+func _find_wounded_allies(allies: Array[Unit], _behavior: AIBehaviorData) -> Array[Unit]:
 	var wounded: Array[Unit] = []
 
-	# Determine minimum damage threshold for healing (default: 20% missing HP)
-	var heal_threshold: float = 0.8  # Heal if below 80% HP
-
 	for ally: Unit in allies:
-		if not ally.is_alive() or not ally.stats:
+		if not ally.is_alive():
 			continue
 
-		var hp_percent: float = float(ally.stats.current_hp) / float(ally.stats.max_hp)
-		if hp_percent < heal_threshold:
+		if _get_hp_percent(ally) < HEAL_HP_THRESHOLD:
 			wounded.append(ally)
 
 	return wounded
@@ -505,28 +576,28 @@ func _find_best_heal_target(unit: Unit, wounded: Array[Unit], behavior: AIBehavi
 		return null
 
 	var best_target: Unit = null
-	var best_score: float = -999.0
+	var best_score: float = SCORE_MIN
 	var prioritize_boss: bool = behavior.prioritize_boss_heals if behavior else false
 
 	for ally: Unit in wounded:
 		var score: float = 0.0
 
 		# Most wounded gets highest priority
-		var hp_percent: float = float(ally.stats.current_hp) / float(ally.stats.max_hp)
-		score += (1.0 - hp_percent) * 100.0
+		var hp_percent: float = _get_hp_percent(ally)
+		score += (1.0 - hp_percent) * WOUNDED_PRIORITY_MULTIPLIER
 
 		# Boss/leader priority
-		if prioritize_boss and "character_data" in ally and ally.character_data:
+		if prioritize_boss and _has_character_data(ally):
 			if ally.character_data.is_boss:
-				score += 50.0  # Strong preference for bosses
+				score += BOSS_HEAL_PRIORITY
 
 		# Proximity bonus (prefer closer allies)
 		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, ally.grid_position)
-		score += (20 - dist) * 2.0
+		score += (SCORE_MAX_DISTANCE - dist) * 2.0
 
 		# Self-healing bonus (slight preference to heal self if equally wounded)
 		if ally == unit:
-			score += 5.0
+			score += SELF_HEAL_BONUS
 
 		if score > best_score:
 			best_score = score
@@ -571,11 +642,11 @@ func _get_unit_healing_abilities(unit: Unit) -> Array[Dictionary]:
 ## Select the best healing ability for this situation
 ## Integrates AoE optimization to skip AoE heals when not enough targets
 func _select_best_healing_ability(unit: Unit, target: Unit, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
-	if abilities.is_empty():
+	if abilities.is_empty() or not target.stats or not unit.stats:
 		return {}
 
 	var best_ability: Dictionary = {}
-	var best_score: float = -999.0
+	var best_score: float = SCORE_MIN
 	var conserve_mp: bool = behavior.conserve_mp_on_heals if behavior else false
 	var min_aoe_targets: int = behavior.aoe_minimum_targets if behavior else 2
 
@@ -614,7 +685,7 @@ func _select_best_healing_ability(unit: Unit, target: Unit, abilities: Array[Dic
 
 		# Bonus for AoE that meets threshold
 		if aoe_radius > 0:
-			score += 20.0  # AoE heals are efficient
+			score += AOE_HEAL_EFFICIENCY_BONUS
 
 		if score > best_score:
 			best_score = score
@@ -637,7 +708,7 @@ func _move_into_spell_range(unit: Unit, target_pos: Vector2i, spell_range: int) 
 
 	# Find best cell that puts us in range of target
 	var best_cell: Vector2i = unit.grid_position
-	var best_distance_to_range: int = 999
+	var best_distance_to_range: int = SCORE_MAX_ENEMY_DISTANCE
 	var current_dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, target_pos)
 
 	for cell: Vector2i in reachable:
@@ -760,6 +831,31 @@ func _find_best_aoe_target(caster: Unit, ability: AbilityData, behavior: AIBehav
 # ITEM USAGE (Phase 2)
 # =============================================================================
 
+## Check if a specific item ability type is enabled in the behavior
+func _is_item_type_enabled(behavior: AIBehaviorData, ability_type: AbilityData.AbilityType) -> bool:
+	match ability_type:
+		AbilityData.AbilityType.HEAL:
+			return behavior.use_healing_items
+		AbilityData.AbilityType.ATTACK:
+			return behavior.use_attack_items
+		AbilityData.AbilityType.SUPPORT:
+			return behavior.use_buff_items
+		_:
+			return false
+
+
+## Resolve the target for an item based on ability type
+## Returns null if target is invalid (e.g., attack item with no target)
+func _resolve_item_target(unit: Unit, target: Unit, ability_type: AbilityData.AbilityType) -> Unit:
+	match ability_type:
+		AbilityData.AbilityType.ATTACK:
+			return target  # Attack items require an explicit target
+		AbilityData.AbilityType.HEAL:
+			return target if target else unit  # Default to self for healing
+		_:
+			return target if target else unit  # Default to self for other types
+
+
 ## Attempt to use an item with a specific ability type
 ## @param unit: The AI unit
 ## @param context: Battle context
@@ -769,24 +865,17 @@ func _find_best_aoe_target(caster: Unit, ability: AbilityData, behavior: AIBehav
 ## @return: true if item was used, false otherwise
 func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
 		ability_type: AbilityData.AbilityType, target: Unit = null) -> bool:
+	if not behavior or not _has_character_data(unit):
+		return false
+
 	# Check behavior flags based on ability type
-	if not behavior:
-		return false
-	if ability_type == AbilityData.AbilityType.HEAL and not behavior.use_healing_items:
-		return false
-	if ability_type == AbilityData.AbilityType.ATTACK and not behavior.use_attack_items:
+	if not _is_item_type_enabled(behavior, ability_type):
 		return false
 
-	if not "character_data" in unit or unit.character_data == null:
+	# Validate and set target based on ability type
+	target = _resolve_item_target(unit, target, ability_type)
+	if not target:
 		return false
-
-	# For attack items, target is required
-	if ability_type == AbilityData.AbilityType.ATTACK and not target:
-		return false
-
-	# For healing items, default to self
-	if ability_type == AbilityData.AbilityType.HEAL and not target:
-		target = unit
 
 	# Get unit's inventory from save data
 	var char_uid: String = unit.character_data.character_uid
@@ -828,6 +917,110 @@ func _try_use_attack_item(unit: Unit, target: Unit, context: Dictionary, behavio
 	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.ATTACK, target)
 
 
+## Convenience wrapper for buff items on self or nearby allies
+## @param unit: The AI unit
+## @param context: Battle context
+## @param behavior: AI behavior settings
+## @return: true if buff item was used, false otherwise
+func _try_use_buff_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> bool:
+	if not behavior or not behavior.use_buff_items:
+		return false
+
+	# Find best target for buff (self or nearby ally)
+	var target: Unit = _find_best_buff_target(unit, context)
+	if not target:
+		return false
+
+	return await _try_use_item(unit, context, behavior, AbilityData.AbilityType.SUPPORT, target)
+
+
+## Find the best target for a buff item (self or nearby ally)
+## Prioritizes allies without buffs, then self
+## @param unit: The AI unit
+## @param context: Battle context
+## @return: Best target for buff, or null if none suitable
+func _find_best_buff_target(unit: Unit, context: Dictionary) -> Unit:
+	var allies: Array[Unit] = _get_allied_units(unit, context)
+
+	# Check self first - quick early return if no allies
+	if allies.is_empty():
+		return unit
+
+	var best_target: Unit = null
+	var best_score: float = SCORE_MIN
+
+	# Score self
+	var self_score: float = _calculate_buff_target_score(unit, unit)
+	if self_score > best_score:
+		best_score = self_score
+		best_target = unit
+
+	# Score nearby allies (within buff item range)
+	for ally: Unit in allies:
+		if not ally.is_alive() or ally == unit:
+			continue
+
+		var dist: int = GridManager.grid.get_manhattan_distance(unit.grid_position, ally.grid_position)
+		if dist > DEFAULT_BUFF_RANGE:
+			continue  # Too far to buff
+
+		var score: float = _calculate_buff_target_score(unit, ally)
+
+		# Proximity bonus - closer allies are easier to buff
+		score += (DEFAULT_BUFF_RANGE - dist) * PROXIMITY_MULTIPLIER
+
+		if score > best_score:
+			best_score = score
+			best_target = ally
+
+	return best_target
+
+
+## Calculate score for a potential buff target
+## Higher score = better target for buffing
+## @param caster: The AI unit considering the buff
+## @param target: Potential target for the buff
+## @return: Score value (higher = better)
+func _calculate_buff_target_score(caster: Unit, target: Unit) -> float:
+	var score: float = 0.0
+
+	if not target or not target.stats:
+		return score
+
+	# Units without active buffs are better targets (avoid stacking)
+	# Check status_effects for existing buffs
+	if target.stats.status_effects.is_empty():
+		score += UNBUFFED_TARGET_BONUS
+	else:
+		# Check if any existing effects are buffs (typically have _up suffix)
+		var has_buff: bool = false
+		for effect: Dictionary in target.stats.status_effects:
+			var effect_type: String = effect.get("type", "")
+			if effect_type.ends_with("_up") or effect_type.begins_with("buff_"):
+				has_buff = true
+				break
+		if has_buff:
+			score -= ALREADY_BUFFED_PENALTY
+
+	# Higher threat units are better buff targets (they'll make better use of it)
+	if _has_character_data(target):
+		score += target.character_data.ai_threat_modifier * STRONG_UNIT_BUFF_BONUS
+
+		# Bosses get priority
+		if target.character_data.is_boss:
+			score += BOSS_BUFF_PRIORITY
+
+	# Self-buff has a small bonus (no movement cost)
+	if target == caster:
+		score += SELF_BUFF_BONUS
+
+	# Offensive stats benefit more from buffs generally
+	if target.stats.strength > STRONG_UNIT_THRESHOLD:
+		score += STRONG_UNIT_BUFF_BONUS
+
+	return score
+
+
 # =============================================================================
 # RETREAT ENHANCEMENTS (Phase 5)
 # =============================================================================
@@ -837,7 +1030,7 @@ func _find_nearest_allied_healer(unit: Unit, context: Dictionary) -> Unit:
 	var allies: Array[Unit] = _get_allied_units(unit, context)
 
 	var nearest_healer: Unit = null
-	var nearest_dist: int = 999
+	var nearest_dist: int = SCORE_MAX_ENEMY_DISTANCE
 
 	for ally: Unit in allies:
 		if ally == unit or not ally.is_alive():
@@ -874,11 +1067,7 @@ func _find_nearest_allied_healer(unit: Unit, context: Dictionary) -> Unit:
 ## @return: true if enemies outnumber allies 2:1 or more
 func _is_outnumbered(unit: Unit, context: Dictionary, radius: int = 3) -> bool:
 	var allies: Array[Unit] = _get_allied_units(unit, context)
-	var opponents: Array[Unit]
-	if unit.faction == "enemy":
-		opponents = get_player_units(context)
-	else:
-		opponents = get_enemy_units(context)
+	var opponents: Array[Unit] = _get_opponents(unit, context)
 
 	var nearby_allies: int = 1  # Count self
 	var nearby_enemies: int = 0
@@ -912,12 +1101,7 @@ func _execute_tactical_role(unit: Unit, context: Dictionary, behavior: AIBehavio
 		return false
 
 	# Get opponent units
-	var opponents: Array[Unit]
-	if unit.faction == "enemy":
-		opponents = get_player_units(context)
-	else:
-		opponents = get_enemy_units(context)
-
+	var opponents: Array[Unit] = _get_opponents(unit, context)
 	if opponents.is_empty():
 		return false
 
@@ -928,7 +1112,7 @@ func _execute_tactical_role(unit: Unit, context: Dictionary, behavior: AIBehavio
 
 	# Find best target (highest threat that doesn't already have debuffs)
 	var best_target: Unit = null
-	var best_threat: float = -999.0
+	var best_threat: float = SCORE_MIN
 
 	for target: Unit in opponents:
 		if not target.is_alive():
@@ -1025,12 +1209,12 @@ func _get_unit_debuff_abilities(unit: Unit, behavior: AIBehaviorData) -> Array[D
 
 
 ## Select the best debuff ability for the situation
-func _select_best_debuff_ability(unit: Unit, target: Unit, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
+func _select_best_debuff_ability(_unit: Unit, _target: Unit, abilities: Array[Dictionary], behavior: AIBehaviorData) -> Dictionary:
 	if abilities.is_empty():
 		return {}
 
 	var best_ability: Dictionary = {}
-	var best_score: float = -999.0
+	var best_score: float = SCORE_MIN
 
 	for ability_info: Dictionary in abilities:
 		var score: float = 0.0
@@ -1039,7 +1223,7 @@ func _select_best_debuff_ability(unit: Unit, target: Unit, abilities: Array[Dict
 		var effects: Array = ability_info.get("effects", [])
 		for effect: String in effects:
 			if effect in behavior.preferred_status_effects:
-				score += 50.0
+				score += PREFERRED_EFFECT_BONUS
 
 		# Prefer lower MP cost (conserve resources)
 		var mp_cost: int = ability_info.get("mp_cost", 0)
@@ -1065,11 +1249,7 @@ func _select_best_debuff_ability(unit: Unit, target: Unit, abilities: Array[Dict
 func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehaviorData) -> void:
 	# Get allies and opponents
 	var allies: Array[Unit] = _get_allied_units(unit, context)
-	var opponents: Array[Unit]
-	if unit.faction == "enemy":
-		opponents = get_player_units(context)
-	else:
-		opponents = get_enemy_units(context)
+	var opponents: Array[Unit] = _get_opponents(unit, context)
 
 	# Find VIP to protect (highest ai_threat_modifier or boss tag)
 	var vip: Unit = _find_vip_to_protect(unit, allies)
@@ -1130,7 +1310,7 @@ func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehavi
 ## Find the VIP (most valuable ally to protect)
 func _find_vip_to_protect(protector: Unit, allies: Array[Unit]) -> Unit:
 	var best_vip: Unit = null
-	var best_priority: float = -999.0
+	var best_priority: float = SCORE_MIN
 
 	for ally: Unit in allies:
 		if ally == protector or not ally.is_alive():
@@ -1143,15 +1323,15 @@ func _find_vip_to_protect(protector: Unit, allies: Array[Unit]) -> Unit:
 
 		# Check is_boss flag (primary boss indicator)
 		if ally.character_data.is_boss:
-			priority += 200.0
+			priority += BOSS_VIP_PRIORITY
 
 		# Check ai_threat_modifier (fine-tuning)
-		priority += ally.character_data.ai_threat_modifier * 100.0
+		priority += ally.character_data.ai_threat_modifier * WOUNDED_PRIORITY_MULTIPLIER
 
 		# Check for vip tag (secondary protection target)
 		var tags: Array[String] = ally.character_data.ai_threat_tags
 		if "vip" in tags:
-			priority += 150.0
+			priority += VIP_TAG_PRIORITY
 
 		# Healers are valuable
 		var ally_class: ClassData = ally.get_current_class()
@@ -1160,7 +1340,7 @@ func _find_vip_to_protect(protector: Unit, allies: Array[Unit]) -> Unit:
 			var abilities: Array[AbilityData] = ally_class.get_unlocked_class_abilities(level)
 			for ability: AbilityData in abilities:
 				if ability and ability.ability_type == AbilityData.AbilityType.HEAL:
-					priority += 50.0
+					priority += HEALER_VIP_PRIORITY
 					break
 
 		if priority > best_priority:
@@ -1219,7 +1399,7 @@ func _find_best_defensive_position(unit: Unit, intercept_pos: Vector2i, opponent
 		return unit.grid_position
 
 	var best_cell: Vector2i = unit.grid_position
-	var best_score: float = -999.0
+	var best_score: float = SCORE_MIN
 
 	# Get weapon range for attack opportunity checks
 	var min_attack_range: int = 1
@@ -1241,7 +1421,7 @@ func _find_best_defensive_position(unit: Unit, intercept_pos: Vector2i, opponent
 				continue
 			var dist_to_enemy: int = GridManager.grid.get_manhattan_distance(cell, opponent.grid_position)
 			if dist_to_enemy >= min_attack_range and dist_to_enemy <= max_attack_range:
-				score += 10.0  # Big bonus for attack opportunity
+				score += ATTACK_OPPORTUNITY_BONUS
 				break  # Only need one attackable target
 
 		if score > best_score:

@@ -62,6 +62,12 @@ func _ready() -> void:
 	super._ready()
 
 
+## Handle dependency changes - refresh effect picker when abilities change
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "ability" and effect_picker:
+		effect_picker.refresh()
+
+
 ## Override: Create the item-specific detail form
 func _create_detail_form() -> void:
 	# Basic info section
@@ -332,14 +338,13 @@ func _add_basic_info_section() -> void:
 	form.add_labeled_control("Icon:", icon_container, "Item icon displayed in menus and inventory")
 
 	# Item Type
-	item_type_option = OptionButton.new()
-	item_type_option.add_item("Weapon", ItemData.ItemType.WEAPON)
-	item_type_option.add_item("Accessory", ItemData.ItemType.ACCESSORY)
-	item_type_option.add_item("Consumable", ItemData.ItemType.CONSUMABLE)
-	item_type_option.add_item("Key Item", ItemData.ItemType.KEY_ITEM)
+	item_type_option = form.add_dropdown("Item Type:", [
+		{"label": "Weapon", "id": ItemData.ItemType.WEAPON},
+		{"label": "Accessory", "id": ItemData.ItemType.ACCESSORY},
+		{"label": "Consumable", "id": ItemData.ItemType.CONSUMABLE},
+		{"label": "Key Item", "id": ItemData.ItemType.KEY_ITEM},
+	], "Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item.")
 	item_type_option.item_selected.connect(_on_item_type_changed)
-	form.add_labeled_control("Item Type:", item_type_option,
-		"Weapon = equippable attack. Accessory = ring/trinket (SF2-authentic). Consumable = one-use. Key = quest item.")
 
 	# Equipment Type
 	equipment_type_edit = form.add_text_field("Equipment Type:", "e.g., sword, ring",
@@ -376,7 +381,7 @@ func _add_stat_modifiers_section() -> void:
 	agi_mod_spin = form.add_number_field("Agility:", -999, 999, 0,
 		"Bonus agility (speed/evasion). Some weapons may reduce this as a tradeoff.")
 	int_mod_spin = form.add_number_field("Intelligence:", -999, 999, 0,
-		"Bonus magic power. Staves/tomes add to spell damage.")
+		"Bonus magic power. Staves add to spell damage.")
 	luk_mod_spin = form.add_number_field("Luck:", -999, 999, 0,
 		"Bonus luck (crits/drops). Usually small bonuses from accessories.")
 
@@ -398,7 +403,7 @@ func _add_weapon_section() -> void:
 		"Farthest distance this weapon can hit. 1 = melee only. 2-3 = short range. 4+ = long range.")
 	max_attack_range_spin.value_changed.connect(_on_max_range_changed)
 
-	form.add_help_text("Sword: 1-1 | Spear: 1-2 | Bow: 2-3 | Crossbow: 2-4")
+	form.add_help_text("Sword/Axe: 1-1 | Spear: 1-1 or 1-2 | Bow: 2-3")
 
 	hit_rate_spin = form.add_number_field("Hit Rate (%):", 0, 100, 90,
 		"Base accuracy percentage. 90% = reliable. 70% = inaccurate but powerful. Combined with character AGI.")

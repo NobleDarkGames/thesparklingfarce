@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3 uid="uid://56jsdvj876mo"]
+
+[ext_resource type="Script" uid="uid://jdqcxv6edyuw" path="res://core/resources/status_effect_data.gd" id="1_x8xn7"]
+
+[resource]
+script = ExtResource("1_x8xn7")
+effect_id = "str_up"
+display_name = "Boost Strength"
+description = "+5 to STR"
+popup_text = "STR +5"
+trigger_timing = 4
+stat_modifiers = {
+"strength": 5
+}

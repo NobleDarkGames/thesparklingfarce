@@ -5,10 +5,9 @@ extends Resource
 ## Defines movement capabilities, equipment restrictions, and learnable abilities.
 
 enum MovementType {
-	WALKING,    ## Ground movement only, affected by terrain
-	FLYING,     ## Can fly over obstacles, ignores terrain penalties
-	FLOATING,   ## Hovers over terrain, some terrain penalties
-	SWIMMING,   ## Aquatic movement (merfolk, water units) - water terrain preferred
+	WALKING,    ## Ground movement, pays terrain costs, gets terrain defense
+	FLYING,     ## Ignores terrain costs (1 MP always), NO terrain defense bonus
+	FLOATING,   ## Ignores terrain costs AND gets terrain defense (best movement type)
 	CUSTOM      ## Mod-defined type (use custom_movement_type field)
 }
 
@@ -69,6 +68,18 @@ enum MovementType {
 @export var promotion_resets_level: bool = true
 ## Whether promotion items are consumed when used (applies to all paths)
 @export var consume_promotion_item: bool = true
+
+@export_group("Promotion Bonuses")
+## Promotion bonuses come from the TARGET class (the class being promoted to).
+## These bonuses are applied instantly when a character promotes TO this class.
+## Values are modest Fire Emblem-style defaults.
+@export var promotion_bonus_hp: int = 15
+@export var promotion_bonus_mp: int = 10
+@export var promotion_bonus_strength: int = 8
+@export var promotion_bonus_defense: int = 8
+@export var promotion_bonus_agility: int = 8
+@export var promotion_bonus_intelligence: int = 8
+@export var promotion_bonus_luck: int = 5
 
 @export_group("Appearance")
 @export var class_icon: Texture2D

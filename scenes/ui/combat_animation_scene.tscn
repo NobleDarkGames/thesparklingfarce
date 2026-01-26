@@ -36,6 +36,7 @@ size_flags_vertical = 4
 alignment = 1
 
 [node name="NameLabel" type="Label" parent="CenterContainer/HBoxContainer/DefenderContainer"]
+texture_filter = 1
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_monogram")
 theme_override_font_sizes/font_size = 24
@@ -55,6 +56,7 @@ size_flags_vertical = 4
 alignment = 1
 
 [node name="NameLabel" type="Label" parent="CenterContainer/HBoxContainer/AttackerContainer"]
+texture_filter = 1
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_monogram")
 theme_override_font_sizes/font_size = 24
@@ -68,6 +70,7 @@ value = 50.0
 show_percentage = false
 
 [node name="DamageLabel" type="Label" parent="."]
+texture_filter = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -86,6 +89,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="CombatLog" type="Label" parent="."]
+texture_filter = 1
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0

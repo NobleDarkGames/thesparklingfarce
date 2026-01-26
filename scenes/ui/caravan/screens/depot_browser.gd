@@ -7,11 +7,6 @@ extends "res://scenes/ui/caravan/screens/caravan_screen_base.gd"
 ## - L/R bumper: cycle filter (All/Weapons/Armor/Accessories/Consumables)
 ## - Select item -> push to char_select to choose recipient
 
-## Colors matching project standards
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-
 ## Filter types in order
 const FILTER_TYPES: Array[String] = ["", "weapon", "armor", "accessory", "consumable"]
 const FILTER_LABELS: Array[String] = ["All", "Weapons", "Armor", "Accessories", "Consumables"]
@@ -32,8 +27,6 @@ var item_buttons: Array[Button] = []
 ## Currently focused item index
 var focused_item_index: int = 0
 
-## Style for selected item
-var _selected_style: StyleBoxFlat
 
 @onready var filter_label: Label = %FilterLabel
 @onready var sort_label: Label = %SortLabel
@@ -47,8 +40,6 @@ var _selected_style: StyleBoxFlat
 
 
 func _on_initialized() -> void:
-	_create_styles()
-
 	# Restore filter/sort from context
 	if context:
 		var filter_found: int = FILTER_TYPES.find(context.depot_filter)
@@ -68,12 +59,6 @@ func _on_initialized() -> void:
 	back_button.pressed.connect(_on_back_pressed)
 
 	take_button.disabled = true
-
-
-func _create_styles() -> void:
-	_selected_style = StyleBoxFlat.new()
-	_selected_style.bg_color = Color(0.3, 0.5, 0.8, 1.0)
-	_selected_style.set_corner_radius_all(2)
 
 
 func _input(event: InputEvent) -> void:
@@ -125,9 +110,7 @@ func _update_sort_label() -> void:
 
 
 func _populate_item_grid() -> void:
-	# Clear existing
-	for child: Node in item_grid.get_children():
-		child.queue_free()
+	_clear_container(item_grid)
 	item_buttons.clear()
 
 	# Get filtered items from context

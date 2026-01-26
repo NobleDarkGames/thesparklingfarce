@@ -337,25 +337,34 @@ func _party_has_field_magic() -> bool:
 		return false
 
 	for character: CharacterData in PartyManager.party_members:
-		if not character:
-			continue
-
-		var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
-		if not save_data:
-			continue
-
-		# Check learned abilities for field-usable spells
-		for ability_dict: Dictionary in save_data.learned_abilities:
-			var ability_id: String = DictUtils.get_string(ability_dict, "ability_id", "")
-			if ability_id in FIELD_USABLE_ABILITY_IDS:
-				return true
-
-			# Also check if the ability has usable_on_field flag (Phase 2)
-			var ability_data: AbilityData = ModLoader.registry.get_ability(ability_id)
-			if ability_data and "usable_on_field" in ability_data and ability_data.usable_on_field:
-				return true
-
+		if _character_has_field_ability(character):
+			return true
 	return false
+
+
+## Check if a specific character has any field-usable ability
+func _character_has_field_ability(character: CharacterData) -> bool:
+	if not character:
+		return false
+
+	var save_data: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
+	if not save_data:
+		return false
+
+	for ability_dict: Dictionary in save_data.learned_abilities:
+		var ability_id: String = DictUtils.get_string(ability_dict, "ability_id", "")
+		if _is_field_usable_ability(ability_id):
+			return true
+	return false
+
+
+## Check if an ability ID is usable on the field
+func _is_field_usable_ability(ability_id: String) -> bool:
+	if ability_id in FIELD_USABLE_ABILITY_IDS:
+		return true
+
+	var ability_data: AbilityData = ModLoader.registry.get_ability(ability_id)
+	return ability_data and "usable_on_field" in ability_data and ability_data.usable_on_field
 
 
 ## Rebuild the option labels from current _menu_options
@@ -382,21 +391,16 @@ func _rebuild_option_labels() -> void:
 func _update_selection_visual() -> void:
 	for i: int in range(_option_labels.size()):
 		var label: Label = _option_labels[i]
-		var option: Dictionary = _menu_options[i]
-		var option_label: String = DictUtils.get_string(option, "label", "")
+		var option_label: String = DictUtils.get_string(_menu_options[i], "label", "")
+		var is_selected: bool = i == _selected_index
+		var is_hovered: bool = i == _hover_index
 
-		if i == _selected_index:
-			# Selected: show cursor and yellow text
-			label.add_theme_color_override("font_color", TEXT_SELECTED)
-			label.text = CURSOR_CHAR + " " + option_label
-		elif i == _hover_index:
-			# Hovered: lighter text, no cursor
-			label.add_theme_color_override("font_color", TEXT_HOVER)
-			label.text = "  " + option_label
-		else:
-			# Normal: default text, no cursor
-			label.add_theme_color_override("font_color", TEXT_NORMAL)
-			label.text = "  " + option_label
+		# Set color based on state
+		var color: Color = TEXT_SELECTED if is_selected else (TEXT_HOVER if is_hovered else TEXT_NORMAL)
+		label.add_theme_color_override("font_color", color)
+
+		# Show cursor for selected, indent otherwise
+		label.text = (CURSOR_CHAR + " " if is_selected else "  ") + option_label
 
 
 ## Position the menu near the hero, clamped to viewport bounds
@@ -426,42 +430,59 @@ func _input(event: InputEvent) -> void:
 	if not _is_active:
 		return
 
-	# Mouse click
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i: int in range(_option_labels.size()):
-				var label: Label = _option_labels[i]
-				var label_rect: Rect2 = label.get_global_rect()
-				if label_rect.has_point(mouse_pos):
-					_selected_index = i
-					_confirm_selection()
-					get_viewport().set_input_as_handled()
-					return
+	if _handle_mouse_click(event):
+		return
 
-			# Click outside panel - cancel
-			if not _panel.get_global_rect().has_point(mouse_pos):
-				_cancel_menu()
-				get_viewport().set_input_as_handled()
-				return
+	_handle_keyboard_input(event)
 
-	# Navigate up
+
+## Handle mouse click input, returns true if handled
+func _handle_mouse_click(event: InputEvent) -> bool:
+	if not event is InputEventMouseButton:
+		return false
+
+	var mouse_event: InputEventMouseButton = event
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return false
+
+	var mouse_pos: Vector2 = get_global_mouse_position()
+
+	# Check if clicked on an option label
+	var clicked_index: int = _get_label_index_at_position(mouse_pos)
+	if clicked_index >= 0:
+		_selected_index = clicked_index
+		_confirm_selection()
+		get_viewport().set_input_as_handled()
+		return true
+
+	# Click outside panel - cancel
+	if not _panel.get_global_rect().has_point(mouse_pos):
+		_cancel_menu()
+		get_viewport().set_input_as_handled()
+		return true
+
+	return false
+
+
+## Get the index of the label at the given position, or -1 if none
+func _get_label_index_at_position(pos: Vector2) -> int:
+	for i: int in range(_option_labels.size()):
+		if _option_labels[i].get_global_rect().has_point(pos):
+			return i
+	return -1
+
+
+## Handle keyboard navigation input
+func _handle_keyboard_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_up"):
 		_move_selection(-1)
 		get_viewport().set_input_as_handled()
-
-	# Navigate down
 	elif event.is_action_pressed("ui_down"):
 		_move_selection(1)
 		get_viewport().set_input_as_handled()
-
-	# Confirm selection
 	elif event.is_action_pressed("ui_accept") or event.is_action_pressed("sf_confirm"):
 		_confirm_selection()
 		get_viewport().set_input_as_handled()
-
-	# Cancel menu
 	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("sf_cancel"):
 		_cancel_menu()
 		get_viewport().set_input_as_handled()

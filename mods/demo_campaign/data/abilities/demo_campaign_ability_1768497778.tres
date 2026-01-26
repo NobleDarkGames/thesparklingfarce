@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://dttyeumpl0vux"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_a6w5u"]
+
+[resource]
+script = ExtResource("1_a6w5u")
+ability_name = "Buff STR"
+ability_id = "buff_str"
+ability_type = 2
+target_type = 1
+max_range = 2
+mp_cost = 1
+status_effects = Array[String](["str_up"])
+description = "Applies strength buff"

@@ -80,6 +80,13 @@ const SpriteUtils = preload("res://core/utils/sprite_utils.gd")
 ## Can be overridden for NPCs that should face a specific direction
 @export var facing_override: String = ""  # "up", "down", "left", "right", or "" for auto
 
+@export_group("Ambient Patrol")
+## Cinematic to play automatically on map load (for patrols/ambient behavior)
+## The cinematic should have loop=true for continuous patrol behavior.
+## Patrol automatically pauses during player interaction and resumes after.
+## Commands use target="self" to reference this NPC's actor.
+@export var ambient_cinematic_id: String = ""
+
 
 ## Get the appropriate cinematic ID based on current game state
 ## Checks conditional_cinematics in order, returns first match

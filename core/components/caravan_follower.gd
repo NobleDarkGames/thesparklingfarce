@@ -148,37 +148,39 @@ func _connect_to_target() -> void:
 	if not _follow_target:
 		return
 
-	# Try to connect to the target's movement signal
 	# PartyFollower and HeroController both use "moved_to_tile"
-	if _follow_target.has_signal("moved_to_tile"):
-		var signal_obj: Signal = Signal(_follow_target, "moved_to_tile")
-		if not signal_obj.is_connected(_on_target_moved):
-			signal_obj.connect(_on_target_moved)
+	_safe_connect(_follow_target, "moved_to_tile", _on_target_moved)
 
-	# If following a PartyFollower, we need to track when IT moves
-	# PartyFollower doesn't emit its own signal, so we check if it has a hero
+	# PartyFollower gets movement from the hero, so also connect to hero
 	if _follow_target is PartyFollower:
-		# The PartyFollower gets its movement from the hero, so we connect to hero
 		var hero: Node2D = _find_hero()
-		if hero and hero.has_signal("moved_to_tile"):
-			var hero_signal: Signal = Signal(hero, "moved_to_tile")
-			if not hero_signal.is_connected(_on_hero_moved_for_follower):
-				hero_signal.connect(_on_hero_moved_for_follower)
+		if hero:
+			_safe_connect(hero, "moved_to_tile", _on_hero_moved_for_follower)
 
 
 func _disconnect_from_target() -> void:
-	# Disconnect from follow target's signal
-	if is_instance_valid(_follow_target) and _follow_target.has_signal("moved_to_tile"):
-		var signal_obj: Signal = Signal(_follow_target, "moved_to_tile")
-		if signal_obj.is_connected(_on_target_moved):
-			signal_obj.disconnect(_on_target_moved)
+	_safe_disconnect(_follow_target, "moved_to_tile", _on_target_moved)
 
-	# Disconnect from hero signal if we were following a PartyFollower
 	var hero: Node2D = _find_hero()
-	if is_instance_valid(hero) and hero.has_signal("moved_to_tile"):
-		var hero_signal: Signal = Signal(hero, "moved_to_tile")
-		if hero_signal.is_connected(_on_hero_moved_for_follower):
-			hero_signal.disconnect(_on_hero_moved_for_follower)
+	_safe_disconnect(hero, "moved_to_tile", _on_hero_moved_for_follower)
+
+
+## Safely connect a signal if it exists and isn't already connected
+func _safe_connect(obj: Object, signal_name: String, callable: Callable) -> void:
+	if not is_instance_valid(obj) or not obj.has_signal(signal_name):
+		return
+	var sig: Signal = Signal(obj, signal_name)
+	if not sig.is_connected(callable):
+		sig.connect(callable)
+
+
+## Safely disconnect a signal if it exists and is connected
+func _safe_disconnect(obj: Object, signal_name: String, callable: Callable) -> void:
+	if not is_instance_valid(obj) or not obj.has_signal(signal_name):
+		return
+	var sig: Signal = Signal(obj, signal_name)
+	if sig.is_connected(callable):
+		sig.disconnect(callable)
 
 
 func _exit_tree() -> void:
@@ -281,22 +283,20 @@ func _apply_placeholder_sprite() -> void:
 	var img: Image = Image.create(32, 24, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.6, 0.4, 0.2))  # Brown for wagon
 
-	# Add some detail - lighter roof
-	for x: int in range(4, 28):
-		for y: int in range(2, 8):
-			img.set_pixel(x, y, Color(0.8, 0.6, 0.4))
+	# Add lighter roof and wheels as detail
+	_fill_rect(img, 4, 2, 28, 8, Color(0.8, 0.6, 0.4))  # Roof
+	_fill_rect(img, 6, 18, 10, 22, Color(0.3, 0.2, 0.1))  # Left wheel
+	_fill_rect(img, 22, 18, 26, 22, Color(0.3, 0.2, 0.1))  # Right wheel
 
-	# Add wheels
-	for x: int in range(6, 10):
-		for y: int in range(18, 22):
-			img.set_pixel(x, y, Color(0.3, 0.2, 0.1))
-	for x: int in range(22, 26):
-		for y: int in range(18, 22):
-			img.set_pixel(x, y, Color(0.3, 0.2, 0.1))
-
-	var texture: ImageTexture = ImageTexture.create_from_image(img)
-	_sprite.texture = texture
+	_sprite.texture = ImageTexture.create_from_image(img)
 	_sprite.centered = true
+
+
+## Fill a rectangular region in an image
+func _fill_rect(img: Image, x1: int, y1: int, x2: int, y2: int, color: Color) -> void:
+	for x: int in range(x1, x2):
+		for y: int in range(y1, y2):
+			img.set_pixel(x, y, color)
 
 
 func _apply_sprite_config() -> void:

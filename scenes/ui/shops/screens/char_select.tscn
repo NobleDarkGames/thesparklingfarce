@@ -100,9 +100,11 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "STAT CHANGES:"
 
-[node name="StatComparisonLabel" type="Label" parent="VBoxContainer/ContentArea/StatComparisonPanel/MarginContainer/VBox"]
+[node name="StatComparisonLabel" type="RichTextLabel" parent="VBoxContainer/ContentArea/StatComparisonPanel/MarginContainer/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+bbcode_enabled = true
+fit_content = true
 text = "AT: +5"
 
 [node name="ButtonRow" type="HBoxContainer" parent="VBoxContainer"]

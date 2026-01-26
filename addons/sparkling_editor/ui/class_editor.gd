@@ -31,9 +31,8 @@ var luk_growth_slider: HSlider
 
 var weapon_types_container: VBoxContainer
 
-# Learnable abilities UI
-var learnable_abilities_container: VBoxContainer
-var add_ability_button: Button
+# Learnable abilities UI (using DynamicRowList component)
+var learnable_abilities_list: DynamicRowList
 
 # Flag to prevent signal feedback loops during UI updates
 var _updating_ui: bool = false
@@ -50,6 +49,16 @@ func _ready() -> void:
 	resource_dependencies = ["class"]
 
 	super._ready()
+
+
+## Handle dependency changes - refresh promotion path pickers when classes change
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "class" and promotion_paths_container:
+		# Refresh all class pickers in promotion path rows
+		for row: Node in promotion_paths_container.get_children():
+			var class_picker: ResourcePicker = row.get_node_or_null("ClassPicker") as ResourcePicker
+			if class_picker:
+				class_picker.refresh()
 
 
 ## Override: Create the class-specific detail form
@@ -228,22 +237,22 @@ func _get_resource_display_name(resource: Resource) -> String:
 
 func _add_basic_info_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.on_change(_mark_dirty)
 	form.add_section("Basic Information")
 	name_edit = form.add_text_field("Class Name:", "", "Display name shown for this class. E.g., Warrior, Mage, Knight.")
 
 
 func _add_movement_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 150)
+	form.on_change(_mark_dirty)
 	form.add_section("Movement")
 
-	# Movement Type - custom dropdown with enum IDs
-	movement_type_option = OptionButton.new()
-	movement_type_option.add_item("Walking", ClassData.MovementType.WALKING)
-	movement_type_option.add_item("Flying", ClassData.MovementType.FLYING)
-	movement_type_option.add_item("Floating", ClassData.MovementType.FLOATING)
-	movement_type_option.add_item("Swimming", ClassData.MovementType.SWIMMING)
-	movement_type_option.add_item("Custom", ClassData.MovementType.CUSTOM)
-	form.add_labeled_control("Movement Type:", movement_type_option, "How terrain affects movement. Walking = blocked by water/cliffs. Flying = ignores all terrain. Floating = ignores ground hazards.")
+	movement_type_option = form.add_dropdown("Movement Type:", [
+		{"label": "Walking", "id": ClassData.MovementType.WALKING},
+		{"label": "Flying", "id": ClassData.MovementType.FLYING},
+		{"label": "Floating", "id": ClassData.MovementType.FLOATING},
+		{"label": "Custom", "id": ClassData.MovementType.CUSTOM},
+	], "Walking = pays terrain costs. Flying = ignores terrain but NO defense bonus. Floating = ignores terrain AND keeps defense bonus (best type).")
 
 	movement_range_spin = form.add_number_field("Movement Range:", 1, 20, 4, "Tiles this class can move per turn. Typical: 4-5 infantry, 6-7 cavalry, 5-6 flying.")
 
@@ -272,10 +281,11 @@ func _add_combat_rates_section() -> void:
 
 ## Get weapon types from ModLoader's equipment registry (with fallback)
 func _get_weapon_types_from_registry() -> Array[String]:
-	if ModLoader and ModLoader.equipment_registry:
-		return ModLoader.equipment_registry.get_weapon_types()
-	# Fallback to defaults if registry not available
-	return ["sword", "axe", "lance", "bow", "staff", "tome"]
+	# Prefer EquipmentTypeRegistry (supports categories and wildcards)
+	if ModLoader and ModLoader.equipment_type_registry:
+		return ModLoader.equipment_type_registry.get_weapon_types()
+	# Fallback to defaults matching EquipmentTypeRegistry.init_defaults()
+	return ["sword", "axe", "spear", "bow", "staff", "knife"]
 
 
 func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String]) -> void:
@@ -283,7 +293,14 @@ func _add_equipment_type_checkboxes(parent: VBoxContainer, types: Array[String])
 		var checkbox: CheckBox = CheckBox.new()
 		checkbox.text = type_name.capitalize()
 		checkbox.set_meta("equipment_type", type_name)
+		checkbox.toggled.connect(_on_equipment_checkbox_toggled)
 		parent.add_child(checkbox)
+
+
+## Called when any equipment type checkbox is toggled
+func _on_equipment_checkbox_toggled(_pressed: bool) -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 func _add_promotion_section() -> void:
@@ -478,33 +495,26 @@ func _add_learnable_abilities_section() -> void:
 	form.add_section("Learnable Abilities")
 	form.add_help_text("Abilities this class learns at specific levels.")
 
-	# Scrollable container for the ability list (dynamic row-based UI)
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size.y = 120
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	learnable_abilities_container = VBoxContainer.new()
-	learnable_abilities_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(learnable_abilities_container)
-	form.container.add_child(scroll)
-
-	# Add Ability button
-	add_ability_button = Button.new()
-	add_ability_button.text = "Add Ability"
-	add_ability_button.tooltip_text = "Add a new ability that characters of this class will learn."
-	add_ability_button.pressed.connect(_on_add_learnable_ability)
-	form.container.add_child(add_ability_button)
+	# Use DynamicRowList component for learnable abilities
+	learnable_abilities_list = DynamicRowList.new()
+	learnable_abilities_list.add_button_text = "Add Ability"
+	learnable_abilities_list.add_button_tooltip = "Add a new ability that characters of this class will learn."
+	learnable_abilities_list.use_scroll_container = true
+	learnable_abilities_list.scroll_min_height = 120
+	learnable_abilities_list.show_remove_buttons = true
+	learnable_abilities_list.row_factory = _create_ability_row
+	learnable_abilities_list.data_extractor = _extract_ability_data
+	learnable_abilities_list.row_added.connect(_on_ability_row_added)
+	learnable_abilities_list.row_removed.connect(_on_ability_row_removed)
+	learnable_abilities_list.data_changed.connect(_on_ability_data_changed)
+	form.container.add_child(learnable_abilities_list)
 
 
 ## Load learnable abilities from NEW system (class_abilities + ability_unlock_levels)
 ## The new system stores abilities in class_abilities array, with unlock levels in ability_unlock_levels dict
 func _load_learnable_abilities_new(class_data: ClassData) -> void:
-	# Clear existing rows
-	for child: Node in learnable_abilities_container.get_children():
-		child.queue_free()
-
-	# Build level -> ability mapping from the new system
-	var abilities_by_level: Dictionary = {}  # level -> AbilityData
+	# Build data array for DynamicRowList
+	var ability_data: Array[Dictionary] = []
 
 	for ability: AbilityData in class_data.class_abilities:
 		if ability == null:
@@ -515,22 +525,18 @@ func _load_learnable_abilities_new(class_data: ClassData) -> void:
 		if ability.ability_id in class_data.ability_unlock_levels:
 			unlock_level = class_data.ability_unlock_levels[ability.ability_id]
 
-		# Store by level (if multiple abilities at same level, we'll handle that)
-		if unlock_level not in abilities_by_level:
-			abilities_by_level[unlock_level] = ability
-		else:
-			# Multiple abilities at same level - add row anyway
-			# (the UI will show duplicate warning)
-			_add_ability_row(unlock_level, ability)
-			continue
+		ability_data.append({
+			"level": unlock_level,
+			"ability": ability
+		})
 
-	# Sort levels for consistent display order
-	var levels: Array = abilities_by_level.keys()
-	levels.sort()
+	# Sort by level for consistent display order
+	ability_data.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.get("level", 0) < b.get("level", 0)
+	)
 
-	for level: int in levels:
-		var ability: AbilityData = abilities_by_level[level]
-		_add_ability_row(level, ability)
+	# Load into DynamicRowList
+	learnable_abilities_list.load_data(ability_data)
 
 
 ## Save learnable abilities to NEW system (class_abilities + ability_unlock_levels)
@@ -538,37 +544,34 @@ func _save_learnable_abilities_new(class_data: ClassData) -> void:
 	var new_class_abilities: Array[AbilityData] = []
 	var new_unlock_levels: Dictionary = {}  # ability_id -> level
 
-	for child: Node in learnable_abilities_container.get_children():
-		if child is HBoxContainer:
-			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
-			var picker: ResourcePicker = child.get_node_or_null("AbilityPicker")
+	var all_data: Array[Dictionary] = learnable_abilities_list.get_all_data()
+	for entry: Dictionary in all_data:
+		var level: int = entry.get("level", 1)
+		var ability: AbilityData = entry.get("ability") as AbilityData
 
-			if level_spin and picker:
-				var level: int = int(level_spin.value)
-				var ability: AbilityData = picker.get_selected_resource() as AbilityData
+		if ability:
+			# Add to class_abilities if not already present
+			var already_added: bool = false
+			for existing: AbilityData in new_class_abilities:
+				if existing and existing.ability_id == ability.ability_id:
+					already_added = true
+					break
 
-				if ability:
-					# Add to class_abilities if not already present
-					var already_added: bool = false
-					for existing: AbilityData in new_class_abilities:
-						if existing and existing.ability_id == ability.ability_id:
-							already_added = true
-							break
+			if not already_added:
+				new_class_abilities.append(ability)
 
-					if not already_added:
-						new_class_abilities.append(ability)
-
-					# Set unlock level (use ability_id as key)
-					new_unlock_levels[ability.ability_id] = level
+			# Set unlock level (use ability_id as key)
+			new_unlock_levels[ability.ability_id] = level
 
 	class_data.class_abilities = new_class_abilities
 	class_data.ability_unlock_levels = new_unlock_levels
 
 
-## Add a single ability row to the UI
-func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+## Row factory for DynamicRowList - creates the UI for an ability row
+## Called by DynamicRowList when adding a row
+func _create_ability_row(data: Dictionary, row: HBoxContainer) -> void:
+	var level: int = data.get("level", _get_next_ability_level())
+	var ability: AbilityData = data.get("ability") as AbilityData
 
 	# Level label
 	var level_label: Label = Label.new()
@@ -583,7 +586,7 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	level_spin.value = level
 	level_spin.custom_minimum_size.x = 70
 	level_spin.tooltip_text = "Level at which this ability is learned. Characters gain access when they reach this level."
-	level_spin.value_changed.connect(_on_ability_level_changed.bind(row))
+	level_spin.value_changed.connect(_on_ability_level_changed)
 	row.add_child(level_spin)
 
 	# "learns" label
@@ -611,60 +614,80 @@ func _add_ability_row(level: int = 1, ability: Resource = null) -> void:
 	warning_label.visible = false
 	row.add_child(warning_label)
 
-	# Remove button
-	var remove_btn: Button = Button.new()
-	remove_btn.text = "X"
-	remove_btn.tooltip_text = "Remove this ability"
-	remove_btn.custom_minimum_size.x = 30
-	remove_btn.pressed.connect(_on_remove_ability_row.bind(row))
-	row.add_child(remove_btn)
-
-	learnable_abilities_container.add_child(row)
-
 	# Select the ability after adding to tree (picker needs to be in tree to refresh)
 	if ability:
 		picker.call_deferred("select_resource", ability)
 
-	# Check for duplicates after adding
-	call_deferred("_check_duplicate_levels")
+
+## Data extractor for DynamicRowList - extracts data from an ability row
+func _extract_ability_data(row: HBoxContainer) -> Dictionary:
+	var level_spin: SpinBox = row.get_node_or_null("LevelSpin") as SpinBox
+	var picker: ResourcePicker = row.get_node_or_null("AbilityPicker") as ResourcePicker
+
+	if not level_spin or not picker:
+		return {}
+
+	var ability: AbilityData = picker.get_selected_resource() as AbilityData
+	if not ability:
+		return {}  # Skip rows with no ability selected
+
+	return {
+		"level": int(level_spin.value),
+		"ability": ability
+	}
 
 
-## Called when "Add Ability" button is pressed
-func _on_add_learnable_ability() -> void:
-	# Find the next available level (highest current + 1, or 1 if empty)
+## Get the next suggested level for a new ability row
+func _get_next_ability_level() -> int:
+	if not learnable_abilities_list:
+		return 1
+
 	var max_level: int = 0
-	for child: Node in learnable_abilities_container.get_children():
-		if child is HBoxContainer:
-			var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
-			if level_spin:
-				max_level = max(max_level, int(level_spin.value))
+	for row: HBoxContainer in learnable_abilities_list.get_all_rows():
+		var level_spin: SpinBox = row.get_node_or_null("LevelSpin") as SpinBox
+		if level_spin:
+			max_level = max(max_level, int(level_spin.value))
 
-	_add_ability_row(max_level + 1, null)
+	return max_level + 1
 
 
-## Called when a remove button is pressed
-func _on_remove_ability_row(row: HBoxContainer) -> void:
-	row.queue_free()
-	# Re-check duplicates after removal
+## Called when an ability row is added
+func _on_ability_row_added(_row: HBoxContainer) -> void:
 	call_deferred("_check_duplicate_levels")
+
+
+## Called when an ability row is removed
+func _on_ability_row_removed(_row: HBoxContainer) -> void:
+	call_deferred("_check_duplicate_levels")
+
+
+## Called when ability data changes
+func _on_ability_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 ## Called when a level spinner value changes
-func _on_ability_level_changed(_new_value: float, _row: HBoxContainer) -> void:
+func _on_ability_level_changed(_new_value: float) -> void:
 	_check_duplicate_levels()
+	if not _updating_ui:
+		_mark_dirty()
 
 
 ## Check all ability rows for duplicate levels and show/hide warnings
 func _check_duplicate_levels() -> void:
+	if not learnable_abilities_list:
+		return
+
 	# Single pass: collect levels and warning labels together
 	var level_counts: Dictionary = {}  # level -> count
 	var row_data: Array = []  # Array of {level: int, warning: Label}
 
-	for child: Node in learnable_abilities_container.get_children():
-		if not is_instance_valid(child) or not child is HBoxContainer:
+	for row: HBoxContainer in learnable_abilities_list.get_all_rows():
+		if not is_instance_valid(row):
 			continue
-		var level_spin: SpinBox = child.get_node_or_null("LevelSpin")
-		var warning_label: Label = child.get_node_or_null("DuplicateWarning")
+		var level_spin: SpinBox = row.get_node_or_null("LevelSpin") as SpinBox
+		var warning_label: Label = row.get_node_or_null("DuplicateWarning") as Label
 		if not level_spin or not warning_label:
 			continue
 

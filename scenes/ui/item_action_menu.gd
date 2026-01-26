@@ -62,15 +62,8 @@ const COLOR_ITEM_NAME: Color = Color(1.0, 1.0, 0.9, 1.0)
 
 const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
-# Action display names
-const ACTION_NAMES: Dictionary = {
-	ActionType.USE: "Use",
-	ActionType.EQUIP: "Equip",
-	ActionType.UNEQUIP: "Unequip",
-	ActionType.GIVE: "Give",
-	ActionType.DROP: "Drop",
-	ActionType.INFO: "Info"
-}
+# Action display names (typed array indexed by ActionType enum values)
+const ACTION_NAMES: Array[String] = ["Use", "Equip", "Unequip", "Give", "Drop", "Info"]
 
 # =============================================================================
 # STATE
@@ -115,24 +108,23 @@ func _ready() -> void:
 	set_process(false)
 
 
+func _create_panel_style() -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = COLOR_PANEL_BG
+	style.border_color = COLOR_BORDER
+	style.set_border_width_all(2)
+	style.set_content_margin_all(4)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	return style
+
+
 func _build_ui() -> void:
 	# Panel container
 	_panel = PanelContainer.new()
 	_panel.name = "ActionPanel"
 	_panel.custom_minimum_size = Vector2(80, 40)
-
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = COLOR_PANEL_BG
-	panel_style.border_width_bottom = 2
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_color = COLOR_BORDER
-	panel_style.content_margin_bottom = 4
-	panel_style.content_margin_left = 8
-	panel_style.content_margin_right = 8
-	panel_style.content_margin_top = 4
-	_panel.add_theme_stylebox_override("panel", panel_style)
+	_panel.add_theme_stylebox_override("panel", _create_panel_style())
 	add_child(_panel)
 
 	# Main layout
@@ -308,32 +300,34 @@ func _rebuild_action_labels() -> void:
 
 	# Create label for each available action
 	for action_type: ActionType in _available_actions:
-		var label: Label = Label.new()
-		var action_name_value: Variant = ACTION_NAMES.get(action_type, "")
-		var action_name: String = action_name_value if action_name_value is String else ""
-		label.text = "  " + action_name
-		label.add_theme_font_override("font", MONOGRAM_FONT)
-		label.add_theme_font_size_override("font_size", 16)
-		label.modulate = COLOR_NORMAL
+		var label: Label = _create_action_label(ACTION_NAMES[action_type])
 		_actions_container.add_child(label)
 		_action_labels.append(label)
+
+
+func _create_action_label(action_name: String) -> Label:
+	var label: Label = Label.new()
+	label.text = "  " + action_name
+	label.add_theme_font_override("font", MONOGRAM_FONT)
+	label.add_theme_font_size_override("font_size", 16)
+	label.modulate = COLOR_NORMAL
+	return label
 
 
 func _update_selection_visual() -> void:
 	for i: int in range(_action_labels.size()):
 		var label: Label = _action_labels[i]
-		var action_name_value: Variant = ACTION_NAMES.get(_available_actions[i], "")
-		var action_name: String = action_name_value if action_name_value is String else ""
+		var action_name: String = ACTION_NAMES[_available_actions[i]]
+		var is_selected: bool = (i == _selected_index)
+		var is_hovered: bool = (i == _hover_index)
 
-		if i == _selected_index:
+		label.text = ("> " if is_selected else "  ") + action_name
+		if is_selected:
 			label.modulate = COLOR_SELECTED
-			label.text = "> " + action_name
-		elif i == _hover_index:
+		elif is_hovered:
 			label.modulate = COLOR_HOVER
-			label.text = "  " + action_name
 		else:
 			label.modulate = COLOR_NORMAL
-			label.text = "  " + action_name
 
 
 # =============================================================================
@@ -346,23 +340,8 @@ func _input(event: InputEvent) -> void:
 
 	# Mouse click
 	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			var mouse_pos: Vector2 = get_global_mouse_position()
-			for i: int in range(_action_labels.size()):
-				var label: Label = _action_labels[i]
-				var label_rect: Rect2 = label.get_global_rect()
-				if label_rect.has_point(mouse_pos):
-					_selected_index = i
-					_confirm_selection()
-					get_viewport().set_input_as_handled()
-					return
-
-			# Click outside - cancel
-			if not _panel.get_global_rect().has_point(mouse_pos):
-				_cancel_menu()
-				get_viewport().set_input_as_handled()
-				return
+		if _handle_mouse_click(event):
+			return
 
 	# Navigate up
 	if event.is_action_pressed("ui_up"):
@@ -385,9 +364,32 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _handle_mouse_click(event: InputEvent) -> bool:
+	var mouse_event: InputEventMouseButton = event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return false
+
+	var mouse_pos: Vector2 = get_global_mouse_position()
+
+	# Check if clicked on an action label
+	for i: int in range(_action_labels.size()):
+		if _action_labels[i].get_global_rect().has_point(mouse_pos):
+			_selected_index = i
+			_confirm_selection()
+			get_viewport().set_input_as_handled()
+			return true
+
+	# Click outside panel cancels menu
+	if not _panel.get_global_rect().has_point(mouse_pos):
+		_cancel_menu()
+		get_viewport().set_input_as_handled()
+		return true
+
+	return false
+
+
 func _move_selection(direction: int) -> void:
 	var new_index: int = wrapi(_selected_index + direction, 0, _available_actions.size())
-
 	if new_index != _selected_index:
 		_selected_index = new_index
 		_update_selection_visual()
@@ -399,14 +401,10 @@ func _confirm_selection() -> void:
 		return
 
 	var selected_action: ActionType = _available_actions[_selected_index]
-	var action_value: Variant = ACTION_NAMES.get(selected_action, "")
-	var action_string: String = (action_value if action_value is String else "").to_lower()
-
-	AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
-
-	# Capture item ID before hiding
+	var action_string: String = ACTION_NAMES[selected_action].to_lower()
 	var item_id: String = _current_item_id
 
+	AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 	hide_menu()
 	action_selected.emit(action_string, item_id)
 

@@ -345,202 +345,79 @@ func _update_resource_id_for_copy(resource: Resource, original_name: String) -> 
 
 ## Section 1: Identity
 func _add_identity_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Identity")
 
-	# Config ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Config ID:"
-	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	id_label.tooltip_text = "Unique identifier (e.g., 'standard', 'hard_mode', 'demo')"
-	id_container.add_child(id_label)
+	config_id_edit = form.add_text_field("Config ID:", "e.g., standard, hard_mode",
+		"Unique identifier (e.g., 'standard', 'hard_mode', 'demo')")
 
-	config_id_edit = LineEdit.new()
-	config_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	config_id_edit.placeholder_text = "e.g., standard, hard_mode"
-	config_id_edit.text_changed.connect(_on_field_changed)
-	id_container.add_child(config_id_edit)
-	detail_panel.add_child(id_container)
+	config_name_edit = form.add_text_field("Display Name:", "Standard Game",
+		"Human-readable name shown in the new game UI")
 
-	# Config Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_label.tooltip_text = "Human-readable name shown in the new game UI"
-	name_container.add_child(name_label)
+	description_edit = form.add_text_area("Description:", 60,
+		"Describe what makes this configuration special...")
 
-	config_name_edit = LineEdit.new()
-	config_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	config_name_edit.placeholder_text = "Standard Game"
-	config_name_edit.text_changed.connect(_on_field_changed)
-	name_container.add_child(config_name_edit)
-	detail_panel.add_child(name_container)
+	is_default_check = form.add_standalone_checkbox(
+		"Default Configuration (used when starting a new game)", false,
+		"Only one config per mod should be marked as default")
+	is_default_check.toggled.connect(_on_field_changed)
 
-	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	detail_panel.add_child(desc_label)
-
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size = Vector2(0, 60)
-	description_edit.placeholder_text = "Describe what makes this configuration special..."
-	description_edit.text_changed.connect(_on_field_changed)
-	detail_panel.add_child(description_edit)
-
-	# Is Default checkbox
-	is_default_check = CheckBox.new()
-	is_default_check.text = "Default Configuration (used when starting a new game)"
-	is_default_check.tooltip_text = "Only one config per mod should be marked as default"
-	is_default_check.toggled.connect(_on_default_toggled)
-	detail_panel.add_child(is_default_check)
-
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 ## Section 2: Starting Scene
 func _add_starting_scene_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Starting Scene"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Starting Scene")
 
-	# Starting Scene Path
-	var scene_container: HBoxContainer = HBoxContainer.new()
-	var scene_label: Label = Label.new()
-	scene_label.text = "Scene Path:"
-	scene_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	scene_label.tooltip_text = "Path to the scene file to load when starting a new game"
-	scene_container.add_child(scene_label)
+	starting_scene_edit = form.add_text_field("Scene Path:",
+		"res://mods/your_mod/scenes/starting_map.tscn",
+		"Path to the scene file to load when starting a new game")
 
-	starting_scene_edit = LineEdit.new()
-	starting_scene_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	starting_scene_edit.placeholder_text = "res://mods/your_mod/scenes/starting_map.tscn"
-	starting_scene_edit.text_changed.connect(_on_field_changed)
-	scene_container.add_child(starting_scene_edit)
-	detail_panel.add_child(scene_container)
+	starting_spawn_edit = form.add_text_field("Spawn Point:", "(optional)",
+		"Optional spawn point ID within the starting scene")
 
-	# Starting Spawn Point
-	var spawn_container: HBoxContainer = HBoxContainer.new()
-	var spawn_label: Label = Label.new()
-	spawn_label.text = "Spawn Point:"
-	spawn_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	spawn_label.tooltip_text = "Optional spawn point ID within the starting scene"
-	spawn_container.add_child(spawn_label)
+	intro_cinematic_edit = form.add_text_field("Intro Cinematic:", "(optional)",
+		"Optional cinematic ID to play before loading the starting scene")
 
-	starting_spawn_edit = LineEdit.new()
-	starting_spawn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	starting_spawn_edit.placeholder_text = "(optional)"
-	starting_spawn_edit.text_changed.connect(_on_field_changed)
-	spawn_container.add_child(starting_spawn_edit)
-	detail_panel.add_child(spawn_container)
+	location_label_edit = form.add_text_field("Location Label:", "Prologue",
+		"Display text for save slot (e.g., 'Prologue', 'Chapter 1')")
 
-	# Intro Cinematic
-	var cinematic_container: HBoxContainer = HBoxContainer.new()
-	var cinematic_label: Label = Label.new()
-	cinematic_label.text = "Intro Cinematic:"
-	cinematic_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	cinematic_label.tooltip_text = "Optional cinematic ID to play before loading the starting scene"
-	cinematic_container.add_child(cinematic_label)
-
-	intro_cinematic_edit = LineEdit.new()
-	intro_cinematic_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	intro_cinematic_edit.placeholder_text = "(optional)"
-	intro_cinematic_edit.text_changed.connect(_on_field_changed)
-	cinematic_container.add_child(intro_cinematic_edit)
-	detail_panel.add_child(cinematic_container)
-
-	# Location label
-	var location_container: HBoxContainer = HBoxContainer.new()
-	var location_label: Label = Label.new()
-	location_label.text = "Location Label:"
-	location_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	location_label.tooltip_text = "Display text for save slot (e.g., 'Prologue', 'Chapter 1')"
-	location_container.add_child(location_label)
-
-	location_label_edit = LineEdit.new()
-	location_label_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	location_label_edit.placeholder_text = "Prologue"
-	location_label_edit.text_changed.connect(_on_field_changed)
-	location_container.add_child(location_label_edit)
-	detail_panel.add_child(location_container)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Location label is cosmetic - shown in save slots."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(help_label)
-
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_help_text("Location label is cosmetic - shown in save slots.")
+	form.add_separator()
 
 
 ## Section 3: Economy
 func _add_economy_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Economy"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Economy")
 
-	# Starting Gold
-	var gold_container: HBoxContainer = HBoxContainer.new()
-	var gold_label: Label = Label.new()
-	gold_label.text = "Starting Gold:"
-	gold_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	gold_label.tooltip_text = "Gold the party starts with. SF2 authentic default is 0."
-	gold_container.add_child(gold_label)
+	starting_gold_spin = form.add_number_field("Starting Gold:", 0, 99999, 0,
+		"Gold the party starts with. SF2 authentic default is 0.")
 
-	starting_gold_spin = SpinBox.new()
-	starting_gold_spin.min_value = 0
-	starting_gold_spin.max_value = 99999
-	starting_gold_spin.value = 0
-	starting_gold_spin.value_changed.connect(_on_spin_changed)
-	gold_container.add_child(starting_gold_spin)
-
-	var gold_help: Label = Label.new()
-	gold_help.text = "(SF2 default: 0)"
-	gold_help.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	gold_help.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	gold_container.add_child(gold_help)
-
-	detail_panel.add_child(gold_container)
-
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_help_text("(SF2 default: 0)")
+	form.add_separator()
 
 
 ## Section 4: Starting Party
 func _add_party_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Starting Party"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Starting Party")
 
-	# Party selector
-	var party_container: HBoxContainer = HBoxContainer.new()
-	var party_label: Label = Label.new()
-	party_label.text = "Party Template:"
-	party_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	party_label.tooltip_text = "Select a PartyData template or auto-detect from character flags"
-	party_container.add_child(party_label)
-
+	# Party selector - use add_labeled_control for custom OptionButton
 	party_option = OptionButton.new()
-	party_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	party_option.item_selected.connect(_on_party_selected)
-	party_container.add_child(party_option)
-	detail_panel.add_child(party_container)
+	form.add_labeled_control("Party Template:", party_option,
+		"Select a PartyData template or auto-detect from character flags")
 
 	# Help label explaining party resolution
-	party_help_label = Label.new()
-	party_help_label.text = "Select a PartyData template, or use 'Auto-detect' to use is_hero + is_default_party_member flags."
-	party_help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	party_help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	party_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(party_help_label)
+	party_help_label = form.add_help_text(
+		"Select a PartyData template, or use 'Auto-detect' to use is_hero + is_default_party_member flags.")
 
-	# Party preview (shows computed party members)
+	# Party preview (shows computed party members) - needs to be added to parent directly
 	party_preview_container = VBoxContainer.new()
 	detail_panel.add_child(party_preview_container)
 
@@ -549,41 +426,23 @@ func _add_party_section() -> void:
 
 ## Section 5: Caravan State
 func _add_caravan_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Caravan"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Caravan")
 
-	# Caravan unlocked checkbox
-	caravan_unlocked_check = CheckBox.new()
-	caravan_unlocked_check.text = "Caravan Unlocked at Start"
-	caravan_unlocked_check.tooltip_text = "If checked, the Caravan is available from the beginning. In SF2, the Caravan is acquired early in the game."
-	caravan_unlocked_check.toggled.connect(_on_caravan_toggled)
-	detail_panel.add_child(caravan_unlocked_check)
+	caravan_unlocked_check = form.add_standalone_checkbox("Caravan Unlocked at Start", false,
+		"If checked, the Caravan is available from the beginning. In SF2, the Caravan is acquired early in the game.")
+	caravan_unlocked_check.toggled.connect(_on_field_changed)
 
-	var help_label: Label = Label.new()
-	help_label.text = "Controls whether the Caravan (party storage, shops access) is available. Uncheck for authentic SF2 experience where the Caravan is unlocked through story progression."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(help_label)
-
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_help_text("Controls whether the Caravan (party storage, shops access) is available. Uncheck for authentic SF2 experience where the Caravan is unlocked through story progression.")
+	form.add_separator()
 
 
 ## Section 6: Depot Items
 func _add_depot_items_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Starting Depot Items"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Items placed in the Caravan depot at game start. Duplicates allowed for stacking."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(help_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Starting Depot Items")
+	form.add_help_text("Items placed in the Caravan depot at game start. Duplicates allowed for stacking.")
 
 	depot_items_container = VBoxContainer.new()
 	detail_panel.add_child(depot_items_container)
@@ -596,19 +455,11 @@ func _add_depot_items_section() -> void:
 	SparklingEditorUtils.add_separator(detail_panel)
 
 
-## Section 6: Story Flags
+## Section 7: Story Flags
 func _add_story_flags_section() -> void:
-	var section_label: Label = Label.new()
-	section_label.text = "Starting Story Flags"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	detail_panel.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Story flags to set at game start."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(help_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Starting Story Flags")
+	form.add_help_text("Story flags to set at game start.")
 
 	story_flags_container = VBoxContainer.new()
 	detail_panel.add_child(story_flags_container)
@@ -619,12 +470,6 @@ func _add_story_flags_section() -> void:
 	detail_panel.add_child(add_flag_button)
 
 	SparklingEditorUtils.add_separator(detail_panel)
-
-
-# =============================================================================
-# RESOURCE LOADING
-# =============================================================================
-
 
 
 # =============================================================================
@@ -705,43 +550,19 @@ func _update_party_preview(is_auto: bool) -> void:
 	for child: Node in party_preview_container.get_children():
 		child.queue_free()
 
-	var members: Array = []
+	# Get member names (already formatted with [Hero] prefix)
+	var member_names: Array = []
 	var preview_title: String = ""
 
 	if is_auto:
-		# Get the auto-detected party from ModLoader
-		if ModLoader:
-			var default_party: Array = ModLoader.get_default_party()
-			for character: Resource in default_party:
-				if character and "character_name" in character:
-					var is_hero: bool = character.is_hero if "is_hero" in character else false
-					members.append({
-						"name": character.character_name,
-						"is_hero": is_hero
-					})
+		member_names = _get_auto_detected_party_members()
 		preview_title = "Auto-detected Party:"
 	else:
-		# Get the selected party template - query registry directly
-		var party_id: String = _get_selected_party_id()
-		if not party_id.is_empty() and ModLoader and ModLoader.registry:
-			var party_data: PartyData = ModLoader.registry.get_party(party_id)
-			if party_data:
-				# PartyData has member_ids array
-				if "member_ids" in party_data:
-					for member_id: String in party_data.member_ids:
-						var char_data: CharacterData = ModLoader.registry.get_character(member_id)
-						if char_data and "character_name" in char_data:
-							var is_hero: bool = char_data.is_hero if "is_hero" in char_data else false
-							members.append({
-								"name": char_data.character_name,
-								"is_hero": is_hero
-							})
-						else:
-							members.append({"name": member_id, "is_hero": false})
+		member_names = _get_party_template_members(_get_selected_party_id())
 		preview_title = "Party Template Members:"
 
 	# Build preview UI
-	if members.is_empty():
+	if member_names.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "No party members found"
 		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_warning_color())
@@ -756,20 +577,18 @@ func _update_party_preview(is_auto: bool) -> void:
 		var members_hbox: HBoxContainer = HBoxContainer.new()
 		members_hbox.add_theme_constant_override("separation", 10)
 
-		for i: int in range(members.size()):
-			var member: Dictionary = members[i]
+		for i: int in range(member_names.size()):
+			var name: String = member_names[i]
+			var is_hero: bool = name.begins_with("[Hero]")
 			var member_label: Label = Label.new()
-			var prefix: String = "[Hero] " if member.is_hero else ""
-			member_label.text = prefix + member.name
-			if member.is_hero:
-				member_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))  # Gold for hero
-			else:
-				member_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+			member_label.text = name
+			member_label.add_theme_color_override("font_color",
+				Color(1.0, 0.9, 0.4) if is_hero else SparklingEditorUtils.get_help_color())
 			member_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 			members_hbox.add_child(member_label)
 
 			# Add separator between members (except last)
-			if i < members.size() - 1:
+			if i < member_names.size() - 1:
 				var sep: Label = Label.new()
 				sep.text = "|"
 				sep.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
@@ -795,7 +614,7 @@ func _add_depot_item_ui(item_id: String) -> void:
 	item_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_populate_item_dropdown(item_option)
 	_select_item_in_dropdown(item_option, item_id)
-	item_option.item_selected.connect(_on_depot_item_selected)
+	item_option.item_selected.connect(_on_field_changed)
 	item_hbox.add_child(item_option)
 
 	var remove_button: Button = Button.new()
@@ -912,7 +731,7 @@ func _add_story_flag_ui(flag_name: String, flag_value: bool) -> void:
 	var value_check: CheckBox = CheckBox.new()
 	value_check.text = "true"
 	value_check.button_pressed = flag_value
-	value_check.toggled.connect(_on_flag_toggled)
+	value_check.toggled.connect(_on_field_changed)
 	flag_hbox.add_child(value_check)
 
 	var remove_button: Button = Button.new()
@@ -951,48 +770,16 @@ func _clear_story_flags_ui() -> void:
 # EVENT HANDLERS (for dirty tracking)
 # =============================================================================
 
+## Shared dirty-tracking handler for most field changes
 func _on_field_changed(_new_value: Variant = null) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
+	if not _updating_ui:
+		_mark_dirty()
 
 
-func _on_spin_changed(_new_value: float) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_default_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
+## Party selection needs additional logic for updating help text
 func _on_party_selected(index: int) -> void:
-	var is_auto: bool = (index <= 0)
-	_update_party_help(is_auto)
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_depot_item_selected(_index: int) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_flag_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-func _on_caravan_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
+	_update_party_help(index <= 0)
+	_on_field_changed()
 
 
 # =============================================================================
@@ -1239,41 +1026,37 @@ func _get_active_default_config() -> NewGameConfigData:
 	return ModLoader.registry.get_new_game_config(active_default_config_id)
 
 
+## Format character name with hero prefix if applicable
+func _format_member_name(char_name: String, is_hero: bool) -> String:
+	return "[Hero] " + char_name if is_hero else char_name
+
+
 ## Get auto-detected party member names
 func _get_auto_detected_party_members() -> Array:
-	var members: Array = []
-
 	if not ModLoader:
-		return members
+		return []
 
-	var default_party: Array = ModLoader.get_default_party()
-	for character: Resource in default_party:
+	var members: Array = []
+	for character: Resource in ModLoader.get_default_party():
 		if character and "character_name" in character:
-			var name: String = character.character_name
-			if "is_hero" in character and character.is_hero:
-				name = "[Hero] " + name
-			members.append(name)
-
+			var is_hero: bool = character.is_hero if "is_hero" in character else false
+			members.append(_format_member_name(character.character_name, is_hero))
 	return members
 
 
 ## Get party template member names
 func _get_party_template_members(party_id: String) -> Array:
-	var members: Array = []
-
 	if not ModLoader or not ModLoader.registry:
-		return members
+		return []
 
 	var party_data: PartyData = ModLoader.registry.get_party(party_id)
 	if not party_data:
-		return members
+		return []
+
+	var members: Array = []
 	for member_dict: Dictionary in party_data.members:
 		if "character" in member_dict and member_dict.character:
 			var char_data: CharacterData = member_dict.character as CharacterData
 			if char_data:
-				var name: String = char_data.character_name
-				if char_data.is_hero:
-					name = "[Hero] " + name
-				members.append(name)
-
+				members.append(_format_member_name(char_data.character_name, char_data.is_hero))
 	return members

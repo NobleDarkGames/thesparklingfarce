@@ -133,13 +133,16 @@ func _ready() -> void:
 	# SF2-authentic: followers spawn at hero position, fan out as hero moves
 	_setup_party_followers()
 
-	# CRITICAL: Handle transitions (restores hero position after battle/door)
+	# CRITICAL: Handle transitions (restores hero position after battle/door/load)
 	var context: TransitionContext = GameState.get_transition_context()
 	if context:
 		await _handle_transition_context(context)
 	else:
-		# No transition context - use default spawn point if available
-		_spawn_at_default()
+		# No transition context - check for saved position (game load scenario)
+		var restored: bool = _restore_from_save_data()
+		if not restored:
+			# Fallback to default spawn point
+			_spawn_at_default()
 
 	# Setup camera to follow hero
 	_setup_camera()
@@ -186,12 +189,9 @@ func _handle_transition_context(context: TransitionContext) -> void:
 
 	# Priority 2: Use saved position (battle returns)
 	if not restored and context.hero_grid_position != Vector2i.ZERO:
-		if hero and hero.has_method("teleport_to_grid"):
-			hero.teleport_to_grid(context.hero_grid_position)
-			# Restore facing direction if available
-			if context.get("hero_facing") and hero.has_method("set_facing"):
-				hero.set_facing(context.hero_facing)
-			restored = true
+		var facing: String = context.hero_facing if context.get("hero_facing") else ""
+		restored = _teleport_hero_to(context.hero_grid_position, facing)
+		if restored:
 			_debug_print("  Hero restored to grid: %s" % context.hero_grid_position)
 
 	# Priority 3: Use default spawn point as fallback
@@ -199,15 +199,7 @@ func _handle_transition_context(context: TransitionContext) -> void:
 		_spawn_at_default()
 		_debug_print("  Hero spawned at default position")
 
-	# Reposition all followers relative to hero's new position
-	for follower: CharacterBody2D in party_followers:
-		if follower and follower.has_method("reposition_to_hero"):
-			follower.reposition_to_hero()
 	_debug_print("  Followers repositioned around hero")
-
-	# Snap camera to avoid jarring interpolation
-	if camera:
-		camera.snap_to_target()
 
 	# Clear context after using it
 	GameState.clear_transition_context()
@@ -217,23 +209,41 @@ func _handle_transition_context(context: TransitionContext) -> void:
 		TriggerManager.door_transition_completed.emit(spawn_point_id)
 
 
+## Teleport hero to grid position with optional facing direction.
+## Also repositions followers and snaps camera.
+func _teleport_hero_to(grid_pos: Vector2i, facing: String = "") -> bool:
+	if not hero or not hero.has_method("teleport_to_grid"):
+		return false
+
+	hero.teleport_to_grid(grid_pos)
+	if not facing.is_empty() and hero.has_method("set_facing"):
+		hero.set_facing(facing)
+
+	_reposition_followers()
+
+	if camera:
+		camera.snap_to_target()
+
+	return true
+
+
+## Reposition all party followers relative to hero's current position.
+func _reposition_followers() -> void:
+	for follower: CharacterBody2D in party_followers:
+		if follower and follower.has_method("reposition_to_hero"):
+			follower.reposition_to_hero()
+
+
 ## Spawns hero at a named spawn point in this scene
 ## Returns true if spawn point was found and hero was teleported
 func _spawn_at_point(spawn_id: String) -> bool:
-	# Find spawn point in scene tree
 	var spawn_point: SpawnPoint = SpawnPointScript.find_by_id(self, spawn_id)
 
-	if spawn_point:
-		if hero and hero.has_method("teleport_to_grid"):
-			hero.teleport_to_grid(spawn_point.grid_position)
-			# Set facing direction from spawn point
-			if hero.has_method("set_facing"):
-				hero.set_facing(spawn_point.facing)
-			return true
-	else:
+	if not spawn_point:
 		push_warning("MapTemplate: Spawn point '%s' not found in scene" % spawn_id)
+		return false
 
-	return false
+	return _teleport_hero_to(spawn_point.grid_position, spawn_point.facing)
 
 
 ## Spawns hero at the default spawn point (if one exists)
@@ -241,22 +251,37 @@ func _spawn_at_default() -> void:
 	var default_spawn: SpawnPoint = SpawnPointScript.find_default(self)
 
 	if default_spawn:
-		if hero and hero.has_method("teleport_to_grid"):
-			hero.teleport_to_grid(default_spawn.grid_position)
-			if hero.has_method("set_facing"):
-				hero.set_facing(default_spawn.facing)
+		if _teleport_hero_to(default_spawn.grid_position, default_spawn.facing):
 			_debug_print("MapTemplate: Hero spawned at default spawn point")
-
-			# SF2-AUTHENTIC: Reposition followers at hero's new location
-			for follower: CharacterBody2D in party_followers:
-				if follower and follower.has_method("reposition_to_hero"):
-					follower.reposition_to_hero()
 			_debug_print("MapTemplate: Followers repositioned to hero")
-
-			# Snap camera to new position
-			if camera:
-				camera.snap_to_target()
 	# If no default spawn point, hero stays at scene-defined position
+
+
+## Restore hero position from SaveManager.current_save (game load scenario)
+## Returns true if position was restored, false if no saved position available
+func _restore_from_save_data() -> bool:
+	if not SaveManager or not SaveManager.current_save:
+		return false
+
+	var save_data: SaveData = SaveManager.current_save
+
+	# Check if we have a valid saved position (not the default -1, -1)
+	if save_data.player_grid_position.x < 0 or save_data.player_grid_position.y < 0:
+		# No saved position - check for spawn point fallback
+		if not save_data.current_spawn_point.is_empty():
+			return _spawn_at_point(save_data.current_spawn_point)
+		return false
+
+	# Restore to saved grid position
+	if _teleport_hero_to(save_data.player_grid_position, save_data.player_facing):
+		_debug_print("MapTemplate: Hero restored to saved position: %s" % save_data.player_grid_position)
+
+		# Clear the saved position so subsequent map transitions use normal spawn logic
+		save_data.player_grid_position = Vector2i(-1, -1)
+		save_data.player_facing = ""
+		return true
+
+	return false
 
 
 ## Legacy function - redirects to new system.
@@ -603,51 +628,30 @@ func _on_hero_interaction(interaction_pos: Vector2i) -> void:
 	_open_field_menu()
 
 
-## Find an NPC at the given grid position.
-## Returns the first NPC found at that position, or null if none.
-func _find_npc_at_position(grid_pos: Vector2i) -> Node:
-	var npcs: Array[Node] = get_tree().get_nodes_in_group("npcs")
-
-	for npc: Node in npcs:
-		# Check if NPC has grid_position property or method
-		if npc.has_method("is_at_grid_position"):
-			if npc.is_at_grid_position(grid_pos):
-				return npc
-		elif "grid_position" in npc:
-			if npc.grid_position == grid_pos:
-				return npc
-		else:
-			# Fallback: convert world position to grid
-			if "global_position" in npc:
-				var npc_grid_pos: Vector2i = GridManager.world_to_cell(npc.global_position)
-				if npc_grid_pos == grid_pos:
-					return npc
-
+## Find a node in a group at the given grid position.
+## Uses multiple strategies: is_at_grid_position method, grid_position property, or world position fallback.
+func _find_node_at_grid_position(group_name: String, grid_pos: Vector2i) -> Node:
+	for node: Node in get_tree().get_nodes_in_group(group_name):
+		if node.has_method("is_at_grid_position"):
+			if node.is_at_grid_position(grid_pos):
+				return node
+		elif "grid_position" in node:
+			if node.grid_position == grid_pos:
+				return node
+		elif "global_position" in node:
+			if GridManager.world_to_cell(node.global_position) == grid_pos:
+				return node
 	return null
+
+
+## Find an NPC at the given grid position.
+func _find_npc_at_position(grid_pos: Vector2i) -> Node:
+	return _find_node_at_grid_position("npcs", grid_pos)
 
 
 ## Find an interactable (sign, chest, etc.) at the given grid position.
-## Returns the first interactable found at that position, or null if none.
 func _find_interactable_at_position(grid_pos: Vector2i) -> Node:
-	# Get all nodes in the "interactables" group
-	var interactables: Array[Node] = get_tree().get_nodes_in_group("interactables")
-
-	for interactable: Node in interactables:
-		# Check if interactable has grid_position property or method
-		if interactable.has_method("is_at_grid_position"):
-			if interactable.is_at_grid_position(grid_pos):
-				return interactable
-		elif "grid_position" in interactable:
-			if interactable.grid_position == grid_pos:
-				return interactable
-		else:
-			# Fallback: convert world position to grid
-			if "global_position" in interactable:
-				var interactable_grid: Vector2i = GridManager.world_to_cell(interactable.global_position)
-				if interactable_grid == grid_pos:
-					return interactable
-
-	return null
+	return _find_node_at_grid_position("interactables", grid_pos)
 
 
 ## Check if the interaction is targeting the caravan.
@@ -655,24 +659,16 @@ func _find_interactable_at_position(grid_pos: Vector2i) -> Node:
 ## - interaction_pos matches caravan position, OR
 ## - hero is standing on the caravan (overlap from following behavior)
 func _is_caravan_interaction(interaction_pos: Vector2i) -> bool:
-	if not CaravanController:
-		return false
-
-	if not CaravanController.is_spawned():
+	if not CaravanController or not CaravanController.is_spawned():
 		return false
 
 	var caravan_pos: Vector2i = CaravanController.get_grid_position()
 
-	# Check if facing the caravan
+	# Check if facing the caravan or hero is standing on it (overlap case)
 	if interaction_pos == caravan_pos:
 		return true
 
-	# Check if hero is standing on the caravan (overlap case)
-	if hero and "grid_position" in hero:
-		if hero.grid_position == caravan_pos:
-			return true
-
-	return false
+	return hero and "grid_position" in hero and hero.grid_position == caravan_pos
 
 
 ## Open the exploration field menu
@@ -799,17 +795,12 @@ func _get_current_map_metadata() -> MapMetadata:
 ## Checks scene's map_type property first, then falls back to registry metadata.
 func _is_overworld_map() -> bool:
 	# Priority 1: Check scene's own map_type property (subclass may define it)
-	if "map_type" in self:
-		var scene_map_type: String = self.map_type
-		if scene_map_type == "OVERWORLD":
-			return true
+	if "map_type" in self and self.map_type == "OVERWORLD":
+		return true
 
 	# Priority 2: Check registry MapMetadata for caravan_visible flag
 	var map_meta: MapMetadata = _get_current_map_metadata()
-	if map_meta and map_meta.caravan_visible:
-		return true
-
-	return false
+	return map_meta and map_meta.caravan_visible
 
 
 # =============================================================================
@@ -866,9 +857,7 @@ func _create_default_sprite_frames() -> SpriteFrames:
 ## Check if this map is being loaded as a cinematic backdrop
 ## Returns true if CinematicsManager._loading_backdrop flag is set
 func _is_backdrop_mode() -> bool:
-	if CinematicsManager and CinematicsManager._loading_backdrop:
-		return true
-	return false
+	return CinematicsManager and CinematicsManager._loading_backdrop
 
 
 ## Setup map for backdrop mode (visual-only, no gameplay)

@@ -199,294 +199,122 @@ func _get_resource_display_name(resource: Resource) -> String:
 # =============================================================================
 
 func _add_combat_xp_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_on_value_changed)
+	form.add_section("Combat XP Settings")
+	form.add_help_text("Configure how XP is awarded during combat for attacks, kills, and formation bonuses.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Combat XP Settings"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Configure how XP is awarded during combat for attacks, kills, and formation bonuses."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_label)
-
-	# Enable Formation XP
+	# Enable Formation XP - standalone checkbox with its own toggle handler
 	enable_formation_xp_check = CheckBox.new()
 	enable_formation_xp_check.text = "Enable Formation XP"
 	enable_formation_xp_check.tooltip_text = "Award XP to nearby allies when a unit attacks (rewards tactical positioning)"
 	enable_formation_xp_check.toggled.connect(_on_formation_xp_toggled)
-	section.add_child(enable_formation_xp_check)
+	form.container.add_child(enable_formation_xp_check)
 
-	# Formation Radius
-	var radius_container: HBoxContainer = _create_spin_row(
-		"Formation Radius:",
-		"Radius in grid cells for formation XP (allies within this distance get XP)",
-		1, 10, 1
-	)
-	formation_radius_spin = radius_container.get_child(1) as SpinBox
+	formation_radius_spin = form.add_number_field("Formation Radius:", 1, 10, 3,
+		"Radius in grid cells for formation XP (allies within this distance get XP)")
 	formation_radius_spin.suffix = " cells"
-	section.add_child(radius_container)
 
-	# Formation Multiplier
-	var mult_container: HBoxContainer = _create_spin_row(
-		"Formation Multiplier:",
-		"XP multiplier per ally (0.15 = 15% of base XP per nearby ally)",
-		0.0, 1.0, 0.01
-	)
-	formation_multiplier_spin = mult_container.get_child(1) as SpinBox
-	section.add_child(mult_container)
+	formation_multiplier_spin = form.add_number_field("Formation Multiplier:", 0.0, 1.0, 0.15,
+		"XP multiplier per ally (0.15 = 15% of base XP per nearby ally)", 0.01)
 
-	# Formation Cap Ratio
-	var cap_container: HBoxContainer = _create_spin_row(
-		"Formation Cap:",
-		"Cap formation XP at this percentage of attacker's actual XP",
-		0.0, 1.0, 0.05
-	)
-	formation_cap_ratio_spin = cap_container.get_child(1) as SpinBox
-	section.add_child(cap_container)
+	formation_cap_ratio_spin = form.add_number_field("Formation Cap:", 0.0, 1.0, 0.5,
+		"Cap formation XP at this percentage of attacker's actual XP", 0.05)
 
-	# Formation Catch-up Rate
-	var catchup_container: HBoxContainer = _create_spin_row(
-		"Catch-up Rate:",
-		"Bonus/penalty per level difference from party average",
-		0.0, 0.5, 0.01
-	)
-	formation_catch_up_rate_spin = catchup_container.get_child(1) as SpinBox
-	section.add_child(catchup_container)
+	formation_catch_up_rate_spin = form.add_number_field("Catch-up Rate:", 0.0, 0.5, 0.1,
+		"Bonus/penalty per level difference from party average", 0.01)
 
-	# Min Damage XP Ratio
-	var min_dmg_container: HBoxContainer = _create_spin_row(
-		"Min Damage XP Ratio:",
-		"Minimum XP for any successful attack (as ratio of base XP)",
-		0.0, 0.5, 0.01
-	)
-	min_damage_xp_ratio_spin = min_dmg_container.get_child(1) as SpinBox
-	section.add_child(min_dmg_container)
+	min_damage_xp_ratio_spin = form.add_number_field("Min Damage XP Ratio:", 0.0, 0.5, 0.1,
+		"Minimum XP for any successful attack (as ratio of base XP)", 0.01)
 
-	# Kill Bonus Multiplier
-	var kill_container: HBoxContainer = _create_spin_row(
-		"Kill Bonus Multiplier:",
-		"XP bonus for landing the killing blow (0.5 = 50% of base XP added)",
-		0.0, 2.0, 0.1
-	)
-	kill_bonus_multiplier_spin = kill_container.get_child(1) as SpinBox
-	section.add_child(kill_container)
+	kill_bonus_multiplier_spin = form.add_number_field("Kill Bonus Multiplier:", 0.0, 2.0, 0.5,
+		"XP bonus for landing the killing blow (0.5 = 50% of base XP added)", 0.1)
 
-	# Max XP Per Action
-	var max_xp_container: HBoxContainer = _create_spin_row(
-		"Max XP Per Action:",
-		"Maximum XP that can be awarded per single action",
-		1, 100, 1
-	)
-	max_xp_per_action_spin = max_xp_container.get_child(1) as SpinBox
+	max_xp_per_action_spin = form.add_number_field("Max XP Per Action:", 1, 100, 50,
+		"Maximum XP that can be awarded per single action")
 	max_xp_per_action_spin.suffix = " XP"
-	section.add_child(max_xp_container)
 
-	detail_panel.add_child(section)
-
-	# Add separator
-	var sep: HSeparator = HSeparator.new()
-	detail_panel.add_child(sep)
+	form.add_separator()
 
 
 func _add_support_xp_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_on_value_changed)
+	form.add_section("Support XP Settings")
+	form.add_help_text("Configure XP awards for healing, buffs, and debuffs.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Support XP Settings"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Configure XP awards for healing, buffs, and debuffs."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Enable Enhanced Support XP
+	# Enable Enhanced Support XP - standalone checkbox with its own toggle handler
 	enable_enhanced_support_xp_check = CheckBox.new()
 	enable_enhanced_support_xp_check.text = "Enable Enhanced Support XP"
 	enable_enhanced_support_xp_check.tooltip_text = "Award bonus XP for healing, buffs, and debuffs"
 	enable_enhanced_support_xp_check.toggled.connect(_on_support_xp_toggled)
-	section.add_child(enable_enhanced_support_xp_check)
+	form.container.add_child(enable_enhanced_support_xp_check)
 
-	# Heal Base XP
-	var heal_base_container: HBoxContainer = _create_spin_row(
-		"Heal Base XP:",
-		"Base XP awarded for healing (before HP ratio bonus)",
-		0, 50, 1
-	)
-	heal_base_xp_spin = heal_base_container.get_child(1) as SpinBox
+	heal_base_xp_spin = form.add_number_field("Heal Base XP:", 0, 50, 5,
+		"Base XP awarded for healing (before HP ratio bonus)")
 	heal_base_xp_spin.suffix = " XP"
-	section.add_child(heal_base_container)
 
-	# Heal Ratio Multiplier
-	var heal_ratio_container: HBoxContainer = _create_spin_row(
-		"Heal Ratio Multiplier:",
-		"Multiplier for healing XP based on HP restored (value * HP restored / Max HP)",
-		0, 50, 1
-	)
-	heal_ratio_multiplier_spin = heal_ratio_container.get_child(1) as SpinBox
-	section.add_child(heal_ratio_container)
+	heal_ratio_multiplier_spin = form.add_number_field("Heal Ratio Multiplier:", 0, 50, 10,
+		"Multiplier for healing XP based on HP restored (value * HP restored / Max HP)")
 
-	# Buff Base XP
-	var buff_container: HBoxContainer = _create_spin_row(
-		"Buff Base XP:",
-		"Base XP awarded for casting buff spells",
-		0, 50, 1
-	)
-	buff_base_xp_spin = buff_container.get_child(1) as SpinBox
+	buff_base_xp_spin = form.add_number_field("Buff Base XP:", 0, 50, 5,
+		"Base XP awarded for casting buff spells")
 	buff_base_xp_spin.suffix = " XP"
-	section.add_child(buff_container)
 
-	# Debuff Base XP
-	var debuff_container: HBoxContainer = _create_spin_row(
-		"Debuff Base XP:",
-		"Base XP awarded for casting debuff spells",
-		0, 50, 1
-	)
-	debuff_base_xp_spin = debuff_container.get_child(1) as SpinBox
+	debuff_base_xp_spin = form.add_number_field("Debuff Base XP:", 0, 50, 5,
+		"Base XP awarded for casting debuff spells")
 	debuff_base_xp_spin.suffix = " XP"
-	section.add_child(debuff_container)
 
-	# Support Catch-up Rate
-	var support_catchup_container: HBoxContainer = _create_spin_row(
-		"Support Catch-up Rate:",
-		"Bonus per level the supporter is behind the target",
-		0.0, 0.5, 0.01
-	)
-	support_catch_up_rate_spin = support_catchup_container.get_child(1) as SpinBox
-	section.add_child(support_catchup_container)
+	support_catch_up_rate_spin = form.add_number_field("Support Catch-up Rate:", 0.0, 0.5, 0.05,
+		"Bonus per level the supporter is behind the target", 0.01)
 
-	detail_panel.add_child(section)
-
-	# Add separator
-	var sep: HSeparator = HSeparator.new()
-	detail_panel.add_child(sep)
+	form.add_separator()
 
 
 func _add_anti_spam_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_on_value_changed)
+	form.add_section("Anti-Spam Settings")
+	form.add_help_text("Prevent XP farming by reducing rewards for repeated actions in the same battle.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Anti-Spam Settings"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Prevent XP farming by reducing rewards for repeated actions in the same battle."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_label)
-
-	# Enable Anti-Spam
+	# Enable Anti-Spam - standalone checkbox with its own toggle handler
 	anti_spam_enabled_check = CheckBox.new()
 	anti_spam_enabled_check.text = "Enable Diminishing Returns"
 	anti_spam_enabled_check.tooltip_text = "Enable XP reduction for repeated actions in the same battle"
 	anti_spam_enabled_check.toggled.connect(_on_anti_spam_toggled)
-	section.add_child(anti_spam_enabled_check)
+	form.container.add_child(anti_spam_enabled_check)
 
-	# Medium Threshold
-	var medium_container: HBoxContainer = _create_spin_row(
-		"Medium Threshold:",
-		"Number of uses before XP reduction to 60%",
-		1, 20, 1
-	)
-	spam_threshold_medium_spin = medium_container.get_child(1) as SpinBox
+	spam_threshold_medium_spin = form.add_number_field("Medium Threshold:", 1, 20, 3,
+		"Number of uses before XP reduction to 60%")
 	spam_threshold_medium_spin.suffix = " uses"
-	section.add_child(medium_container)
 
-	# Heavy Threshold
-	var heavy_container: HBoxContainer = _create_spin_row(
-		"Heavy Threshold:",
-		"Number of uses before XP reduction to 30%",
-		1, 20, 1
-	)
-	spam_threshold_heavy_spin = heavy_container.get_child(1) as SpinBox
+	spam_threshold_heavy_spin = form.add_number_field("Heavy Threshold:", 1, 20, 6,
+		"Number of uses before XP reduction to 30%")
 	spam_threshold_heavy_spin.suffix = " uses"
-	section.add_child(heavy_container)
 
-	detail_panel.add_child(section)
-
-	# Add separator
-	var sep: HSeparator = HSeparator.new()
-	detail_panel.add_child(sep)
+	form.add_separator()
 
 
 func _add_leveling_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_on_value_changed)
+	form.add_section("Leveling Settings")
+	form.add_help_text("Core leveling parameters that define character progression.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Leveling Settings"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Core leveling parameters that define character progression."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# XP Per Level
-	var xp_container: HBoxContainer = _create_spin_row(
-		"XP Per Level:",
-		"Experience points required per level (100 = classic, lower = faster leveling)",
-		1, 1000, 1
-	)
-	xp_per_level_spin = xp_container.get_child(1) as SpinBox
+	xp_per_level_spin = form.add_number_field("XP Per Level:", 1, 1000, 100,
+		"Experience points required per level (100 = classic, lower = faster leveling)")
 	xp_per_level_spin.suffix = " XP"
-	section.add_child(xp_container)
 
-	# Max Level
-	var max_container: HBoxContainer = _create_spin_row(
-		"Max Level:",
-		"Maximum level characters can reach",
-		1, 99, 1
-	)
-	max_level_spin = max_container.get_child(1) as SpinBox
-	section.add_child(max_container)
+	max_level_spin = form.add_number_field("Max Level:", 1, 99, 20,
+		"Maximum level characters can reach")
 
-	detail_panel.add_child(section)
 
 # =============================================================================
-# UI HELPER METHODS
+# CALLBACKS
 # =============================================================================
 
-## Create a standard spin box row with label
-func _create_spin_row(label_text: String, tooltip: String, min_val: float, max_val: float, step: float) -> HBoxContainer:
-	var container: HBoxContainer = HBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	label.tooltip_text = tooltip
-	container.add_child(label)
-
-	var spin: SpinBox = SpinBox.new()
-	spin.min_value = min_val
-	spin.max_value = max_val
-	spin.step = step
-	spin.tooltip_text = tooltip
-	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spin.value_changed.connect(_on_value_changed)
-	container.add_child(spin)
-
-	return container
-
-
-## Called when any value changes - mark dirty
-func _on_value_changed(_value: float) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-
-
-## Called when any simple checkbox is toggled - mark dirty
-func _on_checkbox_toggled(_pressed: bool) -> void:
+## Called when any value changes - mark dirty (respects _updating_ui guard)
+func _on_value_changed(_value: Variant = null) -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()

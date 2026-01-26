@@ -5,11 +5,6 @@ extends "res://scenes/ui/members/screens/members_screen_base.gd"
 ## Shows a grid of party members. Select one to view their details.
 ## Based on Caravan's char_select.gd but simplified (no TAKE/STORE modes).
 
-## Colors matching project standards
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-
 ## Character button references
 var char_buttons: Array[Button] = []
 
@@ -37,9 +32,7 @@ func _on_initialized() -> void:
 
 
 func _populate_character_grid() -> void:
-	# Clear existing
-	for child: Node in char_grid.get_children():
-		child.queue_free()
+	_clear_container(char_grid)
 	char_buttons.clear()
 	_pressed_callables.clear()
 	_focus_callables.clear()
@@ -84,7 +77,7 @@ func _populate_character_grid() -> void:
 	if char_buttons.is_empty():
 		var label: Label = Label.new()
 		label.text = "No party members!"
-		label.add_theme_color_override("font_color", COLOR_DISABLED)
+		label.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 		char_grid.add_child(label)
 		return
 

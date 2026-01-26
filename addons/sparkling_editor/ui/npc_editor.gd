@@ -16,12 +16,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## - MapPlacementHelper: Scene modification for "Place on Map" (extracted)
 
 # UI field references - Basic Information
-var npc_id_edit: LineEdit
-var npc_id_lock_btn: Button
-var npc_name_edit: LineEdit
-
-# Track if ID should auto-generate from name
-var _id_is_locked: bool = false
+var name_id_group: NameIdFieldGroup
 
 # Appearance Fallback section
 var appearance_section: VBoxContainer
@@ -37,12 +32,14 @@ var fallback_cinematic_picker: ResourcePicker
 var fallback_warning: Label
 
 # Conditional cinematics section
-var conditionals_container: VBoxContainer
-var add_conditional_btn: Button
+var conditionals_list: DynamicRowList
 
 # Behavior section
 var face_player_check: CheckBox
 var facing_override_option: OptionButton
+
+# Ambient Patrol section
+var ambient_cinematic_picker: ResourcePicker
 
 # Advanced options section (collapsible)
 var advanced_section: VBoxContainer
@@ -51,18 +48,14 @@ var advanced_content: VBoxContainer
 
 # Place on Map section
 var place_on_map_btn: Button
-var map_selection_popup: PopupPanel
-var map_list: ItemList
-var place_confirm_btn: Button
 var place_position_x: SpinBox
 var place_position_y: SpinBox
+var place_on_map_dialog: PlaceOnMapDialog
 
 # Extracted Components
 var preview_panel: NPCPreviewPanel
 var map_placement_helper: MapPlacementHelper
 
-# Track conditional entries for dynamic UI
-var conditional_entries: Array[Dictionary] = []
 
 # Flag to prevent signal feedback loops during UI updates
 var _updating_ui: bool = false
@@ -72,11 +65,26 @@ func _ready() -> void:
 	resource_type_name = "NPC"
 	resource_type_id = "npc"
 	# Declare dependencies BEFORE super._ready() so base class can auto-subscribe
-	resource_dependencies = ["cinematic"]  # For cinematic pickers
+	# Note: "cinematics" (plural) matches cinematic_editor.resource_dir_name
+	resource_dependencies = ["cinematics"]  # For cinematic pickers
 	super._ready()
 
 	# Initialize helper components
 	map_placement_helper = MapPlacementHelper.new()
+
+
+## Handle dependency changes - refresh cinematic pickers when cinematics change
+func _on_dependencies_changed(changed_type: String) -> void:
+	if changed_type == "cinematics":
+		# Refresh main cinematic pickers
+		if interaction_cinematic_picker:
+			interaction_cinematic_picker.refresh()
+		if fallback_cinematic_picker:
+			fallback_cinematic_picker.refresh()
+		if ambient_cinematic_picker:
+			ambient_cinematic_picker.refresh()
+		# Refresh conditional cinematic pickers using shared component
+		ConditionalCinematicsRowFactory.refresh_pickers_in_list(conditionals_list)
 
 
 ## Override: Create the NPC-specific detail form
@@ -110,7 +118,7 @@ func _create_detail_form() -> void:
 	# Bind preview panel to data sources
 	# Note: sprite_path is null since we now use MapSpritesheetPicker (which has its own preview)
 	# Note: dialog_text is null since Quick Dialog was removed - preview shows name/portrait only
-	preview_panel.bind_sources(npc_name_edit, null, null, portrait_path_edit, null)
+	preview_panel.bind_sources(name_id_group.get_name_edit(), null, null, portrait_path_edit, null)
 
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
@@ -124,12 +132,8 @@ func _load_resource_data() -> void:
 
 	_updating_ui = true
 
-	npc_name_edit.text = npc.npc_name
-	npc_id_edit.text = npc.npc_id
-
-	var expected_auto_id: String = SparklingEditorUtils.generate_id_from_name(npc.npc_name)
-	_id_is_locked = (npc.npc_id != expected_auto_id) and not npc.npc_id.is_empty()
-	_update_lock_button()
+	# Load name/ID using component (auto-detects lock state)
+	name_id_group.set_values(npc.npc_name, npc.npc_id, true)
 
 	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
 	portrait_path_edit.text = portrait_path
@@ -156,6 +160,13 @@ func _load_resource_data() -> void:
 	face_player_check.button_pressed = npc.face_player_on_interact
 	_set_facing_dropdown(npc.facing_override)
 
+	# Load ambient patrol cinematic
+	if ambient_cinematic_picker:
+		if npc.ambient_cinematic_id.is_empty():
+			ambient_cinematic_picker.call_deferred("select_none")
+		else:
+			ambient_cinematic_picker.call_deferred("select_by_id", "", npc.ambient_cinematic_id)
+
 	_updating_ui = false
 
 	call_deferred("_update_preview")
@@ -167,8 +178,8 @@ func _save_resource_data() -> void:
 		return
 	var npc: NPCData = current_resource
 
-	npc.npc_id = npc_id_edit.text.strip_edges()
-	npc.npc_name = npc_name_edit.text.strip_edges()
+	npc.npc_id = name_id_group.get_id_value()
+	npc.npc_name = name_id_group.get_name_value()
 
 	var portrait_path: String = portrait_path_edit.text.strip_edges()
 	npc.portrait = _load_texture(portrait_path)
@@ -185,13 +196,16 @@ func _save_resource_data() -> void:
 	npc.face_player_on_interact = face_player_check.button_pressed
 	npc.facing_override = _get_facing_from_dropdown()
 
+	# Save ambient patrol cinematic
+	npc.ambient_cinematic_id = ambient_cinematic_picker.get_selected_resource_id() if ambient_cinematic_picker else ""
+
 
 ## Override: Validate resource before saving
 func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
 
-	var npc_id: String = npc_id_edit.text.strip_edges()
+	var npc_id: String = name_id_group.get_id_value()
 	if npc_id.is_empty():
 		errors.append("NPC ID is required")
 
@@ -209,18 +223,12 @@ func _validate_resource() -> Dictionary:
 	# Note: ResourcePicker only shows valid cinematics from the registry,
 	# so we don't need to validate existence here
 
-	for i: int in range(conditional_entries.size()):
-		var entry: Dictionary = conditional_entries[i]
-		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
-		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-
-		var and_text: String = and_flags_edit.text.strip_edges() if and_flags_edit else ""
-		var or_text: String = or_flags_edit.text.strip_edges() if or_flags_edit else ""
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
+	var conditional_data: Array[Dictionary] = conditionals_list.get_all_data()
+	for i: int in range(conditional_data.size()):
+		var entry: Dictionary = conditional_data[i]
+		var and_text: String = entry.get("and_flags", "")
+		var or_text: String = entry.get("or_flags", "")
+		var cine_id: String = entry.get("cinematic_id", "")
 
 		var has_any_flags: bool = not and_text.is_empty() or not or_text.is_empty()
 		var has_cinematic: bool = not cine_id.is_empty()
@@ -278,33 +286,18 @@ func _get_resource_display_name(resource: Resource) -> String:
 func _add_basic_info_section() -> void:
 	var section: VBoxContainer = SparklingEditorUtils.create_section("Basic Information", detail_panel)
 
-	# NPC Name
-	var name_row: HBoxContainer = SparklingEditorUtils.create_field_row("Display Name:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	npc_name_edit = LineEdit.new()
-	npc_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_name_edit.max_length = 64  # Reasonable limit for dialog box display
-	npc_name_edit.placeholder_text = "Guard, Shopkeeper, Elder..."
-	npc_name_edit.tooltip_text = "Name shown in dialog boxes when this NPC speaks. E.g., 'Guard', 'Old Man', 'Sarah'."
-	npc_name_edit.text_changed.connect(_on_name_changed)
-	name_row.add_child(npc_name_edit)
-
-	# NPC ID
-	var id_row: HBoxContainer = SparklingEditorUtils.create_field_row("NPC ID:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
-	npc_id_edit = LineEdit.new()
-	npc_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_id_edit.placeholder_text = "(auto-generated from name)"
-	npc_id_edit.tooltip_text = "Unique ID for referencing this NPC in scripts and triggers. Auto-generates from name."
-	npc_id_edit.text_changed.connect(_on_id_manually_changed)
-	id_row.add_child(npc_id_edit)
-
-	npc_id_lock_btn = Button.new()
-	npc_id_lock_btn.text = "Lock"
-	npc_id_lock_btn.tooltip_text = "Click to lock ID and prevent auto-generation"
-	npc_id_lock_btn.custom_minimum_size.x = 60
-	npc_id_lock_btn.pressed.connect(_on_id_lock_toggled)
-	id_row.add_child(npc_id_lock_btn)
-
-	SparklingEditorUtils.create_help_label("ID auto-generates from name. Click lock to set custom ID.", section)
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "NPC ID:"
+	name_id_group.name_placeholder = "Guard, Shopkeeper, Elder..."
+	name_id_group.id_placeholder = "(auto-generated from name)"
+	name_id_group.name_tooltip = "Name shown in dialog boxes when this NPC speaks. E.g., 'Guard', 'Old Man', 'Sarah'."
+	name_id_group.id_tooltip = "Unique ID for referencing this NPC in scripts and triggers. Auto-generates from name."
+	name_id_group.name_max_length = 64
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	section.add_child(name_id_group)
 
 
 
@@ -399,42 +392,12 @@ func _add_place_on_map_section() -> void:
 	section.add_child(place_on_map_btn)
 
 	SparklingEditorUtils.create_help_label("Save the NPC first, then click to add it to a map", section)
-	_create_map_selection_popup()
 
-
-func _create_map_selection_popup() -> void:
-	map_selection_popup = PopupPanel.new()
-	map_selection_popup.title = "Select Map"
-
-	var popup_content: VBoxContainer = VBoxContainer.new()
-	popup_content.custom_minimum_size = Vector2(400, 300)
-
-	var popup_label: Label = Label.new()
-	popup_label.text = "Select a map to place the NPC on:"
-	popup_content.add_child(popup_label)
-
-	map_list = ItemList.new()
-	map_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_list.custom_minimum_size.y = 200
-	map_list.item_activated.connect(_on_map_double_clicked)
-	popup_content.add_child(map_list)
-
-	var btn_container: HBoxContainer = HBoxContainer.new()
-	btn_container.alignment = BoxContainer.ALIGNMENT_END
-
-	var cancel_btn: Button = Button.new()
-	cancel_btn.text = "Cancel"
-	cancel_btn.pressed.connect(func(): map_selection_popup.hide())
-	btn_container.add_child(cancel_btn)
-
-	place_confirm_btn = Button.new()
-	place_confirm_btn.text = "Place NPC"
-	place_confirm_btn.pressed.connect(_on_place_confirmed)
-	btn_container.add_child(place_confirm_btn)
-
-	popup_content.add_child(btn_container)
-	map_selection_popup.add_child(popup_content)
-	add_child(map_selection_popup)
+	# Create the map selection dialog component
+	place_on_map_dialog = PlaceOnMapDialog.new()
+	place_on_map_dialog.setup(self, "NPC")
+	place_on_map_dialog.map_confirmed.connect(_on_map_selection_confirmed)
+	place_on_map_dialog.error_occurred.connect(_show_error)
 
 
 func _add_advanced_options_section() -> void:
@@ -505,16 +468,18 @@ func _add_interaction_section_to(parent: Control) -> void:
 func _add_conditional_cinematics_section_to(parent: Control) -> void:
 	var section: VBoxContainer = SparklingEditorUtils.create_section("Conditional Cinematics", parent)
 
-	add_conditional_btn = Button.new()
-	add_conditional_btn.text = "+ Add Condition"
-	add_conditional_btn.pressed.connect(_on_add_conditional)
-	section.add_child(add_conditional_btn)
-
 	SparklingEditorUtils.create_help_label("Conditions checked in order. First matching condition's cinematic plays.", section)
 
-	conditionals_container = VBoxContainer.new()
-	conditionals_container.add_theme_constant_override("separation", 4)
-	section.add_child(conditionals_container)
+	# Use DynamicRowList for conditional cinematics with shared factory component
+	conditionals_list = DynamicRowList.new()
+	conditionals_list.add_button_text = "+ Add Condition"
+	conditionals_list.add_button_tooltip = "Add a new conditional cinematic that triggers based on game flags."
+	conditionals_list.use_scroll_container = true
+	conditionals_list.scroll_min_height = 120
+	conditionals_list.row_factory = ConditionalCinematicsRowFactory.create_row
+	conditionals_list.data_extractor = ConditionalCinematicsRowFactory.extract_data
+	conditionals_list.data_changed.connect(_on_conditional_data_changed)
+	section.add_child(conditionals_list)
 
 
 func _add_behavior_section_to(parent: Control) -> void:
@@ -542,285 +507,64 @@ func _add_behavior_section_to(parent: Control) -> void:
 
 	SparklingEditorUtils.create_help_label("Force NPC to always face a specific direction (overrides face player)", section)
 
+	# Ambient Patrol section
+	var patrol_section: VBoxContainer = SparklingEditorUtils.create_section("Ambient Patrol", parent)
+
+	var ambient_row: HBoxContainer = SparklingEditorUtils.create_field_row("Patrol Cinematic:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, patrol_section)
+	ambient_cinematic_picker = ResourcePicker.new()
+	ambient_cinematic_picker.resource_type = "cinematic"
+	ambient_cinematic_picker.allow_none = true
+	ambient_cinematic_picker.none_text = "(None - stationary)"
+	ambient_cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ambient_cinematic_picker.tooltip_text = "Cinematic that plays automatically on map load. Set loop=true in the cinematic for continuous patrol."
+	ambient_cinematic_picker.resource_selected.connect(_on_cinematic_picker_changed.bind("ambient"))
+	ambient_row.add_child(ambient_cinematic_picker)
+
+	SparklingEditorUtils.create_help_label("Auto-plays on map load. Use loop=true + move_entity/wait commands. Pauses during interaction.", patrol_section)
+
 
 # =============================================================================
-# Conditional Cinematics UI Management
+# Conditional Cinematics - DynamicRowList Factory/Extractor Pattern
 # =============================================================================
 
 func _load_conditional_cinematics(conditionals: Array[Dictionary]) -> void:
-	_clear_conditional_entries()
-	for cond: Dictionary in conditionals:
-		# Build the AND flags array
-		var flags_and: Array = []
-		# Legacy single "flag" key gets converted to AND array
-		var single_flag: String = DictUtils.get_string(cond, "flag", "")
-		if not single_flag.is_empty():
-			flags_and.append(single_flag)
-		# Add any flags from "flags" array
-		var explicit_flags: Array = DictUtils.get_array(cond, "flags", [])
-		for flag: String in explicit_flags:
-			if not flag.is_empty() and flag not in flags_and:
-				flags_and.append(flag)
-
-		# OR flags from "any_flags" array
-		var flags_or: Array = DictUtils.get_array(cond, "any_flags", [])
-
-		var negate: bool = DictUtils.get_bool(cond, "negate", false)
-		var cinematic_id: String = DictUtils.get_string(cond, "cinematic_id", "")
-
-		_add_conditional_entry(flags_and, flags_or, negate, cinematic_id)
+	# Parse and load into DynamicRowList using shared component
+	var conditional_data: Array[Dictionary] = ConditionalCinematicsRowFactory.parse_conditionals_for_loading(conditionals)
+	conditionals_list.load_data(conditional_data)
 
 
-## Add a conditional entry to the UI
-## Parameters:
-##   flags_and: Array of flag names that must ALL be true (AND logic)
-##   flags_or: Array of flag names where at least ONE must be true (OR logic)
-##   negate: If true, invert the overall condition result
-##   cinematic_id: The cinematic to play when condition is met
-func _add_conditional_entry(flags_and: Array = [], flags_or: Array = [], negate: bool = false, cinematic_id: String = "") -> void:
-	var entry_container: VBoxContainer = VBoxContainer.new()
-	entry_container.add_theme_constant_override("separation", 2)
-
-	# Create a panel for visual grouping
-	var panel: PanelContainer = PanelContainer.new()
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.15, 0.15, 0.2, 0.5)
-	panel_style.set_border_width_all(1)
-	panel_style.border_color = Color(0.3, 0.3, 0.4, 0.8)
-	panel_style.set_content_margin_all(6)
-	panel_style.set_corner_radius_all(4)
-	panel.add_theme_stylebox_override("panel", panel_style)
-
-	var panel_content: VBoxContainer = VBoxContainer.new()
-	panel_content.add_theme_constant_override("separation", 4)
-	panel.add_child(panel_content)
-	entry_container.add_child(panel)
-
-	# Row 1: AND flags (all must be true)
-	var and_row: HBoxContainer = HBoxContainer.new()
-	and_row.add_theme_constant_override("separation", 4)
-	panel_content.add_child(and_row)
-
-	var and_label: Label = Label.new()
-	and_label.text = "ALL of:"
-	and_label.tooltip_text = "All these flags must be set (AND logic)"
-	and_label.custom_minimum_size.x = 55
-	and_row.add_child(and_label)
-
-	var and_flags_edit: LineEdit = LineEdit.new()
-	and_flags_edit.placeholder_text = "flag1, flag2, flag3 (comma-separated)"
-	and_flags_edit.text = ", ".join(flags_and) if not flags_and.is_empty() else ""
-	and_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	and_flags_edit.tooltip_text = "Enter flag names separated by commas. ALL must be set for condition to match."
-	and_flags_edit.text_changed.connect(_on_field_changed)
-	and_row.add_child(and_flags_edit)
-
-	# Row 2: OR flags (at least one must be true)
-	var or_row: HBoxContainer = HBoxContainer.new()
-	or_row.add_theme_constant_override("separation", 4)
-	panel_content.add_child(or_row)
-
-	var or_label: Label = Label.new()
-	or_label.text = "ANY of:"
-	or_label.tooltip_text = "At least one of these flags must be set (OR logic)"
-	or_label.custom_minimum_size.x = 55
-	or_row.add_child(or_label)
-
-	var or_flags_edit: LineEdit = LineEdit.new()
-	or_flags_edit.placeholder_text = "flagA, flagB (at least one)"
-	or_flags_edit.text = ", ".join(flags_or) if not flags_or.is_empty() else ""
-	or_flags_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	or_flags_edit.tooltip_text = "Enter flag names separated by commas. At least ONE must be set for condition to match."
-	or_flags_edit.text_changed.connect(_on_field_changed)
-	or_row.add_child(or_flags_edit)
-
-	# Row 3: Cinematic picker and controls
-	var cinematic_row: HBoxContainer = HBoxContainer.new()
-	cinematic_row.add_theme_constant_override("separation", 4)
-	panel_content.add_child(cinematic_row)
-
-	var negate_check: CheckBox = CheckBox.new()
-	negate_check.text = "NOT"
-	negate_check.tooltip_text = "Invert the condition (trigger when flags are NOT matched)"
-	negate_check.button_pressed = negate
-	negate_check.toggled.connect(_on_check_changed)
-	cinematic_row.add_child(negate_check)
-
-	var arrow: Label = Label.new()
-	arrow.text = "->"
-	cinematic_row.add_child(arrow)
-
-	var cinematic_picker: ResourcePicker = ResourcePicker.new()
-	cinematic_picker.resource_type = "cinematic"
-	cinematic_picker.allow_none = true
-	cinematic_picker.none_text = "(None)"
-	cinematic_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cinematic_picker.tooltip_text = "The cinematic to play when this condition is met"
-	cinematic_picker.resource_selected.connect(_on_conditional_cinematic_changed)
-	cinematic_row.add_child(cinematic_picker)
-
-	# Set initial value if provided (deferred to ensure picker is ready)
-	if not cinematic_id.is_empty():
-		cinematic_picker.call_deferred("select_by_id", "", cinematic_id)
-
-	var remove_btn: Button = Button.new()
-	remove_btn.text = "X"
-	remove_btn.tooltip_text = "Remove this condition"
-	remove_btn.custom_minimum_size.x = 30
-	remove_btn.pressed.connect(_on_remove_conditional.bind(entry_container))
-	cinematic_row.add_child(remove_btn)
-
-	conditionals_container.add_child(entry_container)
-	conditional_entries.append({
-		"container": entry_container,
-		"and_flags_edit": and_flags_edit,
-		"or_flags_edit": or_flags_edit,
-		"negate_check": negate_check,
-		"cinematic_picker": cinematic_picker
-	})
-
-
-func _clear_conditional_entries() -> void:
-	for entry: Dictionary in conditional_entries:
-		var container_val: Variant = entry.get("container")
-		var container: Control = container_val if container_val is Control else null
-		if container and is_instance_valid(container):
-			container.queue_free()
-	conditional_entries.clear()
+## Called when conditional data changes via DynamicRowList
+func _on_conditional_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
 
 
 func _collect_conditional_cinematics() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for entry: Dictionary in conditional_entries:
-		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
-		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var negate_val: Variant = entry.get("negate_check")
-		var negate_check: CheckBox = negate_val if negate_val is CheckBox else null
-		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-
-		# Get cinematic ID from picker
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
-
-		# Parse AND flags (comma-separated)
-		var and_flags: Array[String] = []
-		if and_flags_edit:
-			var and_text: String = and_flags_edit.text.strip_edges()
-			if not and_text.is_empty():
-				for flag: String in and_text.split(","):
-					var clean_flag: String = flag.strip_edges()
-					if not clean_flag.is_empty():
-						and_flags.append(clean_flag)
-
-		# Parse OR flags (comma-separated)
-		var or_flags: Array[String] = []
-		if or_flags_edit:
-			var or_text: String = or_flags_edit.text.strip_edges()
-			if not or_text.is_empty():
-				for flag: String in or_text.split(","):
-					var clean_flag: String = flag.strip_edges()
-					if not clean_flag.is_empty():
-						or_flags.append(clean_flag)
-
-		# Skip entries with no flags and no cinematic
-		if and_flags.is_empty() and or_flags.is_empty() and cine_id.is_empty():
-			continue
-
-		# Build the condition dictionary
-		var cond_dict: Dictionary = {"cinematic_id": cine_id}
-
-		# Use "flags" array for AND logic (new format)
-		if not and_flags.is_empty():
-			cond_dict["flags"] = and_flags
-
-		# Use "any_flags" array for OR logic
-		if not or_flags.is_empty():
-			cond_dict["any_flags"] = or_flags
-
-		if negate_check and negate_check.button_pressed:
-			cond_dict["negate"] = true
-
-		result.append(cond_dict)
-	return result
+	return conditionals_list.get_all_data()
 
 
 func _has_valid_conditional() -> bool:
-	for entry: Dictionary in conditional_entries:
-		var and_val: Variant = entry.get("and_flags_edit")
-		var and_flags_edit: LineEdit = and_val if and_val is LineEdit else null
-		var or_val: Variant = entry.get("or_flags_edit")
-		var or_flags_edit: LineEdit = or_val if or_val is LineEdit else null
-		var picker_val: Variant = entry.get("cinematic_picker")
-		var cinematic_picker: ResourcePicker = picker_val if picker_val is ResourcePicker else null
-
-		# Get cinematic ID from picker
-		var cine_id: String = cinematic_picker.get_selected_resource_id() if cinematic_picker else ""
-		if cine_id.is_empty():
-			continue
-
-		# Check if there are any flags defined (AND or OR)
-		var has_and_flags: bool = and_flags_edit and not and_flags_edit.text.strip_edges().is_empty()
-		var has_or_flags: bool = or_flags_edit and not or_flags_edit.text.strip_edges().is_empty()
-
-		if has_and_flags or has_or_flags:
-			return true
-	return false
+	return ConditionalCinematicsRowFactory.has_valid_conditional(conditionals_list)
 
 
 # =============================================================================
 # UI Event Handlers
 # =============================================================================
 
-func _on_add_conditional() -> void:
-	_add_conditional_entry()
 
 
-func _on_remove_conditional(entry_container: HBoxContainer) -> void:
-	for i: int in range(conditional_entries.size()):
-		if conditional_entries[i].get("container") == entry_container:
-			conditional_entries.remove_at(i)
-			break
-	entry_container.queue_free()
-	_mark_dirty()
-
-
-func _on_field_changed(_text: String) -> void:
+func _on_field_changed(_value: Variant = null) -> void:
 	if _updating_ui:
 		return
 	_update_preview()
 	_mark_dirty()
 
 
-func _on_name_changed(new_name: String) -> void:
+func _on_name_id_changed(_values: Dictionary) -> void:
 	if _updating_ui:
 		return
-	if not _id_is_locked:
-		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(new_name)
 	_update_preview()
 	_mark_dirty()
-
-
-func _on_id_manually_changed(_text: String) -> void:
-	if _updating_ui:
-		return
-	if not _id_is_locked and npc_id_edit.has_focus():
-		_id_is_locked = true
-		_update_lock_button()
-	_mark_dirty()
-
-
-func _on_id_lock_toggled() -> void:
-	_id_is_locked = not _id_is_locked
-	_update_lock_button()
-	if not _id_is_locked:
-		npc_id_edit.text = SparklingEditorUtils.generate_id_from_name(npc_name_edit.text)
-
-
-func _update_lock_button() -> void:
-	npc_id_lock_btn.text = "Unlock" if _id_is_locked else "Lock"
-	npc_id_lock_btn.tooltip_text = "ID is locked. Click to unlock and auto-generate." if _id_is_locked else "Click to lock ID and prevent auto-generation"
 
 
 func _on_check_changed(_pressed: bool) -> void:
@@ -848,11 +592,6 @@ func _on_cinematic_picker_changed(_metadata: Dictionary, _field_type: String) ->
 	_mark_dirty()
 
 
-## Called when a conditional cinematic picker selection changes
-func _on_conditional_cinematic_changed(_metadata: Dictionary) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
 
 
 # =============================================================================
@@ -892,7 +631,7 @@ func _on_place_on_map_pressed() -> void:
 			if save_dir.is_empty():
 				_show_error("No save directory available. Please set an active mod.")
 				return
-			var npc_id: String = npc_id_edit.text.strip_edges()
+			var npc_id: String = name_id_group.get_id_value()
 			var filename: String = npc_id + ".tres" if not npc_id.is_empty() else "new_npc_%d.tres" % Time.get_unix_time_from_system()
 			save_path = save_dir.path_join(filename)
 
@@ -908,57 +647,19 @@ func _on_place_on_map_pressed() -> void:
 		_hide_errors()
 		_refresh_list()
 
-	_populate_map_list()
-	map_selection_popup.popup_centered()
+	place_on_map_dialog.show_dialog()
 
 
-func _populate_map_list() -> void:
-	if not map_list:
-		return
-	map_list.clear()
-	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
-	if mod_path.is_empty():
-		map_list.add_item("(No active mod selected)")
-		return
-	var maps: Array[Dictionary] = MapPlacementHelper.get_available_maps(mod_path)
-	if maps.is_empty():
-		map_list.add_item("(No maps found)")
-		return
-	for map_info: Dictionary in maps:
-		var display_name: String = DictUtils.get_string(map_info, "display_name", "Unknown")
-		var map_path: String = DictUtils.get_string(map_info, "path", "")
-		map_list.add_item(display_name)
-		map_list.set_item_metadata(map_list.item_count - 1, map_path)
-
-
-func _on_map_double_clicked(index: int) -> void:
-	map_list.select(index)
-	_on_place_confirmed()
-
-
-func _on_place_confirmed() -> void:
-	if not map_list:
-		return
-	var selected_items: PackedInt32Array = map_list.get_selected_items()
-	if selected_items.is_empty():
-		_show_error("Please select a map first.")
-		return
-	var selected_index: int = selected_items[0]
-	var map_path: String = map_list.get_item_metadata(selected_index)
-	if map_path.is_empty() or not FileAccess.file_exists(map_path):
-		_show_error("Invalid map selection.")
-		return
-
+## Handle map selection from the PlaceOnMapDialog component
+func _on_map_selection_confirmed(map_path: String) -> void:
 	var npc_path: String = current_resource.resource_path
 	var grid_x: int = int(place_position_x.value)
 	var grid_y: int = int(place_position_y.value)
-	var npc_id: String = npc_id_edit.text.strip_edges()
+	var npc_id: String = name_id_group.get_id_value()
 	var node_name: String = npc_id.to_pascal_case() if not npc_id.is_empty() else "NPC"
 
 	var success: bool = map_placement_helper.place_npc_on_map(map_path, npc_path, node_name, Vector2i(grid_x, grid_y))
-	if success:
-		map_selection_popup.hide()
-	else:
+	if not success:
 		_show_error("Failed to place NPC on map. Check the output for details.")
 
 

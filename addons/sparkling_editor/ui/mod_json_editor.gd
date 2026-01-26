@@ -50,14 +50,8 @@ var unit_categories_edit: TextEdit
 var trigger_types_edit: TextEdit
 var animation_offset_types_edit: TextEdit
 
-# Equipment Slot Layout section
-var equipment_slots_container: VBoxContainer
-var equipment_slots_list: ItemList
-var add_slot_button: Button
-var remove_slot_button: Button
-var slot_id_edit: LineEdit
-var slot_display_name_edit: LineEdit
-var slot_accepts_types_edit: LineEdit
+# Equipment Slot Layout section - uses ListEditor component
+var equipment_slots_editor: ListEditor
 
 # Inventory Config section
 var slots_per_character_spin: SpinBox
@@ -70,27 +64,16 @@ var replaces_lower_priority_check: CheckBox
 var total_conversion_section: VBoxContainer
 var total_conversion_check: CheckBox
 
-# Scene Overrides section
-var scene_overrides_container: VBoxContainer
-var scene_overrides_list: ItemList
-var add_scene_override_button: Button
-var remove_scene_override_button: Button
-var scene_id_edit: LineEdit
-var scene_path_edit: LineEdit
+# Scene Overrides section - uses ListEditor component
+var scene_overrides_editor: ListEditor
 
 # Content Paths section
 var data_path_edit: LineEdit
 var assets_path_edit: LineEdit
 
-# Field Menu Options section
-var field_menu_options_list: ItemList
-var field_menu_option_id_edit: LineEdit
-var field_menu_option_label_edit: LineEdit
-var field_menu_option_scene_path_edit: LineEdit
-var field_menu_option_position_dropdown: OptionButton
+# Field Menu Options section - uses ListEditor component
+var field_menu_options_editor: ListEditor
 var field_menu_replace_all_check: CheckBox
-var add_field_menu_option_button: Button
-var remove_field_menu_option_button: Button
 
 # Position options for field menu
 const FIELD_MENU_POSITIONS: Array[String] = [
@@ -209,69 +192,40 @@ func _setup_ui() -> void:
 
 
 func _create_basic_info_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Basic Information"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Basic Information")
 
 	# ID (read-only after creation)
-	id_edit = _create_line_edit_field("Mod ID:", section, "Unique identifier (cannot be changed after creation)")
+	id_edit = form.add_text_field("Mod ID:", "", "Unique identifier (cannot be changed after creation)")
 	id_edit.editable = false
 
 	# Name
-	name_edit = _create_line_edit_field("Name:", section, "Display name for the mod")
-	name_edit.text_changed.connect(_mark_dirty_on_text_change)
+	name_edit = form.add_text_field("Name:", "", "Display name for the mod")
 
 	# Version
-	version_edit = _create_line_edit_field("Version:", section, "Semantic version (e.g., 1.0.0)")
-	version_edit.text_changed.connect(_mark_dirty_on_text_change)
+	version_edit = form.add_text_field("Version:", "", "Semantic version (e.g., 1.0.0)")
 
 	# Author
-	author_edit = _create_line_edit_field("Author:", section, "Mod author name")
-	author_edit.text_changed.connect(_mark_dirty_on_text_change)
+	author_edit = form.add_text_field("Author:", "", "Mod author name")
 
 	# Godot Version
-	godot_version_edit = _create_line_edit_field("Godot Version:", section, "Compatible Godot version (e.g., 4.5)")
-	godot_version_edit.text_changed.connect(_mark_dirty_on_text_change)
+	godot_version_edit = form.add_text_field("Godot Version:", "", "Compatible Godot version (e.g., 4.5)")
 
 	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	section.add_child(desc_label)
+	description_edit = form.add_text_area("Description:", 60, "Describe what this mod provides...")
 
-	description_edit = TextEdit.new()
-	description_edit.custom_minimum_size.y = 60
-	description_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	description_edit.placeholder_text = "Describe what this mod provides..."
-	description_edit.text_changed.connect(_mark_dirty)
-	section.add_child(description_edit)
-
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_load_priority_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Load Priority")
+	form.add_help_text("Higher priority mods override lower priority content with matching IDs")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Load Priority"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Higher priority mods override lower priority content with matching IDs"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
-
+	# Priority field with dynamic range label - need custom row
 	var priority_container: HBoxContainer = HBoxContainer.new()
-
-	var priority_label: Label = Label.new()
-	priority_label.text = "Priority:"
-	priority_label.custom_minimum_size.x = 150
-	priority_container.add_child(priority_label)
+	priority_container.add_theme_constant_override("separation", 8)
 
 	priority_spin = SpinBox.new()
 	priority_spin.min_value = 0
@@ -285,26 +239,20 @@ func _create_load_priority_section() -> void:
 	priority_range_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
 	priority_container.add_child(priority_range_label)
 
-	section.add_child(priority_container)
+	form.add_labeled_control("Priority:", priority_container)
 
 	# Range explanation
-	var ranges_text: Label = Label.new()
-	ranges_text.text = "0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions"
-	ranges_text.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	ranges_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(ranges_text)
+	form.add_help_text("0-99: Official content | 100-8999: User mods | 9000-9999: Total conversions")
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_total_conversion_section() -> void:
-	total_conversion_section = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Total Conversion Mode")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Total Conversion Mode"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	total_conversion_section.add_child(section_label)
+	# Store section container for external reference (if needed)
+	total_conversion_section = form.container as VBoxContainer
 
 	total_conversion_check = CheckBox.new()
 	total_conversion_check.text = "Enable Total Conversion Mode"
@@ -312,33 +260,17 @@ func _create_total_conversion_section() -> void:
 		"- Sets load_priority to 9000 (overrides all other mods)\n" + \
 		"- Enables 'replaces_default_party' (uses your party instead of base game)"
 	total_conversion_check.toggled.connect(_on_total_conversion_toggled)
-	total_conversion_section.add_child(total_conversion_check)
+	form.container.add_child(total_conversion_check)
 
-	var help_text: Label = Label.new()
-	help_text.text = "Total conversions create entirely new games using the platform.\n" + \
-		"They override or replace all base game content."
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", 12)
-	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	total_conversion_section.add_child(help_text)
+	form.add_help_text("Total conversions create entirely new games using the platform.\nThey override or replace all base game content.")
 
-	detail_panel.add_child(total_conversion_section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_dependencies_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Dependencies"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Other mods that must be loaded before this one"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.add_section("Dependencies")
+	form.add_help_text("Other mods that must be loaded before this one")
 
 	dependencies_container = VBoxContainer.new()
 
@@ -365,122 +297,186 @@ func _create_dependencies_section() -> void:
 	input_row.add_child(remove_dependency_button)
 
 	dependencies_container.add_child(input_row)
-	section.add_child(dependencies_container)
+	form.container.add_child(dependencies_container)
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_custom_types_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Custom Types")
+	form.add_help_text("Register new enum-like values (one per line)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Custom Types"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	weapon_types_edit = form.add_text_area("Weapon Types:", 40, "e.g., laser, plasma, energy_blade")
+	unit_categories_edit = form.add_text_area("Unit Categories:", 40, "e.g., mech, cyborg, undead")
+	trigger_types_edit = form.add_text_area("Trigger Types:", 40, "e.g., puzzle, teleporter, shop")
+	animation_offset_types_edit = form.add_text_area("Animation Offsets:", 40, "Custom sprite positioning")
 
-	var help_text: Label = Label.new()
-	help_text.text = "Register new enum-like values (one per line)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
-
-	weapon_types_edit = _create_type_editor("Weapon Types:", section, "e.g., laser, plasma, energy_blade")
-	unit_categories_edit = _create_type_editor("Unit Categories:", section, "e.g., mech, cyborg, undead")
-	trigger_types_edit = _create_type_editor("Trigger Types:", section, "e.g., puzzle, teleporter, shop")
-	animation_offset_types_edit = _create_type_editor("Animation Offsets:", section, "Custom sprite positioning")
-
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.add_separator()
 
 
 func _create_equipment_slots_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 120)
+	form.add_section("Equipment Slot Layout")
+	form.add_help_text("Define custom equipment slots (for total conversions)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Equipment Slot Layout"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	# Use ListEditor component for master-detail pattern
+	equipment_slots_editor = ListEditor.new()
+	equipment_slots_editor.add_button_text = "Add Slot"
+	equipment_slots_editor.remove_button_text = "Remove"
+	equipment_slots_editor.update_button_text = "Update"
+	equipment_slots_editor.list_min_height = 100
+	equipment_slots_editor.label_width = 120
+	equipment_slots_editor.empty_selection_text = "Select a slot to edit or click Add"
 
-	var help_text: Label = Label.new()
-	help_text.text = "Define custom equipment slots (for total conversions)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
+	# Configure callbacks
+	equipment_slots_editor.detail_builder = _build_equipment_slot_detail
+	equipment_slots_editor.display_formatter = _format_equipment_slot_display
+	equipment_slots_editor.data_factory = func() -> Dictionary:
+		return {"id": "", "display_name": "", "accepts_types": []}
+	equipment_slots_editor.data_extractor = _extract_equipment_slot_data
 
-	equipment_slots_container = VBoxContainer.new()
+	# Connect dirty tracking
+	equipment_slots_editor.data_changed.connect(_mark_dirty)
 
-	equipment_slots_list = ItemList.new()
-	equipment_slots_list.custom_minimum_size = Vector2(0, 100)
-	equipment_slots_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_slots_list.item_selected.connect(_on_equipment_slot_selected)
-	equipment_slots_container.add_child(equipment_slots_list)
+	form.container.add_child(equipment_slots_editor)
+	form.add_separator()
 
-	# Slot editing fields
-	var slot_edit_container: VBoxContainer = VBoxContainer.new()
 
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Slot ID:"
-	id_label.custom_minimum_size.x = 120
-	id_row.add_child(id_label)
-	slot_id_edit = LineEdit.new()
-	slot_id_edit.placeholder_text = "e.g., weapon, ring_1, ring_2"
-	slot_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_row.add_child(slot_id_edit)
-	slot_edit_container.add_child(id_row)
+## Build detail fields for equipment slot editor
+func _build_equipment_slot_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionary) -> Dictionary:
+	var fields: Dictionary = {}
 
-	var name_row: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = 120
-	name_row.add_child(name_label)
-	slot_display_name_edit = LineEdit.new()
-	slot_display_name_edit.placeholder_text = "e.g., Weapon, Ring 1, Ring 2"
-	slot_display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_row.add_child(slot_display_name_edit)
-	slot_edit_container.add_child(name_row)
+	fields["id"] = form.add_text_field("Slot ID:", "e.g., weapon, ring_1, ring_2",
+		"Unique identifier for this equipment slot")
+	fields["id"].text = DictUtils.get_string(data, "id", "")
 
-	var accepts_row: HBoxContainer = HBoxContainer.new()
-	var accepts_label: Label = Label.new()
-	accepts_label.text = "Accepts Types:"
-	accepts_label.custom_minimum_size.x = 120
-	accepts_row.add_child(accepts_label)
-	slot_accepts_types_edit = LineEdit.new()
-	slot_accepts_types_edit.placeholder_text = "e.g., sword, axe, bow (comma-separated)"
-	slot_accepts_types_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	accepts_row.add_child(slot_accepts_types_edit)
-	slot_edit_container.add_child(accepts_row)
+	fields["display_name"] = form.add_text_field("Display Name:", "e.g., Weapon, Ring 1",
+		"Human-readable name shown in equipment UI")
+	fields["display_name"].text = DictUtils.get_string(data, "display_name", "")
 
-	equipment_slots_container.add_child(slot_edit_container)
+	fields["accepts_types"] = form.add_text_field("Accepts Types:", "e.g., sword, axe, bow (comma-separated)",
+		"Item types that can be equipped in this slot")
+	var accepts: Array = data.get("accepts_types", [])
+	fields["accepts_types"].text = ", ".join(accepts) if accepts else ""
 
-	# Buttons
-	var button_row: HBoxContainer = HBoxContainer.new()
+	return fields
 
-	add_slot_button = Button.new()
-	add_slot_button.text = "Add Slot"
-	add_slot_button.pressed.connect(_on_add_equipment_slot)
-	button_row.add_child(add_slot_button)
 
-	remove_slot_button = Button.new()
-	remove_slot_button.text = "Remove Selected"
-	remove_slot_button.pressed.connect(_on_remove_equipment_slot)
-	button_row.add_child(remove_slot_button)
+## Format equipment slot display text for list
+func _format_equipment_slot_display(data: Dictionary, _index: int) -> String:
+	var slot_id: String = DictUtils.get_string(data, "id", "")
+	var display_name: String = DictUtils.get_string(data, "display_name", slot_id)
+	if slot_id.is_empty():
+		return "(New Slot)"
+	return "%s (%s)" % [display_name, slot_id]
 
-	var update_slot_button: Button = Button.new()
-	update_slot_button.text = "Update Selected"
-	update_slot_button.pressed.connect(_on_update_equipment_slot)
-	button_row.add_child(update_slot_button)
 
-	equipment_slots_container.add_child(button_row)
-	section.add_child(equipment_slots_container)
+## Extract equipment slot data from detail fields
+func _extract_equipment_slot_data(fields: Dictionary) -> Dictionary:
+	return {
+		"id": fields["id"].text.strip_edges(),
+		"display_name": fields["display_name"].text.strip_edges(),
+		"accepts_types": _parse_comma_list(fields["accepts_types"].text)
+	}
 
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+
+## Build detail fields for scene override editor
+func _build_scene_override_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionary) -> Dictionary:
+	var fields: Dictionary = {}
+
+	fields["id"] = form.add_text_field("Scene ID:", "e.g., main_menu, battle_scene",
+		"Unique identifier for the scene being overridden")
+	fields["id"].text = DictUtils.get_string(data, "id", "")
+
+	fields["path"] = form.add_text_field("Scene Path:", "Relative path (e.g., scenes/custom_menu.tscn)",
+		"Path to your custom scene file relative to mod folder")
+	fields["path"].text = DictUtils.get_string(data, "path", "")
+
+	return fields
+
+
+## Format scene override display text for list
+func _format_scene_override_display(data: Dictionary, _index: int) -> String:
+	var scene_id: String = DictUtils.get_string(data, "id", "")
+	var scene_path: String = DictUtils.get_string(data, "path", "")
+	if scene_id.is_empty():
+		return "(New Override)"
+	return "%s -> %s" % [scene_id, scene_path]
+
+
+## Extract scene override data from detail fields
+func _extract_scene_override_data(fields: Dictionary) -> Dictionary:
+	return {
+		"id": fields["id"].text.strip_edges(),
+		"path": fields["path"].text.strip_edges()
+	}
+
+
+## Build detail fields for field menu option editor
+func _build_field_menu_option_detail(form: SparklingEditorUtils.FormBuilder, data: Dictionary) -> Dictionary:
+	var fields: Dictionary = {}
+
+	fields["id"] = form.add_text_field("Option ID:", "e.g., bestiary, quest_log",
+		"Unique identifier for this option (lowercase, underscores)")
+	fields["id"].text = DictUtils.get_string(data, "id", "")
+
+	fields["label"] = form.add_text_field("Label:", "e.g., Bestiary, Quests",
+		"Display text shown in the menu")
+	fields["label"].text = DictUtils.get_string(data, "label", "")
+
+	fields["scene_path"] = form.add_text_field("Scene Path:", "scenes/ui/my_panel.tscn",
+		"Relative path to the scene file (from mod folder)")
+	fields["scene_path"].text = DictUtils.get_string(data, "scene_path", "")
+
+	# Position dropdown
+	fields["position"] = form.add_dropdown("Position:", [
+		{"label": "End (after Member)", "id": 0},
+		{"label": "Start (before Item)", "id": 1},
+		{"label": "After Item", "id": 2},
+		{"label": "After Magic", "id": 3},
+		{"label": "After Search", "id": 4},
+		{"label": "After Member", "id": 5},
+	], "Where to insert this option in the menu")
+
+	# Set position dropdown based on data
+	var position: String = DictUtils.get_string(data, "position", "end")
+	var position_index: int = FIELD_MENU_POSITIONS.find(position)
+	if position_index >= 0:
+		fields["position"].select(position_index)
+	else:
+		fields["position"].select(0)  # Default to "end"
+
+	return fields
+
+
+## Format field menu option display text for list
+func _format_field_menu_option_display(data: Dictionary, _index: int) -> String:
+	var option_id: String = DictUtils.get_string(data, "id", "")
+	var option_label: String = DictUtils.get_string(data, "label", "")
+	var position: String = DictUtils.get_string(data, "position", "end")
+	if option_id.is_empty():
+		return "(New Option)"
+	return "%s (%s) [%s]" % [option_label, option_id, position]
+
+
+## Extract field menu option data from detail fields
+func _extract_field_menu_option_data(fields: Dictionary) -> Dictionary:
+	var position_index: int = fields["position"].selected
+	var position: String = FIELD_MENU_POSITIONS[position_index] if position_index >= 0 else "end"
+
+	return {
+		"id": fields["id"].text.strip_edges().to_lower(),
+		"label": fields["label"].text.strip_edges(),
+		"scene_path": fields["scene_path"].text.strip_edges(),
+		"position": position
+	}
 
 
 func _create_inventory_config_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Inventory Configuration")
 
 	slots_per_character_spin = form.add_number_field("Slots per Character:", 1, 99, 4,
@@ -494,6 +490,7 @@ func _create_inventory_config_section() -> void:
 
 func _create_party_config_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Party Configuration")
 
 	replaces_lower_priority_check = form.add_standalone_checkbox("Replaces lower priority party members", false,
@@ -505,198 +502,75 @@ func _create_party_config_section() -> void:
 	warning_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
 	warning_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
 	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_panel.add_child(warning_label)
+	form.container.add_child(warning_label)
 
 	form.add_separator()
 
 
 func _create_scene_overrides_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 100)
+	form.add_section("Scene Overrides")
+	form.add_help_text("Replace engine scenes with custom versions (for total conversions)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Scene Overrides"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	# Use ListEditor component for master-detail pattern
+	scene_overrides_editor = ListEditor.new()
+	scene_overrides_editor.add_button_text = "Add Override"
+	scene_overrides_editor.remove_button_text = "Remove"
+	scene_overrides_editor.update_button_text = "Update"
+	scene_overrides_editor.list_min_height = 80
+	scene_overrides_editor.label_width = 100
+	scene_overrides_editor.empty_selection_text = "Select an override to edit or click Add"
 
-	var help_text: Label = Label.new()
-	help_text.text = "Replace engine scenes with custom versions (for total conversions)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(help_text)
+	# Configure callbacks
+	scene_overrides_editor.detail_builder = _build_scene_override_detail
+	scene_overrides_editor.display_formatter = _format_scene_override_display
+	scene_overrides_editor.data_factory = func() -> Dictionary:
+		return {"id": "", "path": ""}
+	scene_overrides_editor.data_extractor = _extract_scene_override_data
 
-	scene_overrides_container = VBoxContainer.new()
+	# Connect dirty tracking
+	scene_overrides_editor.data_changed.connect(_mark_dirty)
 
-	scene_overrides_list = ItemList.new()
-	scene_overrides_list.custom_minimum_size = Vector2(0, 80)
-	scene_overrides_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scene_overrides_list.item_selected.connect(_on_scene_override_selected)
-	scene_overrides_container.add_child(scene_overrides_list)
-
-	# Scene override input fields
-	var input_container: VBoxContainer = VBoxContainer.new()
-
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Scene ID:"
-	id_label.custom_minimum_size.x = 100
-	id_row.add_child(id_label)
-	scene_id_edit = LineEdit.new()
-	scene_id_edit.placeholder_text = "e.g., main_menu, battle_scene"
-	scene_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_row.add_child(scene_id_edit)
-	input_container.add_child(id_row)
-
-	var path_row: HBoxContainer = HBoxContainer.new()
-	var path_label: Label = Label.new()
-	path_label.text = "Scene Path:"
-	path_label.custom_minimum_size.x = 100
-	path_row.add_child(path_label)
-	scene_path_edit = LineEdit.new()
-	scene_path_edit.placeholder_text = "Relative path (e.g., scenes/custom_menu.tscn)"
-	scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	path_row.add_child(scene_path_edit)
-	input_container.add_child(path_row)
-
-	scene_overrides_container.add_child(input_container)
-
-	# Buttons
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_scene_override_button = Button.new()
-	add_scene_override_button.text = "Add Override"
-	add_scene_override_button.pressed.connect(_on_add_scene_override)
-	button_row.add_child(add_scene_override_button)
-
-	remove_scene_override_button = Button.new()
-	remove_scene_override_button.text = "Remove Selected"
-	remove_scene_override_button.pressed.connect(_on_remove_scene_override)
-	button_row.add_child(remove_scene_override_button)
-
-	scene_overrides_container.add_child(button_row)
-	section.add_child(scene_overrides_container)
-
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.container.add_child(scene_overrides_editor)
+	form.add_separator()
 
 
 func _create_field_menu_options_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel, 100)
+	form.add_section("Field Menu Options")
+	form.add_help_text("Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Field Menu Options"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_text: Label = Label.new()
-	help_text.text = "Add custom options to the exploration field menu (e.g., Bestiary, Quest Log)"
-	help_text.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_text.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_text)
-
-	# Replace all checkbox (for total conversions)
-	field_menu_replace_all_check = CheckBox.new()
-	field_menu_replace_all_check.text = "Replace all base options (total conversion)"
-	field_menu_replace_all_check.tooltip_text = "When enabled, removes base Item/Magic/Search/Member options.\nUse this only for total conversions that provide their own field menu."
+	field_menu_replace_all_check = form.add_standalone_checkbox(
+		"Replace all base options (total conversion)", false,
+		"When enabled, removes base Item/Magic/Search/Member options.\nUse this only for total conversions that provide their own field menu.")
 	field_menu_replace_all_check.toggled.connect(_on_field_menu_replace_all_toggled)
-	section.add_child(field_menu_replace_all_check)
 
-	# Options list
-	field_menu_options_list = ItemList.new()
-	field_menu_options_list.custom_minimum_size = Vector2(0, 80)
-	field_menu_options_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_options_list.item_selected.connect(_on_field_menu_option_selected)
-	section.add_child(field_menu_options_list)
+	# Use ListEditor component for master-detail pattern
+	field_menu_options_editor = ListEditor.new()
+	field_menu_options_editor.add_button_text = "Add Option"
+	field_menu_options_editor.remove_button_text = "Remove"
+	field_menu_options_editor.update_button_text = "Update"
+	field_menu_options_editor.list_min_height = 80
+	field_menu_options_editor.label_width = 100
+	field_menu_options_editor.empty_selection_text = "Select an option to edit or click Add"
 
-	# Input fields container
-	var input_container: VBoxContainer = VBoxContainer.new()
+	# Configure callbacks
+	field_menu_options_editor.detail_builder = _build_field_menu_option_detail
+	field_menu_options_editor.display_formatter = _format_field_menu_option_display
+	field_menu_options_editor.data_factory = func() -> Dictionary:
+		return {"id": "", "label": "", "scene_path": "", "position": "end"}
+	field_menu_options_editor.data_extractor = _extract_field_menu_option_data
 
-	# Option ID
-	var id_row: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Option ID:"
-	id_label.custom_minimum_size.x = 100
-	id_row.add_child(id_label)
-	field_menu_option_id_edit = LineEdit.new()
-	field_menu_option_id_edit.placeholder_text = "e.g., bestiary, quest_log"
-	field_menu_option_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_id_edit.tooltip_text = "Unique identifier for this option (lowercase, underscores)"
-	id_row.add_child(field_menu_option_id_edit)
-	input_container.add_child(id_row)
+	# Connect dirty tracking
+	field_menu_options_editor.data_changed.connect(_mark_dirty)
 
-	# Label
-	var label_row: HBoxContainer = HBoxContainer.new()
-	var label_label: Label = Label.new()
-	label_label.text = "Label:"
-	label_label.custom_minimum_size.x = 100
-	label_row.add_child(label_label)
-	field_menu_option_label_edit = LineEdit.new()
-	field_menu_option_label_edit.placeholder_text = "e.g., Bestiary, Quests"
-	field_menu_option_label_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_label_edit.tooltip_text = "Display text shown in the menu"
-	label_row.add_child(field_menu_option_label_edit)
-	input_container.add_child(label_row)
-
-	# Scene Path with browse button
-	var path_row: HBoxContainer = HBoxContainer.new()
-	var path_label: Label = Label.new()
-	path_label.text = "Scene Path:"
-	path_label.custom_minimum_size.x = 100
-	path_row.add_child(path_label)
-	field_menu_option_scene_path_edit = LineEdit.new()
-	field_menu_option_scene_path_edit.placeholder_text = "scenes/ui/my_panel.tscn"
-	field_menu_option_scene_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_scene_path_edit.tooltip_text = "Relative path to the scene file (from mod folder)"
-	path_row.add_child(field_menu_option_scene_path_edit)
-	input_container.add_child(path_row)
-
-	# Position dropdown
-	var position_row: HBoxContainer = HBoxContainer.new()
-	var position_label: Label = Label.new()
-	position_label.text = "Position:"
-	position_label.custom_minimum_size.x = 100
-	position_row.add_child(position_label)
-	field_menu_option_position_dropdown = OptionButton.new()
-	field_menu_option_position_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field_menu_option_position_dropdown.tooltip_text = "Where to insert this option in the menu"
-	# Populate position options with display-friendly labels
-	field_menu_option_position_dropdown.add_item("End (after Member)", 0)
-	field_menu_option_position_dropdown.add_item("Start (before Item)", 1)
-	field_menu_option_position_dropdown.add_item("After Item", 2)
-	field_menu_option_position_dropdown.add_item("After Magic", 3)
-	field_menu_option_position_dropdown.add_item("After Search", 4)
-	field_menu_option_position_dropdown.add_item("After Member", 5)
-	position_row.add_child(field_menu_option_position_dropdown)
-	input_container.add_child(position_row)
-
-	section.add_child(input_container)
-
-	# Buttons
-	var button_row: HBoxContainer = HBoxContainer.new()
-
-	add_field_menu_option_button = Button.new()
-	add_field_menu_option_button.text = "Add Option"
-	add_field_menu_option_button.pressed.connect(_on_add_field_menu_option)
-	button_row.add_child(add_field_menu_option_button)
-
-	remove_field_menu_option_button = Button.new()
-	remove_field_menu_option_button.text = "Remove Selected"
-	remove_field_menu_option_button.pressed.connect(_on_remove_field_menu_option)
-	button_row.add_child(remove_field_menu_option_button)
-
-	var update_button: Button = Button.new()
-	update_button.text = "Update Selected"
-	update_button.pressed.connect(_on_update_field_menu_option)
-	button_row.add_child(update_button)
-
-	section.add_child(button_row)
-
-	detail_panel.add_child(section)
-	SparklingEditorUtils.add_separator(detail_panel)
+	form.container.add_child(field_menu_options_editor)
+	form.add_separator()
 
 
 func _create_content_paths_section() -> void:
 	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
 	form.add_section("Content Paths")
 	form.add_help_text("Relative paths within the mod folder")
 
@@ -736,45 +610,6 @@ func _create_error_panel() -> void:
 	error_panel.add_child(error_label)
 
 	detail_panel.add_child(error_panel)
-
-
-## Helper to create a labeled line edit field
-func _create_line_edit_field(label_text: String, parent: VBoxContainer, tooltip: String = "") -> LineEdit:
-	var container: HBoxContainer = HBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = 150
-	if tooltip != "":
-		label.tooltip_text = tooltip
-	container.add_child(label)
-
-	var edit: LineEdit = LineEdit.new()
-	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if tooltip != "":
-		edit.tooltip_text = tooltip
-	container.add_child(edit)
-
-	parent.add_child(container)
-	return edit
-
-
-## Helper to create a custom type text editor
-func _create_type_editor(label_text: String, parent: VBoxContainer, placeholder: String) -> TextEdit:
-	var container: VBoxContainer = VBoxContainer.new()
-
-	var label: Label = Label.new()
-	label.text = label_text
-	container.add_child(label)
-
-	var edit: TextEdit = TextEdit.new()
-	edit.custom_minimum_size.y = 40
-	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	edit.placeholder_text = placeholder
-	container.add_child(edit)
-
-	parent.add_child(container)
-	return edit
 
 
 ## Public refresh method for standard editor interface
@@ -870,16 +705,9 @@ func _populate_ui_from_data() -> void:
 	trigger_types_edit.text = _array_to_lines(custom_types.get("trigger_types", []))
 	animation_offset_types_edit.text = _array_to_lines(custom_types.get("animation_offset_types", []))
 
-	# Equipment slot layout
-	equipment_slots_list.clear()
+	# Equipment slot layout - use ListEditor
 	var slots: Array = current_mod_data.get("equipment_slot_layout", [])
-	for slot: Variant in slots:
-		if slot is Dictionary:
-			var slot_dict: Dictionary = slot
-			var slot_id: String = DictUtils.get_string(slot_dict, "id", "")
-			var slot_name: String = DictUtils.get_string(slot_dict, "display_name", slot_id)
-			equipment_slots_list.add_item("%s (%s)" % [slot_name, slot_id])
-			equipment_slots_list.set_item_metadata(equipment_slots_list.item_count - 1, slot_dict)
+	equipment_slots_editor.load_data(slots)
 
 	# Inventory config
 	var inv_config: Dictionary = current_mod_data.get("inventory_config", {})
@@ -890,41 +718,35 @@ func _populate_ui_from_data() -> void:
 	var party_config: Dictionary = current_mod_data.get("party_config", {})
 	replaces_lower_priority_check.button_pressed = party_config.get("replaces_lower_priority", false)
 
-	# Scene overrides
-	scene_overrides_list.clear()
+	# Scene overrides - convert Dictionary to Array for ListEditor
 	var scenes: Dictionary = current_mod_data.get("scenes", {})
+	var scenes_array: Array = []
 	for scene_id: String in scenes:
-		var scene_path: String = scenes[scene_id]
-		scene_overrides_list.add_item("%s -> %s" % [scene_id, scene_path])
-		scene_overrides_list.set_item_metadata(scene_overrides_list.item_count - 1, {
-			"id": scene_id,
-			"path": scene_path
-		})
+		scenes_array.append({"id": scene_id, "path": scenes[scene_id]})
+	scene_overrides_editor.load_data(scenes_array)
 
 	# Content paths
 	var content: Dictionary = current_mod_data.get("content", {})
 	data_path_edit.text = content.get("data_path", "data/")
 	assets_path_edit.text = content.get("assets_path", "assets/")
 
-	# Field menu options
-	field_menu_options_list.clear()
+	# Field menu options - convert Dictionary to Array for ListEditor
 	var field_menu_opts: Dictionary = current_mod_data.get("field_menu_options", {})
 	field_menu_replace_all_check.set_pressed_no_signal(field_menu_opts.get("_replace_all", false))
+	var options_array: Array = []
 	for option_id: String in field_menu_opts.keys():
 		if option_id.begins_with("_"):
 			continue  # Skip meta keys like _replace_all
 		var opt_data: Variant = field_menu_opts[option_id]
 		if opt_data is Dictionary:
 			var opt_dict: Dictionary = opt_data
-			var label_text: String = DictUtils.get_string(opt_dict, "label", option_id)
-			var position_text: String = DictUtils.get_string(opt_dict, "position", "end")
-			field_menu_options_list.add_item("%s (%s) [%s]" % [label_text, option_id, position_text])
-			field_menu_options_list.set_item_metadata(field_menu_options_list.item_count - 1, {
+			options_array.append({
 				"id": option_id,
-				"label": label_text,
-				"scene_path": opt_dict.get("scene_path", ""),
-				"position": position_text
+				"label": DictUtils.get_string(opt_dict, "label", option_id),
+				"scene_path": DictUtils.get_string(opt_dict, "scene_path", ""),
+				"position": DictUtils.get_string(opt_dict, "position", "end")
 			})
+	field_menu_options_editor.load_data(options_array)
 
 	_updating_ui = false
 
@@ -969,14 +791,15 @@ func _collect_data_from_ui() -> void:
 	elif "custom_types" in current_mod_data:
 		current_mod_data.erase("custom_types")
 
-	# Equipment slot layout
-	var slots: Array = []
-	for i: int in range(equipment_slots_list.item_count):
-		var slot_data: Variant = equipment_slots_list.get_item_metadata(i)
-		if slot_data is Dictionary:
-			slots.append(slot_data as Dictionary)
-	if slots.size() > 0:
-		current_mod_data["equipment_slot_layout"] = slots
+	# Equipment slot layout - collect from ListEditor
+	var slots: Array[Dictionary] = equipment_slots_editor.get_all_data()
+	# Filter out empty slots (no ID)
+	var valid_slots: Array = []
+	for slot: Dictionary in slots:
+		if not DictUtils.get_string(slot, "id", "").is_empty():
+			valid_slots.append(slot)
+	if valid_slots.size() > 0:
+		current_mod_data["equipment_slot_layout"] = valid_slots
 	elif "equipment_slot_layout" in current_mod_data:
 		current_mod_data.erase("equipment_slot_layout")
 
@@ -995,13 +818,13 @@ func _collect_data_from_ui() -> void:
 	elif "party_config" in current_mod_data:
 		current_mod_data.erase("party_config")
 
-	# Scene overrides
+	# Scene overrides - collect from ListEditor and convert to Dictionary
+	var scenes_data: Array[Dictionary] = scene_overrides_editor.get_all_data()
 	var scenes: Dictionary = {}
-	for i: int in range(scene_overrides_list.item_count):
-		var override_data: Variant = scene_overrides_list.get_item_metadata(i)
-		if override_data is Dictionary:
-			var override_dict: Dictionary = override_data as Dictionary
-			scenes[override_dict.get("id", "")] = override_dict.get("path", "")
+	for override: Dictionary in scenes_data:
+		var scene_id: String = DictUtils.get_string(override, "id", "")
+		if not scene_id.is_empty():
+			scenes[scene_id] = DictUtils.get_string(override, "path", "")
 	if scenes.size() > 0:
 		current_mod_data["scenes"] = scenes
 	elif "scenes" in current_mod_data:
@@ -1013,21 +836,19 @@ func _collect_data_from_ui() -> void:
 		"assets_path": assets_path_edit.text
 	}
 
-	# Field menu options
+	# Field menu options - collect from ListEditor and convert to Dictionary
+	var options_data: Array[Dictionary] = field_menu_options_editor.get_all_data()
 	var field_menu_opts: Dictionary = {}
 	if field_menu_replace_all_check.button_pressed:
 		field_menu_opts["_replace_all"] = true
-	for i: int in range(field_menu_options_list.item_count):
-		var opt_data: Variant = field_menu_options_list.get_item_metadata(i)
-		if opt_data is Dictionary:
-			var opt_dict: Dictionary = opt_data as Dictionary
-			var option_id: String = DictUtils.get_string(opt_dict, "id", "")
-			if not option_id.is_empty():
-				field_menu_opts[option_id] = {
-					"label": DictUtils.get_string(opt_dict, "label", option_id),
-					"scene_path": DictUtils.get_string(opt_dict, "scene_path", ""),
-					"position": DictUtils.get_string(opt_dict, "position", "end")
-				}
+	for option: Dictionary in options_data:
+		var option_id: String = DictUtils.get_string(option, "id", "")
+		if not option_id.is_empty():
+			field_menu_opts[option_id] = {
+				"label": DictUtils.get_string(option, "label", option_id),
+				"scene_path": DictUtils.get_string(option, "scene_path", ""),
+				"position": DictUtils.get_string(option, "position", "end")
+			}
 	if field_menu_opts.size() > 0:
 		current_mod_data["field_menu_options"] = field_menu_opts
 	elif "field_menu_options" in current_mod_data:
@@ -1141,274 +962,6 @@ func _on_remove_dependency() -> void:
 		is_dirty = true
 
 
-## Add a new equipment slot
-func _on_add_equipment_slot() -> void:
-	var slot_id: String = slot_id_edit.text.strip_edges()
-	if slot_id.is_empty():
-		_show_errors(["Slot ID cannot be empty"])
-		return
-
-	var slot_data: Dictionary = {
-		"id": slot_id,
-		"display_name": slot_display_name_edit.text.strip_edges(),
-		"accepts_types": _parse_comma_list(slot_accepts_types_edit.text)
-	}
-
-	equipment_slots_list.add_item("%s (%s)" % [slot_data["display_name"], slot_id])
-	equipment_slots_list.set_item_metadata(equipment_slots_list.item_count - 1, slot_data)
-
-	# Clear inputs
-	slot_id_edit.text = ""
-	slot_display_name_edit.text = ""
-	slot_accepts_types_edit.text = ""
-	is_dirty = true
-	_hide_errors()
-
-
-## Remove selected equipment slot
-func _on_remove_equipment_slot() -> void:
-	var selected: PackedInt32Array = equipment_slots_list.get_selected_items()
-	if selected.size() > 0:
-		equipment_slots_list.remove_item(selected[0])
-		is_dirty = true
-
-
-## Update selected equipment slot with current field values
-func _on_update_equipment_slot() -> void:
-	var selected: PackedInt32Array = equipment_slots_list.get_selected_items()
-	if selected.size() == 0:
-		_show_errors(["No slot selected"])
-		return
-
-	var slot_id: String = slot_id_edit.text.strip_edges()
-	if slot_id.is_empty():
-		_show_errors(["Slot ID cannot be empty"])
-		return
-
-	var slot_data: Dictionary = {
-		"id": slot_id,
-		"display_name": slot_display_name_edit.text.strip_edges(),
-		"accepts_types": _parse_comma_list(slot_accepts_types_edit.text)
-	}
-
-	var index: int = selected[0]
-	equipment_slots_list.set_item_text(index, "%s (%s)" % [slot_data["display_name"], slot_id])
-	equipment_slots_list.set_item_metadata(index, slot_data)
-	is_dirty = true
-	_hide_errors()
-
-
-## Load selected slot data into edit fields
-func _on_equipment_slot_selected(index: int) -> void:
-	var slot_data: Variant = equipment_slots_list.get_item_metadata(index)
-	if slot_data is Dictionary:
-		var slot_dict: Dictionary = slot_data as Dictionary
-		slot_id_edit.text = slot_dict.get("id", "")
-		slot_display_name_edit.text = slot_dict.get("display_name", "")
-		var accepts: Array = slot_dict.get("accepts_types", [])
-		slot_accepts_types_edit.text = ", ".join(accepts)
-
-
-## Add a scene override
-func _on_add_scene_override() -> void:
-	var scene_id: String = scene_id_edit.text.strip_edges()
-	var scene_path: String = scene_path_edit.text.strip_edges()
-
-	if scene_id.is_empty():
-		_show_errors(["Scene ID cannot be empty"])
-		return
-
-	if scene_path.is_empty():
-		_show_errors(["Scene path cannot be empty"])
-		return
-
-	# Check for duplicate IDs
-	for i: int in range(scene_overrides_list.item_count):
-		var existing: Variant = scene_overrides_list.get_item_metadata(i)
-		if existing is Dictionary:
-			var existing_dict: Dictionary = existing as Dictionary
-			if existing_dict.get("id", "") == scene_id:
-				_show_errors(["Scene ID '%s' already exists" % scene_id])
-				return
-
-	var override_data: Dictionary = {
-		"id": scene_id,
-		"path": scene_path
-	}
-
-	scene_overrides_list.add_item("%s -> %s" % [scene_id, scene_path])
-	scene_overrides_list.set_item_metadata(scene_overrides_list.item_count - 1, override_data)
-
-	scene_id_edit.text = ""
-	scene_path_edit.text = ""
-	is_dirty = true
-	_hide_errors()
-
-
-## Remove selected scene override
-func _on_remove_scene_override() -> void:
-	var selected: PackedInt32Array = scene_overrides_list.get_selected_items()
-	if selected.size() > 0:
-		scene_overrides_list.remove_item(selected[0])
-		is_dirty = true
-
-
-## Load selected scene override into edit fields
-func _on_scene_override_selected(index: int) -> void:
-	var override_data: Variant = scene_overrides_list.get_item_metadata(index)
-	if override_data is Dictionary:
-		var override_dict: Dictionary = override_data as Dictionary
-		scene_id_edit.text = override_dict.get("id", "")
-		scene_path_edit.text = override_dict.get("path", "")
-
-
-# =============================================================================
-# Field Menu Options Handlers
-# =============================================================================
-
-## Add a field menu option
-func _on_add_field_menu_option() -> void:
-	var option_id: String = field_menu_option_id_edit.text.strip_edges().to_lower()
-	var option_label: String = field_menu_option_label_edit.text.strip_edges()
-	var scene_path: String = field_menu_option_scene_path_edit.text.strip_edges()
-	var position_index: int = field_menu_option_position_dropdown.selected
-	var position: String = FIELD_MENU_POSITIONS[position_index] if position_index >= 0 else "end"
-
-	# Validation
-	if option_id.is_empty():
-		_show_errors(["Option ID cannot be empty"])
-		return
-
-	if option_label.is_empty():
-		_show_errors(["Label cannot be empty"])
-		return
-
-	if scene_path.is_empty():
-		_show_errors(["Scene path cannot be empty"])
-		return
-
-	# Check for reserved IDs
-	if option_id in RESERVED_FIELD_MENU_IDS:
-		_show_errors(["'%s' is a reserved option ID. Base options cannot be overridden.\nReserved IDs: %s" % [option_id, ", ".join(RESERVED_FIELD_MENU_IDS)]])
-		return
-
-	# Check for duplicate IDs
-	for i: int in range(field_menu_options_list.item_count):
-		var existing: Variant = field_menu_options_list.get_item_metadata(i)
-		if existing is Dictionary:
-			var existing_dict: Dictionary = existing as Dictionary
-			if existing_dict.get("id", "") == option_id:
-				_show_errors(["Option ID '%s' already exists" % option_id])
-				return
-
-	# Validate scene path exists (warning, not blocking)
-	var mod_dir: String = current_mod_path.get_base_dir()
-	var full_scene_path: String = mod_dir.path_join(scene_path)
-	if not FileAccess.file_exists(full_scene_path) and not ResourceLoader.exists(full_scene_path):
-		# Show warning but allow adding
-		push_warning("Field menu option scene not found: %s" % full_scene_path)
-
-	var opt_data: Dictionary = {
-		"id": option_id,
-		"label": option_label,
-		"scene_path": scene_path,
-		"position": position
-	}
-
-	field_menu_options_list.add_item("%s (%s) [%s]" % [option_label, option_id, position])
-	field_menu_options_list.set_item_metadata(field_menu_options_list.item_count - 1, opt_data)
-
-	# Clear inputs
-	field_menu_option_id_edit.text = ""
-	field_menu_option_label_edit.text = ""
-	field_menu_option_scene_path_edit.text = ""
-	field_menu_option_position_dropdown.select(0)  # Reset to "end"
-	is_dirty = true
-	_hide_errors()
-
-
-## Remove selected field menu option
-func _on_remove_field_menu_option() -> void:
-	var selected: PackedInt32Array = field_menu_options_list.get_selected_items()
-	if selected.size() > 0:
-		field_menu_options_list.remove_item(selected[0])
-		is_dirty = true
-
-
-## Update selected field menu option with current field values
-func _on_update_field_menu_option() -> void:
-	var selected: PackedInt32Array = field_menu_options_list.get_selected_items()
-	if selected.size() == 0:
-		_show_errors(["No option selected"])
-		return
-
-	var option_id: String = field_menu_option_id_edit.text.strip_edges().to_lower()
-	var option_label: String = field_menu_option_label_edit.text.strip_edges()
-	var scene_path: String = field_menu_option_scene_path_edit.text.strip_edges()
-	var position_index: int = field_menu_option_position_dropdown.selected
-	var position: String = FIELD_MENU_POSITIONS[position_index] if position_index >= 0 else "end"
-
-	# Validation
-	if option_id.is_empty():
-		_show_errors(["Option ID cannot be empty"])
-		return
-
-	if option_label.is_empty():
-		_show_errors(["Label cannot be empty"])
-		return
-
-	if scene_path.is_empty():
-		_show_errors(["Scene path cannot be empty"])
-		return
-
-	# Check for reserved IDs
-	if option_id in RESERVED_FIELD_MENU_IDS:
-		_show_errors(["'%s' is a reserved option ID. Base options cannot be overridden.\nReserved IDs: %s" % [option_id, ", ".join(RESERVED_FIELD_MENU_IDS)]])
-		return
-
-	# Check for duplicate IDs (excluding the currently selected item)
-	var selected_index: int = selected[0]
-	for i: int in range(field_menu_options_list.item_count):
-		if i == selected_index:
-			continue
-		var existing: Variant = field_menu_options_list.get_item_metadata(i)
-		if existing is Dictionary:
-			var existing_dict: Dictionary = existing as Dictionary
-			if existing_dict.get("id", "") == option_id:
-				_show_errors(["Option ID '%s' already exists" % option_id])
-				return
-
-	var opt_data: Dictionary = {
-		"id": option_id,
-		"label": option_label,
-		"scene_path": scene_path,
-		"position": position
-	}
-
-	field_menu_options_list.set_item_text(selected_index, "%s (%s) [%s]" % [option_label, option_id, position])
-	field_menu_options_list.set_item_metadata(selected_index, opt_data)
-	is_dirty = true
-	_hide_errors()
-
-
-## Load selected field menu option into edit fields
-func _on_field_menu_option_selected(index: int) -> void:
-	var opt_data: Variant = field_menu_options_list.get_item_metadata(index)
-	if opt_data is Dictionary:
-		var opt_dict: Dictionary = opt_data
-		field_menu_option_id_edit.text = DictUtils.get_string(opt_dict, "id", "")
-		field_menu_option_label_edit.text = DictUtils.get_string(opt_dict, "label", "")
-		field_menu_option_scene_path_edit.text = DictUtils.get_string(opt_dict, "scene_path", "")
-
-		# Set position dropdown
-		var position: String = DictUtils.get_string(opt_dict, "position", "end")
-		var position_index: int = FIELD_MENU_POSITIONS.find(position)
-		if position_index >= 0:
-			field_menu_option_position_dropdown.select(position_index)
-		else:
-			field_menu_option_position_dropdown.select(0)  # Default to "end"
-
-
 ## Called when replace all checkbox is toggled
 func _on_field_menu_replace_all_toggled(_pressed: bool) -> void:
 	is_dirty = true
@@ -1469,15 +1022,8 @@ func _on_total_conversion_toggled(pressed: bool) -> void:
 # Dirty Tracking
 # =============================================================================
 
-## Mark as dirty when LineEdit text changes (takes String parameter)
-func _mark_dirty_on_text_change(_new_text: String) -> void:
-	if _updating_ui:
-		return
-	is_dirty = true
-
-
-## Mark as dirty when TextEdit text changes (no parameter)
-func _mark_dirty() -> void:
+## Mark as dirty when any field changes (accepts optional parameter for signal compatibility)
+func _mark_dirty(_value: Variant = null) -> void:
 	if _updating_ui:
 		return
 	is_dirty = true

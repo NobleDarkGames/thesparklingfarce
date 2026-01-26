@@ -55,7 +55,6 @@ var use_buff_items_check: CheckBox
 var alert_range_spin: SpinBox
 var engagement_range_spin: SpinBox
 var seek_terrain_check: CheckBox
-var max_idle_turns_spin: SpinBox
 
 # =============================================================================
 # UI Components - Preview Section
@@ -81,14 +80,17 @@ func _ready() -> void:
 
 ## Override: Create the AI behavior-specific detail form
 func _create_detail_form() -> void:
-	_add_identity_section()
-	_add_role_mode_section()
-	_add_threat_assessment_section()
-	_add_retreat_section()
-	_add_ability_usage_section()
-	_add_item_usage_section()
-	_add_engagement_section()
-	_add_preview_section()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty_and_preview)
+
+	_add_identity_section(form)
+	_add_role_mode_section(form)
+	_add_threat_assessment_section(form)
+	_add_retreat_section(form)
+	_add_ability_usage_section(form)
+	_add_item_usage_section(form)
+	_add_engagement_section(form)
+	_add_preview_section(form)
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
@@ -137,7 +139,6 @@ func _load_resource_data() -> void:
 	alert_range_spin.value = behavior.alert_range
 	engagement_range_spin.value = behavior.engagement_range
 	seek_terrain_check.button_pressed = behavior.seek_terrain_advantage
-	max_idle_turns_spin.value = behavior.max_idle_turns
 
 	# Update preview
 	_update_preview()
@@ -194,7 +195,6 @@ func _save_resource_data() -> void:
 	behavior.alert_range = int(alert_range_spin.value)
 	behavior.engagement_range = int(engagement_range_spin.value)
 	behavior.seek_terrain_advantage = seek_terrain_check.button_pressed
-	behavior.max_idle_turns = int(max_idle_turns_spin.value)
 
 
 ## Override: Validate resource before saving
@@ -254,374 +254,143 @@ func _on_dependencies_changed(_changed_type: String) -> void:
 # UI Section Builders
 # =============================================================================
 
-func _add_identity_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_identity_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Identity")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Identity"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	behavior_id_edit = form.add_text_field("Behavior ID:", "e.g., smart_healer",
+		"Unique ID for referencing this behavior. Use snake_case, no spaces. E.g., aggressive_flanker.")
 
-	# Behavior ID
-	var id_container: HBoxContainer = HBoxContainer.new()
-	var id_label: Label = Label.new()
-	id_label.text = "Behavior ID:"
-	id_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	id_label.tooltip_text = "Unique identifier used in BattleData references (no spaces)"
-	id_container.add_child(id_label)
+	display_name_edit = form.add_text_field("Display Name:", "e.g., Smart Healer",
+		"Human-readable name shown in editor dropdowns. E.g., 'Aggressive Flanker'.")
 
-	behavior_id_edit = LineEdit.new()
-	behavior_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	behavior_id_edit.placeholder_text = "e.g., smart_healer"
-	behavior_id_edit.tooltip_text = "Unique ID for referencing this behavior. Use snake_case, no spaces. E.g., aggressive_flanker."
-	behavior_id_edit.text_changed.connect(_on_field_changed)
-	id_container.add_child(behavior_id_edit)
-	section.add_child(id_container)
-
-	# Display Name
-	var name_container: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = Label.new()
-	name_label.text = "Display Name:"
-	name_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	name_container.add_child(name_label)
-
-	display_name_edit = LineEdit.new()
-	display_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display_name_edit.placeholder_text = "e.g., Smart Healer"
-	display_name_edit.tooltip_text = "Human-readable name shown in editor dropdowns. E.g., 'Aggressive Flanker'."
-	display_name_edit.text_changed.connect(_on_field_changed)
-	name_container.add_child(display_name_edit)
-	section.add_child(name_container)
-
-	# Description
-	var desc_label: Label = Label.new()
-	desc_label.text = "Description:"
-	section.add_child(desc_label)
-
+	form.add_section_label("Description:")
 	description_edit = TextEdit.new()
 	description_edit.custom_minimum_size.y = 60
 	description_edit.placeholder_text = "Describe what this AI behavior does..."
 	description_edit.tooltip_text = "Notes for modders. Describe the tactical intent, e.g., 'Healer that conserves MP and prioritizes the boss.'"
-	description_edit.text_changed.connect(_on_field_changed)
-	section.add_child(description_edit)
-
-	detail_panel.add_child(section)
+	description_edit.text_changed.connect(_mark_dirty_and_preview)
+	form.container.add_child(description_edit)
 
 
-func _add_role_mode_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_role_mode_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Role & Mode")
+	form.add_help_text("Role = WHAT the AI prioritizes. Mode = HOW it executes.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Role & Mode"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Role = WHAT the AI prioritizes. Mode = HOW it executes."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Role
-	var role_container: HBoxContainer = HBoxContainer.new()
-	var role_label: Label = Label.new()
-	role_label.text = "Role:"
-	role_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	role_label.tooltip_text = "Tactical role: Support (heals), Aggressive (attacks), Defensive (protects), Tactical (debuffs)"
-	role_container.add_child(role_label)
-
+	# Create role dropdown - populated after adding to container
 	role_option = OptionButton.new()
 	role_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	role_option.tooltip_text = "WHAT the AI prioritizes: support (healing), aggressive (damage), defensive (protect allies), tactical (debuffs)."
 	role_option.item_selected.connect(_on_role_selected)
-	role_container.add_child(role_option)
-	section.add_child(role_container)
+	form.add_labeled_control("Role:", role_option,
+		"Tactical role: Support (heals), Aggressive (attacks), Defensive (protects), Tactical (debuffs)")
 
-	# Mode
-	var mode_container: HBoxContainer = HBoxContainer.new()
-	var mode_label: Label = Label.new()
-	mode_label.text = "Behavior Mode:"
-	mode_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	mode_label.tooltip_text = "Execution style: Aggressive (chase), Cautious (hold), Opportunistic (exploit weakness)"
-	mode_container.add_child(mode_label)
-
+	# Create mode dropdown - populated after adding to container
 	mode_option = OptionButton.new()
 	mode_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mode_option.tooltip_text = "HOW the AI executes: aggressive (chase targets), cautious (hold position), opportunistic (exploit weaknesses)."
 	mode_option.item_selected.connect(_on_mode_selected)
-	mode_container.add_child(mode_option)
-	section.add_child(mode_container)
+	form.add_labeled_control("Behavior Mode:", mode_option,
+		"Execution style: Aggressive (chase), Cautious (hold), Opportunistic (exploit weakness)")
 
 	# Populate dropdowns
 	_populate_role_options()
 	_populate_mode_options()
 
-	detail_panel.add_child(section)
 
+func _add_threat_assessment_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Threat Assessment")
+	form.add_help_text("Higher weights = higher priority targets. 1.0 = normal.")
 
-func _add_threat_assessment_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Threat Assessment"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Higher weights = higher priority targets. 1.0 = normal."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-	section.add_child(help_label)
-
-	# Threat weights container
+	# Threat weights container (managed separately for dynamic rows)
 	threat_weights_container = VBoxContainer.new()
-	section.add_child(threat_weights_container)
+	form.container.add_child(threat_weights_container)
 
 	# Add button
 	add_threat_weight_button = Button.new()
 	add_threat_weight_button.text = "+ Add Threat Weight"
 	add_threat_weight_button.pressed.connect(_on_add_threat_weight)
-	section.add_child(add_threat_weight_button)
+	form.container.add_child(add_threat_weight_button)
 
 	# Ignore protagonist checkbox
-	ignore_protagonist_check = CheckBox.new()
-	ignore_protagonist_check.text = "Ignore protagonist priority (avoids obsessive hero targeting)"
-	ignore_protagonist_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: When ON, AI does not prioritize the hero. Prevents 'everyone attacks Max' syndrome."
-	ignore_protagonist_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(ignore_protagonist_check)
-
-	detail_panel.add_child(section)
+	ignore_protagonist_check = form.add_standalone_checkbox(
+		"Ignore protagonist priority (avoids obsessive hero targeting)", false,
+		"[NOT YET IMPLEMENTED] Intended: When ON, AI does not prioritize the hero. Prevents 'everyone attacks Max' syndrome.")
 
 
-func _add_retreat_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_retreat_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Retreat & Self-Preservation")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Retreat & Self-Preservation"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	retreat_enabled_check = form.add_standalone_checkbox(
+		"Enable retreat behavior", false,
+		"When ON, unit will try to escape when wounded. Off = fights to the death.")
 
-	# Enable retreat
-	retreat_enabled_check = CheckBox.new()
-	retreat_enabled_check.text = "Enable retreat behavior"
-	retreat_enabled_check.tooltip_text = "When ON, unit will try to escape when wounded. Off = fights to the death."
-	retreat_enabled_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(retreat_enabled_check)
+	retreat_threshold_spin = form.add_number_field("Retreat HP %:", 0, 100, 30,
+		"HP percentage that triggers retreat. 30% = retreat when badly hurt. 50% = cautious.")
 
-	# Retreat threshold
-	var threshold_container: HBoxContainer = HBoxContainer.new()
-	var threshold_label: Label = Label.new()
-	threshold_label.text = "Retreat HP %:"
-	threshold_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	threshold_container.add_child(threshold_label)
+	retreat_when_outnumbered_check = form.add_standalone_checkbox(
+		"Retreat when outnumbered", false,
+		"Unit retreats if surrounded by more enemies than allies. Makes units self-preserving.")
 
-	retreat_threshold_spin = SpinBox.new()
-	retreat_threshold_spin.min_value = 0
-	retreat_threshold_spin.max_value = 100
-	retreat_threshold_spin.value = 30
-	retreat_threshold_spin.tooltip_text = "HP percentage that triggers retreat. 30% = retreat when badly hurt. 50% = cautious."
-	retreat_threshold_spin.value_changed.connect(_on_spin_changed)
-	threshold_container.add_child(retreat_threshold_spin)
-	section.add_child(threshold_container)
-
-	# Outnumbered retreat
-	retreat_when_outnumbered_check = CheckBox.new()
-	retreat_when_outnumbered_check.text = "Retreat when outnumbered"
-	retreat_when_outnumbered_check.tooltip_text = "Unit retreats if surrounded by more enemies than allies. Makes units self-preserving."
-	retreat_when_outnumbered_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(retreat_when_outnumbered_check)
-
-	# Seek healer
-	seek_healer_check = CheckBox.new()
-	seek_healer_check.text = "Move toward healers when wounded"
-	seek_healer_check.tooltip_text = "Wounded units position themselves near friendly healers for support. Smart for melee units."
-	seek_healer_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(seek_healer_check)
-
-	detail_panel.add_child(section)
+	seek_healer_check = form.add_standalone_checkbox(
+		"Move toward healers when wounded", false,
+		"Wounded units position themselves near friendly healers for support. Smart for melee units.")
 
 
-func _add_ability_usage_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_ability_usage_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Ability Usage (Spells)")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Ability Usage (Spells)"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	aoe_minimum_targets_spin = form.add_number_field("AoE Min Targets:", 1, 5, 2,
+		"Only cast AoE spells if at least this many enemies are in range. 2 = efficient, 1 = aggressive.")
 
-	# AoE minimum targets
-	var aoe_container: HBoxContainer = HBoxContainer.new()
-	var aoe_label: Label = Label.new()
-	aoe_label.text = "AoE Min Targets:"
-	aoe_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	aoe_label.tooltip_text = "Minimum enemies in area before using AoE spells"
-	aoe_container.add_child(aoe_label)
+	conserve_mp_check = form.add_standalone_checkbox(
+		"Conserve MP on heals (use lower-level spells when sufficient)", false,
+		"Use Heal 1 instead of Heal 2 when target only needs small heal. Saves MP for emergencies.")
 
-	aoe_minimum_targets_spin = SpinBox.new()
-	aoe_minimum_targets_spin.min_value = 1
-	aoe_minimum_targets_spin.max_value = 5
-	aoe_minimum_targets_spin.value = 2
-	aoe_minimum_targets_spin.tooltip_text = "Only cast AoE spells if at least this many enemies are in range. 2 = efficient, 1 = aggressive."
-	aoe_minimum_targets_spin.value_changed.connect(_on_spin_changed)
-	aoe_container.add_child(aoe_minimum_targets_spin)
-	section.add_child(aoe_container)
+	prioritize_boss_heals_check = form.add_standalone_checkbox(
+		"Prioritize healing boss/leader units", false,
+		"Healers focus on boss units even if other allies are more wounded. Protects key targets.")
 
-	# Conserve MP
-	conserve_mp_check = CheckBox.new()
-	conserve_mp_check.text = "Conserve MP on heals (use lower-level spells when sufficient)"
-	conserve_mp_check.tooltip_text = "Use Heal 1 instead of Heal 2 when target only needs small heal. Saves MP for emergencies."
-	conserve_mp_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(conserve_mp_check)
+	use_status_effects_check = form.add_standalone_checkbox(
+		"Use debuff/status effect abilities", false,
+		"AI will cast sleep, poison, slow, etc. When OFF, AI only uses direct damage/healing.")
 
-	# Boss heal priority
-	prioritize_boss_heals_check = CheckBox.new()
-	prioritize_boss_heals_check.text = "Prioritize healing boss/leader units"
-	prioritize_boss_heals_check.tooltip_text = "Healers focus on boss units even if other allies are more wounded. Protects key targets."
-	prioritize_boss_heals_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(prioritize_boss_heals_check)
-
-	# Status effects
-	use_status_effects_check = CheckBox.new()
-	use_status_effects_check.text = "Use debuff/status effect abilities"
-	use_status_effects_check.tooltip_text = "AI will cast sleep, poison, slow, etc. When OFF, AI only uses direct damage/healing."
-	use_status_effects_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(use_status_effects_check)
-
-	# Preferred effects
-	var effects_container: HBoxContainer = HBoxContainer.new()
-	var effects_label: Label = Label.new()
-	effects_label.text = "Preferred Effects:"
-	effects_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	effects_container.add_child(effects_label)
-
-	preferred_effects_edit = LineEdit.new()
-	preferred_effects_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preferred_effects_edit.placeholder_text = "e.g., poison, sleep (comma-separated)"
-	preferred_effects_edit.tooltip_text = "Status effects this AI prefers to cast. Leave empty for no preference."
-	preferred_effects_edit.text_changed.connect(_on_field_changed)
-	effects_container.add_child(preferred_effects_edit)
-	section.add_child(effects_container)
-
-	detail_panel.add_child(section)
+	preferred_effects_edit = form.add_text_field("Preferred Effects:",
+		"e.g., poison, sleep (comma-separated)",
+		"Status effects this AI prefers to cast. Leave empty for no preference.")
 
 
-func _add_item_usage_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_item_usage_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Item Usage")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Item Usage"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	use_healing_items_check = form.add_standalone_checkbox(
+		"Use healing items when wounded", false,
+		"AI will consume healing herbs, potions when HP is low. Good for boss units.")
 
-	use_healing_items_check = CheckBox.new()
-	use_healing_items_check.text = "Use healing items when wounded"
-	use_healing_items_check.tooltip_text = "AI will consume healing herbs, potions when HP is low. Good for boss units."
-	use_healing_items_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(use_healing_items_check)
+	use_attack_items_check = form.add_standalone_checkbox(
+		"Use attack items (bombs, thrown weapons)", false,
+		"AI will throw bombs, use attack scrolls if in inventory. Makes encounters more dangerous.")
 
-	use_attack_items_check = CheckBox.new()
-	use_attack_items_check.text = "Use attack items (bombs, thrown weapons)"
-	use_attack_items_check.tooltip_text = "AI will throw bombs, use attack scrolls if in inventory. Makes encounters more dangerous."
-	use_attack_items_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(use_attack_items_check)
-
-	use_buff_items_check = CheckBox.new()
-	use_buff_items_check.text = "Use buff items on self or allies"
-	use_buff_items_check.tooltip_text = "[NOT YET IMPLEMENTED] Intended: AI will use power rings, speed boots on self or nearby allies before combat."
-	use_buff_items_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(use_buff_items_check)
-
-	var item_stub_label: Label = Label.new()
-	item_stub_label.text = "[STUB] Buff items not yet processed by AI system"
-	item_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	item_stub_label.add_theme_font_size_override("font_size", 12)
-	section.add_child(item_stub_label)
-
-	detail_panel.add_child(section)
+	use_buff_items_check = form.add_standalone_checkbox(
+		"Use buff items on self or allies", false,
+		"AI will use power rings, speed boots, and other buff items on self or nearby allies before combat. Prioritizes unbuffed units and bosses.")
 
 
-func _add_engagement_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+func _add_engagement_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Engagement Rules")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Engagement Rules"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+	alert_range_spin = form.add_number_field("Alert Range:", 0, 20, 8,
+		"Distance at which unit notices enemies. 0 = never alert unless attacked. 8 = typical. 15+ = very aware.")
 
-	# Alert range
-	var alert_container: HBoxContainer = HBoxContainer.new()
-	var alert_label: Label = Label.new()
-	alert_label.text = "Alert Range:"
-	alert_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	alert_label.tooltip_text = "Distance at which unit becomes aware of enemies"
-	alert_container.add_child(alert_label)
+	engagement_range_spin = form.add_number_field("Engagement Range:", 0, 20, 5,
+		"Distance at which unit will move toward enemies. Lower = holds position. Must be <= alert range.")
 
-	alert_range_spin = SpinBox.new()
-	alert_range_spin.min_value = 0
-	alert_range_spin.max_value = 20
-	alert_range_spin.value = 8
-	alert_range_spin.tooltip_text = "Distance at which unit notices enemies. 0 = never alert unless attacked. 8 = typical. 15+ = very aware."
-	alert_range_spin.value_changed.connect(_on_spin_changed)
-	alert_container.add_child(alert_range_spin)
-	section.add_child(alert_container)
-
-	# Engagement range
-	var engage_container: HBoxContainer = HBoxContainer.new()
-	var engage_label: Label = Label.new()
-	engage_label.text = "Engagement Range:"
-	engage_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	engage_label.tooltip_text = "Distance at which unit actively pursues enemies"
-	engage_container.add_child(engage_label)
-
-	engagement_range_spin = SpinBox.new()
-	engagement_range_spin.min_value = 0
-	engagement_range_spin.max_value = 20
-	engagement_range_spin.value = 5
-	engagement_range_spin.tooltip_text = "Distance at which unit will move toward enemies. Lower = holds position. Must be <= alert range."
-	engagement_range_spin.value_changed.connect(_on_spin_changed)
-	engage_container.add_child(engagement_range_spin)
-	section.add_child(engage_container)
-
-	# Terrain advantage
-	seek_terrain_check = CheckBox.new()
-	seek_terrain_check.text = "Seek terrain advantage (defense bonuses)"
-	seek_terrain_check.tooltip_text = "AI prefers tiles with defense/evasion bonuses when moving to attack. Makes enemies tactically smarter."
-	seek_terrain_check.toggled.connect(_on_checkbox_toggled)
-	section.add_child(seek_terrain_check)
-
-	# Max idle turns
-	var idle_container: HBoxContainer = HBoxContainer.new()
-	var idle_label: Label = Label.new()
-	idle_label.text = "Max Idle Turns:"
-	idle_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	idle_label.tooltip_text = "Turns waiting before becoming aggressive (0 = stay passive)"
-	idle_container.add_child(idle_label)
-
-	max_idle_turns_spin = SpinBox.new()
-	max_idle_turns_spin.min_value = 0
-	max_idle_turns_spin.max_value = 99
-	max_idle_turns_spin.value = 0
-	max_idle_turns_spin.tooltip_text = "[NOT YET IMPLEMENTED] Intended: After this many turns without acting, unit becomes aggressive. 0 = stay passive forever."
-	max_idle_turns_spin.value_changed.connect(_on_spin_changed)
-	idle_container.add_child(max_idle_turns_spin)
-	section.add_child(idle_container)
-
-	var engage_stub_label: Label = Label.new()
-	engage_stub_label.text = "[STUB] Idle turn patience not yet processed by AI system"
-	engage_stub_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	engage_stub_label.add_theme_font_size_override("font_size", 12)
-	section.add_child(engage_stub_label)
-
-	detail_panel.add_child(section)
+	seek_terrain_check = form.add_standalone_checkbox(
+		"Seek terrain advantage (defense bonuses)", false,
+		"AI prefers tiles with defense/evasion bonuses when moving to attack. Makes enemies tactically smarter.")
 
 
-func _add_preview_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
-
-	var section_label: Label = Label.new()
-	section_label.text = "Behavior Preview"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
+func _add_preview_section(form: SparklingEditorUtils.FormBuilder) -> void:
+	form.add_section("Behavior Preview")
 
 	var preview_panel: PanelContainer = PanelContainer.new()
 	var style: StyleBoxFlat = SparklingEditorUtils.create_info_panel_style()
@@ -634,8 +403,7 @@ func _add_preview_section() -> void:
 	preview_label.scroll_active = false
 	preview_panel.add_child(preview_label)
 
-	section.add_child(preview_panel)
-	detail_panel.add_child(section)
+	form.container.add_child(preview_panel)
 
 
 # =============================================================================
@@ -797,21 +565,8 @@ func _on_threat_weight_value_changed(_new_value: float) -> void:
 # Event Handlers
 # =============================================================================
 
-func _on_field_changed(_new_text: String = "") -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-	_update_preview()
-
-
-func _on_checkbox_toggled(_pressed: bool) -> void:
-	if _updating_ui:
-		return
-	_mark_dirty()
-	_update_preview()
-
-
-func _on_spin_changed(_new_value: float) -> void:
+## Combined callback for FormBuilder on_change - marks dirty and updates preview
+func _mark_dirty_and_preview() -> void:
 	if _updating_ui:
 		return
 	_mark_dirty()

@@ -308,6 +308,21 @@ static func scan_mods_for_files(subdir: String, extension: String) -> Array[Dict
 
 
 # =============================================================================
+# String Parsing Helpers
+# =============================================================================
+
+## Parse a comma-separated string of flags into an array
+## Empty strings and whitespace-only entries are filtered out
+static func parse_flag_string(flag_string: String) -> Array[String]:
+	var result: Array[String] = []
+	for flag in flag_string.split(","):
+		var trimmed: String = flag.strip_edges()
+		if not trimmed.is_empty():
+			result.append(trimmed)
+	return result
+
+
+# =============================================================================
 # ID Generation
 # =============================================================================
 

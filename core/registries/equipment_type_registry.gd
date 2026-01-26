@@ -41,6 +41,25 @@ extends RefCounted
 signal registrations_changed()
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+## Source mod ID for core defaults
+const CORE_MOD: String = "_core"
+
+## Default category definitions
+const DEFAULT_CATEGORIES: Dictionary = {
+	"weapon": {"display_name": "Weapon", "description": "Equipped in weapon slot"},
+	"accessory": {"display_name": "Accessory", "description": "Rings and other accessories"}
+}
+
+## Default weapon subtypes (SF-standard)
+const DEFAULT_WEAPON_SUBTYPES: Array = ["sword", "axe", "spear", "staff", "knife", "bow"]
+
+## Default accessory subtypes
+const DEFAULT_ACCESSORY_SUBTYPES: Array = ["ring"]
+
+# =============================================================================
 # DATA STORAGE
 # =============================================================================
 
@@ -68,33 +87,71 @@ func init_defaults() -> void:
 		return
 	_defaults_initialized = true
 
-	# Categories
-	_categories["weapon"] = {
-		"id": "weapon",
-		"display_name": "Weapon",
-		"description": "Equipped in weapon slot",
-		"source_mod": "_core"
-	}
-	_categories["accessory"] = {
-		"id": "accessory",
-		"display_name": "Accessory",
-		"description": "Rings and other accessories",
-		"source_mod": "_core"
-	}
+	# Register default categories
+	for cat_id: String in DEFAULT_CATEGORIES.keys():
+		var cat_data: Dictionary = DEFAULT_CATEGORIES[cat_id]
+		_categories[cat_id] = {
+			"id": cat_id,
+			"display_name": cat_data.display_name,
+			"description": cat_data.description,
+			"source_mod": CORE_MOD
+		}
 
-	# Weapon subtypes (SF-standard)
-	_subtypes["sword"] = {"id": "sword", "category": "weapon", "display_name": "Sword", "source_mod": "_core"}
-	_subtypes["axe"] = {"id": "axe", "category": "weapon", "display_name": "Axe", "source_mod": "_core"}
-	_subtypes["spear"] = {"id": "spear", "category": "weapon", "display_name": "Spear", "source_mod": "_core"}
-	_subtypes["staff"] = {"id": "staff", "category": "weapon", "display_name": "Staff", "source_mod": "_core"}
-	_subtypes["knife"] = {"id": "knife", "category": "weapon", "display_name": "Knife", "source_mod": "_core"}
-	_subtypes["bow"] = {"id": "bow", "category": "weapon", "display_name": "Bow", "source_mod": "_core"}
+	# Register default weapon subtypes
+	for subtype_id: String in DEFAULT_WEAPON_SUBTYPES:
+		_subtypes[subtype_id] = _make_subtype_entry(subtype_id, "weapon", subtype_id.capitalize(), CORE_MOD)
 
-	# Accessory subtypes
-	_subtypes["ring"] = {"id": "ring", "category": "accessory", "display_name": "Ring", "source_mod": "_core"}
+	# Register default accessory subtypes
+	for subtype_id: String in DEFAULT_ACCESSORY_SUBTYPES:
+		_subtypes[subtype_id] = _make_subtype_entry(subtype_id, "accessory", subtype_id.capitalize(), CORE_MOD)
 
 	_rebuild_reverse_index()
 	registrations_changed.emit()
+
+
+## Create a subtype entry dictionary
+func _make_subtype_entry(id: String, category: String, display_name: String, source_mod: String) -> Dictionary:
+	return {"id": id, "category": category, "display_name": display_name, "source_mod": source_mod}
+
+
+# =============================================================================
+# INTERNAL HELPERS
+# =============================================================================
+
+## Get a field from a subtype entry, with fallback
+func _get_subtype_field(subtype: String, field: String, fallback: String = "") -> String:
+	var lower: String = subtype.to_lower()
+	if lower in _subtypes:
+		return _subtypes[lower].get(field, fallback)
+	return fallback
+
+
+## Get a field from a category entry, with fallback
+func _get_category_field(category: String, field: String, fallback: String = "") -> String:
+	var lower: String = category.to_lower()
+	if lower in _categories:
+		return _categories[lower].get(field, fallback)
+	return fallback
+
+
+## Remove entries from a dictionary by mod_id, returns count removed
+func _remove_entries_by_mod(entries: Dictionary, mod_id: String) -> int:
+	var to_remove: Array[String] = []
+	for entry_id: String in entries.keys():
+		if entries[entry_id].get("source_mod", "") == mod_id:
+			to_remove.append(entry_id)
+	for entry_id: String in to_remove:
+		entries.erase(entry_id)
+	return to_remove.size()
+
+
+## Get sorted keys from a dictionary as typed array
+func _get_sorted_keys(dict: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	for key: String in dict.keys():
+		result.append(key)
+	result.sort()
+	return result
 
 
 # =============================================================================
@@ -207,11 +264,7 @@ func _register_subtype(mod_id: String, subtype_id: String, data: Dictionary) -> 
 ## Get the category for a subtype
 ## Returns empty string if subtype is not registered
 func get_category(subtype: String) -> String:
-	var lower: String = subtype.to_lower()
-	if lower in _subtypes:
-		var entry: Dictionary = _subtypes[lower]
-		return entry.get("category", "")
-	return ""
+	return _get_subtype_field(subtype, "category")
 
 
 ## Check if a subtype matches an accepts_types entry
@@ -263,56 +316,68 @@ func get_subtypes_for_category(category: String) -> Array[String]:
 
 ## Get all registered categories
 func get_all_categories() -> Array[String]:
-	var result: Array[String] = []
-	for cat_id: String in _categories.keys():
-		result.append(cat_id)
-	result.sort()
-	return result
+	return _get_sorted_keys(_categories)
 
 
 ## Get all registered subtypes
 func get_all_subtypes() -> Array[String]:
-	var result: Array[String] = []
-	for subtype_id: String in _subtypes.keys():
-		result.append(subtype_id)
-	result.sort()
-	return result
+	return _get_sorted_keys(_subtypes)
+
+
+## Get all weapon-category subtypes (convenience for dropdowns)
+func get_weapon_types() -> Array[String]:
+	return get_subtypes_for_category("weapon")
+
+
+## Check if any class can equip this weapon type (orphan detection)
+## Returns Dictionary with "orphan": bool and "warning": String
+func check_equippability(weapon_type: String) -> Dictionary:
+	if weapon_type.is_empty():
+		return {"orphan": false, "warning": ""}
+
+	# Only check weapon-category types
+	var category: String = get_category(weapon_type)
+	if category != "weapon":
+		return {"orphan": false, "warning": ""}
+
+	# Query all classes from registry
+	if not ModLoader or not ModLoader.registry:
+		return {"orphan": false, "warning": "Cannot check - ModLoader unavailable"}
+
+	var classes: Array[Resource] = ModLoader.registry.get_all_resources("class")
+	var lower_type: String = weapon_type.to_lower()
+	for class_res: Resource in classes:
+		if class_res and class_res.has_method("can_equip_weapon"):
+			if class_res.can_equip_weapon(lower_type):
+				return {"orphan": false, "warning": ""}
+		elif "equippable_weapon_types" in class_res:
+			for allowed: String in class_res.equippable_weapon_types:
+				if allowed.to_lower() == lower_type:
+					return {"orphan": false, "warning": ""}
+
+	return {"orphan": true, "warning": "No class can equip '%s' weapons" % weapon_type}
 
 
 ## Get display name for a subtype
 func get_subtype_display_name(subtype: String) -> String:
-	var lower: String = subtype.to_lower()
-	if lower in _subtypes:
-		var entry: Dictionary = _subtypes[lower]
-		return entry.get("display_name", subtype.capitalize())
-	return subtype.capitalize()
+	var result: String = _get_subtype_field(subtype, "display_name")
+	return result if not result.is_empty() else subtype.capitalize()
 
 
 ## Get display name for a category
 func get_category_display_name(category: String) -> String:
-	var lower: String = category.to_lower()
-	if lower in _categories:
-		var entry: Dictionary = _categories[lower]
-		return entry.get("display_name", category.capitalize())
-	return category.capitalize()
+	var result: String = _get_category_field(category, "display_name")
+	return result if not result.is_empty() else category.capitalize()
 
 
 ## Get which mod registered a subtype
 func get_subtype_source_mod(subtype: String) -> String:
-	var lower: String = subtype.to_lower()
-	if lower in _subtypes:
-		var entry: Dictionary = _subtypes[lower]
-		return entry.get("source_mod", "")
-	return ""
+	return _get_subtype_field(subtype, "source_mod")
 
 
 ## Get which mod registered a category
 func get_category_source_mod(category: String) -> String:
-	var lower: String = category.to_lower()
-	if lower in _categories:
-		var entry: Dictionary = _categories[lower]
-		return entry.get("source_mod", "")
-	return ""
+	return _get_category_field(category, "source_mod")
 
 
 ## Get subtypes grouped by category (for editor dropdowns)
@@ -348,29 +413,10 @@ func get_subtypes_grouped_by_category() -> Dictionary:
 
 ## Unregister all types from a specific mod
 func unregister_mod(mod_id: String) -> void:
-	var changed: bool = false
-	
-	# Remove subtypes from this mod
-	var subtypes_to_remove: Array[String] = []
-	for subtype_id: String in _subtypes.keys():
-		var entry: Dictionary = _subtypes[subtype_id]
-		if entry.get("source_mod", "") == mod_id:
-			subtypes_to_remove.append(subtype_id)
-	for subtype_id: String in subtypes_to_remove:
-		_subtypes.erase(subtype_id)
-		changed = true
-	
-	# Remove categories from this mod
-	var categories_to_remove: Array[String] = []
-	for cat_id: String in _categories.keys():
-		var entry: Dictionary = _categories[cat_id]
-		if entry.get("source_mod", "") == mod_id:
-			categories_to_remove.append(cat_id)
-	for cat_id: String in categories_to_remove:
-		_categories.erase(cat_id)
-		changed = true
-	
-	if changed:
+	var removed: int = _remove_entries_by_mod(_subtypes, mod_id)
+	removed += _remove_entries_by_mod(_categories, mod_id)
+
+	if removed > 0:
 		_rebuild_reverse_index()
 		registrations_changed.emit()
 

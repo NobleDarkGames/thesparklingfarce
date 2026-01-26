@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://test_battle_flow"]
-
-[ext_resource type="Script" path="res://tests/integration/battle/test_battle_flow.gd" id="1_test"]
-
-[node name="BattleFlowTest" type="Node2D"]
-script = ExtResource("1_test")

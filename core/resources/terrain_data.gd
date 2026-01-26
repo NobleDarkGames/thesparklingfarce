@@ -60,12 +60,6 @@ func get_movement_cost(movement_type: int) -> int:
 			if impassable_flying:
 				return 99
 			return movement_cost_flying  # Flying always uses this (typically 1)
-		ClassData.MovementType.SWIMMING:
-			# Aquatic units use floating cost as reasonable default
-			# Water terrain should define lower floating costs for swimmers
-			if impassable_floating:
-				return 99
-			return movement_cost_floating
 		ClassData.MovementType.CUSTOM:
 			# Custom movement types fall back to walking cost
 			# Mods should override terrain data for custom movement handling
@@ -85,9 +79,6 @@ func is_passable(movement_type: int) -> bool:
 			return not impassable_floating
 		ClassData.MovementType.FLYING:
 			return not impassable_flying
-		ClassData.MovementType.SWIMMING:
-			# Aquatic units use floating passability
-			return not impassable_floating
 		ClassData.MovementType.CUSTOM:
 			# Custom movement types use walking passability by default
 			return not impassable_walking

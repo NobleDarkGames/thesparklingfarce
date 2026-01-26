@@ -199,9 +199,10 @@ func get_valid_slots() -> Array[String]:
 
 
 ## Fallback slot lookup when ModLoader is not available
+## Matches EquipmentTypeRegistry.init_defaults() weapon subtypes
 func _get_default_valid_slots() -> Array[String]:
 	match equipment_type.to_lower():
-		"weapon", "sword", "axe", "lance", "bow", "staff", "tome":
+		"weapon", "sword", "axe", "spear", "bow", "staff", "knife":
 			return ["weapon"]
 		"ring":
 			return ["ring_1", "ring_2"]

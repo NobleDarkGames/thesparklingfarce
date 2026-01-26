@@ -6,8 +6,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Terrain types define movement costs and combat modifiers for battle map tiles
 
 # Identity fields
-var terrain_id_edit: LineEdit
-var display_name_edit: LineEdit
+var name_id_group: NameIdFieldGroup
 
 # Movement costs
 var walking_cost_spin: SpinBox
@@ -59,9 +58,8 @@ func _load_resource_data() -> void:
 	if not terrain:
 		return
 
-	# Identity
-	terrain_id_edit.text = terrain.terrain_id
-	display_name_edit.text = terrain.display_name
+	# Identity (auto-detects lock state)
+	name_id_group.set_values(terrain.display_name, terrain.terrain_id, true)
 
 	# Movement costs
 	walking_cost_spin.value = terrain.movement_cost_walking
@@ -92,8 +90,8 @@ func _save_resource_data() -> void:
 		return
 
 	# Identity
-	terrain.terrain_id = terrain_id_edit.text.strip_edges().to_lower()
-	terrain.display_name = display_name_edit.text.strip_edges()
+	terrain.terrain_id = name_id_group.get_id_value()
+	terrain.display_name = name_id_group.get_name_value()
 
 	# Movement costs
 	terrain.movement_cost_walking = int(walking_cost_spin.value)
@@ -123,7 +121,7 @@ func _validate_resource() -> Dictionary:
 	var errors: Array[String] = []
 
 	# Validate terrain_id
-	var terrain_id: String = terrain_id_edit.text.strip_edges()
+	var terrain_id: String = name_id_group.get_id_value()
 	if terrain_id.is_empty():
 		errors.append("Terrain ID cannot be empty")
 	elif terrain_id.contains(" "):
@@ -132,7 +130,7 @@ func _validate_resource() -> Dictionary:
 		errors.append("Terrain ID must be a valid identifier (letters, numbers, underscores)")
 
 	# Validate display_name
-	if display_name_edit.text.strip_edges().is_empty():
+	if name_id_group.get_name_value().is_empty():
 		errors.append("Display name cannot be empty")
 
 	# Validate movement costs
@@ -190,99 +188,73 @@ func _add_identity_section() -> void:
 	form.on_change(_mark_dirty)
 	form.add_section("Identity")
 
-	terrain_id_edit = form.add_text_field("Terrain ID:", "e.g., deep_water, lava_flow",
-		"Unique identifier used in map tiles (lowercase, no spaces)")
-
-	display_name_edit = form.add_text_field("Display Name:", "e.g., Deep Water, Lava Flow",
-		"Name shown in game UI when hovering over terrain")
+	# Name/ID using reusable component
+	name_id_group = NameIdFieldGroup.new()
+	name_id_group.name_label = "Display Name:"
+	name_id_group.id_label = "Terrain ID:"
+	name_id_group.name_placeholder = "e.g., Deep Water, Lava Flow"
+	name_id_group.id_placeholder = "e.g., deep_water, lava_flow"
+	name_id_group.name_tooltip = "Name shown in game UI when hovering over terrain"
+	name_id_group.id_tooltip = "Unique identifier used in map tiles (lowercase, no spaces)"
+	name_id_group.label_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
+	name_id_group.value_changed.connect(_on_name_id_changed)
+	form.container.add_child(name_id_group)
 
 
 func _add_movement_section() -> void:
-	var section: VBoxContainer = VBoxContainer.new()
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(detail_panel)
+	form.on_change(_mark_dirty)
+	form.add_section("Movement")
+	form.add_help_text("Movement cost: 1 = normal, 2 = half speed, 3+ = very slow. Check 'Impassable' to block entirely.")
 
-	var section_label: Label = Label.new()
-	section_label.text = "Movement"
-	section_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	section.add_child(section_label)
-
-	var help_label: Label = Label.new()
-	help_label.text = "Movement cost: 1 = normal, 2 = half speed, 3+ = very slow. Check 'Impassable' to block entirely."
-	help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
-	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	section.add_child(help_label)
-
-	# Walking
-	var walking_container: HBoxContainer = HBoxContainer.new()
-	var walking_label: Label = Label.new()
-	walking_label.text = "Walking Cost:"
-	walking_label.custom_minimum_size.x = 150
-	walking_label.tooltip_text = "Movement cost for ground infantry and cavalry"
-	walking_container.add_child(walking_label)
-
+	# Walking - custom row with SpinBox + CheckBox
+	var walking_row: HBoxContainer = HBoxContainer.new()
 	walking_cost_spin = SpinBox.new()
 	walking_cost_spin.min_value = 1
 	walking_cost_spin.max_value = 99
 	walking_cost_spin.value = 1
 	walking_cost_spin.tooltip_text = "1 = normal, 2 = half speed, 3+ = very slow"
 	walking_cost_spin.value_changed.connect(_on_field_changed)
-	walking_container.add_child(walking_cost_spin)
-
+	walking_row.add_child(walking_cost_spin)
 	impassable_walking_check = CheckBox.new()
 	impassable_walking_check.text = "Impassable"
 	impassable_walking_check.tooltip_text = "Walking units cannot enter at all"
 	impassable_walking_check.toggled.connect(_on_impassable_toggled)
 	impassable_walking_check.toggled.connect(_on_field_changed)
-	walking_container.add_child(impassable_walking_check)
-	section.add_child(walking_container)
+	walking_row.add_child(impassable_walking_check)
+	form.add_labeled_control("Walking Cost:", walking_row, "Movement cost for ground infantry and cavalry")
 
-	# Floating
-	var floating_container: HBoxContainer = HBoxContainer.new()
-	var floating_label: Label = Label.new()
-	floating_label.text = "Floating Cost:"
-	floating_label.custom_minimum_size.x = 150
-	floating_label.tooltip_text = "Movement cost for hover/levitating units"
-	floating_container.add_child(floating_label)
-
+	# Floating - custom row with SpinBox + CheckBox
+	var floating_row: HBoxContainer = HBoxContainer.new()
 	floating_cost_spin = SpinBox.new()
 	floating_cost_spin.min_value = 1
 	floating_cost_spin.max_value = 99
 	floating_cost_spin.value = 1
 	floating_cost_spin.value_changed.connect(_on_field_changed)
-	floating_container.add_child(floating_cost_spin)
-
+	floating_row.add_child(floating_cost_spin)
 	impassable_floating_check = CheckBox.new()
 	impassable_floating_check.text = "Impassable"
 	impassable_floating_check.tooltip_text = "Floating units cannot enter at all"
 	impassable_floating_check.toggled.connect(_on_impassable_toggled)
 	impassable_floating_check.toggled.connect(_on_field_changed)
-	floating_container.add_child(impassable_floating_check)
-	section.add_child(floating_container)
+	floating_row.add_child(impassable_floating_check)
+	form.add_labeled_control("Floating Cost:", floating_row, "Movement cost for hover/levitating units")
 
-	# Flying
-	var flying_container: HBoxContainer = HBoxContainer.new()
-	var flying_label: Label = Label.new()
-	flying_label.text = "Flying Cost:"
-	flying_label.custom_minimum_size.x = 150
-	flying_label.tooltip_text = "Movement cost for flying units (usually 1)"
-	flying_container.add_child(flying_label)
-
+	# Flying - custom row with SpinBox + CheckBox
+	var flying_row: HBoxContainer = HBoxContainer.new()
 	flying_cost_spin = SpinBox.new()
 	flying_cost_spin.min_value = 1
 	flying_cost_spin.max_value = 99
 	flying_cost_spin.value = 1
 	flying_cost_spin.value_changed.connect(_on_field_changed)
-	flying_container.add_child(flying_cost_spin)
-
+	flying_row.add_child(flying_cost_spin)
 	impassable_flying_check = CheckBox.new()
 	impassable_flying_check.text = "Impassable"
 	impassable_flying_check.tooltip_text = "Flying units cannot enter (rare - anti-air zones, ceilings)"
 	impassable_flying_check.toggled.connect(_on_impassable_toggled)
 	impassable_flying_check.toggled.connect(_on_field_changed)
-	flying_container.add_child(impassable_flying_check)
-	section.add_child(flying_container)
-
-	detail_panel.add_child(section)
+	flying_row.add_child(impassable_flying_check)
+	form.add_labeled_control("Flying Cost:", flying_row, "Movement cost for flying units (usually 1)")
 
 
 func _add_combat_section() -> void:
@@ -314,6 +286,11 @@ func _add_turn_effects_section() -> void:
 
 ## Called when any manually-connected field changes to mark dirty
 func _on_field_changed(_value: Variant = null) -> void:
+	_mark_dirty()
+
+
+## Called when name or ID changes in the NameIdFieldGroup
+func _on_name_id_changed(_values: Dictionary) -> void:
 	_mark_dirty()
 
 

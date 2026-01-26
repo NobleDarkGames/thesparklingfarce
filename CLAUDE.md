@@ -3,6 +3,10 @@
 ## Required Reading
 `docs/specs/platform-specification.md` — authoritative source for architecture, resource types, singletons, and mod system.
 
+## Task Tracking
+- `docs/TODO.md` — consolidated pending tasks (check before starting new work)
+- `docs/untracked/PHASE_STATUS.md` — high-level project status
+
 ---
 
 ## Mission Context

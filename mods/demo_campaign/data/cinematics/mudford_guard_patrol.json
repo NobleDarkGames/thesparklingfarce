@@ -1,0 +1,37 @@
+{
+	"actors": [],
+	"can_skip": false,
+	"cinematic_id": "mudford_guard_patrol",
+	"cinematic_name": "Mudford Guard Patrol",
+	"commands": [
+		{
+			"params": {
+				"path": [
+					[
+						5.0,
+						13.0
+					],
+					[
+						10.0,
+						13.0
+					],
+					[
+						10.0,
+						12.0
+					],
+					[
+						5.0,
+						12.0
+					]
+				],
+				"speed": 1.0,
+				"wait": true
+			},
+			"target": "self",
+			"type": "move_entity"
+		}
+	],
+	"description": "",
+	"disable_player_input": true,
+	"loop": true
+}

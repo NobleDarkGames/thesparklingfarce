@@ -10,13 +10,23 @@ extends GdUnitTestSuite
 # TEST FIXTURES
 # =============================================================================
 
+const SignalTrackerScript = preload("res://tests/fixtures/signal_tracker.gd")
+
 var _registry: RefCounted
+var _tracker: RefCounted
 
 
 func before_test() -> void:
 	# Create a fresh registry for each test
 	var AIModeRegistryClass: GDScript = load("res://core/registries/ai_mode_registry.gd")
 	_registry = AIModeRegistryClass.new()
+	_tracker = SignalTrackerScript.new()
+
+
+func after_test() -> void:
+	if _tracker:
+		_tracker.disconnect_all()
+		_tracker = null
 
 
 # =============================================================================
@@ -451,16 +461,8 @@ func test_unregister_mod_preserves_default_modes() -> void:
 # SIGNAL TESTS
 # =============================================================================
 
-var _signal_received: bool = false
-
-
-func _on_registrations_changed() -> void:
-	_signal_received = true
-
-
 func test_register_from_config_emits_signal() -> void:
-	_signal_received = false
-	_registry.registrations_changed.connect(_on_registrations_changed)
+	_tracker.track(_registry.registrations_changed)
 
 	var config: Dictionary = {
 		"berserk": {"display_name": "Berserk"}
@@ -468,7 +470,7 @@ func test_register_from_config_emits_signal() -> void:
 
 	_registry.register_from_config("test_mod", config)
 
-	assert_bool(_signal_received).is_true()
+	assert_bool(_tracker.was_emitted("registrations_changed")).is_true()
 
 
 func test_clear_mod_registrations_emits_signal() -> void:
@@ -478,12 +480,12 @@ func test_clear_mod_registrations_emits_signal() -> void:
 	}
 	_registry.register_from_config("test_mod", config)
 
-	_signal_received = false
-	_registry.registrations_changed.connect(_on_registrations_changed)
+	_tracker.clear_emissions()
+	_tracker.track(_registry.registrations_changed)
 
 	_registry.clear_mod_registrations()
 
-	assert_bool(_signal_received).is_true()
+	assert_bool(_tracker.was_emitted("registrations_changed")).is_true()
 
 
 func test_unregister_mod_emits_signal_when_changes_made() -> void:
@@ -492,12 +494,12 @@ func test_unregister_mod_emits_signal_when_changes_made() -> void:
 	}
 	_registry.register_from_config("test_mod", config)
 
-	_signal_received = false
-	_registry.registrations_changed.connect(_on_registrations_changed)
+	_tracker.clear_emissions()
+	_tracker.track(_registry.registrations_changed)
 
 	_registry.unregister_mod("test_mod")
 
-	assert_bool(_signal_received).is_true()
+	assert_bool(_tracker.was_emitted("registrations_changed")).is_true()
 
 
 # =============================================================================

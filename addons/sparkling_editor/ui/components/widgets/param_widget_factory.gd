@@ -33,6 +33,7 @@ const SUPPORTED_TYPES: Array[String] = [
 	"string", "text", "float", "int", "bool", "enum", "vector2",
 	"character", "speaker", "shop", "battle", "cinematic",
 	"map", "map_id", "scene", "scene_id", "actor",
+	"music", "sfx",
 	"choices", "command_array"
 ]
 
@@ -152,7 +153,22 @@ static func create_widget(
 				ResourcePickerWidget.ResourceType.ACTOR
 			)
 			widget = w
-		
+
+		# =================================================================
+		# Audio Types
+		# =================================================================
+		"music":
+			var w: MusicPickerWidget = MusicPickerWidget.new(
+				MusicPickerWidget.AudioType.MUSIC
+			)
+			widget = w
+
+		"sfx":
+			var w: MusicPickerWidget = MusicPickerWidget.new(
+				MusicPickerWidget.AudioType.SFX
+			)
+			widget = w
+
 		# =================================================================
 		# Composite Types
 		# =================================================================

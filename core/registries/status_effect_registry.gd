@@ -12,6 +12,21 @@ extends RefCounted
 ##       # Apply damage...
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+## Stat name abbreviations for display
+const STAT_ABBREVIATIONS: Dictionary = {
+	"strength": "STR",
+	"defense": "DEF",
+	"agility": "AGI",
+	"intelligence": "INT",
+	"luck": "LCK",
+	"max_hp": "HP",
+	"max_mp": "MP"
+}
+
+# =============================================================================
 # SIGNALS
 # =============================================================================
 
@@ -128,6 +143,28 @@ func get_display_name(effect_id: String) -> String:
 	return effect_id.capitalize()
 
 
+## Get display text with stat modifier values (e.g., "Strength Up (+5 STR)")
+func get_display_text_with_modifiers(effect_id: String) -> String:
+	var effect: StatusEffectData = get_effect(effect_id)
+	if not effect:
+		return effect_id.capitalize()
+
+	var base_name: String = get_display_name(effect_id)
+	if effect.stat_modifiers.is_empty():
+		return base_name
+
+	var mod_parts: Array[String] = []
+	for stat_name: String in effect.stat_modifiers.keys():
+		var value: int = effect.get_stat_modifier(stat_name)
+		var abbrev: String = STAT_ABBREVIATIONS.get(stat_name, stat_name.to_upper())
+		var sign: String = "+" if value >= 0 else ""
+		mod_parts.append("%s%d %s" % [sign, value, abbrev])
+
+	if mod_parts.is_empty():
+		return base_name
+	return "%s (%s)" % [base_name, ", ".join(mod_parts)]
+
+
 # =============================================================================
 # UTILITY API
 # =============================================================================
@@ -186,18 +223,7 @@ func get_action_modifier_effects() -> Array[StatusEffectData]:
 func get_buff_effects() -> Array[StatusEffectData]:
 	var result: Array[StatusEffectData] = []
 	for effect: StatusEffectData in _effects.values():
-		var is_buff: bool = false
-		for value: Variant in effect.stat_modifiers.values():
-			var int_value: int = 0
-			if value is int:
-				int_value = value
-			elif value is float:
-				var float_val: float = value
-				int_value = int(float_val)
-			if int_value > 0:
-				is_buff = true
-				break
-		if is_buff:
+		if _has_stat_modifier_sign(effect, true):
 			result.append(effect)
 	return result
 
@@ -206,18 +232,17 @@ func get_buff_effects() -> Array[StatusEffectData]:
 func get_debuff_effects() -> Array[StatusEffectData]:
 	var result: Array[StatusEffectData] = []
 	for effect: StatusEffectData in _effects.values():
-		var is_debuff: bool = effect.damage_per_turn > 0
-		if not is_debuff:
-			for value: Variant in effect.stat_modifiers.values():
-				var int_value: int = 0
-				if value is int:
-					int_value = value
-				elif value is float:
-					var float_val: float = value
-					int_value = int(float_val)
-				if int_value < 0:
-					is_debuff = true
-					break
-		if is_debuff:
+		if effect.damage_per_turn > 0 or _has_stat_modifier_sign(effect, false):
 			result.append(effect)
 	return result
+
+
+## Check if effect has any stat modifier with positive (true) or negative (false) value
+func _has_stat_modifier_sign(effect: StatusEffectData, positive: bool) -> bool:
+	for value: Variant in effect.stat_modifiers.values():
+		var int_value: int = int(value) if value is int or value is float else 0
+		if positive and int_value > 0:
+			return true
+		if not positive and int_value < 0:
+			return true
+	return false

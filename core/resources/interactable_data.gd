@@ -146,21 +146,34 @@ func is_opened() -> bool:
 ## Check if the player can interact with this object
 ## @return: Dictionary with "can_interact": bool, "reason": String (if blocked)
 func can_interact() -> Dictionary:
-	# Check if already opened (one-shot objects only)
 	if is_opened():
 		return {"can_interact": false, "reason": "already_opened"}
 
-	# Check required flags
-	for flag_name: String in required_flags:
-		if not flag_name.is_empty() and not GameState.has_flag(flag_name):
-			return {"can_interact": false, "reason": "missing_flag", "flag": flag_name}
+	var missing_flag: String = _find_missing_required_flag()
+	if not missing_flag.is_empty():
+		return {"can_interact": false, "reason": "missing_flag", "flag": missing_flag}
 
-	# Check forbidden flags
-	for flag_name: String in forbidden_flags:
-		if not flag_name.is_empty() and GameState.has_flag(flag_name):
-			return {"can_interact": false, "reason": "forbidden_flag", "flag": flag_name}
+	var forbidden_flag: String = _find_set_forbidden_flag()
+	if not forbidden_flag.is_empty():
+		return {"can_interact": false, "reason": "forbidden_flag", "flag": forbidden_flag}
 
 	return {"can_interact": true, "reason": ""}
+
+
+## Find the first required flag that is not set, or empty string if all are set
+func _find_missing_required_flag() -> String:
+	for flag_name: String in required_flags:
+		if not flag_name.is_empty() and not GameState.has_flag(flag_name):
+			return flag_name
+	return ""
+
+
+## Find the first forbidden flag that is set, or empty string if none are set
+func _find_set_forbidden_flag() -> String:
+	for flag_name: String in forbidden_flags:
+		if not flag_name.is_empty() and GameState.has_flag(flag_name):
+			return flag_name
+	return ""
 
 
 ## Get the appropriate cinematic ID based on current game state
@@ -226,33 +239,38 @@ func _evaluate_condition(condition: Dictionary) -> bool:
 	var and_flags: Array = DictUtils.get_array(condition, "flags", [])
 	if not and_flags.is_empty():
 		has_any_condition = true
-		for flag_variant: Variant in and_flags:
-			var flag_name: String = flag_variant as String if flag_variant is String else ""
-			if not flag_name.is_empty() and not GameState.has_flag(flag_name):
-				all_conditions_pass = false
-				break
+		if not _all_flags_set(and_flags):
+			all_conditions_pass = false
 
 	# OR logic: at least one must be true
 	var or_flags: Array = DictUtils.get_array(condition, "any_flags", [])
 	if not or_flags.is_empty():
 		has_any_condition = true
-		var any_or_flag_set: bool = false
-		for flag_variant: Variant in or_flags:
-			var flag_name: String = flag_variant as String if flag_variant is String else ""
-			if not flag_name.is_empty() and GameState.has_flag(flag_name):
-				any_or_flag_set = true
-				break
-		if not any_or_flag_set:
+		if not _any_flag_set(or_flags):
 			all_conditions_pass = false
 
 	if not has_any_condition:
 		return false
 
-	var result: bool = all_conditions_pass
-	if negate:
-		result = not result
+	return not all_conditions_pass if negate else all_conditions_pass
 
-	return result
+
+## Check if all flags in the array are set
+func _all_flags_set(flags: Array) -> bool:
+	for flag_variant: Variant in flags:
+		var flag_name: String = flag_variant as String if flag_variant is String else ""
+		if not flag_name.is_empty() and not GameState.has_flag(flag_name):
+			return false
+	return true
+
+
+## Check if any flag in the array is set
+func _any_flag_set(flags: Array) -> bool:
+	for flag_variant: Variant in flags:
+		var flag_name: String = flag_variant as String if flag_variant is String else ""
+		if not flag_name.is_empty() and GameState.has_flag(flag_name):
+			return true
+	return false
 
 
 ## Generate auto-cinematic ID for default behavior

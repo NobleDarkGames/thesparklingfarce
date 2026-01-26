@@ -6,7 +6,12 @@
 *.translation
 *.uid
 *.import
+<<<<<<< HEAD
 *.png.import
+=======
+# Exception: font imports must be tracked for consistent pixel rendering
+!assets/fonts/*.import
+>>>>>>> ce78d24b561faea0fab84ee5adf511dca4e2fe3f
 export_presets.cfg
 export/
 
@@ -36,3 +41,4 @@ docs/plans/ignored/
 
 # Local untracked docs
 .local/
+docs/untracked/

@@ -27,4 +27,3 @@ use_healing_items = false
 alert_range = 12
 engagement_range = 8
 seek_terrain_advantage = false
-max_idle_turns = 2

@@ -23,6 +23,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var path: Array = params.get("path", [])
 	var speed: float = params.get("speed", -1.0)
 	var should_wait: bool = params.get("wait", true)
+	var auto_face: bool = params.get("auto_face", true)
 
 	# Convert path elements to Vector2i waypoints
 	var waypoints: Array[Vector2i] = []
@@ -66,7 +67,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 			)
 
 		# Delegate movement to actor (which delegates to parent entity)
-		actor.move_along_path_direct(complete_path, speed)
+		actor.move_along_path_direct(complete_path, speed, auto_face)
 	else:
 		# Fallback for test scenes without GridManager
 		# Use old waypoint-based movement (actor will expand internally or use simple movement)
@@ -81,7 +82,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		for waypoint: Vector2i in waypoints:
 			path_array.append(waypoint)
 
-		actor.move_along_path(path_array, speed, true)
+		actor.move_along_path(path_array, speed, true, auto_face)
 
 	return not should_wait  # Return true if non-blocking, false if waiting
 

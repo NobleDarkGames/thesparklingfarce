@@ -478,6 +478,7 @@ func _try_select_by_metadata(metadata: Dictionary) -> bool:
 	var target_mod_id: String = metadata.get("mod_id", "")
 	var target_resource_id: String = metadata.get("resource_id", "")
 
+	# First pass: try exact match on both mod_id and resource_id
 	for i in range(_option_button.item_count):
 		var item_metadata: Variant = _option_button.get_item_metadata(i)
 		if item_metadata is Dictionary:
@@ -486,6 +487,17 @@ func _try_select_by_metadata(metadata: Dictionary) -> bool:
 					_option_button.select(i)
 					# Update cached metadata with fresh resource from dropdown
 					# This ensures get_selected_resource() returns the current version, not stale data
+					_current_metadata = item_metadata
+					return true
+
+	# Second pass: if mod_id was empty, match by resource_id alone
+	# This handles cases where the resource exists but we don't know the source mod
+	if target_mod_id.is_empty() and not target_resource_id.is_empty():
+		for i in range(_option_button.item_count):
+			var item_metadata: Variant = _option_button.get_item_metadata(i)
+			if item_metadata is Dictionary:
+				if item_metadata.get("resource_id", "") == target_resource_id:
+					_option_button.select(i)
 					_current_metadata = item_metadata
 					return true
 
@@ -590,11 +602,17 @@ func select_resource(resource: Resource) -> void:
 
 
 ## Select a resource by type and ID
+## If mod_id is empty, looks up the source mod from the registry
 func select_by_id(mod_id: String, resource_id: String) -> void:
 	var resource: Resource = ModLoader.registry.get_resource(resource_type, resource_id)
 
+	# If mod_id not provided, look it up from the registry
+	var effective_mod_id: String = mod_id
+	if effective_mod_id.is_empty() and ModLoader:
+		effective_mod_id = ModLoader.registry.get_resource_source(resource_id, resource_type)
+
 	_current_metadata = {
-		"mod_id": mod_id,
+		"mod_id": effective_mod_id,
 		"resource_id": resource_id,
 		"resource": resource
 	}

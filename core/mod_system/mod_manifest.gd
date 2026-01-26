@@ -22,6 +22,10 @@ const RESERVED_MOD_IDS: Array[String] = [
 ## Maximum allowed length for mod IDs
 const MAX_MOD_ID_LENGTH: int = 64
 
+## ASCII control character boundaries for validation
+const _ASCII_CONTROL_CHAR_MAX: int = 31
+const _ASCII_DEL_CHAR: int = 127
+
 ## Cached regex for mod ID validation
 static var _mod_id_regex: RegEx = null
 
@@ -76,12 +80,6 @@ static var _mod_id_regex: RegEx = null
 ## Format: {"tab_id": {"resource_type": String, "editor_scene": String, "tab_name": String}}
 ## editor_scene is relative to mod directory
 @export var editor_extensions: Dictionary = {}
-
-## Hidden campaigns - patterns for campaigns to hide from the selection UI
-## Total conversion mods use this to hide base game campaigns
-## Supports glob-style patterns: "base_game:*" hides all campaigns with that prefix
-## Exact IDs also work: "base_game:main_story" hides that specific campaign
-@export var hidden_campaigns: Array[String] = []
 
 ## Caravan configuration - allows mods to customize or disable the Caravan system
 ## Format: {
@@ -170,21 +168,10 @@ static func load_from_file(json_path: String) -> ModManifest:
 	# Sanitize load_priority with clamping
 	manifest.load_priority = _sanitize_load_priority(data.get("load_priority", 0), json_path)
 
-	# Parse arrays
-	if "dependencies" in data and data.dependencies is Array:
-		var dependencies_arr: Array = data.dependencies
-		for dep: Variant in dependencies_arr:
-			manifest.dependencies.append(str(dep))
-
-	if "overrides" in data and data.overrides is Array:
-		var overrides_arr: Array = data.overrides
-		for override: Variant in overrides_arr:
-			manifest.overrides.append(str(override))
-
-	if "tags" in data and data.tags is Array:
-		var tags_arr: Array = data.tags
-		for tag: Variant in tags_arr:
-			manifest.tags.append(str(tag))
+	# Parse top-level arrays
+	manifest.dependencies = _parse_string_array(data, "dependencies")
+	manifest.overrides = _parse_string_array(data, "overrides")
+	manifest.tags = _parse_string_array(data, "tags")
 
 	# Parse content paths
 	if "content" in data and data.content is Dictionary:
@@ -194,65 +181,38 @@ static func load_from_file(json_path: String) -> ModManifest:
 
 	# Parse scene mappings
 	if "scenes" in data and data.scenes is Dictionary:
-		var scenes_dict: Dictionary = data.scenes
-		for scene_id: String in scenes_dict.keys():
-			var scene_path_value: Variant = scenes_dict[scene_id]
-			if scene_path_value is String:
-				var scene_path: String = scene_path_value
+		for scene_id: String in data.scenes.keys():
+			var scene_path: Variant = data.scenes[scene_id]
+			if scene_path is String:
 				manifest.scenes[scene_id] = scene_path
 
 	# Parse custom type definitions
 	if "custom_types" in data and data.custom_types is Dictionary:
 		var custom_types: Dictionary = data.custom_types
-
-		if "weapon_types" in custom_types and custom_types.weapon_types is Array:
-			var weapon_types_arr: Array = custom_types.weapon_types
-			for wt: Variant in weapon_types_arr:
-				manifest.custom_weapon_types.append(str(wt))
-
-		if "armor_types" in custom_types and custom_types.armor_types is Array:
-			var armor_types_arr: Array = custom_types.armor_types
-			for at: Variant in armor_types_arr:
-				manifest.custom_armor_types.append(str(at))
-
-		if "unit_categories" in custom_types and custom_types.unit_categories is Array:
-			var unit_categories_arr: Array = custom_types.unit_categories
-			for uc: Variant in unit_categories_arr:
-				manifest.custom_unit_categories.append(str(uc))
-
-		if "animation_offset_types" in custom_types and custom_types.animation_offset_types is Array:
-			var anim_offset_types_arr: Array = custom_types.animation_offset_types
-			for aot: Variant in anim_offset_types_arr:
-				manifest.custom_animation_offset_types.append(str(aot))
-
-		if "trigger_types" in custom_types and custom_types.trigger_types is Array:
-			var trigger_types_arr: Array = custom_types.trigger_types
-			for tt: Variant in trigger_types_arr:
-				manifest.custom_trigger_types.append(str(tt))
+		manifest.custom_weapon_types = _parse_string_array(custom_types, "weapon_types")
+		manifest.custom_armor_types = _parse_string_array(custom_types, "armor_types")
+		manifest.custom_unit_categories = _parse_string_array(custom_types, "unit_categories")
+		manifest.custom_animation_offset_types = _parse_string_array(custom_types, "animation_offset_types")
+		manifest.custom_trigger_types = _parse_string_array(custom_types, "trigger_types")
 
 	# Parse equipment slot layout (total conversion support)
 	if "equipment_slot_layout" in data and data.equipment_slot_layout is Array:
-		var slot_layout_arr: Array = data.equipment_slot_layout
-		for slot_def: Variant in slot_layout_arr:
+		for slot_def: Variant in data.equipment_slot_layout:
 			if slot_def is Dictionary:
-				var slot_dict: Dictionary = slot_def
-				manifest.equipment_slot_layout.append(slot_dict)
+				manifest.equipment_slot_layout.append(slot_def)
 
 	# Parse equipment type configuration (subtype -> category mappings)
 	# Can be at top level or nested under custom_types
 	if "equipment_types" in data and data.equipment_types is Dictionary:
-		var equip_types_dict: Dictionary = data.equipment_types
-		manifest.equipment_type_config = equip_types_dict
+		manifest.equipment_type_config = data.equipment_types
 	elif "custom_types" in data and data.custom_types is Dictionary:
 		var custom_types_dict: Dictionary = data.custom_types
 		if "equipment_types" in custom_types_dict and custom_types_dict.equipment_types is Dictionary:
-			var nested_equip_dict: Dictionary = custom_types_dict.equipment_types
-			manifest.equipment_type_config = nested_equip_dict
+			manifest.equipment_type_config = custom_types_dict.equipment_types
 
 	# Parse inventory configuration
 	if "inventory_config" in data and data.inventory_config is Dictionary:
-		var inventory_dict: Dictionary = data.inventory_config
-		manifest.inventory_config = inventory_dict
+		manifest.inventory_config = data.inventory_config
 
 	# Parse party configuration
 	if "party_config" in data and data.party_config is Dictionary:
@@ -262,74 +222,25 @@ static func load_from_file(json_path: String) -> ModManifest:
 			if replaces_val is bool:
 				manifest.replaces_default_party = replaces_val
 
-	# Parse editor extensions (allows mods to add custom editor tabs)
-	if "editor_extensions" in data and data.editor_extensions is Dictionary:
-		var editor_ext_dict: Dictionary = data.editor_extensions
-		for ext_id: String in editor_ext_dict.keys():
-			var ext_data: Variant = editor_ext_dict[ext_id]
-			if ext_data is Dictionary:
-				var ext_dict: Dictionary = ext_data
-				manifest.editor_extensions[ext_id] = ext_dict
+	# Parse dictionary-of-dictionaries fields using helper
+	manifest.editor_extensions = _parse_dict_of_dicts(data, "editor_extensions")
+	manifest.ai_brains = _parse_dict_of_dicts(data, "ai_brains")
+	manifest.tilesets = _parse_dict_of_dicts(data, "tilesets")
+	manifest.ai_roles = _parse_dict_of_dicts(data, "ai_roles")
+	manifest.ai_modes = _parse_dict_of_dicts(data, "ai_modes")
 
-	# Parse hidden campaigns (for total conversion mods to hide base content)
-	if "hidden_campaigns" in data and data.hidden_campaigns is Array:
-		var hidden_arr: Array = data.hidden_campaigns
-		for pattern: Variant in hidden_arr:
-			manifest.hidden_campaigns.append(str(pattern))
-
-	# Parse caravan configuration
+	# Parse caravan configuration (simple dictionary copy)
 	if "caravan_config" in data and data.caravan_config is Dictionary:
-		var caravan_dict: Dictionary = data.caravan_config
-		manifest.caravan_config = caravan_dict
+		manifest.caravan_config = data.caravan_config
 
-	# Parse AI brain declarations
-	if "ai_brains" in data and data.ai_brains is Dictionary:
-		var ai_brains_dict: Dictionary = data.ai_brains
-		for brain_id: String in ai_brains_dict.keys():
-			var brain_data: Variant = ai_brains_dict[brain_id]
-			if brain_data is Dictionary:
-				var brain_dict: Dictionary = brain_data
-				manifest.ai_brains[brain_id] = brain_dict
-
-	# Parse tileset declarations
-	if "tilesets" in data and data.tilesets is Dictionary:
-		var tilesets_dict: Dictionary = data.tilesets
-		for tileset_id: String in tilesets_dict.keys():
-			var tileset_data: Variant = tilesets_dict[tileset_id]
-			if tileset_data is Dictionary:
-				var tileset_dict: Dictionary = tileset_data
-				manifest.tilesets[tileset_id] = tileset_dict
-
-	# Parse AI role declarations
-	if "ai_roles" in data and data.ai_roles is Dictionary:
-		var ai_roles_dict: Dictionary = data.ai_roles
-		for role_id: String in ai_roles_dict.keys():
-			var role_data: Variant = ai_roles_dict[role_id]
-			if role_data is Dictionary:
-				var role_dict: Dictionary = role_data
-				manifest.ai_roles[role_id] = role_dict
-
-	# Parse AI mode declarations
-	if "ai_modes" in data and data.ai_modes is Dictionary:
-		var ai_modes_dict: Dictionary = data.ai_modes
-		for mode_id: String in ai_modes_dict.keys():
-			var mode_data: Variant = ai_modes_dict[mode_id]
-			if mode_data is Dictionary:
-				var mode_dict: Dictionary = mode_data
-				manifest.ai_modes[mode_id] = mode_dict
-
-	# Parse field menu options
+	# Parse field menu options (special handling for _replace_all boolean key)
 	if "field_menu_options" in data and data.field_menu_options is Dictionary:
-		var field_menu_dict: Dictionary = data.field_menu_options
-		for option_id: String in field_menu_dict.keys():
-			var option_data: Variant = field_menu_dict[option_id]
-			# Handle special _replace_all key (boolean)
-			if option_id == "_replace_all":
-				if option_data is bool:
-					manifest.field_menu_options[option_id] = option_data
+		for option_id: String in data.field_menu_options.keys():
+			var option_data: Variant = data.field_menu_options[option_id]
+			if option_id == "_replace_all" and option_data is bool:
+				manifest.field_menu_options[option_id] = option_data
 			elif option_data is Dictionary:
-				var option_dict: Dictionary = option_data
-				manifest.field_menu_options[option_id] = option_dict
+				manifest.field_menu_options[option_id] = option_data
 
 	# Set mod directory (parent of mod.json)
 	manifest.mod_directory = json_path.get_base_dir()
@@ -370,7 +281,7 @@ static func _sanitize_mod_id(raw_id: String, json_path: String) -> String:
 	# Security: Check for null bytes or control characters
 	for i: int in range(sanitized.length()):
 		var code: int = sanitized.unicode_at(i)
-		if code < 32 or code == 127:  # Control characters
+		if code <= _ASCII_CONTROL_CHAR_MAX or code == _ASCII_DEL_CHAR:
 			push_error("mod.json: 'id' contains invalid control characters: '%s' at: %s" % [raw_id, json_path])
 			return ""
 
@@ -420,6 +331,31 @@ static func _sanitize_load_priority(raw_priority: Variant, json_path: String) ->
 		return MAX_PRIORITY
 
 	return priority
+
+
+## Parse an array of strings from JSON data
+## Returns empty array if key missing or not an array
+static func _parse_string_array(data: Dictionary, key: String) -> Array[String]:
+	var result: Array[String] = []
+	if key in data and data[key] is Array:
+		var arr: Array = data[key]
+		for item: Variant in arr:
+			result.append(str(item))
+	return result
+
+
+## Parse a dictionary of dictionaries from JSON data
+## Used for ai_brains, tilesets, ai_roles, ai_modes, editor_extensions, etc.
+## Returns empty dictionary if key missing or not a dictionary
+static func _parse_dict_of_dicts(data: Dictionary, key: String) -> Dictionary:
+	var result: Dictionary = {}
+	if key in data and data[key] is Dictionary:
+		var source_dict: Dictionary = data[key]
+		for item_id: String in source_dict.keys():
+			var item_data: Variant = source_dict[item_id]
+			if item_data is Dictionary:
+				result[item_id] = item_data
+	return result
 
 
 ## Get the full path to the mod's data directory
