@@ -51,10 +51,8 @@ func _update_stat_label(label: Label, base: int, effective: int) -> void:
 
 ## Display stats for the given unit.
 func show_unit_stats(unit: Unit) -> void:
-	# Kill any existing tween to prevent conflicts
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-		_current_tween = null
+	UIUtils.kill_tween(_current_tween)
+	_current_tween = null
 
 	if not unit or not unit.stats:
 		visible = false
@@ -111,10 +109,7 @@ func update_hp(new_hp: int, max_hp: int, animate: bool = true) -> void:
 	hp_value.text = "%d/%d" % [new_hp, max_hp]
 
 	if animate and GameJuice.animate_stat_bars:
-		# Kill existing HP tween
-		if _hp_tween and _hp_tween.is_valid():
-			_hp_tween.kill()
-
+		UIUtils.kill_tween(_hp_tween)
 		var duration: float = GameJuice.get_adjusted_duration(BAR_TWEEN_DURATION)
 		_hp_tween = create_tween()
 		_hp_tween.tween_property(hp_bar, "value", float(new_hp), duration)
@@ -131,10 +126,7 @@ func update_mp(new_mp: int, max_mp: int, animate: bool = true) -> void:
 	mp_value.text = "%d/%d" % [new_mp, max_mp]
 
 	if animate and GameJuice.animate_stat_bars:
-		# Kill existing MP tween
-		if _mp_tween and _mp_tween.is_valid():
-			_mp_tween.kill()
-
+		UIUtils.kill_tween(_mp_tween)
 		var duration: float = GameJuice.get_adjusted_duration(BAR_TWEEN_DURATION)
 		_mp_tween = create_tween()
 		_mp_tween.tween_property(mp_bar, "value", float(new_mp), duration)
@@ -168,10 +160,8 @@ func refresh_stats() -> void:
 
 ## Hide the stats panel with animation.
 func hide_stats() -> void:
-	# Kill any existing tween to prevent conflicts
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-		_current_tween = null
+	UIUtils.kill_tween(_current_tween)
+	_current_tween = null
 
 	# If already hidden, don't animate
 	if not visible:

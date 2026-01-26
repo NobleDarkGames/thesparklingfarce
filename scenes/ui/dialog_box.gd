@@ -263,9 +263,8 @@ func _on_dialog_cancelled() -> void:
 
 
 func _cancel_fade_tween() -> void:
-	if fade_tween:
-		fade_tween.kill()
-		fade_tween = null
+	UIUtils.kill_tween(fade_tween)
+	fade_tween = null
 
 
 func _hide_and_clear() -> void:

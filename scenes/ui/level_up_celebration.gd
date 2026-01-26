@@ -149,33 +149,19 @@ func _create_stat_row(stat_name: String, increase: int) -> HBoxContainer:
 
 	# Stat name label
 	var name_lbl: Label = Label.new()
-	name_lbl.text = _format_stat_name(stat_name)
-	name_lbl.add_theme_font_override("font", MONOGRAM_FONT)
-	name_lbl.add_theme_font_size_override("font_size", 24)
+	name_lbl.text = SparklingEditorUtils.format_stat_abbreviation(stat_name)
+	UIUtils.apply_monogram_style(name_lbl, 24)
 	name_lbl.custom_minimum_size.x = 80
 	row.add_child(name_lbl)
 
 	# Increase label
 	var value_lbl: Label = Label.new()
 	value_lbl.text = "+%d" % increase
-	value_lbl.add_theme_font_override("font", MONOGRAM_FONT)
-	value_lbl.add_theme_font_size_override("font_size", 24)
+	UIUtils.apply_monogram_style(value_lbl, 24)
 	value_lbl.add_theme_color_override("font_color", Color.LIME_GREEN)
 	row.add_child(value_lbl)
 
 	return row
-
-
-func _format_stat_name(stat_name: String) -> String:
-	match stat_name:
-		"hp": return "HP"
-		"mp": return "MP"
-		"strength": return "STR"
-		"defense": return "DEF"
-		"agility": return "AGI"
-		"intelligence": return "INT"
-		"luck": return "LCK"
-		_: return stat_name.to_upper()
 
 
 func _reveal_abilities(abilities: Array[AbilityData]) -> void:
@@ -190,8 +176,7 @@ func _reveal_abilities(abilities: Array[AbilityData]) -> void:
 
 		var lbl: Label = Label.new()
 		lbl.text = "Learned: %s" % ability_name
-		lbl.add_theme_font_override("font", MONOGRAM_FONT)
-		lbl.add_theme_font_size_override("font_size", 24)
+		UIUtils.apply_monogram_style(lbl, 24)
 		lbl.add_theme_color_override("font_color", Color.CYAN)
 		lbl.modulate.a = 0.0
 		abilities_container.add_child(lbl)
@@ -206,14 +191,7 @@ func _reveal_abilities(abilities: Array[AbilityData]) -> void:
 
 
 func _animate_continue_blink() -> void:
-	# Kill any existing blink tween
-	if _blink_tween and _blink_tween.is_valid():
-		_blink_tween.kill()
-
-	_blink_tween = create_tween()
-	_blink_tween.set_loops()
-	_blink_tween.tween_property(continue_label, "modulate:a", 0.3, 0.5)
-	_blink_tween.tween_property(continue_label, "modulate:a", 1.0, 0.5)
+	_blink_tween = UIUtils.start_blink_tween(continue_label, _blink_tween)
 
 
 func _input(event: InputEvent) -> void:
@@ -232,10 +210,8 @@ func _input(event: InputEvent) -> void:
 func _dismiss() -> void:
 	_can_dismiss = false
 
-	# Kill the blink tween to free resources
-	if _blink_tween and _blink_tween.is_valid():
-		_blink_tween.kill()
-		_blink_tween = null
+	UIUtils.kill_tween(_blink_tween)
+	_blink_tween = null
 
 	# Fade out
 	var tween: Tween = create_tween()

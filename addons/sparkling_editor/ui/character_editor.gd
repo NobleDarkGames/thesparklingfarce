@@ -675,10 +675,7 @@ func _refresh_threat_tags_display() -> void:
 		child.queue_free()
 
 	if _current_threat_tags.is_empty():
-		var empty_label: Label = Label.new()
-		empty_label.text = "(No tags)"
-		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-		ai_threat_tags_container.add_child(empty_label)
+		SparklingEditorUtils.add_empty_placeholder(ai_threat_tags_container, "(No tags)")
 		return
 
 	# Create pill-style buttons for each tag
@@ -1113,10 +1110,7 @@ func _refresh_inventory_list_display() -> void:
 		child.queue_free()
 
 	if _current_inventory_items.is_empty():
-		var empty_label: Label = Label.new()
-		empty_label.text = "(No items)"
-		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-		inventory_list_container.add_child(empty_label)
+		SparklingEditorUtils.add_empty_placeholder(inventory_list_container, "(No items)")
 		return
 
 	# Create a row for each item
@@ -1381,10 +1375,7 @@ func _refresh_unique_abilities_display() -> void:
 		child.queue_free()
 
 	if _current_unique_abilities.is_empty():
-		var empty_label: Label = Label.new()
-		empty_label.text = "(No unique abilities)"
-		empty_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-		unique_abilities_container.add_child(empty_label)
+		SparklingEditorUtils.add_empty_placeholder(unique_abilities_container, "(No unique abilities)")
 		return
 
 	# Create a row for each ability

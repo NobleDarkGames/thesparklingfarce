@@ -75,9 +75,7 @@ func _setup_slot_references() -> void:
 
 ## Show the panel with slide-in animation (called on battle start)
 func show_panel() -> void:
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-
+	UIUtils.kill_tween(_current_tween)
 	visible = true
 	position.x = SLIDE_OFFSET
 	modulate.a = 1.0
@@ -91,9 +89,7 @@ func show_panel() -> void:
 
 ## Hide the panel with slide-out animation
 func hide_panel() -> void:
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-
+	UIUtils.kill_tween(_current_tween)
 	if not visible:
 		return
 
@@ -194,10 +190,7 @@ func animate_transition() -> void:
 	if not _is_initialized:
 		return
 
-	# Quick fade out/in to emphasize the change
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-
+	UIUtils.kill_tween(_current_tween)
 	var duration: float = GameJuice.get_adjusted_duration(TRANSITION_DURATION)
 	_current_tween = create_tween()
 	_current_tween.tween_property(self, "modulate:a", 0.7, duration * 0.3)

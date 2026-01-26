@@ -148,8 +148,7 @@ func _build_ui() -> void:
 	# Title
 	_title_label = Label.new()
 	_title_label.text = "Caravan"
-	_title_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_title_label.add_theme_font_size_override("font_size", 24)
+	UIUtils.apply_monogram_style(_title_label, 24)
 	_title_label.add_theme_color_override("font_color", COLOR_PANEL_BORDER)
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(_title_label)
@@ -172,8 +171,7 @@ func _build_ui() -> void:
 
 	_description_label = Label.new()
 	_description_label.text = "Select an option..."
-	_description_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_description_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_description_label, 16)
 	_description_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	_description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(_description_label)
@@ -211,8 +209,7 @@ func _refresh_menu_options() -> void:
 		# Cursor indicator (hidden until selected)
 		var cursor: Label = Label.new()
 		cursor.text = ">"
-		cursor.add_theme_font_override("font", MONOGRAM_FONT)
-		cursor.add_theme_font_size_override("font_size", 16)
+		UIUtils.apply_monogram_style(cursor, 16)
 		cursor.add_theme_color_override("font_color", COLOR_OPTION_SELECTED)
 		cursor.custom_minimum_size.x = 12
 		cursor.visible = (i == 0)  # First option selected by default
@@ -224,8 +221,7 @@ func _refresh_menu_options() -> void:
 		# Option label
 		var label: Label = Label.new()
 		label.text = option.get("label", "???")
-		label.add_theme_font_override("font", MONOGRAM_FONT)
-		label.add_theme_font_size_override("font_size", 16)
+		UIUtils.apply_monogram_style(label, 16)
 
 		# Check if option is enabled
 		var is_enabled: bool = option.get("enabled", true)

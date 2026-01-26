@@ -380,8 +380,7 @@ func _rebuild_option_labels() -> void:
 		var label: Label = Label.new()
 		var option_label_text: String = DictUtils.get_string(option, "label", "")
 		label.text = "  " + option_label_text  # Indent for cursor space
-		label.add_theme_font_override("font", MONOGRAM_FONT)
-		label.add_theme_font_size_override("font_size", FONT_SIZE)
+		UIUtils.apply_monogram_style(label, FONT_SIZE)
 		label.add_theme_color_override("font_color", TEXT_NORMAL)
 		_options_container.add_child(label)
 		_option_labels.append(label)

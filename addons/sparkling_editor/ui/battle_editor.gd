@@ -17,8 +17,7 @@ var battle_description_edit: TextEdit
 
 # Map
 var map_scene_option: OptionButton
-var player_spawn_x_spin: SpinBox
-var player_spawn_y_spin: SpinBox
+var player_spawn_field: Dictionary  # {x: SpinBox, y: SpinBox}
 
 
 # Player Forces - now using ResourcePicker for cross-mod support
@@ -101,10 +100,10 @@ func _set_editing_enabled(enabled: bool) -> void:
 	# Map configuration
 	if map_scene_option:
 		map_scene_option.disabled = not enabled
-	if player_spawn_x_spin:
-		player_spawn_x_spin.editable = enabled
-	if player_spawn_y_spin:
-		player_spawn_y_spin.editable = enabled
+	if "x" in player_spawn_field and player_spawn_field.x:
+		player_spawn_field.x.editable = enabled
+	if "y" in player_spawn_field and player_spawn_field.y:
+		player_spawn_field.y.editable = enabled
 
 	# Player party picker
 	if player_party_picker:
@@ -196,8 +195,8 @@ func _load_resource_data() -> void:
 	_select_map_in_dropdown(battle.map_scene)
 
 	# Player spawn point
-	player_spawn_x_spin.value = battle.player_spawn_point.x
-	player_spawn_y_spin.value = battle.player_spawn_point.y
+	player_spawn_field.x.value = battle.player_spawn_point.x
+	player_spawn_field.y.value = battle.player_spawn_point.y
 
 	# Player party - use ResourcePicker
 	if battle.player_party:
@@ -359,26 +358,13 @@ func _add_map_section() -> void:
 
 	form.add_help_text("Maps are loaded from mods/*/maps/ directories")
 
-	# Player Spawn Point (custom HBox for X, Y)
-	var spawn_hbox: HBoxContainer = HBoxContainer.new()
-	player_spawn_x_spin = SpinBox.new()
-	player_spawn_x_spin.min_value = 0
-	player_spawn_x_spin.max_value = 100
-	player_spawn_x_spin.value = 2
-	player_spawn_x_spin.tooltip_text = "X coordinate for party formation center."
-	player_spawn_x_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	spawn_hbox.add_child(player_spawn_x_spin)
-
-	player_spawn_y_spin = SpinBox.new()
-	player_spawn_y_spin.min_value = 0
-	player_spawn_y_spin.max_value = 100
-	player_spawn_y_spin.value = 2
-	player_spawn_y_spin.tooltip_text = "Y coordinate for party formation center."
-	player_spawn_y_spin.value_changed.connect(func(_v: float) -> void: _mark_dirty())
-	spawn_hbox.add_child(player_spawn_y_spin)
-
-	form.add_labeled_control("Player Spawn (X, Y):", spawn_hbox,
-		"Party arranges in formation around this point.")
+	# Player Spawn Point using FormBuilder's vector2i field
+	player_spawn_field = form.add_vector2i_field(
+		"Player Spawn (X, Y):",
+		0, 100,
+		Vector2i(2, 2),
+		"Party arranges in formation around this point."
+	)
 
 	form.add_help_text("Party members spawn in formation around this point")
 	form.add_separator()
@@ -820,11 +806,8 @@ func _select_audio_in_dropdown(option: OptionButton, audio_id: String) -> void:
 		option.selected = 0
 		return
 
-	for i: int in range(option.item_count):
-		var metadata: Variant = option.get_item_metadata(i)
-		if metadata == audio_id:
-			option.selected = i
-			return
+	if SparklingEditorUtils.select_option_by_metadata(option, audio_id):
+		return
 
 	# ID not found - might be custom, add it
 	option.add_item("[custom] %s" % audio_id)
@@ -922,11 +905,8 @@ func _select_map_in_dropdown(map_scene: PackedScene) -> void:
 		return
 
 	var target_path: String = map_scene.resource_path
-	for i in range(map_scene_option.item_count):
-		var metadata: Variant = map_scene_option.get_item_metadata(i)
-		if metadata == target_path:
-			map_scene_option.selected = i
-			return
+	if SparklingEditorUtils.select_option_by_metadata(map_scene_option, target_path):
+		return
 
 	# Map not found in dropdown - might be from a path not in maps/
 	# Add it as a custom entry
@@ -1227,7 +1207,7 @@ func _save_resource_data() -> void:
 		battle.map_scene = null
 
 	# Player spawn point
-	battle.player_spawn_point = Vector2i(int(player_spawn_x_spin.value), int(player_spawn_y_spin.value))
+	battle.player_spawn_point = Vector2i(int(player_spawn_field.x.value), int(player_spawn_field.y.value))
 
 	# Player party - use ResourcePicker
 	battle.player_party = player_party_picker.get_selected_resource() as PartyData

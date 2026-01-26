@@ -157,66 +157,12 @@ func _populate_speakers() -> void:
 
 ## Populate from context.shops
 func _populate_shops() -> void:
-	if not _context:
-		return
-	
-	var item_idx: int = _option_button.item_count
-	
-	for shop_res: Resource in _context.shops:
-		if not shop_res:
-			continue
-		
-		var shop_id: String = ""
-		var shop_name: String = ""
-		
-		if "shop_id" in shop_res:
-			shop_id = str(shop_res.get("shop_id"))
-		if "shop_name" in shop_res:
-			shop_name = str(shop_res.get("shop_name"))
-		
-		if shop_id.is_empty():
-			shop_id = shop_res.resource_path.get_file().get_basename()
-		if shop_name.is_empty():
-			shop_name = shop_id
-		
-		var mod_prefix: String = _get_mod_display_prefix(shop_res)
-		var display_name: String = "%s%s" % [mod_prefix, shop_name]
-		
-		_option_button.add_item(display_name, item_idx)
-		_option_button.set_item_metadata(item_idx, shop_id)
-		item_idx += 1
+	_populate_resource_list(_context.shops, "shop_id", "shop_name")
 
 
 ## Populate from context.battles
 func _populate_battles() -> void:
-	if not _context:
-		return
-	
-	var item_idx: int = _option_button.item_count
-	
-	for battle_res: Resource in _context.battles:
-		if not battle_res:
-			continue
-		
-		var battle_id: String = ""
-		var battle_name: String = ""
-		
-		if "battle_id" in battle_res:
-			battle_id = str(battle_res.get("battle_id"))
-		if "battle_name" in battle_res:
-			battle_name = str(battle_res.get("battle_name"))
-		
-		if battle_id.is_empty():
-			battle_id = battle_res.resource_path.get_file().get_basename()
-		if battle_name.is_empty():
-			battle_name = battle_id
-		
-		var mod_prefix: String = _get_mod_display_prefix(battle_res)
-		var display_name: String = "%s%s" % [mod_prefix, battle_name]
-		
-		_option_button.add_item(display_name, item_idx)
-		_option_button.set_item_metadata(item_idx, battle_id)
-		item_idx += 1
+	_populate_resource_list(_context.battles, "battle_id", "battle_name")
 
 
 ## Populate from context.cinematics
@@ -239,34 +185,7 @@ func _populate_cinematics() -> void:
 
 ## Populate from context.maps
 func _populate_maps() -> void:
-	if not _context:
-		return
-	
-	var item_idx: int = _option_button.item_count
-	
-	for map_res: Resource in _context.maps:
-		if not map_res:
-			continue
-		
-		var map_id: String = ""
-		var map_name: String = ""
-		
-		if "map_id" in map_res and not str(map_res.get("map_id")).is_empty():
-			map_id = str(map_res.get("map_id"))
-		else:
-			map_id = map_res.resource_path.get_file().get_basename()
-		
-		if "display_name" in map_res and not str(map_res.get("display_name")).is_empty():
-			map_name = str(map_res.get("display_name"))
-		else:
-			map_name = map_id
-		
-		var mod_prefix: String = _get_mod_display_prefix(map_res)
-		var display_text: String = "%s%s" % [mod_prefix, map_name]
-		
-		_option_button.add_item(display_text, item_idx)
-		_option_button.set_item_metadata(item_idx, map_id)
-		item_idx += 1
+	_populate_resource_list(_context.maps, "map_id", "display_name")
 
 
 ## Populate from ModLoader.registry.get_scene_ids()
@@ -302,6 +221,41 @@ func _populate_actors() -> void:
 # =============================================================================
 # Helper Methods
 # =============================================================================
+
+## Generic resource list population for shops, battles, maps, etc.
+## @param resources: Array of Resource objects to populate
+## @param id_property: Property name for the ID (e.g., "shop_id", "battle_id")
+## @param name_property: Property name for display name (e.g., "shop_name", "battle_name")
+func _populate_resource_list(resources: Array, id_property: String, name_property: String) -> void:
+	if not _context:
+		return
+
+	var item_idx: int = _option_button.item_count
+
+	for res: Resource in resources:
+		if not res:
+			continue
+
+		var res_id: String = ""
+		var res_name: String = ""
+
+		if id_property in res:
+			res_id = str(res.get(id_property))
+		if name_property in res:
+			res_name = str(res.get(name_property))
+
+		if res_id.is_empty():
+			res_id = res.resource_path.get_file().get_basename()
+		if res_name.is_empty():
+			res_name = res_id
+
+		var mod_prefix: String = _get_mod_display_prefix(res)
+		var display_name: String = "%s%s" % [mod_prefix, res_name]
+
+		_option_button.add_item(display_name, item_idx)
+		_option_button.set_item_metadata(item_idx, res_id)
+		item_idx += 1
+
 
 ## Get character UID from a character resource with fallbacks
 func _get_character_uid(char_res: Resource) -> String:

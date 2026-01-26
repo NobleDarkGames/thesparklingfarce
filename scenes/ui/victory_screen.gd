@@ -159,8 +159,7 @@ func _add_reward_line(text: String, color: Color) -> void:
 	var label: Label = Label.new()
 	label.text = text
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", 24)
+	UIUtils.apply_monogram_style(label, 24)
 	label.add_theme_color_override("font_color", color)
 	label.modulate.a = 0.0
 
@@ -194,11 +193,7 @@ func _animate_title_bounce() -> void:
 
 
 func _animate_continue_blink() -> void:
-	UIUtils.kill_tween(_blink_tween)
-	_blink_tween = create_tween()
-	_blink_tween.set_loops()
-	_blink_tween.tween_property(continue_label, "modulate:a", 0.3, 0.5)
-	_blink_tween.tween_property(continue_label, "modulate:a", 1.0, 0.5)
+	_blink_tween = UIUtils.start_blink_tween(continue_label, _blink_tween)
 
 
 func _input(event: InputEvent) -> void:

@@ -186,8 +186,7 @@ func show_results() -> void:
 func _create_combat_action_row(text: String, is_critical: bool, is_miss: bool) -> Label:
 	var label: Label = Label.new()
 	label.text = text
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(label, 16)
 
 	# Color based on hit type
 	if is_miss:
@@ -208,8 +207,7 @@ func _create_formation_batch_row(label_text: String, total_xp: int) -> HBoxConta
 	# Label
 	var name_label: Label = Label.new()
 	name_label.text = label_text
-	name_label.add_theme_font_override("font", MONOGRAM_FONT)
-	name_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(name_label, 16)
 	name_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
 	name_label.custom_minimum_size.x = 160
 	row.add_child(name_label)
@@ -217,8 +215,7 @@ func _create_formation_batch_row(label_text: String, total_xp: int) -> HBoxConta
 	# XP amount
 	var xp_label: Label = Label.new()
 	xp_label.text = "+%d XP" % total_xp
-	xp_label.add_theme_font_override("font", MONOGRAM_FONT)
-	xp_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(xp_label, 16)
 	xp_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
 	row.add_child(xp_label)
 
@@ -233,8 +230,7 @@ func _create_xp_row(unit_name: String, amount: int, source: String) -> HBoxConta
 	# Unit name
 	var name_label: Label = Label.new()
 	name_label.text = unit_name
-	name_label.add_theme_font_override("font", MONOGRAM_FONT)
-	name_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(name_label, 16)
 	name_label.add_theme_color_override("font_color", Color.WHITE)
 	name_label.custom_minimum_size.x = 120
 	row.add_child(name_label)
@@ -242,8 +238,7 @@ func _create_xp_row(unit_name: String, amount: int, source: String) -> HBoxConta
 	# XP amount
 	var xp_label: Label = Label.new()
 	xp_label.text = "+%d XP" % amount
-	xp_label.add_theme_font_override("font", MONOGRAM_FONT)
-	xp_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(xp_label, 16)
 	xp_label.custom_minimum_size.x = 60
 	row.add_child(xp_label)
 
@@ -271,8 +266,7 @@ func _create_xp_row(unit_name: String, amount: int, source: String) -> HBoxConta
 			xp_label.add_theme_color_override("font_color", Color.GRAY)
 
 	source_label.text = source_text
-	source_label.add_theme_font_override("font", MONOGRAM_FONT)
-	source_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(source_label, 16)
 	source_label.add_theme_color_override("font_color", source_color)
 	row.add_child(source_label)
 

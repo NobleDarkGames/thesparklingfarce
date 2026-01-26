@@ -32,10 +32,8 @@ func _store_original_position() -> void:
 ## Display terrain information for the given cell (with animation).
 ## Use update_terrain_info() for rapid updates during movement.
 func show_terrain_info(unit_cell: Vector2i) -> void:
-	# Kill any existing tween to prevent conflicts
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-		_current_tween = null
+	UIUtils.kill_tween(_current_tween)
+	_current_tween = null
 
 	# Get terrain data from GridManager
 	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit_cell)
@@ -71,10 +69,8 @@ func update_terrain_info(unit_cell: Vector2i) -> void:
 
 ## Hide the terrain panel with animation.
 func hide_terrain_info() -> void:
-	# Kill any existing tween to prevent conflicts
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-		_current_tween = null
+	UIUtils.kill_tween(_current_tween)
+	_current_tween = null
 
 	# If already hidden, don't animate
 	if not visible:

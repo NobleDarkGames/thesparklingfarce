@@ -1012,3 +1012,86 @@ class FormBuilder extends RefCounted:
 			"x": x_spin,
 			"y": y_spin
 		}
+
+
+# =============================================================================
+# OptionButton Utilities
+# =============================================================================
+
+## Select an item in an OptionButton by matching its metadata value.
+## Returns true if a matching item was found and selected, false otherwise.
+## If no match is found, selects the fallback_index (default 0).
+static func select_option_by_metadata(option: OptionButton, target_value: Variant, fallback_index: int = 0) -> bool:
+	for i: int in range(option.item_count):
+		if option.get_item_metadata(i) == target_value:
+			option.select(i)
+			return true
+	if fallback_index >= 0 and fallback_index < option.item_count:
+		option.select(fallback_index)
+	return false
+
+
+# =============================================================================
+# Empty State Placeholders
+# =============================================================================
+
+## Create a styled placeholder label for empty lists/containers.
+## Useful for "(No items)", "(None)", etc. messages.
+static func add_empty_placeholder(container: Control, text: String = "(None)") -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", get_disabled_color())
+	label.add_theme_font_size_override("font_size", HELP_FONT_SIZE)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(label)
+	return label
+
+
+# =============================================================================
+# Stat Name Formatting
+# =============================================================================
+
+## Convert stat keys to abbreviated display names for compact UI.
+## Examples:
+##   "hp" -> "HP"
+##   "strength" -> "STR"
+##   "defense" -> "DEF"
+##   "agility" -> "AGI"
+##   "intelligence" -> "INT"
+##   "luck" -> "LCK"
+static func format_stat_abbreviation(stat_key: String) -> String:
+	match stat_key:
+		"hp": return "HP"
+		"mp": return "MP"
+		"strength": return "STR"
+		"defense": return "DEF"
+		"agility": return "AGI"
+		"intelligence": return "INT"
+		"luck": return "LCK"
+		_: return stat_key.to_upper()
+
+
+## Convert stat keys like "strength_modifier" or "max_hp" to display names.
+## Examples:
+##   "strength_modifier" -> "Strength"
+##   "max_hp" -> "Max HP"
+##   "attack_power" -> "Attack Power"
+static func format_stat_name(stat_key: String) -> String:
+	# Remove common suffixes
+	var display: String = stat_key
+	if display.ends_with("_modifier"):
+		display = display.substr(0, display.length() - 9)
+	elif display.ends_with("_mod"):
+		display = display.substr(0, display.length() - 4)
+
+	# Handle common abbreviations that should stay uppercase
+	display = display.replace("_hp", " HP")
+	display = display.replace("_mp", " MP")
+	display = display.replace("_sp", " SP")
+	display = display.replace("_xp", " XP")
+
+	# Replace underscores with spaces and capitalize
+	display = display.replace("_", " ")
+	display = display.capitalize()
+
+	return display
