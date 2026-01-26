@@ -40,8 +40,6 @@ const SLOT_SPACING: int = 4
 const ACTIVE_COLS: int = 4
 const ACTIVE_ROWS: int = 3
 
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 # =============================================================================
 # STATE
 # =============================================================================

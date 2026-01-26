@@ -1,9 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://c3klvy8n2h4xv"]
-
-[ext_resource type="Theme" uid="uid://cpdx7u62cktq6" path="res://assets/themes/ui_theme.tres" id="1_ui_theme"]
-
-[node name="SaveSlotButton" type="Button"]
-custom_minimum_size = Vector2(400, 60)
-theme = ExtResource("1_ui_theme")
-theme_override_font_sizes/font_size = 16
-text = "Slot X: [Empty]"

@@ -8,9 +8,6 @@ extends CanvasLayer
 
 signal celebration_dismissed
 
-## Font reference
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Animation constants
 const FADE_IN_DURATION: float = 0.3
 const STAT_REVEAL_DELAY: float = 0.12

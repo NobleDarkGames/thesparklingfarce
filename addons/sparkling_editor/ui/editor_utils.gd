@@ -477,14 +477,6 @@ static func generate_id_from_name(display_name: String) -> String:
 	return valid_id.strip_edges()
 
 
-## Generate a namespaced ID (mod_id:resource_id)
-static func generate_namespaced_id(mod_id: String, resource_name: String) -> String:
-	var clean_name: String = generate_id_from_name(resource_name)
-	if clean_name.is_empty():
-		return ""
-	return "%s:%s" % [mod_id, clean_name]
-
-
 # =============================================================================
 # File Operations
 # =============================================================================
@@ -501,20 +493,6 @@ static func ensure_directory_exists(dir_path: String) -> bool:
 		return false
 
 	return true
-
-
-## Get a unique filename by appending a number if the file already exists
-## Example: "npc.tres" -> "npc_2.tres" if npc.tres exists
-static func get_unique_filename(directory: String, base_name: String, extension: String) -> String:
-	var full_path: String = directory.path_join(base_name + extension)
-	if not FileAccess.file_exists(full_path):
-		return base_name + extension
-
-	var counter: int = 2
-	while FileAccess.file_exists(directory.path_join("%s_%d%s" % [base_name, counter, extension])):
-		counter += 1
-
-	return "%s_%d%s" % [base_name, counter, extension]
 
 
 # =============================================================================
@@ -890,10 +868,6 @@ class FormBuilder extends RefCounted:
 	func get_container() -> Control:
 		return _get_container()
 
-	## Get the form's root parent
-	func get_parent() -> Control:
-		return _parent
-
 	## Add a texture field with preview, path input, browse button, and clear button
 	## Returns Dictionary with {preview: TextureRect, path_edit: LineEdit, browse_btn: Button, clear_btn: Button}
 	func add_texture_field(label_text: String, placeholder: String = "", tooltip: String = "") -> Dictionary:
@@ -1045,53 +1019,3 @@ static func add_empty_placeholder(container: Control, text: String = "(None)") -
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	container.add_child(label)
 	return label
-
-
-# =============================================================================
-# Stat Name Formatting
-# =============================================================================
-
-## Convert stat keys to abbreviated display names for compact UI.
-## Examples:
-##   "hp" -> "HP"
-##   "strength" -> "STR"
-##   "defense" -> "DEF"
-##   "agility" -> "AGI"
-##   "intelligence" -> "INT"
-##   "luck" -> "LCK"
-static func format_stat_abbreviation(stat_key: String) -> String:
-	match stat_key:
-		"hp": return "HP"
-		"mp": return "MP"
-		"strength": return "STR"
-		"defense": return "DEF"
-		"agility": return "AGI"
-		"intelligence": return "INT"
-		"luck": return "LCK"
-		_: return stat_key.to_upper()
-
-
-## Convert stat keys like "strength_modifier" or "max_hp" to display names.
-## Examples:
-##   "strength_modifier" -> "Strength"
-##   "max_hp" -> "Max HP"
-##   "attack_power" -> "Attack Power"
-static func format_stat_name(stat_key: String) -> String:
-	# Remove common suffixes
-	var display: String = stat_key
-	if display.ends_with("_modifier"):
-		display = display.substr(0, display.length() - 9)
-	elif display.ends_with("_mod"):
-		display = display.substr(0, display.length() - 4)
-
-	# Handle common abbreviations that should stay uppercase
-	display = display.replace("_hp", " HP")
-	display = display.replace("_mp", " MP")
-	display = display.replace("_sp", " SP")
-	display = display.replace("_xp", " XP")
-
-	# Replace underscores with spaces and capitalize
-	display = display.replace("_", " ")
-	display = display.capitalize()
-
-	return display

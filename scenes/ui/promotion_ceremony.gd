@@ -9,9 +9,6 @@ extends CanvasLayer
 
 signal ceremony_dismissed
 
-## Font reference
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Animation timing constants
 const ENTRANCE_DURATION: float = 0.4
 const ANTICIPATION_DURATION: float = 0.5

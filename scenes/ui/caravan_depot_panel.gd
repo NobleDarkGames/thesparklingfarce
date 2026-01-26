@@ -43,7 +43,6 @@ const DEFAULT_MAX_INVENTORY_SLOTS: int = 4
 # =============================================================================
 
 const ItemSlotScript = preload("res://scenes/ui/components/item_slot.gd")
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
 # =============================================================================
 # STATE

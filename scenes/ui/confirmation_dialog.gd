@@ -39,8 +39,6 @@ const COLOR_BUTTON_HOVER: Color = Color(0.3, 0.3, 0.35, 1.0)
 const COLOR_BUTTON_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
 const COLOR_BUTTON_TEXT: Color = Color(0.9, 0.9, 0.9, 1.0)
 
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 # =============================================================================
 # STATE
 # =============================================================================

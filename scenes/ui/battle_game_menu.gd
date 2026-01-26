@@ -68,8 +68,7 @@ const TEXT_HOVER: Color = Color(0.95, 0.95, 0.85)
 const CURSOR_CHAR: String = ">"
 const CURSOR_SPACING: int = 8
 
-# Font (MANDATORY)
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
+# Font size
 const FONT_SIZE: int = 16
 
 # Menu animation timing

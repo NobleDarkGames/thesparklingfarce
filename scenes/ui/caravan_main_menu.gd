@@ -43,8 +43,6 @@ const COLOR_OPTION_NORMAL: Color = Color(0.85, 0.85, 0.85, 1.0)
 const COLOR_OPTION_SELECTED: Color = Color(1.0, 0.95, 0.4, 1.0)
 const COLOR_OPTION_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
 
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Fallback menu options if CaravanController unavailable
 const FALLBACK_OPTIONS: Array[Dictionary] = [
 	{"id": "party", "label": "Party", "description": "Manage party members"},

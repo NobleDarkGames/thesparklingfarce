@@ -10,9 +10,6 @@ extends CanvasLayer
 
 signal results_dismissed
 
-## Font reference
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Timing constants
 const FADE_IN_DURATION: float = 0.15
 const AUTO_DISMISS_DELAY: float = 2.5  ## Auto-dismiss if no input

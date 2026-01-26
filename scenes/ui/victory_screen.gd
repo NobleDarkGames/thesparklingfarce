@@ -8,9 +8,6 @@ extends CanvasLayer
 
 signal result_dismissed
 
-## Font reference
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Animation constants
 const FADE_IN_DURATION: float = 0.5
 const TITLE_FLASH_COLOR: Color = Color(1.6, 1.6, 0.8, 1.0)  # Golden brightness flash
