@@ -65,6 +65,10 @@ var gold_reward_spin: SpinBox
 var item_rewards_section: CollapseSection
 var item_rewards_list: DynamicRowList
 
+# Character rewards (recruits)
+var character_rewards_section: CollapseSection
+var character_rewards_list: DynamicRowList
+
 # AI Behavior - no local cache, query registry directly
 
 
@@ -157,6 +161,12 @@ func _set_editing_enabled(enabled: bool) -> void:
 		if item_rewards_list._add_button:
 			item_rewards_list._add_button.disabled = not enabled
 		item_rewards_list.modulate.a = 1.0 if enabled else 0.5
+
+	# Character rewards - disable DynamicRowList add button and modulate
+	if character_rewards_list:
+		if character_rewards_list._add_button:
+			character_rewards_list._add_button.disabled = not enabled
+		character_rewards_list.modulate.a = 1.0 if enabled else 0.5
 
 	# Save/Delete buttons
 	if save_button:
@@ -264,6 +274,9 @@ func _load_resource_data() -> void:
 
 	# Load item rewards (convert from ItemData array to DynamicRowList format)
 	_load_item_rewards_from_array(battle.item_rewards)
+
+	# Load character rewards (recruits)
+	_load_character_rewards_from_array(battle.character_rewards)
 
 	_updating_ui = false
 
@@ -384,6 +397,7 @@ func _add_player_forces_section() -> void:
 	player_party_picker.label_min_width = 120
 	player_party_picker.none_text = "(Use PartyManager)"
 	player_party_picker.allow_none = true
+	player_party_picker.resource_selected.connect(func(_metadata: Dictionary) -> void: _mark_dirty())
 	form.add_labeled_control("", player_party_picker,
 		"Override party for this battle. Leave empty to use player's current party.")
 
@@ -507,6 +521,7 @@ func _add_battle_flow_section() -> void:
 	pre_battle_dialogue_picker.label_min_width = 140
 	pre_battle_dialogue_picker.allow_none = true
 	pre_battle_dialogue_picker.tooltip_text = "Cutscene that plays before combat begins. Sets up story context."
+	pre_battle_dialogue_picker.resource_selected.connect(func(_metadata: Dictionary) -> void: _mark_dirty())
 	form.add_labeled_control("", pre_battle_dialogue_picker)
 
 	victory_dialogue_picker = ResourcePicker.new()
@@ -515,6 +530,7 @@ func _add_battle_flow_section() -> void:
 	victory_dialogue_picker.label_min_width = 140
 	victory_dialogue_picker.allow_none = true
 	victory_dialogue_picker.tooltip_text = "Cutscene that plays when player wins. Rewards, story progression."
+	victory_dialogue_picker.resource_selected.connect(func(_metadata: Dictionary) -> void: _mark_dirty())
 	form.add_labeled_control("", victory_dialogue_picker)
 
 	defeat_dialogue_picker = ResourcePicker.new()
@@ -523,6 +539,7 @@ func _add_battle_flow_section() -> void:
 	defeat_dialogue_picker.label_min_width = 140
 	defeat_dialogue_picker.allow_none = true
 	defeat_dialogue_picker.tooltip_text = "Cutscene that plays when player loses. Usually offers retry or game over."
+	defeat_dialogue_picker.resource_selected.connect(func(_metadata: Dictionary) -> void: _mark_dirty())
 	form.add_labeled_control("", defeat_dialogue_picker)
 
 	form.add_help_text("Turn-based dialogues: Coming soon")
@@ -591,6 +608,27 @@ func _add_rewards_section() -> void:
 	item_rewards_list.data_extractor = _extract_item_reward_data
 	item_rewards_list.data_changed.connect(_on_item_reward_data_changed)
 	item_rewards_section.add_content_child(item_rewards_list)
+
+	# Character rewards (collapsible section)
+	character_rewards_section = CollapseSection.new()
+	character_rewards_section.title = "Character Rewards (Recruits)"
+	character_rewards_section.start_collapsed = true
+	detail_panel.add_child(character_rewards_section)
+
+	var character_help_label: Label = Label.new()
+	character_help_label.text = "Characters that will join the party after victory"
+	character_help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+	character_rewards_section.add_content_child(character_help_label)
+
+	# Use DynamicRowList for character rewards
+	character_rewards_list = DynamicRowList.new()
+	character_rewards_list.add_button_text = "Add Character Reward"
+	character_rewards_list.add_button_tooltip = "Add a character that joins the party on victory."
+	character_rewards_list.use_scroll_container = false
+	character_rewards_list.row_factory = _create_character_reward_row
+	character_rewards_list.data_extractor = _extract_character_reward_data
+	character_rewards_list.data_changed.connect(_on_character_reward_data_changed)
+	character_rewards_section.add_content_child(character_rewards_list)
 
 	form.add_separator()
 
@@ -1106,6 +1144,69 @@ func _collect_item_rewards_as_itemdata() -> Array[ItemData]:
 	return result
 
 
+## =============================================================================
+## CHARACTER REWARD ROWS - Factory/Extractor for DynamicRowList
+## =============================================================================
+
+## Row factory for character rewards - creates the UI for a character reward row
+func _create_character_reward_row(data: Dictionary, row: HBoxContainer) -> void:
+	var character: CharacterData = data.get("character") as CharacterData
+
+	# Character picker - use ResourcePicker for cross-mod support
+	var character_picker: ResourcePicker = ResourcePicker.new()
+	character_picker.name = "CharacterPicker"
+	character_picker.resource_type = "character"
+	character_picker.allow_none = true
+	character_picker.none_text = "(Select Character)"
+	character_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character_picker.tooltip_text = "Character that will join the party on victory"
+	row.add_child(character_picker)
+
+	# Set character if provided (deferred to ensure picker is ready)
+	if character:
+		character_picker.call_deferred("select_resource", character)
+
+
+## Data extractor for character rewards - extracts data from a character reward row
+func _extract_character_reward_data(row: HBoxContainer) -> Dictionary:
+	var character_picker: ResourcePicker = row.get_node_or_null("CharacterPicker") as ResourcePicker
+
+	if not character_picker:
+		return {}
+
+	var character: CharacterData = character_picker.get_selected_resource() as CharacterData
+	if not character:
+		return {}  # Skip rows with no character selected
+
+	return {"character": character}
+
+
+## Called when character reward data changes via DynamicRowList
+func _on_character_reward_data_changed() -> void:
+	if not _updating_ui:
+		_mark_dirty()
+
+
+## Load character rewards from CharacterData array
+func _load_character_rewards_from_array(characters: Array[CharacterData]) -> void:
+	var reward_data: Array[Dictionary] = []
+	for character: CharacterData in characters:
+		if character:
+			reward_data.append({"character": character})
+	character_rewards_list.load_data(reward_data)
+
+
+## Collect character rewards as CharacterData array (for BattleData)
+func _collect_character_rewards_as_characterdata() -> Array[CharacterData]:
+	var result: Array[CharacterData] = []
+	var all_data: Array[Dictionary] = character_rewards_list.get_all_data()
+	for entry: Dictionary in all_data:
+		var character: CharacterData = entry.get("character") as CharacterData
+		if character:
+			result.append(character)
+	return result
+
+
 ## Override: Save UI data to resource
 func _save_resource_data() -> void:
 	var battle: BattleData = current_resource as BattleData
@@ -1177,6 +1278,9 @@ func _save_resource_data() -> void:
 
 	# Item rewards (convert from our UI format to ItemData array)
 	battle.item_rewards = _collect_item_rewards_as_itemdata()
+
+	# Character rewards (recruits)
+	battle.character_rewards = _collect_character_rewards_as_characterdata()
 
 
 ## Override: Validate resource before saving

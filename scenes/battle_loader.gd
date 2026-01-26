@@ -303,6 +303,7 @@ func _ready() -> void:
 
 	# Setup BattleManager with scene references
 	BattleManager.setup(self, $Units)
+	BattleManager.current_battle_data = battle_data
 
 	# Connect BattleManager signals for XP, level-ups, and victory/defeat screens
 	# We call setup() + _connect_signals() directly rather than start_battle() because
@@ -318,17 +319,12 @@ func _ready() -> void:
 	# Connect to BattleManager signals for visual feedback
 	BattleManager.combat_resolved.connect(_on_combat_resolved)
 
-	# Connect to TurnManager signals BEFORE starting battle (with guards to prevent duplicates)
-	if not TurnManager.turn_cycle_started.is_connected(_on_turn_cycle_started):
-		TurnManager.turn_cycle_started.connect(_on_turn_cycle_started)
-	if not TurnManager.player_turn_started.is_connected(_on_player_turn_started):
-		TurnManager.player_turn_started.connect(_on_player_turn_started)
-	if not TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
-		TurnManager.enemy_turn_started.connect(_on_enemy_turn_started)
-	if not TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
-		TurnManager.unit_turn_ended.connect(_on_unit_turn_ended)
-	if not TurnManager.battle_ended.is_connected(_on_battle_ended):
-		TurnManager.battle_ended.connect(_on_battle_ended)
+	# Connect to TurnManager signals BEFORE starting battle
+	UIUtils.safe_connect(TurnManager.turn_cycle_started, _on_turn_cycle_started)
+	UIUtils.safe_connect(TurnManager.player_turn_started, _on_player_turn_started)
+	UIUtils.safe_connect(TurnManager.enemy_turn_started, _on_enemy_turn_started)
+	UIUtils.safe_connect(TurnManager.unit_turn_ended, _on_unit_turn_ended)
+	UIUtils.safe_connect(TurnManager.battle_ended, _on_battle_ended)
 
 	# Register camera with all game systems (TurnManager, CinematicsManager)
 	_camera.register_with_systems()
@@ -337,8 +333,8 @@ func _ready() -> void:
 	if battle_data.pre_battle_dialogue:
 		if DialogManager.start_dialog_from_resource(battle_data.pre_battle_dialogue):
 			await DialogManager.dialog_ended
-			# Scene may have been freed during dialogue
-			if not is_instance_valid(self):
+			# Scene or battle_data may have been freed during dialogue
+			if not is_instance_valid(self) or not battle_data:
 				return
 
 	# Emit pre-battle event (mods can cancel)
@@ -356,10 +352,8 @@ func _ready() -> void:
 	GameEventBus.post_battle_start.emit(battle_data)
 
 	# Connect InputManager signals to BattleManager (for combat execution)
-	if not InputManager.action_selected.is_connected(BattleManager._on_action_selected):
-		InputManager.action_selected.connect(BattleManager._on_action_selected)
-	if not InputManager.target_selected.is_connected(BattleManager._on_target_selected):
-		InputManager.target_selected.connect(BattleManager._on_target_selected)
+	UIUtils.safe_connect(InputManager.action_selected, BattleManager._on_action_selected)
+	UIUtils.safe_connect(InputManager.target_selected, BattleManager._on_target_selected)
 
 
 
@@ -480,8 +474,8 @@ func _on_player_turn_started(unit: Unit) -> void:
 	_terrain_panel.show_terrain_info(unit_cell)
 
 	# Connect to cell_entered to update terrain panel during movement
-	if unit.has_signal("cell_entered") and not unit.cell_entered.is_connected(_on_active_unit_cell_entered):
-		unit.cell_entered.connect(_on_active_unit_cell_entered)
+	if unit.has_signal("cell_entered"):
+		UIUtils.safe_connect(unit.cell_entered, _on_active_unit_cell_entered)
 
 	# Update turn order panel
 	_update_turn_order_display(unit)
@@ -505,8 +499,8 @@ func _on_enemy_turn_started(unit: Unit) -> void:
 	_terrain_panel.show_terrain_info(unit_cell)
 
 	# Connect to cell_entered to update terrain panel during movement
-	if unit.has_signal("cell_entered") and not unit.cell_entered.is_connected(_on_active_unit_cell_entered):
-		unit.cell_entered.connect(_on_active_unit_cell_entered)
+	if unit.has_signal("cell_entered"):
+		UIUtils.safe_connect(unit.cell_entered, _on_active_unit_cell_entered)
 
 	# Update turn order panel
 	_update_turn_order_display(unit)
@@ -518,8 +512,8 @@ func _on_unit_turn_ended(unit: Unit) -> void:
 	unit.hide_selection()
 
 	# Disconnect from cell_entered signal
-	if unit.has_signal("cell_entered") and unit.cell_entered.is_connected(_on_active_unit_cell_entered):
-		unit.cell_entered.disconnect(_on_active_unit_cell_entered)
+	if unit.has_signal("cell_entered"):
+		UIUtils.safe_disconnect(unit.cell_entered, _on_active_unit_cell_entered)
 
 	# Hide stats and terrain panels
 	_stats_panel.hide_stats()
@@ -560,23 +554,15 @@ func _exit_tree() -> void:
 		DialogManager.dialog_box = null
 
 	# Disconnect TurnManager signals
-	if TurnManager.turn_cycle_started.is_connected(_on_turn_cycle_started):
-		TurnManager.turn_cycle_started.disconnect(_on_turn_cycle_started)
-	if TurnManager.player_turn_started.is_connected(_on_player_turn_started):
-		TurnManager.player_turn_started.disconnect(_on_player_turn_started)
-	if TurnManager.enemy_turn_started.is_connected(_on_enemy_turn_started):
-		TurnManager.enemy_turn_started.disconnect(_on_enemy_turn_started)
-	if TurnManager.unit_turn_ended.is_connected(_on_unit_turn_ended):
-		TurnManager.unit_turn_ended.disconnect(_on_unit_turn_ended)
-	if TurnManager.battle_ended.is_connected(_on_battle_ended):
-		TurnManager.battle_ended.disconnect(_on_battle_ended)
+	UIUtils.safe_disconnect(TurnManager.turn_cycle_started, _on_turn_cycle_started)
+	UIUtils.safe_disconnect(TurnManager.player_turn_started, _on_player_turn_started)
+	UIUtils.safe_disconnect(TurnManager.enemy_turn_started, _on_enemy_turn_started)
+	UIUtils.safe_disconnect(TurnManager.unit_turn_ended, _on_unit_turn_ended)
+	UIUtils.safe_disconnect(TurnManager.battle_ended, _on_battle_ended)
 
 	# Disconnect BattleManager signals
-	if BattleManager.combat_resolved.is_connected(_on_combat_resolved):
-		BattleManager.combat_resolved.disconnect(_on_combat_resolved)
+	UIUtils.safe_disconnect(BattleManager.combat_resolved, _on_combat_resolved)
 
 	# Disconnect InputManager signals from BattleManager
-	if InputManager.action_selected.is_connected(BattleManager._on_action_selected):
-		InputManager.action_selected.disconnect(BattleManager._on_action_selected)
-	if InputManager.target_selected.is_connected(BattleManager._on_target_selected):
-		InputManager.target_selected.disconnect(BattleManager._on_target_selected)
+	UIUtils.safe_disconnect(InputManager.action_selected, BattleManager._on_action_selected)
+	UIUtils.safe_disconnect(InputManager.target_selected, BattleManager._on_target_selected)

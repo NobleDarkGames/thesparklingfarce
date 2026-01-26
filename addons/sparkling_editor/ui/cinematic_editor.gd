@@ -1413,6 +1413,8 @@ func _on_save() -> void:
 		if ModLoader and ModLoader.registry:
 			var cinematic: CinematicData = CinematicLoader.load_from_json(expected_path)
 			if cinematic:
+				# Set resource_path so ResourcePicker can get display name and ID
+				cinematic.resource_path = expected_path
 				# Extract mod_id from path (e.g., res://mods/demo_campaign/data/cinematics/...)
 				var mod_id: String = ""
 				if expected_path.begins_with("res://mods/"):

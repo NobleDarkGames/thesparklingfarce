@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://q0bifik47wc8"]
+[gd_scene load_steps=12 format=4 uid="uid://q0bifik47wc8"]
 
 [ext_resource type="Script" uid="uid://owf5xru7b1bm" path="res://mods/demo_campaign/maps/mudford.gd" id="1_script"]
 [ext_resource type="TileSet" uid="uid://dy2k670qtyfeq" path="res://core/defaults/tilesets/default_tileset.tres" id="2_tileset"]
@@ -6,19 +6,11 @@
 [ext_resource type="Script" uid="uid://cvr41yel2uyjd" path="res://core/components/spawn_point.gd" id="4_spawn"]
 [ext_resource type="PackedScene" uid="uid://ds6el5acnlojt" path="res://core/components/map_trigger.tscn" id="5_86ayf"]
 [ext_resource type="Script" uid="uid://bxud0b4unj7o8" path="res://core/components/npc_node.gd" id="6_du2nu"]
-[ext_resource type="Texture2D" uid="uid://dp12xbrkagbqx" path="res://mods/demo_campaign/assets/portraits/MudFarmer.png" id="7_ig6fl"]
-[ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="8_1m5rn"]
 [ext_resource type="Resource" uid="uid://cj7mluuuqsoax" path="res://mods/demo_campaign/data/npcs/demo_campaign_npc_1768418565.tres" id="9_1m5rn"]
+[ext_resource type="Resource" uid="uid://dkt0p7nje7rxl" path="res://mods/demo_campaign/data/npcs/demo_campaign_npc_1767976914.tres" id="9_cr7dm"]
 [ext_resource type="Script" uid="uid://i5nu3buy36ri" path="res://core/components/interactable_node.gd" id="9_ig6fl"]
 [ext_resource type="Resource" uid="uid://be1hxdo6tvi28" path="res://mods/demo_campaign/data/interactables/demo_campaign_interactable_1766718325.tres" id="10_interactable"]
 [ext_resource type="Resource" uid="uid://c48b8ukyd88km" path="res://mods/demo_campaign/data/npcs/demo_campaign_npc_1768619012.tres" id="12_guardo"]
-
-[sub_resource type="Resource" id="Resource_c7sri"]
-script = ExtResource("8_1m5rn")
-npc_id = "mudford_priest"
-npc_name = "Mudford Priest"
-portrait = ExtResource("7_ig6fl")
-interaction_cinematic_id = "standard_priest_cinematic"
 
 [node name="Mudford" type="Node2D"]
 script = ExtResource("1_script")
@@ -69,11 +61,6 @@ cinematic_id = "meet_kurt"
 
 [node name="NPCs" type="Node2D" parent="."]
 
-[node name="MudfordPriest" type="Area2D" parent="NPCs"]
-position = Vector2(432, -144)
-script = ExtResource("6_du2nu")
-npc_data = SubResource("Resource_c7sri")
-
 [node name="DemoCampaignNpc1768418565" type="Area2D" parent="NPCs"]
 position = Vector2(944, 400)
 script = ExtResource("6_du2nu")
@@ -83,6 +70,11 @@ npc_data = ExtResource("9_1m5rn")
 position = Vector2(176, 400)
 script = ExtResource("6_du2nu")
 npc_data = ExtResource("12_guardo")
+
+[node name="MudfordPriest" type="Area2D" parent="NPCs"]
+position = Vector2(432, -144)
+script = ExtResource("6_du2nu")
+npc_data = ExtResource("9_cr7dm")
 
 [node name="Interactables" type="Node2D" parent="."]
 

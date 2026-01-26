@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=5 format=3 uid="uid://onm2oxua1to2"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_vjybr"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_b2fwv"]
+[ext_resource type="Resource" uid="uid://dahh86nufhoy2" path="res://mods/demo_campaign/data/abilities/demo_campaign_ability_1769112639.tres" id="2_ii132"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_ii132"]
+
+[resource]
+script = ExtResource("3_ii132")
+display_name = "Mage"
+double_attack_rate = 3
+mp_growth = 105
+strength_growth = 50
+intelligence_growth = 80
+equippable_weapon_types = Array[String](["staff"])
+class_abilities = Array[ExtResource("1_vjybr")]([ExtResource("2_ii132")])
+ability_unlock_levels = {
+"blast": 1
+}

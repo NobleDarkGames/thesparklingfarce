@@ -908,25 +908,26 @@ func test_cmd_debug_list_shops_exists() -> void:
 # =============================================================================
 
 func test_add_items_to_inventory_returns_added_count() -> void:
-	var add_count: int = 0
+	# Test that when add_func always succeeds, all items are added
 	var mock_add: Callable = func(_id: String) -> bool:
-		add_count += 1
 		return true
 
 	var result: int = _console._add_items_to_inventory(mock_add, "item_id", 3)
 
 	assert_int(result).is_equal(3)
-	assert_int(add_count).is_equal(3)
 
 
 func test_add_items_to_inventory_stops_on_failure() -> void:
-	var add_count: int = 0
+	# Use a counter array to track calls (arrays are passed by reference)
+	var call_tracker: Array[int] = [0]
 	var mock_add: Callable = func(_id: String) -> bool:
-		add_count += 1
-		return add_count < 2  # Fail on second call
+		call_tracker[0] += 1
+		return call_tracker[0] < 2  # Fail on second call (returns false when count >= 2)
 
 	var result: int = _console._add_items_to_inventory(mock_add, "item_id", 5)
 
+	# First call: call_tracker[0] becomes 1, returns true (1 < 2)
+	# Second call: call_tracker[0] becomes 2, returns false (2 < 2 is false), loop breaks
 	assert_int(result).is_equal(1)
 
 

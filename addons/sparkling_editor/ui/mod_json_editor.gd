@@ -17,6 +17,7 @@ var save_button: Button
 var current_mod_path: String = ""
 var current_mod_data: Dictionary = {}
 var is_dirty: bool = false
+var _updating_ui: bool = false
 
 
 # Error panel

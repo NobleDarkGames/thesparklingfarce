@@ -21,12 +21,13 @@ const SignalTrackerScript: GDScript = preload("res://tests/fixtures/signal_track
 # TEST FIXTURES - Mock Objects
 # =============================================================================
 
-## Mock BattleData for testing rewards (gold only - no items)
+## Mock BattleData for testing rewards (gold only - no items/characters)
 class MockBattleData extends BattleData:
 	func _init() -> void:
 		battle_name = "Test Battle"
 		gold_reward = 0
 		item_rewards = []  # Empty - item tests require real ItemData
+		character_rewards = []  # Empty - character tests require real CharacterData
 		victory_condition = VictoryCondition.DEFEAT_ALL_ENEMIES
 		defeat_condition = DefeatCondition.LEADER_DEFEATED
 
@@ -222,8 +223,10 @@ func test_distribute_no_battle_data_returns_empty_dict() -> void:
 	# Assert - verify structure even with no data
 	assert_bool("gold" in rewards).is_true()
 	assert_bool("items" in rewards).is_true()
+	assert_bool("characters" in rewards).is_true()
 	assert_int(rewards.gold).is_equal(0)
 	assert_bool(rewards.items is Array).is_true()
+	assert_bool(rewards.characters is Array).is_true()
 
 
 # =============================================================================
@@ -411,8 +414,10 @@ func test_rewards_dictionary_structure() -> void:
 	# Assert - verify structure
 	assert_bool("gold" in rewards).is_true()
 	assert_bool("items" in rewards).is_true()
+	assert_bool("characters" in rewards).is_true()
 	assert_bool(rewards.gold is int).is_true()
 	assert_bool(rewards.items is Array).is_true()
+	assert_bool(rewards.characters is Array).is_true()
 
 
 func test_rewards_returns_actual_distributed_gold() -> void:

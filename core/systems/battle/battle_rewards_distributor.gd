@@ -11,24 +11,28 @@ class_name BattleRewardsDistributor
 extends RefCounted
 
 
-## Distribute battle rewards (gold and items) to the player.
+## Distribute battle rewards (gold, items, characters) to the player.
 ## Emits pre_battle_rewards signal before distribution (mods can modify rewards).
 ## Emits post_battle_rewards signal after distribution.
-## Returns Dictionary with {gold: int, items: Array[String]} of actual rewards given.
+## Returns Dictionary with {gold: int, items: Array[String], characters: Array[CharacterData]} of actual rewards given.
 static func distribute(battle_data: BattleData) -> Dictionary:
-	var rewards: Dictionary = {"gold": 0, "items": []}
+	var rewards: Dictionary = {"gold": 0, "items": [], "characters": []}
 
 	if not battle_data:
 		return rewards
 
-	# Read rewards from battle data
-	rewards.gold = battle_data.gold_reward if "gold_reward" in battle_data else 0
+	# Read rewards from battle data (direct property access - these are @export vars)
+	rewards.gold = battle_data.gold_reward
 
 	# Collect item IDs from item_rewards array
-	if "item_rewards" in battle_data and battle_data.item_rewards:
-		for item: ItemData in battle_data.item_rewards:
-			if item and item.item_id:
-				rewards.items.append(item.item_id)
+	for item: ItemData in battle_data.item_rewards:
+		if item and item.item_id:
+			rewards.items.append(item.item_id)
+
+	# Collect character rewards
+	for character: CharacterData in battle_data.character_rewards:
+		if character:
+			rewards.characters.append(character)
 
 	# Allow mods to modify rewards before distribution
 	GameEventBus.pre_battle_rewards.emit(battle_data, rewards)
@@ -41,6 +45,14 @@ static func distribute(battle_data: BattleData) -> Dictionary:
 	if not rewards.items.is_empty() and SaveManager.current_save:
 		for item_id: String in rewards.items:
 			SaveManager.current_save.depot_items.append(item_id)
+
+	# Add characters to party (use character_uid lookup to avoid reference equality issues)
+	for character: CharacterData in rewards.characters:
+		if character and PartyManager:
+			# Check if character already in party by looking up their save data
+			var existing_save: CharacterSaveData = PartyManager.get_member_save_data(character.character_uid)
+			if existing_save == null:
+				PartyManager.add_member(character, true)
 
 	# Notify mods that rewards were distributed
 	GameEventBus.post_battle_rewards.emit(battle_data, rewards)

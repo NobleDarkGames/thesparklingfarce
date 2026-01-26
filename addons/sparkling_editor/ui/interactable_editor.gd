@@ -87,10 +87,8 @@ const INTERACTABLE_TEMPLATES: Dictionary = {
 # =============================================================================
 
 var appearance_section: VBoxContainer
-var sprite_closed_preview: TextureRect
-var sprite_closed_path_edit: LineEdit
-var sprite_opened_preview: TextureRect
-var sprite_opened_path_edit: LineEdit
+var sprite_closed_field: Dictionary  # {preview, path_edit, browse_btn, clear_btn}
+var sprite_opened_field: Dictionary  # {preview, path_edit, browse_btn, clear_btn}
 var sprite_file_dialog: EditorFileDialog
 var _current_sprite_target: String = ""  # "closed" or "opened"
 
@@ -248,94 +246,27 @@ func _add_appearance_section() -> void:
 	form.add_section("Appearance")
 	appearance_section = form.container as VBoxContainer
 
-	# Sprite Closed row
-	var closed_row: HBoxContainer = HBoxContainer.new()
-	closed_row.add_theme_constant_override("separation", 8)
+	# Sprite Closed - using FormBuilder texture field
+	sprite_closed_field = form.add_texture_field(
+		"Sprite (Closed):",
+		"res://mods/.../assets/sprites/chest_closed.png",
+		"Sprite shown when interactable is in closed/unsearched state"
+	)
+	sprite_closed_field.path_edit.text_changed.connect(_on_sprite_closed_path_changed)
+	sprite_closed_field.browse_btn.pressed.connect(_on_browse_sprite_closed)
+	sprite_closed_field.clear_btn.pressed.connect(_on_clear_sprite_closed)
 
-	var closed_label: Label = Label.new()
-	closed_label.text = "Sprite (Closed):"
-	closed_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	closed_row.add_child(closed_label)
-
-	var closed_preview_panel: PanelContainer = _create_sprite_preview_panel()
-	var closed_child: Node = closed_preview_panel.get_child(0)
-	sprite_closed_preview = closed_child if closed_child is TextureRect else null
-	closed_row.add_child(closed_preview_panel)
-
-	sprite_closed_path_edit = LineEdit.new()
-	sprite_closed_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sprite_closed_path_edit.placeholder_text = "res://mods/.../assets/sprites/chest_closed.png"
-	sprite_closed_path_edit.tooltip_text = "Sprite shown when interactable is in closed/unsearched state"
-	sprite_closed_path_edit.text_changed.connect(_on_sprite_closed_path_changed)
-	closed_row.add_child(sprite_closed_path_edit)
-
-	var closed_browse_btn: Button = Button.new()
-	closed_browse_btn.text = "Browse..."
-	closed_browse_btn.pressed.connect(_on_browse_sprite_closed)
-	closed_row.add_child(closed_browse_btn)
-
-	var closed_clear_btn: Button = Button.new()
-	closed_clear_btn.text = "X"
-	closed_clear_btn.tooltip_text = "Clear sprite"
-	closed_clear_btn.pressed.connect(_on_clear_sprite_closed)
-	closed_row.add_child(closed_clear_btn)
-
-	form.container.add_child(closed_row)
-
-	# Sprite Opened row
-	var opened_row: HBoxContainer = HBoxContainer.new()
-	opened_row.add_theme_constant_override("separation", 8)
-
-	var opened_label: Label = Label.new()
-	opened_label.text = "Sprite (Opened):"
-	opened_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	opened_row.add_child(opened_label)
-
-	var opened_preview_panel: PanelContainer = _create_sprite_preview_panel()
-	var opened_child: Node = opened_preview_panel.get_child(0)
-	sprite_opened_preview = opened_child if opened_child is TextureRect else null
-	opened_row.add_child(opened_preview_panel)
-
-	sprite_opened_path_edit = LineEdit.new()
-	sprite_opened_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sprite_opened_path_edit.placeholder_text = "(optional - uses closed sprite if empty)"
-	sprite_opened_path_edit.tooltip_text = "Sprite shown after searching/opening. Leave empty to use closed sprite."
-	sprite_opened_path_edit.text_changed.connect(_on_sprite_opened_path_changed)
-	opened_row.add_child(sprite_opened_path_edit)
-
-	var opened_browse_btn: Button = Button.new()
-	opened_browse_btn.text = "Browse..."
-	opened_browse_btn.pressed.connect(_on_browse_sprite_opened)
-	opened_row.add_child(opened_browse_btn)
-
-	var opened_clear_btn: Button = Button.new()
-	opened_clear_btn.text = "X"
-	opened_clear_btn.tooltip_text = "Clear sprite"
-	opened_clear_btn.pressed.connect(_on_clear_sprite_opened)
-	opened_row.add_child(opened_clear_btn)
-
-	form.container.add_child(opened_row)
+	# Sprite Opened - using FormBuilder texture field
+	sprite_opened_field = form.add_texture_field(
+		"Sprite (Opened):",
+		"(optional - uses closed sprite if empty)",
+		"Sprite shown after searching/opening. Leave empty to use closed sprite."
+	)
+	sprite_opened_field.path_edit.text_changed.connect(_on_sprite_opened_path_changed)
+	sprite_opened_field.browse_btn.pressed.connect(_on_browse_sprite_opened)
+	sprite_opened_field.clear_btn.pressed.connect(_on_clear_sprite_opened)
 
 	form.add_help_text("32x32 sprites recommended. Opened sprite is optional (one-shot items stay opened).")
-
-
-func _create_sprite_preview_panel() -> PanelContainer:
-	var preview_panel: PanelContainer = PanelContainer.new()
-	preview_panel.custom_minimum_size = Vector2(36, 36)
-	var preview_style: StyleBoxFlat = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
-	preview_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
-	preview_style.set_border_width_all(1)
-	preview_style.set_content_margin_all(2)
-	preview_panel.add_theme_stylebox_override("panel", preview_style)
-
-	var preview_rect: TextureRect = TextureRect.new()
-	preview_rect.custom_minimum_size = Vector2(32, 32)
-	preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview_panel.add_child(preview_rect)
-
-	return preview_panel
 
 
 func _add_rewards_section() -> void:
@@ -548,12 +479,12 @@ func _load_resource_data() -> void:
 
 	# Appearance
 	var closed_path: String = interactable.sprite_closed.resource_path if interactable.sprite_closed else ""
-	sprite_closed_path_edit.text = closed_path
-	_load_sprite_preview(sprite_closed_preview, closed_path)
+	sprite_closed_field.path_edit.text = closed_path
+	_load_sprite_preview(sprite_closed_field.preview, closed_path)
 
 	var opened_path: String = interactable.sprite_opened.resource_path if interactable.sprite_opened else ""
-	sprite_opened_path_edit.text = opened_path
-	_load_sprite_preview(sprite_opened_preview, opened_path)
+	sprite_opened_field.path_edit.text = opened_path
+	_load_sprite_preview(sprite_opened_field.preview, opened_path)
 
 	# Rewards
 	gold_reward_spin.value = interactable.gold_reward
@@ -593,10 +524,10 @@ func _save_resource_data() -> void:
 	interactable.interactable_type = type_option.selected as InteractableData.InteractableType
 
 	# Appearance
-	var closed_path: String = sprite_closed_path_edit.text.strip_edges()
+	var closed_path: String = sprite_closed_field.path_edit.text.strip_edges()
 	interactable.sprite_closed = SparklingEditorUtils.load_texture(closed_path)
 
-	var opened_path: String = sprite_opened_path_edit.text.strip_edges()
+	var opened_path: String = sprite_opened_field.path_edit.text.strip_edges()
 	interactable.sprite_opened = SparklingEditorUtils.load_texture(opened_path)
 
 	# Rewards
@@ -906,57 +837,44 @@ func _open_sprite_browser() -> void:
 
 func _on_sprite_file_selected(path: String) -> void:
 	if _current_sprite_target == "closed":
-		sprite_closed_path_edit.text = path
-		_load_sprite_preview(sprite_closed_preview, path)
+		sprite_closed_field.path_edit.text = path
+		_load_sprite_preview(sprite_closed_field.preview, path)
 	elif _current_sprite_target == "opened":
-		sprite_opened_path_edit.text = path
-		_load_sprite_preview(sprite_opened_preview, path)
+		sprite_opened_field.path_edit.text = path
+		_load_sprite_preview(sprite_opened_field.preview, path)
 	_mark_dirty()
 
 
 func _on_sprite_closed_path_changed(new_text: String) -> void:
 	if _updating_ui:
 		return
-	_load_sprite_preview(sprite_closed_preview, new_text)
+	_load_sprite_preview(sprite_closed_field.preview, new_text)
 	_mark_dirty()
 
 
 func _on_sprite_opened_path_changed(new_text: String) -> void:
 	if _updating_ui:
 		return
-	_load_sprite_preview(sprite_opened_preview, new_text)
+	_load_sprite_preview(sprite_opened_field.preview, new_text)
 	_mark_dirty()
 
 
 func _on_clear_sprite_closed() -> void:
-	sprite_closed_path_edit.text = ""
-	sprite_closed_preview.texture = null
-	sprite_closed_preview.tooltip_text = "No sprite assigned"
+	sprite_closed_field.path_edit.text = ""
+	sprite_closed_field.preview.texture = null
+	sprite_closed_field.preview.tooltip_text = "No sprite assigned"
 	_mark_dirty()
 
 
 func _on_clear_sprite_opened() -> void:
-	sprite_opened_path_edit.text = ""
-	sprite_opened_preview.texture = null
-	sprite_opened_preview.tooltip_text = "No sprite assigned"
+	sprite_opened_field.path_edit.text = ""
+	sprite_opened_field.preview.texture = null
+	sprite_opened_field.preview.tooltip_text = "No sprite assigned"
 	_mark_dirty()
 
 
 func _load_sprite_preview(preview: TextureRect, path: String) -> void:
-	var clean_path: String = path.strip_edges()
-	if clean_path.is_empty():
-		preview.texture = null
-		preview.tooltip_text = "No sprite assigned"
-		return
-
-	if ResourceLoader.exists(clean_path):
-		var loaded: Resource = load(clean_path)
-		var texture: Texture2D = loaded if loaded is Texture2D else null
-		preview.texture = texture
-		preview.tooltip_text = clean_path
-	else:
-		preview.texture = null
-		preview.tooltip_text = "File not found: " + clean_path
+	SparklingEditorUtils.load_texture_preview(preview, path, "No sprite assigned")
 
 
 
@@ -966,54 +884,9 @@ func _load_sprite_preview(preview: TextureRect, path: String) -> void:
 # =============================================================================
 
 func _on_place_on_map_pressed() -> void:
-	if not current_resource:
-		_show_error("No interactable selected.")
+	# Auto-save before placement (uses shared base class method)
+	if not _auto_save_before_action("interactable", name_id_group.get_id_value):
 		return
-
-	# Auto-save if resource is unsaved or has pending changes
-	var needs_save: bool = current_resource.resource_path.is_empty() or is_dirty
-	if needs_save:
-		# Show brief saving feedback
-		_show_success_message("Saving...")
-
-		# Validate before saving
-		var validation: Dictionary = _validate_resource()
-		if not validation.valid:
-			_show_errors(validation.errors)
-			return
-
-		# Perform the save
-		_save_resource_data()
-
-		# Determine save path for new resources
-		var save_path: String = current_resource.resource_path
-		if save_path.is_empty():
-			var save_dir: String = ""
-			if resource_type_id != "" and ModLoader:
-				var active_mod: ModManifest = ModLoader.get_active_mod()
-				if active_mod:
-					var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-					if resource_type_id in resource_dirs:
-						save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
-			if save_dir.is_empty():
-				_show_error("No save directory available. Please set an active mod.")
-				return
-			var interactable_id: String = name_id_group.get_id_value()
-			var filename: String = interactable_id + ".tres" if not interactable_id.is_empty() else "new_interactable_%d.tres" % Time.get_unix_time_from_system()
-			save_path = save_dir.path_join(filename)
-
-		var err: Error = ResourceSaver.save(current_resource, save_path)
-		if err != OK:
-			_show_error("Failed to save interactable: " + str(err))
-			return
-
-		# Update resource path and clear dirty flag
-		current_resource.take_over_path(save_path)
-		current_resource_path = save_path
-		is_dirty = false
-		_hide_errors()
-		_refresh_list()
-
 	place_on_map_dialog.show_dialog()
 
 
@@ -1028,6 +901,12 @@ func _on_map_selection_confirmed(map_path: String) -> void:
 	var success: bool = map_placement_helper.place_interactable_on_map(map_path, interactable_path, node_name, Vector2i(grid_x, grid_y))
 	if not success:
 		_show_error("Failed to place interactable on map. Check the output for details.")
+		return
+
+	# Validate the scene for embedded resources after placement
+	# This helps catch issues before the user saves
+	if MapPlacementHelper.is_scene_open(map_path):
+		MapPlacementHelper.validate_current_scene()
 
 
 # =============================================================================
@@ -1035,16 +914,4 @@ func _on_map_selection_confirmed(map_path: String) -> void:
 # =============================================================================
 
 func _get_default_asset_path(asset_type: String) -> String:
-	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
-	if mod_path.is_empty():
-		return "res://mods/"
-
-	var assets_dir: String = mod_path.path_join("assets/" + asset_type + "/")
-	if DirAccess.dir_exists_absolute(assets_dir):
-		return assets_dir
-
-	var generic_assets_dir: String = mod_path.path_join("assets/")
-	if DirAccess.dir_exists_absolute(generic_assets_dir):
-		return generic_assets_dir
-
-	return mod_path
+	return SparklingEditorUtils.get_default_asset_path(asset_type)

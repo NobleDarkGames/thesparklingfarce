@@ -1791,6 +1791,69 @@ func _clear_current_resource() -> void:
 	_updating_ui = false
 
 
+## Auto-save current resource before a secondary action (e.g., Place on Map)
+## Returns true if save succeeded or wasn't needed, false on error
+## @param resource_name: Display name for error messages (e.g., "NPC", "interactable")
+## @param id_getter: Callable that returns the resource ID for filename generation
+func _auto_save_before_action(resource_name: String, id_getter: Callable) -> bool:
+	if not current_resource:
+		_show_error("No %s selected." % resource_name)
+		return false
+
+	# Check if save is needed
+	var needs_save: bool = current_resource.resource_path.is_empty() or is_dirty
+	if not needs_save:
+		return true
+
+	# Show brief saving feedback
+	_show_success_message("Saving...")
+
+	# Validate before saving
+	var validation: Dictionary = _validate_resource()
+	if not validation.valid:
+		_show_errors(validation.errors)
+		return false
+
+	# Perform the save
+	_save_resource_data()
+
+	# Determine save path for new resources
+	var save_path: String = current_resource.resource_path
+	if save_path.is_empty():
+		var save_dir: String = ""
+		if resource_type_id != "" and ModLoader:
+			var active_mod: ModManifest = ModLoader.get_active_mod()
+			if active_mod:
+				var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+				if resource_type_id in resource_dirs:
+					save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
+		if save_dir.is_empty():
+			_show_error("No save directory available. Please set an active mod.")
+			return false
+		var resource_id: String = id_getter.call() if id_getter.is_valid() else ""
+		var filename: String = resource_id + ".tres" if not resource_id.is_empty() else "new_%s_%d.tres" % [resource_name.to_lower(), Time.get_unix_time_from_system()]
+		save_path = save_dir.path_join(filename)
+
+	var err: Error = ResourceSaver.save(current_resource, save_path)
+	if err != OK:
+		_show_error("Failed to save %s: %s" % [resource_name, str(err)])
+		return false
+
+	# Update resource path and clear dirty flag
+	current_resource.take_over_path(save_path)
+	current_resource_path = save_path
+	is_dirty = false
+	_hide_errors()
+
+	# Register with ModLoader so ResourcePickers show correct mod tag
+	var active_mod: ModManifest = ModLoader.get_active_mod() if ModLoader else null
+	if active_mod:
+		_register_and_notify_resource(current_resource, save_path, active_mod.mod_id, true)
+
+	_refresh_list()
+	return true
+
+
 ## Sync resource ID properties to match filename for registry consistency
 ## This ensures that shop_id, npc_id, etc. match the filename that ModLoader uses as the registry key
 func _sync_resource_id_to_filename(resource: Resource, file_path: String) -> void:

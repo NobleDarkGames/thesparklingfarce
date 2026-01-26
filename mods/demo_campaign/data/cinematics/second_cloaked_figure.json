@@ -1,0 +1,58 @@
+{
+	"actors": [],
+	"can_skip": true,
+	"cinematic_id": "second_cloaked_figure",
+	"cinematic_name": "Second Cloaked Figure",
+	"commands": [
+		{
+			"params": {
+				"flag": "battle2_victory",
+				"if_false": [
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:demo_campaign_npc_1769050472",
+							"text": "Thou shalt never defeat my minions!"
+						},
+						"type": "dialog_line"
+					}
+				],
+				"if_true": [
+					{
+						"params": {
+							"auto_follow": true,
+							"emotion": "neutral",
+							"speaker": "npc:demo_campaign_npc_1769050472",
+							"text": "You're tough"
+						},
+						"type": "dialog_line"
+					}
+				],
+				"negate": false
+			},
+			"type": "check_flag"
+		},
+		{
+			"params": {
+				"choices": [
+					{
+						"action": "battle",
+						"label": "Begin Battle #2",
+						"on_victory_flags": "battle2_victory",
+						"value": "demo_campaign_battle_1768074988"
+					},
+					{
+						"action": "none",
+						"label": "Leave",
+						"value": ""
+					}
+				]
+			},
+			"type": "show_choice"
+		}
+	],
+	"description": "",
+	"disable_player_input": true,
+	"loop": false
+}

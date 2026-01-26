@@ -10,3 +10,4 @@ npc_id = "demo_campaign_npc_1769050472"
 npc_name = "Second Cloaked Man"
 portrait = ExtResource("1_2m8bt")
 sprite_frames = ExtResource("3_2vwp1")
+interaction_cinematic_id = "second_cloaked_figure"

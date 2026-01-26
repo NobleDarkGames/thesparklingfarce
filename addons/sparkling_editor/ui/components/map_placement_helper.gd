@@ -133,6 +133,10 @@ func _add_interactable_to_open_scene(
 		push_error("MapPlacementHelper: Failed to load interactable data: %s" % interactable_resource_path)
 		return false
 
+	# CRITICAL: Ensure resource is NOT local to scene (prevents embedding as SubResource)
+	# This keeps it as an ExtResource reference to the external .tres file
+	interactable_data.resource_local_to_scene = false
+
 	# Create the Interactable node
 	var interactable_node: Area2D = Area2D.new()
 	interactable_node.name = final_node_name
@@ -259,6 +263,10 @@ func _add_npc_to_open_scene(
 	if not npc_data:
 		push_error("MapPlacementHelper: Failed to load NPC data: %s" % npc_resource_path)
 		return false
+
+	# CRITICAL: Ensure resource is NOT local to scene (prevents embedding as SubResource)
+	# This keeps it as an ExtResource reference to the external .tres file
+	npc_data.resource_local_to_scene = false
 
 	# Create the NPC node
 	var npc_node: Area2D = Area2D.new()
@@ -505,3 +513,66 @@ static func get_available_maps(mod_path: String) -> Array[Dictionary]:
 static func is_scene_open(scene_path: String) -> bool:
 	var edited_root: Node = EditorInterface.get_edited_scene_root()
 	return is_instance_valid(edited_root) and edited_root.scene_file_path == scene_path
+
+
+## Validate that all NPC and Interactable data in a scene are external references (not embedded)
+## Returns Array of warning strings for any embedded resources found
+## Empty array means all resources are properly external
+static func validate_external_resources(scene_root: Node) -> Array[String]:
+	var warnings: Array[String] = []
+
+	# Check NPCs container
+	var npcs_container: Node = scene_root.get_node_or_null("NPCs")
+	if npcs_container:
+		for child in npcs_container.get_children():
+			var npc_data: Resource = child.get("npc_data")
+			if npc_data:
+				var issue: String = _check_resource_embedding(npc_data, child.name, "npc_data")
+				if not issue.is_empty():
+					warnings.append(issue)
+
+	# Check Interactables container
+	var interactables_container: Node = scene_root.get_node_or_null("Interactables")
+	if interactables_container:
+		for child in interactables_container.get_children():
+			var interactable_data: Resource = child.get("interactable_data")
+			if interactable_data:
+				var issue: String = _check_resource_embedding(interactable_data, child.name, "interactable_data")
+				if not issue.is_empty():
+					warnings.append(issue)
+
+	return warnings
+
+
+## Check if a specific resource is embedded and return a warning message if so
+static func _check_resource_embedding(res: Resource, node_name: String, property_name: String) -> String:
+	if res.resource_path.is_empty():
+		return "%s.%s: EMBEDDED (no resource_path) - changes won't sync with external .tres file" % [node_name, property_name]
+
+	if res.resource_local_to_scene:
+		return "%s.%s: EMBEDDED (resource_local_to_scene=true) - changes won't sync with external .tres file" % [node_name, property_name]
+
+	# Resource appears to be a proper external reference
+	return ""
+
+
+## Validate the currently edited scene and print warnings to console
+## Returns true if all resources are external, false if any are embedded
+static func validate_current_scene() -> bool:
+	var edited_root: Node = EditorInterface.get_edited_scene_root()
+	if not is_instance_valid(edited_root):
+		push_warning("MapPlacementHelper: No scene currently being edited")
+		return true
+
+	var warnings: Array[String] = validate_external_resources(edited_root)
+
+	if warnings.is_empty():
+		print("MapPlacementHelper: All NPC/Interactable resources are external references ✓")
+		return true
+
+	push_warning("MapPlacementHelper: Found %d embedded resource(s) in scene '%s':" % [warnings.size(), edited_root.scene_file_path])
+	for warning in warnings:
+		push_warning("  - %s" % warning)
+	push_warning("To fix: Re-assign the resource from the external .tres file in the Inspector")
+
+	return false

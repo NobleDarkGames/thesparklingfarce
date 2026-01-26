@@ -30,6 +30,9 @@ var error_label: RichTextLabel
 ## Track dirty state for unsaved changes
 var is_dirty: bool = false
 
+## Flag to prevent change callbacks during programmatic UI updates
+var _updating_ui: bool = false
+
 
 # =============================================================================
 # PUBLIC REFRESH INTERFACE
@@ -260,34 +263,48 @@ func add_separator(parent: VBoxContainer, min_height: float = 10.0) -> HSeparato
 # EditorEventBus Integration
 # =============================================================================
 
+## Convert directory name (e.g., "cinematics") to resource type (e.g., "cinematic")
+## ResourcePicker listens for the singular type name, not the directory name
+func _get_resource_type_from_dir() -> String:
+	if ModLoader and "RESOURCE_TYPE_DIRS" in ModLoader:
+		return ModLoader.RESOURCE_TYPE_DIRS.get(resource_dir_name, resource_dir_name)
+	# Fallback: strip trailing 's' if present (works for most cases)
+	if resource_dir_name.ends_with("s"):
+		return resource_dir_name.substr(0, resource_dir_name.length() - 1)
+	return resource_dir_name
+
+
 ## Notify that a resource was saved
 ## Use this instead of emitting mods_reloaded directly
 func notify_resource_saved(resource_id: String) -> void:
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	var resource_type: String = _get_resource_type_from_dir()
 	if event_bus and event_bus.has_method("notify_resource_saved"):
 		# For JSON resources, we don't have a Resource object
-		event_bus.notify_resource_saved(resource_dir_name, resource_id, null)
+		event_bus.notify_resource_saved(resource_type, resource_id, null)
 	elif event_bus:
 		# Fallback: emit the signal directly if method doesn't exist
-		event_bus.resource_saved.emit(resource_dir_name, resource_id, null)
+		event_bus.resource_saved.emit(resource_type, resource_id, null)
 
 
 ## Notify that a resource was created
 func notify_resource_created(resource_id: String) -> void:
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	var resource_type: String = _get_resource_type_from_dir()
 	if event_bus and event_bus.has_method("notify_resource_created"):
-		event_bus.notify_resource_created(resource_dir_name, resource_id, null)
+		event_bus.notify_resource_created(resource_type, resource_id, null)
 	elif event_bus:
-		event_bus.resource_created.emit(resource_dir_name, resource_id, null)
+		event_bus.resource_created.emit(resource_type, resource_id, null)
 
 
 ## Notify that a resource was deleted
 func notify_resource_deleted(resource_id: String) -> void:
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
+	var resource_type: String = _get_resource_type_from_dir()
 	if event_bus and event_bus.has_method("notify_resource_deleted"):
-		event_bus.notify_resource_deleted(resource_dir_name, resource_id)
+		event_bus.notify_resource_deleted(resource_type, resource_id)
 	elif event_bus:
-		event_bus.resource_deleted.emit(resource_dir_name, resource_id)
+		event_bus.resource_deleted.emit(resource_type, resource_id)
 
 
 # =============================================================================

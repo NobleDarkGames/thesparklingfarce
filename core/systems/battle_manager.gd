@@ -21,6 +21,7 @@ const UnitUtils = preload("res://core/utils/unit_utils.gd")
 const BattleRewardsDistributor = preload("res://core/systems/battle/battle_rewards_distributor.gd")
 const BattleCleanup = preload("res://core/systems/battle/battle_cleanup.gd")
 const BattleExitController = preload("res://core/systems/battle/battle_exit_controller.gd")
+const CombatSessionExecutor = preload("res://core/systems/battle/combat_session_executor.gd")
 
 ## Signals for battle events
 signal battle_started(battle_data: BattleData)
@@ -90,6 +91,9 @@ const AUDIO_LAYER_FADE_DURATION: float = 0.4  ## Fade duration for layer transit
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
 
+## Combat session executor instance (handles skip/animation mode combat)
+var _combat_executor: CombatSessionExecutor = null
+
 ## Level-up queue for handling multiple level-ups in sequence
 var _pending_level_ups: Array[Dictionary] = []
 var _showing_level_up: bool = false
@@ -122,20 +126,8 @@ func _get_cached_scene(key: String) -> PackedScene:
 
 ## Validate BattleData has required properties
 func _validate_battle_data(data: BattleData) -> bool:
-	# Use BattleData's built-in validation if available
-	if data.has_method("validate"):
-		return data.validate()
-
-	# Fallback: basic validation
-	if data.battle_name.is_empty():
-		push_error("BattleManager: BattleData missing battle_name")
-		return false
-
-	if data.map_scene == null:
-		push_error("BattleManager: BattleData missing map_scene")
-		return false
-
-	return true
+	# BattleData always has validate() method - use it directly
+	return data.validate()
 
 
 ## Initialize audio system for battle
@@ -169,7 +161,7 @@ func _battle_has_boss() -> bool:
 
 ## Load and instantiate map scene from BattleData
 func _load_map_scene() -> void:
-	if current_battle_data.get("map_scene") == null:
+	if current_battle_data.map_scene == null:
 		push_warning("BattleManager: No map_scene in BattleData, using default")
 		return
 
@@ -261,7 +253,7 @@ func _spawn_all_units() -> void:
 	if not PartyManager.is_empty():
 		# Get player spawn point from BattleData or use default
 		var player_spawn_point: Vector2i = DEFAULT_PLAYER_SPAWN
-		if current_battle_data.get("player_spawn_point") != null:
+		if current_battle_data.player_spawn_point != Vector2i.ZERO:
 			player_spawn_point = current_battle_data.player_spawn_point
 
 		# Get party spawn data from PartyManager
@@ -273,11 +265,11 @@ func _spawn_all_units() -> void:
 		push_warning("BattleManager: No party members in PartyManager, no player units spawned")
 
 	# Spawn enemy units
-	if current_battle_data.get("enemies") != null:
+	if not current_battle_data.enemies.is_empty():
 		enemy_units = _spawn_units(current_battle_data.enemies, "enemy")
 
 	# Spawn neutral units
-	if current_battle_data.get("neutrals") != null:
+	if not current_battle_data.neutrals.is_empty():
 		neutral_units = _spawn_units(current_battle_data.neutrals, "neutral")
 
 	# Combine all units
@@ -574,7 +566,11 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 		return
 
 	# Consume item from inventory BEFORE the animation
-	_consume_item_from_inventory(unit, item_id)
+	# If consumption fails, abort the action (don't apply effect or award XP)
+	if not _consume_item_from_inventory(unit, item_id):
+		push_warning("BattleManager: Item consumption failed, aborting item use")
+		_finish_unit_turn(unit)
+		return
 
 	# Execute the combat session (shows full battle overlay, applies effect)
 	await _execute_combat_session(unit, target, phases)
@@ -586,10 +582,11 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 
 
 ## Consume item from unit's inventory
-func _consume_item_from_inventory(unit: Unit, item_id: String) -> void:
+## Returns true if item was successfully consumed, false otherwise
+func _consume_item_from_inventory(unit: Unit, item_id: String) -> bool:
 	if not unit.character_data:
 		push_warning("BattleManager: Unit has no character_data, cannot consume item")
-		return
+		return false
 
 	# Get character's save data from PartyManager
 	var char_uid: String = unit.character_data.character_uid
@@ -597,8 +594,11 @@ func _consume_item_from_inventory(unit: Unit, item_id: String) -> void:
 		var removed: bool = PartyManager.remove_item_from_member(char_uid, item_id)
 		if not removed:
 			push_warning("BattleManager: Failed to remove item from inventory")
+			return false
+		return true
 	else:
 		push_warning("BattleManager: PartyManager.remove_item_from_member() not available")
+		return false
 
 
 ## Award XP for item usage (SF-authentic)
@@ -1258,245 +1258,39 @@ func _can_counterattack(original_attacker: Unit, original_defender: Unit) -> boo
 	return counter_result.will_counter
 
 
-## Execute the complete combat session with all pre-calculated phases
+## Execute the complete combat session with all pre-calculated phases.
+## Delegates to CombatSessionExecutor for actual execution (skip or animation mode).
 func _execute_combat_session(
 	initial_attacker: Unit,
 	initial_defender: Unit,
 	phases: Array[CombatPhase]
 ) -> void:
-	# Track deaths for skip mode XP and signal emission
-	var attacker_died: bool = false
-	var defender_died: bool = false
+	# Ensure executor exists
+	if _combat_executor == null:
+		_combat_executor = CombatSessionExecutor.new()
 
-	# SF2-AUTHENTIC: Pool XP by attacker/defender pair, award ONCE per pair
-	# (Double attacks should not show separate XP entries)
-	var xp_pools: Dictionary = {}  # Key: "attacker_id:defender_id", Value: {attacker, defender, damage, got_kill}
+	# Build context with all references needed by executor
+	var context: CombatSessionExecutor.SessionContext = _build_session_context()
 
-	# =========================================================================
-	# FULL ANIMATION MODE: Single battle screen session
-	# =========================================================================
-	if not TurnManager.is_headless and not GameJuice.should_skip_combat_animation():
-		# Hide the battlefield
-		_hide_battlefield()
+	# Execute and get death results (executor handles skip vs animation mode)
+	var result: Dictionary = await _combat_executor.execute(context, initial_attacker, initial_defender, phases)
 
-		# Create and setup the combat animation scene
-		combat_anim_instance = _get_cached_scene("combat_anim_scene").instantiate()
-		battle_scene_root.add_child(combat_anim_instance)
-		combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
-
-		# Connect XP handler to feed entries to battle screen
-		var xp_handler: Callable = func(unit: Unit, amount: int, source: String) -> void:
-			if combat_anim_instance and is_instance_valid(combat_anim_instance):
-				combat_anim_instance.queue_xp_entry(UnitUtils.get_display_name(unit), amount, source)
-		ExperienceManager.unit_gained_xp.connect(xp_handler)
-
-		# Connect damage handler to POOL damage (not award XP yet - SF2-authentic)
-		var damage_handler: Callable = func(def_unit: Unit, dmg: int, died: bool) -> void:
-			# Find which phase this corresponds to
-			var current_phase: CombatPhase = _find_current_phase_for_defender(phases, def_unit)
-			if current_phase and dmg > 0:
-				# Pool damage by attacker/defender pair instead of awarding immediately
-				_pool_damage_for_xp(xp_pools, current_phase.attacker, def_unit, dmg, died)
-				# Track death state
-				if def_unit == initial_attacker:
-					attacker_died = died
-				elif def_unit == initial_defender:
-					defender_died = died
-		combat_anim_instance.damage_applied.connect(damage_handler)
-
-		# ADAPTIVE MUSIC: Enable attack layer during combat animation
-		AudioManager.enable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
-
-		# Start the session (fade in ONCE)
-		await combat_anim_instance.start_session(initial_attacker, initial_defender)
-
-		# HIGH-003: Validate combat_anim_instance after await - may be freed during session start
-		if not is_instance_valid(combat_anim_instance):
-			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-			AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
-			_show_battlefield()
-			return
-
-		# Queue all phases and their combat action text
-		for phase: CombatPhase in phases:
-			combat_anim_instance.queue_phase(phase)
-			# Queue combat action for results display
-			combat_anim_instance.queue_combat_action(
-				phase.get_result_text(),
-				phase.was_critical,
-				phase.was_miss
-			)
-
-		# Execute all phases (no fading between them!)
-		await combat_anim_instance.execute_all_phases()
-
-		# HIGH-003: Validate combat_anim_instance after await - may be freed during phase execution
-		if not is_instance_valid(combat_anim_instance):
-			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-			AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
-			_show_battlefield()
-			return
-
-		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
-		# (This happens after all phases complete, so double attacks show as one XP entry)
-		for pool: Dictionary in xp_pools.values():
-			ExperienceManager.award_combat_xp(
-				pool["attacker"],
-				pool["defender"],
-				pool["total_damage"],
-				pool["got_kill"]
-			)
-
-		# Finish session (display XP, fade out ONCE)
-		await combat_anim_instance.finish_session()
-
-		# ADAPTIVE MUSIC: Disable attack layer after combat animation
-		AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
-
-		# Disconnect handlers
-		if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
-			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-
-		# HIGH-003: Validate combat_anim_instance after await before cleanup
-		if combat_anim_instance and is_instance_valid(combat_anim_instance):
-			if combat_anim_instance.damage_applied.is_connected(damage_handler):
-				combat_anim_instance.damage_applied.disconnect(damage_handler)
-			combat_anim_instance.queue_free()
-		combat_anim_instance = null
-
-		# Restore battlefield
-		_show_battlefield()
-
-		# Battlefield settle delay
-		await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
-
-		# HIGH-003: Validate state after await - BattleManager may have been freed during delay
-		if not is_instance_valid(self) or not get_tree():
-			return
-
-	# =========================================================================
-	# SKIP MODE / HEADLESS: Apply damage directly, no animations
-	# =========================================================================
-	else:
-		for phase: CombatPhase in phases:
-			# Check if we should skip this phase due to death
-			if phase.attacker == initial_attacker and attacker_died:
-				continue
-			if phase.attacker == initial_defender and defender_died:
-				continue
-			if phase.defender == initial_attacker and attacker_died:
-				continue
-			if phase.defender == initial_defender and defender_died:
-				continue
-
-			# Handle healing phases (ITEM_HEAL, SPELL_HEAL)
-			if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
-				# Play healing sound
-				AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
-
-				# Apply healing directly
-				if phase.heal_amount > 0 and phase.defender and phase.defender.stats:
-					var stats: UnitStats = phase.defender.stats
-					stats.current_hp = mini(stats.current_hp + phase.heal_amount, stats.max_hp)
-
-				# Healing doesn't have damage XP pooling - XP is handled separately
-				continue
-
-			# Play sound effect (for attack phases)
-			if not phase.was_miss:
-				if phase.was_critical:
-					AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
-				else:
-					AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
-			else:
-				AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
-
-			# Apply damage directly
-			if not phase.was_miss and phase.damage > 0:
-				if phase.defender.has_method("take_damage"):
-					phase.defender.take_damage(phase.damage)
-				else:
-					phase.defender.stats.current_hp -= phase.damage
-					phase.defender.stats.current_hp = maxi(0, phase.defender.stats.current_hp)
-
-				# Check for death
-				var died: bool = phase.defender.is_dead() if phase.defender.has_method("is_dead") else phase.defender.stats.current_hp <= 0
-
-				# Update death tracking
-				if phase.defender == initial_attacker:
-					attacker_died = died
-				elif phase.defender == initial_defender:
-					defender_died = died
-
-				# SF2-AUTHENTIC: Pool damage instead of awarding XP immediately
-				_pool_damage_for_xp(xp_pools, phase.attacker, phase.defender, phase.damage, died)
-
-			# Emit combat resolved signal
-			combat_resolved.emit(phase.attacker, phase.defender, phase.damage, not phase.was_miss, phase.was_critical)
-			GameEventBus.post_attack.emit(phase.attacker, phase.defender, {
-				"hit": not phase.was_miss,
-				"crit": phase.was_critical,
-				"damage": phase.damage
-			})
-
-		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
-		for pool: Dictionary in xp_pools.values():
-			ExperienceManager.award_combat_xp(
-				pool["attacker"],
-				pool["defender"],
-				pool["total_damage"],
-				pool["got_kill"]
-			)
+	# Store combat_anim_instance reference if executor used animation mode
+	# (for cleanup tracking - executor manages the instance internally)
+	combat_anim_instance = _combat_executor._combat_anim_instance
 
 
-## Helper to find current phase for damage handler
-func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Unit) -> CombatPhase:
-	# Return the most recent phase where this unit is the defender
-	# (In practice, the damage_applied signal fires during execute_all_phases,
-	#  so we track which phase we're on via the scene's internal state)
-	for i: int in range(phases.size() - 1, -1, -1):
-		var phase: CombatPhase = phases[i]
-		if phase.defender == defender:
-			return phase
-	return null
-
-
-## Helper to pool XP damage for SF2-authentic awarding
-## Double attacks should show as a single XP entry, so we pool damage by attacker/defender pair
-func _pool_damage_for_xp(xp_pools: Dictionary, attacker: Unit, defender: Unit, damage: int, died: bool) -> void:
-	var pool_key: String = "%d:%d" % [attacker.get_instance_id(), defender.get_instance_id()]
-	if pool_key not in xp_pools:
-		xp_pools[pool_key] = {
-			"attacker": attacker,
-			"defender": defender,
-			"total_damage": 0,
-			"got_kill": false
-		}
-	xp_pools[pool_key]["total_damage"] += damage
-	if died:
-		xp_pools[pool_key]["got_kill"] = true
-
-
-## Hide the battlefield for combat animation
-func _hide_battlefield() -> void:
-	if map_instance:
-		map_instance.visible = false
-	if units_parent:
-		units_parent.visible = false
-	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
-	if ui_node:
-		ui_node.visible = false
-
-
-## Show the battlefield after combat animation
-func _show_battlefield() -> void:
-	if map_instance:
-		map_instance.visible = true
-	if units_parent:
-		units_parent.visible = true
-	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
-	if ui_node:
-		ui_node.visible = true
+## Build a SessionContext with current battle state for the CombatSessionExecutor.
+func _build_session_context() -> CombatSessionExecutor.SessionContext:
+	var context: CombatSessionExecutor.SessionContext = CombatSessionExecutor.SessionContext.new()
+	context.battle_scene_root = battle_scene_root
+	context.map_instance = map_instance
+	context.units_parent = units_parent
+	context.get_cached_scene = _get_cached_scene
+	context.scene_tree = get_tree()
+	context.combat_resolved_signal = combat_resolved
+	context.combat_anim_scene = _get_cached_scene("combat_anim_scene")
+	return context
 
 
 # =============================================================================
@@ -1658,7 +1452,7 @@ func _show_victory_screen() -> bool:
 	var victory_screen: CanvasLayer = _get_cached_scene("victory_screen_scene").instantiate()
 	battle_scene_root.add_child(victory_screen)
 
-	victory_screen.show_victory(rewards.gold)
+	victory_screen.show_victory(rewards)
 	await victory_screen.result_dismissed
 
 	# HIGH-003: Validate state after await on UI signal

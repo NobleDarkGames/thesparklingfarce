@@ -417,7 +417,7 @@ func _update_party_member_preview(char_save: CharacterSaveData) -> void:
 		preview_text += "[color=gold]HERO CHARACTER[/color]\n"
 
 	preview_text += "Level: %d\n" % char_save.level
-	preview_text += "Experience: %d\n" % char_save.experience
+	preview_text += "Experience: %d\n" % char_save.current_xp
 	preview_text += "Class: %s\n" % char_save.fallback_class_name
 
 	# Current stats from save
@@ -428,14 +428,14 @@ func _update_party_member_preview(char_save: CharacterSaveData) -> void:
 	preview_text += "LUK: %d\n" % char_save.luck
 
 	# Equipment if any
-	if not char_save.equipped_weapon_id.is_empty() or not char_save.equipped_armor_id.is_empty() or not char_save.equipped_accessory_id.is_empty():
+	if char_save.equipped_items.size() > 0:
 		preview_text += "\n[b]Equipment:[/b]\n"
-		if not char_save.equipped_weapon_id.is_empty():
-			preview_text += "Weapon: %s\n" % char_save.equipped_weapon_id
-		if not char_save.equipped_armor_id.is_empty():
-			preview_text += "Armor: %s\n" % char_save.equipped_armor_id
-		if not char_save.equipped_accessory_id.is_empty():
-			preview_text += "Accessory: %s\n" % char_save.equipped_accessory_id
+		for equip: Dictionary in char_save.equipped_items:
+			var slot_name: String = equip.get("slot", "unknown")
+			var item_id: String = equip.get("item_id", "")
+			if not item_id.is_empty():
+				var display_slot: String = slot_name.capitalize().replace("_", " ")
+				preview_text += "%s: %s\n" % [display_slot, item_id]
 
 	# Check if source character still exists
 	var source_exists: bool = ModLoader.registry.get_resource("character", char_save.character_resource_id) != null

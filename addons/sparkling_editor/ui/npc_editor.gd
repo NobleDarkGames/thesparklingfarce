@@ -20,8 +20,7 @@ var name_id_group: NameIdFieldGroup
 
 # Appearance Fallback section
 var appearance_section: VBoxContainer
-var portrait_path_edit: LineEdit
-var portrait_preview: TextureRect
+var portrait_field: Dictionary  # {preview, path_edit, browse_btn, clear_btn}
 var portrait_file_dialog: EditorFileDialog
 var map_spritesheet_picker: MapSpritesheetPicker
 
@@ -48,8 +47,7 @@ var advanced_content: VBoxContainer
 
 # Place on Map section
 var place_on_map_btn: Button
-var place_position_x: SpinBox
-var place_position_y: SpinBox
+var place_position_field: Dictionary  # {x: SpinBox, y: SpinBox}
 var place_on_map_dialog: PlaceOnMapDialog
 
 # Extracted Components
@@ -115,7 +113,7 @@ func _create_detail_form() -> void:
 	# Bind preview panel to data sources
 	# Note: sprite_path is null since we now use MapSpritesheetPicker (which has its own preview)
 	# Note: dialog_text is null since Quick Dialog was removed - preview shows name/portrait only
-	preview_panel.bind_sources(name_id_group.get_name_edit(), null, null, portrait_path_edit, null)
+	preview_panel.bind_sources(name_id_group.get_name_edit(), null, null, portrait_field.path_edit, null)
 
 	detail_panel = original_detail_panel
 	form_container.add_child(button_container)
@@ -133,7 +131,7 @@ func _load_resource_data() -> void:
 	name_id_group.set_values(npc.npc_name, npc.npc_id, true)
 
 	var portrait_path: String = npc.portrait.resource_path if npc.portrait else ""
-	portrait_path_edit.text = portrait_path
+	portrait_field.path_edit.text = portrait_path
 	_load_portrait_preview(portrait_path)
 
 	# Load sprite_frames using MapSpritesheetPicker
@@ -178,7 +176,7 @@ func _save_resource_data() -> void:
 	npc.npc_id = name_id_group.get_id_value()
 	npc.npc_name = name_id_group.get_name_value()
 
-	var portrait_path: String = portrait_path_edit.text.strip_edges()
+	var portrait_path: String = portrait_field.path_edit.text.strip_edges()
 	npc.portrait = SparklingEditorUtils.load_texture(portrait_path)
 
 	# Save sprite_frames from MapSpritesheetPicker
@@ -307,42 +305,16 @@ func _add_appearance_fallback_section() -> void:
 func _add_appearance_fallback_section_to(parent: Control) -> void:
 	appearance_section = SparklingEditorUtils.create_section("Appearance", parent)
 
-	# Portrait row with preview and browse button
-	var portrait_row: HBoxContainer = SparklingEditorUtils.create_field_row("Portrait:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, appearance_section)
-
-	# Preview at 32x32
-	var portrait_preview_panel: PanelContainer = PanelContainer.new()
-	portrait_preview_panel.custom_minimum_size = Vector2(36, 36)
-	var portrait_style: StyleBoxFlat = StyleBoxFlat.new()
-	portrait_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
-	portrait_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
-	portrait_style.set_border_width_all(1)
-	portrait_style.set_content_margin_all(2)
-	portrait_preview_panel.add_theme_stylebox_override("panel", portrait_style)
-
-	portrait_preview = TextureRect.new()
-	portrait_preview.custom_minimum_size = Vector2(32, 32)
-	portrait_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait_preview_panel.add_child(portrait_preview)
-	portrait_row.add_child(portrait_preview_panel)
-
-	portrait_path_edit = LineEdit.new()
-	portrait_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	portrait_path_edit.placeholder_text = "res://mods/<mod>/assets/portraits/npc.png"
-	portrait_path_edit.text_changed.connect(_on_portrait_path_changed)
-	portrait_row.add_child(portrait_path_edit)
-
-	var portrait_browse_btn: Button = Button.new()
-	portrait_browse_btn.text = "Browse..."
-	portrait_browse_btn.pressed.connect(_on_browse_portrait)
-	portrait_row.add_child(portrait_browse_btn)
-
-	var portrait_clear_btn: Button = Button.new()
-	portrait_clear_btn.text = "X"
-	portrait_clear_btn.tooltip_text = "Clear portrait"
-	portrait_clear_btn.pressed.connect(_on_clear_portrait)
-	portrait_row.add_child(portrait_clear_btn)
+	# Portrait using FormBuilder's texture field
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(appearance_section)
+	portrait_field = form.add_texture_field(
+		"Portrait:",
+		"res://mods/<mod>/assets/portraits/npc.png",
+		"Portrait image displayed in dialog boxes"
+	)
+	portrait_field.path_edit.text_changed.connect(_on_portrait_path_changed)
+	portrait_field.browse_btn.pressed.connect(_on_browse_portrait)
+	portrait_field.clear_btn.pressed.connect(_on_clear_portrait)
 
 	# Map Spritesheet picker (animated walk cycle)
 	map_spritesheet_picker = MapSpritesheetPicker.new()
@@ -357,30 +329,14 @@ func _add_appearance_fallback_section_to(parent: Control) -> void:
 func _add_place_on_map_section() -> void:
 	var section: VBoxContainer = SparklingEditorUtils.create_section("Place on Map", detail_panel)
 
-	var pos_row: HBoxContainer = SparklingEditorUtils.create_field_row("Grid Position:", 100, section)
-	var x_label: Label = Label.new()
-	x_label.text = "X:"
-	pos_row.add_child(x_label)
-
-	place_position_x = SpinBox.new()
-	place_position_x.min_value = -100
-	place_position_x.max_value = 100
-	place_position_x.value = 5
-	place_position_x.custom_minimum_size.x = 70
-	place_position_x.tooltip_text = "X grid coordinate where NPC will be placed on the map."
-	pos_row.add_child(place_position_x)
-
-	var y_label: Label = Label.new()
-	y_label.text = "Y:"
-	pos_row.add_child(y_label)
-
-	place_position_y = SpinBox.new()
-	place_position_y.min_value = -100
-	place_position_y.max_value = 100
-	place_position_y.value = 5
-	place_position_y.custom_minimum_size.x = 70
-	place_position_y.tooltip_text = "Y grid coordinate where NPC will be placed on the map."
-	pos_row.add_child(place_position_y)
+	# Grid position using FormBuilder's vector2i field
+	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(section)
+	place_position_field = form.add_vector2i_field(
+		"Grid Position:",
+		-100, 100,
+		Vector2i(5, 5),
+		"Grid coordinates where NPC will be placed on the map."
+	)
 
 	place_on_map_btn = Button.new()
 	place_on_map_btn.text = "Place on Map..."
@@ -596,68 +552,29 @@ func _on_cinematic_picker_changed(_metadata: Dictionary, _field_type: String) ->
 # =============================================================================
 
 func _on_place_on_map_pressed() -> void:
-	if not current_resource:
-		_show_error("No NPC selected.")
+	# Auto-save before placement (uses shared base class method)
+	if not _auto_save_before_action("NPC", name_id_group.get_id_value):
 		return
-
-	# Auto-save if resource is unsaved or has pending changes
-	var needs_save: bool = current_resource.resource_path.is_empty() or is_dirty
-	if needs_save:
-		# Show brief saving feedback
-		_show_success_message("Saving...")
-
-		# Validate before saving
-		var validation: Dictionary = _validate_resource()
-		if not validation.valid:
-			_show_errors(validation.errors)
-			return
-
-		# Perform the save
-		_save_resource_data()
-
-		# Determine save path for new resources
-		var save_path: String = current_resource.resource_path
-		if save_path.is_empty():
-			var save_dir: String = ""
-			if resource_type_id != "" and ModLoader:
-				var active_mod: ModManifest = ModLoader.get_active_mod()
-				if active_mod:
-					var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-					if resource_type_id in resource_dirs:
-						save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
-			if save_dir.is_empty():
-				_show_error("No save directory available. Please set an active mod.")
-				return
-			var npc_id: String = name_id_group.get_id_value()
-			var filename: String = npc_id + ".tres" if not npc_id.is_empty() else "new_npc_%d.tres" % Time.get_unix_time_from_system()
-			save_path = save_dir.path_join(filename)
-
-		var err: Error = ResourceSaver.save(current_resource, save_path)
-		if err != OK:
-			_show_error("Failed to save NPC: " + str(err))
-			return
-
-		# Update resource path and clear dirty flag
-		current_resource.take_over_path(save_path)
-		current_resource_path = save_path
-		is_dirty = false
-		_hide_errors()
-		_refresh_list()
-
 	place_on_map_dialog.show_dialog()
 
 
 ## Handle map selection from the PlaceOnMapDialog component
 func _on_map_selection_confirmed(map_path: String) -> void:
 	var npc_path: String = current_resource.resource_path
-	var grid_x: int = int(place_position_x.value)
-	var grid_y: int = int(place_position_y.value)
+	var grid_x: int = int(place_position_field.x.value)
+	var grid_y: int = int(place_position_field.y.value)
 	var npc_id: String = name_id_group.get_id_value()
 	var node_name: String = npc_id.to_pascal_case() if not npc_id.is_empty() else "NPC"
 
 	var success: bool = map_placement_helper.place_npc_on_map(map_path, npc_path, node_name, Vector2i(grid_x, grid_y))
 	if not success:
 		_show_error("Failed to place NPC on map. Check the output for details.")
+		return
+
+	# Validate the scene for embedded resources after placement
+	# This helps catch issues before the user saves
+	if MapPlacementHelper.is_scene_open(map_path):
+		MapPlacementHelper.validate_current_scene()
 
 
 # =============================================================================
@@ -669,11 +586,6 @@ func _update_preview() -> void:
 		preview_panel.update_preview()
 
 
-func _get_active_mod_cinematics_path() -> String:
-	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
-	if mod_path.is_empty():
-		return ""
-	return mod_path.path_join("data/cinematics/")
 
 
 func _set_facing_dropdown(facing: String) -> void:
@@ -737,7 +649,7 @@ func _on_browse_portrait() -> void:
 
 
 func _on_portrait_file_selected(path: String) -> void:
-	portrait_path_edit.text = path
+	portrait_field.path_edit.text = path
 	_load_portrait_preview(path)
 	_update_preview()
 	_mark_dirty()
@@ -752,26 +664,13 @@ func _on_portrait_path_changed(new_text: String) -> void:
 
 
 func _load_portrait_preview(path: String) -> void:
-	var clean_path: String = path.strip_edges()
-	if clean_path.is_empty():
-		portrait_preview.texture = null
-		portrait_preview.tooltip_text = "No portrait assigned"
-		return
-
-	if ResourceLoader.exists(clean_path):
-		var loaded: Resource = load(clean_path)
-		var texture: Texture2D = loaded if loaded is Texture2D else null
-		portrait_preview.texture = texture
-		portrait_preview.tooltip_text = clean_path
-	else:
-		portrait_preview.texture = null
-		portrait_preview.tooltip_text = "File not found: " + clean_path
+	SparklingEditorUtils.load_texture_preview(portrait_field.preview, path, "No portrait assigned")
 
 
 func _on_clear_portrait() -> void:
-	portrait_path_edit.text = ""
-	portrait_preview.texture = null
-	portrait_preview.tooltip_text = "No portrait assigned"
+	portrait_field.path_edit.text = ""
+	portrait_field.preview.texture = null
+	portrait_field.preview.tooltip_text = "No portrait assigned"
 	_update_preview()
 	_mark_dirty()
 
@@ -793,18 +692,6 @@ func _on_sprite_frames_generated(_sprite_frames: SpriteFrames) -> void:
 
 
 func _get_default_asset_path(asset_type: String) -> String:
-	var mod_path: String = SparklingEditorUtils.get_active_mod_path()
-	if mod_path.is_empty():
-		return "res://mods/"
-
-	var assets_dir: String = mod_path.path_join("assets/" + asset_type + "/")
-	if DirAccess.dir_exists_absolute(assets_dir):
-		return assets_dir
-
-	var generic_assets_dir: String = mod_path.path_join("assets/")
-	if DirAccess.dir_exists_absolute(generic_assets_dir):
-		return generic_assets_dir
-
-	return mod_path
+	return SparklingEditorUtils.get_default_asset_path(asset_type)
 
 

@@ -250,6 +250,8 @@ func refresh() -> void:
 		var first_metadata: Variant = _option_button.get_item_metadata(0)
 		if first_metadata is Dictionary:
 			_current_metadata = first_metadata
+			# Emit resource_selected so parent editors know about the auto-selection
+			resource_selected.emit(_current_metadata)
 
 	picker_refreshed.emit()
 
@@ -358,7 +360,8 @@ func _get_display_name(resource: Resource) -> String:
 		"party_name",
 		"battle_name",
 		"class_name",  # Note: ClassData uses display_name, but this is a fallback
-		"shop_name"
+		"shop_name",
+		"cinematic_name"
 	]
 
 	for prop: String in name_properties:

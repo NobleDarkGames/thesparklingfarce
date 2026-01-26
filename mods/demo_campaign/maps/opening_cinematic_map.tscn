@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=4 uid="uid://cic5vl64gxyim"]
+[gd_scene load_steps=12 format=4 uid="uid://cic5vl64gxyim"]
 
 [ext_resource type="Script" uid="uid://8poeyu5xqodq" path="res://mods/demo_campaign/maps/opening_cinematic_map.gd" id="1_script"]
 [ext_resource type="TileSet" uid="uid://dy2k670qtyfeq" path="res://core/defaults/tilesets/default_tileset.tres" id="2_tileset"]
@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://b08jfse3s7vc5" path="res://mods/demo_campaign/assets/portraits/Cloaky.png" id="7_ihypr"]
 [ext_resource type="Script" uid="uid://dhiykg8plhv63" path="res://core/resources/npc_data.gd" id="8_xhfyn"]
 [ext_resource type="SpriteFrames" uid="uid://y5usvanv7613" path="res://mods/demo_campaign/data/sprite_frames/npc_cloaky_map_sprites.tres" id="9_iibus"]
+[ext_resource type="Resource" uid="uid://bpke4ljiiblc7" path="res://mods/demo_campaign/data/npcs/demo_campaign_npc_1769050472.tres" id="10_xhfyn"]
 
 [sub_resource type="Resource" id="Resource_jq4es"]
 script = ExtResource("8_xhfyn")
@@ -64,3 +65,8 @@ spawn_point = "from_world"
 position = Vector2(48, -176)
 script = ExtResource("6_3d2e4")
 npc_data = SubResource("Resource_jq4es")
+
+[node name="DemoCampaignNpc1769050472" type="Area2D" parent="NPCs"]
+position = Vector2(144, -240)
+script = ExtResource("6_3d2e4")
+npc_data = ExtResource("10_xhfyn")
