@@ -95,6 +95,9 @@ func _atomic_write_file(file_path: String, content: String) -> bool:
 ## Cleared when returning to main menu or starting a new game.
 var current_save: SaveData = null
 
+## Unix timestamp when current session started (for playtime tracking)
+var _session_start_time: int = 0
+
 # ============================================================================
 # SIGNALS
 # ============================================================================
@@ -504,10 +507,12 @@ func get_all_slots_debug_string() -> String:
 ## @param save_data: The SaveData to make active
 func set_current_save(save_data: SaveData) -> void:
 	current_save = save_data
+	_session_start_time = int(Time.get_unix_time_from_system())
 
 
 ## Clear the current active save (call when returning to main menu)
 func clear_current_save() -> void:
+	_session_start_time = 0
 	current_save = null
 
 
@@ -517,7 +522,7 @@ func clear_current_save() -> void:
 func load_and_set_current(slot_number: int) -> SaveData:
 	var save_data: SaveData = load_from_slot(slot_number)
 	if save_data:
-		current_save = save_data
+		set_current_save(save_data)
 	return save_data
 
 
@@ -564,11 +569,19 @@ func add_current_gold(amount: int) -> int:
 ## Syncs:
 ## - Party member stats, equipment, abilities from PartyManager
 ## - Story flags from GameState
+## - Playtime accumulation
 ## - Timestamp update
 func sync_current_save_state() -> void:
 	if not current_save:
 		push_warning("SaveManager: Cannot sync - no current_save set")
 		return
+
+	# Accumulate playtime since session start (or last save)
+	if _session_start_time > 0:
+		var now: int = int(Time.get_unix_time_from_system())
+		var elapsed: int = now - _session_start_time
+		current_save.playtime_seconds += elapsed
+		_session_start_time = now  # Reset for next save segment
 
 	# Sync party members from PartyManager
 	var party_data: Array[CharacterSaveData] = PartyManager.export_to_save()

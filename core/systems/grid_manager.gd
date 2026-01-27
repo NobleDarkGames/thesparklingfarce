@@ -8,8 +8,12 @@ extends Node
 ## Reference to the current battle's Grid resource
 var grid: Grid = null
 
-## Reference to the TileMapLayer for the current battle
+## Reference to the TileMapLayer for the current battle (alias to first terrain layer for backwards compat)
 var tilemap: TileMapLayer = null
+
+## Terrain layers sorted by priority (highest z_index first)
+## The first layer with a valid terrain at a cell determines that cell's terrain
+var _terrain_layers: Array[TileMapLayer] = []
 
 ## A* pathfinding grid
 var _astar: AStarGrid2D = null
@@ -63,19 +67,21 @@ func get_tile_size() -> int:
 	return DEFAULT_TILE_SIZE
 
 
-## Initialize grid manager with a Grid resource and TileMapLayer
+## Initialize grid manager with a Grid resource and terrain layers
 ## Call this when starting a battle
-func setup_grid(p_grid: Grid, p_tilemap: TileMapLayer) -> void:
+## p_terrain_layers: Array of TileMapLayers sorted by priority (highest z_index first)
+func setup_grid(p_grid: Grid, p_terrain_layers: Array[TileMapLayer]) -> void:
 	if p_grid == null:
 		push_error("GridManager: Cannot setup with null Grid resource")
 		return
 
-	if p_tilemap == null:
-		push_error("GridManager: Cannot setup with null TileMapLayer")
+	if p_terrain_layers.is_empty():
+		push_error("GridManager: Cannot setup with empty terrain layers array")
 		return
 
 	grid = p_grid
-	tilemap = p_tilemap
+	_terrain_layers = p_terrain_layers
+	tilemap = _terrain_layers[0] if _terrain_layers.size() > 0 else null  # Backwards compat alias
 
 	# Clear previous state
 	_occupied_cells.clear()
@@ -135,40 +141,56 @@ func load_terrain_data() -> void:
 				_cell_terrain_cache[cell] = terrain
 
 
-## Check if tileset has terrain_type custom data layer (for optional per-tile overrides)
-func _tileset_has_terrain_type() -> bool:
-	if not tilemap or not tilemap.tile_set:
+## Check if a specific layer's tileset has terrain_type custom data layer (for per-tile overrides)
+func _layer_has_terrain_type(layer: TileMapLayer) -> bool:
+	if not layer or not layer.tile_set:
 		return false
 
-	var custom_data_count: int = tilemap.tile_set.get_custom_data_layers_count()
+	var custom_data_count: int = layer.tile_set.get_custom_data_layers_count()
 	for i: int in range(custom_data_count):
-		if tilemap.tile_set.get_custom_data_layer_name(i) == TERRAIN_TYPE_LAYER_NAME:
+		if layer.tile_set.get_custom_data_layer_name(i) == TERRAIN_TYPE_LAYER_NAME:
 			return true
 	return false
 
 
-## Get terrain ID for a cell.
-## Priority: 1) Per-tile custom data override, 2) Atlas source filename
-## This allows all tiles in "grass.png" to automatically use "grass" terrain,
-## while still supporting per-tile overrides for special cases.
+## Get terrain ID for a cell by checking all terrain layers (top to bottom)
+## Returns the first valid terrain found, or empty string if none.
+## Tiles NOT registered in TerrainRegistry are treated as decorations and pass through.
 func _get_terrain_id_at_cell(cell: Vector2i) -> String:
-	if not tilemap or not tilemap.tile_set:
-		return ""
+	for layer: TileMapLayer in _terrain_layers:
+		if not layer or not layer.tile_set:
+			continue
 
-	# Check if cell has a tile
-	var source_id: int = tilemap.get_cell_source_id(cell)
-	if source_id == -1:
-		return ""
+		# Check if cell has a tile in this layer
+		var source_id: int = layer.get_cell_source_id(cell)
+		if source_id == -1:
+			continue  # No tile in this layer, check next
 
+		# Get terrain ID from this layer's tile
+		var terrain_id: String = _get_terrain_id_from_layer(layer, cell, source_id)
+		if terrain_id.is_empty():
+			continue
+
+		# Check if this terrain is registered (decorations are not)
+		if ModLoader.terrain_registry.has_terrain(terrain_id):
+			return terrain_id
+		# Else: decoration tile (not in registry), pass through to next layer
+
+	return ""  # No terrain found in any layer
+
+
+## Get terrain ID from a specific layer at a cell
+## Priority: 1) Per-tile custom data override, 2) Atlas source filename
+func _get_terrain_id_from_layer(layer: TileMapLayer, cell: Vector2i, source_id: int) -> String:
 	# Priority 1: Check for per-tile custom data override
-	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
-	if tile_data and _tileset_has_terrain_type():
+	var tile_data: TileData = layer.get_cell_tile_data(cell)
+	if tile_data and _layer_has_terrain_type(layer):
 		var terrain_type: Variant = tile_data.get_custom_data(TERRAIN_TYPE_LAYER_NAME)
 		if terrain_type is String and not terrain_type.is_empty():
 			return terrain_type
 
 	# Priority 2: Derive from atlas source filename
-	var source: TileSetSource = tilemap.tile_set.get_source(source_id)
+	var source: TileSetSource = layer.tile_set.get_source(source_id)
 	if source is TileSetAtlasSource:
 		var atlas_source: TileSetAtlasSource = source as TileSetAtlasSource
 		if atlas_source.texture:
@@ -624,6 +646,7 @@ func clear_grid() -> void:
 
 	grid = null
 	tilemap = null
+	_terrain_layers.clear()
 	_astar = null
 	_occupied_cells.clear()
 	_terrain_costs.clear()

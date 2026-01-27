@@ -61,6 +61,9 @@ const SCENE_DEFAULTS: Dictionary = {
 	"combat_results_scene": "res://scenes/ui/combat_results_panel.tscn"
 }
 
+## TileMapLayers to exclude from terrain detection (visual-only layers)
+const EXCLUDED_TERRAIN_LAYERS: Array[String] = ["HighlightLayer"]
+
 ## Cached scene references - cleared when mods reload to pick up new overrides
 var _scene_cache: Dictionary = {}
 
@@ -183,10 +186,10 @@ func _initialize_grid() -> void:
 		push_error("BattleManager: Cannot initialize grid without map_instance")
 		return
 
-	# Find TileMapLayer in map scene
-	var tilemap: TileMapLayer = _find_tilemap_in_scene(map_instance)
-	if not tilemap:
-		push_warning("BattleManager: No TileMapLayer found in map scene")
+	# Collect terrain layers from map scene
+	var terrain_layers: Array[TileMapLayer] = _collect_terrain_layers_in_scene(map_instance)
+	if terrain_layers.is_empty():
+		push_warning("BattleManager: No TileMapLayers found in map scene")
 
 	# Look for Grid resource in map scene (should be exported on map script or node)
 	var grid: Grid = _find_grid_in_scene(map_instance)
@@ -196,20 +199,32 @@ func _initialize_grid() -> void:
 		return
 
 	# Setup GridManager with grid from map
-	GridManager.setup_grid(grid, tilemap)
+	GridManager.setup_grid(grid, terrain_layers)
 
 
-## Find TileMapLayer in scene tree
-func _find_tilemap_in_scene(node: Node) -> TileMapLayer:
+## Collect TileMapLayers from scene tree for terrain detection
+## Excludes visual-only layers (HighlightLayer, etc.) and sorts by z_index descending
+func _collect_terrain_layers_in_scene(node: Node) -> Array[TileMapLayer]:
+	var layers: Array[TileMapLayer] = []
+	_collect_terrain_layers_recursive(node, layers)
+
+	# Sort by z_index descending (higher z = checked first, top layer wins)
+	layers.sort_custom(func(a: TileMapLayer, b: TileMapLayer) -> bool:
+		return a.z_index > b.z_index
+	)
+
+	return layers
+
+
+## Recursively collect TileMapLayers from scene tree
+func _collect_terrain_layers_recursive(node: Node, layers: Array[TileMapLayer]) -> void:
 	if node is TileMapLayer:
-		return node
+		var layer_name: String = node.name
+		if layer_name not in EXCLUDED_TERRAIN_LAYERS:
+			layers.append(node as TileMapLayer)
 
 	for child: Node in node.get_children():
-		var result: TileMapLayer = _find_tilemap_in_scene(child)
-		if result:
-			return result
-
-	return null
+		_collect_terrain_layers_recursive(child, layers)
 
 
 ## Find Grid resource in map scene
@@ -227,9 +242,9 @@ func _find_grid_in_scene(node: Node) -> Grid:
 				return node.get(prop.name)
 
 	# Fallback: create default grid based on tilemap size if available
-	var tilemap: TileMapLayer = _find_tilemap_in_scene(node)
-	if tilemap:
-		return _create_grid_from_tilemap(tilemap)
+	var layers: Array[TileMapLayer] = _collect_terrain_layers_in_scene(node)
+	if not layers.is_empty():
+		return _create_grid_from_tilemap(layers[0])
 
 	return null
 
