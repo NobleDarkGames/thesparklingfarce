@@ -30,9 +30,6 @@ mono_crash.*.json
 *.pyo
 /reports/
 
-# Auto-generated tilesets (regenerated from textures/ by TileSetAutoGenerator)
-core/defaults/tilesets/default_tileset.tres
-
 # Mod development backups
 mods-bak/
 docs/announcements/
