@@ -16,9 +16,6 @@ extends CanvasLayer
 signal continue_requested  ## Player pressed any key to continue with retreat
 signal result_dismissed    ## Generic dismiss (for compatibility)
 
-## Font reference
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Animation constants
 const FADE_IN_DURATION: float = 1.0
 const TEXT_DELAY: float = 0.8

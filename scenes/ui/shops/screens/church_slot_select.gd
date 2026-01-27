@@ -5,11 +5,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## Shows cursed equipment slots for the selected character.
 ## Selecting a slot performs the uncurse service.
 
-## Colors matching project standards
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-
 var slot_buttons: Array[Button] = []
 var selected_index: int = 0
 

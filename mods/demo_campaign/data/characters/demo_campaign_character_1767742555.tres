@@ -48,5 +48,4 @@ base_intelligence = 2
 base_luck = 6
 portrait = ExtResource("2_mfycq")
 sprite_frames = ExtResource("6_xlt3d")
-starting_level = 10
 starting_equipment = Array[ExtResource("2_07tfd")]([ExtResource("6_mfycq")])

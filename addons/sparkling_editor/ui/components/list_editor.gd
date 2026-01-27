@@ -322,6 +322,36 @@ func refresh_list() -> void:
 		_item_list.select(_selected_index)
 
 
+## Enable or disable the entire list editor
+## When disabled, the list and all buttons become non-interactive
+func set_enabled(enabled: bool) -> void:
+	if _item_list:
+		_item_list.mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
+		_item_list.modulate.a = 1.0 if enabled else 0.5
+	if _add_button:
+		_add_button.disabled = not enabled
+	if _remove_button:
+		_remove_button.disabled = not enabled
+	if _update_button:
+		_update_button.disabled = not enabled
+	if _detail_container:
+		_detail_container.modulate.a = 1.0 if enabled else 0.5
+		_set_container_enabled(_detail_container, enabled)
+
+
+## Recursively enable/disable controls in a container
+func _set_container_enabled(container: Control, enabled: bool) -> void:
+	for child: Node in container.get_children():
+		if child is Button:
+			child.disabled = not enabled
+		elif child is LineEdit or child is TextEdit:
+			child.editable = enabled
+		elif child is OptionButton or child is SpinBox or child is CheckBox:
+			child.disabled = not enabled
+		elif child is Control:
+			_set_container_enabled(child, enabled)
+
+
 # =============================================================================
 # INTERNAL METHODS
 # =============================================================================

@@ -68,6 +68,7 @@ var delete_button: Button
 # UI Components - Center panel (command list)
 var command_list: ItemList
 var add_command_button: MenuButton
+var quick_dialog_button: Button
 var delete_command_button: Button
 var move_up_button: Button
 var move_down_button: Button
@@ -103,7 +104,6 @@ var cinematics: Array[Dictionary] = []  # [{path, mod_id, name}]
 var current_cinematic_path: String = ""
 var current_cinematic_data: Dictionary = {}
 var selected_command_index: int = -1
-var _updating_ui: bool = false
 
 # Unsaved changes dialog
 var _unsaved_changes_dialog: ConfirmationDialog
@@ -117,6 +117,8 @@ func _ready() -> void:
 	resource_dir_name = "cinematics"
 	_setup_ui()
 	_refresh_cinematic_list()
+	# Disable editing panels until a cinematic is selected
+	_set_panels_enabled(false)
 
 	# Connect to EditorEventBus for mod reload notifications
 	var event_bus: Node = get_node_or_null("/root/EditorEventBus")
@@ -276,11 +278,11 @@ func _setup_command_list_panel(parent: HSplitContainer) -> void:
 	cmd_header.add_child(add_command_button)
 
 	# Quick Add Dialog button
-	var quick_dialog_btn: Button = Button.new()
-	quick_dialog_btn.text = "Dialog"
-	quick_dialog_btn.tooltip_text = "Quick Add Dialog Line"
-	quick_dialog_btn.pressed.connect(_on_quick_add_dialog)
-	cmd_header.add_child(quick_dialog_btn)
+	quick_dialog_button = Button.new()
+	quick_dialog_button.text = "Dialog"
+	quick_dialog_button.tooltip_text = "Quick Add Dialog Line"
+	quick_dialog_button.pressed.connect(_on_quick_add_dialog)
+	cmd_header.add_child(quick_dialog_button)
 
 	# Command list
 	command_list = ItemList.new()
@@ -626,6 +628,7 @@ func _perform_cinematic_selection(index: int) -> void:
 	var entry: Dictionary = cinematics[index]
 	_load_cinematic(entry.path)
 	delete_button.disabled = false
+	_set_panels_enabled(true)
 
 
 func _load_cinematic(path: String) -> void:
@@ -665,6 +668,34 @@ func _populate_metadata() -> void:
 	loop_check.button_pressed = current_cinematic_data.get("loop", false)
 
 	_updating_ui = false
+
+
+## Enable or disable the inspector/editing panels
+## Called with false when no cinematic is selected, true when one is loaded
+func _set_panels_enabled(enabled: bool) -> void:
+	# Metadata fields
+	if name_id_group:
+		name_id_group.set_enabled(enabled)
+	if can_skip_check:
+		can_skip_check.disabled = not enabled
+	if disable_input_check:
+		disable_input_check.disabled = not enabled
+	if loop_check:
+		loop_check.disabled = not enabled
+
+	# Command controls
+	if add_command_button:
+		add_command_button.disabled = not enabled
+	if quick_dialog_button:
+		quick_dialog_button.disabled = not enabled
+
+	# Save button
+	if save_button:
+		save_button.disabled = not enabled
+
+	# Actors editor
+	if actors_editor:
+		actors_editor.set_enabled(enabled)
 
 
 func _rebuild_command_list() -> void:
@@ -1265,11 +1296,26 @@ func _on_create_new() -> void:
 	}
 
 	current_cinematic_path = new_path
+
+	# Add new cinematic to the list and select it
+	var file_name: String = new_path.get_file().get_basename()
+	var new_entry: Dictionary = {
+		"path": new_path,
+		"mod_id": active_mod,
+		"name": file_name
+	}
+	cinematics.append(new_entry)
+	cinematic_list.add_item("[%s] %s" % [active_mod, file_name])
+	var new_index: int = cinematics.size() - 1
+	cinematic_list.select(new_index)
+
 	_populate_metadata()
 	_load_actors_to_editor()
 	_rebuild_command_list()
 	_clear_inspector()
 	_hide_errors()
+	_set_panels_enabled(true)
+	delete_button.disabled = false
 	is_dirty = true
 
 
@@ -1294,6 +1340,7 @@ func _on_delete_cinematic() -> void:
 		current_cinematic_path = ""
 		current_cinematic_data = {}
 		_clear_inspector()
+		_set_panels_enabled(false)
 	)
 	# Free dialog when closed (confirmed, canceled, or X button)
 	confirm.visibility_changed.connect(func() -> void:
@@ -1366,6 +1413,8 @@ func _on_save() -> void:
 		if ModLoader and ModLoader.registry:
 			var cinematic: CinematicData = CinematicLoader.load_from_json(expected_path)
 			if cinematic:
+				# Set resource_path so ResourcePicker can get display name and ID
+				cinematic.resource_path = expected_path
 				# Extract mod_id from path (e.g., res://mods/demo_campaign/data/cinematics/...)
 				var mod_id: String = ""
 				if expected_path.begins_with("res://mods/"):
@@ -1471,8 +1520,8 @@ func _migrate_legacy_format() -> void:
 						params_dict.erase("character_id")
 						migrated_count += 1
 
-	if migrated_count > 0 and OS.is_debug_build():
-		print("CinematicEditor: Migrated %d dialog_line commands (character_id -> speaker)" % migrated_count)
+	if migrated_count > 0:
+		push_warning("CinematicEditor: Migrated %d dialog_line commands (character_id -> speaker)" % migrated_count)
 
 
 # =============================================================================

@@ -5,7 +5,6 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## Shows: Recipe name, materials consumed, gold cost, output item
 ## Executes the craft via CraftingManager on confirm.
 
-const COLOR_GOLD: Color = Color(0.8, 0.8, 0.2, 1.0)
 const COLOR_OUTPUT: Color = Color(0.6, 0.9, 0.6, 1.0)
 
 @onready var confirm_label: Label = %ConfirmLabel

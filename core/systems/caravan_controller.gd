@@ -382,8 +382,11 @@ func _show_access_denied_notification(message: String) -> void:
 
 func _on_scene_transition_started(_from_scene: String, _to_scene: String) -> void:
 	# Close menu if open to prevent stale state after scene change
+	# Don't restore pause state - let scene transition handle it
 	if _menu_open:
-		close_menu()
+		_menu_open = false
+		_safe_call(_main_menu, "hide_menu")
+		menu_closed.emit()
 	
 	# Save position before transition if we have a caravan
 	if _caravan_instance:
@@ -625,7 +628,7 @@ func _on_hero_interaction_requested(interaction_position: Vector2i) -> void:
 
 ## Check if caravan is currently spawned
 func is_spawned() -> bool:
-	return _caravan_instance != null
+	return is_instance_valid(_caravan_instance)
 
 
 ## Check if player is in interaction range

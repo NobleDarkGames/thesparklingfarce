@@ -268,8 +268,7 @@ func _find_cinematic_stage() -> Node:
 
 ## Signal completion to the cinematic manager
 func _complete() -> void:
-	if _active_manager and is_instance_valid(_active_manager):
-		_active_manager._command_completed = true
+	CinematicCommandExecutor.complete_async_command(_active_manager, false)
 	_active_manager = null
 
 

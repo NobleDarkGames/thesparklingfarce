@@ -200,19 +200,6 @@ func has_item_for_promotion(unit: Unit, target_class: ClassData) -> bool:
 	return _has_required_item(unit, path.required_item)
 
 
-## DEPRECATED: Use has_item_for_promotion instead.
-## Kept for backward compatibility.
-func has_item_for_special_promotion(unit: Unit, class_data: ClassData = null) -> bool:
-	var unit_class: ClassData = class_data if class_data else _get_unit_class(unit)
-	if not unit_class:
-		return false
-
-	for path: PromotionPath in unit_class.get_promotion_path_resources():
-		if path.requires_item() and _has_required_item(unit, path.required_item):
-			return true
-	return false
-
-
 ## Check if class has any item-gated promotion paths.
 ## @param class_data: ClassData to check
 ## @return: true if any path requires an item
@@ -553,11 +540,6 @@ func _is_item_gated_promotion(old_class: ClassData, target_class: ClassData) -> 
 		return false
 
 	return path.requires_item()
-
-
-## DEPRECATED: Use _is_item_gated_promotion instead.
-func _is_special_promotion(old_class: ClassData, target_class: ClassData) -> bool:
-	return _is_item_gated_promotion(old_class, target_class)
 
 
 ## Consume the promotion item from inventory.

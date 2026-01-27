@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_8rgir")
 npc_id = "cloaky"
-npc_name = "Cloaky"
+npc_name = "First Cloaked Man"
 portrait = ExtResource("1_b7ay7")
 sprite_frames = ExtResource("3_hxl0r")
 interaction_cinematic_id = "cloaked_figure"

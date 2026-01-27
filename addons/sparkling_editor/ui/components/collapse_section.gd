@@ -37,6 +37,12 @@ signal toggled(is_collapsed: bool)
 		if _title_label and value > 0:
 			_title_label.add_theme_font_size_override("font_size", value)
 
+## Help text displayed at the top of the content container (when not empty)
+@export_multiline var help_text: String = "":
+	set(value):
+		help_text = value
+		_update_help_label()
+
 ## Internal state
 var _is_collapsed: bool = false
 var _initialized: bool = false
@@ -45,6 +51,7 @@ var _initialized: bool = false
 var _header_button: Button
 var _title_label: Label
 var _content_container: VBoxContainer
+var _help_label: Label
 
 ## Pending children to add when _ready runs (for add_content_child called before _ready)
 var _pending_children: Array[Node] = []
@@ -59,6 +66,9 @@ func _init() -> void:
 func _ready() -> void:
 	_setup_ui()
 	_initialized = true
+
+	# Add help label if help_text was set before _ready
+	_update_help_label()
 
 	# Add any children that were queued before _ready ran
 	for child in _pending_children:
@@ -150,6 +160,27 @@ func is_collapsed() -> bool:
 func _update_content_visibility() -> void:
 	if _content_container:
 		_content_container.visible = not _is_collapsed
+
+
+## Update the help label based on help_text value
+func _update_help_label() -> void:
+	if not _content_container:
+		return
+
+	# Remove existing help label if present
+	if _help_label:
+		_help_label.queue_free()
+		_help_label = null
+
+	# Create new help label if help_text is set
+	if not help_text.is_empty():
+		_help_label = Label.new()
+		_help_label.text = help_text
+		_help_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
+		_help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
+		_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_content_container.add_child(_help_label)
+		_content_container.move_child(_help_label, 0)
 
 
 ## Add a child to the content container (not the header)

@@ -51,9 +51,10 @@ var available_resources: Array[Resource] = []
 # Track unsaved changes
 var is_dirty: bool = false
 
-# Guard against marking dirty during data loading (prevents false positives)
-# When true, _mark_dirty() calls are ignored
-var _is_loading: bool = false
+# Guard against marking dirty during UI updates (prevents signal feedback loops)
+# When true, _mark_dirty() calls are ignored. Child editors should use this
+# inherited variable instead of declaring their own.
+var _updating_ui: bool = false
 
 # Guard against concurrent async operations (e.g., rapid "New" button clicks)
 # Prevents race conditions during filesystem scan awaits
@@ -584,9 +585,9 @@ func _do_resource_selection(index: int) -> void:
 	_check_and_show_namespace_info(path)
 
 	# Load data with guard to prevent false dirty flags from signal triggers
-	_is_loading = true
+	_updating_ui = true
 	_load_resource_data()
-	_is_loading = false
+	_updating_ui = false
 
 	# Clear dirty flag AFTER loading (loading triggers signals that would set it)
 	is_dirty = false
@@ -1652,9 +1653,9 @@ func _do_save_resource(path: String) -> void:
 ## Internal: Refresh UI after undo/redo
 func _refresh_current_resource_ui() -> void:
 	if current_resource:
-		_is_loading = true
+		_updating_ui = true
 		_load_resource_data()
-		_is_loading = false
+		_updating_ui = false
 
 
 ## Compare two values for equality (handles arrays and dictionaries)
@@ -1764,7 +1765,7 @@ func _on_unsaved_dialog_cancel() -> void:
 ## Call this from subclasses when user modifies any field
 ## Ignored during data loading to prevent false positives
 func _mark_dirty() -> void:
-	if _is_loading:
+	if _updating_ui:
 		return
 	is_dirty = true
 
@@ -1787,7 +1788,70 @@ func _clear_current_resource() -> void:
 	current_resource_path = ""
 	current_resource_source_mod = ""
 	is_dirty = false
-	_is_loading = false
+	_updating_ui = false
+
+
+## Auto-save current resource before a secondary action (e.g., Place on Map)
+## Returns true if save succeeded or wasn't needed, false on error
+## @param resource_name: Display name for error messages (e.g., "NPC", "interactable")
+## @param id_getter: Callable that returns the resource ID for filename generation
+func _auto_save_before_action(resource_name: String, id_getter: Callable) -> bool:
+	if not current_resource:
+		_show_error("No %s selected." % resource_name)
+		return false
+
+	# Check if save is needed
+	var needs_save: bool = current_resource.resource_path.is_empty() or is_dirty
+	if not needs_save:
+		return true
+
+	# Show brief saving feedback
+	_show_success_message("Saving...")
+
+	# Validate before saving
+	var validation: Dictionary = _validate_resource()
+	if not validation.valid:
+		_show_errors(validation.errors)
+		return false
+
+	# Perform the save
+	_save_resource_data()
+
+	# Determine save path for new resources
+	var save_path: String = current_resource.resource_path
+	if save_path.is_empty():
+		var save_dir: String = ""
+		if resource_type_id != "" and ModLoader:
+			var active_mod: ModManifest = ModLoader.get_active_mod()
+			if active_mod:
+				var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+				if resource_type_id in resource_dirs:
+					save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
+		if save_dir.is_empty():
+			_show_error("No save directory available. Please set an active mod.")
+			return false
+		var resource_id: String = id_getter.call() if id_getter.is_valid() else ""
+		var filename: String = resource_id + ".tres" if not resource_id.is_empty() else "new_%s_%d.tres" % [resource_name.to_lower(), Time.get_unix_time_from_system()]
+		save_path = save_dir.path_join(filename)
+
+	var err: Error = ResourceSaver.save(current_resource, save_path)
+	if err != OK:
+		_show_error("Failed to save %s: %s" % [resource_name, str(err)])
+		return false
+
+	# Update resource path and clear dirty flag
+	current_resource.take_over_path(save_path)
+	current_resource_path = save_path
+	is_dirty = false
+	_hide_errors()
+
+	# Register with ModLoader so ResourcePickers show correct mod tag
+	var active_mod: ModManifest = ModLoader.get_active_mod() if ModLoader else null
+	if active_mod:
+		_register_and_notify_resource(current_resource, save_path, active_mod.mod_id, true)
+
+	_refresh_list()
+	return true
 
 
 ## Sync resource ID properties to match filename for registry consistency

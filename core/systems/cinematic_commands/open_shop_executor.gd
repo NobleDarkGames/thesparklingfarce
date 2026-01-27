@@ -67,9 +67,7 @@ func _on_shop_closed() -> void:
 		ShopManager.shop_closed.disconnect(_on_shop_closed)
 
 	# Restore cinematic state and signal completion
-	if is_instance_valid(_manager):
-		_manager.current_state = _manager.State.PLAYING
-		_manager._command_completed = true
+	CinematicCommandExecutor.complete_async_command(_manager, true)
 	_manager = null
 
 

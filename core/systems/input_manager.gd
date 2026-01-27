@@ -13,6 +13,7 @@
 ##   INSPECTING -> DIRECT_MOVEMENT (accept or cancel)
 ##   SELECTING_ACTION -> TARGETING (Attack selected)
 ##   SELECTING_ACTION -> SELECTING_ITEM (Item selected)
+##   SELECTING_ACTION -> SELECTING_EQUIP (Equip selected - returns to action menu after)
 ##   SELECTING_ACTION -> SELECTING_SPELL (Magic selected)
 ##   SELECTING_ACTION -> EXECUTING (Stay selected)
 ##   SELECTING_ITEM -> SELECTING_ITEM_TARGET (item needs target)
@@ -45,9 +46,10 @@ enum InputState {
 	INSPECTING,         # Free cursor mode - inspecting battlefield (B button)
 	EXPLORING_MOVEMENT,  # LEGACY: Cursor-based movement (kept for compatibility)
 	DIRECT_MOVEMENT,     # SF2-style: Player controls unit directly tile-by-tile
-	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Stay)
+	SELECTING_ACTION,    # Action menu open (Attack/Magic/Item/Equip/Stay)
 	SELECTING_ITEM,      # Item menu open (selecting which item to use)
 	SELECTING_ITEM_TARGET,  # Selecting target for item use (e.g., healing ally)
+	SELECTING_EQUIP,     # Equip menu open (selecting item to equip - SF2: doesn't end turn)
 	SELECTING_SPELL,     # Spell menu open (selecting which spell to cast)
 	SELECTING_SPELL_TARGET,  # Selecting target for spell (e.g., healing ally or enemy)
 	TARGETING,           # Selecting target for attack/spell
@@ -156,6 +158,27 @@ func _safe_connect_signal(sig: Variant, handler: Callable) -> void:
 		s.connect(handler)
 
 
+## Helper to enter a menu state (item, equip, spell menus)
+## Disables processing, hides action menu, and calls the show callback
+func _enter_menu_state(show_callback: Callable) -> void:
+	set_process(false)
+	if action_menu and action_menu.visible:
+		action_menu.hide_menu()
+	show_callback.call()
+
+
+## Connect multiple signal-handler pairs
+func _connect_signal_pairs(pairs: Array) -> void:
+	for pair: Array in pairs:
+		_safe_connect_signal(pair[0], pair[1])
+
+
+## Disconnect multiple signal-handler pairs
+func _disconnect_signal_pairs(pairs: Array) -> void:
+	for pair: Array in pairs:
+		_safe_disconnect_signal(pair[0], pair[1])
+
+
 ## Set action menu reference and connect signals
 func set_action_menu(menu: ActionMenu) -> void:
 	action_menu = menu
@@ -194,33 +217,25 @@ func _disconnect_action_menu_signals() -> void:
 ## Disconnect all menu signals (called when turn ends)
 func _disconnect_all_menu_signals() -> void:
 	if action_menu:
-		_safe_disconnect_signal(action_menu.action_selected, _on_action_menu_selected)
-		_safe_disconnect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
+		_disconnect_signal_pairs([[action_menu.action_selected, _on_action_menu_selected], [action_menu.menu_cancelled, _on_action_menu_cancelled]])
 	if item_menu:
-		_safe_disconnect_signal(item_menu.item_selected, _on_item_menu_selected)
-		_safe_disconnect_signal(item_menu.menu_cancelled, _on_item_menu_cancelled)
+		_disconnect_signal_pairs([[item_menu.item_selected, _on_item_menu_selected], [item_menu.menu_cancelled, _on_item_menu_cancelled]])
 	if spell_menu:
-		_safe_disconnect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
-		_safe_disconnect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
+		_disconnect_signal_pairs([[spell_menu.spell_selected, _on_spell_menu_selected], [spell_menu.menu_cancelled, _on_spell_menu_cancelled]])
 	if game_menu:
-		_safe_disconnect_signal(game_menu.menu_closed, _on_game_menu_closed)
-		_safe_disconnect_signal(game_menu.quit_confirmed, _on_game_menu_quit_confirmed)
+		_disconnect_signal_pairs([[game_menu.menu_closed, _on_game_menu_closed], [game_menu.quit_confirmed, _on_game_menu_quit_confirmed]])
 
 
 ## Reconnect all menu signals (called when player turn starts)
 func _reconnect_all_menu_signals() -> void:
 	if action_menu:
-		_safe_connect_signal(action_menu.action_selected, _on_action_menu_selected)
-		_safe_connect_signal(action_menu.menu_cancelled, _on_action_menu_cancelled)
+		_connect_signal_pairs([[action_menu.action_selected, _on_action_menu_selected], [action_menu.menu_cancelled, _on_action_menu_cancelled]])
 	if item_menu:
-		_safe_connect_signal(item_menu.item_selected, _on_item_menu_selected)
-		_safe_connect_signal(item_menu.menu_cancelled, _on_item_menu_cancelled)
+		_connect_signal_pairs([[item_menu.item_selected, _on_item_menu_selected], [item_menu.menu_cancelled, _on_item_menu_cancelled]])
 	if spell_menu:
-		_safe_connect_signal(spell_menu.spell_selected, _on_spell_menu_selected)
-		_safe_connect_signal(spell_menu.menu_cancelled, _on_spell_menu_cancelled)
+		_connect_signal_pairs([[spell_menu.spell_selected, _on_spell_menu_selected], [spell_menu.menu_cancelled, _on_spell_menu_cancelled]])
 	if game_menu:
-		_safe_connect_signal(game_menu.menu_closed, _on_game_menu_closed)
-		_safe_connect_signal(game_menu.quit_confirmed, _on_game_menu_quit_confirmed)
+		_connect_signal_pairs([[game_menu.menu_closed, _on_game_menu_closed], [game_menu.quit_confirmed, _on_game_menu_quit_confirmed]])
 
 
 ## Handle spell menu selection signal
@@ -325,14 +340,24 @@ func _on_item_menu_selected(item_id: String, signal_session_id: int) -> void:
 		])
 		return
 
-	# Guard: Only process in correct state
-	if current_state != InputState.SELECTING_ITEM or active_unit == null:
+	# Guard: Only process in correct state (SELECTING_ITEM or SELECTING_EQUIP)
+	if current_state != InputState.SELECTING_ITEM and current_state != InputState.SELECTING_EQUIP:
 		push_warning("InputManager: Ignoring item selection in state %s" % InputState.keys()[current_state])
+		return
+
+	if active_unit == null:
+		push_warning("InputManager: No active unit for item selection")
 		return
 
 	# Play selection sound
 	AudioManager.play_sfx("menu_select", AudioManager.SFXCategory.UI)
 
+	# Handle based on current state (USE vs EQUIP)
+	if current_state == InputState.SELECTING_EQUIP:
+		_handle_equip_item(item_id)
+		return
+
+	# Standard item USE flow below
 	# Store selected item for target selection
 	selected_item_id = item_id
 	selected_item_data = ModLoader.registry.get_item(item_id)
@@ -390,7 +415,61 @@ func _use_item_on_target(target: Unit) -> void:
 	set_state(InputState.EXECUTING)
 
 
-## Handle item menu cancellation signal
+## Handle equip item selection (SF2: equipment change doesn't end turn)
+func _handle_equip_item(item_id: String) -> void:
+	var item_data: ItemData = ModLoader.registry.get_item(item_id)
+	if not item_data:
+		push_warning("InputManager: Item '%s' not found in registry for equip" % item_id)
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	if not item_data.is_equippable():
+		push_warning("InputManager: Item '%s' is not equippable" % item_id)
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Get the character's save data
+	var save_data: CharacterSaveData = null
+	if active_unit and active_unit.character_data:
+		if PartyManager.has_method("get_member_save_data"):
+			save_data = PartyManager.get_member_save_data(active_unit.character_data.character_uid)
+
+	if not save_data:
+		push_warning("InputManager: Could not get save data for unit")
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Determine the target slot from the item
+	var slot_id: String = item_data.equipment_slot
+	if slot_id.is_empty():
+		# Default slot based on item type
+		if item_data.item_type == ItemData.ItemType.WEAPON:
+			slot_id = "weapon"
+		else:
+			slot_id = "accessory"
+
+	# Try to equip the item using EquipmentManager
+	var result: Dictionary = EquipmentManager.equip_item(save_data, slot_id, item_id, active_unit)
+
+	if result.success:
+		# Play equip sound
+		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
+
+		# Update unit stats if needed (EquipmentManager should handle this)
+		if active_unit.stats:
+			active_unit.stats.recalculate_derived_stats()
+
+		# SF2 AUTHENTIC: Return to action menu - equipping doesn't end turn!
+		set_state(InputState.SELECTING_ACTION)
+	else:
+		# Equip failed - show error and return to action menu
+		push_warning("InputManager: Failed to equip '%s': %s" % [item_id, result.get("error", "Unknown error")])
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		set_state(InputState.SELECTING_ACTION)
+
+
+## Handle item menu cancellation signal (for both SELECTING_ITEM and SELECTING_EQUIP)
 func _on_item_menu_cancelled(signal_session_id: int) -> void:
 	# Guard: Reject stale cancel signals from previous turns
 	if signal_session_id != _turn_session_id:
@@ -398,6 +477,11 @@ func _on_item_menu_cancelled(signal_session_id: int) -> void:
 			signal_session_id,
 			_turn_session_id
 		])
+		return
+
+	# Guard: Only process in correct states
+	if current_state != InputState.SELECTING_ITEM and current_state != InputState.SELECTING_EQUIP:
+		push_warning("InputManager: Ignoring item cancel in state %s" % InputState.keys()[current_state])
 		return
 
 	# Return to action menu
@@ -521,6 +605,8 @@ func set_state(new_state: InputState) -> void:
 			_on_enter_selecting_item()
 		InputState.SELECTING_ITEM_TARGET:
 			_on_enter_selecting_item_target()
+		InputState.SELECTING_EQUIP:
+			_on_enter_selecting_equip()
 		InputState.SELECTING_SPELL:
 			_on_enter_selecting_spell()
 		InputState.SELECTING_SPELL_TARGET:
@@ -641,15 +727,11 @@ func _on_enter_selecting_action() -> void:
 
 
 func _on_enter_selecting_item() -> void:
-	# Disable per-frame processing (menu handles its own input)
-	set_process(false)
+	_enter_menu_state(_show_item_menu)
 
-	# Hide action menu if visible
-	if action_menu and action_menu.visible:
-		action_menu.hide_menu()
 
-	# Show item menu
-	_show_item_menu()
+func _on_enter_selecting_equip() -> void:
+	_enter_menu_state(_show_equip_menu)
 
 
 func _on_enter_selecting_item_target() -> void:
@@ -694,15 +776,7 @@ func _on_enter_selecting_item_target() -> void:
 
 
 func _on_enter_selecting_spell() -> void:
-	# Disable per-frame processing (menu handles its own input)
-	set_process(false)
-
-	# Hide action menu if visible
-	if action_menu and action_menu.visible:
-		action_menu.hide_menu()
-
-	# Show spell menu
-	_show_spell_menu()
+	_enter_menu_state(_show_spell_menu)
 
 
 func _on_enter_selecting_spell_target() -> void:
@@ -1058,6 +1132,9 @@ func _get_available_actions() -> Array[String]:
 	# Item - always available
 	actions.append("Item")
 
+	# Equip - always available (SF2: change equipment mid-battle, doesn't end turn)
+	actions.append("Equip")
+
 	# Stay - always available (ends turn at current position)
 	actions.append("Stay")
 
@@ -1356,6 +1433,28 @@ func _show_item_menu() -> void:
 	item_menu.position = unit_screen_pos + ACTION_MENU_OFFSET
 
 
+## Show item menu in EQUIP mode (for equipment changes - SF2: doesn't end turn)
+func _show_equip_menu() -> void:
+	if not item_menu:
+		push_warning("InputManager: No item menu reference set for equip - returning to action menu")
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	if not active_unit:
+		push_warning("InputManager: No active unit for equip menu")
+		set_state(InputState.SELECTING_ACTION)
+		return
+
+	# Show item menu in EQUIP mode
+	item_menu.show_menu(active_unit, _turn_session_id, ItemMenu.MenuMode.EQUIP)
+
+	# Position menu near active unit (similar to action menu)
+	var viewport: Viewport = active_unit.get_viewport()
+	var unit_screen_pos: Vector2 = viewport.get_canvas_transform() * active_unit.position
+	# Offset to right of unit
+	item_menu.position = unit_screen_pos + ACTION_MENU_OFFSET
+
+
 ## Select action from menu
 func _select_action(action: String, signal_session_id: int) -> void:
 	# Guard: Check if this signal is from a previous turn (stale)
@@ -1408,14 +1507,14 @@ func _select_action(action: String, signal_session_id: int) -> void:
 		"Attack":
 			set_state(InputState.TARGETING)
 		"Magic":
-			# Open spell menu - transition to SELECTING_SPELL state
 			set_state(InputState.SELECTING_SPELL)
 		"Item":
-			# Open item menu - transition to SELECTING_ITEM state
 			set_state(InputState.SELECTING_ITEM)
+		"Equip":
+			set_state(InputState.SELECTING_EQUIP)
 		"Stay":
 			# BattleManager._execute_stay() handles this synchronously and resets state
-			# We should never reach here for Stay (caught by WAITING check above)
+			# We should never reach here (caught by WAITING check above)
 			push_warning("InputManager: Stay action reached match statement unexpectedly")
 			_execute_action()
 
@@ -1822,6 +1921,10 @@ func _execute_direct_step(target_cell: Vector2i) -> void:
 	# Quick tween to new position (SF2-style: nearly instant)
 	var target_world: Vector2 = GridManager.cell_to_world(target_cell)
 	var step_tween: Tween = create_tween()
+	if not step_tween:
+		# Tween creation failed - reset flag and abort
+		is_direct_moving = false
+		return
 	step_tween.tween_property(active_unit, "position", target_world, 0.1)
 	step_tween.set_trans(Tween.TRANS_LINEAR)
 
@@ -1887,6 +1990,10 @@ func _undo_last_step() -> void:
 	# Animate back
 	var target_world: Vector2 = GridManager.cell_to_world(previous_cell)
 	var step_tween: Tween = create_tween()
+	if not step_tween:
+		# Tween creation failed - reset flag and abort
+		is_direct_moving = false
+		return
 	step_tween.tween_property(active_unit, "position", target_world, 0.1)
 	step_tween.set_trans(Tween.TRANS_LINEAR)
 

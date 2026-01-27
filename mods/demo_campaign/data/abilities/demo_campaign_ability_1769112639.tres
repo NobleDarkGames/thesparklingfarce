@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://dahh86nufhoy2"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_7wj2b"]
+
+[resource]
+script = ExtResource("1_7wj2b")
+ability_name = "Blast"
+ability_id = "blast"
+max_range = 2
+mp_cost = 2
+potency = 6

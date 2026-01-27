@@ -417,7 +417,7 @@ func _update_party_member_preview(char_save: CharacterSaveData) -> void:
 		preview_text += "[color=gold]HERO CHARACTER[/color]\n"
 
 	preview_text += "Level: %d\n" % char_save.level
-	preview_text += "Experience: %d\n" % char_save.experience
+	preview_text += "Experience: %d\n" % char_save.current_xp
 	preview_text += "Class: %s\n" % char_save.fallback_class_name
 
 	# Current stats from save
@@ -428,14 +428,14 @@ func _update_party_member_preview(char_save: CharacterSaveData) -> void:
 	preview_text += "LUK: %d\n" % char_save.luck
 
 	# Equipment if any
-	if not char_save.equipped_weapon_id.is_empty() or not char_save.equipped_armor_id.is_empty() or not char_save.equipped_accessory_id.is_empty():
+	if char_save.equipped_items.size() > 0:
 		preview_text += "\n[b]Equipment:[/b]\n"
-		if not char_save.equipped_weapon_id.is_empty():
-			preview_text += "Weapon: %s\n" % char_save.equipped_weapon_id
-		if not char_save.equipped_armor_id.is_empty():
-			preview_text += "Armor: %s\n" % char_save.equipped_armor_id
-		if not char_save.equipped_accessory_id.is_empty():
-			preview_text += "Accessory: %s\n" % char_save.equipped_accessory_id
+		for equip: Dictionary in char_save.equipped_items:
+			var slot_name: String = equip.get("slot", "unknown")
+			var item_id: String = equip.get("item_id", "")
+			if not item_id.is_empty():
+				var display_slot: String = slot_name.capitalize().replace("_", " ")
+				preview_text += "%s: %s\n" % [display_slot, item_id]
 
 	# Check if source character still exists
 	var source_exists: bool = ModLoader.registry.get_resource("character", char_save.character_resource_id) != null
@@ -939,35 +939,27 @@ func _editor_update_metadata_for_slot(slot_number: int, save_data: SaveData) -> 
 					all_metadata.append(meta_dict)
 			file.close()
 
-	# Find or create metadata for this slot
-	var slot_meta_dict: Dictionary = {}
-	var found: bool = false
+	# Create the new metadata entry first
+	var slot_meta: SlotMetadata = SlotMetadata.new()
+	slot_meta.populate_from_save_data(save_data)
+	var slot_meta_dict: Dictionary = slot_meta.serialize_to_dict()
+	# Ensure slot_number matches the target slot (not save_data's slot_number)
+	slot_meta_dict["slot_number"] = slot_number
+
+	# Find existing entry index for this slot (if any)
+	var existing_index: int = -1
 	for i: int in range(all_metadata.size()):
 		var existing_meta: Dictionary = all_metadata[i]
 		var existing_slot: int = existing_meta.get("slot_number", 0)
 		if existing_slot == slot_number:
-			slot_meta_dict = existing_meta
-			found = true
+			existing_index = i
 			break
 
-	if not found:
-		slot_meta_dict = {"slot_number": slot_number}
+	# Replace existing entry or append new one
+	if existing_index >= 0:
+		all_metadata[existing_index] = slot_meta_dict
+	else:
 		all_metadata.append(slot_meta_dict)
-
-	# Update metadata from save data
-	var slot_meta: SlotMetadata = SlotMetadata.new()
-	slot_meta.populate_from_save_data(save_data)
-	slot_meta_dict = slot_meta.serialize_to_dict()
-	# Ensure slot_number matches the target slot (not save_data's slot_number)
-	slot_meta_dict["slot_number"] = slot_number
-
-	# Find and replace in array (or update newly-appended placeholder)
-	for i: int in range(all_metadata.size()):
-		var check_meta: Dictionary = all_metadata[i]
-		var check_slot: int = check_meta.get("slot_number", 0)
-		if check_slot == slot_number:
-			all_metadata[i] = slot_meta_dict
-			break
 
 	# Save metadata file
 	var json_string: String = JSON.stringify(all_metadata, "\t")

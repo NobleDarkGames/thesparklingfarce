@@ -69,8 +69,6 @@ var story_flags_list: Array[Dictionary] = []  # Track flag UI elements
 var active_default_config_id: String = ""
 var active_default_source_mod: String = ""
 
-# Guard to prevent false dirty state during UI population
-var _updating_ui: bool = false
 
 # =============================================================================
 # PHASE 7.4: PREVIEW CONFIGURATION PANEL
@@ -480,33 +478,34 @@ func _populate_party_dropdown() -> void:
 	if not party_option:
 		return
 
-	# Save current selection
+	# Save current selection for restoration
 	var current_party_id: String = ""
 	if party_option.selected > 0 and party_option.selected < party_option.item_count:
 		current_party_id = party_option.get_item_metadata(party_option.selected)
 
-	party_option.clear()
-	party_option.add_item("(Auto-detect from character flags)", -1)
-	party_option.set_item_metadata(0, "")
+	# Populate using registry helper
+	SparklingEditorUtils.populate_registry_dropdown(
+		party_option,
+		"party",
+		"(Auto-detect from character flags)",
+		func(res: Resource) -> String:
+			return res.resource_path.get_file().get_basename(),
+		func(res: Resource) -> String:
+			var party: PartyData = res as PartyData
+			var party_id: String = res.resource_path.get_file().get_basename()
+			var name: String = party.party_name if party and not party.party_name.is_empty() else party_id
+			if party and party.has_method("get_member_count"):
+				name = "%s (%d members)" % [name, party.get_member_count()]
+			return name,
+		false  # Store ID string as metadata
+	)
 
-	# Query registry fresh
-	if ModLoader and ModLoader.registry:
-		var all_parties: Array[Resource] = ModLoader.registry.get_all_resources("party")
-		var idx: int = 1
-		for party: PartyData in all_parties:
-			if not party:
-				continue
-			var party_id: String = party.resource_path.get_file().get_basename()
-			var display_name: String = party.party_name if not party.party_name.is_empty() else party_id
-			if party.has_method("get_member_count"):
-				display_name = "%s (%d members)" % [display_name, party.get_member_count()]
-			var label: String = SparklingEditorUtils.get_display_with_mod_by_id("party", party_id, display_name)
-			party_option.add_item(label)
-			party_option.set_item_metadata(idx, party_id)
-			# Restore selection if this was the previously selected party
-			if party_id == current_party_id:
-				party_option.select(idx)
-			idx += 1
+	# Restore previous selection if it still exists
+	if not current_party_id.is_empty():
+		for i: int in range(1, party_option.item_count):
+			if party_option.get_item_metadata(i) == current_party_id:
+				party_option.select(i)
+				break
 
 
 func _select_party(party_id: String) -> void:

@@ -87,6 +87,7 @@ enum DefeatCondition {
 @export var experience_reward: int = 0
 @export var gold_reward: int = 0
 @export var item_rewards: Array[ItemData] = []
+@export var character_rewards: Array[CharacterData] = []  ## Characters that join the party on victory
 
 ## Validate enemy dictionary structure
 func validate_enemies() -> bool:

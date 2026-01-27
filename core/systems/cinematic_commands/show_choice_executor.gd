@@ -164,23 +164,8 @@ func _action_battle(choice: Dictionary) -> void:
 	_on_defeat_cinematic = choice.get("on_defeat_cinematic", "")
 
 	# Parse flag arrays (accept string or array)
-	_on_victory_flags.clear()
-	var victory_flags: Variant = choice.get("on_victory_flags", [])
-	if victory_flags is String and not victory_flags.is_empty():
-		_on_victory_flags.append(victory_flags)
-	elif victory_flags is Array:
-		for flag: Variant in victory_flags:
-			if flag is String and not flag.is_empty():
-				_on_victory_flags.append(flag)
-
-	_on_defeat_flags.clear()
-	var defeat_flags: Variant = choice.get("on_defeat_flags", [])
-	if defeat_flags is String and not defeat_flags.is_empty():
-		_on_defeat_flags.append(defeat_flags)
-	elif defeat_flags is Array:
-		for flag: Variant in defeat_flags:
-			if flag is String and not flag.is_empty():
-				_on_defeat_flags.append(flag)
+	_on_victory_flags = CinematicCommandExecutor.parse_flag_array(choice.get("on_victory_flags", []))
+	_on_defeat_flags = CinematicCommandExecutor.parse_flag_array(choice.get("on_defeat_flags", []))
 
 	# Connect to BattleManager's battle_ended signal
 	if not BattleManager.battle_ended.is_connected(_on_battle_ended):
@@ -296,9 +281,7 @@ func _on_shop_closed() -> void:
 
 
 func _complete() -> void:
-	if is_instance_valid(_manager):
-		_manager.current_state = _manager.State.PLAYING
-		_manager._command_completed = true
+	CinematicCommandExecutor.complete_async_command(_manager, true)
 	_cleanup()
 
 

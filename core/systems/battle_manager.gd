@@ -18,6 +18,10 @@
 extends Node
 
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
+const BattleRewardsDistributor = preload("res://core/systems/battle/battle_rewards_distributor.gd")
+const BattleCleanup = preload("res://core/systems/battle/battle_cleanup.gd")
+const BattleExitController = preload("res://core/systems/battle/battle_exit_controller.gd")
+const CombatSessionExecutor = preload("res://core/systems/battle/combat_session_executor.gd")
 
 ## Signals for battle events
 signal battle_started(battle_data: BattleData)
@@ -28,13 +32,12 @@ signal combat_resolved(attacker: Unit, defender: Unit, damage: int, hit: bool, c
 ## Current battle data (loaded from mods/)
 var current_battle_data: BattleData = null
 
-## Battle state - delegates to TurnManager as single source of truth
-## This prevents desync bugs between BattleManager and TurnManager
+## Battle state - read-only accessor delegating to TurnManager as single source of truth
+## This prevents desync bugs between BattleManager and TurnManager.
+## To modify battle state, use TurnManager directly (e.g., TurnManager.battle_active = false).
 var battle_active: bool:
 	get:
 		return TurnManager.battle_active
-	set(value):
-		push_warning("BattleManager.battle_active should not be set directly - use TurnManager")
 
 ## Unit tracking
 var all_units: Array[Unit] = []
@@ -65,7 +68,6 @@ var _scene_cache: Dictionary = {}
 const BATTLEFIELD_SETTLE_DELAY: float = 1.2  ## Pause after combat to let player read results
 const RETURN_TO_MAP_DELAY: float = 2.0  ## Pause before transitioning back to map
 const DEATH_FADE_DURATION: float = 0.5  ## How long unit fade-out takes on death
-const EXIT_MESSAGE_DURATION: float = 1.5  ## How long Egress/exit message displays
 
 ## XP award constants (SF2-authentic)
 const HEALER_ITEM_XP: int = 10  ## XP for healers using items
@@ -86,23 +88,15 @@ const COMBAT_AUDIO_LAYER: int = 1  ## Music layer for combat intensity
 const BOSS_AUDIO_LAYER: int = 2  ## Music layer for boss battles
 const AUDIO_LAYER_FADE_DURATION: float = 0.4  ## Fade duration for layer transitions
 
-## UI constants
-const EXIT_MESSAGE_LAYER: int = 100  ## CanvasLayer for exit message
-const EXIT_MESSAGE_FONT_SIZE: int = 32  ## Font size for exit message
-const EXIT_MESSAGE_BG_ALPHA: float = 0.7  ## Background alpha for exit message
-
 ## Current combat animation instance
 var combat_anim_instance: CombatAnimationScene = null
+
+## Combat session executor instance (handles skip/animation mode combat)
+var _combat_executor: CombatSessionExecutor = null
 
 ## Level-up queue for handling multiple level-ups in sequence
 var _pending_level_ups: Array[Dictionary] = []
 var _showing_level_up: bool = false
-
-## XP entries queue for combat results panel
-var _pending_xp_entries: Array[Dictionary] = []
-
-## Combat actions queue for combat results panel (e.g., "Max hit with CHAOS BREAKER for 12 damage!")
-var _pending_combat_actions: Array[Dictionary] = []
 
 
 ## Initialize battle manager with scene references
@@ -118,29 +112,22 @@ func clear_scene_cache() -> void:
 
 ## Get a cached scene with lazy loading and mod override support
 ## @param key: Scene key matching SCENE_DEFAULTS (e.g., "unit_scene")
+## @return: Cached PackedScene, or null if scene failed to load
 func _get_cached_scene(key: String) -> PackedScene:
 	if key not in _scene_cache:
 		var default_path: String = SCENE_DEFAULTS.get(key, "")
-		_scene_cache[key] = ModLoader.get_scene_or_fallback(key, default_path)
+		var loaded_scene: PackedScene = ModLoader.get_scene_or_fallback(key, default_path)
+		if loaded_scene == null:
+			push_error("BattleManager: Failed to load scene for key '%s' (default: %s)" % [key, default_path])
+			return null
+		_scene_cache[key] = loaded_scene
 	return _scene_cache[key]
 
 
 ## Validate BattleData has required properties
 func _validate_battle_data(data: BattleData) -> bool:
-	# Use BattleData's built-in validation if available
-	if data.has_method("validate"):
-		return data.validate()
-
-	# Fallback: basic validation
-	if data.battle_name.is_empty():
-		push_error("BattleManager: BattleData missing battle_name")
-		return false
-
-	if data.map_scene == null:
-		push_error("BattleManager: BattleData missing map_scene")
-		return false
-
-	return true
+	# BattleData always has validate() method - use it directly
+	return data.validate()
 
 
 ## Initialize audio system for battle
@@ -174,7 +161,7 @@ func _battle_has_boss() -> bool:
 
 ## Load and instantiate map scene from BattleData
 func _load_map_scene() -> void:
-	if current_battle_data.get("map_scene") == null:
+	if current_battle_data.map_scene == null:
 		push_warning("BattleManager: No map_scene in BattleData, using default")
 		return
 
@@ -266,7 +253,7 @@ func _spawn_all_units() -> void:
 	if not PartyManager.is_empty():
 		# Get player spawn point from BattleData or use default
 		var player_spawn_point: Vector2i = DEFAULT_PLAYER_SPAWN
-		if current_battle_data.get("player_spawn_point") != null:
+		if current_battle_data.player_spawn_point != Vector2i.ZERO:
 			player_spawn_point = current_battle_data.player_spawn_point
 
 		# Get party spawn data from PartyManager
@@ -278,11 +265,11 @@ func _spawn_all_units() -> void:
 		push_warning("BattleManager: No party members in PartyManager, no player units spawned")
 
 	# Spawn enemy units
-	if current_battle_data.get("enemies") != null:
+	if not current_battle_data.enemies.is_empty():
 		enemy_units = _spawn_units(current_battle_data.enemies, "enemy")
 
 	# Spawn neutral units
-	if current_battle_data.get("neutrals") != null:
+	if not current_battle_data.neutrals.is_empty():
 		neutral_units = _spawn_units(current_battle_data.neutrals, "neutral")
 
 	# Combine all units
@@ -345,6 +332,7 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 
 		units.append(unit)
 		unit_spawned.emit(unit)
+		GameEventBus.post_unit_spawned.emit(unit, faction)
 
 	return units
 
@@ -372,14 +360,8 @@ func _connect_signals() -> void:
 		InputManager.spell_cast_requested.connect(_on_spell_cast_requested)
 
 	# ExperienceManager signals
-	if not ExperienceManager.unit_gained_xp.is_connected(_on_unit_gained_xp):
-		ExperienceManager.unit_gained_xp.connect(_on_unit_gained_xp)
-
 	if not ExperienceManager.unit_leveled_up.is_connected(_on_unit_leveled_up):
 		ExperienceManager.unit_leveled_up.connect(_on_unit_leveled_up)
-
-	if not ExperienceManager.unit_learned_ability.is_connected(_on_unit_learned_ability):
-		ExperienceManager.unit_learned_ability.connect(_on_unit_learned_ability)
 
 
 ## Handle action selection from InputManager
@@ -567,7 +549,7 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 				# Consume the item first
 				_consume_item_from_inventory(unit, item_id)
 				# Execute battle exit
-				await _execute_battle_exit(unit, BattleExitReason.ANGEL_WING)
+				await _execute_battle_exit(unit, BattleExitController.BattleExitReason.ANGEL_WING)
 				return  # Early return - battle is over
 			else:
 				push_warning("BattleManager: Unknown SPECIAL item ability: %s" % ability.ability_id)
@@ -584,7 +566,11 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 		return
 
 	# Consume item from inventory BEFORE the animation
-	_consume_item_from_inventory(unit, item_id)
+	# If consumption fails, abort the action (don't apply effect or award XP)
+	if not _consume_item_from_inventory(unit, item_id):
+		push_warning("BattleManager: Item consumption failed, aborting item use")
+		_finish_unit_turn(unit)
+		return
 
 	# Execute the combat session (shows full battle overlay, applies effect)
 	await _execute_combat_session(unit, target, phases)
@@ -596,10 +582,11 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 
 
 ## Consume item from unit's inventory
-func _consume_item_from_inventory(unit: Unit, item_id: String) -> void:
+## Returns true if item was successfully consumed, false otherwise
+func _consume_item_from_inventory(unit: Unit, item_id: String) -> bool:
 	if not unit.character_data:
 		push_warning("BattleManager: Unit has no character_data, cannot consume item")
-		return
+		return false
 
 	# Get character's save data from PartyManager
 	var char_uid: String = unit.character_data.character_uid
@@ -607,8 +594,11 @@ func _consume_item_from_inventory(unit: Unit, item_id: String) -> void:
 		var removed: bool = PartyManager.remove_item_from_member(char_uid, item_id)
 		if not removed:
 			push_warning("BattleManager: Failed to remove item from inventory")
+			return false
+		return true
 	else:
 		push_warning("BattleManager: PartyManager.remove_item_from_member() not available")
+		return false
 
 
 ## Award XP for item usage (SF-authentic)
@@ -703,7 +693,7 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 						_finish_unit_turn(caster)
 						return
 					# Egress exits battle immediately - no per-target loop needed
-					await _execute_battle_exit(caster, BattleExitReason.EGRESS)
+					await _execute_battle_exit(caster, BattleExitController.BattleExitReason.EGRESS)
 					return  # Early return - battle is over, don't continue loop
 				else:
 					push_warning("BattleManager: Unknown SPECIAL ability: %s" % ability.ability_id)
@@ -1268,231 +1258,39 @@ func _can_counterattack(original_attacker: Unit, original_defender: Unit) -> boo
 	return counter_result.will_counter
 
 
-## Execute the complete combat session with all pre-calculated phases
+## Execute the complete combat session with all pre-calculated phases.
+## Delegates to CombatSessionExecutor for actual execution (skip or animation mode).
 func _execute_combat_session(
 	initial_attacker: Unit,
 	initial_defender: Unit,
 	phases: Array[CombatPhase]
 ) -> void:
-	# Track deaths for skip mode XP and signal emission
-	var attacker_died: bool = false
-	var defender_died: bool = false
+	# Ensure executor exists
+	if _combat_executor == null:
+		_combat_executor = CombatSessionExecutor.new()
 
-	# SF2-AUTHENTIC: Pool XP by attacker/defender pair, award ONCE per pair
-	# (Double attacks should not show separate XP entries)
-	var xp_pools: Dictionary = {}  # Key: "attacker_id:defender_id", Value: {attacker, defender, damage, got_kill}
+	# Build context with all references needed by executor
+	var context: CombatSessionExecutor.SessionContext = _build_session_context()
 
-	# =========================================================================
-	# FULL ANIMATION MODE: Single battle screen session
-	# =========================================================================
-	if not TurnManager.is_headless and not GameJuice.should_skip_combat_animation():
-		# Hide the battlefield
-		_hide_battlefield()
+	# Execute and get death results (executor handles skip vs animation mode)
+	var result: Dictionary = await _combat_executor.execute(context, initial_attacker, initial_defender, phases)
 
-		# Create and setup the combat animation scene
-		combat_anim_instance = _get_cached_scene("combat_anim_scene").instantiate()
-		battle_scene_root.add_child(combat_anim_instance)
-		combat_anim_instance.set_speed_multiplier(GameJuice.get_combat_speed_multiplier())
-
-		# Connect XP handler to feed entries to battle screen
-		var xp_handler: Callable = func(unit: Unit, amount: int, source: String) -> void:
-			if combat_anim_instance and is_instance_valid(combat_anim_instance):
-				combat_anim_instance.queue_xp_entry(UnitUtils.get_display_name(unit), amount, source)
-		ExperienceManager.unit_gained_xp.connect(xp_handler)
-
-		# Connect damage handler to POOL damage (not award XP yet - SF2-authentic)
-		var damage_handler: Callable = func(def_unit: Unit, dmg: int, died: bool) -> void:
-			# Find which phase this corresponds to
-			var current_phase: CombatPhase = _find_current_phase_for_defender(phases, def_unit)
-			if current_phase and dmg > 0:
-				# Pool damage by attacker/defender pair instead of awarding immediately
-				_pool_damage_for_xp(xp_pools, current_phase.attacker, def_unit, dmg, died)
-				# Track death state
-				if def_unit == initial_attacker:
-					attacker_died = died
-				elif def_unit == initial_defender:
-					defender_died = died
-		combat_anim_instance.damage_applied.connect(damage_handler)
-
-		# ADAPTIVE MUSIC: Enable attack layer during combat animation
-		AudioManager.enable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
-
-		# Start the session (fade in ONCE)
-		await combat_anim_instance.start_session(initial_attacker, initial_defender)
-
-		# Queue all phases and their combat action text
-		for phase: CombatPhase in phases:
-			combat_anim_instance.queue_phase(phase)
-			# Queue combat action for results display
-			combat_anim_instance.queue_combat_action(
-				phase.get_result_text(),
-				phase.was_critical,
-				phase.was_miss
-			)
-
-		# Execute all phases (no fading between them!)
-		await combat_anim_instance.execute_all_phases()
-
-		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
-		# (This happens after all phases complete, so double attacks show as one XP entry)
-		for pool: Dictionary in xp_pools.values():
-			ExperienceManager.award_combat_xp(
-				pool["attacker"],
-				pool["defender"],
-				pool["total_damage"],
-				pool["got_kill"]
-			)
-
-		# Finish session (display XP, fade out ONCE)
-		await combat_anim_instance.finish_session()
-
-		# ADAPTIVE MUSIC: Disable attack layer after combat animation
-		AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
-
-		# Disconnect handlers
-		if ExperienceManager.unit_gained_xp.is_connected(xp_handler):
-			ExperienceManager.unit_gained_xp.disconnect(xp_handler)
-		if combat_anim_instance and is_instance_valid(combat_anim_instance) and combat_anim_instance.damage_applied.is_connected(damage_handler):
-			combat_anim_instance.damage_applied.disconnect(damage_handler)
-
-		# Clean up
-		combat_anim_instance.queue_free()
-		combat_anim_instance = null
-
-		# Restore battlefield
-		_show_battlefield()
-
-		# Battlefield settle delay
-		await get_tree().create_timer(BATTLEFIELD_SETTLE_DELAY).timeout
-
-	# =========================================================================
-	# SKIP MODE / HEADLESS: Apply damage directly, no animations
-	# =========================================================================
-	else:
-		for phase: CombatPhase in phases:
-			# Check if we should skip this phase due to death
-			if phase.attacker == initial_attacker and attacker_died:
-				continue
-			if phase.attacker == initial_defender and defender_died:
-				continue
-			if phase.defender == initial_attacker and attacker_died:
-				continue
-			if phase.defender == initial_defender and defender_died:
-				continue
-
-			# Queue combat action for results panel
-			_pending_combat_actions.append({
-				"text": phase.get_result_text(),
-				"is_critical": phase.was_critical,
-				"is_miss": phase.was_miss
-			})
-
-			# Handle healing phases (ITEM_HEAL, SPELL_HEAL)
-			if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
-				# Play healing sound
-				AudioManager.play_sfx("heal", AudioManager.SFXCategory.COMBAT)
-
-				# Apply healing directly
-				if phase.heal_amount > 0 and phase.defender and phase.defender.stats:
-					var stats: UnitStats = phase.defender.stats
-					stats.current_hp = mini(stats.current_hp + phase.heal_amount, stats.max_hp)
-
-				# Healing doesn't have damage XP pooling - XP is handled separately
-				continue
-
-			# Play sound effect (for attack phases)
-			if not phase.was_miss:
-				if phase.was_critical:
-					AudioManager.play_sfx("attack_critical", AudioManager.SFXCategory.COMBAT)
-				else:
-					AudioManager.play_sfx("attack_hit", AudioManager.SFXCategory.COMBAT)
-			else:
-				AudioManager.play_sfx("attack_miss", AudioManager.SFXCategory.COMBAT)
-
-			# Apply damage directly
-			if not phase.was_miss and phase.damage > 0:
-				if phase.defender.has_method("take_damage"):
-					phase.defender.take_damage(phase.damage)
-				else:
-					phase.defender.stats.current_hp -= phase.damage
-					phase.defender.stats.current_hp = maxi(0, phase.defender.stats.current_hp)
-
-				# Check for death
-				var died: bool = phase.defender.is_dead() if phase.defender.has_method("is_dead") else phase.defender.stats.current_hp <= 0
-
-				# Update death tracking
-				if phase.defender == initial_attacker:
-					attacker_died = died
-				elif phase.defender == initial_defender:
-					defender_died = died
-
-				# SF2-AUTHENTIC: Pool damage instead of awarding XP immediately
-				_pool_damage_for_xp(xp_pools, phase.attacker, phase.defender, phase.damage, died)
-
-			# Emit combat resolved signal
-			combat_resolved.emit(phase.attacker, phase.defender, phase.damage, not phase.was_miss, phase.was_critical)
-
-		# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
-		for pool: Dictionary in xp_pools.values():
-			ExperienceManager.award_combat_xp(
-				pool["attacker"],
-				pool["defender"],
-				pool["total_damage"],
-				pool["got_kill"]
-			)
-
-		# Show combat results panel (skip mode shows XP on map)
-		await _show_combat_results()
+	# Store combat_anim_instance reference if executor used animation mode
+	# (for cleanup tracking - executor manages the instance internally)
+	combat_anim_instance = _combat_executor._combat_anim_instance
 
 
-## Helper to find current phase for damage handler
-func _find_current_phase_for_defender(phases: Array[CombatPhase], defender: Unit) -> CombatPhase:
-	# Return the most recent phase where this unit is the defender
-	# (In practice, the damage_applied signal fires during execute_all_phases,
-	#  so we track which phase we're on via the scene's internal state)
-	for i: int in range(phases.size() - 1, -1, -1):
-		var phase: CombatPhase = phases[i]
-		if phase.defender == defender:
-			return phase
-	return null
-
-
-## Helper to pool XP damage for SF2-authentic awarding
-## Double attacks should show as a single XP entry, so we pool damage by attacker/defender pair
-func _pool_damage_for_xp(xp_pools: Dictionary, attacker: Unit, defender: Unit, damage: int, died: bool) -> void:
-	var pool_key: String = "%d:%d" % [attacker.get_instance_id(), defender.get_instance_id()]
-	if pool_key not in xp_pools:
-		xp_pools[pool_key] = {
-			"attacker": attacker,
-			"defender": defender,
-			"total_damage": 0,
-			"got_kill": false
-		}
-	xp_pools[pool_key]["total_damage"] += damage
-	if died:
-		xp_pools[pool_key]["got_kill"] = true
-
-
-## Hide the battlefield for combat animation
-func _hide_battlefield() -> void:
-	if map_instance:
-		map_instance.visible = false
-	if units_parent:
-		units_parent.visible = false
-	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
-	if ui_node:
-		ui_node.visible = false
-
-
-## Show the battlefield after combat animation
-func _show_battlefield() -> void:
-	if map_instance:
-		map_instance.visible = true
-	if units_parent:
-		units_parent.visible = true
-	var ui_node: Node = battle_scene_root.get_node_or_null("UI")
-	if ui_node:
-		ui_node.visible = true
+## Build a SessionContext with current battle state for the CombatSessionExecutor.
+func _build_session_context() -> CombatSessionExecutor.SessionContext:
+	var context: CombatSessionExecutor.SessionContext = CombatSessionExecutor.SessionContext.new()
+	context.battle_scene_root = battle_scene_root
+	context.map_instance = map_instance
+	context.units_parent = units_parent
+	context.get_cached_scene = _get_cached_scene
+	context.scene_tree = get_tree()
+	context.combat_resolved_signal = combat_resolved
+	context.combat_anim_scene = _get_cached_scene("combat_anim_scene")
+	return context
 
 
 # =============================================================================
@@ -1558,6 +1356,10 @@ func _on_unit_died(unit: Unit) -> void:
 		tween.tween_property(unit, "modulate:a", 0.0, DEATH_FADE_DURATION)
 		await tween.finished
 
+		# HIGH-003: Validate unit still exists after await - may have been freed during battle cleanup
+		if not is_instance_valid(unit):
+			return
+
 	# Unit stays in scene but is marked dead
 	# TurnManager will skip dead units
 	# Note: GridManager already cleared by Unit before emitting signal
@@ -1616,6 +1418,7 @@ func _on_battle_ended(victory: bool) -> void:
 
 	# Emit battle_ended AFTER victory screen is dismissed
 	battle_ended.emit(true)
+	GameEventBus.post_battle_end.emit(current_battle_data, true, {})
 
 	# Reset external handler flag
 	GameState.external_battle_handler = false
@@ -1649,7 +1452,7 @@ func _show_victory_screen() -> bool:
 	var victory_screen: CanvasLayer = _get_cached_scene("victory_screen_scene").instantiate()
 	battle_scene_root.add_child(victory_screen)
 
-	victory_screen.show_victory(rewards.gold)
+	victory_screen.show_victory(rewards)
 	await victory_screen.result_dismissed
 
 	# HIGH-003: Validate state after await on UI signal
@@ -1660,37 +1463,9 @@ func _show_victory_screen() -> bool:
 
 ## Distribute battle rewards (gold and items) to the player
 ## Returns Dictionary with {gold: int, items: Array[String]} of actual rewards given
+## Note: Delegates to BattleRewardsDistributor.distribute() - kept as wrapper for backward compatibility
 func _distribute_battle_rewards() -> Dictionary:
-	var rewards: Dictionary = {"gold": 0, "items": []}
-
-	if not current_battle_data:
-		return rewards
-
-	# Read rewards from battle data
-	rewards.gold = current_battle_data.gold_reward if "gold_reward" in current_battle_data else 0
-
-	# Collect item IDs from item_rewards array
-	if "item_rewards" in current_battle_data and current_battle_data.item_rewards:
-		for item: ItemData in current_battle_data.item_rewards:
-			if item and item.item_id:
-				rewards.items.append(item.item_id)
-
-	# Allow mods to modify rewards before distribution
-	GameEventBus.pre_battle_rewards.emit(current_battle_data, rewards)
-
-	# Distribute gold
-	if rewards.gold > 0:
-		SaveManager.add_current_gold(rewards.gold)
-
-	# Distribute items to depot
-	if not rewards.items.is_empty() and SaveManager.current_save:
-		for item_id: String in rewards.items:
-			SaveManager.current_save.depot_items.append(item_id)
-
-	# Notify mods that rewards were distributed
-	GameEventBus.post_battle_rewards.emit(current_battle_data, rewards)
-
-	return rewards
+	return BattleRewardsDistributor.distribute(current_battle_data)
 
 
 ## Show defeat screen (SF2-authentic automatic flow) and wait for player input
@@ -1721,17 +1496,6 @@ func _show_defeat_screen() -> bool:
 
 	# SF2-authentic: defeat always continues (player revives at last safe location)
 	return false
-
-
-## Handle unit gaining XP
-func _on_unit_gained_xp(unit: Unit, amount: int, source: String) -> void:
-
-	# Queue XP entry for combat results panel
-	_pending_xp_entries.append({
-		"unit_name": UnitUtils.get_display_name(unit),
-		"amount": amount,
-		"source": source
-	})
 
 
 ## Handle unit level up
@@ -1780,190 +1544,73 @@ func _process_level_up_queue() -> void:
 
 ## Wait for all pending level-up celebrations to finish
 ## Used before showing victory/defeat screens to prevent overlap
+## Has timeout guard to prevent infinite loop if level-up UI gets stuck
+const LEVEL_UP_WAIT_TIMEOUT_FRAMES: int = 600  ## ~10 seconds at 60fps
+
 func _wait_for_level_ups() -> void:
+	var frames_waited: int = 0
 	while _showing_level_up or not _pending_level_ups.is_empty():
 		await get_tree().process_frame
+		frames_waited += 1
+		if frames_waited >= LEVEL_UP_WAIT_TIMEOUT_FRAMES:
+			push_warning("BattleManager: _wait_for_level_ups() timed out after %d frames - clearing queue" % frames_waited)
+			_pending_level_ups.clear()
+			_showing_level_up = false
+			break
 
 
-## Handle unit learning ability
-func _on_unit_learned_ability(unit: Unit, ability: AbilityData) -> void:
-	pass  # Future: Show ability learned notification
-
-
-## Show combat results panel with queued combat actions and XP entries
-func _show_combat_results() -> void:
-	# Skip in headless mode
-	if TurnManager.is_headless:
-		_pending_combat_actions.clear()
-		_pending_xp_entries.clear()
-		return
-
-	# Skip if no entries
-	if _pending_combat_actions.is_empty() and _pending_xp_entries.is_empty():
-		return
-
-	# Create and populate the results panel
-	var results_panel: CanvasLayer = _get_cached_scene("combat_results_scene").instantiate()
-	battle_scene_root.add_child(results_panel)
-
-	# Add all queued combat actions first
-	for action: Dictionary in _pending_combat_actions:
-		results_panel.add_combat_action(action.text, action.is_critical, action.is_miss)
-
-	# Clear the combat actions queue
-	_pending_combat_actions.clear()
-
-	# Add all queued XP entries
-	for entry: Dictionary in _pending_xp_entries:
-		results_panel.add_xp_entry(entry.unit_name, entry.amount, entry.source)
-
-	# Clear the XP queue
-	_pending_xp_entries.clear()
-
-	# Show and wait for dismissal
-	results_panel.show_results()
-	await results_panel.results_dismissed
-
-	# HIGH-003: Validate state after await on UI signal
-	if is_instance_valid(results_panel):
-		results_panel.queue_free()
-
-
-## Clean up battle
+## Clean up battle state and free all battle-related resources.
+## Delegates to BattleCleanup for the actual cleanup operations.
 func end_battle() -> void:
-	# Note: battle_active proxies to TurnManager - no need to set here
+	# Build cleanup context with all references needed
+	var context: BattleCleanup.CleanupContext = BattleCleanup.CleanupContext.new()
+	context.combat_anim_instance = combat_anim_instance
+	context.all_units = all_units
+	context.player_units = player_units
+	context.enemy_units = enemy_units
+	context.neutral_units = neutral_units
+	context.map_instance = map_instance
 
-	# Clean up any lingering combat animation
-	if combat_anim_instance and is_instance_valid(combat_anim_instance):
-		combat_anim_instance.queue_free()
-		combat_anim_instance = null
+	# Execute cleanup (this clears the arrays and frees nodes)
+	BattleCleanup.execute(context)
 
-	# Clear units
-	for unit_node: Unit in all_units:
-		if is_instance_valid(unit_node):
-			unit_node.queue_free()
-
-	all_units.clear()
-	player_units.clear()
-	enemy_units.clear()
-	neutral_units.clear()
-
-	# Remove map
-	if map_instance and is_instance_valid(map_instance):
-		map_instance.queue_free()
-		map_instance = null
-
+	# Clear local references (arrays were cleared by BattleCleanup)
+	combat_anim_instance = null
+	map_instance = null
 	current_battle_data = null
 
 
 # =============================================================================
 # Battle Exit System (Egress, Angel Wing, Hero Death)
+# Delegated to BattleExitController for modularity
 # =============================================================================
 
-## Reasons for exiting battle early (not victory/defeat)
-enum BattleExitReason {
-	EGRESS,      ## Player cast Egress spell
-	ANGEL_WING,  ## Player used Angel Wing item
-	HERO_DEATH,  ## Hero (is_hero character) died
-	PARTY_WIPE,  ## All player units dead
-	MENU_QUIT    ## Player quit from game menu
-}
-
-
-## Execute battle exit - revive all party members, return to safe location
+## Execute battle exit - delegates to BattleExitController
 ## This handles Egress spell, Angel Wing item, and automatic exits from death
 ## @param initiator: The unit that triggered the exit (for Egress/Angel Wing) or null (for death)
 ## @param reason: Why we're exiting the battle
-func _execute_battle_exit(initiator: Unit, reason: BattleExitReason) -> void:
-	# Prevent re-entry if already exiting
-	if not battle_active:
-		return
-
-	# Mark battle as inactive (set on TurnManager directly)
-	TurnManager.battle_active = false
-
-	# 1. Handle party restoration based on exit reason (SF2-authentic)
-	# DEFEAT scenarios (HERO_DEATH, PARTY_WIPE): Full restoration (HP + MP)
-	# ESCAPE scenarios (EGRESS, ANGEL_WING): No restoration (keep current state)
-	var is_defeat: bool = reason == BattleExitReason.HERO_DEATH or reason == BattleExitReason.PARTY_WIPE
-	_revive_all_party_members(is_defeat)
-
-	# 2. Set battle outcome to RETREAT in transition context
-	var context: TransitionContext = GameState.get_transition_context()
-	if context:
-		context.battle_outcome = TransitionContext.BattleOutcome.RETREAT
-
-	# 3. Determine return location
-	var return_path: String = GameState.get_last_safe_location()
-	if return_path.is_empty():
-		push_warning("BattleManager: No safe location set, using transition context fallback")
-		if context and context.is_valid():
-			return_path = context.return_scene_path
-
-	if return_path.is_empty():
-		push_error("BattleManager: Cannot exit battle - no return location available")
-		TurnManager.battle_active = true  # Re-enable battle since we can't exit
-		return
-
-	# 4. Show brief exit message for voluntary exits (Egress/Angel Wing only)
-	# HERO_DEATH uses the full defeat screen shown earlier
-	if not TurnManager.is_headless and reason != BattleExitReason.HERO_DEATH:
-		await _show_exit_message(reason)
-
-	# 5. Check if external code (e.g., trigger_battle command) is handling post-battle transition
-	var external_handles_transition: bool = GameState.external_battle_handler
-
-	# 6. Emit battle_ended signal with victory=false (but RETREAT outcome distinguishes from DEFEAT)
-	# External handlers (like trigger_battle) listen to this and handle transitions
-	battle_ended.emit(false)
-
-	# 7. Clean up battle state and reset external handler flag
-	end_battle()
-	GameState.external_battle_handler = false
-
-	# 8. Transition to safe location ONLY if external code is NOT handling it
-	# For trigger_battle cinematics, they handle the on_defeat transition
-	if not external_handles_transition:
-		await SceneManager.change_scene(return_path)
+func _execute_battle_exit(initiator: Unit, reason: BattleExitController.BattleExitReason) -> void:
+	var context: BattleExitController.ExitContext = _build_exit_context()
+	await BattleExitController.execute(context, initiator, reason)
 
 
-## Revive all party members (SF2-authentic behavior depends on reason)
-## @param full_restoration: If true (defeat), restore HP AND MP. If false (escape), no restoration.
-func _revive_all_party_members(full_restoration: bool) -> void:
-	if not full_restoration:
-		# EGRESS / ANGEL_WING: No restoration - party keeps current state
-		# SF2-AUTHENTIC: Egress exits with whatever HP/MP you had
-		return
-
-	# DEFEAT (HERO_DEATH / PARTY_WIPE): Full restoration
-	# SF2-AUTHENTIC: On defeat, party wakes up at church fully healed (HP + MP)
-	for character: CharacterData in PartyManager.party_members:
-		var uid: String = character.character_uid
-		var save_data: CharacterSaveData = PartyManager.get_member_save_data(uid)
-		if save_data:
-			save_data.is_alive = true
-			save_data.current_hp = save_data.max_hp
-			save_data.current_mp = save_data.max_mp
-			# Status effects auto-clear when Units are freed (battle-only, not persisted)
+## Build an ExitContext with current battle state for the controller
+func _build_exit_context() -> BattleExitController.ExitContext:
+	var context: BattleExitController.ExitContext = BattleExitController.ExitContext.new()
+	context.battle_manager = self
+	context.current_battle_data = current_battle_data
+	context.player_units = player_units
+	context.battle_scene_root = battle_scene_root
+	context.scene_tree = get_tree()
+	context.end_battle_callable = end_battle
+	context.battle_ended_signal = battle_ended
+	return context
 
 
 ## Sync all surviving player units' HP/MP to their CharacterSaveData after battle
 ## Called after victory to persist current state (dead units already marked via _persist_unit_death)
 func _sync_surviving_units_to_save_data() -> void:
-	for unit: Unit in player_units:
-		if not is_instance_valid(unit):
-			continue
-		if not unit.is_alive():
-			continue
-		if not unit.character_data:
-			continue
-		var char_uid: String = unit.character_data.character_uid
-		if char_uid.is_empty():
-			continue
-		var save_data: CharacterSaveData = PartyManager.get_member_save_data(char_uid)
-		if save_data and unit.stats:
-			save_data.current_hp = unit.stats.current_hp
-			save_data.current_mp = unit.stats.current_mp
+	BattleExitController.sync_surviving_units_to_save_data(player_units)
 
 
 ## Quit battle from game menu - public API for InputManager
@@ -1977,57 +1624,7 @@ func quit_battle_from_menu() -> void:
 		push_warning("BattleManager: Cannot quit a story battle from menu")
 		return
 
-	_execute_battle_exit(null, BattleExitReason.MENU_QUIT)
-
-
-## Show a brief exit message for voluntary battle exits (Egress/Angel Wing/Menu Quit)
-func _show_exit_message(reason: BattleExitReason) -> void:
-	var message: String = ""
-	match reason:
-		BattleExitReason.EGRESS:
-			message = "Egress!"
-		BattleExitReason.ANGEL_WING:
-			message = "Angel Wing!"
-		BattleExitReason.MENU_QUIT:
-			message = "Retreating..."
-		_:
-			return  # No message for other reasons
-
-	# Create full-screen container for proper centering
-	var canvas: CanvasLayer = CanvasLayer.new()
-	canvas.layer = EXIT_MESSAGE_LAYER
-
-	var background: ColorRect = ColorRect.new()
-	background.color = Color(0, 0, 0, EXIT_MESSAGE_BG_ALPHA)
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	canvas.add_child(background)
-
-	var center: CenterContainer = CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	canvas.add_child(center)
-
-	var label: Label = Label.new()
-	label.text = message
-	label.add_theme_font_override("font", preload("res://assets/fonts/monogram.ttf"))
-	label.add_theme_font_size_override("font_size", EXIT_MESSAGE_FONT_SIZE)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(label)
-
-	if battle_scene_root:
-		battle_scene_root.add_child(canvas)
-	elif get_tree().current_scene:
-		get_tree().current_scene.add_child(canvas)
-	else:
-		# Rare edge case: no valid scene root during transition
-		push_warning("BattleManager: Cannot show exit message - no scene root available")
-		canvas.queue_free()
-		return
-
-	# Brief pause for player to read message
-	await get_tree().create_timer(EXIT_MESSAGE_DURATION).timeout
-
-	canvas.queue_free()
+	_execute_battle_exit(null, BattleExitController.BattleExitReason.MENU_QUIT)
 
 
 ## Handle hero death - show defeat screen then exit battle (called from TurnManager signal)
@@ -2042,4 +1639,4 @@ func _on_hero_died_in_battle() -> void:
 		await _show_defeat_screen()
 
 	# Now execute battle exit with full party restoration
-	await _execute_battle_exit(null, BattleExitReason.HERO_DEATH)
+	await _execute_battle_exit(null, BattleExitController.BattleExitReason.HERO_DEATH)

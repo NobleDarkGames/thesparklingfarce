@@ -36,10 +36,10 @@ extends RefCounted
 ## Tab categories for logical grouping (two-tier navigation)
 ## Primary categories shown in category bar, secondary tabs shown below
 const CATEGORIES: Array[String] = [
+	"system",      # Overview, mod settings, new game configs, save editing (first for onboarding)
 	"content",     # Characters, classes, items, abilities (core content creation)
 	"battle",      # Maps, terrain, battles, AI (tactical scenario design)
 	"story",       # NPCs, cinematics, campaigns, shops (narrative elements)
-	"system",      # Overview, mod settings, new game configs, save editing
 	"mod"          # Mod-provided custom tabs (always last)
 ]
 
@@ -73,7 +73,6 @@ const BUILTIN_TABS: Array[Dictionary] = [
 	{"id": "npcs", "display_name": "NPCs", "scene": "npc_editor.tscn", "category": "story", "priority": 10},
 	{"id": "interactables", "display_name": "Interactables", "scene": "interactable_editor.tscn", "category": "story", "priority": 15},
 	{"id": "cinematics", "display_name": "Cinematics", "scene": "cinematic_editor.tscn", "category": "story", "priority": 20},
-	{"id": "campaigns", "display_name": "Campaigns", "scene": "campaign_editor.tscn", "category": "story", "priority": 30},
 	{"id": "shops", "display_name": "Shops", "scene": "shop_editor.tscn", "category": "story", "priority": 40},
 	{"id": "crafters", "display_name": "Crafters", "scene": "crafter_editor.tscn", "category": "story", "priority": 50},
 	{"id": "recipes", "display_name": "Recipes", "scene": "crafting_recipe_editor.tscn", "category": "story", "priority": 60},

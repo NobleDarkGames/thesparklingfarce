@@ -39,8 +39,6 @@ const COLOR_BUTTON_HOVER: Color = Color(0.3, 0.3, 0.35, 1.0)
 const COLOR_BUTTON_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
 const COLOR_BUTTON_TEXT: Color = Color(0.9, 0.9, 0.9, 1.0)
 
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 # =============================================================================
 # STATE
 # =============================================================================
@@ -109,8 +107,7 @@ func _build_ui() -> void:
 	# Title
 	_title_label = Label.new()
 	_title_label.name = "TitleLabel"
-	_title_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_title_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_title_label, 16)
 	_title_label.modulate = COLOR_TITLE
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_title_label)
@@ -118,8 +115,7 @@ func _build_ui() -> void:
 	# Message
 	_message_label = Label.new()
 	_message_label.name = "MessageLabel"
-	_message_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_message_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_message_label, 16)
 	_message_label.modulate = COLOR_MESSAGE
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -146,8 +142,7 @@ func _build_ui() -> void:
 func _create_button(text: String) -> Button:
 	var button: Button = Button.new()
 	button.text = text
-	button.add_theme_font_override("font", MONOGRAM_FONT)
-	button.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(button, 16)
 	button.custom_minimum_size = Vector2(48, 20)
 
 	var normal_style: StyleBoxFlat = StyleBoxFlat.new()

@@ -40,8 +40,6 @@ const SLOT_SPACING: int = 4
 const ACTIVE_COLS: int = 4
 const ACTIVE_ROWS: int = 3
 
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 # =============================================================================
 # STATE
 # =============================================================================
@@ -157,8 +155,7 @@ func _create_styled_label(text: String, font_size: int, color: Color, h_align: H
 	## Helper to create a label with monogram font styling
 	var label: Label = Label.new()
 	label.text = text
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", font_size)
+	UIUtils.apply_monogram_style(label, font_size)
 	label.add_theme_color_override("font_color", color)
 	label.horizontal_alignment = h_align
 	return label

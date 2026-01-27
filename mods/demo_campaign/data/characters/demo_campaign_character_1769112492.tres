@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=7 format=3 uid="uid://q4abmk0bgato"]
+
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="1_hhiok"]
+[ext_resource type="Resource" uid="uid://onm2oxua1to2" path="res://mods/demo_campaign/data/classes/demo_campaign_class_1769112508.tres" id="1_qh0rv"]
+[ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_5cr1n"]
+[ext_resource type="Texture2D" uid="uid://bajfcf4tsscwy" path="res://mods/demo_campaign/assets/portraits/Mage.png" id="2_tshg1"]
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_7de3e"]
+[ext_resource type="SpriteFrames" uid="uid://c8d0p4545g2jo" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1769112492_map_sprites.tres" id="4_ltoqa"]
+
+[resource]
+script = ExtResource("1_hhiok")
+character_uid = "demo_campaign_character_1769112492"
+character_name = "Winslow"
+character_class = ExtResource("1_qh0rv")
+base_hp = 12
+base_mp = 8
+base_strength = 2
+base_defense = 2
+base_agility = 2
+base_luck = 4
+portrait = ExtResource("2_tshg1")
+sprite_frames = ExtResource("4_ltoqa")
+starting_level = 2

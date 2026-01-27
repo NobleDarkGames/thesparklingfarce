@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_class="BattleData" load_steps=6 format=3 uid="uid://dpeur6nysvm1y"]
+[gd_resource type="Resource" script_class="BattleData" load_steps=8 format=3 uid="uid://dpeur6nysvm1y"]
 
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="1_sllu4"]
 [ext_resource type="Resource" uid="uid://c40nyf8i5fwfc" path="res://mods/demo_campaign/data/characters/demo_campaign_character_1767747174.tres" id="1_uoqjm"]
 [ext_resource type="Script" uid="uid://e67j0x4dyt7i" path="res://core/resources/battle_data.gd" id="2_6pcfb"]
 [ext_resource type="PackedScene" uid="uid://beguibdtaqvk0" path="res://mods/demo_campaign/maps/first_battle_map.tscn" id="2_dodtd"]
 [ext_resource type="Resource" uid="uid://b1hib0mgbitu1" path="res://mods/_starter_kit/data/ai_behaviors/aggressive_melee.tres" id="2_isyrl"]
+[ext_resource type="Resource" uid="uid://q4abmk0bgato" path="res://mods/demo_campaign/data/characters/demo_campaign_character_1769112492.tres" id="2_kn2ql"]
+[ext_resource type="Script" uid="uid://26xnmd11n0tm" path="res://core/resources/character_data.gd" id="4_kn2ql"]
 
 [resource]
 script = ExtResource("2_6pcfb")
@@ -15,11 +17,12 @@ player_spawn_point = Vector2i(5, 5)
 enemies = Array[Dictionary]([{
 "ai_behavior": ExtResource("2_isyrl"),
 "character": ExtResource("1_uoqjm"),
-"position": Vector2i(20, 10)
+"position": Vector2i(8, 14)
 }, {
 "ai_behavior": ExtResource("2_isyrl"),
 "character": ExtResource("1_uoqjm"),
-"position": Vector2i(24, 10)
+"position": Vector2i(10, 15)
 }])
 experience_reward = 100
 gold_reward = 100
+character_rewards = Array[ExtResource("4_kn2ql")]([ExtResource("2_kn2ql")])

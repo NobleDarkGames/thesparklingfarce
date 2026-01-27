@@ -64,9 +64,6 @@ const MAP_TYPES: Array[String] = ["TOWN", "OVERWORLD", "DUNGEON", "BATTLE", "INT
 var confirmation_dialog: ConfirmationDialog
 var _pending_confirmation_action: Callable
 
-# Guard to prevent marking dirty during UI population
-var _updating_ui: bool = false
-
 
 func _init() -> void:
 	# Configure base class settings
@@ -535,12 +532,7 @@ func _set_edge_dropdown_value(dropdown: OptionButton, spawn_edit: LineEdit, edge
 		dropdown.select(0)  # (None)
 	else:
 		# Match by metadata (map_id) rather than display text
-		for i in range(dropdown.item_count):
-			var metadata: Variant = dropdown.get_item_metadata(i)
-			if metadata is String and metadata == target_map:
-				dropdown.select(i)
-				return
-		dropdown.select(0)
+		SparklingEditorUtils.select_option_by_metadata(dropdown, target_map)
 
 
 # =============================================================================

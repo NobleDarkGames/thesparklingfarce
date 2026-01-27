@@ -130,6 +130,14 @@ func _hide_with_animation() -> void:
 	slide_tween.tween_property(self, "position:y", 360.0, SLIDE_IN_DURATION).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
 	await slide_tween.finished
 
+	# Guard: node may have been freed during await
+	if not is_instance_valid(self):
+		return
+
+	# Guard: choices_ready may have been called during animation, making us active again
+	if is_active:
+		return
+
 	hide()
 	_clear_choices()
 

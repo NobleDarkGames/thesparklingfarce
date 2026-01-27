@@ -521,20 +521,24 @@ func test_input_state_enum_has_selecting_item_target() -> void:
 	assert_int(_input_manager.InputState.SELECTING_ITEM_TARGET).is_equal(6)
 
 
+func test_input_state_enum_has_selecting_equip() -> void:
+	assert_int(_input_manager.InputState.SELECTING_EQUIP).is_equal(7)
+
+
 func test_input_state_enum_has_selecting_spell() -> void:
-	assert_int(_input_manager.InputState.SELECTING_SPELL).is_equal(7)
+	assert_int(_input_manager.InputState.SELECTING_SPELL).is_equal(8)
 
 
 func test_input_state_enum_has_selecting_spell_target() -> void:
-	assert_int(_input_manager.InputState.SELECTING_SPELL_TARGET).is_equal(8)
+	assert_int(_input_manager.InputState.SELECTING_SPELL_TARGET).is_equal(9)
 
 
 func test_input_state_enum_has_targeting() -> void:
-	assert_int(_input_manager.InputState.TARGETING).is_equal(9)
+	assert_int(_input_manager.InputState.TARGETING).is_equal(10)
 
 
 func test_input_state_enum_has_executing() -> void:
-	assert_int(_input_manager.InputState.EXECUTING).is_equal(10)
+	assert_int(_input_manager.InputState.EXECUTING).is_equal(11)
 
 
 # =============================================================================
@@ -633,8 +637,8 @@ func test_on_exit_direct_movement_resets_is_direct_moving() -> void:
 	_input_manager.is_direct_moving = true
 	_input_manager.current_state = _input_manager.InputState.DIRECT_MOVEMENT
 
-	# Transition to another state (this should trigger exit handler)
-	_input_manager.set_state(_input_manager.InputState.SELECTING_ACTION)
+	# Transition to EXECUTING (doesn't require active_unit)
+	_input_manager.set_state(_input_manager.InputState.EXECUTING)
 
 	# Verify is_direct_moving was reset
 	assert_bool(_input_manager.is_direct_moving).is_false()
@@ -645,8 +649,8 @@ func test_on_exit_targeting_clears_attack_valid_targets() -> void:
 	_input_manager._attack_valid_targets = [Vector2i(1, 1), Vector2i(2, 2)] as Array[Vector2i]
 	_input_manager.current_state = _input_manager.InputState.TARGETING
 
-	# Transition to another state
-	_input_manager.set_state(_input_manager.InputState.SELECTING_ACTION)
+	# Transition to EXECUTING (doesn't require active_unit)
+	_input_manager.set_state(_input_manager.InputState.EXECUTING)
 
 	# Verify targets were cleared
 	assert_array(_input_manager._attack_valid_targets).is_empty()
@@ -657,8 +661,8 @@ func test_on_exit_selecting_spell_target_clears_spell_valid_targets() -> void:
 	_input_manager._spell_valid_targets = [Vector2i(3, 3), Vector2i(4, 4)] as Array[Vector2i]
 	_input_manager.current_state = _input_manager.InputState.SELECTING_SPELL_TARGET
 
-	# Transition to another state
-	_input_manager.set_state(_input_manager.InputState.SELECTING_ACTION)
+	# Transition to EXECUTING (doesn't require active_unit)
+	_input_manager.set_state(_input_manager.InputState.EXECUTING)
 
 	# Verify targets were cleared
 	assert_array(_input_manager._spell_valid_targets).is_empty()
@@ -669,8 +673,8 @@ func test_on_exit_selecting_item_target_clears_item_valid_targets() -> void:
 	_input_manager._item_valid_targets = [Vector2i(5, 5), Vector2i(6, 6)] as Array[Vector2i]
 	_input_manager.current_state = _input_manager.InputState.SELECTING_ITEM_TARGET
 
-	# Transition to another state
-	_input_manager.set_state(_input_manager.InputState.SELECTING_ACTION)
+	# Transition to EXECUTING (doesn't require active_unit)
+	_input_manager.set_state(_input_manager.InputState.EXECUTING)
 
 	# Verify targets were cleared
 	assert_array(_input_manager._item_valid_targets).is_empty()

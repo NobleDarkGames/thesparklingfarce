@@ -79,8 +79,7 @@ const TEXT_HOVER: Color = Color(0.95, 0.95, 0.85)
 const CURSOR_CHAR: String = ">"
 const CURSOR_SPACING: int = 8  # Space between cursor and text
 
-# Font (MANDATORY)
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
+# Font size
 const FONT_SIZE: int = 16
 
 # Menu animation timing (SF2-authentic: fast or instant)
@@ -380,8 +379,7 @@ func _rebuild_option_labels() -> void:
 		var label: Label = Label.new()
 		var option_label_text: String = DictUtils.get_string(option, "label", "")
 		label.text = "  " + option_label_text  # Indent for cursor space
-		label.add_theme_font_override("font", MONOGRAM_FONT)
-		label.add_theme_font_size_override("font_size", FONT_SIZE)
+		UIUtils.apply_monogram_style(label, FONT_SIZE)
 		label.add_theme_color_override("font_color", TEXT_NORMAL)
 		_options_container.add_child(label)
 		_option_labels.append(label)

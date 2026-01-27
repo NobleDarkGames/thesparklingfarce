@@ -60,8 +60,6 @@ const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
 const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)
 const COLOR_ITEM_NAME: Color = Color(1.0, 1.0, 0.9, 1.0)
 
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 # Action display names (typed array indexed by ActionType enum values)
 const ACTION_NAMES: Array[String] = ["Use", "Equip", "Unequip", "Give", "Drop", "Info"]
 
@@ -135,8 +133,7 @@ func _build_ui() -> void:
 	# Item name header
 	_item_name_label = Label.new()
 	_item_name_label.name = "ItemNameLabel"
-	_item_name_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_item_name_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_item_name_label, 16)
 	_item_name_label.modulate = COLOR_ITEM_NAME
 	vbox.add_child(_item_name_label)
 
@@ -308,8 +305,7 @@ func _rebuild_action_labels() -> void:
 func _create_action_label(action_name: String) -> Label:
 	var label: Label = Label.new()
 	label.text = "  " + action_name
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(label, 16)
 	label.modulate = COLOR_NORMAL
 	return label
 

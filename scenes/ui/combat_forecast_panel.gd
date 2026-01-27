@@ -43,10 +43,8 @@ func show_forecast(attacker: Unit, defender: Unit) -> void:
 		hide_forecast()
 		return
 
-	# Kill any existing tween
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-		_current_tween = null
+	UIUtils.kill_tween(_current_tween)
+	_current_tween = null
 
 	# Get terrain bonuses for defender's position
 	var terrain_defense: int = 0
@@ -133,9 +131,8 @@ func _calculate_counter_chance_for_forecast(attacker: Unit, defender: Unit) -> i
 
 ## Hide the forecast panel
 func hide_forecast() -> void:
-	if _current_tween and _current_tween.is_valid():
-		_current_tween.kill()
-		_current_tween = null
+	UIUtils.kill_tween(_current_tween)
+	_current_tween = null
 
 	if not visible:
 		return

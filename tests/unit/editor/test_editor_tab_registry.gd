@@ -63,9 +63,10 @@ func test_categories_includes_mod() -> void:
 	assert_bool(categories.has("mod")).is_true()
 
 
-func test_content_is_first_category() -> void:
+func test_system_is_first_category() -> void:
+	# System (Overview) should be first for user onboarding
 	var categories: Array[String] = _registry.CATEGORIES
-	assert_str(categories[0]).is_equal("content")
+	assert_str(categories[0]).is_equal("system")
 
 
 func test_mod_is_last_category() -> void:

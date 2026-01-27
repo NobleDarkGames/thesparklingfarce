@@ -165,3 +165,32 @@ func get_editor_metadata() -> Dictionary:
 	# Default: return empty to signal "use hardcoded definitions"
 	# Override in subclass to provide dynamic metadata
 	return {}
+
+
+# =============================================================================
+# ASYNC COMPLETION HELPERS
+# =============================================================================
+
+## Signal async command completion to the manager
+## @param manager: The CinematicsManager reference
+## @param restore_playing_state: If true, also sets current_state = PLAYING
+##        (needed when executor set state to WAITING_FOR_COMMAND)
+static func complete_async_command(manager: Node, restore_playing_state: bool = false) -> void:
+	if manager and is_instance_valid(manager):
+		if restore_playing_state:
+			manager.current_state = manager.State.PLAYING
+		manager._command_completed = true
+
+
+## Parse flag array from params (accepts string or array)
+## @param value: The parameter value - can be String, Array, or other
+## @return: Array of non-empty strings
+static func parse_flag_array(value: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if value is String and not value.is_empty():
+		result.append(value)
+	elif value is Array:
+		for flag: Variant in value:
+			if flag is String and not flag.is_empty():
+				result.append(flag)
+	return result

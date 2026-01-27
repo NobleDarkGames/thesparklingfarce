@@ -9,9 +9,6 @@ extends CanvasLayer
 
 signal ceremony_dismissed
 
-## Font reference
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
-
 ## Animation timing constants
 const ENTRANCE_DURATION: float = 0.4
 const ANTICIPATION_DURATION: float = 0.5
@@ -71,6 +68,12 @@ func _ready() -> void:
 	# Connect to PromotionManager signals
 	if PromotionManager:
 		PromotionManager.promotion_completed.connect(_on_promotion_completed)
+
+
+func _exit_tree() -> void:
+	# Disconnect from PromotionManager to prevent stale references
+	if PromotionManager and PromotionManager.promotion_completed.is_connected(_on_promotion_completed):
+		PromotionManager.promotion_completed.disconnect(_on_promotion_completed)
 
 
 ## Show the promotion ceremony
@@ -232,9 +235,8 @@ func _reveal_stat_bonuses() -> void:
 
 		# Create bonus label
 		var lbl: Label = Label.new()
-		lbl.text = "%s +%d" % [_format_stat_name(stat_name), bonus]
-		lbl.add_theme_font_override("font", MONOGRAM_FONT)
-		lbl.add_theme_font_size_override("font_size", BONUS_FONT_SIZE)
+		lbl.text = "%s +%d" % [SparklingEditorUtils.format_stat_abbreviation(stat_name), bonus]
+		UIUtils.apply_monogram_style(lbl, BONUS_FONT_SIZE)
 		lbl.add_theme_color_override("font_color", COLOR_LIGHT_GOLD)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.modulate.a = 0.0
@@ -249,18 +251,6 @@ func _reveal_stat_bonuses() -> void:
 		await get_tree().create_timer(STAT_REVEAL_DELAY).timeout
 
 
-func _format_stat_name(stat_name: String) -> String:
-	match stat_name:
-		"hp": return "HP"
-		"mp": return "MP"
-		"strength": return "STR"
-		"defense": return "DEF"
-		"agility": return "AGI"
-		"intelligence": return "INT"
-		"luck": return "LCK"
-		_: return stat_name.to_upper()
-
-
 ## Phase 5: Continue Prompt
 func _phase_continue_prompt() -> void:
 	continue_label.visible = true
@@ -269,13 +259,7 @@ func _phase_continue_prompt() -> void:
 
 
 func _animate_continue_blink() -> void:
-	if _blink_tween and _blink_tween.is_valid():
-		_blink_tween.kill()
-
-	_blink_tween = create_tween()
-	_blink_tween.set_loops()
-	_blink_tween.tween_property(continue_label, "modulate:a", 0.3, 0.5)
-	_blink_tween.tween_property(continue_label, "modulate:a", 1.0, 0.5)
+	_blink_tween = UIUtils.start_blink_tween(continue_label, _blink_tween)
 
 
 func _input(event: InputEvent) -> void:
@@ -293,10 +277,8 @@ func _input(event: InputEvent) -> void:
 func _dismiss() -> void:
 	_can_dismiss = false
 
-	# Kill the blink tween
-	if _blink_tween and _blink_tween.is_valid():
-		_blink_tween.kill()
-		_blink_tween = null
+	UIUtils.kill_tween(_blink_tween)
+	_blink_tween = null
 
 	# Fade out
 	var tween: Tween = create_tween()

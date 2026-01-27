@@ -63,20 +63,6 @@ var _current_inputs: Array[Dictionary] = []  # [{material_id: String, quantity: 
 var _picker_items: Array[Resource] = []  # Temporary for popup selection
 var _current_choices: Array[String] = []
 
-# Common crafter types (same as crafter editor)
-const CRAFTER_TYPES: Array[String] = [
-	"(Custom)",
-	"blacksmith",
-	"enchanter",
-	"alchemist",
-	"jeweler",
-	"tailor",
-	"weaponsmith"
-]
-
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "crafting_recipe"
@@ -464,7 +450,7 @@ func _add_requirements_section() -> void:
 	var type_row: HBoxContainer = SparklingEditorUtils.create_field_row("Crafter Type:", SparklingEditorUtils.DEFAULT_LABEL_WIDTH, section)
 	crafter_type_option = OptionButton.new()
 	crafter_type_option.tooltip_text = "Type of crafter required. Must match crafter's type exactly."
-	for crafter_type: String in CRAFTER_TYPES:
+	for crafter_type: String in SparklingEditorUtils.CRAFTER_TYPES:
 		crafter_type_option.add_item(crafter_type)
 	crafter_type_option.item_selected.connect(_on_crafter_type_selected)
 	type_row.add_child(crafter_type_option)
@@ -705,13 +691,13 @@ func _get_crafter_type() -> String:
 	var index: int = crafter_type_option.selected
 	if index == 0:  # "(Custom)"
 		return crafter_type_custom_edit.text.strip_edges()
-	elif index > 0 and index < CRAFTER_TYPES.size():
-		return CRAFTER_TYPES[index]
+	elif index > 0 and index < SparklingEditorUtils.CRAFTER_TYPES.size():
+		return SparklingEditorUtils.CRAFTER_TYPES[index]
 	return ""
 
 
 func _set_crafter_type(crafter_type: String) -> void:
-	var type_index: int = CRAFTER_TYPES.find(crafter_type)
+	var type_index: int = SparklingEditorUtils.CRAFTER_TYPES.find(crafter_type)
 	if type_index > 0:  # Found and not "(Custom)"
 		crafter_type_option.select(type_index)
 		crafter_type_custom_edit.visible = false

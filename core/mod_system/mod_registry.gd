@@ -59,6 +59,20 @@ func _ensure_type_dict(resource_type: String) -> Dictionary:
 	return _resources_by_type[resource_type]
 
 
+## Find a resource by searching for a property value (linear search)
+## Used for UID/ID lookups like get_character_by_uid, get_npc_by_id, get_shop_by_id
+func _find_by_property(resource_type: String, property: String, value: Variant) -> Resource:
+	if value == null or (value is String and value.is_empty()):
+		return null
+	var type_dict: Variant = _get_type_dict(resource_type)
+	if type_dict == null:
+		return null
+	for resource: Resource in type_dict.values():
+		if resource and resource.get(property) == value:
+			return resource
+	return null
+
+
 ## Register a resource from a mod
 ## Detects and warns about same-priority conflicts
 func register_resource(resource: Resource, resource_type: String, resource_id: String, mod_id: String) -> void:
@@ -157,18 +171,8 @@ func get_all_resources(resource_type: String) -> Array[Resource]:
 ## Get a character by their unique ID (character_uid)
 ## Returns null if no character with that UID exists
 func get_character_by_uid(uid: String) -> CharacterData:
-	if uid.is_empty():
-		return null
-
-	var character_dict: Variant = _get_type_dict(TYPE_CHARACTER)
-	if character_dict == null:
-		return null
-
-	for character: CharacterData in character_dict.values():
-		if character and character.character_uid == uid:
-			return character
-
-	return null
+	var r: Resource = _find_by_property(TYPE_CHARACTER, "character_uid", uid)
+	return r if r is CharacterData else null
 
 
 ## Get a character's display name by their UID
@@ -183,18 +187,8 @@ func get_character_name_by_uid(uid: String) -> String:
 ## Get an NPC by their npc_id
 ## Returns null if no NPC with that ID exists
 func get_npc_by_id(npc_id: String) -> NPCData:
-	if npc_id.is_empty():
-		return null
-
-	var npc_dict: Variant = _get_type_dict(TYPE_NPC)
-	if npc_dict == null:
-		return null
-
-	for npc: NPCData in npc_dict.values():
-		if npc and npc.npc_id == npc_id:
-			return npc
-
-	return null
+	var r: Resource = _find_by_property(TYPE_NPC, "npc_id", npc_id)
+	return r if r is NPCData else null
 
 
 ## Get the hero character (primary protagonist)
@@ -440,162 +434,116 @@ func get_debug_string() -> String:
 
 ## Get an item by ID (type-safe)
 func get_item(item_id: String) -> ItemData:
-	var resource: Resource = get_resource("item", item_id)
-	if resource is ItemData:
-		return resource
-	return null
+	var r: Resource = get_resource("item", item_id)
+	return r if r is ItemData else null
 
 
 ## Get a character by ID (type-safe)
 func get_character(character_id: String) -> CharacterData:
-	var resource: Resource = get_resource("character", character_id)
-	if resource is CharacterData:
-		return resource
-	return null
+	var r: Resource = get_resource("character", character_id)
+	return r if r is CharacterData else null
 
 
 ## Get an ability by ID (type-safe)
 func get_ability(ability_id: String) -> AbilityData:
-	var resource: Resource = get_resource("ability", ability_id)
-	if resource is AbilityData:
-		return resource
-	return null
+	var r: Resource = get_resource("ability", ability_id)
+	return r if r is AbilityData else null
 
 
 ## Get a class by ID (type-safe)
 ## Note: Named get_class_data to avoid conflict with Object.get_class()
 func get_class_data(class_id: String) -> ClassData:
-	var resource: Resource = get_resource("class", class_id)
-	if resource is ClassData:
-		return resource
-	return null
+	var r: Resource = get_resource("class", class_id)
+	return r if r is ClassData else null
 
 
 ## Get a dialogue by ID (type-safe)
 func get_dialogue(dialogue_id: String) -> DialogueData:
-	var resource: Resource = get_resource("dialogue", dialogue_id)
-	if resource is DialogueData:
-		return resource
-	return null
+	var r: Resource = get_resource("dialogue", dialogue_id)
+	return r if r is DialogueData else null
 
 
 ## Get a battle by ID (type-safe)
 func get_battle(battle_id: String) -> BattleData:
-	var resource: Resource = get_resource("battle", battle_id)
-	if resource is BattleData:
-		return resource
-	return null
+	var r: Resource = get_resource("battle", battle_id)
+	return r if r is BattleData else null
 
 
 ## Get a cinematic by ID (type-safe)
 func get_cinematic(cinematic_id: String) -> CinematicData:
-	var resource: Resource = get_resource("cinematic", cinematic_id)
-	if resource is CinematicData:
-		return resource
-	return null
+	var r: Resource = get_resource("cinematic", cinematic_id)
+	return r if r is CinematicData else null
 
 
 ## Get a shop by ID (type-safe)
 func get_shop(shop_id: String) -> ShopData:
-	var resource: Resource = get_resource("shop", shop_id)
-	if resource is ShopData:
-		return resource
-	return null
+	var r: Resource = get_resource("shop", shop_id)
+	return r if r is ShopData else null
 
 
 ## Get a shop by their shop_id property (semantic lookup)
 ## This does a linear search through all shops to find one with matching shop_id
 ## Returns null if no shop with that ID exists
 func get_shop_by_id(shop_id: String) -> ShopData:
-	if shop_id.is_empty():
-		return null
-
-	var shop_dict: Variant = _get_type_dict(TYPE_SHOP)
-	if shop_dict == null:
-		return null
-
-	for shop: ShopData in shop_dict.values():
-		if shop and shop.shop_id == shop_id:
-			return shop
-
-	return null
+	var r: Resource = _find_by_property(TYPE_SHOP, "shop_id", shop_id)
+	return r if r is ShopData else null
 
 
 ## Get a crafter by ID (type-safe)
 func get_crafter(crafter_id: String) -> CrafterData:
-	var resource: Resource = get_resource("crafter", crafter_id)
-	if resource is CrafterData:
-		return resource
-	return null
+	var r: Resource = get_resource("crafter", crafter_id)
+	return r if r is CrafterData else null
 
 
 ## Get a crafting recipe by ID (type-safe)
 func get_crafting_recipe(recipe_id: String) -> CraftingRecipeData:
-	var resource: Resource = get_resource("crafting_recipe", recipe_id)
-	if resource is CraftingRecipeData:
-		return resource
-	return null
+	var r: Resource = get_resource("crafting_recipe", recipe_id)
+	return r if r is CraftingRecipeData else null
 
 
 ## Get an interactable by ID (type-safe)
 func get_interactable(interactable_id: String) -> InteractableData:
-	var resource: Resource = get_resource("interactable", interactable_id)
-	if resource is InteractableData:
-		return resource
-	return null
+	var r: Resource = get_resource("interactable", interactable_id)
+	return r if r is InteractableData else null
 
 
 ## Get an NPC by resource ID (type-safe) - different from get_npc_by_id which uses npc_id field
 func get_npc(npc_resource_id: String) -> NPCData:
-	var resource: Resource = get_resource("npc", npc_resource_id)
-	if resource is NPCData:
-		return resource
-	return null
+	var r: Resource = get_resource("npc", npc_resource_id)
+	return r if r is NPCData else null
 
 
 ## Get a status effect by ID (type-safe)
 func get_status_effect(effect_id: String) -> StatusEffectData:
-	var resource: Resource = get_resource("status_effect", effect_id)
-	if resource is StatusEffectData:
-		return resource
-	return null
+	var r: Resource = get_resource("status_effect", effect_id)
+	return r if r is StatusEffectData else null
 
 
 ## Get a terrain by ID (type-safe)
 func get_terrain(terrain_id: String) -> TerrainData:
-	var resource: Resource = get_resource("terrain", terrain_id)
-	if resource is TerrainData:
-		return resource
-	return null
+	var r: Resource = get_resource("terrain", terrain_id)
+	return r if r is TerrainData else null
 
 
 ## Get an AI behavior by ID (type-safe)
 func get_ai_behavior(behavior_id: String) -> AIBehaviorData:
-	var resource: Resource = get_resource("ai_behavior", behavior_id)
-	if resource is AIBehaviorData:
-		return resource
-	return null
+	var r: Resource = get_resource("ai_behavior", behavior_id)
+	return r if r is AIBehaviorData else null
 
 
 ## Get a map metadata by ID (type-safe)
 func get_map(map_id: String) -> MapMetadata:
-	var resource: Resource = get_resource("map", map_id)
-	if resource is MapMetadata:
-		return resource
-	return null
+	var r: Resource = get_resource("map", map_id)
+	return r if r is MapMetadata else null
 
 
 ## Get a new game config by ID (type-safe)
 func get_new_game_config(config_id: String) -> NewGameConfigData:
-	var resource: Resource = get_resource("new_game_config", config_id)
-	if resource is NewGameConfigData:
-		return resource
-	return null
+	var r: Resource = get_resource("new_game_config", config_id)
+	return r if r is NewGameConfigData else null
 
 
 ## Get a party by ID (type-safe)
 func get_party(party_id: String) -> PartyData:
-	var resource: Resource = get_resource("party", party_id)
-	if resource is PartyData:
-		return resource
-	return null
+	var r: Resource = get_resource("party", party_id)
+	return r if r is PartyData else null

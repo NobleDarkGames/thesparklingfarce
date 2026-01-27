@@ -13,6 +13,17 @@ extends RefCounted
 ## Standard label width for form fields (ensures alignment across editors)
 const DEFAULT_LABEL_WIDTH: int = 140
 
+## Common crafter types used by CrafterEditor and CraftingRecipeEditor
+const CRAFTER_TYPES: Array[String] = [
+	"(Custom)",
+	"blacksmith",
+	"enchanter",
+	"alchemist",
+	"jeweler",
+	"tailor",
+	"weaponsmith"
+]
+
 ## Font size for section headers
 const SECTION_FONT_SIZE: int = 16
 
@@ -255,6 +266,119 @@ static func get_active_mod_folder() -> String:
 
 
 # =============================================================================
+# Resource Loading Helpers
+# =============================================================================
+
+## Safely load a texture from path, returning null if invalid
+static func load_texture(path: String) -> Texture2D:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	var loaded: Resource = load(path)
+	return loaded if loaded is Texture2D else null
+
+
+## Load a texture into a TextureRect preview with appropriate tooltip
+## Shared helper for portrait/sprite preview panels in various editors
+static func load_texture_preview(preview: TextureRect, path: String, empty_tooltip: String = "No image assigned") -> void:
+	var clean_path: String = path.strip_edges()
+	if clean_path.is_empty():
+		preview.texture = null
+		preview.tooltip_text = empty_tooltip
+		return
+	if ResourceLoader.exists(clean_path):
+		var loaded: Resource = load(clean_path)
+		preview.texture = loaded if loaded is Texture2D else null
+		preview.tooltip_text = clean_path
+	else:
+		preview.texture = null
+		preview.tooltip_text = "File not found: " + clean_path
+
+
+## Get the default asset path for a given asset type (portraits, sprites, etc.)
+## Returns the most appropriate path from the active mod, or fallback
+static func get_default_asset_path(asset_type: String) -> String:
+	var mod_path: String = get_active_mod_path()
+	if mod_path.is_empty():
+		return "res://mods/"
+	var assets_dir: String = mod_path.path_join("assets/" + asset_type + "/")
+	if DirAccess.dir_exists_absolute(assets_dir):
+		return assets_dir
+	var generic_assets_dir: String = mod_path.path_join("assets/")
+	if DirAccess.dir_exists_absolute(generic_assets_dir):
+		return generic_assets_dir
+	return mod_path
+
+
+# =============================================================================
+# Registry Dropdown Helpers
+# =============================================================================
+
+## Populate an OptionButton with resources from the registry
+## This handles the common pattern of querying resources and adding them to a dropdown
+## with mod attribution labels. Returns the number of items added (excluding none item).
+##
+## Parameters:
+## - option: The OptionButton to populate
+## - resource_type: Registry resource type (e.g., "ai_behavior", "party")
+## - none_label: Text for the "none" option (e.g., "(None)")
+## - id_extractor: Callable(resource) -> String that extracts the ID
+## - name_extractor: Callable(resource) -> String that extracts the display name
+## - store_resource: If true, stores resource as metadata; if false, stores ID string
+static func populate_registry_dropdown(
+	option: OptionButton,
+	resource_type: String,
+	none_label: String,
+	id_extractor: Callable,
+	name_extractor: Callable,
+	store_resource: bool = true
+) -> int:
+	option.clear()
+	option.add_item(none_label, -1)
+	if not store_resource:
+		option.set_item_metadata(0, "")
+
+	var count: int = 0
+	if ModLoader and ModLoader.registry:
+		var resources: Array[Resource] = ModLoader.registry.get_all_resources(resource_type)
+		for resource: Resource in resources:
+			if not resource:
+				continue
+			var resource_id: String = id_extractor.call(resource)
+			var display_name: String = name_extractor.call(resource)
+			var label: String = get_display_with_mod_by_id(resource_type, resource_id, display_name)
+			option.add_item(label)
+			var metadata: Variant = resource if store_resource else resource_id
+			option.set_item_metadata(option.item_count - 1, metadata)
+			count += 1
+
+	return count
+
+
+## Populate an OptionButton with AI behaviors from the registry
+## Convenience method for the common AI behavior dropdown pattern
+static func populate_ai_behavior_dropdown(option: OptionButton, none_label: String = "(None)") -> int:
+	return populate_registry_dropdown(
+		option,
+		"ai_behavior",
+		none_label,
+		func(res: Resource) -> String:
+			var ai: AIBehaviorData = res as AIBehaviorData
+			if ai and not ai.behavior_id.is_empty():
+				return ai.behavior_id
+			return res.resource_path.get_file().get_basename(),
+		func(res: Resource) -> String:
+			var ai: AIBehaviorData = res as AIBehaviorData
+			if ai and ai.display_name:
+				return ai.display_name
+			var fallback_id: String = res.resource_path.get_file().get_basename()
+			if ai and not ai.behavior_id.is_empty():
+				fallback_id = ai.behavior_id
+			return fallback_id.capitalize(),
+		true  # Store resource as metadata
+	)
+
+
+# =============================================================================
 # Mod Directory Scanning
 # =============================================================================
 
@@ -353,14 +477,6 @@ static func generate_id_from_name(display_name: String) -> String:
 	return valid_id.strip_edges()
 
 
-## Generate a namespaced ID (mod_id:resource_id)
-static func generate_namespaced_id(mod_id: String, resource_name: String) -> String:
-	var clean_name: String = generate_id_from_name(resource_name)
-	if clean_name.is_empty():
-		return ""
-	return "%s:%s" % [mod_id, clean_name]
-
-
 # =============================================================================
 # File Operations
 # =============================================================================
@@ -377,20 +493,6 @@ static func ensure_directory_exists(dir_path: String) -> bool:
 		return false
 
 	return true
-
-
-## Get a unique filename by appending a number if the file already exists
-## Example: "npc.tres" -> "npc_2.tres" if npc.tres exists
-static func get_unique_filename(directory: String, base_name: String, extension: String) -> String:
-	var full_path: String = directory.path_join(base_name + extension)
-	if not FileAccess.file_exists(full_path):
-		return base_name + extension
-
-	var counter: int = 2
-	while FileAccess.file_exists(directory.path_join("%s_%d%s" % [base_name, counter, extension])):
-		counter += 1
-
-	return "%s_%d%s" % [base_name, counter, extension]
 
 
 # =============================================================================
@@ -766,6 +868,154 @@ class FormBuilder extends RefCounted:
 	func get_container() -> Control:
 		return _get_container()
 
-	## Get the form's root parent
-	func get_parent() -> Control:
-		return _parent
+	## Add a texture field with preview, path input, browse button, and clear button
+	## Returns Dictionary with {preview: TextureRect, path_edit: LineEdit, browse_btn: Button, clear_btn: Button}
+	func add_texture_field(label_text: String, placeholder: String = "", tooltip: String = "") -> Dictionary:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		# Label
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		# Preview panel with styled background
+		var preview_panel: PanelContainer = PanelContainer.new()
+		preview_panel.custom_minimum_size = Vector2(36, 36)
+		var preview_style: StyleBoxFlat = StyleBoxFlat.new()
+		preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
+		preview_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
+		preview_style.set_border_width_all(1)
+		preview_style.set_content_margin_all(2)
+		preview_panel.add_theme_stylebox_override("panel", preview_style)
+
+		var preview: TextureRect = TextureRect.new()
+		preview.custom_minimum_size = Vector2(32, 32)
+		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		preview_panel.add_child(preview)
+		row.add_child(preview_panel)
+
+		# Path input
+		var path_edit: LineEdit = LineEdit.new()
+		path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		path_edit.placeholder_text = placeholder
+		if not tooltip.is_empty():
+			path_edit.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			path_edit.text_changed.connect(func(_t: String) -> void: _dirty_callback.call())
+		row.add_child(path_edit)
+
+		# Browse button
+		var browse_btn: Button = Button.new()
+		browse_btn.text = "Browse..."
+		row.add_child(browse_btn)
+
+		# Clear button
+		var clear_btn: Button = Button.new()
+		clear_btn.text = "X"
+		clear_btn.tooltip_text = "Clear texture"
+		row.add_child(clear_btn)
+
+		container.add_child(row)
+
+		return {
+			"preview": preview,
+			"path_edit": path_edit,
+			"browse_btn": browse_btn,
+			"clear_btn": clear_btn
+		}
+
+	## Add a Vector2i field with X and Y spinboxes
+	## Returns Dictionary with {x: SpinBox, y: SpinBox}
+	func add_vector2i_field(label_text: String, min_val: int = -100, max_val: int = 100,
+			default: Vector2i = Vector2i.ZERO, tooltip: String = "") -> Dictionary:
+		var container: Control = _get_container()
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		# Label
+		var label: Label = Label.new()
+		label.text = label_text
+		label.custom_minimum_size.x = _label_width
+		if not tooltip.is_empty():
+			label.tooltip_text = tooltip
+		row.add_child(label)
+
+		# X label
+		var x_label: Label = Label.new()
+		x_label.text = "X:"
+		row.add_child(x_label)
+
+		# X spinbox
+		var x_spin: SpinBox = SpinBox.new()
+		x_spin.min_value = min_val
+		x_spin.max_value = max_val
+		x_spin.value = default.x
+		x_spin.custom_minimum_size.x = 70
+		if not tooltip.is_empty():
+			x_spin.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			x_spin.value_changed.connect(func(_v: float) -> void: _dirty_callback.call())
+		row.add_child(x_spin)
+
+		# Y label
+		var y_label: Label = Label.new()
+		y_label.text = "Y:"
+		row.add_child(y_label)
+
+		# Y spinbox
+		var y_spin: SpinBox = SpinBox.new()
+		y_spin.min_value = min_val
+		y_spin.max_value = max_val
+		y_spin.value = default.y
+		y_spin.custom_minimum_size.x = 70
+		if not tooltip.is_empty():
+			y_spin.tooltip_text = tooltip
+		if _dirty_callback.is_valid():
+			y_spin.value_changed.connect(func(_v: float) -> void: _dirty_callback.call())
+		row.add_child(y_spin)
+
+		container.add_child(row)
+
+		return {
+			"x": x_spin,
+			"y": y_spin
+		}
+
+
+# =============================================================================
+# OptionButton Utilities
+# =============================================================================
+
+## Select an item in an OptionButton by matching its metadata value.
+## Returns true if a matching item was found and selected, false otherwise.
+## If no match is found, selects the fallback_index (default 0).
+static func select_option_by_metadata(option: OptionButton, target_value: Variant, fallback_index: int = 0) -> bool:
+	for i: int in range(option.item_count):
+		if option.get_item_metadata(i) == target_value:
+			option.select(i)
+			return true
+	if fallback_index >= 0 and fallback_index < option.item_count:
+		option.select(fallback_index)
+	return false
+
+
+# =============================================================================
+# Empty State Placeholders
+# =============================================================================
+
+## Create a styled placeholder label for empty lists/containers.
+## Useful for "(No items)", "(None)", etc. messages.
+static func add_empty_placeholder(container: Control, text: String = "(None)") -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", get_disabled_color())
+	label.add_theme_font_size_override("font_size", HELP_FONT_SIZE)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(label)
+	return label

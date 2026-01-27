@@ -17,9 +17,8 @@ var save_button: Button
 var current_mod_path: String = ""
 var current_mod_data: Dictionary = {}
 var is_dirty: bool = false
-
-# Guard to prevent false dirty state during UI population
 var _updating_ui: bool = false
+
 
 # Error panel
 var error_panel: PanelContainer

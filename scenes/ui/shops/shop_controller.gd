@@ -58,6 +58,9 @@ const SCREEN_PATHS: Dictionary = {
 @onready var shop_name_label: Label = %ShopNameLabel
 @onready var input_blocker: ColorRect = %InputBlocker
 
+## Re-entrancy guard for close_shop
+var _is_closing: bool = false
+
 
 func _ready() -> void:
 	context = ShopContextClass.new()
@@ -126,6 +129,11 @@ func update_gold_display() -> void:
 
 ## Close shop and clean up
 func close_shop() -> void:
+	# Re-entrancy guard: ShopManager.close_shop() emits shop_closed which calls us again
+	if _is_closing:
+		return
+	_is_closing = true
+
 	_clear_current_screen()
 	context.cleanup()
 	hide()
@@ -135,6 +143,8 @@ func close_shop() -> void:
 	# This must happen AFTER our cleanup to avoid re-entrancy from _on_shop_manager_closed
 	if ShopManager and ShopManager.is_shop_open():
 		ShopManager.close_shop()
+
+	_is_closing = false
 
 
 ## Navigate to a new screen (adds current to history)

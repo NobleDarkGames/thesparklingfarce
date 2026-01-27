@@ -43,7 +43,6 @@ const DEFAULT_MAX_INVENTORY_SLOTS: int = 4
 # =============================================================================
 
 const ItemSlotScript = preload("res://scenes/ui/components/item_slot.gd")
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
 
 # =============================================================================
 # STATE
@@ -209,8 +208,7 @@ func _build_ui() -> void:
 
 	var title_label: Label = Label.new()
 	title_label.text = "CARAVAN DEPOT"
-	title_label.add_theme_font_override("font", MONOGRAM_FONT)
-	title_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(title_label, 16)
 	_header_bar.add_child(title_label)
 
 	# Spacer
@@ -221,13 +219,11 @@ func _build_ui() -> void:
 	# Filter dropdown
 	var filter_label: Label = Label.new()
 	filter_label.text = "Filter:"
-	filter_label.add_theme_font_override("font", MONOGRAM_FONT)
-	filter_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(filter_label, 16)
 	_header_bar.add_child(filter_label)
 
 	_filter_dropdown = OptionButton.new()
-	_filter_dropdown.add_theme_font_override("font", MONOGRAM_FONT)
-	_filter_dropdown.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_filter_dropdown, 16)
 	_filter_dropdown.custom_minimum_size = Vector2(64, 16)
 	_filter_dropdown.add_item("All", 0)
 	_filter_dropdown.add_item("Weapons", 1)
@@ -240,13 +236,11 @@ func _build_ui() -> void:
 	# Sort dropdown
 	var sort_label: Label = Label.new()
 	sort_label.text = "Sort:"
-	sort_label.add_theme_font_override("font", MONOGRAM_FONT)
-	sort_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(sort_label, 16)
 	_header_bar.add_child(sort_label)
 
 	_sort_dropdown = OptionButton.new()
-	_sort_dropdown.add_theme_font_override("font", MONOGRAM_FONT)
-	_sort_dropdown.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_sort_dropdown, 16)
 	_sort_dropdown.custom_minimum_size = Vector2(52, 16)
 	_sort_dropdown.add_item("--", 0)
 	_sort_dropdown.add_item("Name", 1)
@@ -257,8 +251,7 @@ func _build_ui() -> void:
 
 	_close_button = Button.new()
 	_close_button.text = "X"
-	_close_button.add_theme_font_override("font", MONOGRAM_FONT)
-	_close_button.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_close_button, 16)
 	_close_button.custom_minimum_size = Vector2(16, 16)
 	_close_button.pressed.connect(_on_close_pressed)
 	_header_bar.add_child(_close_button)
@@ -296,13 +289,11 @@ func _build_ui() -> void:
 	# Character dropdown
 	var char_label: Label = Label.new()
 	char_label.text = "Give to:"
-	char_label.add_theme_font_override("font", MONOGRAM_FONT)
-	char_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(char_label, 16)
 	_side_panel.add_child(char_label)
 
 	_char_dropdown = OptionButton.new()
-	_char_dropdown.add_theme_font_override("font", MONOGRAM_FONT)
-	_char_dropdown.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_char_dropdown, 16)
 	_char_dropdown.custom_minimum_size = Vector2(80, 16)
 	_char_dropdown.item_selected.connect(_on_character_changed)
 	_side_panel.add_child(_char_dropdown)
@@ -327,8 +318,7 @@ func _build_ui() -> void:
 	_side_panel.add_child(_description_panel)
 
 	_description_label = Label.new()
-	_description_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_description_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_description_label, 16)
 	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_description_label.modulate = COLOR_DESC_TEXT
 	_description_label.text = "Select an item..."
@@ -337,8 +327,7 @@ func _build_ui() -> void:
 	# Take button
 	_take_button = Button.new()
 	_take_button.text = "Take"
-	_take_button.add_theme_font_override("font", MONOGRAM_FONT)
-	_take_button.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_take_button, 16)
 	_take_button.custom_minimum_size = Vector2(48, 16)
 	_take_button.disabled = true
 	_take_button.pressed.connect(_on_take_pressed)
@@ -347,8 +336,7 @@ func _build_ui() -> void:
 	# Character inventory section
 	_inventory_label = Label.new()
 	_inventory_label.text = "Inventory:"
-	_inventory_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_inventory_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_inventory_label, 16)
 	_side_panel.add_child(_inventory_label)
 
 	# Inventory grid (2x2 layout to fit in side panel)
@@ -362,8 +350,7 @@ func _build_ui() -> void:
 	# Store button
 	_store_button = Button.new()
 	_store_button.text = "Store"
-	_store_button.add_theme_font_override("font", MONOGRAM_FONT)
-	_store_button.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_store_button, 16)
 	_store_button.custom_minimum_size = Vector2(48, 16)
 	_store_button.disabled = true
 	_store_button.pressed.connect(_on_store_pressed)
@@ -378,8 +365,7 @@ func _build_ui() -> void:
 	_store_all_button = Button.new()
 	_store_all_button.text = "Store All"
 	_store_all_button.tooltip_text = "Store all consumables from party"
-	_store_all_button.add_theme_font_override("font", MONOGRAM_FONT)
-	_store_all_button.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_store_all_button, 16)
 	_store_all_button.custom_minimum_size = Vector2(56, 16)
 	_store_all_button.pressed.connect(_on_store_all_pressed)
 	bottom_bar.add_child(_store_all_button)
@@ -388,8 +374,7 @@ func _build_ui() -> void:
 	_take_all_button = Button.new()
 	_take_all_button.text = "Take All"
 	_take_all_button.tooltip_text = "Take all items (filtered)"
-	_take_all_button.add_theme_font_override("font", MONOGRAM_FONT)
-	_take_all_button.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_take_all_button, 16)
 	_take_all_button.custom_minimum_size = Vector2(52, 16)
 	_take_all_button.pressed.connect(_on_take_all_pressed)
 	bottom_bar.add_child(_take_all_button)
@@ -401,8 +386,7 @@ func _build_ui() -> void:
 
 	# Item count
 	_item_count_label = Label.new()
-	_item_count_label.add_theme_font_override("font", MONOGRAM_FONT)
-	_item_count_label.add_theme_font_size_override("font_size", 16)
+	UIUtils.apply_monogram_style(_item_count_label, 16)
 	_item_count_label.modulate = COLOR_COUNT_TEXT
 	_item_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	bottom_bar.add_child(_item_count_label)

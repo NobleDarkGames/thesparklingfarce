@@ -14,8 +14,7 @@ var caravan_id_edit: LineEdit
 var display_name_edit: LineEdit
 
 # Appearance
-var wagon_sprite_path_edit: LineEdit
-var wagon_sprite_picker_btn: Button
+var wagon_sprite_field: Dictionary  # {preview, path_edit, browse_btn, clear_btn}
 var wagon_animation_path_edit: LineEdit
 var wagon_scale_x_spin: SpinBox
 var wagon_scale_y_spin: SpinBox
@@ -83,7 +82,9 @@ func _load_resource_data() -> void:
 	display_name_edit.text = caravan.display_name
 
 	# Appearance
-	wagon_sprite_path_edit.text = caravan.wagon_sprite.resource_path if caravan.wagon_sprite else ""
+	var sprite_path: String = caravan.wagon_sprite.resource_path if caravan.wagon_sprite else ""
+	wagon_sprite_field.path_edit.text = sprite_path
+	_load_wagon_sprite_preview(sprite_path)
 	wagon_animation_path_edit.text = caravan.wagon_animation_frames.resource_path if caravan.wagon_animation_frames else ""
 	wagon_scale_x_spin.value = caravan.wagon_scale.x
 	wagon_scale_y_spin.value = caravan.wagon_scale.y
@@ -128,7 +129,7 @@ func _save_resource_data() -> void:
 	caravan.display_name = display_name_edit.text.strip_edges()
 
 	# Appearance
-	var sprite_path: String = wagon_sprite_path_edit.text.strip_edges()
+	var sprite_path: String = wagon_sprite_field.path_edit.text.strip_edges()
 	if not sprite_path.is_empty() and ResourceLoader.exists(sprite_path):
 		caravan.wagon_sprite = load(sprite_path) as Texture2D
 	else:
@@ -203,9 +204,9 @@ func _validate_resource() -> Dictionary:
 		errors.append("Max history size should be >= follow distance")
 
 	# Validate wagon sprite if path provided
-	var sprite_path: String = wagon_sprite_path_edit.text.strip_edges()
-	if not sprite_path.is_empty() and not ResourceLoader.exists(sprite_path):
-		errors.append("Wagon sprite path does not exist: " + sprite_path)
+	var wagon_path: String = wagon_sprite_field.path_edit.text.strip_edges()
+	if not wagon_path.is_empty() and not ResourceLoader.exists(wagon_path):
+		errors.append("Wagon sprite path does not exist: " + wagon_path)
 
 	# Validate animation frames path if provided
 	var anim_path: String = wagon_animation_path_edit.text.strip_edges()
@@ -277,24 +278,15 @@ func _add_appearance_section(form: SparklingEditorUtils.FormBuilder) -> void:
 	form.add_section("Appearance")
 	form.add_help_text("Visual appearance of the caravan wagon on the overworld")
 
-	# Wagon Sprite with browse button
-	var sprite_row: HBoxContainer = HBoxContainer.new()
-	sprite_row.add_theme_constant_override("separation", 8)
-
-	wagon_sprite_path_edit = LineEdit.new()
-	wagon_sprite_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wagon_sprite_path_edit.placeholder_text = "res://path/to/wagon.png"
-	wagon_sprite_path_edit.text_changed.connect(func(_t: String) -> void: _mark_dirty())
-	sprite_row.add_child(wagon_sprite_path_edit)
-
-	wagon_sprite_picker_btn = Button.new()
-	wagon_sprite_picker_btn.text = "..."
-	wagon_sprite_picker_btn.tooltip_text = "Browse for texture file"
-	wagon_sprite_picker_btn.pressed.connect(_on_browse_wagon_sprite)
-	sprite_row.add_child(wagon_sprite_picker_btn)
-
-	form.add_labeled_control("Wagon Sprite:", sprite_row,
-		"Main wagon texture (single frame or idle state)")
+	# Wagon Sprite using FormBuilder's texture field
+	wagon_sprite_field = form.add_texture_field(
+		"Wagon Sprite:",
+		"res://mods/.../assets/sprites/wagon.png",
+		"Main wagon texture (single frame or idle state)"
+	)
+	wagon_sprite_field.path_edit.text_changed.connect(_on_wagon_sprite_path_changed)
+	wagon_sprite_field.browse_btn.pressed.connect(_on_browse_wagon_sprite)
+	wagon_sprite_field.clear_btn.pressed.connect(_on_clear_wagon_sprite)
 
 	wagon_animation_path_edit = form.add_text_field("Animation Frames:",
 		"res://path/to/wagon_animations.tres (optional)",
@@ -451,5 +443,22 @@ func _on_browse_wagon_sprite() -> void:
 
 ## Handle wagon sprite file selection
 func _on_wagon_sprite_selected(path: String) -> void:
-	wagon_sprite_path_edit.text = path
+	wagon_sprite_field.path_edit.text = path
+	_load_wagon_sprite_preview(path)
+	_mark_dirty()
+
+
+func _on_wagon_sprite_path_changed(new_text: String) -> void:
+	_load_wagon_sprite_preview(new_text)
+	_mark_dirty()
+
+
+func _load_wagon_sprite_preview(path: String) -> void:
+	SparklingEditorUtils.load_texture_preview(wagon_sprite_field.preview, path, "No wagon sprite assigned")
+
+
+func _on_clear_wagon_sprite() -> void:
+	wagon_sprite_field.path_edit.text = ""
+	wagon_sprite_field.preview.texture = null
+	wagon_sprite_field.preview.tooltip_text = "No wagon sprite assigned"
 	_mark_dirty()

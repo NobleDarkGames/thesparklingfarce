@@ -281,6 +281,18 @@ func get_name_edit() -> LineEdit:
 	return _name_edit
 
 
+## Enable or disable the entire field group
+## When disabled, both name and ID fields become non-editable
+func set_enabled(enabled: bool) -> void:
+	if _name_edit:
+		_name_edit.editable = enabled
+	if _id_edit:
+		_id_edit.editable = enabled
+	if _lock_btn:
+		_lock_btn.disabled = not enabled
+	modulate.a = 1.0 if enabled else 0.5
+
+
 # =============================================================================
 # INTERNAL HANDLERS
 # =============================================================================

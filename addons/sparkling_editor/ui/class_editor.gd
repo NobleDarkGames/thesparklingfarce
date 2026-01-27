@@ -34,9 +34,6 @@ var weapon_types_container: VBoxContainer
 # Learnable abilities UI (using DynamicRowList component)
 var learnable_abilities_list: DynamicRowList
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_name = "Class"

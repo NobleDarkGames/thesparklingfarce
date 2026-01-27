@@ -1,6 +1,6 @@
 ## ActionMenu - Shining Force style action selection menu
 ##
-## Displays available actions (Attack, Magic, Item, Stay) with context-aware highlighting.
+## Displays available actions (Attack, Magic, Item, Equip, Stay) with context-aware highlighting.
 ## Features keyboard/mouse navigation, hover states, and sound feedback.
 class_name ActionMenu
 extends Control
@@ -14,6 +14,7 @@ signal menu_cancelled(session_id: int)
 @onready var attack_label: Label = $VBoxContainer/AttackButton
 @onready var magic_label: Label = $VBoxContainer/MagicButton
 @onready var item_label: Label = $VBoxContainer/ItemButton
+@onready var equip_label: Label = $VBoxContainer/EquipButton
 @onready var stay_label: Label = $VBoxContainer/StayButton
 
 ## Available actions (set by InputManager)
@@ -44,12 +45,13 @@ const MENU_SLIDE_OFFSET: float = 30.0  # Pixels to slide from
 const SELECTION_PULSE_DURATION: float = 0.08
 const SELECTION_BRIGHTNESS_BOOST: Color = Color(1.3, 1.3, 1.0, 1.0)  # Bright flash
 
-## Key shortcuts: number keys 1-4 map to actions
+## Key shortcuts: number keys 1-5 map to actions
 const KEY_SHORTCUTS: Dictionary = {
 	KEY_1: "Attack",
 	KEY_2: "Magic",
 	KEY_3: "Item",
-	KEY_4: "Stay",
+	KEY_4: "Equip",
+	KEY_5: "Stay",
 }
 
 ## Animation state
@@ -64,8 +66,8 @@ func _ready() -> void:
 	set_process(false)  # Disable _process when hidden
 
 	# Build typed menu item arrays
-	_item_labels = [move_label, attack_label, magic_label, item_label, stay_label]
-	_item_actions = ["Move", "Attack", "Magic", "Item", "Stay"]
+	_item_labels = [move_label, attack_label, magic_label, item_label, equip_label, stay_label]
+	_item_actions = ["Move", "Attack", "Magic", "Item", "Equip", "Stay"]
 
 
 func _process(_delta: float) -> void:
@@ -107,10 +109,8 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 	_menu_session_id = session_id
 	_hover_index = -1  # Reset hover state
 
-	# Kill any existing slide animation
-	if _slide_tween:
-		_slide_tween.kill()
-		_slide_tween = null
+	UIUtils.kill_tween(_slide_tween)
+	_slide_tween = null
 
 	# Update menu item visibility/colors
 	for i: int in range(_item_labels.size()):
@@ -158,13 +158,10 @@ func hide_menu(animate: bool = false) -> void:
 	set_process(false)  # Disable hover tracking
 	_hover_index = -1
 
-	# Kill any existing animations
-	if _slide_tween:
-		_slide_tween.kill()
-		_slide_tween = null
-	if _pulse_tween:
-		_pulse_tween.kill()
-		_pulse_tween = null
+	UIUtils.kill_tween(_slide_tween)
+	_slide_tween = null
+	UIUtils.kill_tween(_pulse_tween)
+	_pulse_tween = null
 
 	if animate and visible:
 		# Slide out to right (from current position)
@@ -325,9 +322,7 @@ func _pulse_selected_item() -> void:
 
 	var label: Label = _item_labels[selected_index]
 
-	# Kill existing pulse
-	if _pulse_tween:
-		_pulse_tween.kill()
+	UIUtils.kill_tween(_pulse_tween)
 
 	# Quick brightness flash (pixel-perfect alternative to scale)
 	_pulse_tween = create_tween()

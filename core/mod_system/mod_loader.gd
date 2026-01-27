@@ -75,6 +75,11 @@ signal mods_loaded()
 ## @param mod_path: Full path to the mod directory (e.g., "res://mods/_base_game")
 signal active_mod_changed(mod_path: String)
 
+## Signal emitted when a path security violation is detected (path traversal attempt)
+## @param path: The offending path that was rejected
+## @param reason: Description of why the path was rejected
+signal path_security_violation(path: String, reason: String)
+
 var registry: ModRegistry = ModRegistry.new()
 var loaded_mods: Array[ModManifest] = []
 var active_mod_id: String = "_base_game"  # Default active mod
@@ -107,10 +112,43 @@ var status_effect_registry: StatusEffectRegistry = StatusEffectRegistryClass.new
 var _is_loading: bool = false
 
 
+## Print debug message if running in debug build
+func _debug_print(message: String) -> void:
+	if OS.is_debug_build():
+		print("ModLoader: " + message)
+
+## Async load cancellation - set to true to abandon pending threaded loads
+var _async_load_cancelled: bool = false
+
+## Tracks paths with pending ResourceLoader.load_threaded_request() calls
+## Used to avoid accessing results after cancellation
+var _pending_threaded_paths: Array[String] = []
+
+
 ## Check if mods are currently being loaded
 ## @return: true if mod loading is in progress
 func is_loading() -> bool:
 	return _is_loading
+
+
+## Cancel any pending async load operations
+## Call this before freeing ModLoader to prevent orphaned load requests
+## from attempting to access freed memory
+func cancel_async_loads() -> void:
+	if _pending_threaded_paths.is_empty():
+		return
+
+	_async_load_cancelled = true
+	push_warning("ModLoader: Cancelling %d pending async load requests" % _pending_threaded_paths.size())
+	# Note: ResourceLoader.load_threaded_request() cannot be cancelled,
+	# but we prevent accessing results by checking _async_load_cancelled
+	_pending_threaded_paths.clear()
+
+
+## Handle cleanup when being freed
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		cancel_async_loads()
 
 
 func _ready() -> void:
@@ -134,23 +172,27 @@ func _ready() -> void:
 	_emit_active_mod_changed()
 
 
-## Discover all mods and load them in priority order (sync version for editor/reload)
-func _discover_and_load_mods() -> void:
+## Discover mods, resolve dependencies, and sort by priority
+## Returns sorted mods ready for loading, or empty array if issues prevent loading
+func _discover_and_resolve_mods() -> Array[ModManifest]:
 	var discovered_mods: Array[ModManifest] = _discover_mods()
 	if discovered_mods.is_empty():
 		push_warning("ModLoader: No mods found in " + MODS_DIRECTORY)
-		return
+		return []
 
-	# Check for circular dependencies before proceeding
 	var resolved_mods: Array[ModManifest] = _topological_sort_with_cycle_detection(discovered_mods)
 	if resolved_mods.is_empty() and not discovered_mods.is_empty():
-		push_error("ModLoader: Cannot proceed due to circular dependencies - no mods loaded")
-		return
+		push_error("ModLoader: Cannot proceed due to circular dependencies")
+		return []
 
-	# Sort by load priority (lower priority loads first, can be overridden by higher)
 	resolved_mods.sort_custom(_sort_by_priority)
+	return resolved_mods
 
-	# Load each mod
+
+## Discover all mods and load them in priority order (sync version for editor/reload)
+func _discover_and_load_mods() -> void:
+	var resolved_mods: Array[ModManifest] = _discover_and_resolve_mods()
+
 	for manifest: ModManifest in resolved_mods:
 		_load_mod(manifest)
 
@@ -158,23 +200,11 @@ func _discover_and_load_mods() -> void:
 ## Discover all mods and load them asynchronously (for game startup)
 func _discover_and_load_mods_async() -> void:
 	_is_loading = true
-	var discovered_mods: Array[ModManifest] = _discover_mods()
-	if discovered_mods.is_empty():
-		push_warning("ModLoader: No mods found in " + MODS_DIRECTORY)
+	var resolved_mods: Array[ModManifest] = _discover_and_resolve_mods()
+	if resolved_mods.is_empty():
 		_is_loading = false
 		return
 
-	# Check for circular dependencies before proceeding
-	var resolved_mods: Array[ModManifest] = _topological_sort_with_cycle_detection(discovered_mods)
-	if resolved_mods.is_empty() and not discovered_mods.is_empty():
-		push_error("ModLoader: Cannot proceed due to circular dependencies - no mods loaded")
-		_is_loading = false
-		return
-
-	# Sort by load priority (lower priority loads first, can be overridden by higher)
-	resolved_mods.sort_custom(_sort_by_priority)
-
-	# Load each mod asynchronously
 	for manifest: ModManifest in resolved_mods:
 		await _load_mod_async(manifest)
 		# Guard against being freed during async load
@@ -188,11 +218,9 @@ func _discover_and_load_mods_async() -> void:
 func _discover_mods() -> Array[ModManifest]:
 	var mods: Array[ModManifest] = []
 
-	# Debug: Log export status (only in debug builds)
 	var is_exported: bool = not OS.has_feature("editor")
-	if OS.is_debug_build():
-		print("ModLoader: Running in %s mode" % ("EXPORT" if is_exported else "EDITOR"))
-		print("ModLoader: Attempting to open: %s" % MODS_DIRECTORY)
+	_debug_print("Running in %s mode" % ("EXPORT" if is_exported else "EDITOR"))
+	_debug_print("Attempting to open: %s" % MODS_DIRECTORY)
 
 	var dir: DirAccess = DirAccess.open(MODS_DIRECTORY)
 	if not dir:
@@ -200,39 +228,31 @@ func _discover_mods() -> Array[ModManifest]:
 		push_error("ModLoader: DirAccess error: %s" % DirAccess.get_open_error())
 		return mods
 
-	if OS.is_debug_build():
-		print("ModLoader: Successfully opened mods directory")
+	_debug_print("Successfully opened mods directory")
 	dir.list_dir_begin()
 	var folder_name: String = dir.get_next()
 
 	while folder_name != "":
-		if OS.is_debug_build():
-			print("ModLoader: Found folder/file: '%s' (is_dir: %s)" % [folder_name, dir.current_is_dir()])
+		_debug_print("Found folder/file: '%s' (is_dir: %s)" % [folder_name, dir.current_is_dir()])
 		if dir.current_is_dir() and not folder_name.begins_with("."):
 			var mod_json_path: String = MODS_DIRECTORY.path_join(folder_name).path_join("mod.json")
 
-			# Check if mod.json exists
-			if OS.is_debug_build():
-				print("ModLoader: Checking for mod.json at: %s" % mod_json_path)
+			_debug_print("Checking for mod.json at: %s" % mod_json_path)
 			if FileAccess.file_exists(mod_json_path):
-				if OS.is_debug_build():
-					print("ModLoader: Found mod.json, loading...")
+				_debug_print("Found mod.json, loading...")
 				var manifest: ModManifest = ModManifest.load_from_file(mod_json_path)
 				if manifest:
-					if OS.is_debug_build():
-						print("ModLoader: Loaded mod '%s' from %s" % [manifest.mod_id, folder_name])
+					_debug_print("Loaded mod '%s' from %s" % [manifest.mod_id, folder_name])
 					mods.append(manifest)
 				else:
 					push_warning("ModLoader: Failed to load manifest for mod in folder: " + folder_name)
 			else:
-				if OS.is_debug_build():
-					print("ModLoader: No mod.json at %s" % mod_json_path)
+				_debug_print("No mod.json at %s" % mod_json_path)
 
 		folder_name = dir.get_next()
 
 	dir.list_dir_end()
-	if OS.is_debug_build():
-		print("ModLoader: Discovered %d mods total" % mods.size())
+	_debug_print("Discovered %d mods total" % mods.size())
 	return mods
 
 
@@ -277,10 +297,16 @@ func _load_mod_async(manifest: ModManifest) -> void:
 		if req_path.ends_with(".tres"):
 			ResourceLoader.load_threaded_request(req_path, "", true)  # true = use_sub_threads
 			tres_paths.append(req_path)
+			_pending_threaded_paths.append(req_path)
 
 	# Wait for all threaded loads to complete (polling with yield to not block)
 	if not tres_paths.is_empty():
 		await _wait_for_threaded_loads(tres_paths)
+
+	# Check cancellation after await - if cancelled, abandon resource registration
+	if _async_load_cancelled:
+		push_warning("ModLoader: Async load cancelled for mod '%s', skipping resource registration" % manifest.mod_id)
+		return
 
 	# Retrieve and register all resources
 	for req: Dictionary in resource_requests:
@@ -291,6 +317,8 @@ func _load_mod_async(manifest: ModManifest) -> void:
 		var resource: Resource = null
 		if req_path.ends_with(".tres"):
 			resource = ResourceLoader.load_threaded_get(req_path)
+			# Remove from pending list after retrieval
+			_pending_threaded_paths.erase(req_path)
 		elif req_path.ends_with(".json"):
 			resource = _load_json_resource(req_path, req_resource_type)
 
@@ -350,6 +378,11 @@ func _wait_for_threaded_loads(paths: Array[String]) -> void:
 	var pending: Array[String] = paths.duplicate()
 
 	while not pending.is_empty():
+		# Check cancellation flag at start of each poll cycle
+		if _async_load_cancelled:
+			push_warning("ModLoader: Async load cancelled, abandoning %d pending resources" % pending.size())
+			return
+
 		var still_pending: Array[String] = []
 
 		for path: String in pending:
@@ -386,12 +419,12 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 	if not dir:
 		# Directory might not exist in this mod (that's okay)
 		# But log it for character type to debug export issues
-		if resource_type == "character" and OS.is_debug_build():
-			print("ModLoader: Could not open %s directory: %s (error: %s)" % [resource_type, directory, DirAccess.get_open_error()])
+		if resource_type == "character":
+			_debug_print("Could not open %s directory: %s (error: %s)" % [resource_type, directory, DirAccess.get_open_error()])
 		return 0
 
-	if resource_type == "character" and OS.is_debug_build():
-		print("ModLoader: Scanning %s directory: %s" % [resource_type, directory])
+	if resource_type == "character":
+		_debug_print("Scanning %s directory: %s" % [resource_type, directory])
 
 	var supports_json: bool = resource_type in JSON_SUPPORTED_TYPES
 
@@ -409,8 +442,8 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 			var resource: Resource = null
 			var resource_id: String = ""
 
-			if resource_type == "character" and OS.is_debug_build():
-				print("ModLoader: Found %s file: %s -> %s" % [resource_type, file_name, original_name])
+			if resource_type == "character":
+				_debug_print("Found %s file: %s -> %s" % [resource_type, file_name, original_name])
 
 			if original_name.ends_with(".tres"):
 				# Standard Godot resource (load using original path - Godot handles remapping)
@@ -427,10 +460,9 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 
 			if resource:
 				_register_resource_with_type_handling(resource, resource_type, resource_id, mod_id)
-				# Debug: Log character registrations
-				if resource_type == "character" and resource is CharacterData and OS.is_debug_build():
+				if resource_type == "character" and resource is CharacterData:
 					var char: CharacterData = resource
-					print("ModLoader: Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
+					_debug_print("Registered character '%s' (uid: %s)" % [char.character_name, char.character_uid])
 				count += 1
 			elif not resource_id.is_empty():
 				push_warning("ModLoader: Failed to load resource: " + full_path)
@@ -438,8 +470,8 @@ func _load_resources_from_directory(directory: String, resource_type: String, mo
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
-	if resource_type == "character" and OS.is_debug_build():
-		print("ModLoader: Loaded %d characters from %s" % [count, directory])
+	if resource_type == "character":
+		_debug_print("Loaded %d characters from %s" % [count, directory])
 	return count
 
 
@@ -687,11 +719,15 @@ func get_scene_or_fallback(scene_id: String, fallback_path: String) -> PackedSce
 func resolve_asset_path(relative_path: String, fallback_base_path: String = "") -> String:
 	# Security: Prevent path traversal attacks
 	if ".." in relative_path:
+		var reason: String = "Path contains directory traversal (..)"
 		push_error("ModLoader: Invalid asset path (contains ..): %s" % relative_path)
+		path_security_violation.emit(relative_path, reason)
 		return ""
 
 	if relative_path.begins_with("/") or relative_path.begins_with("\\"):
+		var reason: String = "Absolute paths not allowed"
 		push_error("ModLoader: Invalid asset path (absolute path not allowed): %s" % relative_path)
+		path_security_violation.emit(relative_path, reason)
 		return ""
 
 	# Check mods in descending priority order (highest priority first)

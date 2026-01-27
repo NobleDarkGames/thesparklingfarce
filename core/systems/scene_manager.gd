@@ -149,11 +149,16 @@ func fade_to_black(duration: float = FADE_DURATION, color: Color = Color.BLACK) 
 
 	if is_fading:
 		push_warning("SceneManager: Fade already in progress")
+		# Emit signal so callers awaiting fade_completed don't hang
+		fade_completed.emit(is_faded_to_black)
 		return
 
 	# Ensure overlay is in tree (may not be if deferred add hasn't completed)
 	if not fade_overlay.is_inside_tree():
 		await get_tree().process_frame
+		# Guard after await - scene may have changed
+		if not is_instance_valid(self) or not is_instance_valid(fade_overlay):
+			return
 
 	is_fading = true
 	fade_overlay.color = color
@@ -166,6 +171,13 @@ func fade_to_black(duration: float = FADE_DURATION, color: Color = Color.BLACK) 
 		return
 	tween.tween_property(fade_overlay, "modulate:a", 1.0, duration)
 	await tween.finished
+
+	# Guard after await - ensure we're still valid before updating state
+	if not is_instance_valid(self):
+		return
+	if not is_instance_valid(fade_overlay):
+		is_fading = false
+		return
 
 	is_faded_to_black = true
 	is_fading = false
@@ -181,6 +193,8 @@ func fade_from_black(duration: float = FADE_DURATION) -> void:
 
 	if is_fading:
 		push_warning("SceneManager: Fade already in progress")
+		# Emit signal so callers awaiting fade_completed don't hang
+		fade_completed.emit(is_faded_to_black)
 		return
 
 	is_fading = true
@@ -193,6 +207,13 @@ func fade_from_black(duration: float = FADE_DURATION) -> void:
 		return
 	tween.tween_property(fade_overlay, "modulate:a", 0.0, duration)
 	await tween.finished
+
+	# Guard after await - ensure we're still valid before updating state
+	if not is_instance_valid(self):
+		return
+	if not is_instance_valid(fade_overlay):
+		is_fading = false
+		return
 
 	is_faded_to_black = false
 	is_fading = false
@@ -259,7 +280,13 @@ func go_back(use_fade: bool = true) -> void:
 		push_warning("SceneManager: No previous scene to return to")
 		return
 
-	await change_scene(previous_scene_path, use_fade)
+	# Cache target before change_scene overwrites previous_scene_path
+	var target_path: String = previous_scene_path
+	# Clear to prevent double-back (change_scene will set previous_scene_path to current)
+	previous_scene_path = ""
+	await change_scene(target_path, use_fade)
+	# Clear again after navigation to prevent back-to-self loops
+	previous_scene_path = ""
 
 
 ## Get the current scene node

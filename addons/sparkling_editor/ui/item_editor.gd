@@ -5,9 +5,7 @@ extends "res://addons/sparkling_editor/ui/base_resource_editor.gd"
 ## Allows browsing and editing ItemData resources
 
 var name_edit: LineEdit
-var icon_preview: TextureRect
-var icon_path_edit: LineEdit
-var icon_clear_btn: Button
+var icon_field: Dictionary  # {preview, path_edit, browse_btn, clear_btn}
 var icon_file_dialog: EditorFileDialog
 var item_type_option: OptionButton
 var equipment_type_edit: LineEdit
@@ -48,9 +46,6 @@ var sell_price_spin: SpinBox
 
 # Item Management
 var is_crafting_material_check: CheckBox
-
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
 
 
 func _ready() -> void:
@@ -111,13 +106,13 @@ func _load_resource_data() -> void:
 
 	# Icon
 	if item.icon:
-		icon_path_edit.text = item.icon.resource_path
-		icon_preview.texture = item.icon
-		icon_preview.tooltip_text = item.icon.resource_path
+		icon_field.path_edit.text = item.icon.resource_path
+		icon_field.preview.texture = item.icon
+		icon_field.preview.tooltip_text = item.icon.resource_path
 	else:
-		icon_path_edit.text = ""
-		icon_preview.texture = null
-		icon_preview.tooltip_text = "No icon assigned"
+		icon_field.path_edit.text = ""
+		icon_field.preview.texture = null
+		icon_field.preview.tooltip_text = "No icon assigned"
 
 	# Curse properties
 	is_cursed_check.button_pressed = item.is_cursed
@@ -177,7 +172,7 @@ func _save_resource_data() -> void:
 	item.description = description_edit.text
 
 	# Update icon
-	var icon_path: String = icon_path_edit.text.strip_edges()
+	var icon_path: String = icon_field.path_edit.text.strip_edges()
 	if not icon_path.is_empty() and ResourceLoader.exists(icon_path):
 		item.icon = load(icon_path) as Texture2D
 	else:
@@ -295,47 +290,15 @@ func _add_basic_info_section() -> void:
 		"Display name shown in menus and shops. E.g., Steel Sword, Healing Herb.")
 	name_edit.max_length = 64
 
-	# Icon picker (custom composite control)
-	var icon_container: HBoxContainer = HBoxContainer.new()
-
-	# Preview at actual game size (32x32) with border
-	var preview_panel: PanelContainer = PanelContainer.new()
-	preview_panel.custom_minimum_size = Vector2(36, 36)
-	var preview_style: StyleBoxFlat = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
-	preview_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
-	preview_style.set_border_width_all(1)
-	preview_style.set_content_margin_all(2)
-	preview_panel.add_theme_stylebox_override("panel", preview_style)
-
-	icon_preview = TextureRect.new()
-	icon_preview.custom_minimum_size = Vector2(32, 32)
-	icon_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview_panel.add_child(icon_preview)
-	icon_container.add_child(preview_panel)
-
-	# Path display (editable for power users)
-	icon_path_edit = LineEdit.new()
-	icon_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	icon_path_edit.placeholder_text = "res://mods/.../assets/icons/items/sword.png"
-	icon_path_edit.text_changed.connect(_on_icon_path_changed)
-	icon_container.add_child(icon_path_edit)
-
-	# Browse button
-	var browse_button: Button = Button.new()
-	browse_button.text = "Browse..."
-	browse_button.pressed.connect(_on_browse_icon)
-	icon_container.add_child(browse_button)
-
-	# Clear button
-	icon_clear_btn = Button.new()
-	icon_clear_btn.text = "X"
-	icon_clear_btn.tooltip_text = "Clear icon"
-	icon_clear_btn.pressed.connect(_on_clear_icon)
-	icon_container.add_child(icon_clear_btn)
-
-	form.add_labeled_control("Icon:", icon_container, "Item icon displayed in menus and inventory")
+	# Icon using FormBuilder's texture field
+	icon_field = form.add_texture_field(
+		"Icon:",
+		"res://mods/.../assets/icons/items/sword.png",
+		"Item icon displayed in menus and inventory"
+	)
+	icon_field.path_edit.text_changed.connect(_on_icon_path_changed)
+	icon_field.browse_btn.pressed.connect(_on_browse_icon)
+	icon_field.clear_btn.pressed.connect(_on_clear_icon)
 
 	# Item Type
 	item_type_option = form.add_dropdown("Item Type:", [
@@ -599,7 +562,7 @@ func _on_browse_icon() -> void:
 
 
 func _on_icon_file_selected(path: String) -> void:
-	icon_path_edit.text = path
+	icon_field.path_edit.text = path
 	_load_icon_from_path(path)
 
 
@@ -610,28 +573,28 @@ func _on_icon_path_changed(new_text: String) -> void:
 func _load_icon_from_path(path: String) -> void:
 	var clean_path: String = path.strip_edges()
 	if clean_path.is_empty():
-		icon_preview.texture = null
-		icon_preview.tooltip_text = "No icon assigned"
+		icon_field.preview.texture = null
+		icon_field.preview.tooltip_text = "No icon assigned"
 		return
 
 	if ResourceLoader.exists(clean_path):
 		var texture: Texture2D = load(clean_path) as Texture2D
-		icon_preview.texture = texture
-		icon_preview.tooltip_text = clean_path
+		icon_field.preview.texture = texture
+		icon_field.preview.tooltip_text = clean_path
 
 		# Warn if icon is oversized (but allow it)
 		if texture and (texture.get_width() > 64 or texture.get_height() > 64):
 			push_warning("Item icon '%s' is %dx%d - recommend 32x32 or smaller for crisp display" % [
 				clean_path.get_file(), texture.get_width(), texture.get_height()])
 	else:
-		icon_preview.texture = null
-		icon_preview.tooltip_text = "File not found: " + clean_path
+		icon_field.preview.texture = null
+		icon_field.preview.tooltip_text = "File not found: " + clean_path
 
 
 func _on_clear_icon() -> void:
-	icon_path_edit.text = ""
-	icon_preview.texture = null
-	icon_preview.tooltip_text = "No icon assigned"
+	icon_field.path_edit.text = ""
+	icon_field.preview.texture = null
+	icon_field.preview.tooltip_text = "No icon assigned"
 	if _updating_ui:
 		return
 	_mark_dirty()

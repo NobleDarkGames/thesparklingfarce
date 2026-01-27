@@ -388,6 +388,12 @@ func _end_battle(victory: bool) -> void:
 	active_unit = null
 	turn_queue.clear()
 
+	# Clean up any active popup labels
+	for label: Label in _active_popup_labels:
+		if is_instance_valid(label):
+			label.queue_free()
+	_active_popup_labels.clear()
+
 	battle_ended.emit(victory)
 
 

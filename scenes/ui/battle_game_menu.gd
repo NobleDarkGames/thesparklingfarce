@@ -68,8 +68,7 @@ const TEXT_HOVER: Color = Color(0.95, 0.95, 0.85)
 const CURSOR_CHAR: String = ">"
 const CURSOR_SPACING: int = 8
 
-# Font (MANDATORY)
-const MONOGRAM_FONT: Font = preload("res://assets/fonts/monogram.ttf")
+# Font size
 const FONT_SIZE: int = 16
 
 # Menu animation timing
@@ -264,8 +263,7 @@ func _create_option_label(text: String) -> Label:
 	## Helper to create a styled menu option label
 	var label: Label = Label.new()
 	label.text = "  " + text  # Indent for cursor space
-	label.add_theme_font_override("font", MONOGRAM_FONT)
-	label.add_theme_font_size_override("font_size", FONT_SIZE)
+	UIUtils.apply_monogram_style(label, FONT_SIZE)
 	label.add_theme_color_override("font_color", TEXT_NORMAL)
 	return label
 

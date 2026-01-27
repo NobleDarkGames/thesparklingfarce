@@ -7,7 +7,7 @@
 layout_mode = 3
 anchors_preset = 0
 offset_right = 120.0
-offset_bottom = 100.0
+offset_bottom = 120.0
 theme = ExtResource("2_ui_theme")
 script = ExtResource("1_action_menu")
 
@@ -74,6 +74,11 @@ text = "Magic"
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "Item"
+
+[node name="EquipButton" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Equip"
 
 [node name="StayButton" type="Label" parent="VBoxContainer"]
 layout_mode = 2

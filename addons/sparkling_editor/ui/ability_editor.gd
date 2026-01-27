@@ -34,9 +34,6 @@ var _selected_effects: Array[String] = []
 # Animation and Audio
 var animation_edit: LineEdit
 
-# Flag to prevent signal feedback loops during UI updates
-var _updating_ui: bool = false
-
 
 func _ready() -> void:
 	resource_type_id = "ability"

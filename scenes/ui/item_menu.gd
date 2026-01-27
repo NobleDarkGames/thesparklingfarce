@@ -33,6 +33,13 @@ var _hover_index: int = -1
 ## Configuration
 var _max_slots: int = 4  ## Default SF-style (4 slots per character)
 
+## Menu mode - determines which items are selectable
+enum MenuMode {
+	USE,   ## Show consumable items for battle use (default)
+	EQUIP  ## Show equippable items for equipment changes (SF2: doesn't end turn)
+}
+var _menu_mode: MenuMode = MenuMode.USE
+
 ## Colors (matching ActionMenu pattern)
 const COLOR_NORMAL: Color = Color(0.9, 0.9, 0.9, 1.0)  ## Bright white for usable
 const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)  ## Grayed out
@@ -164,9 +171,11 @@ func _get_label_index_at_position(pos: Vector2) -> int:
 ## Show menu with unit's inventory
 ## @param unit: The Unit whose inventory to display
 ## @param session_id: Turn session ID from InputManager
-func show_menu(unit: Unit, session_id: int) -> void:
+## @param mode: MenuMode.USE for consumables, MenuMode.EQUIP for equipment
+func show_menu(unit: Unit, session_id: int, mode: MenuMode = MenuMode.USE) -> void:
 	_menu_session_id = session_id
 	_hover_index = -1
+	_menu_mode = mode
 
 	# Get inventory configuration
 	if ModLoader and "inventory_config" in ModLoader:
@@ -183,6 +192,10 @@ func show_menu(unit: Unit, session_id: int) -> void:
 
 	# Populate item labels
 	_populate_item_labels()
+
+	# Update header based on mode
+	if _header_label:
+		_header_label.text = "Equip" if _menu_mode == MenuMode.EQUIP else "Items"
 
 	# Smart default selection
 	_select_smart_default(unit)
@@ -252,8 +265,8 @@ func _populate_item_labels() -> void:
 			label.text = "(Empty)"
 
 
-## Check if an item at index is usable in battle
-func _is_item_usable(index: int) -> bool:
+## Check if an item at index is selectable based on current menu mode
+func _is_item_selectable(index: int) -> bool:
 	if index < 0 or index >= _item_data_cache.size():
 		return false
 
@@ -261,42 +274,73 @@ func _is_item_usable(index: int) -> bool:
 	if not item:
 		return false
 
-	# Only consumables with usable_in_battle = true can be used
-	return item.item_type == ItemData.ItemType.CONSUMABLE and item.usable_in_battle
+	match _menu_mode:
+		MenuMode.USE:
+			# Only consumables with usable_in_battle = true can be used
+			return item.item_type == ItemData.ItemType.CONSUMABLE and item.usable_in_battle
+		MenuMode.EQUIP:
+			# Weapons and accessories can be equipped
+			return item.is_equippable()
+
+	return false
 
 
-## Check if any usable items exist
-func _has_any_usable_items() -> bool:
+## Legacy alias for backwards compatibility
+func _is_item_usable(index: int) -> bool:
+	return _is_item_selectable(index)
+
+
+## Check if any selectable items exist (based on current mode)
+func _has_any_selectable_items() -> bool:
 	for i: int in range(_item_data_cache.size()):
-		if _is_item_usable(i):
+		if _is_item_selectable(i):
 			return true
 	return false
 
 
-## Smart default selection based on unit state
-func _select_smart_default(unit: Unit) -> void:
-	# Check if unit is injured (HP < max HP)
-	var is_injured: bool = false
-	if unit and unit.stats:
-		is_injured = unit.stats.current_hp < unit.stats.max_hp
+## Legacy alias for backwards compatibility
+func _has_any_usable_items() -> bool:
+	return _has_any_selectable_items()
 
-	# If injured, try to select first healing item
-	if is_injured:
+
+## Smart default selection based on unit state and menu mode
+func _select_smart_default(unit: Unit) -> void:
+	if _menu_mode == MenuMode.EQUIP:
+		# For equip mode, select first equippable item (prefer weapons)
 		for i: int in range(_item_data_cache.size()):
 			var item: ItemData = _item_data_cache[i]
-			if item and _is_item_usable(i):
-				# Check if it's a healing item (has heal effect)
-				if item.effect is AbilityData:
-					var ability: AbilityData = item.effect as AbilityData
-					if ability.ability_type == AbilityData.AbilityType.HEAL:
-						selected_index = i
-						return
+			if item and _is_item_selectable(i):
+				if item.item_type == ItemData.ItemType.WEAPON:
+					selected_index = i
+					return
+		# Fall through to select any equippable
+		for i: int in range(_item_data_cache.size()):
+			if _is_item_selectable(i):
+				selected_index = i
+				return
+	else:
+		# USE mode: Check if unit is injured (HP < max HP)
+		var is_injured: bool = false
+		if unit and unit.stats:
+			is_injured = unit.stats.current_hp < unit.stats.max_hp
 
-	# Otherwise select first usable item
-	for i: int in range(_item_data_cache.size()):
-		if _is_item_usable(i):
-			selected_index = i
-			return
+		# If injured, try to select first healing item
+		if is_injured:
+			for i: int in range(_item_data_cache.size()):
+				var item: ItemData = _item_data_cache[i]
+				if item and _is_item_selectable(i):
+					# Check if it's a healing item (has heal effect)
+					if item.effect is AbilityData:
+						var ability: AbilityData = item.effect as AbilityData
+						if ability.ability_type == AbilityData.AbilityType.HEAL:
+							selected_index = i
+							return
+
+		# Otherwise select first usable item
+		for i: int in range(_item_data_cache.size()):
+			if _is_item_selectable(i):
+				selected_index = i
+				return
 
 	# Fallback to first slot
 	selected_index = 0
@@ -359,7 +403,10 @@ func _build_item_description(item: ItemData) -> String:
 		parts.append(effect_text)
 
 	if parts.is_empty():
-		return "Use in battle" if _is_item_usable(selected_index) else "Cannot use in battle"
+		if _menu_mode == MenuMode.EQUIP:
+			return "Equip item" if _is_item_selectable(selected_index) else "Cannot equip"
+		else:
+			return "Use in battle" if _is_item_selectable(selected_index) else "Cannot use in battle"
 
 	return "\n".join(parts)
 
@@ -496,6 +543,12 @@ func _try_confirm_selection() -> void:
 	if not _is_item_usable(selected_index):
 		# Play error sound - can't use this item
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		return
+
+	# Bounds check for inventory array (defensive - arrays should be synced but guard against edge cases)
+	if selected_index < 0 or selected_index >= _inventory_items.size():
+		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
+		push_warning("ItemMenu: selected_index %d out of bounds for _inventory_items (size %d)" % [selected_index, _inventory_items.size()])
 		return
 
 	# Get the item ID
