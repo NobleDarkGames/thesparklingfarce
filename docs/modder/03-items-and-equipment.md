@@ -53,6 +53,31 @@ This section appears only for Weapon-type items.
 - Spear: Min 1, Max 2 (can poke diagonally)
 - Bow: Min 2, Max 3 (cannot hit adjacent - the dead zone)
 
+### Combat Modifiers (Bonus Damage)
+
+Weapons can deal bonus damage against specific target types. These appear in the **Combat Modifiers** export group.
+
+**Movement Type Bonuses** apply a damage multiplier against targets with a specific movement type:
+
+| Key | Target | Example Use |
+|-----|--------|-------------|
+| 1 (FLYING) | Flying units | Bow: `{1: 1.5}` = +50% vs flying |
+| 2 (FLOATING) | Floating units | Anti-mage weapon |
+| 0 (WALKING) | Walking units | Unusual; most ground weapons skip this |
+| Custom string | Custom movement types | Mod-defined movement types |
+
+**Unit Tag Bonuses** apply a damage multiplier against targets with matching tags (set in `CharacterData.unit_tags`):
+
+| Key | Example Use |
+|-----|-------------|
+| "undead" | Holy weapons deal double damage: `{"undead": 2.0}` |
+| "beast" | Hunting weapons: `{"beast": 1.25}` |
+| "armored" | Armor-piercing: `{"armored": 1.5}` |
+
+Multiple bonuses stack multiplicatively. A weapon with both `{1: 1.5}` (movement type) and `{"dragon": 1.25}` (unit tag) deals 1.5 * 1.25 = 1.875x damage against a flying dragon.
+
+Weapons without these dictionaries work unchanged (multiplier defaults to 1.0).
+
 ### Stat Modifiers
 
 Weapons can grant bonus stats when equipped. All modifiers default to 0.

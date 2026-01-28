@@ -130,7 +130,7 @@ Project settings enforce: `untyped_declaration` = Error, `infer_on_variant` = Er
 |-----------|---------|
 | ExplorationUIManager | Auto-activating exploration UI |
 | GameJuice | Screen shake, effects |
-| DebugConsole | Runtime console (F1/F12/~) |
+| DebugConsole | Runtime console (F12/~) |
 
 ### Static Utility (NOT Autoload)
 | Class | Purpose |
@@ -289,10 +289,10 @@ Backward compatibility: `character_id` maps to `entity_type: "character"`.
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `id` | Yes | Unique mod identifier (lowercase, underscores) |
+| `id` | Yes | Unique mod identifier (alphanumeric, underscores, hyphens; starts with letter/underscore) |
 | `name` | Yes | Human-readable display name |
-| `version` | Yes | Semantic version string |
-| `load_priority` | Yes | Resource override priority |
+| `version` | No | Semantic version string (default: "1.0.0") |
+| `load_priority` | No | Resource override priority (default: 0, clamped to 0-9999) |
 | `dependencies` | No | Array of required mod IDs |
 | `scenes` | No | Named scene overrides |
 
@@ -403,10 +403,12 @@ Transition to main_menu:
 
 - `item_rewards`: Array of `{item_id, quantity}` dictionaries
 - `gold_reward`: Gold amount
-- `dialog_text`: Simple text (auto-generates cinematic)
 - `interaction_cinematic_id`: Explicit cinematic to play
 - `conditional_cinematics`: Flag-based branching (same format as NPCData)
+- `fallback_cinematic_id`: Cinematic if no conditions match
 - `completion_flag`: Auto-generated as `{interactable_id}_opened` if empty
+- `one_shot`: If true (default), can only be searched once
+- `required_flags` / `forbidden_flags`: Prerequisite/blocking flags
 
 ---
 
@@ -425,11 +427,16 @@ The AI system is divided into engine and content:
 `AIBehaviorData` resources define behavior without code:
 
 ```gdscript
-@export var role: String = "aggressive"        # tactical, support, defensive, aggressive
+@export var behavior_id: String = ""           # Unique identifier
+@export var display_name: String = ""          # Human-readable name
+@export var role: String = "aggressive"        # support, aggressive, defensive, tactical
 @export var behavior_mode: String = "aggressive"  # aggressive, cautious, opportunistic
 @export var retreat_hp_threshold: int = 30     # HP% to trigger retreat
+@export var retreat_enabled: bool = true       # Master retreat switch
 @export var aoe_minimum_targets: int = 2       # Skip AoE if fewer targets
 @export var seek_terrain_advantage: bool = true
+@export var alert_range: int = 8               # Distance to become "alert"
+@export var engagement_range: int = 5          # Distance to actively engage
 ```
 
 ### AI Roles
@@ -451,7 +458,7 @@ The AI system is divided into engine and content:
 
 ### Threat Calculation
 
-AI targeting uses weighted threat scores (deterministic, no RNG):
+AI targeting uses weighted threat scores via extensible Dictionary (default keys shown):
 
 ```gdscript
 threat_weights: Dictionary = {
@@ -459,9 +466,10 @@ threat_weights: Dictionary = {
     "healer": 1.5,           # Priority for healers
     "damage_dealer": 1.0,    # Priority for high-attack units
     "proximity": 1.0,        # Distance modifier
-    "low_defense": 1.0       # Vulnerable target bonus
 }
 ```
+
+Mods can add custom keys like `"psionic_power"` or `"hacking_vulnerability"`. Values typically range 0.0-2.0 where 1.0 is normal priority.
 
 Character-level modifiers:
 - `CharacterData.ai_threat_modifier`: Multiplier (bosses = 2.0, fodder = 0.5)
@@ -481,15 +489,21 @@ behavior_phases: Array[Dictionary] = [
 
 Available triggers: `hp_below`, `hp_above`, `turn_count`, `ally_died`, `ally_count_below`, `enemy_count_below`, `flag_set`
 
-### Item/Spell Usage Rules
+### Item Usage Rules
 
 ```gdscript
 @export var use_healing_items: bool = true
 @export var use_attack_items: bool = true
 @export var use_buff_items: bool = false
-@export var conserve_mp_on_heals: bool = true
-@export var prioritize_boss_heals: bool = true
-@export var use_status_effects: bool = true
+```
+
+### Spell Usage Rules
+
+```gdscript
+@export var conserve_mp_on_heals: bool = true    # Prefer lower-level heals when not critical
+@export var prioritize_boss_heals: bool = true   # Prioritize healing boss/leader units
+@export var use_status_effects: bool = true      # Use debuff/status abilities
+@export var preferred_status_effects: Array[String] = []  # Specific effects to prefer (empty = any)
 ```
 
 ---
@@ -498,32 +512,34 @@ Available triggers: `hp_below`, `hp_above`, `turn_count`, `ally_died`, `ally_cou
 
 ### TerrainData Properties
 
-| Property | Description |
-|----------|-------------|
-| `terrain_id` | Unique identifier (e.g., "forest", "lava") |
-| `movement_cost_walking` | Movement cost for ground units (1.0 normal) |
-| `movement_cost_floating` | Movement cost for floating units |
-| `movement_cost_flying` | Movement cost for flying units (typically 1.0) |
-| `impassable_walking` | Block ground units entirely |
-| `impassable_floating` | Block floating units |
-| `impassable_flying` | Block flying units (rare - ceilings) |
-| `defense_bonus` | Defense stat bonus (0-10) |
-| `evasion_bonus` | Evasion percentage (0-50%) |
-| `damage_per_turn` | Damage at turn start (lava, poison tiles) |
-| `healing_per_turn` | Healing at turn start (healing springs) |
+| Property | Type | Description |
+|----------|------|-------------|
+| `terrain_id` | String | Unique identifier (e.g., "forest", "lava") |
+| `display_name` | String | Shown in UI |
+| `icon` | Texture2D | UI display icon (optional) |
+| `movement_cost_walking` | float (0.5-99.0) | Movement cost for ground units (1.0 normal) |
+| `movement_cost_floating` | float (0.5-99.0) | Movement cost for floating units |
+| `movement_cost_flying` | float (0.5-99.0) | Movement cost for flying units (typically 1.0) |
+| `impassable_walking` | bool | Block ground units entirely |
+| `impassable_floating` | bool | Block floating units |
+| `impassable_flying` | bool | Block flying units (rare - ceilings) |
+| `defense_bonus` | int (0-10) | Defense stat bonus |
+| `evasion_bonus` | int (0-50) | Evasion percentage |
+| `damage_per_turn` | int | Damage at turn start (positive = damage) |
+| `healing_per_turn` | int | Healing at turn start (positive = heal) |
 
 ### Layered Terrain
 
-`GridManager` supports multiple terrain layers sorted by z_index:
+`GridManager` supports multiple terrain layers sorted by z_index (highest first):
 
 ```gdscript
-# Terrain lookup uses custom tile data first, falls back to atlas filename
-var terrain_type: String = tile_data.get_custom_data("terrain_type")
-if terrain_type.is_empty():
-    terrain_type = _get_terrain_id_from_atlas(...)
+# Terrain lookup priority:
+# 1. Per-tile custom data "terrain_type" override
+# 2. Atlas source filename (e.g., "grass.png" -> "grass")
+# 3. Fallback to "plains" if no terrain found
 ```
 
-Higher z_index layers override lower layers for terrain effects.
+Higher z_index layers are checked first. Tiles not registered in `TerrainRegistry` are treated as decorations and pass through to lower layers.
 
 ### A* Pathfinding
 
@@ -538,38 +554,49 @@ Higher z_index layers override lower layers for terrain effects.
 
 ### StatusEffectData Properties
 
-| Property | Description |
-|----------|-------------|
-| `effect_id` | Unique identifier (e.g., "poison", "sleep") |
-| `duration` | Turns until expiry (0 = permanent until removed) |
-| `trigger_timing` | When effect processes (TURN_START, TURN_END, ON_DAMAGE, ON_ACTION, PASSIVE) |
-| `skips_turn` | Unit cannot act (sleep, stun) |
-| `recovery_chance_per_turn` | Chance to auto-recover (paralysis = 25%) |
-| `damage_per_turn` | DoT damage (positive) or HoT (negative) |
-| `stat_modifiers` | Dictionary of stat changes |
-| `removed_on_damage` | Wake on hit (sleep) |
-| `action_modifier` | RANDOM_TARGET (confusion), ATTACK_ALLIES (berserk), etc. |
+| Property | Type | Description |
+|----------|------|-------------|
+| `effect_id` | String | Unique identifier (e.g., "poison", "sleep") |
+| `display_name` | String | UI display name ("Poisoned", "Asleep") |
+| `description` | String | Help text |
+| `popup_text` | String | Text shown when effect triggers (defaults to display_name) |
+| `popup_color` | Color | Popup text color |
+| `duration` | int (0-99) | Turns until expiry (0 = until removed) |
+| `trigger_timing` | enum | TURN_START, TURN_END, ON_DAMAGE, ON_ACTION, PASSIVE |
+| `skips_turn` | bool | Unit cannot act (sleep, stun) |
+| `recovery_chance_per_turn` | int (0-100) | Chance to auto-recover (paralysis = 25%) |
+| `damage_per_turn` | int | Positive = damage, negative = healing |
+| `stat_modifiers` | Dictionary | Keys: strength, defense, agility, intelligence, luck, max_hp, max_mp |
+| `removed_on_damage` | bool | Wake on hit (sleep) |
+| `removal_on_damage_chance` | int (0-100) | Chance to remove when damaged (only if removed_on_damage) |
+| `action_modifier` | enum | NONE, RANDOM_TARGET, ATTACK_ALLIES, CANNOT_USE_MAGIC, CANNOT_USE_ITEMS |
+| `action_modifier_chance` | int (0-100) | Chance action_modifier applies each turn |
 
-### Built-in Effects
+### Built-in Effects (Legacy Fallback)
+
+These effects have hardcoded fallback behavior if not defined in registry:
 
 | Effect | Behavior |
 |--------|----------|
-| poison | Damage at turn end |
+| poison | Damage over time |
 | sleep | Skip turn, wake on damage |
 | paralysis | Skip turn, 25% recovery/turn |
-| confusion | Random target selection |
+| confusion | Random target selection (50% chance per action) |
 | attack_up/down | Stat modifier (passive) |
 | defense_up/down | Stat modifier (passive) |
-| regen | Healing at turn end |
+| speed_up/down | Stat modifier (passive) |
+| regen | Healing over time |
 
-### Registering Custom Effects
+### Data-Driven Effects
 
-Effects are data-driven via `ModLoader.status_effect_registry`:
+Effects are primarily defined via resources in `mods/*/data/status_effects/*.tres` and looked up from `ModLoader.status_effect_registry`:
 
 ```gdscript
-# Effects defined in mods/*/data/status_effects/*.tres
-# Looked up by effect_id at runtime
+# Get effect data at runtime
 var effect: StatusEffectData = ModLoader.status_effect_registry.get_effect("custom_effect")
+
+# Get display name with stat modifier info
+var display: String = ModLoader.status_effect_registry.get_display_text_with_modifiers("attack_up")
 ```
 
 ---
@@ -601,6 +628,46 @@ var effect: StatusEffectData = ModLoader.status_effect_registry.get_effect("cust
 
 **Note:** Hero death ALWAYS triggers defeat regardless of configured condition (SF2-authentic).
 
+**Note:** `DEFEAT_ALL_ENEMIES` checks for pending reinforcements. Victory is withheld while `BattleManager.has_pending_reinforcements()` returns true.
+
+### Reinforcement System (spawn_delay)
+
+Enemy entries in `BattleData.enemies` support a `spawn_delay: int` field:
+
+| Value | Behavior |
+|-------|----------|
+| 0 or absent | Spawns at battle start (backwards compatible) |
+| N (positive) | Appears at start of turn N |
+
+**BattleData helpers:**
+
+| Method | Returns |
+|--------|---------|
+| `get_initial_enemies()` | Enemies with `spawn_delay <= 0` |
+| `get_reinforcements_for_turn(turn)` | Enemies whose `spawn_delay == turn` |
+| `get_all_pending_reinforcements(turn)` | All enemies with `spawn_delay > turn` |
+| `has_pending_reinforcements(turn)` | True if any `spawn_delay > turn` |
+
+**Spawn timing:** `TurnManager.start_new_turn_cycle()` calls `BattleManager.spawn_reinforcements()` AFTER turn order calculation. Reinforcements appear on the map but do NOT act until the next turn cycle.
+
+**Early spawn logic:** If the player kills all visible enemies while reinforcements remain:
+1. A warning message displays ("Enemy reinforcements incoming!")
+2. Player gets one free prep turn
+3. ALL pending reinforcements spawn next cycle via `spawn_all_pending_reinforcements()`
+
+`BattleManager` tracks early spawn state with `_reinforcement_warning_given` and `_all_reinforcements_force_spawned` flags, reset by `reset_reinforcement_state()` on battle end.
+
+### Enemy Dictionary Format
+
+Each entry in `BattleData.enemies` is a Dictionary:
+
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `character` | CharacterData | Yes | Enemy template |
+| `position` | Vector2i | Yes | Grid spawn position |
+| `ai_behavior` | AIBehaviorData | Yes | AI behavior configuration |
+| `spawn_delay` | int | No | Turn number to spawn (0 or absent = battle start) |
+
 ### Battle Configuration
 
 ```gdscript
@@ -625,13 +692,23 @@ var effect: StatusEffectData = ModLoader.status_effect_registry.get_effect("cust
 - `NON_HEALER_ITEM_XP = 1` (non-healers using healing items)
 - `HEAL_SPELL_XP = 10` (healing spells)
 - `ATTACK_SPELL_BASE_XP = 8` (damage spells)
+- `GENERIC_SPELL_XP = 5` (other spell types)
+
+**Level-scaled XP (CombatCalculator):**
+- Base XP modified by level difference
+- Higher level enemies: +20% per level above player
+- Lower level enemies: -10% per level below (minimum 50%)
+- XP_LEVEL_BONUS_PERCENT = 0.2
+- XP_LEVEL_PENALTY_PERCENT = 0.1
+- XP_MINIMUM_MULTIPLIER = 0.5
 
 ### Battle Exit Reasons
 
-`BattleManager.BattleExitReason` enum:
+`BattleExitController.BattleExitReason` enum (in `core/systems/battle/battle_exit_controller.gd`):
 - `EGRESS`: Tactical retreat spell
 - `ANGEL_WING`: Item-based escape
 - `HERO_DEATH`: Hero died (triggers defeat)
+- `PARTY_WIPE`: All player units dead
 - `MENU_QUIT`: Player quit from menu
 
 ---
@@ -672,34 +749,85 @@ Row 3: walk_up    [frame0, frame1]
 `TurnManager` uses Shining Force II-style individual turn order:
 
 ```
-Priority = AGI * Random(0.875 to 1.125) + Random(-1, 0, +1)
+Priority = AGI * randf_range(0.875, 1.125) + randi_range(-1, +1)
 ```
 
 - All units (player, enemy, neutral) intermixed in single queue
-- Priority recalculated each turn cycle
+- Priority recalculated each turn cycle (new randomization)
 - No separate phases - one unit acts at a time
+- Queue sorted by priority descending (highest first)
 
 ### Combat Phases
 
 `BattleManager` uses session-based combat (SF2-authentic):
 
 ```
-Attack Session = Initial Attack -> Double Attack (optional) -> Counter (optional)
+Attack Session = Initial Attack -> Counter (optional) -> Double Attack (optional)
 ```
+
+**Phase order is SF2-authentic:** the attacker must survive the counter before the double attack executes. `BattleManager._build_combat_sequence()` uses simulated HP tracking to determine survival through each phase.
 
 | Phase | Trigger | Damage |
 |-------|---------|--------|
-| Initial | Always | 100% |
-| Double | `ClassData.double_attack_rate` roll | 100% |
-| Counter | Defender survives + `ClassData.counter_rate` roll | 75% |
+| Initial | Always | 100% (with variance 0.9-1.1) |
+| Counter | Defender survives + `ClassData.counter_rate` roll + in weapon range | 75% of normal |
+| Double | `ClassData.double_attack_rate` roll (only if initial hit AND attacker survives counter) | 100% (with variance) |
+
+### Weapon Type Bonus System
+
+Weapons can deal bonus damage against specific target types via two Dictionary exports on `ItemData`:
+
+| Property | Keys | Values | Example |
+|----------|------|--------|---------|
+| `movement_type_bonuses` | `MovementType` enum values (int) or custom type strings | float multiplier | `{1: 1.5}` = +50% vs FLYING |
+| `unit_tag_bonuses` | Tag strings from `CharacterData.unit_tags` | float multiplier | `{"undead": 2.0}` = double vs undead |
+
+**Unit Tags:** `CharacterData.unit_tags: Array[String]` classifies units (e.g., "undead", "beast", "armored", "dragon"). `UnitStats` holds a runtime copy that status effects can modify mid-battle.
+
+**Resolution:** `CombatCalculator._calculate_weapon_bonus_multiplier()` applies all matching bonuses multiplicatively after base damage calculation. Applied in both `calculate_physical_damage()` and `calculate_physical_damage_with_terrain()`. Unknown types return 1.0 (no effect). Weapons without bonus dictionaries work unchanged.
+
+**Total Conversion Override:** `CombatFormulaBase.calculate_weapon_bonus_multiplier()` can be overridden for custom bonus systems (e.g., elemental weaknesses).
 
 ### Damage Calculation
 
 `CombatCalculator` (static class) handles all formulas:
 
-- Base damage considers attacker strength, weapon power, defender defense
+**Physical Damage:**
+```
+Base = (Attacker STR + Weapon ATK) - Defender DEF
+Base = Base * weapon_bonus_multiplier
+Final = Base * randf_range(0.9, 1.1)
+Minimum = 1
+```
+
+**Magic Damage:**
+```
+Base = Ability Potency + Attacker INT - (Defender INT / 2)
+Final = Base * randf_range(0.9, 1.1)
+Minimum = 1
+```
+
+**Hit Chance:**
+```
+Base = Weapon Hit Rate + (Attacker AGI - Defender AGI) * 2
+Clamped between 10% and 99%
+```
+
+**Critical Chance:**
+```
+Base = Weapon Crit Rate + (Attacker LUK - Defender LUK)
+Clamped between 0% and 50%
+```
+
+**Healing:**
+```
+Base = Ability Potency + (Caster INT / 2)
+Final = Base * randf_range(0.9, 1.1)
+Minimum = 1
+```
+
 - Flying units receive NO terrain defense bonus
-- Terrain defense applied to ground/floating units
+- Floating and walking units receive terrain defense bonus
 
 ### Movement Types
 
@@ -733,6 +861,30 @@ Attack Session = Initial Attack -> Double Attack (optional) -> Counter (optional
 | SPECIAL | Unique effects |
 | CUSTOM | Mod-defined type |
 
+### AbilityData Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ability_id` | String | Unique identifier (lowercase with underscores) |
+| `ability_name` | String | Display name |
+| `ability_type` | enum | ATTACK, HEAL, SUPPORT, DEBUFF, SUMMON, STATUS, COUNTER, SPECIAL, CUSTOM |
+| `custom_ability_type` | String | ID for CUSTOM type |
+| `target_type` | enum | SINGLE_ENEMY, SINGLE_ALLY, SELF, ALL_ENEMIES, ALL_ALLIES, AREA |
+| `min_range` | int | Minimum range (0 = self, 1 = adjacent) |
+| `max_range` | int | Maximum range |
+| `area_of_effect` | int | AoE radius (0 = single target, 1+ = splash) |
+| `mp_cost` | int | MP resource cost |
+| `hp_cost` | int | HP resource cost |
+| `potency` | int | Base damage/healing amount |
+| `accuracy` | int (0-100) | Hit chance percentage |
+| `status_effects` | Array[String] | Effect IDs to apply (e.g., "poison") |
+| `effect_chance` | int (0-100) | % chance to apply effects |
+| `animation_name` | String | Combat animation to play |
+| `sound_effect` | AudioStream | Sound to play |
+| `particle_effect` | PackedScene | VFX scene |
+| `description` | String | Help text |
+| `ai_threat_contribution` | float | AI targeting weight (default 1.0, 0.0 = ignore) |
+
 ### Targeting Modes
 
 | Mode | Description |
@@ -743,14 +895,6 @@ Attack Session = Initial Attack -> Double Attack (optional) -> Counter (optional
 | ALL_ENEMIES | All hostile units |
 | ALL_ALLIES | All friendly units |
 | AREA | AoE with `area_of_effect` radius |
-
-### Range Properties
-
-```gdscript
-@export var min_range: int = 1      # 0 = self, 1 = adjacent
-@export var max_range: int = 1      # Maximum targeting distance
-@export var area_of_effect: int = 0 # 0 = single, 1+ = splash radius
-```
 
 Range bands support dead zones (e.g., bow with `min_range: 2` cannot hit adjacent enemies).
 
@@ -786,42 +930,57 @@ Toggle: **F12** or **~**
 
 ### CharacterData Properties
 
-| Property | Description |
-|----------|-------------|
-| `character_uid` | Auto-generated 8-char unique ID (immutable) |
-| `character_name` | Display name |
-| `character_class` | Reference to ClassData |
-| `base_hp`, `base_mp`, etc. | Starting stats |
-| `starting_level` | Initial level |
-| `starting_equipment` | Array of ItemData |
-| `starting_inventory` | Array of item IDs |
-| `unique_abilities` | Character-specific abilities (exceptions only) |
-| `is_hero` | Primary protagonist flag |
-| `is_boss` | Boss enemy flag |
-| `is_unique` | True = named character, False = template (Goblin) |
-| `unit_category` | "player", "enemy", or "neutral" |
-| `default_ai_behavior` | AIBehaviorData for enemy use |
-| `ai_threat_modifier` | Threat calculation multiplier |
-| `ai_threat_tags` | `["priority_target"]`, `["avoid"]`, `["vip"]` |
+| Property | Type | Description |
+|----------|------|-------------|
+| `character_uid` | String | Auto-generated 8-char unique ID (immutable) |
+| `character_name` | String | Display name |
+| `character_class` | ClassData | Reference to ClassData |
+| `base_hp`, `base_mp`, etc. | int | Starting stats |
+| `starting_level` | int | Initial level |
+| `starting_equipment` | Array[ItemData] | Equipment on creation |
+| `starting_inventory` | Array[String] | Item IDs for non-equipped items |
+| `unique_abilities` | Array[AbilityData] | Character-specific abilities (exceptions only) |
+| `portrait` | Texture2D | Character portrait |
+| `sprite_frames` | SpriteFrames | Map/battle animated sprite |
+| `combat_animation_data` | CombatAnimationData | Combat screen animations (optional) |
+| `biography` | String | Lore text |
+| `is_hero` | bool | Primary protagonist flag |
+| `is_boss` | bool | Boss enemy flag |
+| `is_unique` | bool | True = named, False = template (Goblin) |
+| `is_default_party_member` | bool | Auto-included in starting party |
+| `unit_category` | String | "player", "enemy", or "neutral" |
+| `unit_tags` | Array[String] | Combat type tags (e.g., "undead", "beast", "armored") for weapon bonus targeting |
+| `default_ai_behavior` | AIBehaviorData | AI behavior for enemy use |
+| `ai_threat_modifier` | float | Threat calculation multiplier (default 1.0) |
+| `ai_threat_tags` | Array[String] | `["priority_target"]`, `["avoid"]`, `["vip"]` |
 
 ### ClassData Properties
 
-| Property | Description |
-|----------|-------------|
-| `display_name` | Class name |
-| `movement_type` | WALKING, FLOATING, FLYING, CUSTOM |
-| `movement_range` | Tiles per turn |
-| `counter_rate` | Counterattack percentage (3, 6, 12, 25) |
-| `double_attack_rate` | Double attack percentage |
-| `crit_rate_bonus` | Added to base crit calculation |
-| `*_growth` | Stat growth rates (0-200) |
-| `equippable_weapon_types` | Array of weapon types |
-| `class_abilities` | Array of AbilityData |
-| `ability_unlock_levels` | `{"ability_id": level}` |
-| `promotion_paths` | Array of PromotionPath |
-| `promotion_level` | Minimum level to promote (default 10) |
-| `promotion_resets_level` | Reset to level 1 on promote |
-| `promotion_bonus_*` | Stats gained on promotion |
+| Property | Type | Description |
+|----------|------|-------------|
+| `display_name` | String | Class name |
+| `movement_type` | enum | WALKING, FLOATING, FLYING, CUSTOM |
+| `custom_movement_type` | String | ID for CUSTOM movement type |
+| `movement_range` | int | Tiles per turn |
+| `counter_rate` | int (0-50) | Counterattack percentage (SF2: 3, 6, 12, 25) |
+| `double_attack_rate` | int (0-50) | Double attack percentage |
+| `crit_rate_bonus` | int (0-50) | Added to base crit calculation |
+| `hp_growth` | int (0-200) | HP growth rate |
+| `mp_growth` | int (0-200) | MP growth rate |
+| `strength_growth` | int (0-200) | STR growth rate |
+| `defense_growth` | int (0-200) | DEF growth rate |
+| `agility_growth` | int (0-200) | AGI growth rate |
+| `intelligence_growth` | int (0-200) | INT growth rate |
+| `luck_growth` | int (0-200) | LUK growth rate |
+| `equippable_weapon_types` | Array[String] | Weapon types (supports wildcards via registry) |
+| `class_abilities` | Array[AbilityData] | Spells granted by class |
+| `ability_unlock_levels` | Dictionary | `{"ability_id": level}` |
+| `promotion_paths` | Array[PromotionPath] | Available promotion targets |
+| `promotion_level` | int | Minimum level to promote (default 10) |
+| `promotion_resets_level` | bool | Reset to level 1 on promote |
+| `consume_promotion_item` | bool | Whether promotion items are consumed |
+| `promotion_bonus_*` | int | Stats gained when promoting TO this class |
+| `class_icon` | Texture2D | Icon for UI display |
 
 ### Stat Growth System
 
@@ -843,6 +1002,8 @@ Weapon properties:
 - `attack_power`: Base damage
 - `min_attack_range` / `max_attack_range`: Range band (dead zone if min > 1)
 - `hit_rate` / `critical_rate`: Combat modifiers
+- `movement_type_bonuses`: Dictionary of damage multipliers vs movement types
+- `unit_tag_bonuses`: Dictionary of damage multipliers vs unit tags
 - `is_cursed`: Cannot unequip until uncursed
 
 ---
@@ -886,16 +1047,16 @@ if ModLoader.is_loading():
     await ModLoader.mods_loaded
 ```
 
-### DialogManager Save/Load
+### DialogManager State API
+
+DialogManager provides state export/import for mods that need to persist dialog state (e.g., mid-dialog saves). Note: Not used by default save system.
 
 ```gdscript
-# Export dialog state for save system
+# Export current dialog state (e.g., for checkpoint saves)
 var dialog_state: Dictionary = DialogManager.export_state()
-save_data.dialog_state = dialog_state
 
-# Import dialog state when loading
-if "dialog_state" in save_data:
-    DialogManager.import_state(save_data.dialog_state)
+# Restore dialog state
+DialogManager.import_state(dialog_state)
 ```
 
 ### Text Interpolation
@@ -972,12 +1133,17 @@ user://saves/
 
 | Data | Source |
 |------|--------|
-| Party members | `PartyManager.export_to_save()` |
+| Party members (active) | `PartyManager.export_to_save()` -> `SaveData.party_members` |
+| Reserve members | `SaveData.reserve_members` |
 | Story flags | `GameState.story_flags` |
 | Gold | `SaveData.gold` |
+| Depot items | `SaveData.depot_items` (Caravan shared storage) |
 | Playtime | Accumulated from session timestamps |
-| Current location | Map/scene identifier |
-| Dialog state | `DialogManager.export_state()` |
+| Current location | `SaveData.current_scene_path`, `current_location` |
+| Player position | `SaveData.player_grid_position`, `player_facing` |
+| Battle progress | `SaveData.completed_battles`, `available_battles` |
+| Statistics | Battles won, enemies defeated, damage dealt, healing done |
+| Mod compatibility | `SaveData.active_mods` (validates on load) |
 
 #### Mod Dependency Handling
 
@@ -1147,7 +1313,7 @@ Additional untested: CaravanController, ExplorationUIManager, GameJuice, DebugCo
 
 Recently tested (with dedicated suites): RandomManager (27 tests), GameEventBus (31 tests), TextInterpolator (32 tests), LocalizationManager (39 tests)
 
-**Test suite status:** 1760 test cases (80 suites). See `docs/testing-reference.md` for testing patterns.
+**Test suite status:** 2269 test cases (81 suites). See `docs/testing-reference.md` for testing patterns.
 
 ### Features Requiring Additional Documentation
 
