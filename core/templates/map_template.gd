@@ -753,23 +753,41 @@ func _register_safe_location() -> void:
 # =============================================================================
 
 ## Play appropriate music for this map based on metadata or type defaults
-## Priority: 1) MapMetadata.music_id, 2) DEFAULT_MUSIC_BY_TYPE, 3) No music
+## Priority: 1) MapMetadata.music_id, 2) Scene map_type default, 3) No music
 func _play_map_music() -> void:
 	var metadata: MapMetadata = _get_current_map_metadata()
 	var music_id: String = ""
 
-	if metadata:
-		# Priority 1: Explicit music_id in metadata
-		if not metadata.music_id.is_empty():
-			music_id = metadata.music_id
-		# Priority 2: Default music for map type
-		elif metadata.map_type in DEFAULT_MUSIC_BY_TYPE:
-			music_id = DEFAULT_MUSIC_BY_TYPE[metadata.map_type]
+	# Priority 1: Explicit music_id in metadata JSON
+	if metadata and not metadata.music_id.is_empty():
+		music_id = metadata.music_id
+		_debug_print("MapTemplate: Using explicit music_id from metadata: %s" % music_id)
+	else:
+		# Priority 2: Default music based on scene's map_type export (source of truth)
+		var scene_map_type: MapMetadata.MapType = _get_scene_map_type()
+		if scene_map_type in DEFAULT_MUSIC_BY_TYPE:
+			music_id = DEFAULT_MUSIC_BY_TYPE[scene_map_type]
+			_debug_print("MapTemplate: Using default music for type %s: %s" % [
+				MapMetadata.MapType.keys()[scene_map_type], music_id])
 
 	# Play music if we have a track ID
 	if not music_id.is_empty():
 		AudioManager.play_music(music_id, 1.0)
-		_debug_print("MapTemplate: Playing map music: %s" % music_id)
+	else:
+		_debug_print("MapTemplate: No music configured for this map")
+
+
+## Get the map type from the scene's @export var (source of truth)
+## Falls back to TOWN if not defined
+func _get_scene_map_type() -> MapMetadata.MapType:
+	if "map_type" in self:
+		var type_value: Variant = get("map_type")
+		if type_value is String:
+			return MapMetadata.parse_map_type(type_value)
+		elif type_value is int:
+			# Handle case where it's already an enum int
+			return type_value as MapMetadata.MapType
+	return MapMetadata.MapType.TOWN
 
 
 # =============================================================================
