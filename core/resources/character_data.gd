@@ -87,6 +87,11 @@ func _init() -> void:
 ## Edit AI behaviors in the AI Behaviors editor (data-driven, no code required)
 @export var default_ai_behavior: AIBehaviorData = null
 
+@export_group("Combat Properties")
+## Unit type tags for combat bonuses (e.g., "undead", "beast", "armored", "dragon")
+## Weapons can have bonus damage against specific tags
+@export var unit_tags: Array[String] = []
+
 @export_group("AI Threat Configuration")
 ## Multiplier applied to this character's calculated threat score.
 ## Boss enemies should have higher values (2.0+) to make AI prioritize protecting them.

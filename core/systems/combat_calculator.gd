@@ -61,7 +61,13 @@ static func _calculate_physical_damage_default(attacker_stats: UnitStats, defend
 
 	var attack_power: int = attacker_stats.get_effective_strength() + attacker_stats.get_weapon_attack_power()
 	var defense_power: int = defender_stats.get_effective_defense()
-	return _apply_damage_variance(attack_power - defense_power)
+	var base_damage: int = attack_power - defense_power
+
+	# Apply weapon type bonuses (movement type and unit tag multipliers)
+	var weapon_multiplier: float = _calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)
+	base_damage = int(base_damage * weapon_multiplier)
+
+	return _apply_damage_variance(base_damage)
 
 
 ## Calculate magic attack damage
@@ -426,7 +432,44 @@ static func _calculate_physical_damage_with_terrain_default(
 
 	var attack_power: int = attacker_stats.get_effective_strength() + attacker_stats.get_weapon_attack_power()
 	var effective_defense: int = defender_stats.get_effective_defense() + terrain_defense_bonus
-	return _apply_damage_variance(attack_power - effective_defense)
+	var base_damage: int = attack_power - effective_defense
+
+	# Apply weapon type bonuses (movement type and unit tag multipliers)
+	var weapon_multiplier: float = _calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)
+	base_damage = int(base_damage * weapon_multiplier)
+
+	return _apply_damage_variance(base_damage)
+
+
+## Calculate weapon bonus multiplier based on movement type and unit tags
+## Returns: Multiplier (1.0 = no bonus, 1.25 = +25% damage, etc.)
+static func _calculate_weapon_bonus_multiplier(attacker_stats: UnitStats, defender_stats: UnitStats) -> float:
+	if not attacker_stats.cached_weapon:
+		return 1.0
+
+	var weapon: ItemData = attacker_stats.cached_weapon
+	var total_multiplier: float = 1.0
+
+	# Movement type bonuses (e.g., bow vs flying)
+	if defender_stats.class_data:
+		var movement_bonus: float = _get_movement_type_bonus(weapon, defender_stats.class_data)
+		total_multiplier *= movement_bonus
+
+	# Unit tag bonuses (e.g., silver sword vs undead)
+	for tag: String in defender_stats.unit_tags:
+		if tag in weapon.unit_tag_bonuses:
+			total_multiplier *= weapon.unit_tag_bonuses[tag]
+
+	return total_multiplier
+
+
+## Get weapon bonus multiplier for a specific movement type
+## Handles both enum-based and custom string-based movement types
+static func _get_movement_type_bonus(weapon: ItemData, defender_class: ClassData) -> float:
+	if defender_class.movement_type == ClassData.MovementType.CUSTOM:
+		return weapon.movement_type_bonuses.get(defender_class.custom_movement_type, 1.0)
+	else:
+		return weapon.movement_type_bonuses.get(defender_class.movement_type, 1.0)
 
 
 ## Apply variance to base damage and ensure minimum 1

@@ -135,6 +135,20 @@ func start_new_turn_cycle() -> void:
 	# Recalculate turn order with new AGI randomization
 	calculate_turn_order()
 
+	# Spawn reinforcements for this turn (enemies with matching spawn_delay).
+	# Called AFTER calculate_turn_order() so reinforcements do NOT act this cycle.
+	# They will be included in the NEXT cycle's turn order calculation.
+	BattleManager.spawn_reinforcements(turn_number)
+
+	# Early reinforcement spawning: if all visible enemies are dead but
+	# reinforcements are still pending, give the player one free prep turn
+	# then dump all remaining reinforcements onto the field.
+	var early_spawn_action: String = BattleManager.check_early_reinforcement_spawn(turn_number)
+	if early_spawn_action == "warn":
+		_show_reinforcement_warning()
+	elif early_spawn_action == "spawn":
+		BattleManager.spawn_all_pending_reinforcements(turn_number)
+
 	# Check if battle is over before starting turns
 	if _check_battle_end():
 		return
@@ -309,7 +323,7 @@ func _check_victory_condition(battle_data: BattleData, enemy_count: int, boss_al
 
 	match battle_data.victory_condition:
 		BattleData.VictoryCondition.DEFEAT_ALL_ENEMIES:
-			if enemy_count == 0:
+			if enemy_count == 0 and not BattleManager.has_pending_reinforcements(turn_number):
 				return "victory"
 		BattleData.VictoryCondition.DEFEAT_BOSS:
 			if not boss_alive:
@@ -319,8 +333,8 @@ func _check_victory_condition(battle_data: BattleData, enemy_count: int, boss_al
 				return "victory"
 		# REACH_LOCATION, PROTECT_UNIT, CUSTOM - not yet implemented
 		_:
-			# Default fallback: all enemies dead
-			if enemy_count == 0:
+			# Default fallback: all enemies dead (including pending reinforcements)
+			if enemy_count == 0 and not BattleManager.has_pending_reinforcements(turn_number):
 				return "victory"
 
 	return ""
@@ -651,6 +665,37 @@ func _remove_popup_label(label: Label) -> void:
 	_active_popup_labels.erase(label)
 	if is_instance_valid(label):
 		label.queue_free()
+
+
+## Show a battlefield-wide warning that reinforcements are incoming.
+## Displays a centered label that fades out, giving the player notice
+## that they have one free turn to prepare before all remaining enemies spawn.
+func _show_reinforcement_warning() -> void:
+	if is_headless:
+		return
+
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var label: Label = Label.new()
+	label.text = "Enemy reinforcements incoming!"
+	label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	label.add_theme_font_size_override("font_size", 24)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size = viewport_size
+	label.position = Vector2.ZERO
+	label.z_index = 200
+
+	# Add to the scene tree as a CanvasLayer child so it renders screen-space
+	var canvas: CanvasLayer = CanvasLayer.new()
+	canvas.layer = 10
+	canvas.add_child(label)
+	get_tree().current_scene.add_child(canvas)
+
+	# Fade out after a brief display
+	var tween: Tween = label.create_tween()
+	tween.tween_interval(1.5)
+	tween.tween_property(label, "modulate:a", 0.0, 0.8)
+	tween.tween_callback(canvas.queue_free)
 
 
 # =============================================================================

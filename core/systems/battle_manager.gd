@@ -13,7 +13,7 @@
 ##
 ## SF2 AUTHENTIC COMBAT SESSIONS:
 ## Combat now uses a session-based approach where the battle screen stays open
-## for the entire combat exchange (Initial -> Double -> Counter), eliminating
+## for the entire combat exchange (Initial -> Counter -> Double), eliminating
 ## jarring fade transitions between phases.
 extends Node
 
@@ -100,6 +100,12 @@ var _combat_executor: CombatSessionExecutor = null
 ## Level-up queue for handling multiple level-ups in sequence
 var _pending_level_ups: Array[Dictionary] = []
 var _showing_level_up: bool = false
+
+## Early reinforcement spawning state
+## When all visible enemies are killed while reinforcements are pending,
+## the player gets one free prep turn, then ALL remaining reinforcements spawn.
+var _reinforcement_warning_given: bool = false
+var _all_reinforcements_force_spawned: bool = false
 
 
 ## Initialize battle manager with scene references
@@ -279,9 +285,10 @@ func _spawn_all_units() -> void:
 	else:
 		push_warning("BattleManager: No party members in PartyManager, no player units spawned")
 
-	# Spawn enemy units
-	if not current_battle_data.enemies.is_empty():
-		enemy_units = _spawn_units(current_battle_data.enemies, "enemy")
+	# Spawn enemy units (only those with no spawn_delay or spawn_delay == 0)
+	var initial_enemies: Array[Dictionary] = current_battle_data.get_initial_enemies()
+	if not initial_enemies.is_empty():
+		enemy_units = _spawn_units(initial_enemies, "enemy")
 
 	# Spawn neutral units
 	if not current_battle_data.neutrals.is_empty():
@@ -350,6 +357,95 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		GameEventBus.post_unit_spawned.emit(unit, faction)
 
 	return units
+
+
+## Spawn reinforcements for the given turn number.
+## Called by TurnManager at the start of each turn cycle, AFTER turn order is calculated.
+## Reinforcements appear on the map but do not act until the NEXT turn cycle.
+func spawn_reinforcements(current_turn: int) -> void:
+	if not current_battle_data:
+		return
+
+	var reinforcements: Array[Dictionary] = current_battle_data.get_reinforcements_for_turn(current_turn)
+	if reinforcements.is_empty():
+		return
+
+	var new_enemies: Array[Unit] = _spawn_units(reinforcements, "enemy")
+	enemy_units.append_array(new_enemies)
+	all_units.append_array(new_enemies)
+
+	# Add to TurnManager.all_units so they are counted for victory/defeat checks
+	# and included in the NEXT turn cycle's turn order calculation.
+	# They are NOT added to the current turn queue (calculate_turn_order already ran).
+	TurnManager.all_units.append_array(new_enemies)
+
+
+## Spawn ALL pending reinforcements regardless of their spawn_delay.
+## Called when the player kills all visible enemies while reinforcements remain.
+## After the free prep turn, this dumps every remaining wave onto the field at once.
+func spawn_all_pending_reinforcements(current_turn: int) -> void:
+	if not current_battle_data:
+		return
+
+	var pending: Array[Dictionary] = current_battle_data.get_all_pending_reinforcements(current_turn)
+	if pending.is_empty():
+		return
+
+	var new_enemies: Array[Unit] = _spawn_units(pending, "enemy")
+	enemy_units.append_array(new_enemies)
+	all_units.append_array(new_enemies)
+	TurnManager.all_units.append_array(new_enemies)
+
+	_all_reinforcements_force_spawned = true
+	_reinforcement_warning_given = false
+
+
+## Check if there are still pending reinforcements that have not been spawned.
+## Accounts for early force-spawning -- once all reinforcements have been dumped
+## onto the field, this returns false even if BattleData still lists future turns.
+func has_pending_reinforcements(current_turn: int) -> bool:
+	if _all_reinforcements_force_spawned:
+		return false
+	if not current_battle_data:
+		return false
+	return current_battle_data.has_pending_reinforcements(current_turn)
+
+
+## Check if early reinforcement spawning should occur this cycle.
+## Returns: "warn" if warning should be shown (free prep turn),
+##          "spawn" if all pending reinforcements should spawn now,
+##          "" if no early spawn action needed.
+func check_early_reinforcement_spawn(current_turn: int) -> String:
+	if not current_battle_data or _all_reinforcements_force_spawned:
+		return ""
+
+	# Count living enemy units
+	var living_enemies: int = 0
+	for unit: Unit in enemy_units:
+		if unit and unit.is_alive():
+			living_enemies += 1
+
+	# Only trigger if zero living enemies AND reinforcements still pending
+	if living_enemies > 0:
+		# Enemies still alive -- reset warning state so it re-triggers if they all die later
+		_reinforcement_warning_given = false
+		return ""
+
+	if not current_battle_data.has_pending_reinforcements(current_turn):
+		return ""
+
+	# All enemies dead, reinforcements pending
+	if not _reinforcement_warning_given:
+		_reinforcement_warning_given = true
+		return "warn"
+	else:
+		return "spawn"
+
+
+## Reset early reinforcement state (call when battle ends or new battle starts)
+func reset_reinforcement_state() -> void:
+	_reinforcement_warning_given = false
+	_all_reinforcements_force_spawned = false
 
 
 ## Connect signals for battle flow
@@ -1053,7 +1149,7 @@ func _execute_attack(attacker: Unit, defender: Unit) -> void:
 
 
 ## Build the complete combat sequence by pre-calculating all phases
-## Order: Initial Attack -> Double Attack (if any) -> Counter (if any)
+## SF2-AUTHENTIC Order: Initial Attack -> Counter (if defender survives) -> Double (if attacker survives)
 func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase]:
 	var phases: Array[CombatPhase] = []
 
@@ -1075,33 +1171,25 @@ func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase
 	)
 	phases.append(initial_phase)
 
-	# Track defender HP for death checks (we'll simulate damage for phase building)
+	# Track HP for death checks (we'll simulate damage for phase building)
 	var simulated_defender_hp: int = defender.stats.current_hp
+	var simulated_attacker_hp: int = attacker.stats.current_hp
 	var defender_would_die: bool = false
+	var attacker_would_die: bool = false
 
 	if not initial_phase.was_miss and initial_phase.damage > 0:
 		simulated_defender_hp -= initial_phase.damage
 		defender_would_die = simulated_defender_hp <= 0
 
-	# =========================================================================
-	# PHASE 2: Double Attack (if applicable and defender still alive)
-	# =========================================================================
+	# Pre-calculate double attack eligibility BEFORE counter (uses original state)
+	var should_double_attack: bool = false
 	if not initial_phase.was_miss and not defender_would_die:
-		var should_double_attack: bool = _check_double_attack(attacker)
-		if should_double_attack:
-			var double_phase: CombatPhase = _calculate_attack_phase(
-				attacker, defender, terrain_defense, terrain_evasion, true
-			)
-			phases.append(double_phase)
-
-			# Update simulated HP
-			if not double_phase.was_miss and double_phase.damage > 0:
-				simulated_defender_hp -= double_phase.damage
-				defender_would_die = simulated_defender_hp <= 0
+		should_double_attack = _check_double_attack(attacker)
 
 	# =========================================================================
-	# PHASE 3: Counter Attack (if defender survives and can counter)
+	# PHASE 2: Counter Attack (SF2-authentic: happens BEFORE double attack)
 	# =========================================================================
+	var counter_phase: CombatPhase = null
 	if not defender_would_die:
 		# Get terrain bonuses for attacker's position (they're the counter target)
 		# SF2 Reference: Flying units get NO terrain defense bonus
@@ -1117,11 +1205,25 @@ func _build_combat_sequence(attacker: Unit, defender: Unit) -> Array[CombatPhase
 
 		if counter_possible:
 			# Calculate counter attack (defender attacks attacker, 75% damage)
-			var counter_phase: CombatPhase = _calculate_counter_phase(
+			counter_phase = _calculate_counter_phase(
 				defender, attacker, attacker_terrain_defense, attacker_terrain_evasion
 			)
 			if counter_phase:
 				phases.append(counter_phase)
+
+				# Track attacker HP after counter for double attack eligibility
+				if not counter_phase.was_miss and counter_phase.damage > 0:
+					simulated_attacker_hp -= counter_phase.damage
+					attacker_would_die = simulated_attacker_hp <= 0
+
+	# =========================================================================
+	# PHASE 3: Double Attack (SF2-authentic: only if attacker survives counter)
+	# =========================================================================
+	if should_double_attack and not attacker_would_die:
+		var double_phase: CombatPhase = _calculate_attack_phase(
+			attacker, defender, terrain_defense, terrain_evasion, true
+		)
+		phases.append(double_phase)
 
 	return phases
 
@@ -1593,6 +1695,7 @@ func end_battle() -> void:
 	combat_anim_instance = null
 	map_instance = null
 	current_battle_data = null
+	reset_reinforcement_state()
 
 
 # =============================================================================

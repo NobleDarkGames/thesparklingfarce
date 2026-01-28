@@ -144,6 +144,15 @@ From code review - consolidation opportunities (~650 lines reducible).
 - [ ] Save slot management improvements
 - [ ] Advanced AI behavior patterns
 
+### Deferred from Missing SF Features Review (2026-01-28)
+
+- [ ] Boss mechanics: double turns / boss danger system (needs dedicated design session -- simple AGI threshold is too shallow, want a proper boss encounter system)
+- [ ] Settings/pause menu UI (animation speed toggle, sound volume, etc. live here -- blocked on UI design)
+- [ ] Item balance: charges system for rings/items instead of durability (needs dedicated design session -- charges-per-battle model preferred over crack/break RNG)
+- [ ] Dead zone visuals: gray highlight for min-range dead zones (deferred -- minimal practical value, players rarely encounter min-range gaps)
+- [ ] Sticky AI targeting: leashing behavior to keep AI focused on one target (deferred -- decided against, makes AI predictable and exploitable, current dynamic targeting is smarter)
+- [ ] Difficulty AI variants: Easy/Normal/Hard AI behavior modifiers (low priority, deferred)
+
 ---
 
 ## Reference Documents
