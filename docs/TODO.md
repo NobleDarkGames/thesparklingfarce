@@ -68,7 +68,10 @@ From Chief Engineer O'Brien's architecture review.
 
 ### State Management
 - [x] Resolve TurnManager.battle_active state duplication with BattleManager
-- [ ] Consider separating GridManager battle functions from exploration utilities
+- [x] Consider separating GridManager battle functions from exploration utilities
+  - Decision: Keep unified. Added documentation clarifying architecture.
+  - Exploration already uses TileMapLayer directly (correct pattern).
+  - Highlight methods only called from InputManager - extraction adds complexity without benefit.
 
 ### Test Coverage Gaps
 - [x] InputManager (2,419 lines) - 95 test cases in test_input_manager.gd (808 lines)
@@ -128,10 +131,10 @@ From code review - consolidation opportunities (~650 lines reducible).
 - [x] `cinematic_editor.gd:1522` - Migration print converted to push_warning
 - [x] `save_slot_selector.gd` - 17 debug print() calls removed
 
-### Large Files to Split
-- [ ] `cinematic_editor.gd` (2,236 lines) - Split into base, command inspector, actor panel
-- [ ] `character_editor.gd` (1,428 lines) - Extract sections
-- [ ] `base_resource_editor.gd` (1,817 lines) - Decompose `_setup_base_ui()` (154 lines)
+### Large Files to Split (Complete)
+- [x] `cinematic_editor.gd` (2,285→1,985 lines) - Extracted CinematicCommandInspector component
+- [x] `character_editor.gd` (1,404→697 lines) - Extracted 4 sections to EditorSectionBase subclasses
+- [x] `base_resource_editor.gd` (1,881 lines) - Decomposed `_setup_base_ui()` into helpers
 
 ---
 
