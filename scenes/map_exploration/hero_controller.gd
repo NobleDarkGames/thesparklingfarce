@@ -631,6 +631,9 @@ func _is_modal_ui_active() -> bool:
 	# Check debug console
 	if DebugConsole and DebugConsole.is_open:
 		return true
+	# Check pause menu
+	if PauseMenuManager and PauseMenuManager.is_open():
+		return true
 	# Check shop
 	if ShopManager and ShopManager.is_shop_open():
 		return true

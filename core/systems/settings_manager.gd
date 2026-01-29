@@ -60,6 +60,13 @@ const DEFAULTS: Dictionary = {
 	"confirm_attacks": true,  # Require confirmation before attacking
 	"church_revival_hp_percent": 0,  # 0 = 1 HP (SF2-authentic), 1-100 = percentage of max HP
 
+	# Game Juice (animation feel)
+	"animation_speed": 1.0,  # General animation speed multiplier (1.0 = normal)
+	"combat_animation_mode": 0,  # CombatAnimationMode: 0=FULL, 1=FAST, 2=MAP_ONLY
+	"screen_shake_intensity": 1.0,  # Screen shake multiplier (0.0 = off, 1.0 = normal)
+	"animate_stat_bars": true,  # Smooth HP/MP bar animation
+	"animate_cursor": true,  # Cursor bob animation
+
 	# Accessibility
 	"screen_shake": true,
 	"flash_effects": true,
@@ -203,6 +210,50 @@ func get_church_revival_hp_percent() -> int:
 
 func set_church_revival_hp_percent(percent: int) -> void:
 	_set_setting("church_revival_hp_percent", clampi(percent, 0, 100))
+
+
+# ============================================================================
+# GAME JUICE SETTINGS
+# ============================================================================
+
+func get_animation_speed() -> float:
+	return _get_setting("animation_speed")
+
+
+func set_animation_speed(speed: float) -> void:
+	_set_setting("animation_speed", clampf(speed, 0.25, 4.0))
+
+
+func get_combat_animation_mode() -> int:
+	return _get_setting("combat_animation_mode")
+
+
+func set_combat_animation_mode(mode: int) -> void:
+	_set_setting("combat_animation_mode", clampi(mode, 0, 2))
+
+
+func get_screen_shake_intensity() -> float:
+	return _get_setting("screen_shake_intensity")
+
+
+func set_screen_shake_intensity(intensity: float) -> void:
+	_set_setting("screen_shake_intensity", clampf(intensity, 0.0, 2.0))
+
+
+func is_stat_bar_animation_enabled() -> bool:
+	return _get_setting("animate_stat_bars")
+
+
+func set_stat_bar_animation(enabled: bool) -> void:
+	_set_setting("animate_stat_bars", enabled)
+
+
+func is_cursor_animation_enabled() -> bool:
+	return _get_setting("animate_cursor")
+
+
+func set_cursor_animation(enabled: bool) -> void:
+	_set_setting("animate_cursor", enabled)
 
 
 # ============================================================================

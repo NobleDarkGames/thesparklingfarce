@@ -56,6 +56,17 @@ var text_speed_multiplier: float = 1.0  ## User preference (0.5 = slow, 1.0 = no
 var dialog_box: DialogBox = null
 
 
+func _ready() -> void:
+	# Load text speed from settings
+	text_speed_multiplier = SettingsManager.get_text_speed()
+	SettingsManager.setting_changed.connect(_on_setting_changed)
+
+
+func _on_setting_changed(key: String, value: Variant) -> void:
+	if key == "text_speed":
+		text_speed_multiplier = value as float
+
+
 ## Start a dialog by ID (looks up in ModRegistry)
 func start_dialog(dialogue_id: String) -> bool:
 	if current_state != State.IDLE:

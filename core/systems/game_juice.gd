@@ -38,6 +38,54 @@ enum CombatAnimationMode {
 ## Cursor bob animation enabled
 @export var animate_cursor: bool = true
 
+# ============================================================================
+# SETTINGS KEYS (must match SettingsManager.DEFAULTS keys)
+# ============================================================================
+
+var _SETTING_KEYS: Array[String] = [
+	"animation_speed",
+	"combat_animation_mode",
+	"screen_shake_intensity",
+	"animate_stat_bars",
+	"animate_cursor",
+]
+
+# ============================================================================
+# LIFECYCLE
+# ============================================================================
+
+func _ready() -> void:
+	_load_settings_from_manager()
+	SettingsManager.setting_changed.connect(_on_setting_changed)
+
+
+## Load all juice settings from SettingsManager
+func _load_settings_from_manager() -> void:
+	animation_speed = SettingsManager.get_animation_speed()
+	combat_animation_mode = SettingsManager.get_combat_animation_mode() as CombatAnimationMode
+	screen_shake_intensity = SettingsManager.get_screen_shake_intensity()
+	animate_stat_bars = SettingsManager.is_stat_bar_animation_enabled()
+	animate_cursor = SettingsManager.is_cursor_animation_enabled()
+
+
+## Handle setting changes from SettingsManager (keeps @export vars in sync)
+func _on_setting_changed(key: String, value: Variant) -> void:
+	match key:
+		"animation_speed":
+			animation_speed = value as float
+		"combat_animation_mode":
+			combat_animation_mode = value as CombatAnimationMode
+		"screen_shake_intensity":
+			screen_shake_intensity = value as float
+		"animate_stat_bars":
+			animate_stat_bars = value as bool
+		"animate_cursor":
+			animate_cursor = value as bool
+
+
+# ============================================================================
+# PUBLIC API
+# ============================================================================
 
 ## Get duration adjusted by animation speed setting
 ## Returns near-instant (0.01) if speed is 0 or negative

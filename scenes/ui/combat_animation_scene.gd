@@ -734,6 +734,12 @@ func _show_heal_number(heal_amount: int) -> void:
 	damage_label.modulate.a = 1.0
 	var start_y: float = damage_label.position.y
 
+	# Bounce-in scale effect (consistent with damage numbers)
+	damage_label.pivot_offset = damage_label.size / 2.0
+	damage_label.scale = Vector2(0.8, 0.8)
+	var bounce_tween: Tween = _get_pooled_tween()
+	bounce_tween.tween_property(damage_label, "scale", Vector2.ONE, _get_duration(0.08)).set_trans(Tween.TRANS_BOUNCE)
+
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 	var tween: Tween = _get_pooled_tween()
 	tween.set_parallel(true)
@@ -742,7 +748,7 @@ func _show_heal_number(heal_amount: int) -> void:
 
 
 ## Show damage number with float animation
-## Uses brightness pop and horizontal drift for dynamic feel
+## Uses bounce-in, brightness pop, and horizontal drift for dynamic feel
 func _show_damage_number(damage: int, is_critical: bool) -> void:
 	var font_size: int = DAMAGE_FONT_SIZE_CRIT if is_critical else DAMAGE_FONT_SIZE_NORMAL
 	var font_color: Color = COLOR_CRIT_FLASH if is_critical else Color.WHITE
@@ -751,6 +757,13 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 	var start_x: float = damage_label.position.x
 	var start_y: float = damage_label.position.y
 	damage_label.visible = true
+
+	# Bounce-in scale effect (pop when appearing)
+	# Set pivot to center for centered scaling
+	damage_label.pivot_offset = damage_label.size / 2.0
+	damage_label.scale = Vector2(0.8, 0.8)
+	var bounce_tween: Tween = _get_pooled_tween()
+	bounce_tween.tween_property(damage_label, "scale", Vector2.ONE, _get_duration(0.08)).set_trans(Tween.TRANS_BOUNCE)
 
 	# Brightness pop settings based on hit type
 	var bright_color: Color

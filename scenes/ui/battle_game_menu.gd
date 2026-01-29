@@ -502,8 +502,8 @@ func _handle_speed_action() -> void:
 	_speed_index = (_speed_index + 1) % SPEED_VALUES.size()
 	var new_speed: float = SPEED_VALUES[_speed_index]
 
-	# Update GameJuice
-	GameJuice.animation_speed = new_speed
+	# Persist via SettingsManager (GameJuice updates automatically via signal)
+	SettingsManager.set_animation_speed(new_speed)
 
 	# Update label text without rebuilding everything
 	var speed_label: String = "Speed: %d" % int(new_speed)

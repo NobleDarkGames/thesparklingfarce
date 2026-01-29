@@ -41,6 +41,9 @@ var _movement_tween: Tween = null
 var _health_bar_tween: Tween = null
 @export var health_bar_tween_duration: float = 0.3
 
+## Damage flash animation
+var _damage_flash_tween: Tween = null
+
 ## Grid position
 var grid_position: Vector2i = Vector2i.ZERO
 
@@ -222,6 +225,24 @@ func _update_health_bar(animate: bool = true) -> void:
 		health_bar.value = stats.current_hp
 
 
+## Flash sprite white briefly when taking damage
+## Captures current modulate to preserve faction tinting and acted-dimming state
+func _flash_damage() -> void:
+	if not sprite:
+		return
+
+	# Kill any existing flash to handle rapid damage
+	_kill_tween(_damage_flash_tween)
+
+	# Capture current modulate (preserves faction tint and dimmed state)
+	var original_modulate: Color = sprite.modulate
+
+	# Create flash tween: bright white then back to original
+	_damage_flash_tween = create_tween()
+	_damage_flash_tween.tween_property(sprite, "modulate", Color(2.0, 2.0, 2.0), 0.04)
+	_damage_flash_tween.tween_property(sprite, "modulate", original_modulate, 0.08)
+
+
 ## Validate that a target cell can be moved to
 ## Returns true if valid, false if invalid (and logs error)
 func _validate_move_target(target_cell: Vector2i) -> bool:
@@ -371,6 +392,7 @@ func take_damage(damage: int) -> void:
 	# Check for status effects that should be removed on damage
 	if damage > 0:
 		_check_effects_removed_on_damage()
+		_flash_damage()
 
 	# Apply damage
 	var unit_died: bool = stats.take_damage(damage)
@@ -728,6 +750,8 @@ func _exit_tree() -> void:
 	_movement_tween = null
 	_kill_tween(_health_bar_tween)
 	_health_bar_tween = null
+	_kill_tween(_damage_flash_tween)
+	_damage_flash_tween = null
 
 
 ## Kill a tween if it exists and is valid
