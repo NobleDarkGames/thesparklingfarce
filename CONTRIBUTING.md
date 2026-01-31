@@ -24,7 +24,7 @@ This project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating
 
 ### Report Bugs
 
-Found something broken? [Open an issue](https://github.com/[PLACEHOLDER]/sparklingfarce/issues) with:
+Found something broken? [Open an issue](https://github.com/NobleDarkGames/thesparklingfarce/issues) with:
 
 - **Summary**: Brief description of the problem
 - **Steps to reproduce**: Numbered list to recreate the issue
@@ -35,7 +35,7 @@ Found something broken? [Open an issue](https://github.com/[PLACEHOLDER]/sparkli
 
 ### Suggest Features
 
-Have an idea? Check [existing issues](https://github.com/[PLACEHOLDER]/sparklingfarce/issues) first, then open a new one describing:
+Have an idea? Check [existing issues](https://github.com/NobleDarkGames/thesparklingfarce/issues) first, then open a new one describing:
 
 - **Use case**: What problem does this solve?
 - **Proposed solution**: How might it work?
@@ -78,8 +78,7 @@ Ready to code? See [Development Setup](#development-setup) and [Pull Request Pro
 
 ```bash
 # Clone the repository
-git clone https://github.com/[PLACEHOLDER]/sparklingfarce.git
-cd sparklingfarce
+git clone https://github.com/NobleDarkGames/thesparklingfarce.git
 
 # Open in Godot
 # Either double-click project.godot or:
@@ -259,9 +258,9 @@ refactor: Extract spell damage calculation to separate function
 
 ## Questions?
 
+- **[Discord](https://discord.gg/jfH558en)**: Chat with the community, get help, discuss ideas
 - **Issues**: For bugs and feature requests
 - **Discussions**: For questions and ideas (if enabled)
-- Community links coming soon
 
 ---
 
