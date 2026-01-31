@@ -78,7 +78,7 @@ func _populate_display() -> void:
 
 	# Cost
 	cost_label.text = "Cost: %dG" % _modified_cost
-	cost_label.add_theme_color_override("font_color", COLOR_GOLD)
+	cost_label.add_theme_color_override("font_color", UIColors.ITEM_GOLD)
 
 
 func _on_confirm_pressed() -> void:

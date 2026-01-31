@@ -40,14 +40,9 @@ enum MenuMode {
 }
 var _menu_mode: MenuMode = MenuMode.USE
 
-## Colors (matching ActionMenu pattern)
-const COLOR_NORMAL: Color = Color(0.9, 0.9, 0.9, 1.0)  ## Bright white for usable
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)  ## Grayed out
-const COLOR_EMPTY: Color = Color(0.35, 0.35, 0.35, 1.0)  ## Faded gray for empty
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  ## Bright yellow
-const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)  ## Subtle hover highlight
-const PANEL_COLOR: Color = Color(0.1, 0.1, 0.15, 0.95)
-const BORDER_COLOR: Color = Color(0.8, 0.8, 0.9, 1.0)
+## Colors - use centralized UIColors class (except unique colors)
+const COLOR_EMPTY: Color = Color(0.35, 0.35, 0.35, 1.0)  ## Faded gray for empty slots (unique)
+const BORDER_COLOR: Color = Color(0.8, 0.8, 0.9, 1.0)  ## Unique light border for item menu
 
 
 func _ready() -> void:
@@ -72,7 +67,7 @@ func _build_ui() -> void:
 	# Inner panel
 	_panel = ColorRect.new()
 	_panel.name = "InnerPanel"
-	_panel.color = PANEL_COLOR
+	_panel.color = UIColors.PANEL_BG
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel.offset_left = 2.0
 	_panel.offset_top = 2.0
@@ -95,7 +90,7 @@ func _build_ui() -> void:
 	_header_label.name = "Header"
 	_header_label.text = "Items"
 	_header_label.add_theme_font_size_override("font_size", 16)
-	_header_label.modulate = COLOR_NORMAL
+	_header_label.modulate = UIColors.MENU_BRIGHT
 	_container.add_child(_header_label)
 
 	# Separator
@@ -367,14 +362,14 @@ func _get_item_color(index: int) -> Color:
 	var is_hovered: bool = index == _hover_index
 
 	if is_selected and (is_usable or is_empty):
-		return COLOR_SELECTED
+		return UIColors.MENU_SELECTED
 	if is_hovered and (is_usable or is_empty):
-		return COLOR_HOVER
+		return UIColors.MENU_HOVER
 	if is_empty:
 		return COLOR_EMPTY
 	if is_usable:
-		return COLOR_NORMAL
-	return COLOR_DISABLED
+		return UIColors.MENU_BRIGHT
+	return UIColors.MENU_DISABLED
 
 
 ## Update description label based on selected item

@@ -277,7 +277,10 @@ func get_weapon_crit_rate() -> int:
 ## Helper to sum stat modifiers from all active status effects (data-driven)
 func _get_status_stat_modifier(stat_name: String) -> int:
 	var total: int = 0
-	for effect: Dictionary in status_effects:
+	for effect_variant: Variant in status_effects:
+		if not effect_variant is Dictionary:
+			continue
+		var effect: Dictionary = effect_variant
 		var effect_type: String = effect.get("type", "")
 		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
 		if effect_data:
@@ -328,7 +331,10 @@ func get_effective_max_mp() -> int:
 
 ## Find status effect by type, returns null if not found
 func _find_status_effect(effect_type: String) -> Dictionary:
-	for effect: Dictionary in status_effects:
+	for effect_variant: Variant in status_effects:
+		if not effect_variant is Dictionary:
+			continue
+		var effect: Dictionary = effect_variant
 		if effect.get("type", "") == effect_type:
 			return effect
 	return {}

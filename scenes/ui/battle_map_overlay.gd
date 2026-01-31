@@ -29,11 +29,8 @@ const BG_COLOR: Color = Color(0.05, 0.08, 0.12, 0.95)
 const BORDER_COLOR: Color = Color(0.4, 0.4, 0.5, 1.0)
 const BORDER_WIDTH: int = 2
 
-# Unit dot colors
-const COLOR_PLAYER: Color = Color(0.3, 0.5, 1.0, 1.0)  # Blue
-const COLOR_ENEMY: Color = Color(1.0, 0.3, 0.3, 1.0)   # Red
-const COLOR_NEUTRAL: Color = Color(1.0, 0.9, 0.3, 1.0) # Yellow
-const COLOR_ACTIVE: Color = Color(0.3, 1.0, 0.4, 1.0)  # Green (active unit)
+# Unit dot colors - use centralized UIColors class (unique active color stays local)
+const COLOR_ACTIVE: Color = Color(0.3, 1.0, 0.4, 1.0)  # Green (active unit) - unique
 
 # Dot sizing
 const DOT_RADIUS: float = 6.0
@@ -345,9 +342,9 @@ func _draw_units(map_rect: Rect2) -> void:
 	var cell_size: Vector2 = _get_cell_size(map_rect)
 
 	# Draw unit groups
-	_draw_unit_dots(_player_positions, COLOR_PLAYER, map_rect, cell_size)
-	_draw_unit_dots(_enemy_positions, COLOR_ENEMY, map_rect, cell_size)
-	_draw_unit_dots(_neutral_positions, COLOR_NEUTRAL, map_rect, cell_size)
+	_draw_unit_dots(_player_positions, UIColors.FACTION_ALLY, map_rect, cell_size)
+	_draw_unit_dots(_enemy_positions, UIColors.FACTION_ENEMY, map_rect, cell_size)
+	_draw_unit_dots(_neutral_positions, UIColors.FACTION_NEUTRAL, map_rect, cell_size)
 
 	# Draw active unit with pulse effect
 	if _has_active_unit:
@@ -381,9 +378,9 @@ func _draw_unit_dots(positions: Array[Vector2], color: Color, map_rect: Rect2, c
 
 ## Legend items: [color, label]
 const LEGEND_ITEMS: Array = [
-	[COLOR_PLAYER, "Ally"],
-	[COLOR_ENEMY, "Enemy"],
-	[COLOR_NEUTRAL, "Neutral"],
+	[UIColors.FACTION_ALLY, "Ally"],
+	[UIColors.FACTION_ENEMY, "Enemy"],
+	[UIColors.FACTION_NEUTRAL, "Neutral"],
 	[COLOR_ACTIVE, "Active"],
 ]
 const LEGEND_SPACING: float = 80.0

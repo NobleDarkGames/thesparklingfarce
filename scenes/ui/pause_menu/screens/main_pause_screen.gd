@@ -104,11 +104,7 @@ func _build_ui() -> void:
 	_panel.custom_minimum_size = PANEL_MIN_SIZE
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_KEEP_SIZE)
 
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = PANEL_BG
-	panel_style.border_color = PANEL_BORDER
-	panel_style.set_border_width_all(PANEL_BORDER_WIDTH)
-	panel_style.set_corner_radius_all(PANEL_CORNER_RADIUS)
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(PANEL_BG, PANEL_BORDER, PANEL_BORDER_WIDTH, PANEL_CORNER_RADIUS)
 	panel_style.content_margin_top = CONTENT_MARGIN_TOP
 	panel_style.content_margin_bottom = CONTENT_MARGIN_BOTTOM
 	panel_style.content_margin_left = CONTENT_MARGIN_LEFT

@@ -9,10 +9,7 @@ extends PanelContainer
 
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
-## Faction colors for the indicator bars
-const COLOR_ALLY: Color = Color(0.3, 0.6, 1.0, 1.0)  # Blue
-const COLOR_ENEMY: Color = Color(1.0, 0.3, 0.3, 1.0)  # Red
-const COLOR_NEUTRAL: Color = Color(1.0, 0.9, 0.3, 1.0)  # Yellow
+## Faction colors - use centralized UIColors class
 
 ## Brightness levels for visual hierarchy
 const BRIGHTNESS_CURRENT: float = 1.0
@@ -175,14 +172,14 @@ func _update_slot(slot_index: int, unit: Unit, is_current: bool) -> void:
 ## Get the faction color for a unit
 func _get_faction_color(unit: Unit) -> Color:
 	if not unit:
-		return COLOR_NEUTRAL
+		return UIColors.FACTION_NEUTRAL
 
 	if unit.has_method("is_player_unit") and unit.is_player_unit():
-		return COLOR_ALLY
+		return UIColors.FACTION_ALLY
 	elif unit.has_method("is_enemy_unit") and unit.is_enemy_unit():
-		return COLOR_ENEMY
+		return UIColors.FACTION_ENEMY
 	else:
-		return COLOR_NEUTRAL
+		return UIColors.FACTION_NEUTRAL
 
 
 ## Animate a smooth transition when turn order changes

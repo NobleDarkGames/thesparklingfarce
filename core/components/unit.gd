@@ -418,7 +418,10 @@ func _check_effects_removed_on_damage() -> void:
 	# Build list of effects to remove (iterate backwards to safely modify)
 	var effects_to_remove: Array[String] = []
 
-	for effect_state: Dictionary in stats.status_effects:
+	for effect_state_variant: Variant in stats.status_effects:
+		if not effect_state_variant is Dictionary:
+			continue
+		var effect_state: Dictionary = effect_state_variant
 		var effect_type: String = effect_state.get("type", "")
 
 		# Look up effect data from registry

@@ -963,7 +963,7 @@ func _input(event: InputEvent) -> void:
 		InputState.DIRECT_MOVEMENT:
 			_handle_direct_movement_input(event)
 		InputState.SELECTING_ACTION:
-			_handle_action_menu_input(event)
+			pass  # Action menu handles its own input via signals
 		InputState.SELECTING_ITEM_TARGET:
 			_handle_item_target_input(event)
 		InputState.SELECTING_SPELL_TARGET:
@@ -1084,6 +1084,18 @@ func _try_move_to_cell(target_cell: Vector2i) -> void:
 		if not path.is_empty():
 			active_unit.move_along_path(path)
 		else:
+			# Pathfinding failed - validate cell before falling back to direct movement
+			var terrain: TerrainData = GridManager.get_terrain_at_cell(target_cell)
+			var is_passable: bool = terrain.is_passable(movement_type) if terrain else false
+			var is_occupied: bool = GridManager.is_cell_occupied(target_cell)
+
+			if is_occupied:
+				push_warning("InputManager: Cannot move to %s - cell is occupied" % target_cell)
+				return
+			if not is_passable:
+				push_warning("InputManager: Cannot move to %s - cell not passable for movement type %d" % [target_cell, movement_type])
+				return
+
 			push_warning("InputManager: No path found to %s, using direct movement" % target_cell)
 			active_unit.move_to(target_cell)
 
@@ -1262,7 +1274,11 @@ func _move_targeting_cursor(offset: Vector2i) -> void:
 		return
 
 	# Find the next target in the direction of the offset
-	var next_target: Vector2i = _get_next_target_in_direction(offset)
+	var next_target: Vector2i = InputManagerHelpers.get_next_target_in_direction(
+		current_cursor_position,
+		offset,
+		_attack_valid_targets
+	)
 
 	if next_target == current_cursor_position:
 		# No valid target found in that direction, don't move
@@ -1365,13 +1381,6 @@ func _show_action_menu() -> void:
 	# Show menu with available actions AND current session ID
 	# The session ID will be returned with any signals to prevent stale signals
 	action_menu.show_menu(available_actions, default_action, _turn_session_id)
-
-
-## Handle action menu input
-func _handle_action_menu_input(event: InputEvent) -> void:
-	# Action menu handles its own input
-	# We just wait for signals from the menu
-	pass
 
 
 ## Show battle game menu (Map, Speed, Status, Quit)
@@ -1603,35 +1612,10 @@ func _get_best_initial_target() -> Vector2i:
 
 	# If we have facing candidates, return the closest one
 	if not facing_candidates.is_empty():
-		return _get_closest_cell(unit_pos, facing_candidates)
+		return InputManagerHelpers.get_closest_cell(unit_pos, facing_candidates)
 
 	# Otherwise, return the closest enemy overall
-	return _get_closest_cell(unit_pos, _attack_valid_targets)
-
-
-## Get the closest cell to a position from a list of cells
-func _get_closest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
-	return InputManagerHelpers.get_closest_cell(from, cells)
-
-
-## Calculate Manhattan distance between two cells
-func _manhattan_distance(a: Vector2i, b: Vector2i) -> int:
-	return InputManagerHelpers.manhattan_distance(a, b)
-
-
-## Get the next valid target in the given direction from current cursor position
-## Returns current position if no valid target found in that direction
-func _get_next_target_in_direction(direction: Vector2i) -> Vector2i:
-	return InputManagerHelpers.get_next_target_in_direction(
-		current_cursor_position,
-		direction,
-		_attack_valid_targets
-	)
-
-
-## Get the farthest cell from a position (for wrap-around behavior)
-func _get_farthest_cell(from: Vector2i, cells: Array[Vector2i]) -> Vector2i:
-	return InputManagerHelpers.get_farthest_cell(from, cells)
+	return InputManagerHelpers.get_closest_cell(unit_pos, _attack_valid_targets)
 
 
 ## Show targeting range and valid targets (respects min/max range for dead zones)

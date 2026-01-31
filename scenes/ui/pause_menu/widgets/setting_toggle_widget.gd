@@ -22,11 +22,7 @@ signal value_changed(new_value: bool)
 
 const FONT_SIZE: int = 16
 
-## Colors
-const COLOR_LABEL_NORMAL: Color = Color(0.85, 0.85, 0.85)
-const COLOR_LABEL_SELECTED: Color = Color(1.0, 0.95, 0.4)
-const COLOR_VALUE_ON: Color = Color(1.0, 0.95, 0.4)
-const COLOR_VALUE_OFF: Color = Color(0.5, 0.5, 0.5)
+## Colors - use centralized UIColors class
 
 ## Label width so all toggles align with sliders
 const LABEL_MIN_WIDTH: int = 80
@@ -62,7 +58,7 @@ func _build_ui() -> void:
 	_label.name = "SettingLabel"
 	_label.custom_minimum_size.x = LABEL_MIN_WIDTH
 	UIUtils.apply_monogram_style(_label, FONT_SIZE)
-	_label.add_theme_color_override("font_color", COLOR_LABEL_NORMAL)
+	_label.add_theme_color_override("font_color", UIColors.SETTINGS_LABEL)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_label)
 
@@ -115,7 +111,7 @@ func get_value() -> bool:
 ## Set selected state -- yellow label when selected, gray when not.
 func set_selected(is_selected: bool) -> void:
 	if _label:
-		var color: Color = COLOR_LABEL_SELECTED if is_selected else COLOR_LABEL_NORMAL
+		var color: Color = UIColors.SETTINGS_SELECTED if is_selected else UIColors.SETTINGS_LABEL
 		_label.add_theme_color_override("font_color", color)
 
 # =============================================================================
@@ -128,7 +124,7 @@ func _update_display() -> void:
 
 	if _current_value:
 		_value_label.text = "[ON]"
-		_value_label.add_theme_color_override("font_color", COLOR_VALUE_ON)
+		_value_label.add_theme_color_override("font_color", UIColors.SETTINGS_SELECTED)
 	else:
 		_value_label.text = "[OFF]"
-		_value_label.add_theme_color_override("font_color", COLOR_VALUE_OFF)
+		_value_label.add_theme_color_override("font_color", UIColors.SETTINGS_INACTIVE)

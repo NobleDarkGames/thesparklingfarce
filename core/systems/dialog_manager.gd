@@ -402,7 +402,11 @@ func import_state(state: Dictionary) -> bool:
 	# Restore state
 	current_dialogue = dialogue
 	current_line_index = state["line_index"] if "line_index" in state else 0
-	current_state = (state["state"] if "state" in state else State.WAITING_FOR_INPUT) as State
+	var raw_state: int = state["state"] if "state" in state else State.WAITING_FOR_INPUT
+	if raw_state < 0 or raw_state >= State.size():
+		push_warning("DialogManager: Invalid state value %d in save, defaulting to WAITING_FOR_INPUT" % raw_state)
+		raw_state = State.WAITING_FOR_INPUT
+	current_state = raw_state as State
 	var chain_stack_raw: Array = state["chain_stack"] if "chain_stack" in state else []
 	_dialog_chain_stack = []
 	for item: Variant in chain_stack_raw:

@@ -31,17 +31,8 @@ signal focus_exited_slot()
 ## Slot dimensions (SF-authentic for 640x360 viewport)
 const SLOT_SIZE: Vector2 = Vector2(32, 32)
 
-## Visual colors
-const COLOR_BORDER_NORMAL: Color = Color(0.6, 0.6, 0.7, 1.0)
-const COLOR_BORDER_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_BORDER_CURSED: Color = Color(0.9, 0.2, 0.2, 1.0)
-const COLOR_BORDER_EMPTY: Color = Color(0.3, 0.3, 0.35, 1.0)
-const COLOR_BACKGROUND: Color = Color(0.1, 0.1, 0.15, 0.95)
-const COLOR_BACKGROUND_SELECTED: Color = Color(0.15, 0.15, 0.2, 0.95)
-const COLOR_BACKGROUND_CURSED: Color = Color(0.2, 0.1, 0.1, 0.95)
-const COLOR_ICON_EMPTY: Color = Color(0.3, 0.3, 0.35, 0.5)
-const COLOR_ICON_NORMAL: Color = Color(1.0, 1.0, 1.0, 1.0)
-const COLOR_ICON_CURSED: Color = Color(1.0, 0.7, 0.7, 1.0)
+## Visual colors - use centralized UIColors class (unique bg_selected stays local)
+const UIColors.SLOT_BACKGROUND_SELECTED: Color = Color(0.15, 0.15, 0.2, 0.95)  ## Unique to item slots
 
 const BORDER_WIDTH: float = 1.0
 
@@ -89,7 +80,7 @@ func _build_ui() -> void:
 	# Border (outer colored rect)
 	_border_rect = ColorRect.new()
 	_border_rect.name = "Border"
-	_border_rect.color = COLOR_BORDER_EMPTY
+	_border_rect.color = UIColors.SLOT_BORDER_EMPTY
 	_border_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_border_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_border_rect)
@@ -97,7 +88,7 @@ func _build_ui() -> void:
 	# Background (inner panel)
 	_background_rect = ColorRect.new()
 	_background_rect.name = "Background"
-	_background_rect.color = COLOR_BACKGROUND
+	_background_rect.color = UIColors.SLOT_BACKGROUND
 	_background_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_background_rect.offset_left = BORDER_WIDTH
 	_background_rect.offset_top = BORDER_WIDTH
@@ -233,13 +224,13 @@ func _update_visuals() -> void:
 
 	# Update border color based on state
 	if _is_cursed:
-		_border_rect.color = COLOR_BORDER_CURSED
+		_border_rect.color = UIColors.SLOT_BORDER_CURSED
 	elif _is_selected:
-		_border_rect.color = COLOR_BORDER_SELECTED
+		_border_rect.color = UIColors.SLOT_BORDER_SELECTED
 	elif is_empty():
-		_border_rect.color = COLOR_BORDER_EMPTY
+		_border_rect.color = UIColors.SLOT_BORDER_EMPTY
 	else:
-		_border_rect.color = COLOR_BORDER_NORMAL
+		_border_rect.color = UIColors.SLOT_BORDER_NORMAL
 
 	# Subtle hover effect
 	if _is_hovered and not is_empty():
@@ -247,23 +238,23 @@ func _update_visuals() -> void:
 
 	# Update background color
 	if _is_cursed:
-		_background_rect.color = COLOR_BACKGROUND_CURSED
+		_background_rect.color = UIColors.SLOT_BACKGROUND_CURSED
 	elif _is_selected:
-		_background_rect.color = COLOR_BACKGROUND_SELECTED
+		_background_rect.color = UIColors.SLOT_BACKGROUND_SELECTED
 	else:
-		_background_rect.color = COLOR_BACKGROUND
+		_background_rect.color = UIColors.SLOT_BACKGROUND
 
 	# Update icon
 	if _item_data and _item_data.icon:
 		_icon_texture.texture = _item_data.icon
 		if _is_cursed:
-			_icon_texture.modulate = COLOR_ICON_CURSED
+			_icon_texture.modulate = UIColors.SLOT_ICON_CURSED
 		else:
-			_icon_texture.modulate = COLOR_ICON_NORMAL
+			_icon_texture.modulate = Color.WHITE
 	else:
 		# Empty slot or no icon - show placeholder
 		_icon_texture.texture = null
-		_icon_texture.modulate = COLOR_ICON_EMPTY
+		_icon_texture.modulate = UIColors.SLOT_ICON_EMPTY
 
 	# Show/hide slot label based on empty state
 	if _slot_label:

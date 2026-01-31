@@ -516,7 +516,10 @@ func _check_action_modifiers(unit: Unit, intended_target: Unit) -> Unit:
 
 	var stats: UnitStats = unit.stats
 
-	for effect_state: Dictionary in stats.status_effects:
+	for effect_state_variant: Variant in stats.status_effects:
+		if not effect_state_variant is Dictionary:
+			continue
+		var effect_state: Dictionary = effect_state_variant
 		var effect_type: String = effect_state.get("type", "")
 
 		# Look up effect data from registry

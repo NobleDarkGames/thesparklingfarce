@@ -30,12 +30,7 @@ const SEGMENT_WIDTH: int = 4
 const SEGMENT_HEIGHT: int = 8
 const SEGMENT_GAP: int = 1
 
-## Colors
-const COLOR_LABEL_NORMAL: Color = Color(0.85, 0.85, 0.85)
-const COLOR_LABEL_SELECTED: Color = Color(1.0, 0.95, 0.4)
-const COLOR_SEGMENT_FILLED: Color = Color(1.0, 0.95, 0.4)
-const COLOR_SEGMENT_EMPTY: Color = Color(0.25, 0.25, 0.3)
-const COLOR_VALUE_TEXT: Color = Color(0.85, 0.85, 0.85)
+## Colors - use centralized UIColors class
 
 ## Label width so all sliders align
 const LABEL_MIN_WIDTH: int = 80
@@ -81,7 +76,7 @@ func _build_ui() -> void:
 	_label.name = "SettingLabel"
 	_label.custom_minimum_size.x = LABEL_MIN_WIDTH
 	UIUtils.apply_monogram_style(_label, FONT_SIZE)
-	_label.add_theme_color_override("font_color", COLOR_LABEL_NORMAL)
+	_label.add_theme_color_override("font_color", UIColors.SETTINGS_LABEL)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_label)
 
@@ -98,7 +93,7 @@ func _build_ui() -> void:
 		var segment: ColorRect = ColorRect.new()
 		segment.name = "Segment%d" % i
 		segment.custom_minimum_size = Vector2(SEGMENT_WIDTH, SEGMENT_HEIGHT)
-		segment.color = COLOR_SEGMENT_EMPTY
+		segment.color = UIColors.SETTINGS_EMPTY
 		segment.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_bar_container.add_child(segment)
 		_segments.append(segment)
@@ -108,7 +103,7 @@ func _build_ui() -> void:
 	_value_label.name = "ValueLabel"
 	_value_label.custom_minimum_size.x = VALUE_LABEL_MIN_WIDTH
 	UIUtils.apply_monogram_style(_value_label, FONT_SIZE)
-	_value_label.add_theme_color_override("font_color", COLOR_VALUE_TEXT)
+	_value_label.add_theme_color_override("font_color", UIColors.SETTINGS_LABEL)
 	_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_value_label)
@@ -163,7 +158,7 @@ func get_value() -> float:
 ## Set selected state -- yellow label when selected, gray when not.
 func set_selected(is_selected: bool) -> void:
 	if _label:
-		var color: Color = COLOR_LABEL_SELECTED if is_selected else COLOR_LABEL_NORMAL
+		var color: Color = UIColors.SETTINGS_SELECTED if is_selected else UIColors.SETTINGS_LABEL
 		_label.add_theme_color_override("font_color", color)
 
 # =============================================================================
@@ -184,9 +179,9 @@ func _update_bar() -> void:
 	for i: int in range(SEGMENT_COUNT):
 		var segment: ColorRect = _segments[i]
 		if i < filled_count:
-			segment.color = COLOR_SEGMENT_FILLED
+			segment.color = UIColors.SETTINGS_FILLED
 		else:
-			segment.color = COLOR_SEGMENT_EMPTY
+			segment.color = UIColors.SETTINGS_EMPTY
 
 
 func _update_value_label() -> void:

@@ -358,8 +358,12 @@ func _ready() -> void:
 	if battle_data.pre_battle_dialogue:
 		if DialogManager.start_dialog_from_resource(battle_data.pre_battle_dialogue):
 			await DialogManager.dialog_ended
-			# Scene or battle_data may have been freed during dialogue
-			if not is_instance_valid(self) or not battle_data:
+			# Scene may have been freed during dialogue
+			if not is_instance_valid(self):
+				return
+			# battle_data Resource may have been freed during async operation
+			if not is_instance_valid(battle_data):
+				push_warning("BattleLoader: battle_data freed during pre-battle dialogue")
 				return
 
 	# Emit pre-battle event (mods can cancel)

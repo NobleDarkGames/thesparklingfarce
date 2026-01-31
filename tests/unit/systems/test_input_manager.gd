@@ -604,26 +604,25 @@ func test_get_aoe_affected_cells_radius_1_has_5_cells() -> void:
 
 
 # =============================================================================
-# MANHATTAN DISTANCE DELEGATION TEST
+# MANHATTAN DISTANCE HELPER TESTS
 # =============================================================================
 
-func test_manhattan_distance_delegates_to_helper() -> void:
-	# The internal method should compute Manhattan distance
-	var dist: int = _input_manager._manhattan_distance(Vector2i(0, 0), Vector2i(3, 4))
-
+func test_manhattan_distance_computes_correctly() -> void:
 	# Manhattan distance = |3-0| + |4-0| = 7
+	var dist: int = InputManagerHelpers.manhattan_distance(Vector2i(0, 0), Vector2i(3, 4))
+
 	assert_int(dist).is_equal(7)
 
 
 func test_manhattan_distance_handles_negative_coords() -> void:
-	var dist: int = _input_manager._manhattan_distance(Vector2i(-2, -3), Vector2i(2, 3))
-
 	# |2-(-2)| + |3-(-3)| = 4 + 6 = 10
+	var dist: int = InputManagerHelpers.manhattan_distance(Vector2i(-2, -3), Vector2i(2, 3))
+
 	assert_int(dist).is_equal(10)
 
 
 func test_manhattan_distance_same_point_is_zero() -> void:
-	var dist: int = _input_manager._manhattan_distance(Vector2i(5, 5), Vector2i(5, 5))
+	var dist: int = InputManagerHelpers.manhattan_distance(Vector2i(5, 5), Vector2i(5, 5))
 
 	assert_int(dist).is_equal(0)
 

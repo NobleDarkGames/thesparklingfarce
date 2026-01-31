@@ -30,7 +30,7 @@ func _on_initialized() -> void:
 		character_uid = context.selected_character_uid
 
 	# Get character name
-	var char_data: CharacterData = get_character_data(character_uid)
+	var char_data: CharacterData = get_character_by_uid(character_uid)
 	if char_data:
 		character_name = char_data.character_name
 	else:

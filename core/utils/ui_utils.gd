@@ -40,3 +40,24 @@ static func start_blink_tween(label: Control, existing_tween: Tween) -> Tween:
 static func apply_monogram_style(control: Control, font_size: int = 16) -> void:
 	control.add_theme_font_override("font", preload("res://assets/fonts/monogram.ttf"))
 	control.add_theme_font_size_override("font_size", font_size)
+
+
+## Create a StyleBoxFlat with uniform border width
+## @param bg_color: Background color for the panel
+## @param border_color: Border color
+## @param border_width: Border width on all sides (default 1)
+## @param corner_radius: Corner radius for all corners (default 0)
+## @return: Configured StyleBoxFlat
+static func create_panel_style(
+	bg_color: Color,
+	border_color: Color,
+	border_width: int = 1,
+	corner_radius: int = 0
+) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.set_border_width_all(border_width)
+	style.border_color = border_color
+	if corner_radius > 0:
+		style.set_corner_radius_all(corner_radius)
+	return style

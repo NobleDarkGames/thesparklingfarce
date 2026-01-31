@@ -23,12 +23,7 @@ signal value_changed(new_value: Variant)
 
 const FONT_SIZE: int = 16
 
-## Colors
-const COLOR_LABEL_NORMAL: Color = Color(0.85, 0.85, 0.85)
-const COLOR_LABEL_SELECTED: Color = Color(1.0, 0.95, 0.4)
-const COLOR_OPTION_ACTIVE: Color = Color(1.0, 0.95, 0.4)
-const COLOR_OPTION_INACTIVE: Color = Color(0.5, 0.5, 0.5)
-const COLOR_ARROW: Color = Color(0.7, 0.7, 0.7)
+## Colors - use centralized UIColors class
 
 ## Label width so all option widgets align with sliders/toggles
 const LABEL_MIN_WIDTH: int = 80
@@ -66,7 +61,7 @@ func _build_ui() -> void:
 	_label.name = "SettingLabel"
 	_label.custom_minimum_size.x = LABEL_MIN_WIDTH
 	UIUtils.apply_monogram_style(_label, FONT_SIZE)
-	_label.add_theme_color_override("font_color", COLOR_LABEL_NORMAL)
+	_label.add_theme_color_override("font_color", UIColors.SETTINGS_LABEL)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_label)
 
@@ -74,7 +69,7 @@ func _build_ui() -> void:
 	_options_label = Label.new()
 	_options_label.name = "OptionsLabel"
 	UIUtils.apply_monogram_style(_options_label, FONT_SIZE)
-	_options_label.add_theme_color_override("font_color", COLOR_LABEL_NORMAL)
+	_options_label.add_theme_color_override("font_color", UIColors.SETTINGS_LABEL)
 	_options_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_options_label)
 
@@ -135,7 +130,7 @@ func get_value() -> Variant:
 ## Set selected state -- yellow label when selected, gray when not.
 func set_selected(is_selected: bool) -> void:
 	if _label:
-		var color: Color = COLOR_LABEL_SELECTED if is_selected else COLOR_LABEL_NORMAL
+		var color: Color = UIColors.SETTINGS_SELECTED if is_selected else UIColors.SETTINGS_LABEL
 		_label.add_theme_color_override("font_color", color)
 
 # =============================================================================
@@ -174,4 +169,4 @@ func _update_display() -> void:
 	# but since Label doesn't support inline colors, we highlight the whole line
 	# when the widget row is selected (handled by set_selected on the left label).
 	# The options label uses the active color to draw attention to the bracketed item.
-	_options_label.add_theme_color_override("font_color", COLOR_OPTION_ACTIVE)
+	_options_label.add_theme_color_override("font_color", UIColors.SETTINGS_SELECTED)

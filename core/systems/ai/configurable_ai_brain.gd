@@ -994,7 +994,10 @@ func _calculate_buff_target_score(caster: Unit, target: Unit) -> float:
 	else:
 		# Check if any existing effects are buffs (typically have _up suffix)
 		var has_buff: bool = false
-		for effect: Dictionary in target.stats.status_effects:
+		for effect_variant: Variant in target.stats.status_effects:
+			if not effect_variant is Dictionary:
+				continue
+			var effect: Dictionary = effect_variant
 			var effect_type: String = effect.get("type", "")
 			if effect_type.ends_with("_up") or effect_type.begins_with("buff_"):
 				has_buff = true

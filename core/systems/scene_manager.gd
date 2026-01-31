@@ -124,6 +124,7 @@ func _switch_scene(scene_path: String) -> void:
 	var error: Error = get_tree().change_scene_to_file(scene_path)
 	if error != OK:
 		push_error("SceneManager: Failed to load scene: %s (error: %d)" % [scene_path, error])
+		return
 
 	# Wait one frame for scene to load
 	await get_tree().process_frame

@@ -15,13 +15,7 @@ const FADE_IN_DURATION: float = 0.15
 const AUTO_DISMISS_DELAY: float = 2.5  ## Auto-dismiss if no input
 const ENTRY_STAGGER: float = 0.08  ## Delay between each XP entry appearing
 
-## Colors
-const COLOR_DAMAGE_XP: Color = Color(0.85, 0.85, 0.4)  ## Soft gold for combat XP
-const COLOR_KILL_XP: Color = Color(1.0, 0.85, 0.3)  ## Brighter gold for kills
-const COLOR_FORMATION_XP: Color = Color(0.5, 0.7, 0.9)  ## Soft blue for formation
-const COLOR_COMBAT_ACTION: Color = Color(1.0, 1.0, 1.0)  ## White for combat actions
-const COLOR_CRITICAL_HIT: Color = Color(1.0, 0.6, 0.2)  ## Orange for critical hits
-const COLOR_MISS: Color = Color(0.6, 0.6, 0.6)  ## Gray for misses
+## Colors - use centralized UIColors class
 
 ## UI References
 @onready var panel: PanelContainer = $Panel
@@ -187,11 +181,11 @@ func _create_combat_action_row(text: String, is_critical: bool, is_miss: bool) -
 
 	# Color based on hit type
 	if is_miss:
-		label.add_theme_color_override("font_color", COLOR_MISS)
+		label.add_theme_color_override("font_color", UIColors.TEXT_MISS)
 	elif is_critical:
-		label.add_theme_color_override("font_color", COLOR_CRITICAL_HIT)
+		label.add_theme_color_override("font_color", UIColors.TEXT_CRITICAL)
 	else:
-		label.add_theme_color_override("font_color", COLOR_COMBAT_ACTION)
+		label.add_theme_color_override("font_color", UIColors.TEXT_WHITE)
 
 	return label
 
@@ -205,7 +199,7 @@ func _create_formation_batch_row(label_text: String, total_xp: int) -> HBoxConta
 	var name_label: Label = Label.new()
 	name_label.text = label_text
 	UIUtils.apply_monogram_style(name_label, 16)
-	name_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
+	name_label.add_theme_color_override("font_color", UIColors.XP_FORMATION)
 	name_label.custom_minimum_size.x = 160
 	row.add_child(name_label)
 
@@ -213,7 +207,7 @@ func _create_formation_batch_row(label_text: String, total_xp: int) -> HBoxConta
 	var xp_label: Label = Label.new()
 	xp_label.text = "+%d XP" % total_xp
 	UIUtils.apply_monogram_style(xp_label, 16)
-	xp_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
+	xp_label.add_theme_color_override("font_color", UIColors.XP_FORMATION)
 	row.add_child(xp_label)
 
 	return row
@@ -247,16 +241,16 @@ func _create_xp_row(unit_name: String, amount: int, source: String) -> HBoxConta
 	match source:
 		"damage":
 			source_text = "(Damage)"
-			source_color = COLOR_DAMAGE_XP
-			xp_label.add_theme_color_override("font_color", COLOR_DAMAGE_XP)
+			source_color = UIColors.XP_DAMAGE
+			xp_label.add_theme_color_override("font_color", UIColors.XP_DAMAGE)
 		"kill":
 			source_text = "(Kill)"
-			source_color = COLOR_KILL_XP
-			xp_label.add_theme_color_override("font_color", COLOR_KILL_XP)
+			source_color = UIColors.XP_KILL
+			xp_label.add_theme_color_override("font_color", UIColors.XP_KILL)
 		"formation":
 			source_text = "(Formation)"
-			source_color = COLOR_FORMATION_XP
-			xp_label.add_theme_color_override("font_color", COLOR_FORMATION_XP)
+			source_color = UIColors.XP_FORMATION
+			xp_label.add_theme_color_override("font_color", UIColors.XP_FORMATION)
 		_:
 			source_text = "(%s)" % source.capitalize()
 			source_color = Color.GRAY

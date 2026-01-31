@@ -29,18 +29,9 @@ func _on_initialized() -> void:
 
 func _update_header() -> void:
 	var character_uid: String = context.selected_destination
-	var character: CharacterData = _get_character_data(character_uid)
+	var character: CharacterData = get_character_by_uid(character_uid)
 	var name: String = character.character_name if character else "Character"
 	header_label.text = "WHICH ITEM TO UNCURSE?\n(%s)" % name
-
-
-func _get_character_data(character_uid: String) -> CharacterData:
-	if not PartyManager:
-		return null
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == character_uid:
-			return character
-	return null
 
 
 func _populate_slot_grid() -> void:

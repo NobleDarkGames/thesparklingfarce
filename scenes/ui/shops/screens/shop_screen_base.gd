@@ -16,28 +16,11 @@ const ShopContextScript = preload("res://scenes/ui/shops/shop_context.gd")
 # SHARED UI CONSTANTS
 # =============================================================================
 
-## Standard UI colors used across shop screens
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_GOLD: Color = Color(0.8, 0.8, 0.2, 1.0)
-const COLOR_MISSING: Color = Color(0.8, 0.3, 0.3, 1.0)
-const COLOR_ERROR: Color = Color(1.0, 0.4, 0.4, 1.0)
-const COLOR_EMPTY: Color = Color(0.5, 0.5, 0.5, 1.0)
+## Standard UI colors - use centralized UIColors class
 
 # =============================================================================
 # SHOP-SPECIFIC HELPERS
 # =============================================================================
-
-## Look up CharacterData by UID from party
-func get_character_by_uid(uid: String) -> CharacterData:
-	if not PartyManager:
-		return null
-	for character: CharacterData in PartyManager.party_members:
-		if character.character_uid == uid:
-			return character
-	return null
-
 
 ## Get character's display name by UID (returns UID if not found)
 func get_character_name(uid: String) -> String:

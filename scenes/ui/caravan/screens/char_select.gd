@@ -151,7 +151,7 @@ func _on_char_pressed(uid: String, button: Button) -> void:
 		if item_data and item_data.is_equippable():
 			if ShopManager and not ShopManager.can_character_equip(uid, item_id):
 				# Show warning - character can't equip this
-				var char_data: CharacterData = get_character_data(uid)
+				var char_data: CharacterData = get_character_by_uid(uid)
 				var char_name: String = char_data.character_name if char_data else uid
 				_show_warning("%s can't equip this! Select again to give anyway." % char_name)
 				_pending_warning_uid = uid
@@ -204,7 +204,7 @@ func _execute_take() -> void:
 	# Success!
 	var item_data: ItemData = get_item_data(item_id)
 	var item_name: String = item_data.item_name if item_data else item_id
-	var char_data: CharacterData = get_character_data(selected_uid)
+	var char_data: CharacterData = get_character_by_uid(selected_uid)
 	var char_name: String = char_data.character_name if char_data else selected_uid
 
 	_show_result("%s received %s!" % [char_name, item_name], true)

@@ -31,15 +31,8 @@ var _menu_session_id: int = -1
 ## Hover tracking
 var _hover_index: int = -1
 
-## Colors (matching ActionMenu pattern)
-const COLOR_NORMAL: Color = Color(0.9, 0.9, 0.9, 1.0)  ## Bright white for castable
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)  ## Grayed out (not enough MP)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  ## Bright yellow
-const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)  ## Subtle hover highlight
-const COLOR_MP: Color = Color(0.4, 0.7, 1.0, 1.0)  ## Blue for MP cost
-const COLOR_MP_INSUFFICIENT: Color = Color(1.0, 0.4, 0.4, 1.0)  ## Red for insufficient MP
-const PANEL_COLOR: Color = Color(0.1, 0.1, 0.15, 0.95)
-const BORDER_COLOR: Color = Color(0.8, 0.8, 0.9, 1.0)
+## Colors - use centralized UIColors class (except unique border color)
+const BORDER_COLOR: Color = Color(0.8, 0.8, 0.9, 1.0)  ## Unique light border for spell menu
 
 
 func _ready() -> void:
@@ -64,7 +57,7 @@ func _build_ui() -> void:
 	# Inner panel
 	_panel = ColorRect.new()
 	_panel.name = "InnerPanel"
-	_panel.color = PANEL_COLOR
+	_panel.color = UIColors.PANEL_BG
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel.offset_left = 2.0
 	_panel.offset_top = 2.0
@@ -87,7 +80,7 @@ func _build_ui() -> void:
 	_header_label.name = "Header"
 	_header_label.text = "Magic"
 	_header_label.add_theme_font_size_override("font_size", 16)
-	_header_label.modulate = COLOR_NORMAL
+	_header_label.modulate = UIColors.MENU_BRIGHT
 	_container.add_child(_header_label)
 
 	# Separator
@@ -135,7 +128,7 @@ func _create_spell_labels(slot_count: int) -> void:
 		name_label.name = "SpellSlot%d" % i
 		name_label.text = "Spell"
 		name_label.add_theme_font_size_override("font_size", 16)
-		name_label.modulate = COLOR_NORMAL
+		name_label.modulate = UIColors.MENU_BRIGHT
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hbox.add_child(name_label)
 		_spell_labels.append(name_label)
@@ -145,7 +138,7 @@ func _create_spell_labels(slot_count: int) -> void:
 		mp_label.name = "MPCost%d" % i
 		mp_label.text = "0 MP"
 		mp_label.add_theme_font_size_override("font_size", 16)
-		mp_label.modulate = COLOR_MP
+		mp_label.modulate = UIColors.MP_AVAILABLE
 		mp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hbox.add_child(mp_label)
 		_mp_labels.append(mp_label)
@@ -227,9 +220,9 @@ func _populate_spell_labels() -> void:
 
 			# Color MP cost based on whether castable
 			if ability.mp_cost <= _current_mp:
-				mp_label.modulate = COLOR_MP
+				mp_label.modulate = UIColors.MP_AVAILABLE
 			else:
-				mp_label.modulate = COLOR_MP_INSUFFICIENT
+				mp_label.modulate = UIColors.RESULT_ERROR
 		else:
 			spell_label.text = "(None)"
 			mp_label.text = ""
@@ -283,12 +276,12 @@ func _update_selection_visual() -> void:
 ## Get the display color for a spell slot
 func _get_spell_color(index: int) -> Color:
 	if index == selected_index:
-		return COLOR_SELECTED
+		return UIColors.MENU_SELECTED
 	if index == _hover_index:
-		return COLOR_HOVER
+		return UIColors.MENU_HOVER
 	if _is_spell_castable(index):
-		return COLOR_NORMAL
-	return COLOR_DISABLED
+		return UIColors.MENU_BRIGHT
+	return UIColors.MENU_DISABLED
 
 
 ## Update description label based on selected spell
