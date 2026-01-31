@@ -72,6 +72,10 @@ enum ItemType {
 @export_multiline var description: String = ""
 
 @export_group("Combat Modifiers")
+## If true, this weapon negates flying units' enhanced dodge rate (12% -> 3%)
+## Used for bows, crossbows, and other anti-air weapons
+@export var reduces_flying_dodge: bool = false
+
 ## Damage multipliers against target movement types
 ## Keys: MovementType enum values (0=WALKING, 1=FLYING, 2=FLOATING) or custom type strings
 ## Values: float multiplier (1.25 = +25% damage)

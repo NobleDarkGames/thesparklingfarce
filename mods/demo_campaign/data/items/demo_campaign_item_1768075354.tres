@@ -12,3 +12,4 @@ max_attack_range = 3
 buy_price = 100
 sell_price = 50
 description = "A normal wooden bow."
+reduces_flying_dodge = true

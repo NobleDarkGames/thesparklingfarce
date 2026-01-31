@@ -319,6 +319,36 @@ static func roll_counter(counter_chance: int) -> bool:
 	return roll <= counter_chance
 
 
+## Calculate dodge chance based on movement type (SF2-authentic second roll)
+## Flying units: 12% base dodge (reduced to 3% if attacker has anti-air weapon)
+## Ground/floating units: 3% base dodge
+## This is a SEPARATE roll from hit chance - happens after hit roll succeeds
+static func calculate_dodge_chance(defender_stats: UnitStats, attacker_stats: UnitStats) -> int:
+	if not defender_stats or not defender_stats.class_data:
+		return 3  # Ground units default
+
+	var movement_type: int = defender_stats.class_data.movement_type
+	var base_dodge: int = 3  # Ground/floating units
+
+	# Flying units get 12% dodge
+	if movement_type == ClassData.MovementType.FLYING:
+		base_dodge = 12
+		# Anti-air weapons reduce flying dodge back to 3%
+		if attacker_stats and attacker_stats.cached_weapon and attacker_stats.cached_weapon.reduces_flying_dodge:
+			base_dodge = 3
+
+	return base_dodge
+
+
+## Roll for dodge (SF2-authentic separate roll after hit roll succeeds)
+## Returns: true if attack was dodged
+static func roll_dodge(dodge_chance: int) -> bool:
+	if dodge_chance <= 0:
+		return false
+	var roll: int = RandomManager.combat_rng.randi_range(1, 100)
+	return roll <= dodge_chance
+
+
 ## Full counterattack check - combines range check and roll
 ## DEPRECATED: Use check_counterattack_with_range_band() for weapons with dead zones
 ## Returns: Dictionary with {can_counter: bool, will_counter: bool, chance: int}

@@ -1275,6 +1275,12 @@ func _calculate_attack_phase(
 	)
 	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
 
+	# SF2-authentic: Separate dodge roll after hit succeeds
+	if not was_miss:
+		var dodge_chance: int = CombatCalculator.calculate_dodge_chance(defender_stats, attacker_stats)
+		if CombatCalculator.roll_dodge(dodge_chance):
+			was_miss = true  # Attack hit but was dodged
+
 	var damage: int = 0
 	var was_critical: bool = false
 
@@ -1320,6 +1326,12 @@ func _calculate_counter_phase(
 		attacker_stats, target_stats, terrain_evasion
 	)
 	var was_miss: bool = not CombatCalculator.roll_hit(hit_chance)
+
+	# SF2-authentic: Separate dodge roll after hit succeeds
+	if not was_miss:
+		var dodge_chance: int = CombatCalculator.calculate_dodge_chance(target_stats, attacker_stats)
+		if CombatCalculator.roll_dodge(dodge_chance):
+			was_miss = true  # Counter hit but was dodged
 
 	var damage: int = 0
 	var was_critical: bool = false
