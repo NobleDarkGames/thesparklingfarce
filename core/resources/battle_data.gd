@@ -42,6 +42,8 @@ enum DefeatCondition {
 ## - character: CharacterData (required)
 ## - position: Vector2i (required)
 ## - ai_behavior: AIBehaviorData (required) - Resource reference to AI behavior configuration
+## - spawn_delay: int (optional, default 0) - Turn number when this enemy spawns.
+##   0 or absent = spawns at battle start. 3 = appears at start of turn 3.
 @export var enemies: Array[Dictionary] = []
 
 @export_group("Neutral/NPC Forces")
@@ -153,6 +155,49 @@ func validate_defeat_condition() -> bool:
 				push_error("BattleData: Invalid defeat_protect_index: %d" % defeat_protect_index)
 				return false
 	return true
+
+
+## Get enemies that should spawn at battle start (spawn_delay == 0 or absent)
+func get_initial_enemies() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for enemy: Dictionary in enemies:
+		var delay: int = enemy.get("spawn_delay", 0)
+		if delay <= 0:
+			result.append(enemy)
+	return result
+
+
+## Get enemies that should spawn as reinforcements on the given turn
+func get_reinforcements_for_turn(turn: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for enemy: Dictionary in enemies:
+		if "spawn_delay" in enemy:
+			var delay: int = enemy["spawn_delay"] as int
+			if delay == turn:
+				result.append(enemy)
+	return result
+
+
+## Get ALL enemies with spawn_delay greater than the current turn
+## Used by early reinforcement spawning when all visible enemies are dead
+func get_all_pending_reinforcements(current_turn: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for enemy: Dictionary in enemies:
+		if "spawn_delay" in enemy:
+			var delay: int = enemy["spawn_delay"] as int
+			if delay > current_turn:
+				result.append(enemy)
+	return result
+
+
+## Check if any enemies have a spawn_delay greater than the given turn
+func has_pending_reinforcements(current_turn: int) -> bool:
+	for enemy: Dictionary in enemies:
+		if "spawn_delay" in enemy:
+			var delay: int = enemy["spawn_delay"] as int
+			if delay > current_turn:
+				return true
+	return false
 
 
 ## Get dialogue for a specific turn (if any)

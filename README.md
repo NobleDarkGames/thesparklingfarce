@@ -8,6 +8,16 @@
 
 Create your own Shining Force campaigns with visual editors. No ROM hacking. No hex editing. No programming required.
 
+## Contents
+
+- [Quick Start](#quick-start)
+- [Your First Mod](#your-first-mod-in-5-minutes)
+- [What's Working](#whats-working)
+- [Project Structure](#project-structure)
+- [Creating a New Mod](#creating-a-new-mod)
+- [Contributing](#contributing)
+- [Links](#links)
+
 ---
 
 ## See It In Action
@@ -24,8 +34,7 @@ Create your own Shining Force campaigns with visual editors. No ROM hacking. No 
 ### Option A: Run from Source (Recommended for Modders)
 
 ```bash
-git clone https://github.com/[PLACEHOLDER]/sparklingfarce.git
-cd sparklingfarce
+git clone https://github.com/NobleDarkGames/thesparklingfarce.git
 ```
 
 1. Open the project in [Godot 4.5](https://godotengine.org/download/)
@@ -39,103 +48,28 @@ cd sparklingfarce
 
 ## Your First Mod in 5 Minutes
 
-The Sparkling Editor lets you create content without writing code. Here's how to make a playable character from scratch.
+The Sparkling Editor lets you create content without writing code.
 
-### Step 1: Open the Sparkling Editor
+### Quick Example: Add a Character to Your Party
 
-1. Open Godot and load the Sparkling Farce project
-2. Look at the **bottom of the editor window** - find the **"Sparkling Editor"** tab (next to Output, Debugger, etc.)
-3. Click it to expand the editor interface
+1. Open the project in Godot, find **"Sparkling Editor"** tab at the bottom
+2. Select **`demo_campaign`** from the "Active Mod" dropdown
+3. Click **"Characters"** tab → **"New"**
+4. Fill in: Name, Class (pick an existing one), Portrait, Map Spritesheet
+5. Check **"Include in default starting party"** in Battle Configuration
+6. Click **"Save Changes"** → Press **F5** to play
 
-### Step 2: Select Your Mod
+Your character appears in the party with their portrait and class!
 
-1. At the top of the Sparkling Editor, find the **"Active Mod"** dropdown
-2. Select **`demo_campaign`** (the demo content mod)
-3. Or click **"Create New Mod"** to make your own
-
-### Step 3: Create a Weapon
-
-1. Click the **"Items"** tab
-2. Click **"New"** (top left)
-3. Fill in:
-   - **Item Name**: "Rusty Sword"
-   - **Item Type**: Weapon
-   - **Equipment Type**: sword
-   - **Equipment Slot**: Weapon
-   - **Attack Power**: 5
-   - **Icon**: Browse to `mods/demo_campaign/assets/icons/items/` or use the picker
-4. Click **"Save Changes"**
-
-### Step 4: Create a Class
-
-1. Click the **"Classes"** tab
-2. Click **"New"**
-3. Fill in:
-   - **Class Name**: "Squire"
-   - **Movement Type**: Walking
-   - **Movement Range**: 5
-   - **Growth Rates**: Adjust HP/STR/DEF sliders to taste
-   - Under **Equippable Weapon Types**: Check "sword"
-4. Click **"Save Changes"**
-
-### Step 5: Create a Character
-
-1. Click the **"Characters"** tab
-2. Click **"New"**
-3. Fill in:
-   - **Name**: "Sir Reginald"
-   - **Class**: Select "Squire" (the class you just made)
-   - **Starting Level**: 1
-   - **Unit Category**: player
-   - **Portrait**: Browse to `mods/demo_campaign/assets/portraits/` or use the picker
-   - **Map Spritesheet**: Browse to `mods/demo_campaign/assets/sprites/map/` or use the picker
-   - **Starting Weapon**: Select "Rusty Sword"
-4. Click **"Save Changes"**
-
-### Step 6: Add to Starting Party
-
-1. Click the **"Characters"** tab
-2. Select your character
-3. Check **"Include in default starting party"** in the Battle Configuration section
-4. Click **"Save Changes"**
-
-Alternatively, use the **"Parties"** tab to create custom party configurations.
-
-### Step 7: Play!
-
-1. Press **F5** (or click the Play button)
-2. Start a new game
-3. Your character appears in the party with their portrait, class, and weapon!
-
-**Total time:** Under 5 minutes
+For complete tutorials covering items, classes, abilities, and more, see the [Modder Guides](docs/modder/).
 
 ### Asset Locations
 
 | Type | Location | Notes |
 |------|----------|-------|
-| Portraits | `mods/demo_campaign/assets/portraits/` | 128x128 PNG |
-| Map Sprites | `mods/demo_campaign/assets/sprites/map/` | 64x128 spritesheet (2 frames x 4 directions) |
-| Battle Sprites | `mods/demo_campaign/assets/sprites/battle/` | Combat animation frames |
+| Portraits | `mods/demo_campaign/assets/portraits/` | 64x64 PNG |
+| Map Sprites | `mods/demo_campaign/assets/sprites/map/` | 64x128 spritesheet (32x32 cells, 4 directions) |
 | Item Icons | `mods/demo_campaign/assets/icons/items/` | 16x16 or 32x32 PNG |
-| Starter Kit | `mods/_starter_kit/assets/` | Fallback/placeholder assets |
-
-### Editor Shortcuts
-
-| Key | Action |
-|-----|--------|
-| Ctrl+S | Save current resource |
-| Ctrl+N | Create new resource |
-| Ctrl+D | Duplicate selected |
-| Ctrl+F | Focus search filter |
-
-### Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Character not in party | Ensure Unit Category is "player" and party template includes them |
-| Can't equip weapon | Check class has weapon type in "Equippable Weapon Types" |
-| Sprite not animating | Spritesheet must be exactly 64x128 pixels (2 frames × 4 directions) |
-| Changes not saving | Click "Save Changes" button; check Output panel for errors |
 
 ---
 
@@ -150,7 +84,7 @@ The platform is in active development with these systems **implemented and funct
 - **30+ autoload singletons** - Comprehensive system managers for all game systems
 - **Dependency system** - Mods can require other mods
 
-### Combat (SF2-Authentic)
+### Combat (Shining Force 2-Authentic)
 - AGI-based turn order with SF2-accurate formulas
 - Double attacks, counters (3%/6%/12%/25% class-based rates)
 - Terrain defense and evasion bonuses
@@ -185,7 +119,6 @@ The platform is in active development with these systems **implemented and funct
 - Experience config, Status effect, Crafting editors
 - Save file debug editor
 
-[Full feature list in the announcement](docs/announcements/reddit-announcement-draft.md)
 
 ---
 
@@ -269,7 +202,7 @@ sparklingfarce/
 
 | Range | Purpose |
 |-------|---------|
-| 0 | Platform defaults (`_starter_kit`) |
+| -1 | Platform defaults (`_starter_kit`) |
 | 1-99 | Reserved for future official content |
 | 100-8999 | User mods, expansions, campaigns (`demo_campaign` = 100) |
 | 9000-9999 | Total conversions |
@@ -281,16 +214,20 @@ Higher priority overrides same-ID resources from lower priority mods.
 ## Contributing
 
 ### Report Bugs
-[Open an issue](https://github.com/[PLACEHOLDER]/sparklingfarce/issues) with:
+[Open an issue](https://github.com/NobleDarkGames/thesparklingfarce/issues) with:
 - Steps to reproduce
 - Expected vs actual behavior
 - Godot version and OS
 
 ### Request Features
-Check [existing issues](https://github.com/[PLACEHOLDER]/sparklingfarce/issues) first, then open a new one describing:
+Check [existing issues](https://github.com/NobleDarkGames/thesparklingfarce/issues) first, then open a new one describing:
 - The use case
 - How it fits SF-style gameplay
 - Any implementation thoughts
+
+### Questions?
+
+Join our [Discord](https://discord.gg/jfH558en) to discuss ideas, get help, or just chat about Shining Force.
 
 ### Submit Code
 1. Fork the repository
@@ -325,8 +262,7 @@ This project stands on the shoulders of giants:
 ## Links
 
 - [Platform Specification](docs/specs/platform-specification.md) - Technical architecture
-- [Reddit Announcement](docs/announcements/reddit-announcement-draft.md) - Full feature overview
-- [PLACEHOLDER: Discord/Community Link]
+- [Discord Server](https://discord.gg/jfH558en) - Community discussion and support
 - [PLACEHOLDER: Wiki/Documentation Site]
 
 ---

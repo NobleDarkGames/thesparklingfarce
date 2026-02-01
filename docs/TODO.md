@@ -1,6 +1,6 @@
 # The Sparkling Farce - Pending Tasks
 
-This document tracks all pending work items. Updated 2026-01-21.
+This document tracks all pending work items. Updated 2026-01-28.
 
 ---
 
@@ -68,7 +68,10 @@ From Chief Engineer O'Brien's architecture review.
 
 ### State Management
 - [x] Resolve TurnManager.battle_active state duplication with BattleManager
-- [ ] Consider separating GridManager battle functions from exploration utilities
+- [x] Consider separating GridManager battle functions from exploration utilities
+  - Decision: Keep unified. Added documentation clarifying architecture.
+  - Exploration already uses TileMapLayer directly (correct pattern).
+  - Highlight methods only called from InputManager - extraction adds complexity without benefit.
 
 ### Test Coverage Gaps
 - [x] InputManager (2,419 lines) - 95 test cases in test_input_manager.gd (808 lines)
@@ -128,10 +131,10 @@ From code review - consolidation opportunities (~650 lines reducible).
 - [x] `cinematic_editor.gd:1522` - Migration print converted to push_warning
 - [x] `save_slot_selector.gd` - 17 debug print() calls removed
 
-### Large Files to Split
-- [ ] `cinematic_editor.gd` (2,236 lines) - Split into base, command inspector, actor panel
-- [ ] `character_editor.gd` (1,428 lines) - Extract sections
-- [ ] `base_resource_editor.gd` (1,817 lines) - Decompose `_setup_base_ui()` (154 lines)
+### Large Files to Split (Complete)
+- [x] `cinematic_editor.gd` (2,285→1,985 lines) - Extracted CinematicCommandInspector component
+- [x] `character_editor.gd` (1,404→697 lines) - Extracted 4 sections to EditorSectionBase subclasses
+- [x] `base_resource_editor.gd` (1,881 lines) - Decomposed `_setup_base_ui()` into helpers
 
 ---
 
@@ -143,6 +146,89 @@ From code review - consolidation opportunities (~650 lines reducible).
 - [ ] Additional cinematic commands
 - [ ] Save slot management improvements
 - [ ] Advanced AI behavior patterns
+
+### Deferred from Missing SF Features Review (2026-01-28)
+
+- [ ] Boss mechanics: double turns / boss danger system (needs dedicated design session -- simple AGI threshold is too shallow, want a proper boss encounter system)
+- [x] Settings/pause menu UI (implemented -- Audio, Display, Gameplay tabs with working settings)
+- [ ] Item balance: charges system for rings/items instead of durability (needs dedicated design session -- charges-per-battle model preferred over crack/break RNG)
+- [ ] Dead zone visuals: gray highlight for min-range dead zones (deferred -- minimal practical value, players rarely encounter min-range gaps)
+- [ ] Sticky AI targeting: leashing behavior to keep AI focused on one target (deferred -- decided against, makes AI predictable and exploitable, current dynamic targeting is smarter)
+- [ ] Difficulty AI variants: Easy/Normal/Hard AI behavior modifiers (low priority, deferred)
+
+### Unimplemented Settings (SettingsManager keys exist, need consumers)
+
+- [x] Text speed: Bridge `SettingsManager.text_speed` float to `DialogManager.text_speed_multiplier` (wired via setting_changed signal)
+- [ ] Screen shake: Connect `GameJuice.screen_shake_requested` signal to camera controller (signal fires into void)
+- [ ] Flash effects: Add `SettingsManager.are_flash_effects_enabled()` checks before flash VFX
+- [ ] Colorblind mode: Implement shader/color overlay system that reads `SettingsManager.get_colorblind_mode()`
+- [ ] Font scale: Implement UI theme scaling that reads `SettingsManager.get_font_scale()`
+- [ ] Window scale on launch: Add `window_scale` to `SettingsManager._apply_all_settings()` (setter works, not applied on startup)
+
+---
+
+## Game Juice Enhancements (Priority: POLISH)
+
+Visual polish opportunities identified 2026-01-28. All use pixel-safe techniques (color/brightness tweens, position offsets - NO font scaling).
+
+### Trivial Complexity (color/brightness tweens only)
+
+#### Combat & Battle UI
+- [x] Damage number bounce on landing (`combat_animation_scene.gd` _show_damage_number) - TRANS_BOUNCE ease on appear
+- [x] Unit sprite white flash on damage (`unit.gd` take_damage) - 0.08s modulate flash
+- [ ] Combat forecast color coding (`combat_forecast_panel.gd`) - green=advantage, red=disadvantage
+- [ ] Turn order slot flash on turn start (`turn_order_panel.gd` update_turn_order) - brightness 1.3→1.0
+
+#### Level-Up & Rewards
+- [x] Stat row brightness flash on reveal (`level_up_celebration.gd` _reveal_stats) - gold flash per stat
+- [x] Portrait brightness pulse on level change (`level_up_celebration.gd` _animate_level_change)
+- [ ] XP number brightness pulse (`combat_results_panel.gd` _create_xp_row)
+- [ ] Ability learned color pulse (`level_up_celebration.gd` _reveal_abilities) - cyan shimmer
+
+#### Victory Screen
+- [ ] Victory title slide-in with overshoot (`victory_screen.gd`) - TRANS_BACK easing from top
+
+#### Menus (apply consistently across all)
+- [ ] Hover brightness boost (`main_menu.gd`, `save_slot_selector.gd`, shop screens) - 1.1 modulate on hover
+- [ ] Selection change brightness flash (`main_pause_screen.gd`, `exploration_field_menu.gd`) - 1.3→1.0 on cursor move
+
+#### Exploration
+- [ ] Interaction prompt intensity ramp (`interaction_prompt.gd`) - bob amplitude 2.5→4→6px as player approaches
+- [ ] NPC/interactable confirmation flash (`npc_node.gd`, `interactable_node.gd`) - white flash on interact
+
+### Low Complexity (position tweens, simple particles)
+
+#### Combat
+- [ ] Defender recoil animation (`combat_animation_scene.gd` _play_hit_animation) - 15px pushback, spring return
+
+#### Victory & Rewards
+- [ ] Gold counter animation (`victory_screen.gd`) - count up from 0 over 0.5s
+- [ ] Level-up particle burst (`level_up_celebration.gd` + .tscn) - gold sparkles on panel appear
+
+#### Battle Grid
+- [ ] Radial highlight reveal (`grid_manager.gd` highlight_cells) - tiles fade in from unit outward
+- [ ] Attack range red flash on confirm (`grid_manager.gd`) - brief bright red pulse on lock-in
+
+#### Exploration
+- [ ] NPC "notice" head turn (`npc_node.gd`) - face toward player when entering 2-tile range
+
+#### Menus
+- [ ] Pause menu panel slide-in (`main_pause_screen.gd` initialize) - slide down with fade
+- [ ] Inventory equip success flash (`inventory_panel.gd`) - flash both source and target slots
+
+### Medium Complexity (particles, more complex choreography)
+
+- [ ] Cursor movement trail/afterimage (`grid_cursor.gd`) - ghost sprite at previous position fades out
+- [ ] Movement dust particles (`hero_controller.gd`, `unit.gd`) - small puff on step completion
+- [ ] Promotion transformation particles (`promotion_ceremony.gd`) - golden burst during flash
+- [ ] Victory confetti (`victory_screen.gd` + .tscn) - falling golden particles
+
+### Sound Design Hooks (for future audio pass)
+
+- [ ] `stat_increase` SFX - satisfying tick per stat reveal (currently uses ui_select)
+- [ ] `gold_earned` SFX - coin clink loop during gold counter
+- [ ] `hp_drain` SFX - subtle drain sound during HP bar tween
+- [ ] `item_acquired` SFX - pickup jingle for victory rewards
 
 ---
 

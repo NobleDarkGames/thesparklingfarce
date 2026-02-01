@@ -144,10 +144,9 @@ func play_music(music_name: String, fade_in_duration: float = 0.5) -> void:
 	if not base_stream:
 		return  # Music file not found, fail silently
 
-	# Stop current music if playing
+	# Stop current music if playing (immediate stop - new track will fade in)
 	if _music_layers[0].playing:
-		stop_music(fade_in_duration * 0.5)  # Fade out faster than fade in
-		await get_tree().create_timer(fade_in_duration * 0.5).timeout
+		stop_music(0.0)  # Immediate stop to avoid race condition with tween callback
 
 	# Store current track name
 	_current_music_name = music_name

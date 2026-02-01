@@ -106,6 +106,13 @@ func _animate_level_change(old_level: int, new_level: int) -> void:
 		level_label.text = "Lv %d -> %d" % [old_level, new_level]
 	)
 	tween.tween_property(level_label, "modulate", Color.WHITE, 0.15)
+
+	# Brightness pulse on portrait (if visible)
+	if portrait.visible:
+		var portrait_tween: Tween = create_tween()
+		portrait_tween.tween_property(portrait, "modulate", Color(1.4, 1.4, 1.4), 0.1)
+		portrait_tween.tween_property(portrait, "modulate", Color.WHITE, 0.15)
+
 	await tween.finished
 
 
@@ -128,14 +135,14 @@ func _reveal_stats(stat_increases: Dictionary) -> void:
 
 		# Create stat row
 		var row: HBoxContainer = _create_stat_row(stat_name, increase)
-		row.modulate.a = 0.0
+		row.modulate = Color(1.5, 1.3, 0.5, 0.0)  # Bright gold, transparent
 		stats_container.add_child(row)
 
-		# Play tick sound and fade in
+		# Play tick sound and flash in with gold glow
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		var tween: Tween = create_tween()
-		tween.tween_property(row, "modulate:a", 1.0, 0.15)
+		tween.tween_property(row, "modulate", Color.WHITE, 0.15)  # Fade to normal white while appearing
 
 		await get_tree().create_timer(STAT_REVEAL_DELAY).timeout
 

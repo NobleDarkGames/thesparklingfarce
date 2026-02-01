@@ -85,13 +85,7 @@ func _build_ui() -> void:
 	_panel.custom_minimum_size = Vector2(200, 80)
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_KEEP_SIZE)
 
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = COLOR_PANEL_BG
-	panel_style.border_width_bottom = 2
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_color = COLOR_BORDER
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_BORDER, 2)
 	panel_style.content_margin_bottom = 8
 	panel_style.content_margin_left = 12
 	panel_style.content_margin_right = 12
@@ -145,13 +139,7 @@ func _create_button(text: String) -> Button:
 	UIUtils.apply_monogram_style(button, 16)
 	button.custom_minimum_size = Vector2(48, 20)
 
-	var normal_style: StyleBoxFlat = StyleBoxFlat.new()
-	normal_style.bg_color = COLOR_BUTTON_NORMAL
-	normal_style.border_width_bottom = 1
-	normal_style.border_width_left = 1
-	normal_style.border_width_right = 1
-	normal_style.border_width_top = 1
-	normal_style.border_color = Color(0.4, 0.4, 0.5, 1.0)
+	var normal_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_BUTTON_NORMAL, Color(0.4, 0.4, 0.5, 1.0), 1)
 	button.add_theme_stylebox_override("normal", normal_style)
 
 	var hover_style: StyleBoxFlat = normal_style.duplicate()

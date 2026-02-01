@@ -90,6 +90,7 @@ The **Character UID** is auto-generated. Use this when referencing the character
 - **Is Unique**: ON for named characters, OFF for generic templates (e.g., "Goblin")
 - **Is Hero**: The main protagonist. If this character falls, battle is lost.
 - **Starting Party**: Include in the party at game start
+- **Unit Tags**: Type tags for weapon bonus targeting (e.g., "undead", "beast", "armored"). Weapons with matching `unit_tag_bonuses` deal extra damage to this character. Leave empty for generic units.
 
 ### Base Stats
 

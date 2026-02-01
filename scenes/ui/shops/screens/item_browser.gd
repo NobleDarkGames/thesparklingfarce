@@ -61,9 +61,7 @@ func _on_initialized() -> void:
 
 
 func _create_styles() -> void:
-	_selected_style = StyleBoxFlat.new()
-	_selected_style.bg_color = Color(0.3, 0.5, 0.8, 1.0)
-	_selected_style.set_corner_radius_all(2)
+	_selected_style = UIUtils.create_panel_style(Color(0.3, 0.5, 0.8, 1.0), Color.TRANSPARENT, 0, 2)
 
 
 func _populate_item_list() -> void:

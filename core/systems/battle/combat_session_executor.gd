@@ -346,6 +346,9 @@ func execute_animation_mode(
 			_combat_anim_instance.queue_xp_entry(display_name, amount, source)
 	ExperienceManager.unit_gained_xp.connect(xp_handler)
 
+	# Track which phases have had their signal emitted (for miss handling later)
+	var emitted_phases: Dictionary = {}
+
 	# Create lambda signal handler for damage pooling
 	var damage_handler: Callable = func(def_unit: Unit, dmg: int, died: bool) -> void:
 		# Find which phase this corresponds to
@@ -358,6 +361,16 @@ func execute_animation_mode(
 				attacker_died = died
 			elif def_unit == initial_defender:
 				defender_died = died
+			# Emit combat resolved signal (parity with skip_mode)
+			if context.combat_resolved_signal:
+				context.combat_resolved_signal.emit(
+					current_phase.attacker,
+					current_phase.defender,
+					current_phase.damage,
+					not current_phase.was_miss,
+					current_phase.was_critical
+				)
+				emitted_phases[current_phase] = true
 	_combat_anim_instance.damage_applied.connect(damage_handler)
 
 	# Hide the battlefield for combat animation overlay
@@ -395,6 +408,22 @@ func execute_animation_mode(
 		AudioManager.disable_layer(COMBAT_AUDIO_LAYER, AUDIO_LAYER_FADE_DURATION)
 		show_battlefield(context)
 		return {"attacker_died": attacker_died, "defender_died": defender_died}
+
+	# Emit combat_resolved for miss phases (hits already emitted via damage_handler)
+	# This maintains parity with skip_mode which emits for all phases
+	if context.combat_resolved_signal:
+		for phase: CombatPhase in phases:
+			if phase not in emitted_phases:
+				# Skip healing phases - they don't represent combat (parity with skip_mode)
+				if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
+					continue
+				context.combat_resolved_signal.emit(
+					phase.attacker,
+					phase.defender,
+					phase.damage,
+					not phase.was_miss,
+					phase.was_critical
+				)
 
 	# SF2-AUTHENTIC: Award pooled XP ONCE per attacker/defender pair
 	# (This happens after all phases complete, so double attacks show as one XP entry)

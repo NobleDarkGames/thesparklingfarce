@@ -219,6 +219,9 @@ func is_blocking_input() -> bool:
 	# Block input if debug console is open
 	if DebugConsole and DebugConsole.is_open:
 		return true
+	# Block input if pause menu is open
+	if PauseMenuManager and PauseMenuManager.is_open():
+		return true
 	# Block input if shop is open (ShopManager handles its own UI)
 	if ShopManager and ShopManager.is_shop_open():
 		return true
@@ -364,6 +367,16 @@ func _on_field_menu_member_requested() -> void:
 		members_interface.open_members()
 	else:
 		_open_fallback_inventory()
+
+
+## Pause menu opened - set PAUSED state
+func _on_pause_menu_opened() -> void:
+	_set_state(UIState.PAUSED)
+
+
+## Pause menu closed - return to exploration
+func _on_pause_menu_closed() -> void:
+	_set_state(UIState.EXPLORING)
 
 
 ## Members/FieldItems interface closed - return to exploration

@@ -173,11 +173,7 @@ func _build_ui() -> void:
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_panel.custom_minimum_size = Vector2(400, 300)
 
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = COLOR_PANEL_BG
-	panel_style.border_color = COLOR_PANEL_BORDER
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(4)
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_PANEL_BORDER, 2, 4)
 	panel_style.content_margin_left = 16
 	panel_style.content_margin_right = 16
 	panel_style.content_margin_top = 12
@@ -240,10 +236,7 @@ func _build_ui() -> void:
 	# Info panel
 	_info_panel = PanelContainer.new()
 	_info_panel.custom_minimum_size = Vector2(130, 70)
-	var info_style: StyleBoxFlat = StyleBoxFlat.new()
-	info_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
-	info_style.set_border_width_all(1)
-	info_style.border_color = COLOR_PANEL_BORDER
+	var info_style: StyleBoxFlat = UIUtils.create_panel_style(Color(0.15, 0.15, 0.2, 0.9), COLOR_PANEL_BORDER, 1)
 	info_style.content_margin_left = 8
 	info_style.content_margin_right = 8
 	info_style.content_margin_top = 6

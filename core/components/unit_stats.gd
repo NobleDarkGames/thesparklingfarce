@@ -33,6 +33,9 @@ var xp_to_next_level: int = 100
 ## Reset at end of each battle
 var support_actions_this_battle: Dictionary = {}
 
+## Unit tags for combat bonuses - copied from CharacterData, modifiable by effects
+var unit_tags: Array[String] = []
+
 ## Status effects: Array[Dictionary]
 ## Each effect: {type: String, duration: int, power: int}
 ## Types: "poison", "sleep", "stun", "attack_up", "defense_up", etc.
@@ -80,6 +83,9 @@ func calculate_from_character(character: CharacterData) -> void:
 	if class_data == null:
 		push_error("UnitStats: CharacterData has null class")
 		return
+
+	# Copy unit tags from character template (can be modified by status effects mid-battle)
+	unit_tags = character.unit_tags.duplicate()
 
 	# Set level
 	level = character.starting_level
@@ -206,6 +212,10 @@ func load_from_save_data(save_data: CharacterSaveData, p_character_data: Charact
 	character_data = p_character_data
 	class_data = save_data.get_current_class(p_character_data)
 
+	# Copy unit tags from character template (can be modified by status effects mid-battle)
+	if p_character_data:
+		unit_tags = p_character_data.unit_tags.duplicate()
+
 	# Load equipment from save data
 	load_equipment_from_save(save_data)
 
@@ -267,7 +277,10 @@ func get_weapon_crit_rate() -> int:
 ## Helper to sum stat modifiers from all active status effects (data-driven)
 func _get_status_stat_modifier(stat_name: String) -> int:
 	var total: int = 0
-	for effect: Dictionary in status_effects:
+	for effect_variant: Variant in status_effects:
+		if not effect_variant is Dictionary:
+			continue
+		var effect: Dictionary = effect_variant
 		var effect_type: String = effect.get("type", "")
 		var effect_data: StatusEffectData = ModLoader.status_effect_registry.get_effect(effect_type)
 		if effect_data:
@@ -318,7 +331,10 @@ func get_effective_max_mp() -> int:
 
 ## Find status effect by type, returns null if not found
 func _find_status_effect(effect_type: String) -> Dictionary:
-	for effect: Dictionary in status_effects:
+	for effect_variant: Variant in status_effects:
+		if not effect_variant is Dictionary:
+			continue
+		var effect: Dictionary = effect_variant
 		if effect.get("type", "") == effect_type:
 			return effect
 	return {}

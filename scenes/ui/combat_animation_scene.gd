@@ -192,18 +192,7 @@ func _is_unit_dead(unit: Unit) -> bool:
 
 ## Create a rounded StyleBoxFlat with border
 func _create_bordered_stylebox(bg_color: Color, border_color: Color, border_width: int = 4, corner_radius: int = 8) -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_width_left = border_width
-	style.border_width_right = border_width
-	style.border_width_top = border_width
-	style.border_width_bottom = border_width
-	style.border_color = border_color
-	style.corner_radius_top_left = corner_radius
-	style.corner_radius_top_right = corner_radius
-	style.corner_radius_bottom_left = corner_radius
-	style.corner_radius_bottom_right = corner_radius
-	return style
+	return UIUtils.create_panel_style(bg_color, border_color, border_width, corner_radius)
 
 
 ## Wrap text in BBCode color tag
@@ -248,7 +237,13 @@ func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 
 	# Set up combatants visually (player on RIGHT with back view, enemy on LEFT with front view)
 	_right_sprite = await _setup_combatant_and_return_sprite(_right_unit, attacker_container, attacker_name, attacker_hp_bar)
+	if not is_instance_valid(_right_sprite):
+		push_warning("CombatAnimationScene: Failed to set up right combatant sprite")
+		return
 	_left_sprite = await _setup_combatant_and_return_sprite(_left_unit, defender_container, defender_name, defender_hp_bar)
+	if not is_instance_valid(_left_sprite):
+		push_warning("CombatAnimationScene: Failed to set up left combatant sprite")
+		return
 
 	# Fade in background and contents
 	var tween: Tween = _get_pooled_tween()
@@ -422,6 +417,14 @@ func _setup_combatant(
 	name_label: Label,
 	hp_bar: ProgressBar
 ) -> Control:
+	# Validate unit has required data before accessing properties
+	if not unit.character_data:
+		push_error("CombatAnimationScene: Unit missing character_data")
+		return null
+	if not unit.stats:
+		push_error("CombatAnimationScene: Unit missing stats")
+		return null
+
 	# Set name
 	name_label.text = unit.character_data.character_name
 
@@ -734,6 +737,12 @@ func _show_heal_number(heal_amount: int) -> void:
 	damage_label.modulate.a = 1.0
 	var start_y: float = damage_label.position.y
 
+	# Bounce-in scale effect (consistent with damage numbers)
+	damage_label.pivot_offset = damage_label.size / 2.0
+	damage_label.scale = Vector2(0.8, 0.8)
+	var bounce_tween: Tween = _get_pooled_tween()
+	bounce_tween.tween_property(damage_label, "scale", Vector2.ONE, _get_duration(0.08)).set_trans(Tween.TRANS_BOUNCE)
+
 	var float_duration: float = _get_duration(BASE_DAMAGE_FLOAT_DURATION)
 	var tween: Tween = _get_pooled_tween()
 	tween.set_parallel(true)
@@ -742,7 +751,7 @@ func _show_heal_number(heal_amount: int) -> void:
 
 
 ## Show damage number with float animation
-## Uses brightness pop and horizontal drift for dynamic feel
+## Uses bounce-in, brightness pop, and horizontal drift for dynamic feel
 func _show_damage_number(damage: int, is_critical: bool) -> void:
 	var font_size: int = DAMAGE_FONT_SIZE_CRIT if is_critical else DAMAGE_FONT_SIZE_NORMAL
 	var font_color: Color = COLOR_CRIT_FLASH if is_critical else Color.WHITE
@@ -751,6 +760,13 @@ func _show_damage_number(damage: int, is_critical: bool) -> void:
 	var start_x: float = damage_label.position.x
 	var start_y: float = damage_label.position.y
 	damage_label.visible = true
+
+	# Bounce-in scale effect (pop when appearing)
+	# Set pivot to center for centered scaling
+	damage_label.pivot_offset = damage_label.size / 2.0
+	damage_label.scale = Vector2(0.8, 0.8)
+	var bounce_tween: Tween = _get_pooled_tween()
+	bounce_tween.tween_property(damage_label, "scale", Vector2.ONE, _get_duration(0.08)).set_trans(Tween.TRANS_BOUNCE)
 
 	# Brightness pop settings based on hit type
 	var bright_color: Color

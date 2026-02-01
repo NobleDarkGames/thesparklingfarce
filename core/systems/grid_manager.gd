@@ -1,15 +1,36 @@
-## GridManager - Central system for tactical grid movement and pathfinding
+## GridManager - Central system for tactical battle grid management
 ##
 ## Singleton autoload that manages the tactical grid, A* pathfinding,
 ## movement range calculations, unit positions, and cell highlighting.
 ## Integrates Grid resource with TileMapLayer for complete tactical movement.
+##
+## ARCHITECTURE NOTE: This singleton is used EXCLUSIVELY during battles.
+## Exploration mode uses TileMapLayer.local_to_map() and map_to_local()
+## directly via HeroController and PartyFollower. This is intentional -
+## exploration doesn't need pathfinding, occupancy tracking, or highlighting.
+##
+## Method categories:
+## - CONFIGURATION & STATE: grid, tilemap, _terrain_layers, etc.
+## - LIFECYCLE: setup_grid(), clear_grid()
+## - TERRAIN DATA: get_terrain_at_cell(), get_terrain_cost(), load_terrain_data()
+## - PATHFINDING: find_path(), get_walkable_cells(), expand_waypoint_path()
+## - OCCUPANCY TRACKING: set_cell_occupied(), is_cell_occupied(), get_unit_at_cell()
+## - BATTLE VISUALS: highlight_cells(), show_movement_range(), etc. (InputManager only)
+## - GRID UTILITIES: cell_to_world(), world_to_cell(), get_distance()
 extends Node
+
+
+#region CONFIGURATION & STATE
 
 ## Reference to the current battle's Grid resource
 var grid: Grid = null
 
-## Reference to the TileMapLayer for the current battle
+## Reference to the TileMapLayer for the current battle (alias to first terrain layer for backwards compat)
 var tilemap: TileMapLayer = null
+
+## Terrain layers sorted by priority (highest z_index first)
+## The first layer with a valid terrain at a cell determines that cell's terrain
+var _terrain_layers: Array[TileMapLayer] = []
 
 ## A* pathfinding grid
 var _astar: AStarGrid2D = null
@@ -44,10 +65,10 @@ var _terrain_costs: Dictionary = {}
 var _cell_terrain_cache: Dictionary = {}
 
 ## Default terrain cost if not specified
-const DEFAULT_TERRAIN_COST: int = 1
+const DEFAULT_TERRAIN_COST: float = 1.0
 
 ## Maximum terrain cost (effectively impassable)
-const MAX_TERRAIN_COST: int = 99
+const MAX_TERRAIN_COST: float = 99.0
 
 ## Default tile size (32x32 pixels) - used when no grid is set
 const DEFAULT_TILE_SIZE: int = 32
@@ -55,6 +76,10 @@ const DEFAULT_TILE_SIZE: int = 32
 ## Name of the custom data layer in TileSets that stores terrain type
 const TERRAIN_TYPE_LAYER_NAME: String = "terrain_type"
 
+#endregion
+
+
+#region LIFECYCLE
 
 ## Get the current tile size (from grid if available, otherwise default)
 func get_tile_size() -> int:
@@ -63,19 +88,21 @@ func get_tile_size() -> int:
 	return DEFAULT_TILE_SIZE
 
 
-## Initialize grid manager with a Grid resource and TileMapLayer
+## Initialize grid manager with a Grid resource and terrain layers
 ## Call this when starting a battle
-func setup_grid(p_grid: Grid, p_tilemap: TileMapLayer) -> void:
+## p_terrain_layers: Array of TileMapLayers sorted by priority (highest z_index first)
+func setup_grid(p_grid: Grid, p_terrain_layers: Array[TileMapLayer]) -> void:
 	if p_grid == null:
 		push_error("GridManager: Cannot setup with null Grid resource")
 		return
 
-	if p_tilemap == null:
-		push_error("GridManager: Cannot setup with null TileMapLayer")
+	if p_terrain_layers.is_empty():
+		push_error("GridManager: Cannot setup with empty terrain layers array")
 		return
 
 	grid = p_grid
-	tilemap = p_tilemap
+	_terrain_layers = p_terrain_layers
+	tilemap = _terrain_layers[0] if _terrain_layers.size() > 0 else null  # Backwards compat alias
 
 	# Clear previous state
 	_occupied_cells.clear()
@@ -107,6 +134,30 @@ func _setup_astar() -> void:
 			_astar.set_point_solid(cell, false)
 
 
+## Clear the entire grid state (call when exiting battle)
+func clear_grid() -> void:
+	# Stop highlight pulse animation
+	_stop_highlight_pulse()
+
+	# Clean up AoE border container (free the Node2D and all its children)
+	if _aoe_border_container:
+		_aoe_border_container.queue_free()
+		_aoe_border_container = null
+
+	grid = null
+	tilemap = null
+	_terrain_layers.clear()
+	_astar = null
+	_occupied_cells.clear()
+	_terrain_costs.clear()
+	_cell_terrain_cache.clear()
+	_highlight_layer = null
+
+#endregion
+
+
+#region TERRAIN DATA
+
 ## Set terrain cost for a specific tile type and movement type (LEGACY)
 func set_terrain_cost(tile_id: int, movement_type: int, cost: int) -> void:
 	if tile_id not in _terrain_costs:
@@ -135,40 +186,56 @@ func load_terrain_data() -> void:
 				_cell_terrain_cache[cell] = terrain
 
 
-## Check if tileset has terrain_type custom data layer (for optional per-tile overrides)
-func _tileset_has_terrain_type() -> bool:
-	if not tilemap or not tilemap.tile_set:
+## Check if a specific layer's tileset has terrain_type custom data layer (for per-tile overrides)
+func _layer_has_terrain_type(layer: TileMapLayer) -> bool:
+	if not layer or not layer.tile_set:
 		return false
 
-	var custom_data_count: int = tilemap.tile_set.get_custom_data_layers_count()
+	var custom_data_count: int = layer.tile_set.get_custom_data_layers_count()
 	for i: int in range(custom_data_count):
-		if tilemap.tile_set.get_custom_data_layer_name(i) == TERRAIN_TYPE_LAYER_NAME:
+		if layer.tile_set.get_custom_data_layer_name(i) == TERRAIN_TYPE_LAYER_NAME:
 			return true
 	return false
 
 
-## Get terrain ID for a cell.
-## Priority: 1) Per-tile custom data override, 2) Atlas source filename
-## This allows all tiles in "grass.png" to automatically use "grass" terrain,
-## while still supporting per-tile overrides for special cases.
+## Get terrain ID for a cell by checking all terrain layers (top to bottom)
+## Returns the first valid terrain found, or empty string if none.
+## Tiles NOT registered in TerrainRegistry are treated as decorations and pass through.
 func _get_terrain_id_at_cell(cell: Vector2i) -> String:
-	if not tilemap or not tilemap.tile_set:
-		return ""
+	for layer: TileMapLayer in _terrain_layers:
+		if not layer or not layer.tile_set:
+			continue
 
-	# Check if cell has a tile
-	var source_id: int = tilemap.get_cell_source_id(cell)
-	if source_id == -1:
-		return ""
+		# Check if cell has a tile in this layer
+		var source_id: int = layer.get_cell_source_id(cell)
+		if source_id == -1:
+			continue  # No tile in this layer, check next
 
+		# Get terrain ID from this layer's tile
+		var terrain_id: String = _get_terrain_id_from_layer(layer, cell, source_id)
+		if terrain_id.is_empty():
+			continue
+
+		# Check if this terrain is registered (decorations are not)
+		if ModLoader.terrain_registry.has_terrain(terrain_id):
+			return terrain_id
+		# Else: decoration tile (not in registry), pass through to next layer
+
+	return ""  # No terrain found in any layer
+
+
+## Get terrain ID from a specific layer at a cell
+## Priority: 1) Per-tile custom data override, 2) Atlas source filename
+func _get_terrain_id_from_layer(layer: TileMapLayer, cell: Vector2i, source_id: int) -> String:
 	# Priority 1: Check for per-tile custom data override
-	var tile_data: TileData = tilemap.get_cell_tile_data(cell)
-	if tile_data and _tileset_has_terrain_type():
+	var tile_data: TileData = layer.get_cell_tile_data(cell)
+	if tile_data and _layer_has_terrain_type(layer):
 		var terrain_type: Variant = tile_data.get_custom_data(TERRAIN_TYPE_LAYER_NAME)
 		if terrain_type is String and not terrain_type.is_empty():
 			return terrain_type
 
 	# Priority 2: Derive from atlas source filename
-	var source: TileSetSource = tilemap.tile_set.get_source(source_id)
+	var source: TileSetSource = layer.tile_set.get_source(source_id)
 	if source is TileSetAtlasSource:
 		var atlas_source: TileSetAtlasSource = source as TileSetAtlasSource
 		if atlas_source.texture:
@@ -189,7 +256,8 @@ func get_terrain_at_cell(cell: Vector2i) -> TerrainData:
 
 ## Get terrain cost for a cell based on movement type
 ## Now uses TerrainData system with proper movement type handling
-func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
+## Returns float to support fractional costs (e.g., 0.5 for roads)
+func get_terrain_cost(cell: Vector2i, movement_type: int) -> float:
 	if grid == null:
 		push_error("GridManager: Grid not initialized. Call setup_grid() first.")
 		return MAX_TERRAIN_COST
@@ -231,6 +299,11 @@ func get_terrain_cost(cell: Vector2i, movement_type: int) -> int:
 
 	return DEFAULT_TERRAIN_COST
 
+
+#endregion
+
+
+#region PATHFINDING
 
 ## Find path from one cell to another using A* pathfinding
 ## Returns Array[Vector2i] of cells in the path (including start and end)
@@ -323,17 +396,17 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 
 	var reachable: Array[Vector2i] = []
 	var visited: Dictionary = {}  # {Vector2i: movement_cost}
-	var queue: Array = []  # Array of {cell: Vector2i, cost: int}
+	var queue: Array = []  # Array of {cell: Vector2i, cost: float}
 
 	# Start with origin
-	queue.append({"cell": from, "cost": 0})
-	visited[from] = 0
+	queue.append({"cell": from, "cost": 0.0})
+	visited[from] = 0.0
 
 	# Flood fill with movement cost
 	while queue.size() > 0:
 		var current: Dictionary = queue.pop_front()
 		var current_cell: Vector2i = current.cell
-		var current_cost: int = current.cost
+		var current_cost: float = current.cost
 
 		# Get neighbors
 		var neighbors: Array[Vector2i] = grid.get_neighbors(current_cell)
@@ -348,14 +421,14 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 					continue
 
 			# Get terrain cost for this cell
-			var terrain_cost: int = get_terrain_cost(neighbor, movement_type)
+			var terrain_cost: float = get_terrain_cost(neighbor, movement_type)
 
 			# Skip if impassable
 			if terrain_cost >= MAX_TERRAIN_COST:
 				continue
 
 			# Calculate total cost to reach this neighbor
-			var new_cost: int = current_cost + terrain_cost
+			var new_cost: float = current_cost + terrain_cost
 
 			# Skip if too far
 			if new_cost > movement_range:
@@ -386,7 +459,7 @@ func _update_astar_weights(movement_type: int, mover_faction: String = "") -> vo
 	for x: int in range(grid.grid_size.x):
 		for y: int in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
-			var terrain_cost: int = get_terrain_cost(cell, movement_type)
+			var terrain_cost: float = get_terrain_cost(cell, movement_type)
 
 			# Set as solid if impassable
 			if terrain_cost >= MAX_TERRAIN_COST:
@@ -406,6 +479,11 @@ func _update_astar_weights(movement_type: int, mover_faction: String = "") -> vo
 				_astar.set_point_solid(cell, false)
 				_astar.set_point_weight_scale(cell, float(terrain_cost))
 
+
+#endregion
+
+
+#region OCCUPANCY TRACKING
 
 ## Mark a cell as occupied by a unit
 func set_cell_occupied(cell: Vector2i, unit: Unit) -> void:
@@ -450,6 +528,11 @@ func move_unit(unit: Unit, from: Vector2i, to: Vector2i) -> void:
 	set_cell_occupied(to, unit)
 
 
+#endregion
+
+
+#region BATTLE VISUALS (InputManager only)
+
 ## Set the highlight layer for visual feedback
 func set_highlight_layer(layer: TileMapLayer) -> void:
 	_highlight_layer = layer
@@ -491,7 +574,7 @@ func show_movement_range(from: Vector2i, movement_range: int, movement_type: int
 
 ## Show attack range (red tiles)
 ## Highlights all cells within attack range in red.
-## DEPRECATED: Use show_attack_range_band() for new code that supports min/max range
+## @deprecated Use show_attack_range_band() instead - supports min/max range bands
 func show_attack_range(from: Vector2i, weapon_range: int) -> void:
 	# Delegate to range band method with min_range=1 for backwards compatibility
 	show_attack_range_band(from, 1, weapon_range)
@@ -612,24 +695,10 @@ func _stop_highlight_pulse() -> void:
 		_highlight_layer.modulate.a = 1.0
 
 
-## Clear the entire grid state (call when exiting battle)
-func clear_grid() -> void:
-	# Stop highlight pulse animation
-	_stop_highlight_pulse()
+#endregion
 
-	# Clean up AoE border container (free the Node2D and all its children)
-	if _aoe_border_container:
-		_aoe_border_container.queue_free()
-		_aoe_border_container = null
 
-	grid = null
-	tilemap = null
-	_astar = null
-	_occupied_cells.clear()
-	_terrain_costs.clear()
-	_cell_terrain_cache.clear()
-	_highlight_layer = null
-
+#region GRID UTILITIES
 
 ## Get distance between two cells (Manhattan distance)
 func get_distance(from: Vector2i, to: Vector2i) -> int:
@@ -683,3 +752,5 @@ func world_to_cell(world_pos: Vector2) -> Vector2i:
 		# Fallback: use default tile size for simple conversion
 		# Use floori to correctly handle negative coordinates
 		return Vector2i(floori(world_pos.x / DEFAULT_TILE_SIZE), floori(world_pos.y / DEFAULT_TILE_SIZE))
+
+#endregion

@@ -131,13 +131,7 @@ func _build_ui() -> void:
 	clip_contents = true
 
 	# Add explicit panel padding via theme override
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = COLOR_PANEL_BG
-	panel_style.border_width_bottom = 1
-	panel_style.border_width_left = 1
-	panel_style.border_width_right = 1
-	panel_style.border_width_top = 1
-	panel_style.border_color = COLOR_PANEL_BORDER
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_PANEL_BORDER, 1)
 	panel_style.content_margin_bottom = PANEL_PADDING
 	panel_style.content_margin_left = PANEL_PADDING
 	panel_style.content_margin_right = PANEL_PADDING
@@ -216,13 +210,7 @@ func _build_ui() -> void:
 	# FIXED HEIGHT - this panel must never grow or shrink at runtime
 	_description_panel = PanelContainer.new()
 	_description_panel.name = "DescriptionPanel"
-	var desc_style: StyleBoxFlat = StyleBoxFlat.new()
-	desc_style.bg_color = Color(0.08, 0.08, 0.12, 0.95)
-	desc_style.border_width_bottom = 1
-	desc_style.border_width_left = 1
-	desc_style.border_width_right = 1
-	desc_style.border_width_top = 1
-	desc_style.border_color = Color(0.4, 0.4, 0.5, 0.9)
+	var desc_style: StyleBoxFlat = UIUtils.create_panel_style(Color(0.08, 0.08, 0.12, 0.95), Color(0.4, 0.4, 0.5, 0.9), 1)
 	desc_style.content_margin_bottom = 2
 	desc_style.content_margin_left = 4
 	desc_style.content_margin_right = 4

@@ -122,6 +122,13 @@ func _initialize() -> void:
 		if BattleManager.has_signal("battle_ended"):
 			BattleManager.battle_ended.connect(_on_battle_ended)
 
+	# Connect to pause menu state changes
+	if PauseMenuManager:
+		if PauseMenuManager.has_signal("pause_menu_opened"):
+			PauseMenuManager.pause_menu_opened.connect(_on_pause_menu_opened)
+		if PauseMenuManager.has_signal("pause_menu_closed"):
+			PauseMenuManager.pause_menu_closed.connect(_on_pause_menu_closed)
+
 	_initialized = true
 
 	# CRITICAL: Connect to MapTemplate signal IMMEDIATELY (same frame as _initialize)
@@ -223,6 +230,16 @@ func _on_battle_ended(_victory: bool) -> void:
 	# Wait for scene to potentially change, then try to activate
 	await get_tree().process_frame
 	_try_activate()
+
+
+func _on_pause_menu_opened() -> void:
+	if _controller and _controller.has_method("_on_pause_menu_opened"):
+		_controller._on_pause_menu_opened()
+
+
+func _on_pause_menu_closed() -> void:
+	if _controller and _controller.has_method("_on_pause_menu_closed"):
+		_controller._on_pause_menu_closed()
 
 # =============================================================================
 # ACTIVATION LOGIC

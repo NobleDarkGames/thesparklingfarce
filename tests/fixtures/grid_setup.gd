@@ -34,7 +34,7 @@ func create_grid(
 	grid_resource = Grid.new()
 	grid_resource.grid_size = grid_size
 	grid_resource.cell_size = cell_size
-	GridManager.setup_grid(grid_resource, tilemap_layer)
+	GridManager.setup_grid(grid_resource, [tilemap_layer])
 
 
 ## Clean up the grid setup

@@ -107,10 +107,7 @@ func _ready() -> void:
 
 
 func _create_panel_style() -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = COLOR_PANEL_BG
-	style.border_color = COLOR_BORDER
-	style.set_border_width_all(2)
+	var style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_BORDER, 2)
 	style.set_content_margin_all(4)
 	style.content_margin_left = 8
 	style.content_margin_right = 8

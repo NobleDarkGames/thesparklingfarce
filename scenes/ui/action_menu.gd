@@ -33,11 +33,7 @@ var _menu_session_id: int = -1
 ## Hover tracking
 var _hover_index: int = -1
 
-## Colors
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)  # Bright yellow
-const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)  # Subtle hover highlight
+## Colors - use centralized UIColors class
 
 ## Animation settings
 const MENU_SLIDE_DURATION: float = 0.15
@@ -118,9 +114,9 @@ func show_menu(actions: Array[String], default_action: String = "", session_id: 
 		var action: String = _item_actions[i]
 
 		if action in available_actions:
-			label.modulate = COLOR_NORMAL
+			label.modulate = UIColors.MENU_NORMAL
 		else:
-			label.modulate = COLOR_DISABLED
+			label.modulate = UIColors.MENU_DISABLED
 
 	# Auto-select default action (context-aware)
 	if default_action != "" and default_action in available_actions:
@@ -192,7 +188,7 @@ func reset_menu() -> void:
 
 	# Reset all labels to default state
 	for label: Label in _item_labels:
-		label.modulate = COLOR_DISABLED
+		label.modulate = UIColors.MENU_DISABLED
 		label.remove_theme_color_override("font_color")
 
 
@@ -300,17 +296,17 @@ func _update_selection_visual() -> void:
 		var is_hovered: bool = (i == _hover_index) and is_available
 
 		# Determine color based on state
-		var color: Color = COLOR_DISABLED
+		var color: Color = UIColors.MENU_DISABLED
 		if is_selected:
-			color = COLOR_SELECTED
+			color = UIColors.MENU_SELECTED
 		elif is_hovered:
-			color = COLOR_HOVER
+			color = UIColors.MENU_HOVER
 		elif is_available:
-			color = COLOR_NORMAL
+			color = UIColors.MENU_NORMAL
 
 		label.modulate = color
 		if is_selected:
-			label.add_theme_color_override("font_color", COLOR_SELECTED)
+			label.add_theme_color_override("font_color", UIColors.MENU_SELECTED)
 		else:
 			label.remove_theme_color_override("font_color")
 
@@ -327,7 +323,7 @@ func _pulse_selected_item() -> void:
 	# Quick brightness flash (pixel-perfect alternative to scale)
 	_pulse_tween = create_tween()
 	_pulse_tween.tween_property(label, "modulate", SELECTION_BRIGHTNESS_BOOST, SELECTION_PULSE_DURATION)
-	_pulse_tween.tween_property(label, "modulate", COLOR_SELECTED, SELECTION_PULSE_DURATION * 1.5)
+	_pulse_tween.tween_property(label, "modulate", UIColors.MENU_SELECTED, SELECTION_PULSE_DURATION * 1.5)
 
 
 ## Confirm current selection

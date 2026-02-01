@@ -28,6 +28,9 @@ extends Node2D
 const DEFAULT_CELL_SIZE: int = 32
 const DEFAULT_GRID_SIZE: Vector2i = Vector2i(20, 11)
 
+## TileMapLayers to exclude from terrain detection (visual-only layers)
+const EXCLUDED_TERRAIN_LAYERS: Array[String] = ["HighlightLayer"]
+
 # Preload scenes
 const ActionMenuScene: PackedScene = preload("res://scenes/ui/action_menu.tscn")
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
@@ -126,6 +129,26 @@ func _load_map_scene() -> bool:
 	return true
 
 
+## Collect TileMapLayer children from a map node for terrain detection
+## Excludes visual-only layers (HighlightLayer, etc.) and sorts by z_index descending
+## so the topmost layer is checked first for terrain
+func _collect_terrain_layers(map_node: Node2D) -> Array[TileMapLayer]:
+	var layers: Array[TileMapLayer] = []
+
+	for child: Node in map_node.get_children():
+		if child is TileMapLayer:
+			var layer_name: String = child.name
+			if layer_name not in EXCLUDED_TERRAIN_LAYERS:
+				layers.append(child as TileMapLayer)
+
+	# Sort by z_index descending (higher z = checked first, top layer wins)
+	layers.sort_custom(func(a: TileMapLayer, b: TileMapLayer) -> bool:
+		return a.z_index > b.z_index
+	)
+
+	return layers
+
+
 func _ready() -> void:
 	# Check if TriggerManager has battle data (from map trigger)
 	var trigger_battle_data: BattleData = TriggerManager.get_current_battle_data()
@@ -153,7 +176,9 @@ func _ready() -> void:
 		# Fallback for empty maps - use a default size
 		grid_resource.grid_size = DEFAULT_GRID_SIZE
 
-	GridManager.setup_grid(grid_resource, _ground_layer)
+	# Collect terrain layers from map (excludes visual-only layers like HighlightLayer)
+	var terrain_layers: Array[TileMapLayer] = _collect_terrain_layers(_map_node)
+	GridManager.setup_grid(grid_resource, terrain_layers)
 	GridManager.set_highlight_layer(_highlight_layer)
 
 	# Spawn player units from BattleData or PartyManager
@@ -333,8 +358,12 @@ func _ready() -> void:
 	if battle_data.pre_battle_dialogue:
 		if DialogManager.start_dialog_from_resource(battle_data.pre_battle_dialogue):
 			await DialogManager.dialog_ended
-			# Scene or battle_data may have been freed during dialogue
-			if not is_instance_valid(self) or not battle_data:
+			# Scene may have been freed during dialogue
+			if not is_instance_valid(self):
+				return
+			# battle_data Resource may have been freed during async operation
+			if not is_instance_valid(battle_data):
+				push_warning("BattleLoader: battle_data freed during pre-battle dialogue")
 				return
 
 	# Emit pre-battle event (mods can cancel)

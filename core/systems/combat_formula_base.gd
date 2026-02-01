@@ -28,7 +28,7 @@ const XP_MINIMUM_MULTIPLIER: float = 0.5
 
 ## Calculate physical attack damage
 ## Override this to change the core damage formula
-## Default: (STR + Weapon ATK - DEF) * variance, min 1
+## Default: (STR + Weapon ATK - DEF) * weapon_bonus * variance, min 1
 func calculate_physical_damage(attacker_stats: UnitStats, defender_stats: UnitStats) -> int:
 	if not attacker_stats or not defender_stats:
 		return 0
@@ -37,6 +37,10 @@ func calculate_physical_damage(attacker_stats: UnitStats, defender_stats: UnitSt
 	attack_power += attacker_stats.get_weapon_attack_power()
 	var defense_power: int = defender_stats.get_effective_defense()
 	var base_damage: int = attack_power - defense_power
+
+	# Apply weapon type bonuses (movement type and unit tag multipliers)
+	var weapon_multiplier: float = calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)
+	base_damage = int(base_damage * weapon_multiplier)
 
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var damage: int = int(base_damage * variance)
@@ -57,6 +61,10 @@ func calculate_physical_damage_with_terrain(
 	attack_power += attacker_stats.get_weapon_attack_power()
 	var effective_defense: int = defender_stats.get_effective_defense() + terrain_defense_bonus
 	var base_damage: int = attack_power - effective_defense
+
+	# Apply weapon type bonuses (movement type and unit tag multipliers)
+	var weapon_multiplier: float = calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)
+	base_damage = int(base_damage * weapon_multiplier)
 
 	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var damage: int = int(base_damage * variance)
@@ -179,3 +187,10 @@ func calculate_experience_gain(
 		multiplier = maxf(XP_MINIMUM_MULTIPLIER, 1.0 + (level_diff * XP_LEVEL_PENALTY_PERCENT))
 
 	return maxi(1, int(base_xp * multiplier))
+
+
+## Calculate weapon bonus multiplier for damage (movement types, unit tags, etc.)
+## Override this to implement custom bonus systems (e.g., elemental weaknesses)
+## Default: Delegates to CombatCalculator's static implementation
+func calculate_weapon_bonus_multiplier(attacker_stats: UnitStats, defender_stats: UnitStats) -> float:
+	return CombatCalculator._calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)

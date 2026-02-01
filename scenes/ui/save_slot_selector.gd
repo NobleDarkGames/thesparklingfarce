@@ -181,8 +181,9 @@ func _start_new_game(hero_name: String) -> void:
 	var config: NewGameConfigData = ModLoader.get_new_game_config() as NewGameConfigData
 	if config:
 		# Set starting gold
-		SaveManager.current_save = SaveData.new()
-		SaveManager.current_save.slot_number = _selected_slot
+		var new_save: SaveData = SaveData.new()
+		new_save.slot_number = _selected_slot
+		SaveManager.set_current_save(new_save)
 		SaveManager.current_save.gold = config.starting_gold
 		SaveManager.current_save.current_location = config.starting_location_label
 
@@ -257,8 +258,8 @@ func _load_game() -> void:
 		push_error("SaveSlotSelector: Failed to load save from slot %d" % _selected_slot)
 		return
 
-	# Set as current save
-	SaveManager.current_save = save_data
+	# Set as current save (starts session timer for playtime tracking)
+	SaveManager.set_current_save(save_data)
 
 	# Restore story flags
 	var saved_flags: Dictionary = save_data.story_flags

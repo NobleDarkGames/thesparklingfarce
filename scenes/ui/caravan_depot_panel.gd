@@ -180,13 +180,7 @@ func _build_ui() -> void:
 	panel.size = panel.custom_minimum_size
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_KEEP_SIZE)
 
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = COLOR_PANEL_BG
-	panel_style.border_width_bottom = 1
-	panel_style.border_width_left = 1
-	panel_style.border_width_right = 1
-	panel_style.border_width_top = 1
-	panel_style.border_color = COLOR_BORDER
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_BORDER, 1)
 	panel_style.content_margin_bottom = 4
 	panel_style.content_margin_left = 4
 	panel_style.content_margin_right = 4
@@ -303,13 +297,7 @@ func _build_ui() -> void:
 	_description_panel.name = "DescriptionPanel"
 	_description_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var desc_style: StyleBoxFlat = StyleBoxFlat.new()
-	desc_style.bg_color = COLOR_DESC_BG
-	desc_style.border_width_bottom = 1
-	desc_style.border_width_left = 1
-	desc_style.border_width_right = 1
-	desc_style.border_width_top = 1
-	desc_style.border_color = COLOR_DESC_BORDER
+	var desc_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_DESC_BG, COLOR_DESC_BORDER, 1)
 	desc_style.content_margin_bottom = 2
 	desc_style.content_margin_left = 2
 	desc_style.content_margin_right = 2
