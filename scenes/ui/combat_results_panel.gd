@@ -97,6 +97,8 @@ func show_results() -> void:
 	var tween: Tween = create_tween()
 	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# First: Display combat actions (attack/spell info)
 	for action_entry: String in _combat_actions:
@@ -117,6 +119,8 @@ func show_results() -> void:
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(ENTRY_STAGGER).timeout
+		if not is_instance_valid(self):
+			return
 
 	# Clear combat actions queue
 	_combat_actions.clear()
@@ -149,6 +153,8 @@ func show_results() -> void:
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(ENTRY_STAGGER).timeout
+		if not is_instance_valid(self):
+			return
 
 	# Add batched formation entry if any allies received formation XP
 	if formation_count > 0:
@@ -164,6 +170,8 @@ func show_results() -> void:
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(ENTRY_STAGGER).timeout
+		if not is_instance_valid(self):
+			return
 
 	# Clear the XP queue
 	_xp_entries.clear()
@@ -271,5 +279,7 @@ func _dismiss() -> void:
 	var tween: Tween = create_tween()
 	tween.tween_property(panel, "modulate:a", 0.0, 0.15)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	results_dismissed.emit()

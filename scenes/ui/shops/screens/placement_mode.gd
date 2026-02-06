@@ -237,7 +237,7 @@ func _show_error(message: String) -> void:
 	# Brief error feedback
 	var label: Label = Label.new()
 	label.text = message
-	label.add_theme_color_override("font_color", COLOR_ERROR)
+	label.add_theme_color_override("font_color", UIColors.RESULT_ERROR)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# Position at bottom

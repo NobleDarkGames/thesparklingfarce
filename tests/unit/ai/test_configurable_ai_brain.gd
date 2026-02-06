@@ -587,7 +587,7 @@ func test_behavior_validation_passes_with_valid_id() -> void:
 	var behaviors: Array[AIBehaviorData] = _create_test_behavior_set()
 
 	for behavior: AIBehaviorData in behaviors:
-		var validation: Dictionary = behavior.validate()
+		var validation: Dictionary = behavior.validate_detailed()
 		assert_bool(validation.valid).is_true()
 
 
@@ -595,7 +595,7 @@ func test_behavior_validation_fails_with_empty_id() -> void:
 	var behavior: AIBehaviorData = AIBehaviorData.new()
 	behavior.behavior_id = ""  # Empty ID should fail validation
 
-	var validation: Dictionary = behavior.validate()
+	var validation: Dictionary = behavior.validate_detailed()
 	assert_bool(validation.valid).is_false()
 	assert_int(validation.errors.size()).is_greater(0)
 

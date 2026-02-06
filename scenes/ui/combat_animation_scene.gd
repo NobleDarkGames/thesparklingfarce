@@ -219,6 +219,9 @@ func _get_xp_source_color(source: String) -> String:
 ## Start a combat session - fades in and sets up the initial combatants
 ## Call this ONCE at the start of a combat exchange
 func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
+	if _session_active:
+		push_warning("CombatAnimationScene: Session already active")
+		return
 	_session_active = true
 	_initial_attacker = initial_attacker
 	_initial_defender = initial_defender
@@ -230,6 +233,14 @@ func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 	_initial_attacker_died = false
 	_initial_defender_died = false
 
+	# Clean up old sprites from any previous session
+	if _right_sprite and is_instance_valid(_right_sprite):
+		_right_sprite.queue_free()
+		_right_sprite = null
+	if _left_sprite and is_instance_valid(_left_sprite):
+		_left_sprite.queue_free()
+		_left_sprite = null
+
 	# SF2 POSITIONING: Player ALWAYS on RIGHT, Enemy ALWAYS on LEFT
 	# (regardless of who initiated the attack)
 	_right_unit = initial_attacker if initial_attacker.is_player_unit() else initial_defender
@@ -237,10 +248,14 @@ func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 
 	# Set up combatants visually (player on RIGHT with back view, enemy on LEFT with front view)
 	_right_sprite = await _setup_combatant_and_return_sprite(_right_unit, attacker_container, attacker_name, attacker_hp_bar)
+	if not is_instance_valid(self):
+		return
 	if not is_instance_valid(_right_sprite):
 		push_warning("CombatAnimationScene: Failed to set up right combatant sprite")
 		return
 	_left_sprite = await _setup_combatant_and_return_sprite(_left_unit, defender_container, defender_name, defender_hp_bar)
+	if not is_instance_valid(self):
+		return
 	if not is_instance_valid(_left_sprite):
 		push_warning("CombatAnimationScene: Failed to set up left combatant sprite")
 		return
@@ -249,6 +264,8 @@ func start_session(initial_attacker: Unit, initial_defender: Unit) -> void:
 	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(background, "modulate:a", 1.0, _get_duration(BASE_FADE_IN_DURATION))
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Queue a combat phase to be executed
@@ -271,19 +288,29 @@ func execute_all_phases() -> void:
 		# Handle role swap for counter attacks
 		if phase.phase_type == CombatPhase.PhaseType.COUNTER_ATTACK:
 			await _swap_combatant_roles()
+			if not is_instance_valid(self):
+				return
 
 		# Show appropriate banner
 		if phase.is_double_attack:
 			await show_custom_banner("DOUBLE ATTACK!", COLOR_DOUBLE_ATTACK_BANNER)
+			if not is_instance_valid(self):
+				return
 		elif phase.is_counter:
 			await show_custom_banner("COUNTER!", COLOR_COUNTER_BANNER)
+			if not is_instance_valid(self):
+				return
 
 		# Execute the phase animation
 		await _execute_phase(phase)
+		if not is_instance_valid(self):
+			return
 
 		# Brief pause between phases (unless this is the last one)
 		if i < _combat_phases.size() - 1 and not _should_skip_remaining_phases():
 			await get_tree().create_timer(_get_pause(BASE_PHASE_TRANSITION_PAUSE)).timeout
+			if not is_instance_valid(self):
+				return
 
 
 ## Finish the combat session - displays XP and fades out ONCE
@@ -292,14 +319,20 @@ func finish_session() -> void:
 	# Show the panel if EITHER combat actions OR XP entries exist
 	if not _combat_actions.is_empty() or not _xp_entries.is_empty():
 		await _display_xp_entries()
+		if not is_instance_valid(self):
+			return
 
 	# Pause to let player see final result
 	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 	# Fade out everything
 	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(background, "modulate:a", 0.0, _get_duration(BASE_FADE_OUT_DURATION))
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# Hide the entire CanvasLayer
 	visible = false
@@ -349,32 +382,46 @@ func _execute_phase(phase: CombatPhase) -> void:
 	# Handle healing phases differently
 	if phase.phase_type == CombatPhase.PhaseType.ITEM_HEAL or phase.phase_type == CombatPhase.PhaseType.SPELL_HEAL:
 		await _play_heal_animation(phase.heal_amount, phase.defender)
+		if not is_instance_valid(self):
+			return
 		# Healing phases don't cause death, so skip death check
 		return
 
 	# Handle status effect phases (no damage, just effect application)
 	if phase.phase_type == CombatPhase.PhaseType.SPELL_STATUS:
 		await _play_status_animation(phase.was_resisted, phase.status_effect_name, phase.defender)
+		if not is_instance_valid(self):
+			return
 		# Status phases don't cause death
 		return
 
 	# Play appropriate animation based on hit/miss/critical
 	if phase.was_miss:
 		await _play_miss_animation()
+		if not is_instance_valid(self):
+			return
 	elif phase.was_critical:
 		await _play_critical_animation(phase.damage, phase.defender)
+		if not is_instance_valid(self):
+			return
 	else:
 		await _play_hit_animation(phase.damage, phase.defender)
+		if not is_instance_valid(self):
+			return
 
 	# Check for death after this phase
 	if phase.defender == _initial_attacker:
 		_initial_attacker_died = _is_unit_dead(_initial_attacker)
 		if _initial_attacker_died:
 			await _play_death_animation()
+			if not is_instance_valid(self):
+				return
 	elif phase.defender == _initial_defender:
 		_initial_defender_died = _is_unit_dead(_initial_defender)
 		if _initial_defender_died:
 			await _play_death_animation()
+			if not is_instance_valid(self):
+				return
 
 
 # =============================================================================
@@ -393,6 +440,8 @@ func play_combat_animation(
 ) -> void:
 	# Create a single-phase session for backwards compatibility
 	await start_session(attacker, defender)
+	if not is_instance_valid(self):
+		return
 
 	# Create and queue the single phase
 	var phase: CombatPhase
@@ -403,7 +452,11 @@ func play_combat_animation(
 
 	queue_phase(phase)
 	await execute_all_phases()
+	if not is_instance_valid(self):
+		return
 	await finish_session()
+	if not is_instance_valid(self):
+		return
 
 
 # =============================================================================
@@ -599,8 +652,12 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * direction), move_duration)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	await get_tree().create_timer(_get_pause(BASE_IMPACT_PAUSE_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 	# Apply damage at impact
 	_apply_damage_at_impact(damage, target)
@@ -616,6 +673,8 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Play critical hit animation
@@ -631,6 +690,8 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	var tween: Tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position:x", attacker_start_pos.x + (ATTACK_MOVE_DISTANCE * 1.5 * direction), move_duration)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	_screen_shake()
 
@@ -645,10 +706,14 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 
 	await get_tree().create_timer(_get_pause(BASE_CRIT_PAUSE_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 	tween = _get_pooled_tween()
 	tween.tween_property(atk_sprite, "position", attacker_start_pos, move_duration)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Play miss animation
@@ -671,6 +736,8 @@ func _play_miss_animation() -> void:
 	dodge_tween.tween_property(def_sprite, "position:x", defender_start_pos.x - (30 * direction), move_duration)
 
 	await attack_tween.finished
+	if not is_instance_valid(self):
+		return
 
 	_style_label(damage_label, "MISS", Color.GRAY)
 	damage_label.visible = true
@@ -687,6 +754,8 @@ func _play_miss_animation() -> void:
 	return_tween.tween_property(def_sprite, "position", defender_start_pos, move_duration)
 
 	await return_tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Play healing animation (for item heal and spell heal phases)
@@ -711,6 +780,8 @@ func _play_heal_animation(heal_amount: int, target: Unit) -> void:
 
 	# Brief pause
 	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 
 ## Play status effect animation (for SPELL_STATUS phases)
@@ -728,6 +799,8 @@ func _play_status_animation(was_resisted: bool, status_name: String, _target: Un
 
 	# Brief pause
 	await get_tree().create_timer(_get_pause(BASE_RESULT_PAUSE_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 
 ## Show healing number with float animation (green color)
@@ -812,6 +885,10 @@ func _flash_sprite(sprite: Control, flash_color: Color, duration: float) -> void
 	var original_modulate: Color = sprite.modulate
 	sprite.modulate = flash_color
 	await get_tree().create_timer(duration).timeout
+	if not is_instance_valid(self):
+		return
+	if not is_instance_valid(sprite):
+		return
 	sprite.modulate = original_modulate
 
 
@@ -903,6 +980,8 @@ func _screen_shake() -> void:
 		)
 		offset = original_offset + shake_amount
 		await get_tree().create_timer(shake_delay).timeout
+		if not is_instance_valid(self):
+			return
 
 	offset = original_offset
 
@@ -933,12 +1012,18 @@ func show_custom_banner(text: String, color: Color) -> void:
 	# Settle brightness to normal
 	tween.tween_property(banner_label, "modulate", Color(color.r, color.g, color.b, 1.0), _get_duration(0.25))
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	await get_tree().create_timer(_get_pause(0.4)).timeout
+	if not is_instance_valid(self):
+		return
 
 	tween = _get_pooled_tween()
 	tween.tween_property(banner_label, "modulate:a", 0.0, _get_duration(0.2))
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	banner_label.queue_free()
 
@@ -1000,6 +1085,8 @@ func _play_death_animation() -> void:
 	_set_combat_log("Defeated!", Color.RED)
 
 	await get_tree().create_timer(_get_pause(0.2)).timeout
+	if not is_instance_valid(self):
+		return
 
 	var death_tween: Tween = _get_pooled_tween()
 	death_tween.set_parallel(true)
@@ -1009,7 +1096,11 @@ func _play_death_animation() -> void:
 	death_tween.tween_property(_get_defender_name(), "modulate:a", 0.0, _get_duration(BASE_DEATH_ANIMATION_DURATION))
 
 	await death_tween.finished
+	if not is_instance_valid(self):
+		return
 	await get_tree().create_timer(_get_pause(BASE_DEATH_PAUSE_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 
 # =============================================================================
@@ -1062,6 +1153,8 @@ func _display_xp_entries() -> void:
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(_get_pause(BASE_XP_ENTRY_STAGGER * 2.0)).timeout
+		if not is_instance_valid(self):
+			return
 
 	# Clear combat actions queue
 	_combat_actions.clear()
@@ -1086,12 +1179,18 @@ func _display_xp_entries() -> void:
 		AudioManager.play_sfx("xp_gain", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(_get_pause(BASE_XP_ENTRY_STAGGER * 2.0)).timeout
+		if not is_instance_valid(self):
+			return
 
 	await get_tree().create_timer(_get_pause(BASE_XP_DISPLAY_DURATION)).timeout
+	if not is_instance_valid(self):
+		return
 
 	var fade_tween: Tween = _get_pooled_tween()
 	fade_tween.tween_property(xp_panel, "modulate:a", 0.0, _get_duration(0.3))
 	await fade_tween.finished
+	if not is_instance_valid(self):
+		return
 
 	xp_panel.queue_free()
 	_xp_entries.clear()

@@ -71,7 +71,6 @@ window/stretch/aspect="ignore"
 [editor]
 
 version_control/plugin_name="GitPlugin"
-version_control/autoload_on_startup=true
 
 [editor_plugins]
 
@@ -89,6 +88,11 @@ folder_colors={
 "res://templates/": "yellow",
 "res://user_content/": "orange"
 }
+
+[gdunit4]
+
+settings/common/update_notification_enabled=false
+settings/common/version_control/autoload_on_startup=true
 
 [input]
 

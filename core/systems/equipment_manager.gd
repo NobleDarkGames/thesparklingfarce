@@ -57,6 +57,12 @@ func equip_item(
 	if not save_data:
 		return {success = false, error = "Invalid save data", unequipped_item_id = ""}
 
+	# Validate character_resource_id for signal emissions
+	var character_id: String = save_data.character_resource_id
+	if character_id.is_empty():
+		push_warning("EquipmentManager: save_data.character_resource_id is empty, using fallback for signals")
+		character_id = save_data.character_mod_id if not save_data.character_mod_id.is_empty() else "unknown"
+
 	# Build context for signals
 	var context: Dictionary = {
 		"save_data": save_data,
@@ -91,6 +97,13 @@ func equip_item(
 		if not old_entry.get("curse_broken", false):
 			return {success = false, error = "Cannot replace cursed item", unequipped_item_id = ""}
 
+	# Remove item from inventory before equipping
+	save_data.remove_item_from_inventory(item_id)
+
+	# Add old item back to inventory (if any)
+	if not old_item_id.is_empty():
+		save_data.add_item_to_inventory(old_item_id)
+
 	# Perform the equip
 	var mod_id: String = _get_item_mod_id(item_id)
 	var new_entry: Dictionary = {
@@ -118,7 +131,7 @@ func equip_item(
 
 	# Emit signals
 	item_equipped.emit(
-		save_data.character_resource_id,
+		character_id,
 		slot_id,
 		item_id,
 		old_item_id
@@ -129,7 +142,7 @@ func equip_item(
 	# Check for curse
 	var new_item: ItemData = _get_item_data(item_id)
 	if new_item and new_item.is_cursed:
-		curse_applied.emit(save_data.character_resource_id, slot_id, item_id)
+		curse_applied.emit(character_id, slot_id, item_id)
 
 	return {success = true, error = "", unequipped_item_id = old_item_id}
 
@@ -168,6 +181,9 @@ func _unequip_slot(
 		if equipped_entry.get("slot", "") == slot_id:
 			save_data.equipped_items.remove_at(i)
 			break
+
+	# Add unequipped item back to inventory
+	save_data.add_item_to_inventory(old_item_id)
 
 	# Refresh unit cache if provided
 	if unit and unit.has_method("refresh_equipment_cache"):
@@ -426,9 +442,8 @@ func _get_current_class(save_data: CharacterSaveData) -> ClassData:
 	return null
 
 
-## Get mod ID for an item (tries to find it in registry)
+## Get mod ID for an item (looks up the source mod in the registry)
 func _get_item_mod_id(item_id: String) -> String:
-	# For now, return empty string - ModRegistry tracks this internally
-	# The proper way would be to query the registry, but equipped_items
-	# format already includes mod_id from the original registration
-	return ""
+	if item_id.is_empty():
+		return ""
+	return ModLoader.registry.get_resource_source(item_id, "item")

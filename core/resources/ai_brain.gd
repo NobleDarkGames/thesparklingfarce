@@ -28,6 +28,8 @@ func execute_async(unit: Unit, context: Dictionary) -> void:
 
 	# Wait for unit movement animation to complete
 	await unit.await_movement_completion()
+	if not is_instance_valid(unit):
+		return
 
 
 ## Helper: Get all player units from context
@@ -163,7 +165,7 @@ func _find_best_adjacent_cell(from: Vector2i, target: Vector2i, movement_type: i
 			continue
 
 		# Check if walkable
-		var terrain_cost: int = GridManager.get_terrain_cost(cell, movement_type)
+		var terrain_cost: float = GridManager.get_terrain_cost(cell, movement_type)
 		if terrain_cost >= GridManager.MAX_TERRAIN_COST:
 			continue
 
@@ -267,3 +269,5 @@ func attack_target(unit: Unit, target: Unit) -> void:
 
 	# Delegate to BattleManager for actual combat execution
 	await BattleManager.execute_ai_attack(unit, target)
+	# Unit or target may have been freed during combat (counterattack kill, scene change)
+	# Callers should check is_instance_valid after calling this method

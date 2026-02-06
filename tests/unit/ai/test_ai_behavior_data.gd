@@ -301,7 +301,7 @@ func test_evaluate_phase_changes_unknown_trigger_ignored() -> void:
 
 func test_validate_passes_with_valid_data() -> void:
 	var behavior: AIBehaviorData = _create_test_behavior("valid_behavior", "aggressive", "aggressive")
-	var result: Dictionary = behavior.validate()
+	var result: Dictionary = behavior.validate_detailed()
 	assert_bool(result.valid).is_true()
 	assert_int(result.errors.size()).is_equal(0)
 
@@ -309,7 +309,7 @@ func test_validate_passes_with_valid_data() -> void:
 func test_validate_fails_with_empty_id() -> void:
 	var behavior: AIBehaviorData = AIBehaviorData.new()
 	behavior.behavior_id = ""
-	var result: Dictionary = behavior.validate()
+	var result: Dictionary = behavior.validate_detailed()
 	assert_bool(result.valid).is_false()
 	assert_bool("Behavior ID cannot be empty" in result.errors[0]).is_true()
 
@@ -317,7 +317,7 @@ func test_validate_fails_with_empty_id() -> void:
 func test_validate_fails_with_whitespace_only_id() -> void:
 	var behavior: AIBehaviorData = AIBehaviorData.new()
 	behavior.behavior_id = "   "
-	var result: Dictionary = behavior.validate()
+	var result: Dictionary = behavior.validate_detailed()
 	assert_bool(result.valid).is_false()
 
 
@@ -326,7 +326,7 @@ func test_validate_fails_with_phase_missing_trigger() -> void:
 	behavior.behavior_phases = [
 		{"value": 50, "changes": {"role": "aggressive"}}  # Missing "trigger"
 	]
-	var result: Dictionary = behavior.validate()
+	var result: Dictionary = behavior.validate_detailed()
 	assert_bool(result.valid).is_false()
 	assert_bool("missing 'trigger'" in result.errors[0]).is_true()
 
@@ -336,7 +336,7 @@ func test_validate_fails_with_phase_missing_changes() -> void:
 	behavior.behavior_phases = [
 		{"trigger": "hp_below", "value": 50}  # Missing "changes"
 	]
-	var result: Dictionary = behavior.validate()
+	var result: Dictionary = behavior.validate_detailed()
 	assert_bool(result.valid).is_false()
 	assert_bool("missing 'changes'" in result.errors[0]).is_true()
 
@@ -349,7 +349,7 @@ func test_validate_accumulates_multiple_errors() -> void:
 		{"trigger": "hp_below"}  # Error 3: missing changes
 	]
 
-	var result: Dictionary = behavior.validate()
+	var result: Dictionary = behavior.validate_detailed()
 	assert_bool(result.valid).is_false()
 	assert_int(result.errors.size()).is_equal(3)
 

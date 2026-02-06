@@ -288,9 +288,9 @@ func _format_heal_text(attacker_name: String, defender_name: String, is_self: bo
 
 
 ## Helper to safely get a unit's display name
-## Returns "Unknown" if unit is null or method returns non-String
+## Returns "Unknown" if unit is null, freed, or method returns non-String
 func _get_unit_display_name(unit: Unit) -> String:
-	if not unit or not unit.has_method("get_display_name"):
+	if not is_instance_valid(unit) or not unit.has_method("get_display_name"):
 		return "Unknown"
 	var result: Variant = unit.call("get_display_name")
 	if result is String:

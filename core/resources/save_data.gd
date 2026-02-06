@@ -347,9 +347,17 @@ func _calculate_average_level() -> int:
 ## Format playtime as HH:MM:SS
 ## @return: Formatted playtime string
 func _format_playtime() -> String:
-	var hours: int = playtime_seconds / 3600
-	var minutes: int = (playtime_seconds % 3600) / 60
-	var seconds: int = playtime_seconds % 60
+	return SaveData.format_playtime(playtime_seconds)
+
+
+## Format a playtime value (in seconds) as HH:MM:SS.
+## Static so other classes (e.g. SlotMetadata) can reuse without duplication.
+## @param total_seconds: Playtime in seconds
+## @return: Formatted playtime string
+static func format_playtime(total_seconds: int) -> String:
+	var hours: int = total_seconds / 3600
+	var minutes: int = (total_seconds % 3600) / 60
+	var seconds: int = total_seconds % 60
 
 	return "%02d:%02d:%02d" % [hours, minutes, seconds]
 

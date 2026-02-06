@@ -30,6 +30,12 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# Clear freed targets to prevent accessing deleted objects
+	if _cinematic_target and not is_instance_valid(_cinematic_target):
+		_cinematic_target = null
+	if follow_target and not is_instance_valid(follow_target):
+		follow_target = null
+
 	# Cinematic target takes priority over normal follow target
 	var active_target: Node2D = _cinematic_target if _cinematic_target else follow_target
 	if not active_target:

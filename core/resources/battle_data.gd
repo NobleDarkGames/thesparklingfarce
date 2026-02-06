@@ -172,7 +172,7 @@ func get_reinforcements_for_turn(turn: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for enemy: Dictionary in enemies:
 		if "spawn_delay" in enemy:
-			var delay: int = enemy["spawn_delay"] as int
+			var delay: int = int(enemy["spawn_delay"])
 			if delay == turn:
 				result.append(enemy)
 	return result
@@ -184,7 +184,7 @@ func get_all_pending_reinforcements(current_turn: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for enemy: Dictionary in enemies:
 		if "spawn_delay" in enemy:
-			var delay: int = enemy["spawn_delay"] as int
+			var delay: int = int(enemy["spawn_delay"])
 			if delay > current_turn:
 				result.append(enemy)
 	return result
@@ -194,7 +194,7 @@ func get_all_pending_reinforcements(current_turn: int) -> Array[Dictionary]:
 func has_pending_reinforcements(current_turn: int) -> bool:
 	for enemy: Dictionary in enemies:
 		if "spawn_delay" in enemy:
-			var delay: int = enemy["spawn_delay"] as int
+			var delay: int = int(enemy["spawn_delay"])
 			if delay > current_turn:
 				return true
 	return false

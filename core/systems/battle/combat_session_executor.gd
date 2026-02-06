@@ -237,6 +237,16 @@ func execute_skip_mode(
 			# Healing doesn't have damage XP pooling - XP is handled separately
 			continue
 
+		# Handle status effect phases (SPELL_STATUS)
+		# Status application happens in BattleManager._apply_spell_status() after
+		# the combat session returns — executor only plays the sound effect.
+		if phase.phase_type == CombatPhase.PhaseType.SPELL_STATUS:
+			AudioManager.play_sfx("spell_status", AudioManager.SFXCategory.COMBAT)
+			# Emit combat resolved signal for status phases
+			if context.combat_resolved_signal:
+				context.combat_resolved_signal.emit(phase.attacker, phase.defender, 0, not phase.was_resisted, false)
+			continue
+
 		# Play sound effect (for attack phases)
 		if not phase.was_miss:
 			if phase.was_critical:

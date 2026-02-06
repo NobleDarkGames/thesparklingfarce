@@ -120,11 +120,13 @@ func _get_command_summary() -> String:
 	
 	match cmd_type:
 		"dialog_line":
+			var speaker: String = params.get("speaker", params.get("character_id", ""))
 			var text: String = params.get("text", "")
+			var prefix: String = "[%s] " % speaker if not speaker.is_empty() else ""
 			if text.length() > 30:
-				return '"%s..."' % text.substr(0, 30)
+				return '%s"%s..."' % [prefix, text.substr(0, 30)]
 			elif not text.is_empty():
-				return '"%s"' % text
+				return '%s"%s"' % [prefix, text]
 		"wait":
 			var duration: float = float(params.get("duration", 1.0))
 			return "%.1fs" % duration

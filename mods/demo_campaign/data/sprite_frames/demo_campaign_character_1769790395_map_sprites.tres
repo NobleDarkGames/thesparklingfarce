@@ -1,0 +1,82 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3 uid="uid://b1q22ni1mw3a2"]
+
+[ext_resource type="Texture2D" uid="uid://1ijgeip4076c" path="res://mods/demo_campaign/assets/sprites/map/Character_Basic_4.png" id="1_4kbn3"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fcwpi"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7asap"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1pccq"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_804at"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p1hhv"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_me0l2"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_151e1"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jbgua"]
+atlas = ExtResource("1_4kbn3")
+region = Rect2(32, 96, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fcwpi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7asap")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1pccq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_804at")
+}],
+"loop": true,
+"name": &"walk_left",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p1hhv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_me0l2")
+}],
+"loop": true,
+"name": &"walk_right",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_151e1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jbgua")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 4.0
+}]

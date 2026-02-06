@@ -40,7 +40,7 @@ func before() -> void:
 	_grid_resource = Grid.new()
 	_grid_resource.grid_size = Vector2i(20, 20)
 	_grid_resource.cell_size = 32
-	GridManager.setup_grid(_grid_resource, _tilemap_layer)
+	GridManager.setup_grid(_grid_resource, [_tilemap_layer])
 
 	# Connect signals via tracker
 	_tracker.track_with_callback(CinematicsManager.cinematic_started, _on_cinematic_started)

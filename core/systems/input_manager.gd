@@ -657,6 +657,8 @@ func _on_enter_exploring_movement() -> void:
 		_show_movement_range()
 
 	# Position cursor on unit
+	if not active_unit:
+		return
 	current_cursor_position = active_unit.grid_position
 
 	# Show cursor at unit position
@@ -680,6 +682,9 @@ func _on_enter_direct_movement() -> void:
 	# Show active unit stats
 	if stats_panel and active_unit:
 		stats_panel.show_unit_stats(active_unit)
+
+	if not active_unit:
+		return
 
 	# Initialize movement tracking
 	movement_start_cell = active_unit.grid_position
@@ -1530,6 +1535,8 @@ func _select_action(action: String, signal_session_id: int) -> void:
 
 ## Cancel action menu and return to previous state
 func _cancel_action_menu() -> void:
+	if not active_unit:
+		return
 
 	# SF2-STYLE: B button in menu returns to direct movement mode
 	# If unit has moved from their starting position, return them to start

@@ -25,15 +25,11 @@ signal party_changed()
 # CONSTANTS
 # =============================================================================
 
-const COLOR_PANEL_BG: Color = Color(0.1, 0.1, 0.15, 0.95)
-const COLOR_PANEL_BORDER: Color = Color(0.4, 0.35, 0.25, 1.0)
-const COLOR_SLOT_EMPTY: Color = Color(0.2, 0.2, 0.25, 0.8)
-const COLOR_SLOT_FILLED: Color = Color(0.25, 0.25, 0.3, 0.9)
-const COLOR_SLOT_SELECTED: Color = Color(0.4, 0.35, 0.2, 1.0)
-const COLOR_SLOT_HERO: Color = Color(0.3, 0.25, 0.15, 1.0)
-const COLOR_TEXT_NORMAL: Color = Color(0.85, 0.85, 0.85, 1.0)
-const COLOR_TEXT_SELECTED: Color = Color(1.0, 0.95, 0.4, 1.0)
-const COLOR_TEXT_DISABLED: Color = Color(0.5, 0.5, 0.5, 1.0)
+## Colors - use centralized UIColors class (unique slot colors stay local)
+const COLOR_SLOT_EMPTY: Color = Color(0.2, 0.2, 0.25, 0.8)  ## Unique party slot
+const COLOR_SLOT_FILLED: Color = Color(0.25, 0.25, 0.3, 0.9)  ## Unique party slot
+const COLOR_SLOT_SELECTED: Color = Color(0.4, 0.35, 0.2, 1.0)  ## Unique party slot
+const COLOR_SLOT_HERO: Color = Color(0.3, 0.25, 0.15, 1.0)  ## Unique hero slot
 
 const SLOT_SIZE: Vector2 = Vector2(56, 56)
 const SLOT_SPACING: int = 4
@@ -117,7 +113,7 @@ func _create_slot_styles() -> void:
 	# Swap source style (yellow border)
 	_style_swap_source = base.duplicate() as StyleBoxFlat
 	_style_swap_source.bg_color = COLOR_SLOT_FILLED
-	_style_swap_source.border_color = COLOR_TEXT_SELECTED
+	_style_swap_source.border_color = UIColors.SETTINGS_SELECTED
 
 	# Normal border style (for resetting)
 	_style_normal_border = base.duplicate() as StyleBoxFlat
@@ -173,7 +169,7 @@ func _build_ui() -> void:
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_panel.custom_minimum_size = Vector2(400, 300)
 
-	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_PANEL_BORDER, 2, 4)
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(UIColors.PANEL_BG, UIColors.PANEL_BORDER, 2, 4)
 	panel_style.content_margin_left = 16
 	panel_style.content_margin_right = 16
 	panel_style.content_margin_top = 12
@@ -187,7 +183,7 @@ func _build_ui() -> void:
 	_panel.add_child(content)
 
 	# Title
-	_title_label = _create_styled_label("Party Management", 24, COLOR_PANEL_BORDER, HORIZONTAL_ALIGNMENT_CENTER)
+	_title_label = _create_styled_label("Party Management", 24, UIColors.PANEL_BORDER, HORIZONTAL_ALIGNMENT_CENTER)
 	content.add_child(_title_label)
 
 	# Separator
@@ -204,7 +200,7 @@ func _build_ui() -> void:
 	active_section.add_theme_constant_override("separation", 4)
 	split.add_child(active_section)
 
-	var active_label: Label = _create_styled_label("Active Party", 16, COLOR_TEXT_NORMAL)
+	var active_label: Label = _create_styled_label("Active Party", 16, UIColors.SETTINGS_LABEL)
 	active_section.add_child(active_label)
 
 	_active_grid = GridContainer.new()
@@ -225,7 +221,7 @@ func _build_ui() -> void:
 	right_section.custom_minimum_size.x = 140
 	split.add_child(right_section)
 
-	var reserve_label: Label = _create_styled_label("Reserves", 16, COLOR_TEXT_NORMAL)
+	var reserve_label: Label = _create_styled_label("Reserves", 16, UIColors.SETTINGS_LABEL)
 	right_section.add_child(reserve_label)
 
 	# Reserve slots container (scrollable if needed later)
@@ -236,7 +232,7 @@ func _build_ui() -> void:
 	# Info panel
 	_info_panel = PanelContainer.new()
 	_info_panel.custom_minimum_size = Vector2(130, 70)
-	var info_style: StyleBoxFlat = UIUtils.create_panel_style(Color(0.15, 0.15, 0.2, 0.9), COLOR_PANEL_BORDER, 1)
+	var info_style: StyleBoxFlat = UIUtils.create_panel_style(Color(0.15, 0.15, 0.2, 0.9), UIColors.PANEL_BORDER, 1)
 	info_style.content_margin_left = 8
 	info_style.content_margin_right = 8
 	info_style.content_margin_top = 6
@@ -248,20 +244,20 @@ func _build_ui() -> void:
 	info_content.add_theme_constant_override("separation", 2)
 	_info_panel.add_child(info_content)
 
-	_info_name = _create_styled_label("---", 16, COLOR_TEXT_SELECTED)
+	_info_name = _create_styled_label("---", 16, UIColors.SETTINGS_SELECTED)
 	info_content.add_child(_info_name)
 
-	_info_class = _create_styled_label("", 16, COLOR_TEXT_NORMAL)
+	_info_class = _create_styled_label("", 16, UIColors.SETTINGS_LABEL)
 	info_content.add_child(_info_class)
 
-	_info_level = _create_styled_label("", 16, COLOR_TEXT_NORMAL)
+	_info_level = _create_styled_label("", 16, UIColors.SETTINGS_LABEL)
 	info_content.add_child(_info_level)
 
 	# Hint text at bottom
 	var sep2: HSeparator = HSeparator.new()
 	content.add_child(sep2)
 
-	_hint_label = _create_styled_label("Select character to swap", 16, COLOR_TEXT_DISABLED, HORIZONTAL_ALIGNMENT_CENTER)
+	_hint_label = _create_styled_label("Select character to swap", 16, UIColors.SETTINGS_INACTIVE, HORIZONTAL_ALIGNMENT_CENTER)
 	content.add_child(_hint_label)
 
 
@@ -271,7 +267,7 @@ func _create_slot(index: int, is_active: bool) -> PanelContainer:
 	slot.add_theme_stylebox_override("panel", _style_empty)
 
 	# Character name label (centered)
-	var label: Label = _create_styled_label("", 16, COLOR_TEXT_NORMAL, HORIZONTAL_ALIGNMENT_CENTER)
+	var label: Label = _create_styled_label("", 16, UIColors.SETTINGS_LABEL, HORIZONTAL_ALIGNMENT_CENTER)
 	label.name = "NameLabel"
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -357,7 +353,7 @@ func _refresh_slots() -> void:
 
 	# If no reserves, show placeholder
 	if reserve_party.is_empty():
-		var placeholder: Label = _create_styled_label("(none)", 16, COLOR_TEXT_DISABLED)
+		var placeholder: Label = _create_styled_label("(none)", 16, UIColors.SETTINGS_INACTIVE)
 		_reserve_container.add_child(placeholder)
 
 
@@ -366,7 +362,7 @@ func _create_reserve_slot(index: int, character: CharacterData) -> PanelContaine
 	slot.custom_minimum_size = Vector2(120, 28)
 	slot.add_theme_stylebox_override("panel", _style_filled)
 
-	var label: Label = _create_styled_label(_truncate_name(character.character_name, 12), 16, COLOR_TEXT_NORMAL)
+	var label: Label = _create_styled_label(_truncate_name(character.character_name, 12), 16, UIColors.SETTINGS_LABEL)
 	label.name = "NameLabel"
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	slot.add_child(label)

@@ -68,9 +68,6 @@ signal gold_changed(old_amount: int, new_amount: int)
 ## Currently open shop (null if no shop is open)
 var current_shop: ShopData = null
 
-## Reference to the active SaveData (must be set before transactions)
-var _save_data: SaveData = null
-
 
 # ============================================================================
 # RESULT HELPERS
@@ -152,7 +149,8 @@ func _add_gold(amount: int) -> void:
 
 ## Open a shop for transactions
 ## @param shop_data: ShopData resource to open
-## @param save_data: Current SaveData (for gold access)
+## @param save_data: Deprecated -- kept for API compatibility but ignored.
+##        H-14: Shop always reads from SaveManager.current_save to avoid stale references.
 func open_shop(shop_data: ShopData, save_data: SaveData = null) -> void:
 	if not shop_data:
 		push_error("ShopManager: Cannot open null shop")
@@ -163,7 +161,6 @@ func open_shop(shop_data: ShopData, save_data: SaveData = null) -> void:
 		return
 
 	current_shop = shop_data
-	_save_data = save_data
 	shop_opened.emit(shop_data)
 
 
@@ -219,6 +216,8 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 	# Calculate total cost
 	var is_deal: bool = item_id in current_shop.deals_inventory
 	var unit_price: int = current_shop.get_effective_buy_price(item_id, is_deal)
+	if unit_price < 0:
+		return _fail("Invalid item price")
 	var total_cost: int = unit_price * quantity
 
 	# Check gold
@@ -229,6 +228,7 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 		return _fail("Not enough gold")
 
 	# Custom validation hook
+	# NOTE: Last connected handler wins. Mods should only set allowed=false, never override false->true
 	var validation_context: Dictionary = {
 		"shop": current_shop,
 		"item_id": item_id,
@@ -251,14 +251,18 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 			purchase_failed.emit(inventory_check.error)
 			return _fail(inventory_check.error)
 
+	# H-11: Deduct gold FIRST, then add items. If adding fails, refund gold.
+	_deduct_gold(total_cost)
+
 	# Execute transaction with rollback support
 	var add_result: Dictionary = _add_items_with_rollback(target, item_id, quantity)
 	if not add_result.success:
+		# Refund gold since item delivery failed
+		_add_gold(total_cost)
 		purchase_failed.emit(add_result.error)
 		return _fail(add_result.error)
 
-	# Deduct gold and decrement shop stock
-	_deduct_gold(total_cost)
+	# Decrement shop stock
 	current_shop.decrement_stock(item_id, quantity)
 
 	# Build transaction record
@@ -283,10 +287,14 @@ func buy_item(item_id: String, quantity: int, target: String) -> Dictionary:
 ## @param target: "caravan" or character_uid
 func buy_deal_item(item_id: String, quantity: int, target: String) -> Dictionary:
 	if not current_shop:
-		return {success = false, error = "No shop is open", transaction = {}}
+		var error: String = "No shop is open"
+		purchase_failed.emit(error)
+		return _fail(error)
 
 	if item_id not in current_shop.deals_inventory:
-		return {success = false, error = "Item not in deals", transaction = {}}
+		var error: String = "Item not in deals"
+		purchase_failed.emit(error)
+		return _fail(error)
 
 	return buy_item(item_id, quantity, target)
 
@@ -315,6 +323,16 @@ func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary
 		sale_failed.emit("Item not found: %s" % item_id)
 		return _fail("Item not found")
 
+	# H-15: Prevent selling cursed or unsellable items
+	if item_data.is_cursed:
+		var error: String = "Cannot sell cursed items"
+		sale_failed.emit(error)
+		return _fail(error)
+	if item_data.item_type == ItemData.ItemType.KEY_ITEM:
+		var error: String = "Cannot sell key items"
+		sale_failed.emit(error)
+		return _fail(error)
+
 	# Check source has the item(s)
 	var has_result: Dictionary = _source_has_items(source, item_id, quantity)
 	if not has_result.success:
@@ -333,6 +351,7 @@ func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary
 	var total_earned: int = unit_price * quantity
 
 	# Custom validation hook
+	# NOTE: Last connected handler wins. Mods should only set allowed=false, never override false->true
 	var validation_context: Dictionary = {
 		"shop": current_shop,
 		"item_id": item_id,
@@ -349,13 +368,13 @@ func sell_item(item_id: String, source: String, quantity: int = 1) -> Dictionary
 		sale_failed.emit(validation_result.reason)
 		return _fail(validation_result.reason)
 
-	# Execute removal with rollback support
+	# H-12: Remove items FIRST, only grant gold if removal succeeded
 	var remove_result: Dictionary = _remove_items_with_rollback(source, item_id, quantity)
 	if not remove_result.success:
 		sale_failed.emit(remove_result.error)
 		return _fail(remove_result.error)
 
-	# Add gold
+	# Gold is only added after confirmed removal
 	_add_gold(total_earned)
 
 	# Build transaction record
@@ -558,7 +577,8 @@ func church_heal(character_uid: String) -> Dictionary:
 	# Restore HP and MP to max
 	save_data.current_hp = save_data.max_hp
 	save_data.current_mp = save_data.max_mp
-	_deduct_gold(cost)
+	if cost > 0:
+		_deduct_gold(cost)
 
 	return {success = true, error = "", cost = cost}
 
@@ -590,7 +610,8 @@ func church_revive(character_uid: String) -> Dictionary:
 	else:
 		save_data.current_hp = maxi(1, save_data.max_hp * hp_percent / 100)
 
-	_deduct_gold(cost)
+	if cost > 0:
+		_deduct_gold(cost)
 	return {success = true, error = "", cost = cost}
 
 
@@ -619,7 +640,8 @@ func church_uncurse(character_uid: String, slot_id: String) -> Dictionary:
 	if not uncurse_result.success:
 		return _fail_church(uncurse_result.error, cost)
 
-	_deduct_gold(cost)
+	if cost > 0:
+		_deduct_gold(cost)
 	return {success = true, error = "", cost = cost}
 
 
@@ -662,7 +684,8 @@ func church_promote(character_uid: String, target_class: ClassData) -> Dictionar
 
 	# Execute promotion
 	var stat_changes: Dictionary = PromotionManager.execute_promotion(unit, target_class)
-	_deduct_gold(cost)
+	if cost > 0:
+		_deduct_gold(cost)
 	unit.queue_free()
 
 	return {success = true, error = "", cost = cost, stat_changes = stat_changes}
@@ -753,25 +776,15 @@ func _build_unit_for_promotion(character_uid: String, save_data: CharacterSaveDa
 # PRIVATE HELPERS - GOLD
 # ============================================================================
 
+## H-14: Always use SaveManager.current_save to avoid stale references
 func _get_gold() -> int:
-	# First priority: explicitly set SaveData (passed to open_shop)
-	if _save_data:
-		return _save_data.gold
-
-	# Fallback: use SaveManager's current active save
 	if SaveManager and SaveManager.current_save:
 		return SaveManager.current_save.gold
-
 	return 0
 
 
+## H-14: Always use SaveManager.current_save to avoid stale references
 func _set_gold(amount: int) -> void:
-	# First priority: explicitly set SaveData (passed to open_shop)
-	if _save_data:
-		_save_data.gold = maxi(0, amount)
-		return
-
-	# Fallback: use SaveManager's current active save
 	if SaveManager and SaveManager.current_save:
 		SaveManager.current_save.gold = maxi(0, amount)
 
@@ -808,6 +821,7 @@ func _add_to_character(character_uid: String, item_id: String) -> Dictionary:
 	return {success = false, error = "Character inventory full"}
 
 
+## H-12: Returns success/failure so callers can abort transactions on failure
 func _remove_from_character(character_uid: String, item_id: String) -> Dictionary:
 	var save_data: CharacterSaveData = _get_character_save_data(character_uid)
 	if not save_data:
@@ -817,13 +831,14 @@ func _remove_from_character(character_uid: String, item_id: String) -> Dictionar
 	if _is_item_equipped(character_uid, item_id):
 		var unequip_result: Dictionary = _unequip_item(character_uid, item_id)
 		if not unequip_result.success:
-			return unequip_result
+			return {success = false, error = unequip_result.error}
 
-	# Remove from inventory
-	if PartyManager.remove_item_from_member(character_uid, item_id):
-		return {success = true, error = ""}
+	# Remove from inventory -- must check return value
+	var removed: bool = PartyManager.remove_item_from_member(character_uid, item_id)
+	if not removed:
+		return {success = false, error = "Failed to remove item from inventory"}
 
-	return {success = false, error = "Item not in inventory"}
+	return {success = true, error = ""}
 
 
 func _can_character_receive_item(character_uid: String, item_id: String) -> Dictionary:
@@ -843,27 +858,39 @@ func _source_has_items(source: String, item_id: String, quantity: int) -> Dictio
 		if not save_data:
 			return {success = false, error = "Character not found"}
 
-		var count: int = _count_character_items(save_data, item_id)
+		var count: int = _count_character_items(save_data, item_id, source)
 		if count < quantity:
 			return {success = false, error = "Not enough items (have %d, need %d)" % [count, quantity]}
 		return {success = true, error = ""}
 
 
-func _count_character_items(save_data: CharacterSaveData, item_id: String) -> int:
+## H-13: Only count equipped items for active party members.
+## Reserve members' equipped items are "locked" at Caravan and should not count.
+func _count_character_items(save_data: CharacterSaveData, item_id: String, character_uid: String = "") -> int:
 	var count: int = 0
 
-	# Count in inventory
+	# Count in inventory (always counted regardless of active/reserve)
 	for inv_item_id: String in save_data.inventory:
 		if inv_item_id == item_id:
 			count += 1
 
-	# Count equipped items
-	for entry: Dictionary in save_data.equipped_items:
-		var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
-		if entry_item_id == item_id:
-			count += 1
+	# Count equipped items only for active party members
+	if character_uid.is_empty() or _is_character_active(character_uid):
+		for entry: Dictionary in save_data.equipped_items:
+			var entry_item_id: String = DictUtils.get_string(entry, "item_id", "")
+			if entry_item_id == item_id:
+				count += 1
 
 	return count
+
+
+## H-13: Check if a character UID belongs to an active party member
+func _is_character_active(character_uid: String) -> bool:
+	var active_party: Array[CharacterData] = PartyManager.get_active_party()
+	for character: CharacterData in active_party:
+		if character.character_uid == character_uid:
+			return true
+	return false
 
 
 func _is_item_equipped(character_uid: String, item_id: String) -> bool:

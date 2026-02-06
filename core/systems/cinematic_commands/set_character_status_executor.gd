@@ -47,7 +47,7 @@ func execute(command: Dictionary, _manager: Node) -> bool:
 		return true  # Complete immediately on error
 
 	# Look up character in ModRegistry (supports both resource ID and character_uid)
-	var character: CharacterData = _resolve_character(character_id)
+	var character: CharacterData = CinematicCommandExecutor.resolve_character(character_id)
 	if not character:
 		push_error("SetCharacterStatusExecutor: Character '%s' not found in ModRegistry" % character_id)
 		return true
@@ -76,14 +76,3 @@ func execute(command: Dictionary, _manager: Node) -> bool:
 		save_data.is_available = available_value
 
 	return true  # Synchronous, completes immediately
-
-
-## Resolve character from ID (supports both resource ID like "max" and character_uid like "hk7wm4np")
-func _resolve_character(character_id: String) -> CharacterData:
-	# First try by character_uid (what the editor stores)
-	var character: CharacterData = ModLoader.registry.get_character_by_uid(character_id)
-	if character:
-		return character
-
-	# Fallback to resource ID lookup
-	return ModLoader.registry.get_character(character_id)

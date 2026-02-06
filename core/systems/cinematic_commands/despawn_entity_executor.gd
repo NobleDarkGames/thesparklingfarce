@@ -5,6 +5,8 @@ extends CinematicCommandExecutor
 
 ## Track active fade tween for interrupt cleanup
 var _active_tween: Tween = null
+## Reference to target entity for cleanup on interrupt
+var _active_entity: Node = null
 
 
 func execute(command: Dictionary, manager: Node) -> bool:
@@ -21,6 +23,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if entity == null:
 		push_error("DespawnEntityExecutor: Actor '%s' has no parent entity" % target)
 		return true
+
+	# Store entity reference for interrupt cleanup
+	_active_entity = entity
 
 	# Unregister the actor from CinematicsManager before removing
 	if CinematicsManager:
@@ -42,8 +47,12 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	return true  # Complete immediately
 
 
-## Called when cinematic is interrupted - cleanup fade tween if active
+## Called when cinematic is interrupted - cleanup fade tween and free entity
 func interrupt() -> void:
 	if _active_tween and _active_tween.is_valid():
 		_active_tween.kill()
 		_active_tween = null
+	# Free the entity that was mid-fade to prevent leak at intermediate alpha
+	if _active_entity and is_instance_valid(_active_entity):
+		_active_entity.queue_free()
+	_active_entity = null

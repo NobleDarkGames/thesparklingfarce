@@ -28,13 +28,12 @@ signal item_stored(item_id: String, character_uid: String)
 # CONSTANTS
 # =============================================================================
 
-const COLOR_PANEL_BG: Color = Color(0.12, 0.12, 0.16, 0.98)
-const COLOR_SLOT_BG: Color = Color(0.15, 0.15, 0.2, 0.9)
-const COLOR_BORDER: Color = Color(0.5, 0.5, 0.6, 1.0)
-const COLOR_DESC_BG: Color = Color(0.08, 0.08, 0.12, 0.95)
-const COLOR_DESC_BORDER: Color = Color(0.4, 0.4, 0.5, 0.9)
-const COLOR_DESC_TEXT: Color = Color(0.7, 0.7, 0.8, 1.0)
-const COLOR_COUNT_TEXT: Color = Color(0.5, 0.5, 0.6, 1.0)
+## Colors - use centralized UIColors class (unique depot colors stay local)
+const COLOR_PANEL_BG: Color = Color(0.12, 0.12, 0.16, 0.98)  ## Slightly different from UIColors.PANEL_BG
+const COLOR_SLOT_BG: Color = Color(0.15, 0.15, 0.2, 0.9)  ## Unique depot slot bg
+const COLOR_BORDER: Color = Color(0.5, 0.5, 0.6, 1.0)  ## Unique depot border
+const COLOR_DESC_BG: Color = Color(0.08, 0.08, 0.12, 0.95)  ## Unique desc panel bg
+const COLOR_DESC_BORDER: Color = Color(0.4, 0.4, 0.5, 0.9)  ## Unique desc border
 const ITEMS_PER_ROW: int = 5  # 5*32 + 4*4 = 176px fits in 180px scroll width
 const DEFAULT_MAX_INVENTORY_SLOTS: int = 4
 
@@ -308,7 +307,7 @@ func _build_ui() -> void:
 	_description_label = Label.new()
 	UIUtils.apply_monogram_style(_description_label, 16)
 	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_description_label.modulate = COLOR_DESC_TEXT
+	_description_label.modulate = UIColors.SECTION_HEADER
 	_description_label.text = "Select an item..."
 	_description_panel.add_child(_description_label)
 
@@ -375,7 +374,7 @@ func _build_ui() -> void:
 	# Item count
 	_item_count_label = Label.new()
 	UIUtils.apply_monogram_style(_item_count_label, 16)
-	_item_count_label.modulate = COLOR_COUNT_TEXT
+	_item_count_label.modulate = UIColors.TEXT_SUBDUED
 	_item_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	bottom_bar.add_child(_item_count_label)
 

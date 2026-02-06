@@ -101,7 +101,8 @@ func get_sfx_volume() -> float:
 
 
 func set_sfx_volume(volume: float) -> void:
-	_set_setting("sfx_volume", clampf(volume, 0.0, 1.0))
+	volume = clampf(volume, 0.0, 1.0)
+	_set_setting("sfx_volume", volume)
 	# Apply to AudioManager if available
 	if AudioManager:
 		AudioManager.set_sfx_volume(volume)
@@ -112,7 +113,8 @@ func get_music_volume() -> float:
 
 
 func set_music_volume(volume: float) -> void:
-	_set_setting("music_volume", clampf(volume, 0.0, 1.0))
+	volume = clampf(volume, 0.0, 1.0)
+	_set_setting("music_volume", volume)
 	# Apply to AudioManager if available
 	if AudioManager:
 		AudioManager.set_music_volume(volume)

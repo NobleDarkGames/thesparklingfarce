@@ -413,6 +413,26 @@ func stop_follow() -> void:
 	follow_mode = FollowMode.NONE
 
 
+## Set the follow target node directly (used by cinematic auto-follow)
+## Unlike follow_actor(), this does NOT trigger an initial smooth move.
+func set_follow_target(target: Node2D) -> void:
+	_follow_target = target
+
+
+## Stop any active movement tween
+func stop_movement() -> void:
+	if _movement_tween and _movement_tween.is_valid():
+		_movement_tween.kill()
+		_movement_tween = null
+
+
+## Stop any active camera shake immediately, resetting offset
+func stop_shake() -> void:
+	_is_shaking = false
+	_shake_time_remaining = 0.0
+	offset = Vector2.ZERO
+
+
 ## Internal: Called when shake completes
 func _on_shake_completed() -> void:
 	_is_shaking = false

@@ -99,6 +99,16 @@ static func execute(context: ExitContext, initiator: Unit, reason: BattleExitRea
 	if not TurnManager.is_headless and reason != BattleExitReason.HERO_DEATH:
 		await _show_exit_message(context, reason)
 
+	# Post-await validation: battle state may have changed during the message display
+	if TurnManager.battle_active:
+		# Another system re-activated battle while we were showing the message
+		push_warning("BattleExitController: Battle re-activated during exit message, aborting exit")
+		return
+
+	if not is_instance_valid(context.battle_manager):
+		push_warning("BattleExitController: Battle manager freed during exit message, aborting exit")
+		return
+
 	# 5. Check if external code (e.g., trigger_battle command) is handling post-battle transition
 	var external_handles_transition: bool = GameState.external_battle_handler
 

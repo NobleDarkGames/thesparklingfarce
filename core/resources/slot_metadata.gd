@@ -89,6 +89,9 @@ func populate_from_save_data(save_data: SaveData) -> void:
 ## @param saved_mods: Array of {mod_id: String, version: String} from save
 ## @return: true if any mods are missing or version mismatch
 func _check_mod_compatibility(saved_mods: Array[Dictionary]) -> bool:
+	if not ModLoader:
+		return false
+
 	for mod_dict: Dictionary in saved_mods:
 		if "mod_id" not in mod_dict:
 			continue
@@ -162,13 +165,10 @@ func deserialize_from_dict(data: Dictionary) -> void:
 # ============================================================================
 
 ## Format playtime as HH:MM:SS
+## Delegates to SaveData.format_playtime() to avoid duplication.
 ## @return: Formatted playtime string
 func get_playtime_string() -> String:
-	var hours: int = playtime_seconds / 3600
-	var minutes: int = (playtime_seconds % 3600) / 60
-	var seconds: int = playtime_seconds % 60
-
-	return "%02d:%02d:%02d" % [hours, minutes, seconds]
+	return SaveData.format_playtime(playtime_seconds)
 
 
 ## Format last played timestamp as readable date

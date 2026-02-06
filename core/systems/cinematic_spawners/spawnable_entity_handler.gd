@@ -54,6 +54,28 @@ func create_sprite_node(entity_id: String, facing: String) -> Node2D:
 	return null
 
 
+## Fallback spritesheet used when entity data is missing from the registry.
+const FALLBACK_SPRITESHEET_PATH: String = "res://mods/_starter_kit/assets/sprites/map/Character_Basic_1.png"
+## Frame size matches the standard spritesheet layout (32x32 per frame).
+const FALLBACK_FRAME_SIZE: Vector2i = Vector2i(32, 32)
+
+
+## Create a placeholder sprite when entity data is missing.
+## Loads a starter kit spritesheet and shows the first frame with a pink tint
+## so modders can see something went wrong. Override in subclasses that need
+## a different node type (e.g., Sprite2D for interactables).
+func _create_placeholder_sprite() -> Node2D:
+	var sprite: Sprite2D = Sprite2D.new()
+	sprite.name = "PlaceholderSprite"
+	var texture: Texture2D = load(FALLBACK_SPRITESHEET_PATH) as Texture2D
+	if texture:
+		sprite.texture = texture
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(Vector2.ZERO, Vector2(FALLBACK_FRAME_SIZE))
+	sprite.modulate = Color(1.0, 0.4, 0.7, 1.0)
+	return sprite
+
+
 ## Get editor metadata for this entity type's parameters
 ## Returns parameter hints for the cinematic editor
 func get_editor_hints() -> Dictionary:

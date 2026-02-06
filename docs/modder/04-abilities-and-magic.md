@@ -55,41 +55,79 @@ The type affects AI behavior and UI presentation. An AI healer prioritizes Heal-
 ### Type and Targeting
 
 - **Ability Type**: Select from the types above. Affects AI priority and UI grouping.
-- **Target Type**: Who can be targeted
+- **Target Type**: Determines who/what you can select as a target
 
-| Target Type | Effect |
-|-------------|--------|
-| Single Enemy | Select one enemy |
-| Single Ally | Select one ally |
-| Self | Caster only |
-| All Enemies | Hits every enemy |
-| All Allies | Affects entire party |
-| Area | Splash around a point (uses Area of Effect) |
+| Target Type | Selection | Range Used? | Notes |
+|-------------|-----------|-------------|-------|
+| Single Enemy | Pick one enemy | Yes | Must click an enemy within range |
+| Single Ally | Pick one ally | Yes | Must click an ally within range |
+| Self | No selection | No | Automatically targets caster |
+| All Enemies | No selection | **No** | Affects ALL enemies on battlefield |
+| All Allies | No selection | **No** | Affects ALL allies on battlefield |
+| Area | Pick a cell | Yes | Can target empty ground; hits any unit in AoE |
 
-### Range and Area of Effect
+**Important:** "All Enemies" and "All Allies" ignore range entirely. They affect every unit of that faction on the map, regardless of distance from the caster. Use these for battlefield-wide effects like mass buffs or ultimate attacks.
 
-- **Min Range**: Closest tile the ability can target
-  - 0 = self only
-  - 1 = adjacent tiles
-  - 2+ = ranged (creates a "dead zone" if min > 1)
+---
 
-- **Max Range**: Farthest tile the ability can target
+## Understanding Range and Area of Effect
+
+Range and AoE are separate systems that work together:
+
+- **Range** controls WHERE you can click to select a target
+- **AoE** controls WHO gets hit around that target
+
+### Range (Min/Max)
+
+Range limits which cells you can select as targets. Distance is calculated as Manhattan distance (count tiles horizontally + vertically, no diagonals).
+
+- **Min Range**: Closest selectable tile
+  - 0 = can target self/adjacent
+  - 1 = must be at least 1 tile away
+  - 2+ = creates a "dead zone" near the caster
+
+- **Max Range**: Farthest selectable tile
   - Typical melee: 1-2
   - Typical ranged magic: 3-5
 
-- **Area of Effect**: Radius around the target point
-  - 0 = single target
-  - 1 = 3x3 area (target + adjacent)
-  - 2 = 5x5 area
+**Range only applies to Single Enemy, Single Ally, and Area target types.** Self ignores range (always targets caster). All Enemies/All Allies ignore range entirely.
 
-**Range Examples:**
+### Area of Effect (AoE)
 
-| Ability | Min | Max | AoE | Effect |
-|---------|-----|-----|-----|--------|
-| Heal | 0 | 3 | 0 | Heals one ally within 3 tiles |
-| Blaze | 1 | 4 | 0 | Damages one enemy 1-4 tiles away |
-| Blaze 2 | 1 | 4 | 1 | Damages enemies in 3x3 area |
-| Aura | 0 | 0 | 1 | Heals allies in 3x3 around caster |
+AoE determines the splash radius around your selected target. It expands the effect without changing where you can click.
+
+- **AoE 0**: Single target only—exactly what you clicked
+- **AoE 1**: 3x3 diamond (center + 4 adjacent tiles)
+- **AoE 2**: 5x5 diamond (13 tiles total)
+
+AoE uses Manhattan distance from the center. A unit is hit if its distance from the center is ≤ the AoE value.
+
+### How Target Type + AoE Interact
+
+| Target Type | AoE 0 | AoE 1+ |
+|-------------|-------|--------|
+| Single Enemy | Hits one enemy | Hits enemies near that enemy |
+| Single Ally | Heals one ally | Heals allies near that ally |
+| Self | Affects caster only | Affects caster + nearby units |
+| All Enemies | All enemies (no splash needed) | Same—already hits all |
+| All Allies | All allies (no splash needed) | Same—already hits all |
+| Area | Hits unit on clicked cell | Hits all units in radius (both factions) |
+
+**Key insight:** When you use Single Enemy with AoE > 0, you still click on one enemy (within range), but the effect splashes to hit other enemies near that target. Allies in the splash zone are NOT hit—the target type filters who takes damage.
+
+The **Area** target type is different: it lets you target empty cells and hits BOTH allies and enemies in the splash radius. Use this for hazard effects or abilities where friendly fire is intended.
+
+### Practical Examples
+
+| Ability | Target Type | Min | Max | AoE | How It Works |
+|---------|-------------|-----|-----|-----|--------------|
+| Heal | Single Ally | 0 | 3 | 0 | Click one ally within 3 tiles; heals only them |
+| Blaze | Single Enemy | 1 | 4 | 0 | Click one enemy 1-4 tiles away; damages only them |
+| Blaze 2 | Single Enemy | 1 | 4 | 1 | Click one enemy 1-4 tiles away; damages enemies in 3x3 around them |
+| Aura | Self | 0 | 0 | 1 | No targeting; heals caster + allies in 3x3 around caster |
+| Bolt 4 | All Enemies | — | — | 0 | No targeting; damages every enemy on the battlefield |
+| Egress | All Allies | — | — | 0 | No targeting; affects entire party |
+| Meteor | Area | 2 | 5 | 2 | Click any cell 2-5 tiles away; damages ALL units in 5x5 (allies too!) |
 
 ---
 
@@ -149,7 +187,7 @@ The dropdown shows all status effects registered by loaded mods. Create custom e
 
 ## Assigning Abilities to Classes
 
-Characters learn abilities through their class, not individually. This mirrors the Shining Force system where a Mage learns Blaze spells and a Priest learns Heal spells.
+Characters mainly learn abilities through their class, not individually. This mirrors the Shining Force system where a Mage learns Blaze spells and a Priest learns Heal spells.
 
 ### Add Abilities to a Class
 
@@ -167,7 +205,6 @@ Characters learn abilities through their class, not individually. This mirrors t
 | 1 | Blaze |
 | 8 | Blaze 2 |
 | 16 | Blaze 3 |
-| 24 | Blaze 4 |
 
 Characters of this class gain access to each spell when they reach the specified level. A level 10 Mage has Blaze and Blaze 2 available.
 

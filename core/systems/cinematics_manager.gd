@@ -98,7 +98,6 @@ var _spawned_actor_nodes: Array[Node] = []
 ## Used by change_scene command to defer scene transition until after cinematic_ended signal
 var _next_destination: String = ""
 var _next_destination_fade: bool = true
-var _next_destination_fade_duration: float = DEFAULT_FADE_DURATION
 
 ## Flag indicating a backdrop scene is being loaded
 ## When true, map_template and other gameplay scenes should skip gameplay initialization
@@ -117,7 +116,8 @@ func _ready() -> void:
 	_register_built_in_spawnable_types()
 
 	# Connect to DialogManager signals
-	# MED-001: Add is_connected() check before connecting signals
+	# Connected once (autoload lifetime). Guards against non-cinematic dialog
+	# via state check in _on_dialog_ended handler.
 	if DialogManager:
 		if not DialogManager.dialog_ended.is_connected(_on_dialog_ended):
 			DialogManager.dialog_ended.connect(_on_dialog_ended)
@@ -362,9 +362,10 @@ func _register_built_in_commands() -> void:
 	# Register all built-in commands
 	register_command_executor("wait", WaitExecutor.new())
 	register_command_executor("set_variable", SetVariableExecutor.new())
-	register_command_executor("show_dialog", DialogExecutor.new())
-	register_command_executor("dialog", DialogExecutor.new())  # Alias for inline cinematics
-	register_command_executor("dialog_line", DialogExecutor.new())  # Single-line dialog from Cinematic Editor
+	var dialog_exec: DialogExecutor = DialogExecutor.new()
+	register_command_executor("show_dialog", dialog_exec)
+	register_command_executor("dialog", dialog_exec)  # Alias for inline cinematics
+	register_command_executor("dialog_line", dialog_exec)  # Single-line dialog from Cinematic Editor
 	register_command_executor("move_entity", MoveEntityExecutor.new())
 	register_command_executor("set_facing", SetFacingExecutor.new())
 	register_command_executor("set_position", SetPositionExecutor.new())
@@ -611,7 +612,6 @@ func _execute_next_command() -> void:
 
 	# Execute command based on type
 	var command_type: String = command.get("type", "")
-	var execution_succeeded: bool = false
 
 	# Check custom executor registry first (allows mods to add/override commands)
 	if command_type in _command_executors:
@@ -621,18 +621,14 @@ func _execute_next_command() -> void:
 		if completed:
 			_command_completed = true
 		# else: executor will set _command_completed = true when async operation finishes
-		execution_succeeded = true
 	else:
 		# No executor registered for this command type
 		push_warning("CinematicsManager: Unknown command type '%s' - no executor registered" % command_type)
 		_command_completed = true
-		# Still count as "executed" for index tracking - command was processed, just unknown
-		execution_succeeded = true
 
 	# Emit signal after execution attempt, then increment index
 	command_executed.emit(command_type, current_command_index)
-	if execution_succeeded:
-		current_command_index += 1
+	current_command_index += 1
 
 	# If command doesn't wait, continue immediately
 	if not _current_command_waits and not _is_waiting:
@@ -642,6 +638,8 @@ func _execute_next_command() -> void:
 ## Inject commands at the front of the execution queue
 ## Used by check_flag to insert branch commands for immediate execution
 ## @param commands: Array of command dictionaries to inject
+## NOTE: Kept as untyped Array — callers pass arrays from Dictionary.get() which
+## returns Variant. Godot rejects assigning untyped Array to Array[Dictionary].
 func inject_commands(commands: Array) -> void:
 	# Insert at front (reverse order to maintain sequence)
 	for i: int in range(commands.size() - 1, -1, -1):
@@ -650,18 +648,13 @@ func inject_commands(commands: Array) -> void:
 			_command_queue.push_front(cmd)
 
 
-## Called when actor movement completes
-func _on_movement_completed() -> void:
-	_command_completed = true
-
-
 ## Called when actor animation completes
 func _on_animation_completed() -> void:
 	_command_completed = true
 
 
 ## Called when dialog ends
-func _on_dialog_ended(dialogue_data: DialogueData) -> void:
+func _on_dialog_ended(_dialogue_data: DialogueData) -> void:
 	# Check if cinematic was skipped during dialog
 	if current_cinematic == null:
 		return
@@ -697,7 +690,7 @@ func _end_cinematic() -> void:
 	var finished_cinematic: CinematicData = current_cinematic
 
 	# Remove from chain stack
-	if not _cinematic_chain_stack.is_empty() and not finished_cinematic.cinematic_id.is_empty():
+	if finished_cinematic and not _cinematic_chain_stack.is_empty() and not finished_cinematic.cinematic_id.is_empty():
 		_cinematic_chain_stack.pop_back()
 
 	# Re-enable player input if we disabled it
@@ -731,7 +724,15 @@ func _end_cinematic() -> void:
 	_command_queue.clear()
 	_command_completed = false
 	_is_waiting = false
+	_wait_timer = 0.0
 	_current_executor = null  # Clear executor reference
+	clear_interaction_context()
+
+	# Capture and reset destination before emitting signals (ensures cleanup regardless of path)
+	var pending_destination: String = _next_destination
+	var pending_fade: bool = _next_destination_fade
+	_next_destination = ""
+	_next_destination_fade = true
 
 	cinematic_ended.emit(finished_cinematic.cinematic_id if finished_cinematic else "")
 
@@ -743,11 +744,8 @@ func _end_cinematic() -> void:
 
 	# Handle pending scene destination (from change_scene command)
 	# This happens AFTER cinematic_ended signal so listeners can handle it
-	if not _next_destination.is_empty() and SceneManager:
-		var dest: String = _next_destination
-		var use_fade: bool = _next_destination_fade
-		_next_destination = ""  # Clear to prevent re-entry
-		SceneManager.change_scene(dest, use_fade)
+	if not pending_destination.is_empty() and SceneManager:
+		SceneManager.change_scene(pending_destination, pending_fade)
 		return  # Don't chain to next cinematic - we're changing scenes
 
 	# Chain to next cinematic if exists
@@ -776,8 +774,8 @@ func skip_cinematic() -> void:
 		_current_executor.interrupt()
 		_current_executor = null
 
-	# Clear any pending destination to prevent orphaned scene transitions
-	_next_destination = ""
+	# NOTE: Do NOT clear _next_destination here. If a change_scene command already
+	# set a destination, skipping should still honor that scene transition.
 
 	cinematic_skipped.emit()
 
@@ -809,10 +807,9 @@ func skip_cinematic() -> void:
 ## Set the next destination for scene change after cinematic ends
 ## Used by change_scene command to defer transition until cinematic_ended signal fires
 ## This ensures listeners (like startup.gd) can handle the signal before scene changes
-func set_next_destination(scene_path: String, use_fade: bool = true, fade_duration: float = DEFAULT_FADE_DURATION) -> void:
+func set_next_destination(scene_path: String, use_fade: bool = true) -> void:
 	_next_destination = scene_path
 	_next_destination_fade = use_fade
-	_next_destination_fade_duration = fade_duration
 
 
 ## Resume the paused cinematic
@@ -969,6 +966,8 @@ func _resolve_entity_type(actor_def: Dictionary) -> Dictionary:
 ## Format: {actor_id, entity_type, entity_id, position: [x, y], facing}
 ## Virtual actors: {actor_id, entity_type: "virtual", display_source: "npc:id" or character_uid}
 ## Legacy format also supported: {actor_id, character_id, ...} maps to entity_type="character"
+# NOTE: Entity creation logic is duplicated in SpawnEntityExecutor.execute().
+# Changes here should be mirrored there until consolidated.
 func _spawn_single_actor(actor_def: Dictionary) -> void:
 	var actor_id: String = actor_def.get("actor_id", "")
 	if actor_id.is_empty():

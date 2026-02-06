@@ -407,7 +407,7 @@ func add_item_to_inventory(item_id: String) -> bool:
 
 	# Check inventory limit (default 4 slots in SF)
 	var max_slots: int = 4
-	if ModLoader and "inventory_config" in ModLoader:
+	if ModLoader and ModLoader.inventory_config:
 		max_slots = ModLoader.inventory_config.get_max_slots()
 
 	if inventory.size() >= max_slots:

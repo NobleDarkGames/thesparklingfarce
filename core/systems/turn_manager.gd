@@ -92,7 +92,7 @@ func calculate_turn_priority(unit: Unit) -> float:
 		push_warning("TurnManager: Unit missing stats")
 		return 0.0
 
-	var base_agi: float = unit.stats.agility if unit.stats else 5.0
+	var base_agi: float = unit.stats.get_effective_agility() if unit.stats else 5.0
 
 	# Randomize AGI: 87.5% to 112.5% of base value
 	var random_mult: float = randf_range(AGI_VARIANCE_MIN, AGI_VARIANCE_MAX)
@@ -173,6 +173,9 @@ func start_unit_turn(unit: Unit) -> void:
 
 	# Process terrain effects BEFORE unit.start_turn() (damage happens at turn start)
 	var terrain_died: bool = await _process_terrain_effects(unit)
+	if not is_instance_valid(unit):
+		advance_to_next_unit()
+		return
 	if terrain_died:
 		# Unit died from terrain damage - skip their turn
 		unit_turn_ended.emit(unit)
@@ -181,6 +184,9 @@ func start_unit_turn(unit: Unit) -> void:
 
 	# Process status effects (sleep, paralysis, poison damage, etc.)
 	var status_result: Dictionary = await _process_status_effects(unit)
+	if not is_instance_valid(unit):
+		advance_to_next_unit()
+		return
 	if status_result.died:
 		# Unit died from status effect damage (e.g., poison)
 		unit_turn_ended.emit(unit)
@@ -212,6 +218,12 @@ func start_unit_turn(unit: Unit) -> void:
 
 		# Now delegate to AIController
 		await AIController.process_enemy_turn(unit)
+
+		# Safety net: if AIController failed to end the turn, force-end it
+		# to prevent the battle from stalling permanently
+		if is_instance_valid(unit) and active_unit == unit:
+			push_warning("TurnManager: AI did not end turn for '%s' - forcing turn end" % _get_unit_name(unit))
+			end_unit_turn(unit)
 
 
 ## End the current unit's turn
@@ -253,12 +265,18 @@ func advance_to_next_unit() -> void:
 	# if the unit is invalid/dead/incapacitated
 	_advancing_turn = false
 
+	if not battle_active:
+		return
+
 	if turn_queue.is_empty():
 		# Turn cycle complete, start new cycle
 		start_new_turn_cycle()
 	else:
 		# Get next unit
 		var next_unit: Unit = turn_queue.pop_front()
+		if not is_instance_valid(next_unit):
+			advance_to_next_unit()
+			return
 		start_unit_turn(next_unit)
 
 
@@ -273,10 +291,14 @@ func _check_battle_end() -> bool:
 	# Count living units by faction and track hero/boss status
 	var player_count: int = 0
 	var enemy_count: int = 0
+	var has_hero_unit: bool = false
 	var hero_alive: bool = false
 	var boss_alive: bool = true
 
 	for unit: Unit in all_units:
+		if unit.is_player_unit() and unit.character_data and unit.character_data.is_hero:
+			has_hero_unit = true
+
 		if not unit.is_alive():
 			continue
 
@@ -286,6 +308,10 @@ func _check_battle_end() -> bool:
 				hero_alive = true
 		elif unit.is_enemy_unit():
 			enemy_count += 1
+
+	# If no hero unit exists, don't trigger hero-death defeat
+	if not has_hero_unit:
+		hero_alive = true
 
 	# Check if boss is dead (for DEFEAT_BOSS condition)
 	if battle_data and battle_data.victory_condition == BattleData.VictoryCondition.DEFEAT_BOSS:
@@ -393,7 +419,9 @@ func _is_boss_alive(battle_data: BattleData) -> bool:
 				return unit.is_alive()
 			enemy_index += 1
 
-	return false
+	# Fail-safe: boss index out of range — assume boss is still alive
+	# Returning false here would grant instant victory on misconfigured maps
+	return true
 
 
 ## End the battle
@@ -558,6 +586,8 @@ func _process_status_effects(unit: Unit) -> Dictionary:
 	# Brief visual pause if any status was shown
 	if not is_headless and showed_popup:
 		await get_tree().create_timer(0.6).timeout
+		if not is_instance_valid(unit) or not battle_active:
+			return result
 
 	return result
 
@@ -729,8 +759,13 @@ func _apply_damage_to_unit(unit: Unit, damage: int) -> void:
 	if unit.has_method("take_damage"):
 		unit.take_damage(damage)
 	elif unit.stats:
-		unit.stats.current_hp -= damage
-		unit.stats.current_hp = maxi(0, unit.stats.current_hp)
+		# Fallback: route through UnitStats.take_damage() which returns death status
+		var unit_died: bool = unit.stats.take_damage(damage)
+		if unit_died:
+			# Clear grid occupancy and emit died signal to prevent zombie units
+			GridManager.clear_cell_occupied(unit.grid_position)
+			if unit.has_signal("died"):
+				unit.died.emit()
 
 
 ## Apply healing to unit. Returns actual amount healed.

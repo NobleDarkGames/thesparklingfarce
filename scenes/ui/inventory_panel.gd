@@ -43,14 +43,10 @@ signal action_menu_state_changed(is_open: bool)
 # CONSTANTS
 # =============================================================================
 
-const COLOR_PANEL_BG: Color = Color(0.12, 0.12, 0.16, 0.98)
-const COLOR_PANEL_BORDER: Color = Color(0.5, 0.5, 0.6, 1.0)
-const COLOR_SECTION_HEADER: Color = Color(0.7, 0.7, 0.8, 1.0)
-const COLOR_CHARACTER_NAME: Color = Color(1.0, 1.0, 0.9, 1.0)
-const COLOR_DESCRIPTION: Color = Color(0.6, 0.6, 0.7, 1.0)
-const COLOR_VALID_TARGET: Color = Color(0.3, 0.8, 0.3, 0.5)
-const COLOR_INSTRUCTION_ACTIVE: Color = Color(1.0, 1.0, 0.5, 1.0)
-const COLOR_INSTRUCTION_INACTIVE: Color = Color(0.5, 0.5, 0.6, 0.8)
+## Colors - use centralized UIColors class (unique panel colors stay local)
+const COLOR_PANEL_BG: Color = Color(0.12, 0.12, 0.16, 0.98)  ## Slightly different from UIColors.PANEL_BG
+const COLOR_PANEL_BORDER: Color = Color(0.5, 0.5, 0.6, 1.0)  ## Unique border color
+const COLOR_VALID_TARGET: Color = Color(0.3, 0.8, 0.3, 0.5)  ## Unique target highlight
 
 ## BBCode colors for item display
 const BBCODE_COLOR_POSITIVE: String = "#44FF44"
@@ -166,7 +162,7 @@ func _build_ui() -> void:
 	_name_label = Label.new()
 	_name_label.name = "NameLabel"
 	_name_label.add_theme_font_size_override("font_size", 16)
-	_name_label.modulate = COLOR_CHARACTER_NAME
+	_name_label.modulate = UIColors.NAME_HIGHLIGHT
 	_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	char_info_hbox.add_child(_name_label)
@@ -174,7 +170,7 @@ func _build_ui() -> void:
 	_class_label = Label.new()
 	_class_label.name = "ClassLabel"
 	_class_label.add_theme_font_size_override("font_size", 16)
-	_class_label.modulate = COLOR_SECTION_HEADER
+	_class_label.modulate = UIColors.SECTION_HEADER
 	_class_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_class_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	char_info_hbox.add_child(_class_label)
@@ -199,7 +195,7 @@ func _build_ui() -> void:
 	_instruction_label = Label.new()
 	_instruction_label.name = "InstructionLabel"
 	_instruction_label.add_theme_font_size_override("font_size", 16)
-	_instruction_label.modulate = COLOR_INSTRUCTION_INACTIVE
+	_instruction_label.modulate = UIColors.INSTRUCTION_INACTIVE
 	_instruction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_instruction_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_instruction_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -229,7 +225,7 @@ func _build_ui() -> void:
 	_description_label.name = "DescriptionLabel"
 	_description_label.add_theme_font_size_override("normal_font_size", 16)
 	_description_label.add_theme_font_size_override("bold_font_size", 16)
-	_description_label.add_theme_color_override("default_color", COLOR_DESCRIPTION)
+	_description_label.add_theme_color_override("default_color", UIColors.DESC_TEXT)
 	_description_label.bbcode_enabled = true
 	_description_label.fit_content = false
 	_description_label.scroll_active = false
@@ -436,9 +432,9 @@ func _update_instruction(text: String) -> void:
 	_instruction_label.text = text
 	# Dynamic prominence: highlight when showing active instruction
 	if text.is_empty():
-		_instruction_label.modulate = COLOR_INSTRUCTION_INACTIVE
+		_instruction_label.modulate = UIColors.INSTRUCTION_INACTIVE
 	else:
-		_instruction_label.modulate = COLOR_INSTRUCTION_ACTIVE
+		_instruction_label.modulate = UIColors.INSTRUCTION_ACTIVE
 
 
 # =============================================================================
@@ -550,27 +546,17 @@ func _try_equip_to_slot(slot_id: String) -> void:
 		_pending_item_id
 	)
 
-	if result.success:
-		# Move old item to inventory (if any)
-		var old_item_id: String = result.unequipped_item_id
-		if not old_item_id.is_empty():
-			# Replace the inventory slot with the old item
-			if _pending_inventory_index < _save_data.inventory.size():
-				_save_data.inventory[_pending_inventory_index] = old_item_id
-			else:
-				_save_data.add_item_to_inventory(old_item_id)
-		else:
-			# Remove the item from inventory
-			if _pending_inventory_index < _save_data.inventory.size():
-				_save_data.inventory.remove_at(_pending_inventory_index)
+	if "success" in result and result["success"]:
+		var old_item_id: String = DictUtils.get_string(result, "unequipped_item_id", "")
 
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 		equipment_changed.emit(slot_id, old_item_id, _pending_item_id)
 		_update_instruction("Equipped!")
 	else:
+		var error_msg: String = DictUtils.get_string(result, "error", "Equip failed")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-		operation_failed.emit(result.error)
-		_update_instruction(result.error)
+		operation_failed.emit(error_msg)
+		_update_instruction(error_msg)
 
 	_cancel_interaction()
 	refresh()
@@ -592,18 +578,15 @@ func _try_unequip_from_slot(slot_id: String) -> void:
 	# Call EquipmentManager to handle the unequip
 	var result: Dictionary = EquipmentManager.unequip_item(_save_data, slot_id)
 
-	if result.success:
-		# Add unequipped item to inventory
-		if not result.unequipped_item_id.is_empty():
-			_save_data.add_item_to_inventory(result.unequipped_item_id)
-
+	if "success" in result and result["success"]:
 		AudioManager.play_sfx("menu_confirm", AudioManager.SFXCategory.UI)
 		equipment_changed.emit(slot_id, old_item_id, "")
 		_update_instruction("Unequipped")
 	else:
+		var error_msg: String = DictUtils.get_string(result, "error", "Unequip failed")
 		AudioManager.play_sfx("menu_error", AudioManager.SFXCategory.UI)
-		operation_failed.emit(result.error)
-		_update_instruction(result.error)
+		operation_failed.emit(error_msg)
+		_update_instruction(error_msg)
 
 	refresh()
 

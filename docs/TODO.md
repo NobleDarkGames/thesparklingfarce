@@ -1,140 +1,108 @@
 # The Sparkling Farce - Pending Tasks
 
-This document tracks all pending work items. Updated 2026-01-28.
-
----
-
-## Critical Async Safety Bugs (Priority: CRITICAL)
-
-From multi-agent code review 2026-01-21. Fixed in commit 74adaab.
-
-### BattleManager Async Issues
-- [x] `battle_manager.gd:2027-2030` - Unchecked canvas reference after timer await
-- [x] `battle_manager.gd:1559` - Unguarded unit access after tween.finished
-- [x] `battle_manager.gd:1783-1785` - `_wait_for_level_ups` infinite loop without timeout
-- [x] `battle_manager.gd:1366` - Unguarded get_tree() after timer await
-- [x] `battle_manager.gd:340-344` - Unit signal callback binding reference leak
-- [x] `battle_manager.gd:121-125` - Null cached scene returned without validation
-- [x] `battle_manager.gd:1320-1356` - combat_anim_instance validity not checked after multiple awaits
-
-### SceneManager Async Issues
-- [x] `scene_manager.gd:146-172` - Double-await state corruption in fade_to_black
-- [x] `scene_manager.gd:150-151,182-183` - Concurrent fade requests cause deadlock
-- [x] `scene_manager.gd:256-262` - go_back() overwrites previous_scene_path
-
-### ShopManager Transaction Safety
-- [x] `shop_manager.gd:905-927` - Rollback failure in `_add_items_with_rollback`
-
-### CinematicsManager State Issues
-- [x] `cinematics_manager.gd:658-663` - `_on_dialog_ended` doesn't verify current_cinematic validity
-- [x] `cinematics_manager.gd:630` - Off-by-one command index tracking (increments even on failure)
-
----
-
-## High Severity Bugs (Priority: HIGH)
-
-### Singleton Issues (Fixed in commit 74adaab)
-- [x] `caravan_controller.gd:383-386` - Menu state restoration incorrect on scene change
-- [x] `caravan_controller.gd:627-628` - `is_spawned()` doesn't use is_instance_valid()
-- [x] `debug_console.gd:390-394` - Mod command callback errors not handled
-- [x] `turn_manager.gd:59` - `_active_popup_labels` not cleaned on battle exit
-
-### UI Async Issues (Fixed in commit 74adaab)
-- [x] `dialog_box.gd:237-251` - `_on_dialog_ended` awaits without guard
-- [x] `promotion_ceremony.gd:72-73` - Never disconnects PromotionManager signal
-- [x] `choice_selector.gd:126-134` - Hide animation race with `_on_choices_ready`
-- [x] `shops/shop_controller.gd:127-138` - Close-shop re-entrancy through signal chain
-
-### ModLoader Issues (Fixed)
-- [x] `mod_loader.gd:688-695` - Path traversal now emits `path_security_violation` signal
-- [x] `mod_loader.gd:349-378` - Added async load cancellation mechanism
-
----
-
-## Architecture Improvements (Priority: HIGH)
-
-From Chief Engineer O'Brien's architecture review.
-
-### BattleManager Decomposition (Complete)
-- [x] Extract `BattleRewardsDistributor` - gold and item distribution (commit 7bc03d4)
-- [x] Extract `BattleCleanup` - encapsulate all cleanup calls (commit 2b6e403)
-- [x] Extract `BattleExitController` - Egress, Angel Wing, defeat transitions (commit 8b182e3)
-- [x] Extract `CombatSessionExecutor` - combat animation session, XP pooling (commit 7fc5d5c)
-
-### Event System Consistency
-- [x] Route BattleManager signals through GameEventBus for mod hook consistency
-- [x] Add pre/post events for item use, spell cast to GameEventBus
-- [x] Document which events support cancellation
-
-### State Management
-- [x] Resolve TurnManager.battle_active state duplication with BattleManager
-- [x] Consider separating GridManager battle functions from exploration utilities
-  - Decision: Keep unified. Added documentation clarifying architecture.
-  - Exploration already uses TileMapLayer directly (correct pattern).
-  - Highlight methods only called from InputManager - extraction adds complexity without benefit.
-
-### Test Coverage Gaps
-- [x] InputManager (2,419 lines) - 95 test cases in test_input_manager.gd (808 lines)
-- [x] CaravanController (860 lines) - 96 test cases in test_caravan_controller.gd (1,126 lines)
-- [x] DebugConsole (1,148 lines) - 126 test cases in test_debug_console.gd (1,034 lines)
-
----
-
-## Editor Bugs (Priority: HIGH)
-
-Critical bugs found in Sparkling Editor code review:
-
-### Off-by-One Metadata Bugs (Fixed)
-- [x] `battle_editor.gd:633` - AI dropdown metadata at wrong index
-- [x] `battle_editor.gd:604` - Audio dropdown item ID off by one
-- [x] `character_editor.gd:731` - AI behavior dropdown metadata off by one
-
-### Missing Dirty Tracking (Already Fixed)
-- [x] `class_editor.gd:261-269` - Equipment section already calls `_mark_dirty`
-- [x] `ability_editor.gd:435` - Status effect changes already trigger dirty flag
-
-### Memory Leaks (Already Fixed)
-- [x] `cinematic_editor.gd:1289-1299` - ConfirmationDialog cleanup via visibility_changed
-- [x] `caravan_editor.gd:443-444` - EditorFileDialog cleanup via visibility_changed
-
-### Data Integrity (Fixed)
-- [x] `save_slot_editor.gd:942-968` - Simplified to single-loop pattern, no orphans
-
-**Full report:** `docs/untracked/EDITOR_CODE_REVIEW.md`
+Updated 2026-02-06. 225 fixes applied across Phases 1-6 of systematic codebase review.
 
 ---
 
 ## Release Blocking (Priority: CRITICAL)
-
-2 items remaining before alpha release:
 
 - [ ] Complete modder documentation Tutorial 4 (Abilities and Magic)
 - [ ] Replace 23 [PLACEHOLDER] entries across community docs
 
 ---
 
+## Codebase Review — Remaining (Low/Deferred)
+
+### Phase 1: Battle Core (12 Low)
+
+- [ ] `battle_manager.gd:1764-1775` - `_on_hero_died_in_battle` no `battle_active` check between chained awaits
+- [ ] `battle_manager.gd:1760` - `quit_battle_from_menu` doesn't await async exit
+- [ ] `battle_manager.gd:349-353` - `.bind()` on `died` signal fragile if signal has parameters
+- [ ] `battle_manager.gd:1560-1568` - Victory path silently fails on missing TransitionContext
+- [ ] `input_manager.gd:713,719` - State enter handlers assume non-null `active_unit`
+- [ ] `turn_manager.gd:277` - `boss_alive` misleading initialization
+- [ ] `turn_manager.gd:692` - `_show_reinforcement_warning` missing `current_scene` null check
+- [ ] `turn_manager.gd:706-707` - `_is_valid_living_unit` uses `!= null` instead of `is_instance_valid()`
+- [ ] `turn_manager.gd:644` - `_show_popup` doesn't check `is_instance_valid(unit)`
+- [ ] `grid_manager.gd:399-443` - BFS queue suboptimal with varied terrain costs (should be priority queue)
+- [ ] `grid_manager.gd:171-186` - `load_terrain_data` early return blocks all layers if first has no tileset
+- [ ] `battle_rewards_distributor.gd:18-60` - Double reward distribution unprotected
+
+### Phase 2: Content & Narrative (7 Low/Style)
+
+- [ ] `cinematics_manager.gd:613` - Untyped `command.get()` — style judgment
+- [ ] `cinematics_manager.gd` - Inconsistent `command.get()` vs `DictUtils` — style judgment
+- [ ] `cinematics_manager.gd:229,249` - Redundant `scene_root.get_tree()` — too risky for too little benefit
+- [ ] `cinematics_manager.gd:894,899` - Magic string "CinematicStage" — standard Godot pattern
+- [ ] Inconsistent default `wait` values across executor types — intentional per command semantics
+- [ ] `cinematic_command_executor.gd:123-125` - Base `execute()` returns true — silent skip on unimplemented subclass
+- [ ] `cinematic_loader.gd:168,198,235` - `.get()` used instead of `"key" in dict` — style judgment
+
+### Phase 3: Party, Economy & Progression (4 Deferred Medium)
+
+- [ ] `equipment_manager.gd` - `.get()` used defensively on system-created dicts (style judgment)
+- [ ] `party_manager.gd:454` - `_insert_member()` edge case with `MAX_ACTIVE_SIZE` index (always valid given checks)
+- [ ] `save_manager.gd:198-207` - TOCTOU race in `load_from_slot` (extremely unlikely in practice)
+- [ ] `storage_manager.gd:367` - `load_config_from_manifest` unused `mod_id` parameter (needed for future fix)
+
+### Phase 4: Infrastructure Singletons (7 Deferred Medium + 23 Low)
+
+#### Deferred Medium
+- [ ] `mod_loader.gd:319` - `load_threaded_get` on known-failed resources (safe, just wasteful)
+- [ ] `mod_registry.gd:307-315` - `clear_mod_resources()` doesn't restore override chain (needs full reload)
+- [ ] `mod_loader.gd:260-330` - Partial load marked as success (needs design discussion)
+- [ ] `settings_manager.gd:48` - `voice_volume` dead setting (feature placeholder)
+- [ ] `audio_manager.gd:74-75` - Audio cache grows unbounded (needs eviction strategy design)
+- [ ] `random_manager.gd:55-58` - Global `randi()` for seed generation (fragile but works)
+- [ ] `random_manager.gd` - No per-battle seed snapshot (architectural enhancement)
+
+#### Low
+- [ ] Scene/Events: stale fade signal, nullable weapon doc, pre_level_up cancel leak, import_state always true, import/reset no signals, set_flag null default, trigger_type_registry null
+- [ ] Mod System: cancelled async leak, registry circular ref, stale partial data, create_mod hardcoded subdirs, untyped iteration, dead type check
+- [ ] Settings/Audio/RNG: window_scale not applied, no type validation on loaded settings, duplicate screen_shake semantics, noop _update_volumes, in-flight SFX volume, stale fallback translations, unsanitized translations, unclamped hit_chance
+
+### Phase 5: Components & Core Classes (16 Deferred Medium + 17 Low)
+
+#### Deferred Medium
+- [ ] `unit_stats.gd` - Poison/regen tick ordering (design decision on priority)
+- [ ] `unit.gd` - Lambda accumulation in tween callbacks (Godot tweens clean up on kill)
+- [ ] `unit.gd` - move_to facing skip on zero-distance moves (edge case only)
+- [ ] `unit_stats.gd` - Equipment bonus architecture divergence between init and load paths (risky, needs design)
+- [ ] `unit.gd`/`unit_stats.gd` - Status effect return contract void->bool (API change affects all callers)
+- [ ] `cinematic_data.gd` - loop property declared but unimplemented (feature placeholder)
+- [ ] `npc_data.gd`/`interactable_data.gd` - Condition eval duplication (refactoring scope expansion)
+- [ ] `grid.gd` - Integer division truncation / warning_ignore (cell sizes always even in practice)
+- [ ] `character_data.gd`/`class_data.gd` - Reflection type safety in get() (standard pattern with safe defaults)
+- [ ] `caravan_data.gd` - Terrain validation not used by caravan follower
+- [ ] `character_save_data.gd` - Equipment slot Dictionary schema validation (no type class)
+- [ ] `combat_phase.gd` - Constructor validity checks (units guaranteed valid at creation)
+- [ ] `ai_controller.gd`/`configurable_ai_brain.gd` - Singleton lifecycle during scene transitions (autoloads persist)
+- [ ] `ai_controller.gd` - Stale context refs after async awaits (architectural refactor)
+- [ ] `configurable_ai_brain.gd` - Direct BattleManager access bypasses context abstraction (architectural)
+
+#### Low
+- [ ] Unit/Stats/NPC: stale power comment, idle/walk duplication, placeholder pattern, untyped members, emergency sprite incomplete, defensive variant iteration
+- [ ] Resources: emoji in code, validate return type overview, docstring mismatch, RefCounted placement, missing display_name validation
+- [ ] AI: dead null checks, magic 9999, redundant property check, naming, unused params
+
+### Phase 6: UI Layer (30 Medium + 24 Low)
+
+From Opus 4.6 systematic codebase review 2026-02-06. 82 files, ~22,000 lines reviewed.
+39 of 93 findings fixed (13 Critical, 26 High). 30 Medium + 24 Low remain.
+
+### Phases 7-8: Not Yet Reviewed
+
+- Phase 7: Sparkling Editor (~31,000 lines, ~40 files)
+- Phase 8: Test Suite Audit (~31,000 lines, 86 files)
+
+---
+
 ## Editor Code Quality (Priority: MEDIUM)
 
-From code review - consolidation opportunities (~650 lines reducible).
-
 ### Duplication to Consolidate
-- [x] `_updating_ui` pattern - 15 editors now use inherited var from base class (~30 lines removed)
 - [ ] Place on Map sections (~80 lines duplicated in npc_editor.gd, interactable_editor.gd)
 - [ ] Advanced Options section duplication (npc_editor.gd, interactable_editor.gd) (~60 lines)
 - [ ] Conditional cinematics section duplication (~40 lines)
-- [x] `_load_texture` helper moved to SparklingEditorUtils.load_texture()
-- [x] Spawn handler boilerplate - added _build_entity_list_from_registry() helper (~45 lines consolidated)
-- [x] CRAFTER_TYPES constant moved to SparklingEditorUtils
-- [x] Registry fallback patterns - added populate_registry_dropdown() helper (3 files consolidated)
-
-### Debug Code Cleanup
-- [x] `cinematic_editor.gd:1522` - Migration print converted to push_warning
-- [x] `save_slot_selector.gd` - 17 debug print() calls removed
-
-### Large Files to Split (Complete)
-- [x] `cinematic_editor.gd` (2,285→1,985 lines) - Extracted CinematicCommandInspector component
-- [x] `character_editor.gd` (1,404→697 lines) - Extracted 4 sections to EditorSectionBase subclasses
-- [x] `base_resource_editor.gd` (1,881 lines) - Decomposed `_setup_base_ui()` into helpers
 
 ---
 
@@ -149,85 +117,79 @@ From code review - consolidation opportunities (~650 lines reducible).
 
 ### Deferred from Missing SF Features Review (2026-01-28)
 
-- [ ] Boss mechanics: double turns / boss danger system (needs dedicated design session -- simple AGI threshold is too shallow, want a proper boss encounter system)
-- [x] Settings/pause menu UI (implemented -- Audio, Display, Gameplay tabs with working settings)
-- [ ] Item balance: charges system for rings/items instead of durability (needs dedicated design session -- charges-per-battle model preferred over crack/break RNG)
-- [ ] Dead zone visuals: gray highlight for min-range dead zones (deferred -- minimal practical value, players rarely encounter min-range gaps)
-- [ ] Sticky AI targeting: leashing behavior to keep AI focused on one target (deferred -- decided against, makes AI predictable and exploitable, current dynamic targeting is smarter)
-- [ ] Difficulty AI variants: Easy/Normal/Hard AI behavior modifiers (low priority, deferred)
+- [ ] Boss mechanics: double turns / boss danger system (needs dedicated design session)
+- [ ] Item balance: charges system for rings/items instead of durability (needs dedicated design session)
+- [ ] Dead zone visuals: gray highlight for min-range dead zones (minimal practical value)
+- [ ] Sticky AI targeting: leashing behavior (decided against — makes AI predictable)
+- [ ] Difficulty AI variants: Easy/Normal/Hard AI behavior modifiers (low priority)
 
 ### Unimplemented Settings (SettingsManager keys exist, need consumers)
 
-- [x] Text speed: Bridge `SettingsManager.text_speed` float to `DialogManager.text_speed_multiplier` (wired via setting_changed signal)
-- [ ] Screen shake: Connect `GameJuice.screen_shake_requested` signal to camera controller (signal fires into void)
+- [ ] Screen shake: Connect `GameJuice.screen_shake_requested` signal to camera controller
 - [ ] Flash effects: Add `SettingsManager.are_flash_effects_enabled()` checks before flash VFX
-- [ ] Colorblind mode: Implement shader/color overlay system that reads `SettingsManager.get_colorblind_mode()`
-- [ ] Font scale: Implement UI theme scaling that reads `SettingsManager.get_font_scale()`
-- [ ] Window scale on launch: Add `window_scale` to `SettingsManager._apply_all_settings()` (setter works, not applied on startup)
+- [ ] Colorblind mode: Implement shader/color overlay system
+- [ ] Font scale: Implement UI theme scaling
+- [ ] Window scale on launch: Add `window_scale` to `SettingsManager._apply_all_settings()`
 
 ---
 
 ## Game Juice Enhancements (Priority: POLISH)
 
-Visual polish opportunities identified 2026-01-28. All use pixel-safe techniques (color/brightness tweens, position offsets - NO font scaling).
+Visual polish opportunities identified 2026-01-28. All use pixel-safe techniques.
 
 ### Trivial Complexity (color/brightness tweens only)
 
 #### Combat & Battle UI
-- [x] Damage number bounce on landing (`combat_animation_scene.gd` _show_damage_number) - TRANS_BOUNCE ease on appear
-- [x] Unit sprite white flash on damage (`unit.gd` take_damage) - 0.08s modulate flash
 - [ ] Combat forecast color coding (`combat_forecast_panel.gd`) - green=advantage, red=disadvantage
-- [ ] Turn order slot flash on turn start (`turn_order_panel.gd` update_turn_order) - brightness 1.3→1.0
+- [ ] Turn order slot flash on turn start (`turn_order_panel.gd`) - brightness 1.3->1.0
 
 #### Level-Up & Rewards
-- [x] Stat row brightness flash on reveal (`level_up_celebration.gd` _reveal_stats) - gold flash per stat
-- [x] Portrait brightness pulse on level change (`level_up_celebration.gd` _animate_level_change)
-- [ ] XP number brightness pulse (`combat_results_panel.gd` _create_xp_row)
-- [ ] Ability learned color pulse (`level_up_celebration.gd` _reveal_abilities) - cyan shimmer
+- [ ] XP number brightness pulse (`combat_results_panel.gd`)
+- [ ] Ability learned color pulse (`level_up_celebration.gd`) - cyan shimmer
 
 #### Victory Screen
-- [ ] Victory title slide-in with overshoot (`victory_screen.gd`) - TRANS_BACK easing from top
+- [ ] Victory title slide-in with overshoot (`victory_screen.gd`) - TRANS_BACK easing
 
-#### Menus (apply consistently across all)
-- [ ] Hover brightness boost (`main_menu.gd`, `save_slot_selector.gd`, shop screens) - 1.1 modulate on hover
-- [ ] Selection change brightness flash (`main_pause_screen.gd`, `exploration_field_menu.gd`) - 1.3→1.0 on cursor move
+#### Menus
+- [ ] Hover brightness boost (main_menu, save_slot_selector, shop screens) - 1.1 modulate
+- [ ] Selection change brightness flash (pause_screen, field_menu) - 1.3->1.0 on cursor move
 
 #### Exploration
-- [ ] Interaction prompt intensity ramp (`interaction_prompt.gd`) - bob amplitude 2.5→4→6px as player approaches
-- [ ] NPC/interactable confirmation flash (`npc_node.gd`, `interactable_node.gd`) - white flash on interact
+- [ ] Interaction prompt intensity ramp (`interaction_prompt.gd`) - bob amplitude ramp
+- [ ] NPC/interactable confirmation flash - white flash on interact
 
 ### Low Complexity (position tweens, simple particles)
 
 #### Combat
-- [ ] Defender recoil animation (`combat_animation_scene.gd` _play_hit_animation) - 15px pushback, spring return
+- [ ] Defender recoil animation - 15px pushback, spring return
 
 #### Victory & Rewards
-- [ ] Gold counter animation (`victory_screen.gd`) - count up from 0 over 0.5s
-- [ ] Level-up particle burst (`level_up_celebration.gd` + .tscn) - gold sparkles on panel appear
+- [ ] Gold counter animation (`victory_screen.gd`) - count up from 0
+- [ ] Level-up particle burst - gold sparkles on panel appear
 
 #### Battle Grid
-- [ ] Radial highlight reveal (`grid_manager.gd` highlight_cells) - tiles fade in from unit outward
-- [ ] Attack range red flash on confirm (`grid_manager.gd`) - brief bright red pulse on lock-in
+- [ ] Radial highlight reveal - tiles fade in from unit outward
+- [ ] Attack range red flash on confirm
 
 #### Exploration
-- [ ] NPC "notice" head turn (`npc_node.gd`) - face toward player when entering 2-tile range
+- [ ] NPC "notice" head turn - face toward player in 2-tile range
 
 #### Menus
-- [ ] Pause menu panel slide-in (`main_pause_screen.gd` initialize) - slide down with fade
-- [ ] Inventory equip success flash (`inventory_panel.gd`) - flash both source and target slots
+- [ ] Pause menu panel slide-in
+- [ ] Inventory equip success flash
 
 ### Medium Complexity (particles, more complex choreography)
 
-- [ ] Cursor movement trail/afterimage (`grid_cursor.gd`) - ghost sprite at previous position fades out
-- [ ] Movement dust particles (`hero_controller.gd`, `unit.gd`) - small puff on step completion
-- [ ] Promotion transformation particles (`promotion_ceremony.gd`) - golden burst during flash
-- [ ] Victory confetti (`victory_screen.gd` + .tscn) - falling golden particles
+- [ ] Cursor movement trail/afterimage
+- [ ] Movement dust particles
+- [ ] Promotion transformation particles
+- [ ] Victory confetti
 
-### Sound Design Hooks (for future audio pass)
+### Sound Design Hooks
 
-- [ ] `stat_increase` SFX - satisfying tick per stat reveal (currently uses ui_select)
-- [ ] `gold_earned` SFX - coin clink loop during gold counter
-- [ ] `hp_drain` SFX - subtle drain sound during HP bar tween
+- [ ] `stat_increase` SFX - tick per stat reveal
+- [ ] `gold_earned` SFX - coin clink loop
+- [ ] `hp_drain` SFX - drain sound during HP bar tween
 - [ ] `item_acquired` SFX - pickup jingle for victory rewards
 
 ---

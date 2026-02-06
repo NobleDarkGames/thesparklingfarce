@@ -30,14 +30,10 @@ signal cancelled()
 # CONSTANTS
 # =============================================================================
 
-const COLOR_PANEL_BG: Color = Color(0.1, 0.1, 0.15, 0.98)
-const COLOR_BORDER: Color = Color(0.6, 0.6, 0.7, 1.0)
-const COLOR_TITLE: Color = Color(1.0, 1.0, 0.9, 1.0)
-const COLOR_MESSAGE: Color = Color(0.8, 0.8, 0.85, 1.0)
-const COLOR_BUTTON_NORMAL: Color = Color(0.2, 0.2, 0.25, 1.0)
-const COLOR_BUTTON_HOVER: Color = Color(0.3, 0.3, 0.35, 1.0)
-const COLOR_BUTTON_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_BUTTON_TEXT: Color = Color(0.9, 0.9, 0.9, 1.0)
+## Colors - use centralized UIColors class (unique button colors stay local)
+const COLOR_BUTTON_NORMAL: Color = Color(0.2, 0.2, 0.25, 1.0)  ## Unique button bg
+const COLOR_BUTTON_HOVER: Color = Color(0.3, 0.3, 0.35, 1.0)  ## Unique button hover
+const COLOR_BUTTON_TEXT: Color = Color(0.9, 0.9, 0.9, 1.0)  ## Unique button text
 
 # =============================================================================
 # STATE
@@ -85,7 +81,7 @@ func _build_ui() -> void:
 	_panel.custom_minimum_size = Vector2(200, 80)
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_KEEP_SIZE)
 
-	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_BORDER, 2)
+	var panel_style: StyleBoxFlat = UIUtils.create_panel_style(UIColors.PANEL_BG, UIColors.PANEL_BORDER_LIGHT, 2)
 	panel_style.content_margin_bottom = 8
 	panel_style.content_margin_left = 12
 	panel_style.content_margin_right = 12
@@ -102,7 +98,7 @@ func _build_ui() -> void:
 	_title_label = Label.new()
 	_title_label.name = "TitleLabel"
 	UIUtils.apply_monogram_style(_title_label, 16)
-	_title_label.modulate = COLOR_TITLE
+	_title_label.modulate = UIColors.NAME_HIGHLIGHT
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_title_label)
 
@@ -110,7 +106,7 @@ func _build_ui() -> void:
 	_message_label = Label.new()
 	_message_label.name = "MessageLabel"
 	UIUtils.apply_monogram_style(_message_label, 16)
-	_message_label.modulate = COLOR_MESSAGE
+	_message_label.modulate = UIColors.SETTINGS_LABEL
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	vbox.add_child(_message_label)
@@ -148,7 +144,7 @@ func _create_button(text: String) -> Button:
 
 	var focus_style: StyleBoxFlat = normal_style.duplicate()
 	focus_style.bg_color = COLOR_BUTTON_HOVER
-	focus_style.border_color = COLOR_BUTTON_SELECTED
+	focus_style.border_color = UIColors.MENU_SELECTED
 	button.add_theme_stylebox_override("focus", focus_style)
 
 	return button
@@ -199,6 +195,8 @@ func _wait_for_response() -> Array:
 	# Use a simple approach - wait for the first signal
 	while _is_showing:
 		await get_tree().process_frame
+		if not is_instance_valid(self):
+			return [false]
 
 	# Return result based on which signal was emitted
 	return [_selected_index == 0]
@@ -207,13 +205,13 @@ func _wait_for_response() -> Array:
 func _update_button_visuals() -> void:
 	# Update Yes button
 	if _selected_index == 0:
-		_yes_button.modulate = COLOR_BUTTON_SELECTED
+		_yes_button.modulate = UIColors.MENU_SELECTED
 	else:
 		_yes_button.modulate = COLOR_BUTTON_TEXT
 
 	# Update No button
 	if _selected_index == 1:
-		_no_button.modulate = COLOR_BUTTON_SELECTED
+		_no_button.modulate = UIColors.MENU_SELECTED
 	else:
 		_no_button.modulate = COLOR_BUTTON_TEXT
 

@@ -37,11 +37,7 @@ signal custom_service_requested(service_id: String, scene_path: String)
 # CONSTANTS
 # =============================================================================
 
-const COLOR_PANEL_BG: Color = Color(0.1, 0.1, 0.15, 0.95)
-const COLOR_PANEL_BORDER: Color = Color(0.4, 0.35, 0.25, 1.0)
-const COLOR_OPTION_NORMAL: Color = Color(0.85, 0.85, 0.85, 1.0)
-const COLOR_OPTION_SELECTED: Color = Color(1.0, 0.95, 0.4, 1.0)
-const COLOR_OPTION_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
+## Colors - use centralized UIColors class
 
 ## Fallback menu options if CaravanController unavailable
 const FALLBACK_OPTIONS: Array[Dictionary] = [
@@ -111,7 +107,7 @@ func _input(event: InputEvent) -> void:
 # =============================================================================
 
 func _create_panel_style() -> StyleBoxFlat:
-	var style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_PANEL_BORDER, 2, 4)
+	var style: StyleBoxFlat = UIUtils.create_panel_style(UIColors.PANEL_BG, UIColors.PANEL_BORDER, 2, 4)
 	style.content_margin_left = 16
 	style.content_margin_right = 16
 	style.content_margin_top = 12
@@ -143,7 +139,7 @@ func _build_ui() -> void:
 	_title_label = Label.new()
 	_title_label.text = "Caravan"
 	UIUtils.apply_monogram_style(_title_label, 24)
-	_title_label.add_theme_color_override("font_color", COLOR_PANEL_BORDER)
+	_title_label.add_theme_color_override("font_color", UIColors.PANEL_BORDER)
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(_title_label)
 
@@ -204,7 +200,7 @@ func _refresh_menu_options() -> void:
 		var cursor: Label = Label.new()
 		cursor.text = ">"
 		UIUtils.apply_monogram_style(cursor, 16)
-		cursor.add_theme_color_override("font_color", COLOR_OPTION_SELECTED)
+		cursor.add_theme_color_override("font_color", UIColors.SETTINGS_SELECTED)
 		cursor.custom_minimum_size.x = 12
 		cursor.visible = (i == 0)  # First option selected by default
 		option_row.add_child(cursor)
@@ -220,9 +216,9 @@ func _refresh_menu_options() -> void:
 		# Check if option is enabled
 		var is_enabled: bool = option.get("enabled", true)
 		if is_enabled:
-			label.add_theme_color_override("font_color", COLOR_OPTION_NORMAL)
+			label.add_theme_color_override("font_color", UIColors.SETTINGS_LABEL)
 		else:
-			label.add_theme_color_override("font_color", COLOR_OPTION_DISABLED)
+			label.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 		option_row.add_child(label)
 		_option_labels.append(label)
@@ -240,6 +236,8 @@ func _refresh_menu_options() -> void:
 func show_menu() -> void:
 	# Refresh options from CaravanController (picks up mod custom services)
 	await _refresh_menu_options()
+	if not is_instance_valid(self):
+		return
 
 	_selected_index = 0
 	_update_selection_visual()
@@ -314,9 +312,9 @@ func _update_selection_visual() -> void:
 		var cursor: Label = _get_cursor_for_row(i)
 
 		# Update label color
-		var color: Color = COLOR_OPTION_DISABLED
+		var color: Color = UIColors.MENU_DISABLED
 		if is_enabled:
-			color = COLOR_OPTION_SELECTED if is_selected else COLOR_OPTION_NORMAL
+			color = UIColors.SETTINGS_SELECTED if is_selected else UIColors.SETTINGS_LABEL
 		label.add_theme_color_override("font_color", color)
 
 		# Update cursor visibility
@@ -384,4 +382,4 @@ func _play_sfx(sfx_name: String) -> void:
 func show_message(message: String) -> void:
 	if _description_label:
 		_description_label.text = message
-		_description_label.add_theme_color_override("font_color", COLOR_OPTION_SELECTED)
+		_description_label.add_theme_color_override("font_color", UIColors.SETTINGS_SELECTED)

@@ -58,7 +58,7 @@ signal interaction_started(npc: NPCNode, player: Node2D)
 signal interaction_ended(npc: NPCNode)
 
 # Ambient patrol state
-var _patrol_cinematic: Resource = null
+var _patrol_cinematic: CinematicData = null
 var _patrol_command_queue: Array[Dictionary] = []
 var _patrol_command_completed: bool = false
 var _patrol_wait_timer: float = 0.0
@@ -190,7 +190,10 @@ func _find_or_create_sprite() -> AnimatedSprite2D:
 	if existing_static:
 		var texture: Texture2D = existing_static.texture
 		existing_static.queue_free()
-		return _create_animated_sprite(_create_sprite_frames_from_texture(texture))
+		if texture == null:
+			push_warning("NPCNode '%s': Legacy Sprite2D has null texture, skipping conversion" % name)
+		else:
+			return _create_animated_sprite(_create_sprite_frames_from_texture(texture))
 
 	# Create from npc_data or use default
 	var frames: SpriteFrames = npc_data.get_sprite_frames() if npc_data else null
@@ -306,21 +309,27 @@ func interact(player: Node2D) -> void:
 		_end_interaction_early()
 		return
 
+	# Connect signal BEFORE play_cinematic to avoid race condition with instant cinematics
+	if not CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
+		CinematicsManager.cinematic_ended.connect(_on_cinematic_ended, CONNECT_ONE_SHOT)
+
 	_debug("Calling CinematicsManager.play_cinematic('%s')" % cinematic_id)
 	var success: bool = CinematicsManager.play_cinematic(cinematic_id)
 	_debug("play_cinematic() returned: %s" % success)
 
 	if not success:
+		# Disconnect since cinematic never started
+		if CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
+			CinematicsManager.cinematic_ended.disconnect(_on_cinematic_ended)
 		push_error("NPCNode: Failed to play cinematic '%s' for NPC '%s'" % [cinematic_id, npc_data.npc_id])
 		_end_interaction_early()
 		return
 
-	if not CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
-		CinematicsManager.cinematic_ended.connect(_on_cinematic_ended, CONNECT_ONE_SHOT)
-
 
 func _end_interaction_early() -> void:
-	CinematicsManager.cinematic_ended.emit("")
+	# Only do local cleanup -- do NOT emit CinematicsManager.cinematic_ended
+	# as no cinematic was actually started. Impersonating another system's signal
+	# can corrupt cinematic state.
 	CinematicsManager.clear_interaction_context()
 	interaction_ended.emit(self)
 	if _is_patrolling:
@@ -373,10 +382,9 @@ func _play_directional_animation(prefix: String) -> void:
 
 
 func _exit_tree() -> void:
-	var cm: Node = get_node_or_null("/root/CinematicsManager")
-	if cm and is_instance_valid(cm) and cm.has_signal("cinematic_ended"):
-		if cm.is_connected("cinematic_ended", _on_cinematic_ended):
-			cm.disconnect("cinematic_ended", _on_cinematic_ended)
+	if CinematicsManager and is_instance_valid(CinematicsManager):
+		if CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
+			CinematicsManager.cinematic_ended.disconnect(_on_cinematic_ended)
 
 
 func get_display_name() -> String:

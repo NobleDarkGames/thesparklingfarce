@@ -140,7 +140,7 @@ func _setup_grid_and_terrain() -> void:
 	_grid_resource = Grid.new()
 	_grid_resource.grid_size = Vector2i(10, 10)
 	_grid_resource.cell_size = 32
-	GridManager.setup_grid(_grid_resource, _tilemap_layer)
+	GridManager.setup_grid(_grid_resource, [_tilemap_layer])
 
 
 func _inject_terrain_at_cell(cell: Vector2i, terrain: TerrainData) -> void:

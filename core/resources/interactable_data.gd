@@ -16,8 +16,8 @@ extends Resource
 ## USAGE:
 ## - Set interactable_type for appropriate default behavior
 ## - For chests: set item_rewards and/or gold_reward
-## - For bookshelves/signs: set dialog_text for simple messages
-## - For complex interactions: set interaction_cinematic_id
+## - For bookshelves/signs: set interaction_cinematic_id or fallback_cinematic_id
+## - For complex interactions: use conditional_cinematics with flag-based logic
 ##
 ## STATE TRACKING:
 ## - Uses GameState flags for persistence
@@ -140,6 +140,8 @@ func get_completion_flag() -> String:
 func is_opened() -> bool:
 	if not one_shot:
 		return false  # Repeatable objects are never "opened"
+	if GameState == null:
+		return false
 	return GameState.has_flag(get_completion_flag())
 
 
@@ -162,6 +164,8 @@ func can_interact() -> Dictionary:
 
 ## Find the first required flag that is not set, or empty string if all are set
 func _find_missing_required_flag() -> String:
+	if GameState == null:
+		return ""
 	for flag_name: String in required_flags:
 		if not flag_name.is_empty() and not GameState.has_flag(flag_name):
 			return flag_name
@@ -170,6 +174,8 @@ func _find_missing_required_flag() -> String:
 
 ## Find the first forbidden flag that is set, or empty string if none are set
 func _find_set_forbidden_flag() -> String:
+	if GameState == null:
+		return ""
 	for flag_name: String in forbidden_flags:
 		if not flag_name.is_empty() and GameState.has_flag(flag_name):
 			return flag_name
@@ -202,7 +208,7 @@ func get_cinematic_id_for_state() -> String:
 
 ## Mark this interactable as opened (sets completion flag)
 func mark_opened() -> void:
-	if one_shot:
+	if one_shot and GameState != null:
 		GameState.set_flag(get_completion_flag())
 
 
@@ -224,6 +230,10 @@ func get_current_sprite() -> Texture2D:
 
 ## Evaluate a condition entry (same logic as NPCData)
 func _evaluate_condition(condition: Dictionary) -> bool:
+	# Guard against GameState being unavailable (editor/test context)
+	if GameState == null:
+		return false
+
 	var negate: bool = DictUtils.get_bool(condition, "negate", false)
 	var has_any_condition: bool = false
 	var all_conditions_pass: bool = true

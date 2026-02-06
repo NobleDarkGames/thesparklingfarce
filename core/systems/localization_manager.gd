@@ -62,7 +62,7 @@ var _fallback_translations: Dictionary = {}
 
 func _ready() -> void:
 	# Wait for ModLoader to be ready
-	if ModLoader._is_loading:
+	if ModLoader.is_loading():
 		await ModLoader.mods_loaded
 
 	# Load translations for default language
@@ -175,8 +175,6 @@ func _load_language_from_all_mods(language_code: String) -> Dictionary:
 		var translations_dir: String = mod.mod_directory.path_join(TRANSLATIONS_SUBDIR)
 		var translation_file: String = translations_dir.path_join("%s.json" % language_code)
 
-		# Don't use FileAccess.file_exists() - it fails in exports where files are in PCK
-		# Just try to load and let _load_translation_file handle missing files
 		var mod_translations: Dictionary = _load_translation_file(translation_file)
 		if not mod_translations.is_empty():
 			combined.merge(mod_translations, true)  # Overwrite with higher priority
@@ -186,6 +184,10 @@ func _load_language_from_all_mods(language_code: String) -> Dictionary:
 
 ## Load a single translation file
 func _load_translation_file(file_path: String) -> Dictionary:
+	# Most mods won't have translation files - this is expected, not an error
+	if not FileAccess.file_exists(file_path):
+		return {}
+
 	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
 		push_error("LocalizationManager: Failed to open translation file: %s" % file_path)

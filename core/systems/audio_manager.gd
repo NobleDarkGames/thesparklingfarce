@@ -122,7 +122,7 @@ func play_sfx(sfx_name: String, _category: SFXCategory = SFXCategory.SYSTEM) -> 
 		return
 
 	player.stream = stream
-	player.volume_db = linear_to_db(sfx_volume)
+	player.volume_db = linear_to_db(maxf(sfx_volume, 0.0001))
 	player.play()
 
 
@@ -174,9 +174,9 @@ func play_music(music_name: String, fade_in_duration: float = 0.5) -> void:
 		if layer_streams[i]:
 			# Start silent for fade-in (base layer) or disabled (other layers)
 			if i == 0:
-				player.volume_db = linear_to_db(0.0)
+				player.volume_db = linear_to_db(0.0001)
 			else:
-				player.volume_db = linear_to_db(0.0)  # Additional layers start silent
+				player.volume_db = linear_to_db(0.0001)  # Additional layers start silent
 
 	# Start all layers simultaneously for sync
 	for i: int in range(MAX_LAYERS):
@@ -188,7 +188,9 @@ func play_music(music_name: String, fade_in_duration: float = 0.5) -> void:
 
 	# Fade in base layer
 	if fade_in_duration > 0.0:
+		_cancel_layer_tween(0)
 		var tween: Tween = create_tween()
+		_layer_tweens[0] = tween
 		tween.tween_method(
 			func(vol: float) -> void:
 				_layer_volumes[0] = vol
@@ -241,7 +243,7 @@ func stop_music(fade_out_duration: float = 1.0) -> void:
 			func(vol: float) -> void:
 				for i: int in range(MAX_LAYERS):
 					if _music_layers[i].stream:
-						_music_layers[i].volume_db = linear_to_db(vol * _layer_volumes[i] * music_volume),
+						_music_layers[i].volume_db = linear_to_db(maxf(vol * _layer_volumes[i] * music_volume, 0.0001)),
 			1.0,
 			0.0,
 			fade_out_duration
@@ -369,7 +371,7 @@ func _update_layer_volume(layer: int) -> void:
 		return
 
 	var final_volume: float = _layer_volumes[layer] * music_volume
-	_music_layers[layer].volume_db = linear_to_db(final_volume)
+	_music_layers[layer].volume_db = linear_to_db(maxf(final_volume, 0.0001))
 
 
 ## Load an audio stream using mod-aware asset resolution

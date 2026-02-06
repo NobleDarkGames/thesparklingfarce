@@ -17,12 +17,12 @@ extends Resource
 @export var icon: Texture2D = null
 
 @export_group("Movement")
-## Base movement cost for ground units (1 = normal, 2 = double cost)
-@export_range(1, 99) var movement_cost_walking: int = 1
+## Base movement cost for ground units (1 = normal, 2 = double cost, 0.5 = fast road)
+@export_range(0.5, 99.0) var movement_cost_walking: float = 1.0
 ## Movement cost for floating units (typically less than walking)
-@export_range(1, 99) var movement_cost_floating: int = 1
+@export_range(0.5, 99.0) var movement_cost_floating: float = 1.0
 ## Movement cost for flying units (always 1 unless completely impassable)
-@export_range(1, 99) var movement_cost_flying: int = 1
+@export_range(0.5, 99.0) var movement_cost_flying: float = 1.0
 ## If true, ground units cannot enter at all
 @export var impassable_walking: bool = false
 ## If true, floating units cannot enter
@@ -46,25 +46,25 @@ extends Resource
 
 ## Get movement cost for a specific movement type
 ## Flying units always cost 1 (unless impassable)
-func get_movement_cost(movement_type: int) -> int:
+func get_movement_cost(movement_type: int) -> float:
 	match movement_type:
 		ClassData.MovementType.WALKING:
 			if impassable_walking:
-				return 99  # GridManager.MAX_TERRAIN_COST
+				return GridManager.MAX_TERRAIN_COST
 			return movement_cost_walking
 		ClassData.MovementType.FLOATING:
 			if impassable_floating:
-				return 99
+				return GridManager.MAX_TERRAIN_COST
 			return movement_cost_floating
 		ClassData.MovementType.FLYING:
 			if impassable_flying:
-				return 99
+				return GridManager.MAX_TERRAIN_COST
 			return movement_cost_flying  # Flying always uses this (typically 1)
 		ClassData.MovementType.CUSTOM:
 			# Custom movement types fall back to walking cost
 			# Mods should override terrain data for custom movement handling
 			if impassable_walking:
-				return 99
+				return GridManager.MAX_TERRAIN_COST
 			return movement_cost_walking
 		_:
 			return movement_cost_walking  # Default to walking

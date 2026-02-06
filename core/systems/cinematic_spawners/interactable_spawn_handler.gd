@@ -19,7 +19,7 @@ func get_available_entities() -> Array[Dictionary]:
 	)
 
 
-func create_sprite_node(entity_id: String, facing: String) -> Node2D:
+func create_sprite_node(entity_id: String, _facing: String) -> Node2D:
 	var inter_data: InteractableData = ModLoader.registry.get_interactable(entity_id)
 	if inter_data == null:
 		push_warning("InteractableSpawnHandler: InteractableData '%s' not found in registry" % entity_id)
@@ -45,5 +45,11 @@ func get_editor_hints() -> Dictionary:
 
 func _create_placeholder_sprite() -> Sprite2D:
 	var sprite: Sprite2D = Sprite2D.new()
-	sprite.name = "Sprite2D"
+	sprite.name = "PlaceholderSprite"
+	var texture: Texture2D = load(FALLBACK_SPRITESHEET_PATH) as Texture2D
+	if texture:
+		sprite.texture = texture
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(Vector2.ZERO, Vector2(FALLBACK_FRAME_SIZE))
+	sprite.modulate = Color(1.0, 0.4, 0.7, 1.0)
 	return sprite

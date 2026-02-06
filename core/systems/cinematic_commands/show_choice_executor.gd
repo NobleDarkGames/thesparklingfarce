@@ -218,15 +218,13 @@ func _action_cinematic(cinematic_id: String) -> void:
 		_complete()
 		return
 
-	# Complete current command, then queue the new cinematic
-	# The cinematic will play after the current one ends (via chaining)
-	# For immediate play, we need to end current cinematic first
+	# Complete current command first, then defer the new cinematic
+	# play_cinematic() checks state == IDLE, which won't be true until the
+	# current cinematic fully winds down. call_deferred ensures it runs after
+	# the manager returns to IDLE (same pattern as trigger_battle_executor).
 	_complete()
 
-	# Play the new cinematic - this works because we've completed our command
-	# and the manager will check for more commands, find none (or process them),
-	# then this cinematic takes over
-	CinematicsManager.play_cinematic(cinematic_id)
+	CinematicsManager.call_deferred("play_cinematic", cinematic_id)
 
 
 func _action_set_variable(key_value: String) -> void:
@@ -255,7 +253,7 @@ func _action_shop(shop_id: String) -> void:
 		return
 
 	# Look up the shop
-	var shop_data: ShopData = ModLoader.registry.get_shop(shop_id)
+	var shop_data: ShopData = ModLoader.registry.get_shop_by_id(shop_id)
 	if not shop_data:
 		push_error("ShowChoiceExecutor: Shop '%s' not found" % shop_id)
 		_complete()

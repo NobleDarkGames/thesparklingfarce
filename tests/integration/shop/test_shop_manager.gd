@@ -59,9 +59,10 @@ func before_test() -> void:
 	_shop_data.can_store_to_caravan = true
 	_shop_data.can_sell_from_caravan = true
 
-	# Create test save data
+	# Create test save data and set as active save (H-14: shop reads from SaveManager.current_save)
 	_save_data = SaveData.new()
 	_save_data.gold = 1000
+	SaveManager.current_save = _save_data
 
 	# Clear any existing shop state
 	if ShopManager:
@@ -77,6 +78,7 @@ func after_test() -> void:
 		ShopManager.close_shop()
 	if StorageManager:
 		StorageManager.clear_depot()
+	SaveManager.current_save = null
 	_shop_data = null
 	_save_data = null
 

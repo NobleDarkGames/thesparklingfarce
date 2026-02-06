@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://dmmyk3ifl2qqj"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_aok18"]
+
+[resource]
+script = ExtResource("1_aok18")
+ability_name = "SuperBlast"
+ability_id = "superblast"
+target_type = 5
+max_range = 5
+area_of_effect = 5
+description = "Like blast, but super"

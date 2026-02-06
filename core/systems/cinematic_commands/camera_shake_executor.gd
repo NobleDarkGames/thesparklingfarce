@@ -40,7 +40,5 @@ func execute(command: Dictionary, manager: Node) -> bool:
 func interrupt() -> void:
 	# Stop active camera shake
 	if _active_camera and is_instance_valid(_active_camera):
-		_active_camera._is_shaking = false
-		_active_camera._shake_time_remaining = 0.0
-		_active_camera.offset = Vector2.ZERO
+		_active_camera.stop_shake()
 	_active_camera = null

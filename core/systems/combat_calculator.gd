@@ -152,14 +152,14 @@ static func _calculate_crit_chance_default(attacker_stats: UnitStats, defender_s
 ## Check if attack hits (random roll)
 ## Returns: true if attack connects, false if miss
 static func roll_hit(hit_chance: int) -> bool:
-	var roll: int = randi_range(1, 100)
+	var roll: int = RandomManager.combat_rng.randi_range(1, 100)
 	return roll <= hit_chance
 
 
 ## Check if attack crits (random roll)
 ## Returns: true if critical hit, false otherwise
 static func roll_crit(crit_chance: int) -> bool:
-	var roll: int = randi_range(1, 100)
+	var roll: int = RandomManager.combat_rng.randi_range(1, 100)
 	return roll <= crit_chance
 
 
@@ -315,7 +315,7 @@ static func _calculate_counter_chance_default(defender_stats: UnitStats) -> int:
 static func roll_counter(counter_chance: int) -> bool:
 	if counter_chance <= 0:
 		return false
-	var roll: int = randi_range(1, 100)
+	var roll: int = RandomManager.combat_rng.randi_range(1, 100)
 	return roll <= counter_chance
 
 
@@ -433,6 +433,9 @@ static func get_effective_defense_with_terrain(
 	defender_stats: UnitStats,
 	terrain_defense_bonus: int
 ) -> int:
+	if not defender_stats:
+		push_error("CombatCalculator: Cannot calculate defense with null stats")
+		return 0
 	return defender_stats.get_effective_defense() + terrain_defense_bonus
 
 
@@ -474,6 +477,8 @@ static func _calculate_physical_damage_with_terrain_default(
 ## Calculate weapon bonus multiplier based on movement type and unit tags
 ## Returns: Multiplier (1.0 = no bonus, 1.25 = +25% damage, etc.)
 static func _calculate_weapon_bonus_multiplier(attacker_stats: UnitStats, defender_stats: UnitStats) -> float:
+	if not attacker_stats or not defender_stats:
+		return 1.0
 	if not attacker_stats.cached_weapon:
 		return 1.0
 
@@ -504,5 +509,5 @@ static func _get_movement_type_bonus(weapon: ItemData, defender_class: ClassData
 
 ## Apply variance to base damage and ensure minimum 1
 static func _apply_damage_variance(base_damage: int) -> int:
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
+	var variance: float = RandomManager.combat_rng.randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	return maxi(int(base_damage * variance), 1)

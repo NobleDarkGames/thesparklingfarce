@@ -42,7 +42,7 @@ func calculate_physical_damage(attacker_stats: UnitStats, defender_stats: UnitSt
 	var weapon_multiplier: float = calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)
 	base_damage = int(base_damage * weapon_multiplier)
 
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
+	var variance: float = RandomManager.combat_rng.randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var damage: int = int(base_damage * variance)
 	return maxi(damage, 1)
 
@@ -66,7 +66,7 @@ func calculate_physical_damage_with_terrain(
 	var weapon_multiplier: float = calculate_weapon_bonus_multiplier(attacker_stats, defender_stats)
 	base_damage = int(base_damage * weapon_multiplier)
 
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
+	var variance: float = RandomManager.combat_rng.randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var damage: int = int(base_damage * variance)
 	return maxi(damage, 1)
 
@@ -86,7 +86,7 @@ func calculate_magic_damage(
 
 	@warning_ignore("integer_division")
 	var base_damage: int = ability_power + attacker_stats.intelligence - (defender_stats.intelligence / 2)
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
+	var variance: float = RandomManager.combat_rng.randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var damage: int = int(base_damage * variance)
 	return maxi(damage, 1)
 
@@ -137,7 +137,7 @@ func calculate_healing(caster_stats: UnitStats, ability: AbilityData) -> int:
 
 	@warning_ignore("integer_division")
 	var base_healing: int = ability_power + (caster_stats.intelligence / 2)
-	var variance: float = randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
+	var variance: float = RandomManager.combat_rng.randf_range(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
 	var healing: int = int(base_healing * variance)
 	return maxi(healing, 1)
 

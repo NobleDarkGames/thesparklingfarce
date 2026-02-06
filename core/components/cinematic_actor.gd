@@ -123,7 +123,7 @@ func _use_parent_movement(waypoints: Array[Vector2i]) -> void:
 		return
 
 	var current_pos: Vector2i = GridManager.world_to_cell(parent_entity.global_position)
-	var complete_path: Array[Vector2i] = GridManager.expand_waypoint_path(waypoints, 0, current_pos)
+	var complete_path: Array[Vector2i] = GridManager.expand_waypoint_path(waypoints, 0, current_pos, true)
 
 	if complete_path.is_empty():
 		push_error("CinematicActor: Failed to expand waypoints for %s. GridManager may not be initialized." % actor_id)
@@ -294,11 +294,15 @@ func is_busy() -> bool:
 
 
 func get_world_position() -> Vector2:
-	return parent_entity.global_position if parent_entity else Vector2.ZERO
+	if parent_entity and is_instance_valid(parent_entity):
+		return parent_entity.global_position
+	return Vector2.ZERO
 
 
 func get_grid_position() -> Vector2i:
-	return GridManager.world_to_cell(parent_entity.global_position) if parent_entity else Vector2i.ZERO
+	if parent_entity and is_instance_valid(parent_entity):
+		return GridManager.world_to_cell(parent_entity.global_position)
+	return Vector2i.ZERO
 
 
 func _find_manhattan_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:

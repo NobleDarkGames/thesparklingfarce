@@ -49,7 +49,7 @@
 							"auto_follow": true,
 							"emotion": "neutral",
 							"speaker": "npc:cloaky",
-							"text": "Well... you're a protagonist, right? Look, just let me do my lines, then you can do whatever, ok?"
+							"text": "Well... you're a hero, right? Look, just let me do my lines, then you can do whatever, ok?"
 						},
 						"type": "dialog_line"
 					},

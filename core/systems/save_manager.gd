@@ -221,6 +221,13 @@ func load_from_slot(slot_number: int) -> SaveData:
 		])
 		return null
 
+	if not json.data is Dictionary:
+		push_error("SaveManager: Corrupted save in slot %d - expected Dictionary, got %s" % [
+			slot_number,
+			type_string(typeof(json.data))
+		])
+		return null
+
 	var save_dict: Dictionary = json.data
 
 	# Deserialize to SaveData
@@ -269,7 +276,7 @@ func delete_slot(slot_number: int) -> bool:
 		push_error("SaveManager: Failed to open saves directory")
 		return false
 
-	var err: Error = dir.remove(file_path)
+	var err: Error = dir.remove(file_path.get_file())
 	if err != OK:
 		push_error("SaveManager: Failed to delete file: %s (error %d)" % [file_path, err])
 		return false
@@ -378,8 +385,16 @@ func _load_metadata_file() -> Array[SlotMetadata]:
 		push_error("SaveManager: Failed to parse metadata JSON: %s" % json.get_error_message())
 		return _create_empty_metadata_array()
 
+	if not json.data is Array:
+		push_error("SaveManager: Corrupted metadata file - expected Array, got %s" % type_string(typeof(json.data)))
+		return _create_empty_metadata_array()
+
 	var metadata_array: Array[SlotMetadata] = []
-	for meta_dict: Dictionary in json.data:
+	for entry: Variant in json.data:
+		if not entry is Dictionary:
+			push_warning("SaveManager: Skipping non-Dictionary entry in metadata file")
+			continue
+		var meta_dict: Dictionary = entry
 		var meta: SlotMetadata = SlotMetadata.new()
 		meta.deserialize_from_dict(meta_dict)
 		metadata_array.append(meta)
@@ -389,7 +404,8 @@ func _load_metadata_file() -> Array[SlotMetadata]:
 
 ## Save metadata file using atomic write pattern
 ## @param metadata_array: Array of SlotMetadata to save
-func _save_metadata_file(metadata_array: Array[SlotMetadata]) -> void:
+## @return: true on success, false on failure
+func _save_metadata_file(metadata_array: Array[SlotMetadata]) -> bool:
 	var metadata_path: String = SAVE_DIRECTORY.path_join(METADATA_FILE)
 
 	# Serialize to array of dictionaries
@@ -398,7 +414,10 @@ func _save_metadata_file(metadata_array: Array[SlotMetadata]) -> void:
 		dict_array.append(meta.serialize_to_dict())
 
 	var json_string: String = JSON.stringify(dict_array, "\t")
-	_atomic_write_file(metadata_path, json_string)
+	var success: bool = _atomic_write_file(metadata_path, json_string)
+	if not success:
+		push_error("SaveManager: Failed to write metadata file: %s" % metadata_path)
+	return success
 
 
 ## Find metadata for a specific slot number
@@ -425,7 +444,9 @@ func _update_metadata_for_slot(slot_number: int, save_data: SaveData) -> void:
 		all_metadata.append(slot_meta)
 
 	slot_meta.populate_from_save_data(save_data)
-	_save_metadata_file(all_metadata)
+	var meta_saved: bool = _save_metadata_file(all_metadata)
+	if not meta_saved:
+		push_warning("SaveManager: Metadata update failed for slot %d (save file itself succeeded)" % slot_number)
 
 
 ## Mark slot as empty in metadata
@@ -435,13 +456,11 @@ func _mark_slot_as_empty(slot_number: int) -> void:
 	var slot_meta: SlotMetadata = _find_slot_metadata(all_metadata, slot_number)
 
 	if slot_meta:
-		slot_meta.is_occupied = false
-		slot_meta.party_leader_name = ""
-		slot_meta.current_location = ""
-		slot_meta.average_level = 1
-		slot_meta.playtime_seconds = 0
-		slot_meta.last_played_timestamp = 0
-		slot_meta.has_mod_mismatch = false
+		var fresh_meta: SlotMetadata = SlotMetadata.new()
+		fresh_meta.slot_number = slot_number
+		var index: int = all_metadata.find(slot_meta)
+		if index != -1:
+			all_metadata[index] = fresh_meta
 
 	_save_metadata_file(all_metadata)
 
@@ -569,6 +588,7 @@ func add_current_gold(amount: int) -> int:
 ## Syncs:
 ## - Party member stats, equipment, abilities from PartyManager
 ## - Story flags from GameState
+## - Depot items from StorageManager
 ## - Playtime accumulation
 ## - Timestamp update
 func sync_current_save_state() -> void:
@@ -592,6 +612,9 @@ func sync_current_save_state() -> void:
 
 	# Sync story flags from GameState
 	current_save.story_flags = GameState.story_flags.duplicate()
+
+	# Sync depot items from StorageManager
+	StorageManager.save_to_save_data(current_save)
 
 	# Update timestamp
 	current_save.last_played_timestamp = int(Time.get_unix_time_from_system())

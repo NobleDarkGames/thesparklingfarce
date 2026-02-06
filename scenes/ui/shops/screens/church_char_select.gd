@@ -37,6 +37,8 @@ func _on_initialized() -> void:
 	back_button.pressed.connect(_on_back_pressed)
 
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	if character_buttons.size() > 0:
 		character_buttons[0].grab_focus()
 		selected_index = 0
@@ -152,7 +154,7 @@ func _create_character_button(character: CharacterData, save_data: CharacterSave
 
 	if not can_afford:
 		button.disabled = true
-		button.add_theme_color_override("font_color", COLOR_DISABLED)
+		button.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 	return button
 
@@ -271,9 +273,9 @@ func _update_all_colors() -> void:
 		if btn.disabled:
 			continue
 		if i == selected_index and btn.has_focus():
-			btn.add_theme_color_override("font_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_SELECTED)
 		else:
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
+			btn.add_theme_color_override("font_color", UIColors.MENU_NORMAL)
 
 
 func _on_back_pressed() -> void:

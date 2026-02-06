@@ -743,7 +743,7 @@ func _cmd_caravan_status(_args: Array) -> void:
 		COLOR_END
 	])
 	if StorageManager:
-		var depot_count: int = StorageManager.get_depot_item_count()
+		var depot_count: int = StorageManager.get_depot_size()
 		_print_line("  Depot Items: %d" % depot_count)
 
 

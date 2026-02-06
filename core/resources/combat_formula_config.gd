@@ -67,8 +67,15 @@ func clear_cache() -> void:
 	_formula_instance = null
 
 
-## Validate the configuration
-func validate() -> Array[String]:
+## Validate the configuration (standard bool interface)
+func validate() -> bool:
+	var errors: Array[String] = get_validation_errors()
+	return errors.is_empty()
+
+
+## Validate the configuration with detailed error reporting
+## Returns array of error strings (empty if valid)
+func get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 
 	if display_name.is_empty():

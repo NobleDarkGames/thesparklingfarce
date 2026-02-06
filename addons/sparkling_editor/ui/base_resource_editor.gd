@@ -202,11 +202,27 @@ func _setup_base_ui() -> void:
 	# Root Control uses layout_mode = 1 with anchors in .tscn for proper TabContainer containment
 	var hsplit: HSplitContainer = HSplitContainer.new()
 	hsplit.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hsplit.split_offset = 150  # Default split position - left panel gets ~150px
-	hsplit.clip_contents = true  # Ensure children are properly clipped
+	hsplit.split_offset = 150
+	hsplit.clip_contents = true
 	add_child(hsplit)
 
 	# Left side: Resource list
+	var left_panel: VBoxContainer = _setup_left_panel()
+	hsplit.add_child(left_panel)
+
+	# Right side: Resource details
+	var scroll: ScrollContainer = _setup_right_panel()
+	hsplit.add_child(scroll)
+
+	# Create dialogs
+	_setup_dialogs()
+
+	# Create error panel
+	_setup_error_panel()
+
+
+## Set up the left panel with resource list, search, and buttons
+func _setup_left_panel() -> VBoxContainer:
 	var left_panel: VBoxContainer = VBoxContainer.new()
 	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -222,14 +238,12 @@ func _setup_base_ui() -> void:
 	help_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	left_panel.add_child(help_label)
 
-	# Search filter
 	search_filter = LineEdit.new()
 	search_filter.placeholder_text = "Search..."
 	search_filter.clear_button_enabled = true
 	search_filter.text_changed.connect(_on_search_filter_changed)
 	left_panel.add_child(search_filter)
 
-	# Button row at top (so list can expand to fill remaining space)
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 4)
 
@@ -247,31 +261,28 @@ func _setup_base_ui() -> void:
 
 	left_panel.add_child(btn_row)
 
-	# Resource list now expands to fill available vertical space
 	resource_list = ItemList.new()
 	resource_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	resource_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	resource_list.item_selected.connect(_on_resource_selected)
 	left_panel.add_child(resource_list)
 
-	hsplit.add_child(left_panel)
+	return left_panel
 
-	# Right side: Resource details (populated by child class)
+
+## Set up the right panel with detail form and buttons
+func _setup_right_panel() -> ScrollContainer:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(350, 0)  # Reduced from 400 for better laptop support
-	# Ensure vertical scrolling works properly - disable horizontal to prevent width issues
+	scroll.custom_minimum_size = Vector2(350, 0)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	# Auto-scroll to focused elements (when tabbing through form fields)
 	scroll.follow_focus = true
 	scroll.clip_contents = true
 
 	detail_panel = VBoxContainer.new()
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# IMPORTANT: Do not set SIZE_EXPAND_FILL for vertical - let VBox size to content
-	# Add some spacing between sections for visual clarity
 	detail_panel.add_theme_constant_override("separation", 8)
 
 	var detail_label: Label = Label.new()
@@ -279,8 +290,15 @@ func _setup_base_ui() -> void:
 	detail_label.add_theme_font_size_override("font_size", SparklingEditorUtils.SECTION_FONT_SIZE)
 	detail_panel.add_child(detail_label)
 
-	# Buttons will be added after child creates form
-	# Note: A separator will be added before button_container when it's added to detail_panel
+	# Setup button container with save/delete and mod workflow buttons
+	_setup_button_container()
+
+	scroll.add_child(detail_panel)
+	return scroll
+
+
+## Set up the button container with save, delete, and mod workflow buttons
+func _setup_button_container() -> void:
 	button_container = HBoxContainer.new()
 	button_container.add_theme_constant_override("separation", 8)
 
@@ -316,19 +334,19 @@ func _setup_base_ui() -> void:
 
 	button_container.add_child(mod_workflow_container)
 
-	scroll.add_child(detail_panel)
-	hsplit.add_child(scroll)
 
-	# Create confirmation dialog
+## Set up confirmation and unsaved changes dialogs
+func _setup_dialogs() -> void:
 	confirmation_dialog = ConfirmationDialog.new()
 	confirmation_dialog.title = "Confirm Action"
 	confirmation_dialog.confirmed.connect(_on_confirmation_confirmed)
 	add_child(confirmation_dialog)
 
-	# Create unsaved changes dialog
 	_create_unsaved_changes_dialog()
 
-	# Create error panel (hidden by default)
+
+## Set up the error/message panel
+func _setup_error_panel() -> void:
 	error_panel = PanelContainer.new()
 	error_panel.visible = false
 	var error_style: StyleBoxFlat = SparklingEditorUtils.create_error_panel_style()
@@ -341,8 +359,6 @@ func _setup_base_ui() -> void:
 	error_label.scroll_active = false
 	error_panel.add_child(error_label)
 
-	# Add error_panel to tree immediately (hidden) to ensure proper cleanup when freed.
-	# _position_error_panel_before_buttons() will reposition it when errors are shown.
 	detail_panel.add_child(error_panel)
 
 
@@ -357,6 +373,93 @@ func refresh() -> void:
 	# If we couldn't connect in _ready(), try again now
 	_setup_dependency_tracking()
 	_refresh_list()
+
+
+# =============================================================================
+# CONSOLIDATED HELPER METHODS
+# =============================================================================
+
+## Message type enum for _show_message()
+enum MessageType { ERROR, SUCCESS, INFO }
+
+## Get the save directory for the current resource type in the active mod
+## Returns Dictionary with {dir: String, mod_id: String}, or empty dict on failure
+func _get_save_directory() -> Dictionary:
+	if resource_type_id.is_empty() or not ModLoader:
+		if not resource_directory.is_empty():
+			return {"dir": resource_directory, "mod_id": ""}
+		return {}
+
+	var active_mod: ModManifest = ModLoader.get_active_mod()
+	if not active_mod:
+		return {}
+
+	var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
+	if resource_type_id in resource_dirs:
+		return {
+			"dir": DictUtils.get_string(resource_dirs, resource_type_id, ""),
+			"mod_id": active_mod.mod_id
+		}
+	return {}
+
+
+## Perform async filesystem refresh and check if node is still valid
+## Returns false if node was freed during await (caller should return early)
+func _async_filesystem_refresh() -> bool:
+	EditorInterface.get_resource_filesystem().scan()
+	await get_tree().process_frame
+	return is_instance_valid(self) and is_inside_tree()
+
+
+## Ensure a directory exists, creating it if necessary
+## Returns true on success, false on failure (with error shown)
+func _ensure_directory_exists(dir_path: String) -> bool:
+	if DirAccess.dir_exists_absolute(dir_path):
+		return true
+	var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(dir_path)
+	if mkdir_err != OK:
+		_show_errors(["Failed to create directory: " + dir_path,
+					  "Error: " + error_string(mkdir_err)])
+		return false
+	return true
+
+
+## Show a styled message panel (consolidates error/success/info display)
+## Auto-dismisses success and info messages after 2 seconds
+func _show_message(msg_type: MessageType, title: String, message: String, auto_dismiss: bool = true) -> void:
+	if not error_label or not error_panel:
+		return
+
+	var color: Color
+	var style: StyleBoxFlat
+
+	match msg_type:
+		MessageType.ERROR:
+			color = Color(1.0, 0.4, 0.4)
+			style = SparklingEditorUtils.create_error_panel_style()
+			auto_dismiss = false  # Errors don't auto-dismiss
+		MessageType.SUCCESS:
+			color = SparklingEditorUtils.get_success_color()
+			style = SparklingEditorUtils.create_success_panel_style()
+		MessageType.INFO:
+			color = Color(0.4, 0.6, 0.8)
+			style = error_panel.get_theme_stylebox("panel") as StyleBoxFlat
+			if style:
+				style = style.duplicate()
+				style.bg_color = Color(0.15, 0.25, 0.4, 0.95)
+				style.border_color = Color(0.3, 0.5, 0.8, 1.0)
+			else:
+				style = SparklingEditorUtils.create_error_panel_style()
+
+	error_label.text = "[color=#%s][b]%s:[/b] %s[/color]" % [color.to_html(false), title, message]
+	error_panel.add_theme_stylebox_override("panel", style)
+	_position_error_panel_before_buttons()
+	error_panel.show()
+
+	if auto_dismiss:
+		var tween: Tween = create_tween()
+		tween.tween_interval(2.0)
+		tween.tween_callback(_hide_success_and_restore_style)
 
 
 ## Helper method for child classes to add the button container with proper spacing
@@ -693,59 +796,36 @@ func _on_create_new() -> void:
 		_operation_in_progress = false
 		return
 
-	# Determine save directory
-	var save_dir: String = ""
-	var active_mod_id: String = ""
-	if resource_type_id != "" and ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			active_mod_id = active_mod.mod_id
-			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			if resource_type_id in resource_dirs:
-				save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
-
-	# Fallback to legacy directory
-	if save_dir == "":
-		save_dir = resource_directory
-
-	if save_dir == "":
+	# Get save directory using helper
+	var save_info: Dictionary = _get_save_directory()
+	if save_info.is_empty():
 		_show_errors(["No save directory available for " + resource_type_name.to_lower(),
 					  "Please ensure an active mod is selected."])
 		_operation_in_progress = false
 		return
 
-	# Ensure save directory exists (fixes issue where empty dirs aren't tracked by git)
-	if not DirAccess.dir_exists_absolute(save_dir):
-		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
-		if mkdir_err != OK:
-			_show_errors(["Failed to create directory: " + save_dir,
-						  "Error: " + error_string(mkdir_err)])
-			_operation_in_progress = false
-			return
+	var save_dir: String = save_info.dir
+	var active_mod_id: String = save_info.mod_id
+
+	# Ensure save directory exists
+	if not _ensure_directory_exists(save_dir):
+		_operation_in_progress = false
+		return
 
 	# Generate unique filename with mod prefix to avoid conflicts
 	var timestamp: int = Time.get_unix_time_from_system()
-	var prefix: String = active_mod_id + "_" if active_mod_id != "" and not active_mod_id.begins_with("_") else ""
+	var prefix: String = active_mod_id + "_" if not active_mod_id.is_empty() and not active_mod_id.begins_with("_") else ""
 	var filename: String = prefix + resource_type_name.to_lower() + "_%d.tres" % timestamp
 	var full_path: String = save_dir.path_join(filename)
 
 	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
-		# Update resource_id properties to match filename for registry consistency
 		_sync_resource_id_to_filename(new_resource, full_path)
-
-		# Force Godot to rescan filesystem and reload the resource
-		EditorInterface.get_resource_filesystem().scan()
-		await get_tree().process_frame
-		if not is_instance_valid(self) or not is_inside_tree():
+		if not await _async_filesystem_refresh():
 			return
 		_refresh_list()
-
-		# Register and notify
 		_register_and_notify_resource(new_resource, full_path, active_mod_id, true)
-
-		# Auto-select the newly created resource
 		_select_resource_by_path(full_path)
 	else:
 		push_error("Failed to create " + resource_type_name.to_lower() + ": " + str(err))
@@ -764,43 +844,27 @@ func _on_duplicate_resource() -> void:
 		_operation_in_progress = false
 		return
 
-	# Verify we have a valid path (using stored path, not ItemList selection)
 	if current_resource_path.is_empty():
 		_show_errors(["No " + resource_type_name.to_lower() + " path available"])
 		_operation_in_progress = false
 		return
 
-	# Determine save directory (use active mod)
-	var save_dir: String = ""
-	var active_mod_id: String = ""
-	if resource_type_id != "" and ModLoader:
-		var active_mod: ModManifest = ModLoader.get_active_mod()
-		if active_mod:
-			active_mod_id = active_mod.mod_id
-			var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-			if resource_type_id in resource_dirs:
-				save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
-
-	if save_dir.is_empty():
-		save_dir = resource_directory
-
-	if save_dir.is_empty():
+	# Get save directory using helper
+	var save_info: Dictionary = _get_save_directory()
+	if save_info.is_empty():
 		_show_errors(["No save directory available for duplicating " + resource_type_name.to_lower()])
 		_operation_in_progress = false
 		return
 
-	# Ensure save directory exists
-	if not DirAccess.dir_exists_absolute(save_dir):
-		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
-		if mkdir_err != OK:
-			_show_errors(["Failed to create directory: " + save_dir])
-			_operation_in_progress = false
-			return
+	var save_dir: String = save_info.dir
+	var active_mod_id: String = save_info.mod_id
+
+	if not _ensure_directory_exists(save_dir):
+		_operation_in_progress = false
+		return
 
 	# Create a duplicate resource
 	var new_resource: Resource = current_resource.duplicate(true)
-
-	# Update the resource's name to indicate it's a copy
 	var original_name: String = _get_resource_display_name(current_resource)
 	_update_resource_id_for_copy(new_resource, original_name)
 
@@ -810,22 +874,13 @@ func _on_duplicate_resource() -> void:
 	var filename: String = "%s_copy_%d.tres" % [safe_name, timestamp]
 	var full_path: String = save_dir.path_join(filename)
 
-	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
-		# Refresh and select the new resource
-		EditorInterface.get_resource_filesystem().scan()
-		await get_tree().process_frame
-		if not is_instance_valid(self) or not is_inside_tree():
+		if not await _async_filesystem_refresh():
 			return
 		_refresh_list()
-
-		# Register and notify
 		_register_and_notify_resource(new_resource, full_path, active_mod_id, true)
-
-		# Select the newly created resource
 		_select_resource_by_path(full_path)
-
 		_show_success_message("Duplicated '%s' successfully!" % original_name)
 	else:
 		_show_errors(["Failed to duplicate " + resource_type_name.to_lower() + ": " + str(err)])
@@ -1048,7 +1103,6 @@ func _update_mod_workflow_buttons() -> void:
 
 ## Copy the current resource to the active mod with a new unique ID
 func _on_copy_to_mod() -> void:
-	# Prevent concurrent operations during async filesystem scan
 	if _operation_in_progress:
 		return
 	_operation_in_progress = true
@@ -1058,39 +1112,19 @@ func _on_copy_to_mod() -> void:
 		_operation_in_progress = false
 		return
 
-	if not ModLoader:
-		_show_errors(["ModLoader not available"])
-		_operation_in_progress = false
-		return
-
-	var active_mod: ModManifest = ModLoader.get_active_mod()
-	if not active_mod:
-		_show_errors(["No active mod selected"])
-		_operation_in_progress = false
-		return
-
-	# Get the save directory
-	var save_dir: String = ""
-	if resource_type_id != "":
-		var resource_dirs: Dictionary = ModLoader.get_resource_directories(active_mod.mod_id)
-		if resource_type_id in resource_dirs:
-			save_dir = DictUtils.get_string(resource_dirs, resource_type_id, "")
-
-	if save_dir.is_empty():
-		save_dir = resource_directory
-
-	if save_dir.is_empty():
+	# Get save directory using helper
+	var save_info: Dictionary = _get_save_directory()
+	if save_info.is_empty():
 		_show_errors(["No save directory available"])
 		_operation_in_progress = false
 		return
 
-	# Ensure save directory exists
-	if not DirAccess.dir_exists_absolute(save_dir):
-		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
-		if mkdir_err != OK:
-			_show_errors(["Failed to create directory: " + save_dir])
-			_operation_in_progress = false
-			return
+	var save_dir: String = save_info.dir
+	var active_mod_id: String = save_info.mod_id
+
+	if not _ensure_directory_exists(save_dir):
+		_operation_in_progress = false
+		return
 
 	# Generate unique filename with timestamp
 	var timestamp: int = Time.get_unix_time_from_system()
@@ -1099,28 +1133,16 @@ func _on_copy_to_mod() -> void:
 	var filename: String = "%s_copy_%d.tres" % [safe_name, timestamp]
 	var full_path: String = save_dir.path_join(filename)
 
-	# Create a duplicate resource
 	var new_resource: Resource = current_resource.duplicate(true)
-
-	# Try to update the resource's ID/name if it has common properties
 	_update_resource_id_for_copy(new_resource, original_name)
 
-	# Save the resource
 	var err: Error = ResourceSaver.save(new_resource, full_path)
 	if err == OK:
-		# Refresh and select the new resource
-		EditorInterface.get_resource_filesystem().scan()
-		await get_tree().process_frame
-		if not is_instance_valid(self) or not is_inside_tree():
+		if not await _async_filesystem_refresh():
 			return
 		_refresh_list()
-
-		# Register and notify
-		_register_and_notify_resource(new_resource, full_path, active_mod.mod_id, true)
-
-		# Select the newly created resource
+		_register_and_notify_resource(new_resource, full_path, active_mod_id, true)
 		_select_resource_by_path(full_path)
-
 		_hide_errors()
 	else:
 		_show_errors(["Failed to copy resource: " + str(err)])
@@ -1181,44 +1203,26 @@ func _on_create_override() -> void:
 
 ## Actually create the override after confirmation
 func _perform_create_override(override_path: String) -> void:
-	# Prevent concurrent operations during async filesystem scan
 	if _operation_in_progress:
 		return
 	_operation_in_progress = true
 
-	# Ensure save directory exists
 	var save_dir: String = override_path.get_base_dir()
-	if not DirAccess.dir_exists_absolute(save_dir):
-		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(save_dir)
-		if mkdir_err != OK:
-			_show_errors(["Failed to create directory: " + save_dir])
-			_operation_in_progress = false
-			return
+	if not _ensure_directory_exists(save_dir):
+		_operation_in_progress = false
+		return
 
-	# Create a duplicate resource (keep all data including any internal IDs)
 	var override_resource: Resource = current_resource.duplicate(true)
-
-	# Save the override
 	var err: Error = ResourceSaver.save(override_resource, override_path)
 	if err == OK:
-		# Refresh and select the override
-		EditorInterface.get_resource_filesystem().scan()
-		await get_tree().process_frame
-		if not is_instance_valid(self) or not is_inside_tree():
+		if not await _async_filesystem_refresh():
 			_operation_in_progress = false
 			return
 		_refresh_list()
 
-		# Get active mod for registration
-		var active_mod: ModManifest = ModLoader.get_active_mod() if ModLoader else null
-		var active_mod_id: String = active_mod.mod_id if active_mod else ""
-
-		# Register and notify
+		var active_mod_id: String = _get_active_mod_id()
 		_register_and_notify_resource(override_resource, override_path, active_mod_id, true)
-
-		# Select the override
 		_select_resource_by_path(override_path)
-
 		_hide_errors()
 	else:
 		_show_errors(["Failed to create override: " + str(err)])

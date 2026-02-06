@@ -45,7 +45,11 @@ func _register_status_effect(
 	var effect: StatusEffectData = StatusEffectData.new()
 	effect.effect_id = effect_id
 	effect.display_name = effect_id.capitalize()
-	effect.stat_modifiers = stat_modifiers
+	# Populate the typed Dictionary[String, int] entry-by-entry since Godot 4.5
+	# rejects direct assignment from an untyped Dictionary literal.
+	for key: String in stat_modifiers:
+		var value: int = stat_modifiers[key] as int
+		effect.stat_modifiers[key] = value
 	effect.damage_per_turn = damage_per_turn
 	ModLoader.status_effect_registry.register_effect(effect, TEST_MOD_ID)
 	return effect

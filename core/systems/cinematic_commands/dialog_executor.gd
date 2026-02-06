@@ -199,7 +199,7 @@ func _auto_follow_speaker(speaker_ref: String, manager: Node) -> void:
 		# Stop any existing follow, move to speaker, set them as new follow target
 		camera.stop_follow()
 		camera.move_to_position(entity.global_position, 0.3, false)
-		camera._follow_target = entity
+		camera.set_follow_target(entity)
 		return
 
 	# Fallback: Try MapCamera (exploration mode)

@@ -16,7 +16,7 @@ enum MovementType {
 ## Custom movement type ID (only used when movement_type == CUSTOM)
 ## Allows mods to define their own movement types beyond the core set
 @export var custom_movement_type: String = ""
-@export var movement_range: int = 4
+@export_range(1, 15) var movement_range: int = 4
 
 @export_group("Combat Rates")
 ## Counter rate determines chance to counterattack when attacked (SF2 uses 3, 6, 12, or 25%)
@@ -56,7 +56,7 @@ enum MovementType {
 ## Level requirements for each ability {"ability_id": level_required}
 ## Abilities not in this dict are available at level 1
 ## Example: {"blaze_2": 8, "blaze_3": 16, "blaze_4": 24}
-@export var ability_unlock_levels: Dictionary = {}
+@export var ability_unlock_levels: Dictionary[String, int] = {}
 
 @export_group("Promotion")
 ## Available promotion paths for this class
@@ -92,7 +92,7 @@ func can_equip_weapon(weapon_type: String) -> bool:
 
 	for allowed: String in equippable_weapon_types:
 		# Use EquipmentTypeRegistry for wildcard matching if available
-		if ModLoader and ModLoader.equipment_type_registry:
+		if ModLoader != null and ModLoader.equipment_type_registry != null:
 			if ModLoader.equipment_type_registry.matches_accept_type(lower_type, allowed):
 				return true
 		else:

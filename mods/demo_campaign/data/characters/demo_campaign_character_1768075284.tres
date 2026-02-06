@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://bac6pw4oxfhhq" path="res://core/resources/item_data.gd" id="2_ymttl"]
 [ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="3_irami"]
 [ext_resource type="SpriteFrames" uid="uid://2l3330jml37" path="res://mods/demo_campaign/data/sprite_frames/demo_campaign_character_1768075284_map_sprites.tres" id="4_rrdsg"]
-[ext_resource type="Resource" uid="uid://byrjf5o4cs0fs" path="res://mods/demo_campaign/data/items/demo_campaign_item_1768075354.tres" id="6_dj0g3"]
 
 [sub_resource type="Resource" id="Resource_8un10"]
 script = ExtResource("2_5x1y1")
@@ -30,6 +29,17 @@ use_status_effects = false
 alert_range = 12
 engagement_range = 8
 
+[sub_resource type="Resource" id="Resource_i06k0"]
+script = ExtResource("2_ymttl")
+item_name = "Bow of normality"
+equipment_type = "bow"
+attack_power = 1
+min_attack_range = 2
+max_attack_range = 3
+buy_price = 100
+sell_price = 50
+description = "A normal wooden bow."
+
 [resource]
 script = ExtResource("1_1weh0")
 character_uid = "demo_campaign_character_1768075284"
@@ -42,7 +52,7 @@ base_agility = 7
 base_intelligence = 4
 base_luck = 6
 sprite_frames = ExtResource("4_rrdsg")
-starting_equipment = Array[ExtResource("2_ymttl")]([ExtResource("6_dj0g3")])
+starting_equipment = Array[ExtResource("2_ymttl")]([SubResource("Resource_i06k0")])
 unit_category = "enemy"
 is_unique = false
 default_ai_behavior = SubResource("Resource_8un10")

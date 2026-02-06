@@ -28,6 +28,9 @@ signal member_rejoined(character_uid: String)
 ## Emitted when a new member is added to the party
 signal member_added(character: CharacterData)
 
+## Emitted when the active/reserve roster split changes
+signal active_roster_changed()
+
 # ============================================================================
 # PARTY DATA
 # ============================================================================
@@ -92,13 +95,18 @@ func set_max_active_size(new_size: int, source_mod_id: String = "") -> int:
 		])
 
 	var old_size: int = MAX_ACTIVE_SIZE
+	var old_active_count: int = get_active_count()
 	MAX_ACTIVE_SIZE = clamped
 
 	# If party size decreased, members beyond the limit move to reserves automatically
-	if clamped < old_size and get_active_count() > clamped:
+	# (active/reserve split is index-based, so no data movement needed)
+	if clamped < old_size and old_active_count > clamped:
 		push_warning("PartyManager: Party size reduced from %d to %d - %d members moved to reserves" % [
-			old_size, clamped, get_active_count() - clamped
+			old_size, clamped, old_active_count - clamped
 		])
+
+	if clamped != old_size:
+		active_roster_changed.emit()
 
 	return clamped
 
@@ -141,6 +149,9 @@ func set_party(characters: Array[CharacterData]) -> void:
 ## @param to_active: If true, insert into active party (if room), else add to reserves
 ## @return: true if added successfully
 func add_member(character: CharacterData, to_active: bool = true) -> bool:
+	if character in party_members:
+		push_warning("PartyManager: Character '%s' is already in the party" % character.character_name)
+		return false
 	_insert_member(character, to_active)
 	_ensure_save_data(character)
 	member_added.emit(character)
@@ -190,12 +201,13 @@ func remove_member_preserve_data(character: CharacterData, reason: String = "lef
 
 	var uid: String = character.get_uid()
 
+	# Ensure save data exists before preserving (create from character if missing)
+	_ensure_save_data(character)
+
 	# Preserve save data before removal
-	var preserved_data: CharacterSaveData = null
-	if uid in _member_save_data:
-		preserved_data = _member_save_data[uid]
-		_departed_save_data[uid] = preserved_data
-		_member_save_data.erase(uid)
+	var preserved_data: CharacterSaveData = _member_save_data[uid]
+	_departed_save_data[uid] = preserved_data
+	_member_save_data.erase(uid)
 
 	party_members.remove_at(index)
 
@@ -253,6 +265,7 @@ func rejoin_departed_member(character: CharacterData, to_active: bool = true) ->
 func clear_party() -> void:
 	party_members.clear()
 	_member_save_data.clear()
+	_departed_save_data.clear()
 
 
 ## Load party from PartyData resource
@@ -372,7 +385,7 @@ func promote_to_active(reserve_index: int) -> Dictionary:
 	var character: CharacterData = party_members[reserve_array_index]
 	party_members.remove_at(reserve_array_index)
 
-	var insert_pos: int = mini(party_members.size(), MAX_ACTIVE_SIZE - 1)
+	var insert_pos: int = get_active_count()
 	party_members.insert(insert_pos, character)
 
 	return _swap_success()
@@ -449,10 +462,10 @@ func swap_within_reserve(idx1: int, idx2: int) -> Dictionary:
 ## Insert a character into the party at the appropriate position
 func _insert_member(character: CharacterData, to_active: bool) -> void:
 	if to_active and party_members.size() < MAX_ACTIVE_SIZE:
+		# Room in active party - add at end of active section
 		party_members.append(character)
-	elif to_active:
-		party_members.insert(MAX_ACTIVE_SIZE, character)
 	else:
+		# Active full or reserve requested - add to end of reserves
 		party_members.append(character)
 
 
@@ -543,9 +556,10 @@ func get_hero() -> CharacterData:
 ##          [{character: CharacterData, position: Vector2i}, ...]
 func get_battle_spawn_data(spawn_point: Vector2i = Vector2i(2, 2)) -> Array[Dictionary]:
 	var spawn_data: Array[Dictionary] = []
+	var active_party: Array[CharacterData] = get_active_party()
 
-	for i: int in range(party_members.size()):
-		var character: CharacterData = party_members[i]
+	for i: int in range(active_party.size()):
+		var character: CharacterData = active_party[i]
 
 		# Calculate position using formation offset
 		var offset: Vector2i = DEFAULT_FORMATION[i] if i < DEFAULT_FORMATION.size() else Vector2i(i % 3, i / 3)
@@ -712,6 +726,8 @@ func transfer_item_between_members(from_uid: String, to_uid: String, item_id: St
 		return _swap_error("Failed to add to destination")
 
 	item_transferred.emit(from_uid, to_uid, item_id)
+	member_inventory_changed.emit(from_uid)
+	member_inventory_changed.emit(to_uid)
 	return _swap_success()
 
 

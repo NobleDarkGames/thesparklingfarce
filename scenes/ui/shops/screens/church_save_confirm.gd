@@ -83,10 +83,10 @@ func _refresh_slot_display() -> void:
 				metadata.average_level,
 				playtime
 			]
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
+			btn.add_theme_color_override("font_color", UIColors.MENU_NORMAL)
 		else:
 			btn.text = "Slot %d: Empty" % (i + 1)
-			btn.add_theme_color_override("font_color", COLOR_EMPTY)
+			btn.add_theme_color_override("font_color", UIColors.ITEM_EMPTY)
 
 
 func _input(event: InputEvent) -> void:
@@ -145,9 +145,9 @@ func _update_all_colors() -> void:
 	for i: int in range(menu_items.size()):
 		var btn: Button = menu_items[i]
 		if i == selected_index and btn.has_focus():
-			btn.add_theme_color_override("font_focus_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_SELECTED)
 		else:
-			btn.add_theme_color_override("font_focus_color", COLOR_NORMAL)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_NORMAL)
 
 
 func _update_info_for_slot(slot_idx: int) -> void:
@@ -287,6 +287,5 @@ func _on_screen_exit() -> void:
 func _disconnect_if_connected(node: Node, signal_name: String, callable: Callable) -> void:
 	if not is_instance_valid(node):
 		return
-	var sig: Signal = node.get(signal_name) as Signal
-	if sig and sig.is_connected(callable):
-		sig.disconnect(callable)
+	if node.is_connected(signal_name, callable):
+		node.disconnect(signal_name, callable)

@@ -43,9 +43,3 @@ func get_editor_hints() -> Dictionary:
 	return {
 		"entity_id_hint": "Select a character to spawn"
 	}
-
-
-func _create_placeholder_sprite() -> AnimatedSprite2D:
-	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-	sprite.name = "AnimatedSprite2D"
-	return sprite

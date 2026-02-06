@@ -87,6 +87,8 @@ func _populate_recipe_list() -> void:
 		var first_id: String = recipe_buttons[0].get_meta("recipe_id")
 		_select_recipe(first_id, recipe_buttons[0])
 		await get_tree().process_frame
+		if not is_instance_valid(self):
+			return
 		recipe_buttons[0].grab_focus()
 
 
@@ -110,7 +112,7 @@ func _create_recipe_button(recipe_id: String, recipe: CraftingRecipeData) -> But
 
 	# Grey out if can't afford
 	if not can_afford:
-		button.add_theme_color_override("font_color", COLOR_DISABLED)
+		button.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 	return button
 
@@ -241,7 +243,7 @@ func _update_details_panel() -> void:
 
 	materials_label.text = "\n".join(materials_lines)
 	if missing_any:
-		materials_label.add_theme_color_override("font_color", COLOR_MISSING)
+		materials_label.add_theme_color_override("font_color", UIColors.ITEM_MISSING)
 	else:
 		materials_label.remove_theme_color_override("font_color")
 
@@ -252,9 +254,9 @@ func _update_details_panel() -> void:
 	gold_cost_label.text = "Cost: %dG" % modified_cost
 
 	if get_current_gold() < modified_cost:
-		gold_cost_label.add_theme_color_override("font_color", COLOR_MISSING)
+		gold_cost_label.add_theme_color_override("font_color", UIColors.ITEM_MISSING)
 	else:
-		gold_cost_label.add_theme_color_override("font_color", COLOR_GOLD)
+		gold_cost_label.add_theme_color_override("font_color", UIColors.ITEM_GOLD)
 
 	# Update craft button
 	var can_afford: bool = _can_afford_recipe(recipe)

@@ -351,10 +351,6 @@ func _try_unequip(slot_id: String) -> void:
 	var result: Dictionary = EquipmentManager.unequip_item(save_data, slot_id)
 
 	if DictUtils.get_bool(result, "success", false):
-		# Add to inventory
-		var unequipped_id: String = DictUtils.get_string(result, "unequipped_item_id", "")
-		if not unequipped_id.is_empty():
-			save_data.add_item_to_inventory(unequipped_id)
 		_show_result("Unequipped %s" % item_name, true)
 		_refresh_character_display()
 	else:
@@ -478,11 +474,6 @@ func _handle_equip_action(item_id: String) -> void:
 	var result: Dictionary = EquipmentManager.equip_item(save_data, target_slot, item_id)
 
 	if DictUtils.get_bool(result, "success", false):
-		# Remove from inventory and add old item if swapped
-		save_data.remove_item_from_inventory(item_id)
-		var unequipped_id: String = DictUtils.get_string(result, "unequipped_item_id", "")
-		if not unequipped_id.is_empty():
-			save_data.add_item_to_inventory(unequipped_id)
 		_show_result("Equipped %s!" % item_data.item_name, true)
 		_refresh_character_display()
 	else:

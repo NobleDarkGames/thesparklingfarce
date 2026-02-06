@@ -65,11 +65,15 @@ func can_store_in_caravan(_item_id: String = "", _quantity: int = 1) -> bool:
 	return true  # Infinite storage
 
 
-## Get remaining caravan space (always effectively infinite)
+## Get remaining caravan space.
+## Returns -1 for unlimited capacity (consistent with get_remaining_capacity()).
+## Returns 0 if caravan is unavailable.
 func get_caravan_space_remaining() -> int:
 	if not is_caravan_available():
 		return 0
-	return 999999  # Effectively infinite
+	if capacity_limit <= 0:
+		return -1  # Unlimited capacity
+	return capacity_limit - _depot_items.size()
 
 # ============================================================================
 # RUNTIME STATE
@@ -367,11 +371,16 @@ func reset() -> void:
 func load_config_from_manifest(mod_id: String, config: Dictionary) -> void:
 	if "capacity" in config:
 		var cap: Variant = config.capacity
+		var resolved_cap: int = -1
 		if cap is int:
-			capacity_limit = cap
+			resolved_cap = cap
 		elif cap is float:
 			var float_cap: float = cap
-			capacity_limit = int(float_cap)
+			resolved_cap = int(float_cap)
+		if resolved_cap != -1:
+			if capacity_limit > 0 and capacity_limit != resolved_cap:
+				push_warning("StorageManager: Capacity override %d -> %d by mod '%s'" % [capacity_limit, resolved_cap, mod_id])
+			capacity_limit = resolved_cap
 
 	# Future: Add more caravan config options here
 	# - accessible_in_battle: bool

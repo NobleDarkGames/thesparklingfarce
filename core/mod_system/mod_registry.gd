@@ -164,7 +164,8 @@ func get_all_resources(resource_type: String) -> Array[Resource]:
 	var type_dict: Variant = _get_type_dict(resource_type)
 	if type_dict != null:
 		for resource: Resource in type_dict.values():
-			result.append(resource)
+			if resource:
+				result.append(resource)
 	return result
 
 

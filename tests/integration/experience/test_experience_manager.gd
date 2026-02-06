@@ -333,7 +333,7 @@ func test_level_up_increases_stats() -> void:
 	var old_max_hp: int = _player_unit.stats.max_hp
 
 	# Apply level-up
-	var stat_increases: Dictionary = ExperienceManager.apply_level_up(_player_unit)
+	var stat_increases: Dictionary = ExperienceManager._apply_level_up(_player_unit)
 
 	assert_int(_player_unit.stats.level).is_equal(old_level + 1)
 	# At least one stat should increase (due to growth rates)
@@ -346,7 +346,7 @@ func test_level_up_signal_contains_correct_data() -> void:
 	_player_unit = UnitFactory.spawn_unit(char_data, Vector2i(5, 5), "player", _units_container)
 
 	# Apply level-up
-	ExperienceManager.apply_level_up(_player_unit)
+	ExperienceManager._apply_level_up(_player_unit)
 
 	assert_int(_level_up_events.size()).is_equal(1)
 	assert_int(_level_up_events[0].old_level).is_equal(5)
@@ -356,7 +356,7 @@ func test_level_up_signal_contains_correct_data() -> void:
 
 func test_level_up_handles_null_unit() -> void:
 	# Should not crash with null unit
-	var result: Dictionary = ExperienceManager.apply_level_up(null)
+	var result: Dictionary = ExperienceManager._apply_level_up(null)
 
 	assert_bool(result.is_empty()).is_true()
 	assert_int(_level_up_events.size()).is_equal(0)
@@ -402,7 +402,7 @@ func test_level_up_can_learn_abilities() -> void:
 	_player_unit = UnitFactory.spawn_unit(char_data, Vector2i(5, 5), "player", _units_container)
 
 	# Level up from 1 to 2 - should learn the ability
-	ExperienceManager.apply_level_up(_player_unit)
+	ExperienceManager._apply_level_up(_player_unit)
 
 	assert_int(_ability_learned_events.size()).is_equal(1)
 	assert_str(_ability_learned_events[0].ability.ability_id).is_equal("test_heal")
@@ -494,12 +494,13 @@ func _on_unit_gained_xp(unit: Node2D, amount: int, source: String) -> void:
 	})
 
 
-func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+func _on_unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary, learned_abilities: Array[AbilityData] = []) -> void:
 	_level_up_events.append({
 		"unit": unit,
 		"old_level": old_level,
 		"new_level": new_level,
-		"stat_increases": stat_increases
+		"stat_increases": stat_increases,
+		"learned_abilities": learned_abilities
 	})
 
 

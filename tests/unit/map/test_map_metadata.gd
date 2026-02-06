@@ -40,7 +40,7 @@ func test_empty_metadata_is_invalid() -> void:
 
 func test_valid_metadata_passes_validation() -> void:
 	var metadata: Resource = _create_valid_metadata()
-	var errors: Array[String] = metadata.validate()
+	var errors: Array[String] = metadata.get_validation_errors()
 
 	assert_bool(metadata.is_valid()).is_true()
 	assert_array(errors).is_empty()
@@ -63,7 +63,7 @@ func test_missing_scene_path_fails_validation() -> void:
 	metadata.display_name = "Test"
 	metadata.add_spawn_point("default", Vector2i.ZERO)
 
-	var errors: Array[String] = metadata.validate()
+	var errors: Array[String] = metadata.get_validation_errors()
 	assert_array(errors).contains(["scene_path is required"])
 
 
@@ -323,7 +323,7 @@ func test_invalid_facing_direction_fails_validation() -> void:
 		"facing": "diagonal"  # Invalid!
 	}
 
-	var errors: Array[String] = metadata.validate()
+	var errors: Array[String] = metadata.get_validation_errors()
 	# Should contain an error about invalid facing
 	assert_bool(errors.size() > 0).is_true()
 
@@ -334,6 +334,6 @@ func test_caravan_visible_on_town_warns() -> void:
 	metadata.caravan_visible = true
 	metadata.caravan_accessible = true
 
-	var errors: Array[String] = metadata.validate()
+	var errors: Array[String] = metadata.get_validation_errors()
 	# Should contain warning about caravan on town
 	assert_bool(errors.size() > 0).is_true()

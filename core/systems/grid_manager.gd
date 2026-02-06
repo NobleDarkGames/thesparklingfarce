@@ -309,7 +309,8 @@ func get_terrain_cost(cell: Vector2i, movement_type: int) -> float:
 ## Returns Array[Vector2i] of cells in the path (including start and end)
 ## Returns empty array if no path exists
 ## mover_faction: Faction of the moving unit - allows passing through allies
-func find_path(from: Vector2i, to: Vector2i, movement_type: int = 0, mover_faction: String = "") -> Array[Vector2i]:
+## ignore_occupancy: When true, ignores all occupancy checks (for cinematic/scripted movement)
+func find_path(from: Vector2i, to: Vector2i, movement_type: int = 0, mover_faction: String = "", ignore_occupancy: bool = false) -> Array[Vector2i]:
 	if _astar == null:
 		push_error("GridManager: A* not initialized. Call setup_grid() first.")
 		return []
@@ -323,13 +324,19 @@ func find_path(from: Vector2i, to: Vector2i, movement_type: int = 0, mover_facti
 		return []
 
 	# Check if destination is walkable (cannot end on ANY occupied cell, even allies)
-	if is_cell_occupied(to):
+	# Skip this check for cinematic/scripted movement where occupancy is irrelevant
+	if not ignore_occupancy and is_cell_occupied(to):
 		push_warning("GridManager: Destination %s is occupied" % to)
 		return []
 
 	# Temporarily update A* with terrain costs for this movement type
 	# Pass faction to allow passing through allies
-	_update_astar_weights(movement_type, mover_faction)
+	_update_astar_weights(movement_type, mover_faction, ignore_occupancy)
+
+	# Ensure the mover's own start cell is never blocked
+	# (it is occupied by the mover itself, which would be marked solid when
+	# mover_faction is empty or doesn't match)
+	_astar.set_point_solid(from, false)
 
 	# Find path using A*
 	var path_packed: PackedVector2Array = _astar.get_point_path(from, to)
@@ -349,9 +356,10 @@ func find_path(from: Vector2i, to: Vector2i, movement_type: int = 0, mover_facti
 ## waypoints: Array of Vector2i grid positions to visit in order
 ## movement_type: Movement type for terrain costs (default 0)
 ## start_pos: Starting position (if Vector2i(-1, -1), uses first waypoint as start)
+## ignore_occupancy: When true, ignores unit occupancy (for cinematic/scripted movement)
 ##
 ## Returns: Array[Vector2i] complete path, or empty array if any segment fails
-func expand_waypoint_path(waypoints: Array[Vector2i], movement_type: int = 0, start_pos: Vector2i = Vector2i(-1, -1)) -> Array[Vector2i]:
+func expand_waypoint_path(waypoints: Array[Vector2i], movement_type: int = 0, start_pos: Vector2i = Vector2i(-1, -1), ignore_occupancy: bool = false) -> Array[Vector2i]:
 	if _astar == null:
 		push_error("GridManager: A* not initialized. Call setup_grid() first.")
 		return []
@@ -368,7 +376,7 @@ func expand_waypoint_path(waypoints: Array[Vector2i], movement_type: int = 0, st
 		if waypoint == current_pos:
 			continue
 
-		var segment_path: Array[Vector2i] = find_path(current_pos, waypoint, movement_type)
+		var segment_path: Array[Vector2i] = find_path(current_pos, waypoint, movement_type, "", ignore_occupancy)
 		if segment_path.is_empty():
 			push_error("GridManager: No path found from %s to %s during waypoint expansion" % [current_pos, waypoint])
 			return []
@@ -438,13 +446,16 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 			if neighbor in visited and visited[neighbor] <= new_cost:
 				continue
 
+			# Track whether this is a newly discovered cell (not just a cost update)
+			var is_new_cell: bool = neighbor not in visited
+
 			# Mark as visited and add to queue
 			visited[neighbor] = new_cost
 			queue.append({"cell": neighbor, "cost": new_cost})
 
-			# Add to reachable cells (exclude starting position AND occupied cells)
-			# Even allies - you can pass through them but not stop on them
-			if neighbor != from and not is_cell_occupied(neighbor):
+			# Add to reachable cells only on first discovery (exclude starting position
+			# AND occupied cells - even allies, you can pass through but not stop on them)
+			if is_new_cell and neighbor != from and not is_cell_occupied(neighbor):
 				reachable.append(neighbor)
 
 	return reachable
@@ -455,7 +466,8 @@ func get_walkable_cells(from: Vector2i, movement_range: int, movement_type: int 
 ## For current grid sizes (10x10 to 20x11), this is acceptable performance.
 ## Future optimization: Cache A* weights per movement type, invalidate only on occupation changes.
 ## mover_faction: Faction of the moving unit - allows passing through allies
-func _update_astar_weights(movement_type: int, mover_faction: String = "") -> void:
+## ignore_occupancy: When true, treats all occupied cells as walkable (for cinematic movement)
+func _update_astar_weights(movement_type: int, mover_faction: String = "", ignore_occupancy: bool = false) -> void:
 	for x: int in range(grid.grid_size.x):
 		for y: int in range(grid.grid_size.y):
 			var cell: Vector2i = Vector2i(x, y)
@@ -464,6 +476,10 @@ func _update_astar_weights(movement_type: int, mover_faction: String = "") -> vo
 			# Set as solid if impassable
 			if terrain_cost >= MAX_TERRAIN_COST:
 				_astar.set_point_solid(cell, true)
+			# Skip occupancy checks entirely for cinematic/scripted movement
+			elif ignore_occupancy:
+				_astar.set_point_solid(cell, false)
+				_astar.set_point_weight_scale(cell, float(terrain_cost))
 			# Check occupation - allies are passable, enemies are solid
 			elif is_cell_occupied(cell):
 				var occupant: Unit = get_unit_at_cell(cell)

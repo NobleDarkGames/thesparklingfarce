@@ -25,13 +25,13 @@ func _init() -> void:
 @export var character_name: String = ""
 @export var character_class: ClassData
 @export_group("Stats")
-@export var base_hp: int = 10
-@export var base_mp: int = 5
-@export var base_strength: int = 5
-@export var base_defense: int = 5
-@export var base_agility: int = 5
-@export var base_intelligence: int = 5
-@export var base_luck: int = 5
+@export_range(1, 999) var base_hp: int = 10
+@export_range(1, 999) var base_mp: int = 5
+@export_range(0, 999) var base_strength: int = 5
+@export_range(0, 999) var base_defense: int = 5
+@export_range(0, 999) var base_agility: int = 5
+@export_range(0, 999) var base_intelligence: int = 5
+@export_range(0, 999) var base_luck: int = 5
 
 @export_group("Appearance")
 @export var portrait: Texture2D
@@ -136,15 +136,19 @@ func ensure_uid() -> void:
 		character_uid = generate_uid()
 
 
+## Static counter to ensure uniqueness when generating UIDs in rapid succession
+static var _uid_counter: int = 0
+
 ## Generate a new unique identifier (8 alphanumeric characters)
-## Uses a combination of timestamp and random characters for uniqueness
+## Uses a combination of timestamp, counter, and random characters for uniqueness
 static func generate_uid() -> String:
 	const CHARS: String = "abcdefghjkmnpqrstuvwxyz23456789"  # Removed ambiguous: i, l, o, 0, 1
 	const UID_LENGTH: int = 8
 
-	# Seed with current time for additional entropy
+	# Seed with current time plus counter for additional entropy in batch creation
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = Time.get_ticks_usec()
+	rng.seed = Time.get_ticks_usec() + _uid_counter
+	_uid_counter += 1
 
 	var uid: String = ""
 	for i: int in range(UID_LENGTH):

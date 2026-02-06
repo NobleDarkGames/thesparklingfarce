@@ -164,24 +164,24 @@ func export_seeds() -> Dictionary:
 
 ## Import seed state from save
 func import_seeds(data: Dictionary) -> void:
-	_combat_seed = data["combat_seed"] if "combat_seed" in data else randi()
-	_ai_seed = data["ai_seed"] if "ai_seed" in data else randi()
-	_world_seed = data["world_seed"] if "world_seed" in data else randi()
-	_seeds_are_deterministic = data["deterministic"] if "deterministic" in data else false
+	_combat_seed = data["combat_seed"] if ("combat_seed" in data and data["combat_seed"] is int) else randi()
+	_ai_seed = data["ai_seed"] if ("ai_seed" in data and data["ai_seed"] is int) else randi()
+	_world_seed = data["world_seed"] if ("world_seed" in data and data["world_seed"] is int) else randi()
+	_seeds_are_deterministic = data["deterministic"] if ("deterministic" in data and data["deterministic"] is bool) else false
 
 	# Restore RNG state if available (mid-game saves)
-	if "combat_state" in data:
-		combat_rng.state = data.combat_state
+	if "combat_state" in data and data["combat_state"] is int:
+		combat_rng.state = data["combat_state"]
 	else:
 		combat_rng.seed = _combat_seed
 
-	if "ai_state" in data:
-		ai_rng.state = data.ai_state
+	if "ai_state" in data and data["ai_state"] is int:
+		ai_rng.state = data["ai_state"]
 	else:
 		ai_rng.seed = _ai_seed
 
-	if "world_state" in data:
-		world_rng.state = data.world_state
+	if "world_state" in data and data["world_state"] is int:
+		world_rng.state = data["world_state"]
 	else:
 		world_rng.seed = _world_seed
 

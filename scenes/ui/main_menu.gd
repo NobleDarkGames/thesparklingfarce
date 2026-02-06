@@ -20,6 +20,8 @@ func _ready() -> void:
 	tween.tween_property(self, "modulate:a", 1.0, 0.5)
 
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 	new_game_button.grab_focus()
 
 

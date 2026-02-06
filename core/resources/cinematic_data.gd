@@ -62,6 +62,8 @@ enum CommandType {
 @export var auto_play: bool = false
 ## Loop cinematic continuously (for ambient patrols)
 ## When true, commands restart from beginning after completing
+## NOTE: Loop support is declared but not yet implemented in CinematicsManager.
+## Setting this to true currently has no effect.
 @export var loop: bool = false
 
 @export_group("Flow Control")

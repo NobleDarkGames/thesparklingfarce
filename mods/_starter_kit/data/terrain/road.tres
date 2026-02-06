@@ -6,3 +6,6 @@
 script = ExtResource("1_script")
 terrain_id = "road"
 display_name = "Road"
+movement_cost_walking = 0.5
+movement_cost_floating = 0.5
+movement_cost_flying = 1.0

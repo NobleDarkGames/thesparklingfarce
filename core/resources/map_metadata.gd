@@ -152,8 +152,9 @@ func _find_spawn_by_flag(flag_name: String) -> Dictionary:
 			continue
 		var data: Dictionary = data_val
 		if DictUtils.get_bool(data, flag_name, false):
-			data["spawn_id"] = spawn_id
-			return data
+			var result: Dictionary = data.duplicate()
+			result["spawn_id"] = spawn_id
+			return result
 	return {}
 
 
@@ -239,12 +240,18 @@ func apply_type_defaults() -> void:
 # Validation
 # =============================================================================
 
-## Validate the map metadata configuration
+## Validate the map metadata configuration (standard bool interface)
+func validate() -> bool:
+	var errors: Array[String] = get_validation_errors()
+	return errors.is_empty()
+
+
+## Validate the map metadata configuration with detailed error reporting
 ## Returns array of error strings (empty if valid)
 ## Note: With scene-as-truth, map_id/display_name/spawn_points may be empty
 ## until populate_from_scene() is called. Use validate_after_scene_population()
 ## for full validation after scene extraction.
-func validate() -> Array[String]:
+func get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 
 	# scene_path is always required (it's how we find the scene)
@@ -291,7 +298,7 @@ func validate() -> Array[String]:
 ## Full validation after scene population
 ## Use this after calling populate_from_scene() to ensure all required data exists
 func validate_after_scene_population() -> Array[String]:
-	var errors: Array[String] = validate()
+	var errors: Array[String] = get_validation_errors()
 
 	# These fields should be populated from scene
 	if map_id.is_empty():
@@ -308,7 +315,7 @@ func validate_after_scene_population() -> Array[String]:
 
 ## Check if metadata is valid
 func is_valid() -> bool:
-	return validate().is_empty()
+	return get_validation_errors().is_empty()
 
 
 # =============================================================================

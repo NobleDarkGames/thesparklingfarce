@@ -37,15 +37,15 @@ enum TargetType {
 
 @export_group("Range and Area")
 ## Minimum range (0 = self, 1 = adjacent, etc.)
-@export var min_range: int = 1
+@export_range(0, 15) var min_range: int = 1
 ## Maximum range
-@export var max_range: int = 1
+@export_range(0, 15) var max_range: int = 1
 ## Area of effect radius (0 = single target, 1+ = splash)
-@export var area_of_effect: int = 0
+@export_range(0, 10) var area_of_effect: int = 0
 
 @export_group("Cost")
-@export var mp_cost: int = 0
-@export var hp_cost: int = 0
+@export_range(0, 999) var mp_cost: int = 0
+@export_range(0, 999) var hp_cost: int = 0
 
 @export_group("Potency")
 ## Base potency/effectiveness of the ability (damage for attacks, healing amount for heals)
@@ -110,6 +110,9 @@ func get_cost_string() -> String:
 func validate() -> bool:
 	if ability_name.is_empty():
 		push_error("AbilityData: ability_name is required")
+		return false
+	if ability_id.is_empty():
+		push_error("AbilityData: ability_id is required (used as dictionary key in ClassData.ability_unlock_levels)")
 		return false
 	if max_range < min_range:
 		push_error("AbilityData: max_range must be >= min_range")

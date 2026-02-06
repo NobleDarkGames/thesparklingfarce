@@ -41,7 +41,11 @@ func _register_status_effect(effect_id: String, stat_modifiers: Dictionary) -> v
 	var effect: StatusEffectData = StatusEffectData.new()
 	effect.effect_id = effect_id
 	effect.display_name = effect_id.capitalize()
-	effect.stat_modifiers = stat_modifiers
+	# Build typed dictionary — untyped Dictionary cannot be assigned to Dictionary[String, int]
+	var typed_modifiers: Dictionary[String, int] = {}
+	for key: String in stat_modifiers:
+		typed_modifiers[key] = stat_modifiers[key] as int
+	effect.stat_modifiers = typed_modifiers
 	ModLoader.status_effect_registry.register_effect(effect, TEST_MOD_ID)
 
 

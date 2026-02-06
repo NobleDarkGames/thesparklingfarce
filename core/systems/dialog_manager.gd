@@ -59,12 +59,16 @@ var dialog_box: DialogBox = null
 func _ready() -> void:
 	# Load text speed from settings
 	text_speed_multiplier = SettingsManager.get_text_speed()
-	SettingsManager.setting_changed.connect(_on_setting_changed)
+	if not SettingsManager.setting_changed.is_connected(_on_setting_changed):
+		SettingsManager.setting_changed.connect(_on_setting_changed)
 
 
 func _on_setting_changed(key: String, value: Variant) -> void:
 	if key == "text_speed":
-		text_speed_multiplier = value as float
+		if value is float or value is int:
+			var speed: float = float(value)
+			if speed > 0.0:
+				text_speed_multiplier = speed
 
 
 ## Start a dialog by ID (looks up in ModRegistry)
@@ -126,6 +130,9 @@ func start_dialog_from_resource(dialogue: DialogueData) -> bool:
 ## Advance to the next line or finish dialog
 func advance_dialog() -> void:
 	if current_state == State.WAITING_FOR_INPUT:
+		if not current_dialogue:
+			_end_dialog()
+			return
 		# Move to next line
 		current_line_index += 1
 
@@ -216,6 +223,12 @@ func select_choice(choice_index: int) -> void:
 		next_dialogue = choice["next_dialogue"]
 	choice_selected.emit(choice_index, next_dialogue)
 
+	# Check for circular reference BEFORE ending (stack is still intact)
+	if next_dialogue and next_dialogue.dialogue_id in _dialog_chain_stack:
+		push_error("DialogManager: Circular dialog chain detected: %s" % next_dialogue.dialogue_id)
+		_end_dialog()
+		return
+
 	# End current dialog
 	_end_dialog()
 
@@ -241,9 +254,9 @@ func _end_dialog() -> void:
 	current_dialogue = null
 	current_line_index = 0
 
-	dialog_ended.emit(finished_dialogue)
-
 	current_state = State.IDLE
+
+	dialog_ended.emit(finished_dialogue)
 
 
 ## Public method to end the current dialog
@@ -292,6 +305,10 @@ var _external_choices: Array[Dictionary] = []
 ## Choices should have: value, label, description (optional)
 ## Returns true if choices were shown
 func show_choices(choices: Array[Dictionary]) -> bool:
+	if current_state != State.IDLE:
+		push_warning("DialogManager: Cannot show external choices - dialog already active (state=%s)" % State.find_key(current_state))
+		return false
+
 	if choices.is_empty():
 		push_warning("DialogManager: Cannot show empty choices")
 		return false
@@ -331,10 +348,8 @@ func get_external_choice_value(choice_index: int) -> String:
 ## Emits dialog_ended so UI components (ChoiceSelector, DialogBox) know to hide
 func clear_external_choices() -> void:
 	_external_choices.clear()
-	if current_state == State.WAITING_FOR_CHOICE:
-		current_state = State.IDLE
-		# Emit dialog_ended so ChoiceSelector and DialogBox hide themselves
-		dialog_ended.emit(null)
+	current_state = State.IDLE
+	dialog_ended.emit(null)
 
 
 ## Check if a dialog is currently active
@@ -376,6 +391,8 @@ func export_state() -> Dictionary:
 	return {
 		"dialogue_id": current_dialogue.dialogue_id,
 		"line_index": current_line_index,
+		# NOTE: Saved as raw int. If State enum is reordered, old saves may restore wrong state.
+		# The import_state validation will catch out-of-range values but not semantic changes.
 		"state": current_state,
 		"chain_stack": _dialog_chain_stack.duplicate()
 	}
@@ -403,8 +420,8 @@ func import_state(state: Dictionary) -> bool:
 	current_dialogue = dialogue
 	current_line_index = state["line_index"] if "line_index" in state else 0
 	var raw_state: int = state["state"] if "state" in state else State.WAITING_FOR_INPUT
-	if raw_state < 0 or raw_state >= State.size():
-		push_warning("DialogManager: Invalid state value %d in save, defaulting to WAITING_FOR_INPUT" % raw_state)
+	if raw_state not in State.values():
+		push_warning("DialogManager: Invalid state %d in save, defaulting to WAITING_FOR_INPUT" % raw_state)
 		raw_state = State.WAITING_FOR_INPUT
 	current_state = raw_state as State
 	var chain_stack_raw: Array = state["chain_stack"] if "chain_stack" in state else []

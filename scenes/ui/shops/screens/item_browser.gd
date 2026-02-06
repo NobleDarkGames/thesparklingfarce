@@ -122,7 +122,7 @@ func _create_item_button(item_id: String, item_data: ItemData) -> Button:
 
 	# Grey out if can't afford
 	if not can_afford:
-		button.add_theme_color_override("font_color", COLOR_DISABLED)
+		button.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 
 	return button
 

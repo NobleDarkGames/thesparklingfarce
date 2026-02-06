@@ -65,19 +65,29 @@ func show_defeat(hero_name: String = "The hero") -> void:
 	var tween: Tween = create_tween()
 	tween.tween_property(background, "modulate:a", 1.0, FADE_IN_DURATION)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# Phase 2: Show defeat message
 	await get_tree().create_timer(TEXT_DELAY).timeout
+	if not is_instance_valid(self):
+		return
 	var text_tween: Tween = create_tween()
 	text_tween.tween_property(message_container, "modulate:a", 1.0, 0.5)
 	await text_tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# Phase 3: Show hint after delay
 	await get_tree().create_timer(HINT_DELAY).timeout
+	if not is_instance_valid(self):
+		return
 	hint_label.text = "Press any key..."
 	var hint_tween: Tween = create_tween()
 	hint_tween.tween_property(hint_label, "modulate:a", 0.6, 0.3)
 	await hint_tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# Now allow interaction
 	_can_interact = true
@@ -105,6 +115,8 @@ func _input(event: InputEvent) -> void:
 		set_process_input(false)
 		AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
 		await _fade_out()
+		if not is_instance_valid(self):
+			return
 		continue_requested.emit()
 		result_dismissed.emit()
 
@@ -116,3 +128,5 @@ func _fade_out() -> void:
 	tween.tween_property(hint_label, "modulate:a", 0.0, 0.3)
 	# Keep background black for scene transition
 	await tween.finished
+	if not is_instance_valid(self):
+		return

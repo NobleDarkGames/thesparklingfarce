@@ -53,9 +53,11 @@ func _ready() -> void:
 	_create_fade_overlay()
 
 	# Track current scene
-	var root: Window = get_tree().root
-	var current: Node = root.get_child(root.get_child_count() - 1)
-	current_scene_path = current.scene_file_path
+	var current: Node = get_tree().current_scene
+	if current:
+		current_scene_path = current.scene_file_path
+	else:
+		push_warning("SceneManager: current_scene is null during _ready(), scene path will be set on first transition")
 
 
 ## Create a full-screen black overlay for fade transitions
@@ -105,10 +107,19 @@ func change_scene(scene_path: String, use_fade: bool = true) -> void:
 		# Only fade to black if not already black
 		if not is_faded_to_black:
 			await _fade_to_black()
-		await _switch_scene(scene_path)
+		var success: bool = await _switch_scene(scene_path)
+		if not success:
+			is_transitioning = false
+			# Recover fade state so screen isn't stuck black
+			if is_faded_to_black:
+				await _fade_from_black()
+			return
 		await _fade_from_black()
 	else:
-		await _switch_scene(scene_path)
+		var success: bool = await _switch_scene(scene_path)
+		if not success:
+			is_transitioning = false
+			return
 		# If screen was faded to black, we still need to fade from black!
 		if is_faded_to_black:
 			await _fade_from_black()
@@ -119,15 +130,16 @@ func change_scene(scene_path: String, use_fade: bool = true) -> void:
 	scene_transition_completed.emit(scene_path)
 
 
-## Actually switch the scene
-func _switch_scene(scene_path: String) -> void:
+## Actually switch the scene. Returns true on success, false on failure.
+func _switch_scene(scene_path: String) -> bool:
 	var error: Error = get_tree().change_scene_to_file(scene_path)
 	if error != OK:
 		push_error("SceneManager: Failed to load scene: %s (error: %d)" % [scene_path, error])
-		return
+		return false
 
 	# Wait one frame for scene to load
 	await get_tree().process_frame
+	return true
 
 
 ## Fade to black (internal use - updates state)
@@ -159,6 +171,11 @@ func fade_to_black(duration: float = FADE_DURATION, color: Color = Color.BLACK) 
 		await get_tree().process_frame
 		# Guard after await - scene may have changed
 		if not is_instance_valid(self) or not is_instance_valid(fade_overlay):
+			return
+		# Re-check after await: deferred add_child may still not have completed
+		if not fade_overlay.is_inside_tree():
+			push_warning("SceneManager: fade_overlay still not in tree after await, aborting fade")
+			is_fading = false
 			return
 
 	is_fading = true
@@ -292,5 +309,4 @@ func go_back(use_fade: bool = true) -> void:
 
 ## Get the current scene node
 func get_current_scene() -> Node:
-	var root: Window = get_tree().root
-	return root.get_child(root.get_child_count() - 1)
+	return get_tree().current_scene

@@ -163,21 +163,23 @@ func get_available_promotions_detailed(unit: Unit) -> Array[Dictionary]:
 
 
 ## Check if unit has a specific required item.
-## @param unit: Unit to check (for future unit-specific inventory)
+## @param unit: Unit to check
 ## @param required_item: ItemData to check for
 ## @return: true if item is available
-func _has_required_item(_unit: Unit, required_item: ItemData) -> bool:
+func _has_required_item(unit: Unit, required_item: ItemData) -> bool:
 	if not required_item:
 		return true
 
-	# Check party inventory for the required item
-	var hero_save: CharacterSaveData = GameState.get_hero_save_data()
-	if hero_save and hero_save.inventory:
-		for item_slot: String in hero_save.inventory:
-			if item_slot == required_item.resource_path:
-				return true
-	
-	# Item not found in inventory - promotion not allowed
+	# Derive item ID from the resource filename (matches inventory storage format)
+	var item_id: String = required_item.resource_path.get_file().get_basename()
+	if item_id.is_empty():
+		return false
+
+	# Check the unit's own inventory for the required item
+	var save_data: CharacterSaveData = _get_unit_save_data(unit)
+	if save_data:
+		return save_data.has_item_in_inventory(item_id)
+
 	return false
 
 
@@ -218,6 +220,10 @@ func _has_special_promotion(class_data: ClassData) -> bool:
 ## @return: Dictionary of stat changes applied
 func execute_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	var stat_changes: Dictionary = {}
+
+	if TurnManager and TurnManager.battle_active:
+		push_error("PromotionManager: Cannot promote during active battle")
+		return stat_changes
 
 	if not _validate_unit(unit):
 		push_error("PromotionManager: Invalid unit for promotion")
@@ -265,15 +271,19 @@ func execute_promotion(unit: Unit, target_class: ClassData) -> Dictionary:
 	# Reset level to 1 (SF2-style)
 	if _should_reset_level(target_class):
 		unit.stats.level = 1
+		unit.stats.current_xp = 0
 		stat_changes["level_reset"] = true
 
-		# Also update CharacterSaveData level
+		# Also update CharacterSaveData level and XP
 		var save_data: CharacterSaveData = _get_unit_save_data(unit)
 		if save_data:
 			save_data.level = 1
+			save_data.current_xp = 0
 
 	# Update cumulative level tracking
-	_set_cumulative_level(unit, cumulative_before + current_level)
+	# Subtract 1 to avoid double-counting: cumulative_before already includes
+	# "level 1" (default), and current_level starts at 1, so both count level 1.
+	_set_cumulative_level(unit, cumulative_before + current_level - 1)
 
 	# Increment promotion count
 	_increment_promotion_count(unit)
@@ -462,6 +472,8 @@ func _apply_stat_bonuses(unit: Unit, bonuses: Dictionary) -> void:
 				unit.stats.intelligence += bonus
 			"luck":
 				unit.stats.luck += bonus
+			_:
+				push_warning("PromotionManager: Unknown stat key '%s' in promotion bonuses" % stat_name)
 
 
 # ============================================================================
@@ -543,10 +555,10 @@ func _is_item_gated_promotion(old_class: ClassData, target_class: ClassData) -> 
 
 
 ## Consume the promotion item from inventory.
-## @param unit: Unit being promoted (for future unit-specific inventory)
+## @param unit: Unit being promoted
 ## @param class_data: The class being promoted from
 ## @param path: The PromotionPath being taken
-func _consume_promotion_item(_unit: Unit, class_data: ClassData, path: PromotionPath) -> void:
+func _consume_promotion_item(unit: Unit, class_data: ClassData, path: PromotionPath) -> void:
 	# Check if class says to consume item (defaults to true)
 	if not class_data.consume_promotion_item:
 		return
@@ -554,8 +566,14 @@ func _consume_promotion_item(_unit: Unit, class_data: ClassData, path: Promotion
 	if not path or not path.required_item:
 		return
 
-	if PartyManager.has_method("remove_item"):
-		PartyManager.remove_item(path.required_item)
+	var item_id: String = path.required_item.resource_path.get_file().get_basename()
+	if item_id.is_empty():
+		push_warning("PromotionManager: Cannot consume promotion item - empty item_id")
+		return
+
+	var character_uid: String = unit.character_data.character_uid
+	if not PartyManager.remove_item_from_member(character_uid, item_id):
+		push_warning("PromotionManager: Failed to consume promotion item '%s' from '%s'" % [item_id, UnitUtils.get_display_name(unit)])
 
 
 ## Check if level should reset on promotion.

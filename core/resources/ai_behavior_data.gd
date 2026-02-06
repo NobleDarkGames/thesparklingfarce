@@ -241,9 +241,15 @@ func _is_phase_active(phase: Dictionary, context: Dictionary) -> bool:
 # VALIDATION
 # =============================================================================
 
-## Validate the behavior data
+## Validate the behavior data (standard bool interface)
+func validate() -> bool:
+	var result: Dictionary = validate_detailed()
+	return result.get("valid", false)
+
+
+## Validate the behavior data with detailed error reporting
 ## Returns Dictionary with {valid: bool, errors: Array[String]}
-func validate() -> Dictionary:
+func validate_detailed() -> Dictionary:
 	var errors: Array[String] = []
 
 	# Check ID

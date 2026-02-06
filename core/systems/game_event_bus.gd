@@ -45,8 +45,13 @@ extends Node
 # CANCELLATION STATE
 # ============================================================================
 
-## Set to true by mods to cancel the current event
-## Game systems must check this after emitting pre-events
+## Stack-based cancellation state to support re-entrant event emission.
+## Each reset_cancellation() pushes a new frame; check_and_reset_cancellation() pops it.
+## This prevents a nested pre-event from wiping the outer event's cancellation.
+var _cancellation_stack: Array[bool] = []
+
+## Backward-compatible flag: mirrors the top of the cancellation stack.
+## Game systems that read this directly will see the current event's state.
 var event_cancelled: bool = false
 
 ## Optional reason for cancellation (for logging/feedback)
@@ -226,24 +231,43 @@ signal post_combat_session(attacker: Unit, defender: Unit, result: Dictionary)
 ## Cancel the current event (call from pre-event handlers)
 ## @param reason: Optional reason for cancellation (for logging)
 func cancel_event(reason: String = "") -> void:
+	if _cancellation_stack.is_empty():
+		# Backward compat: direct call without reset_cancellation() first
+		_cancellation_stack.push_back(true)
+	else:
+		_cancellation_stack[_cancellation_stack.size() - 1] = true
 	event_cancelled = true
 	cancellation_reason = reason
 
 
 ## Check if event was cancelled and reset for next event
 ## Game systems should call this after emitting pre-events
+## Pops the current cancellation frame from the stack.
 ## @return: true if event was cancelled
 func check_and_reset_cancellation() -> bool:
-	var was_cancelled: bool = event_cancelled
-	event_cancelled = false
+	var was_cancelled: bool = false
+	if not _cancellation_stack.is_empty():
+		was_cancelled = _cancellation_stack.pop_back()
+	# Sync backward-compatible flag with new stack top (or false if empty)
+	event_cancelled = is_event_cancelled()
 	cancellation_reason = ""
 	return was_cancelled
 
 
 ## Reset cancellation state (call before emitting pre-events)
+## Pushes a new false frame onto the cancellation stack.
 func reset_cancellation() -> void:
+	_cancellation_stack.push_back(false)
 	event_cancelled = false
 	cancellation_reason = ""
+
+
+## Check if the current event is cancelled (reads top of stack)
+## @return: true if the current event frame is cancelled, false if stack is empty
+func is_event_cancelled() -> bool:
+	if _cancellation_stack.is_empty():
+		return false
+	return _cancellation_stack[_cancellation_stack.size() - 1]
 
 
 # ============================================================================

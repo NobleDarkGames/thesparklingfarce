@@ -35,6 +35,9 @@ static var _inline_dialog_counter: int = 0
 ## @param manager: Reference to the CinematicsManager
 ## @return: true if completed immediately, false if async (waiting for dialog)
 static func show_system_message(message: String, manager: Node) -> bool:
+	if not is_instance_valid(manager):
+		push_warning("CinematicCommandExecutor: Manager freed, cannot show system message")
+		return true
 	var dialogue: DialogueData = DialogueData.new()
 
 	# Generate unique ID
@@ -61,6 +64,8 @@ static func show_system_message(message: String, manager: Node) -> bool:
 ## @param character_id: Either a resource ID like "max" or character_uid like "hk7wm4np"
 ## @return: CharacterData if found, null otherwise
 static func resolve_character(character_id: String) -> CharacterData:
+	if not ModLoader or not ModLoader.registry:
+		return null
 	# First try by character_uid (what the editor stores)
 	var character: CharacterData = ModLoader.registry.get_character_by_uid(character_id) as CharacterData
 	if character:
@@ -180,6 +185,32 @@ static func complete_async_command(manager: Node, restore_playing_state: bool = 
 		if restore_playing_state:
 			manager.current_state = manager.State.PLAYING
 		manager._command_completed = true
+
+
+## Resolve scene path from params (priority: scene_path > scene_id > map_id)
+## @param params: Dictionary containing scene_path, scene_id, or map_id
+## @return: Resolved scene path string, or empty string if none found
+static func resolve_scene_path(params: Dictionary) -> String:
+	# Direct scene path takes priority
+	var scene_path: String = params.get("scene_path", "")
+	if not scene_path.is_empty():
+		return scene_path
+
+	# Try scene_id (registered scene)
+	var scene_id: String = params.get("scene_id", "")
+	if not scene_id.is_empty() and ModLoader and ModLoader.registry:
+		scene_path = ModLoader.registry.get_scene_path(scene_id)
+		if not scene_path.is_empty():
+			return scene_path
+
+	# Try map_id (get scene from map metadata)
+	var map_id: String = params.get("map_id", "")
+	if not map_id.is_empty() and ModLoader and ModLoader.registry:
+		var map_data: MapMetadata = ModLoader.registry.get_map(map_id)
+		if map_data and "scene_path" in map_data:
+			return map_data.scene_path
+
+	return ""
 
 
 ## Parse flag array from params (accepts string or array)

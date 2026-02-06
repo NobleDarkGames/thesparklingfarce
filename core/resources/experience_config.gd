@@ -115,16 +115,16 @@ extends Resource
 ## @param level_diff: Defender level - Attacker level
 ## @return: Base XP value for this level difference
 func get_base_xp_from_level_diff(level_diff: int) -> int:
-	# Clamp to table bounds
-	if level_diff <= -7:
-		var min_value: Variant = level_diff_xp_table[-7]
-		return min_value if min_value is int else 50
-	elif level_diff >= 2:
-		var max_value: Variant = level_diff_xp_table[2]
-		return max_value if max_value is int else 50
-	else:
-		var diff_value: Variant = level_diff_xp_table.get(level_diff, 50)
-		return diff_value if diff_value is int else 50
+	# Derive clamp bounds from actual table keys (not hardcoded)
+	var min_diff: int = -7  # fallback
+	var max_diff: int = 2   # fallback
+	for key: int in level_diff_xp_table:
+		min_diff = mini(min_diff, key)
+		max_diff = maxi(max_diff, key)
+
+	var clamped: int = clampi(level_diff, min_diff, max_diff)
+	var diff_value: Variant = level_diff_xp_table.get(clamped, 50)
+	return diff_value if diff_value is int else 50
 
 
 ## Calculate anti-spam XP multiplier based on usage count.

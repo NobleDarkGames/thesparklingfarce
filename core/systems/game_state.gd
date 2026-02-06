@@ -109,15 +109,15 @@ func _ready() -> void:
 		pass
 
 
-## Global quit handler - Q key quits the game (development convenience)
+## Global quit handler - Ctrl+Q quits the game (development convenience)
 ## Uses _unhandled_input for efficiency (only fires on actual input, not every frame)
 ## IMPORTANT: Only active in debug builds to prevent accidental quit in production
 func _unhandled_input(event: InputEvent) -> void:
-	# Debug convenience: Q key quits game (development only)
+	# Debug convenience: Ctrl+Q quits game (development only)
 	if OS.has_feature("debug"):
 		if event is InputEventKey:
 			var key_event: InputEventKey = event
-			if key_event.pressed and not key_event.echo and key_event.keycode == KEY_Q:
+			if key_event.pressed and not key_event.echo and key_event.keycode == KEY_Q and key_event.ctrl_pressed:
 				get_tree().quit()
 
 
@@ -340,6 +340,8 @@ func set_campaign_data(key: String, value: Variant) -> void:
 ## Increment a numeric campaign value
 func increment_campaign_data(key: String, amount: int = 1) -> void:
 	var current_value_variant: Variant = campaign_data.get(key, 0)
+	if not current_value_variant is int:
+		push_warning("GameState: campaign_data key '%s' had non-int value, resetting" % key)
 	var current_value: int = current_value_variant if current_value_variant is int else 0
 	set_campaign_data(key, current_value + amount)
 

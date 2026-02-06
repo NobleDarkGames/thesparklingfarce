@@ -163,6 +163,8 @@ func _ready() -> void:
 	# Without this, New Game flow (no transition context) emits before anyone listens.
 	if hero:
 		await get_tree().process_frame
+		if not is_instance_valid(self):
+			return
 		hero_ready.emit(hero)
 
 
@@ -177,6 +179,8 @@ func _handle_transition_context(context: TransitionContext) -> void:
 
 	# Wait one frame for hero to be fully initialized
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 
 	var spawn_point_id: String = context.spawn_point_id if context.get("spawn_point_id") else ""
 	var restored: bool = false

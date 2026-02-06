@@ -79,11 +79,12 @@ enum ItemType {
 ## Damage multipliers against target movement types
 ## Keys: MovementType enum values (0=WALKING, 1=FLYING, 2=FLOATING) or custom type strings
 ## Values: float multiplier (1.25 = +25% damage)
+## Note: Cannot use Dictionary[K,V] — keys are mixed types (int enum + String for custom)
 @export var movement_type_bonuses: Dictionary = {}
 
 ## Damage multipliers against unit tags (e.g., "undead", "beast", "armored")
 ## Keys: tag strings, Values: float multiplier
-@export var unit_tag_bonuses: Dictionary = {}
+@export var unit_tag_bonuses: Dictionary[String, float] = {}
 
 @export_group("Item Management")
 ## Whether this item can be dropped/discarded by the player
@@ -147,6 +148,9 @@ func validate() -> bool:
 		return false
 	if is_equippable() and equipment_type.is_empty():
 		push_error("ItemData: equipment_type is required for weapons and accessories")
+		return false
+	if min_attack_range > max_attack_range:
+		push_error("ItemData '%s': min_attack_range (%d) > max_attack_range (%d)" % [item_name, min_attack_range, max_attack_range])
 		return false
 	if item_type == ItemType.CONSUMABLE and effect == null:
 		push_warning("ItemData: consumable item has no effect assigned")

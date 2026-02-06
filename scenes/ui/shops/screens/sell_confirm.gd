@@ -19,6 +19,8 @@ func _on_initialized() -> void:
 	cancel_button.pressed.connect(_on_cancel)
 
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	confirm_button.grab_focus()
 
 

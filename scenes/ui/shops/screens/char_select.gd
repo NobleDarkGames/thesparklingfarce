@@ -91,7 +91,7 @@ func _populate_character_grid() -> void:
 			label.text = "No one can equip this item!"
 		else:
 			label.text = "Everyone's inventory is full!"
-		label.add_theme_color_override("font_color", COLOR_DISABLED)
+		label.add_theme_color_override("font_color", UIColors.MENU_DISABLED)
 		character_grid.add_child(label)
 
 

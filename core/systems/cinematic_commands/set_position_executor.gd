@@ -16,7 +16,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 
 	# Get position (required) - handles both Vector2 and Array [x, y]
 	var position_raw: Variant = params.get("position", null)
-	var pos_vec: Vector2
+	var pos_vec: Vector2 = Vector2.ZERO
 
 	if position_raw is Vector2:
 		pos_vec = position_raw

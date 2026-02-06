@@ -86,13 +86,13 @@ func _update_all_colors() -> void:
 	for i: int in range(menu_items.size()):
 		var btn: Button = menu_items[i]
 		if i == selected_index and btn.has_focus():
-			btn.add_theme_color_override("font_color", COLOR_SELECTED)
-			btn.add_theme_color_override("font_hover_color", COLOR_SELECTED)
-			btn.add_theme_color_override("font_focus_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_SELECTED)
+			btn.add_theme_color_override("font_hover_color", UIColors.MENU_SELECTED)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_SELECTED)
 		else:
-			btn.add_theme_color_override("font_color", COLOR_NORMAL)
-			btn.add_theme_color_override("font_hover_color", COLOR_SELECTED)
-			btn.add_theme_color_override("font_focus_color", COLOR_SELECTED)
+			btn.add_theme_color_override("font_color", UIColors.MENU_NORMAL)
+			btn.add_theme_color_override("font_hover_color", UIColors.MENU_SELECTED)
+			btn.add_theme_color_override("font_focus_color", UIColors.MENU_SELECTED)
 
 
 func _on_forge_pressed() -> void:

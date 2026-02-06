@@ -62,6 +62,8 @@ func before_test() -> void:
 	# Reset to known state
 	SaveManager.current_save.gold = 0
 	SaveManager.current_save.depot_items.clear()
+	if StorageManager:
+		StorageManager.clear_depot()
 
 	# Create fresh mock data
 	_mock_battle_data = MockBattleData.new()
@@ -79,6 +81,8 @@ func after_test() -> void:
 		SaveManager.current_save = _original_save
 		SaveManager.current_save.gold = _original_gold
 		SaveManager.current_save.depot_items = _original_depot_items
+	if StorageManager:
+		StorageManager.clear_depot()
 	_mock_battle_data = null
 
 
@@ -330,8 +334,8 @@ func test_mod_can_add_bonus_items_via_pre_signal() -> void:
 	# Assert - mod-added item should be in rewards
 	assert_bool("bonus_item_from_mod" in rewards.items).is_true()
 
-	# Assert - item should be in depot
-	assert_bool("bonus_item_from_mod" in SaveManager.current_save.depot_items).is_true()
+	# Assert - item should be in depot (routed through StorageManager, not SaveData directly)
+	assert_bool(StorageManager.has_item("bonus_item_from_mod")).is_true()
 	# Signal cleanup handled by after_test()
 
 

@@ -183,6 +183,7 @@ func _start_new_game(hero_name: String) -> void:
 		# Set starting gold
 		var new_save: SaveData = SaveData.new()
 		new_save.slot_number = _selected_slot
+		new_save.created_timestamp = int(Time.get_unix_time_from_system())
 		SaveManager.set_current_save(new_save)
 		SaveManager.current_save.gold = config.starting_gold
 		SaveManager.current_save.current_location = config.starting_location_label
@@ -273,6 +274,9 @@ func _load_game() -> void:
 
 	# Restore party from save
 	PartyManager.import_from_save(save_data.party_members)
+
+	# Restore depot items from save
+	StorageManager.load_from_save_data(save_data)
 
 	# Load saved scene
 	if not save_data.current_scene_path.is_empty():

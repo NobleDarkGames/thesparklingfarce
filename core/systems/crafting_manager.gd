@@ -29,6 +29,7 @@ signal craft_failed(recipe: CraftingRecipeData, reason: String)
 
 ## Count how many of a material the player owns across all storage
 ## Checks: Caravan depot + all party member inventories
+## NOTE: Equipped items are intentionally excluded — player must unequip before upgrading
 ## @param material_id: ID of the item to count
 ## @return: Total quantity owned
 func count_material(material_id: String) -> int:
@@ -64,21 +65,7 @@ func get_inventory_checker() -> Callable:
 ## @param crafter: Optional CrafterData for cost modification
 ## @return: true if player has all materials and gold
 func can_craft_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null) -> bool:
-	if not recipe:
-		return false
-
-	# Get current gold
-	var gold: int = _get_current_gold()
-
-	# Apply crafter's fee modifier if present
-	var modified_cost: int = recipe.gold_cost
-	if crafter:
-		modified_cost = crafter.get_modified_cost(recipe.gold_cost)
-
-	# Use recipe's built-in can_afford with our inventory checker
-	return recipe.can_afford(get_inventory_checker(), gold - modified_cost + recipe.gold_cost)
-	# Note: The above looks odd but can_afford checks gold_cost against the passed gold
-	# We need to check against modified_cost, so we adjust
+	return can_afford_recipe(recipe, crafter)
 
 
 ## More direct affordability check
@@ -97,8 +84,8 @@ func can_afford_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null) 
 
 	# Check each material
 	for input: Dictionary in recipe.inputs:
-		var material_id: String = input.get("material_id", "")
-		var required_qty: int = input.get("quantity", 1)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var required_qty: int = DictUtils.get_int(input, "quantity", 1)
 		var owned_qty: int = count_material(material_id)
 		if owned_qty < required_qty:
 			return false
@@ -189,37 +176,46 @@ func craft_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null, choic
 			return result
 
 	# === EXECUTE TRANSACTION (ATOMIC) ===
-	# Verify output can be stored BEFORE consuming anything
-	
-	# 1. Pre-flight check: Ensure we can add the output item
+	# Validate everything BEFORE consuming any resources
+
+	# 1. Pre-flight: Validate output item exists in the registry
+	var output_item_data: ItemData = ModLoader.registry.get_item(output_item_id)
+	if not output_item_data:
+		result.error = "Output item '%s' not found in registry" % output_item_id
+		craft_failed.emit(recipe, result.error)
+		return result
+
+	# 2. Pre-flight: Ensure caravan has space for the output
 	if not _can_add_item_to_caravan(output_item_id):
 		result.error = "Caravan storage is full"
 		craft_failed.emit(recipe, result.error)
 		return result
 
-	# HIGH-008: Deduct materials FIRST, then gold
-	# This prevents gold loss if material removal fails
+	# All pre-flight checks passed -- consume resources and grant output
 
-	# 2. Deduct materials
+	# 3. Deduct materials
 	for input: Dictionary in recipe.inputs:
-		var material_id: String = input.get("material_id", "")
-		var qty: int = input.get("quantity", 1)
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var qty: int = DictUtils.get_int(input, "quantity", 1)
 		_remove_materials(material_id, qty)
 
-	# 3. For UPGRADE mode, also remove the base item
+	# 4. For UPGRADE mode, also remove the base item
 	if recipe.output_mode == CraftingRecipeData.OutputMode.UPGRADE:
 		_remove_materials(recipe.upgrade_base_item_id, 1)
 
-	# 4. Deduct gold (after materials successfully removed)
+	# 5. Deduct gold
 	_deduct_gold(modified_cost)
 	result.gold_spent = modified_cost
 
-	# 5. Grant output item (to caravan) - should always succeed after pre-flight
+	# 6. Grant output item (to caravan) - should always succeed after pre-flight
 	var add_success: bool = _add_item_to_caravan(output_item_id)
 	if not add_success:
-		# This should never happen after pre-flight check, but log if it does
-		push_error("CraftingManager: _add_item_to_caravan failed after pre-flight check passed")
-		result.error = "Failed to store crafted item"
+		# Pre-flight passed but add failed -- rollback all consumed resources
+		push_error("CraftingManager: _add_item_to_caravan failed after pre-flight; rolling back")
+		_rollback_materials(recipe)
+		_refund_gold(modified_cost)
+		result.gold_spent = 0
+		result.error = "Failed to store crafted item (resources refunded)"
 		craft_failed.emit(recipe, result.error)
 		return result
 
@@ -228,9 +224,8 @@ func craft_recipe(recipe: CraftingRecipeData, crafter: CrafterData = null, choic
 	result.output_item_id = output_item_id
 	result.destination = "caravan"
 
-	# Get item name for display
-	var item_data: ItemData = ModLoader.registry.get_item(output_item_id)
-	result.output_item_name = item_data.item_name if item_data else output_item_id
+	# Get item name for display (output_item_data validated in pre-flight)
+	result.output_item_name = output_item_data.item_name if output_item_data else output_item_id
 
 	craft_completed.emit(recipe, output_item_id)
 	return result
@@ -270,6 +265,26 @@ func _get_current_gold() -> int:
 func _deduct_gold(amount: int) -> void:
 	if SaveManager and SaveManager.current_save:
 		SaveManager.current_save.gold = maxi(0, SaveManager.current_save.gold - amount)
+
+
+## Refund gold to player (rollback helper)
+func _refund_gold(amount: int) -> void:
+	if SaveManager and SaveManager.current_save:
+		SaveManager.current_save.gold += amount
+
+
+## Rollback consumed materials by re-adding them to caravan storage
+## Used when crafting fails after materials were already consumed
+func _rollback_materials(recipe: CraftingRecipeData) -> void:
+	for input: Dictionary in recipe.inputs:
+		var material_id: String = DictUtils.get_string(input, "material_id", "")
+		var qty: int = DictUtils.get_int(input, "quantity", 1)
+		for i: int in range(qty):
+			_add_item_to_caravan(material_id)
+
+	# For UPGRADE mode, also restore the base item
+	if recipe.output_mode == CraftingRecipeData.OutputMode.UPGRADE:
+		_add_item_to_caravan(recipe.upgrade_base_item_id)
 
 
 ## Remove materials from storage, prioritizing caravan then party inventories

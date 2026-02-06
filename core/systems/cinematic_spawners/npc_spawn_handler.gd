@@ -1,5 +1,5 @@
 ## Spawn handler for NPC entities in cinematics
-## NPCs can have their own sprite_frames or derive from character_data
+## NPCs have their own sprite_frames for map display
 class_name NPCSpawnHandler
 extends SpawnableEntityHandler
 
@@ -28,12 +28,8 @@ func create_sprite_node(entity_id: String, facing: String) -> Node2D:
 	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
 	sprite.name = "AnimatedSprite2D"
 
-	# NPCs can use character_data.sprite_frames OR their own sprite_frames
-	var frames: SpriteFrames = null
-	if npc_data.character_data != null and npc_data.character_data.sprite_frames != null:
-		frames = npc_data.character_data.sprite_frames
-	elif npc_data.sprite_frames != null:
-		frames = npc_data.sprite_frames
+	# NPCs use their own sprite_frames directly
+	var frames: SpriteFrames = npc_data.sprite_frames
 
 	if frames != null:
 		sprite.sprite_frames = frames
@@ -51,9 +47,3 @@ func get_editor_hints() -> Dictionary:
 	return {
 		"entity_id_hint": "Select an NPC to spawn"
 	}
-
-
-func _create_placeholder_sprite() -> AnimatedSprite2D:
-	var sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-	sprite.name = "AnimatedSprite2D"
-	return sprite

@@ -37,6 +37,8 @@ func process_enemy_turn(unit: Unit) -> void:
 	# Skip in headless mode for faster automated testing
 	if delay_before_turn_start > 0 and not TurnManager.is_headless:
 		await get_tree().create_timer(delay_before_turn_start).timeout
+		if not is_instance_valid(unit):
+			return
 
 	# Build context for AI decision-making
 	var context: Dictionary = _build_ai_context()
@@ -64,6 +66,10 @@ func process_enemy_turn(unit: Unit) -> void:
 		# No AI behavior assigned - use default aggressive
 		push_warning("AIController: Unit %s has no ai_behavior assigned, using default aggressive" % UnitUtils.get_display_name(unit))
 		await brain.execute_async(unit, context)
+
+	# Unit may have been freed during AI execution (counterattack kill, scene change)
+	if not is_instance_valid(unit):
+		return
 
 	# Emit signal BEFORE ending turn (so tests can check state while unit is active)
 	turn_completed.emit(unit)

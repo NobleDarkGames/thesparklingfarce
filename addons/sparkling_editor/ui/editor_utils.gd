@@ -589,6 +589,38 @@ static func get_status_effect_display_with_mod(effect_id: String) -> String:
 	return format_with_mod("", effect_id.capitalize())
 
 
+## Format a stat name as a short abbreviation for UI display
+## Examples: "max_hp" -> "HP", "strength" -> "STR", "defense" -> "DEF"
+static func format_stat_abbreviation(stat_name: String) -> String:
+	match stat_name.to_lower():
+		"max_hp", "hp", "health":
+			return "HP"
+		"max_mp", "mp", "mana":
+			return "MP"
+		"strength", "str":
+			return "STR"
+		"defense", "def":
+			return "DEF"
+		"agility", "agi", "speed":
+			return "AGI"
+		"magic", "mag":
+			return "MAG"
+		"luck", "lck":
+			return "LCK"
+		"movement", "mov", "move":
+			return "MOV"
+		"attack", "atk":
+			return "ATK"
+		"evasion", "eva", "evade":
+			return "EVA"
+		_:
+			# Fallback: uppercase first 3 chars
+			var clean: String = stat_name.replace("_", " ").strip_edges()
+			if clean.length() <= 3:
+				return clean.to_upper()
+			return clean.substr(0, 3).to_upper()
+
+
 # =============================================================================
 # FormBuilder - Fluent API for Building Editor Forms
 # =============================================================================

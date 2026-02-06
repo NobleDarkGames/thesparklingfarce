@@ -39,7 +39,7 @@ func _ready() -> void:
 
 
 ## Show the level-up celebration
-func show_level_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+func show_level_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary, learned_abilities: Array[AbilityData] = []) -> void:
 	_can_dismiss = false
 
 	# Play level-up sound
@@ -64,23 +64,24 @@ func show_level_up(unit: Unit, old_level: int, new_level: int, stat_increases: D
 
 	# Fade in
 	await _fade_in()
+	if not is_instance_valid(self):
+		return
 
 	# Animate level change
 	await _animate_level_change(old_level, new_level)
+	if not is_instance_valid(self):
+		return
 
 	# Reveal stat increases one by one
 	await _reveal_stats(stat_increases)
+	if not is_instance_valid(self):
+		return
 
 	# Show learned abilities if any
-	if "abilities" in stat_increases:
-		var abilities_val: Variant = stat_increases.get("abilities", [])
-		var abilities_array: Array = abilities_val if abilities_val is Array else []
-		if not abilities_array.is_empty():
-			var typed_abilities: Array[AbilityData] = []
-			for ability: Variant in abilities_array:
-				if ability is AbilityData:
-					typed_abilities.append(ability)
-			await _reveal_abilities(typed_abilities)
+	if not learned_abilities.is_empty():
+		await _reveal_abilities(learned_abilities)
+		if not is_instance_valid(self):
+			return
 
 	# Show continue prompt
 	continue_label.visible = true
@@ -94,10 +95,14 @@ func _fade_in() -> void:
 	tween.tween_property(background, "modulate:a", 0.7, FADE_IN_DURATION)
 	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 func _animate_level_change(old_level: int, new_level: int) -> void:
 	await get_tree().create_timer(0.3).timeout
+	if not is_instance_valid(self):
+		return
 
 	# Brightness flash animation on level text (pixel-perfect, no scaling)
 	var tween: Tween = create_tween()
@@ -114,6 +119,8 @@ func _animate_level_change(old_level: int, new_level: int) -> void:
 		portrait_tween.tween_property(portrait, "modulate", Color.WHITE, 0.15)
 
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 func _reveal_stats(stat_increases: Dictionary) -> void:
@@ -145,6 +152,8 @@ func _reveal_stats(stat_increases: Dictionary) -> void:
 		tween.tween_property(row, "modulate", Color.WHITE, 0.15)  # Fade to normal white while appearing
 
 		await get_tree().create_timer(STAT_REVEAL_DELAY).timeout
+		if not is_instance_valid(self):
+			return
 
 
 func _create_stat_row(stat_name: String, increase: int) -> HBoxContainer:
@@ -192,6 +201,8 @@ func _reveal_abilities(abilities: Array[AbilityData]) -> void:
 		tween.tween_property(lbl, "modulate:a", 1.0, 0.2)
 
 		await get_tree().create_timer(0.3).timeout
+		if not is_instance_valid(self):
+			return
 
 
 func _animate_continue_blink() -> void:
@@ -223,5 +234,7 @@ func _dismiss() -> void:
 	tween.tween_property(background, "modulate:a", 0.0, 0.2)
 	tween.tween_property(panel, "modulate:a", 0.0, 0.2)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	celebration_dismissed.emit()

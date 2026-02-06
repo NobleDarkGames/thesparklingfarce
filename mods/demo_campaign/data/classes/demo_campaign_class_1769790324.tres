@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=5 format=3 uid="uid://iqm38wra7fn7"]
+
+[ext_resource type="Script" uid="uid://cya13m3pafrob" path="res://core/resources/ability_data.gd" id="1_heoxu"]
+[ext_resource type="Script" uid="uid://vq5304nyhtib" path="res://core/resources/promotion_path.gd" id="2_gmoi6"]
+[ext_resource type="Resource" uid="uid://dahh86nufhoy2" path="res://mods/demo_campaign/data/abilities/demo_campaign_ability_1769112639.tres" id="2_rabwo"]
+[ext_resource type="Script" uid="uid://csp00r3rajjx4" path="res://core/resources/class_data.gd" id="3_rabwo"]
+
+[resource]
+script = ExtResource("3_rabwo")
+display_name = "Ninja"
+hp_growth = 200
+mp_growth = 150
+class_abilities = Array[ExtResource("1_heoxu")]([ExtResource("2_rabwo")])
+ability_unlock_levels = {
+"blast": 1
+}

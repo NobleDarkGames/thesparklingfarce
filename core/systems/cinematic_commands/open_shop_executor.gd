@@ -40,10 +40,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 
 	# Get current SaveData for gold access
 	var save_data: SaveData = null
-	if Engine.has_singleton("SaveManager"):
-		var save_manager: Node = Engine.get_singleton("SaveManager")
-		if save_manager and "current_save" in save_manager:
-			save_data = save_manager.current_save
+	if SaveManager and "current_save" in SaveManager:
+		save_data = SaveManager.current_save
 
 	# Open the shop
 	ShopManager.open_shop(shop_data, save_data)

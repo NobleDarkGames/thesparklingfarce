@@ -42,7 +42,8 @@ func _parse_color(value: Variant) -> Color:
 	if value is Color:
 		return value
 	if value is Array and value.size() >= 3:
-		return Color(value[0], value[1], value[2], value[3] if value.size() > 3 else 1.0)
+		if value[0] is float or value[0] is int:
+			return Color(float(value[0]), float(value[1]), float(value[2]), float(value[3]) if value.size() > 3 else 1.0)
 	return Color.BLACK
 
 

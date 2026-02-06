@@ -7,7 +7,7 @@ extends Node
 ## - Calculating and awarding support XP (healing, buffs, debuffs)
 ## - Processing level-ups and stat increases
 ## - Learning new abilities at milestone levels
-## - Handling promotions (future)
+## - Coordinating with PromotionManager for promotion eligibility checks
 ##
 ## Emits signals for UI to respond to XP gains and level-ups.
 
@@ -26,7 +26,8 @@ signal unit_gained_xp(unit: Node2D, amount: int, source: String)
 ## @param old_level: Previous level
 ## @param new_level: New level
 ## @param stat_increases: Dictionary of stat increases {stat_name: increase_amount}
-signal unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary)
+## @param learned_abilities: Array of AbilityData learned at this level
+signal unit_leveled_up(unit: Node2D, old_level: int, new_level: int, stat_increases: Dictionary, learned_abilities: Array[AbilityData])
 
 ## Emitted when a unit learns a new ability.
 ## @param unit: The Unit that learned the ability
@@ -119,6 +120,10 @@ func set_config(new_config: ExperienceConfig) -> void:
 ## @param damage_dealt: Amount of damage dealt
 ## @param got_kill: Whether this attack killed the defender
 func award_combat_xp(attacker: Unit, defender: Unit, damage_dealt: int, got_kill: bool) -> void:
+	if not config:
+		push_warning("ExperienceManager: Config not loaded yet")
+		return
+
 	if attacker == null or defender == null:
 		push_warning("ExperienceManager: Cannot award combat XP with null units")
 		return
@@ -253,6 +258,10 @@ func _get_units_in_formation_radius(center_unit: Unit) -> Array[Unit]:
 ## @param target: Unit being targeted (for heal ratio calculation)
 ## @param amount: Amount healed (for healing XP) or 0 for buffs/debuffs
 func award_support_xp(supporter: Unit, action_type: String, target: Unit, amount: int) -> void:
+	if not config:
+		push_warning("ExperienceManager: Config not loaded yet")
+		return
+
 	if not config.enable_enhanced_support_xp:
 		return
 
@@ -326,6 +335,10 @@ func award_support_xp(supporter: Unit, action_type: String, target: Unit, amount
 ## @param amount: Amount of XP to award
 ## @param source: Source of XP (for signal)
 func _give_xp_to_unit(unit: Unit, amount: int, source: String) -> void:
+	if not config:
+		push_warning("ExperienceManager: Config not loaded yet")
+		return
+
 	if unit == null or unit.stats == null:
 		return
 
@@ -353,21 +366,21 @@ func _trigger_level_up(unit: Unit) -> void:
 	if unit == null or unit.stats == null:
 		return
 
-	apply_level_up(unit)
+	_apply_level_up(unit)
 
 
 # ============================================================================
 # LEVEL-UP SYSTEM
 # ============================================================================
 
-## Apply a level-up to a unit.
+## Apply a level-up to a unit (internal — called by _trigger_level_up).
 ##
 ## Increases level, rolls for stat increases based on growth rates,
 ## checks for learned abilities, and emits signals.
 ##
 ## @param unit: Unit to level up
 ## @return: Dictionary of stat increases {stat_name: increase}
-func apply_level_up(unit: Unit) -> Dictionary:
+func _apply_level_up(unit: Unit) -> Dictionary:
 	if unit == null or unit.stats == null or unit.character_data == null:
 		push_error("ExperienceManager: Invalid unit for level-up")
 		return {}
@@ -375,6 +388,9 @@ func apply_level_up(unit: Unit) -> Dictionary:
 	var old_level: int = unit.stats.level
 	unit.stats.level += 1
 	var new_level: int = unit.stats.level
+
+	# Invalidate cached party average level since a unit's level changed
+	invalidate_party_level_cache()
 
 	var stat_increases: Dictionary = {}
 	var class_data: ClassData = unit.get_current_class()
@@ -414,11 +430,13 @@ func apply_level_up(unit: Unit) -> Dictionary:
 
 	# Check for ability learning (pass old_level to detect newly unlocked abilities)
 	var learned_abilities: Array[AbilityData] = _check_learned_abilities(unit, old_level, new_level, class_data)
-	if not learned_abilities.is_empty():
-		stat_increases["abilities"] = learned_abilities
 
-	# Emit signal
-	unit_leveled_up.emit(unit, old_level, new_level, stat_increases)
+	# Emit signal (abilities passed separately to keep stat_increases as pure int dict)
+	unit_leveled_up.emit(unit, old_level, new_level, stat_increases, learned_abilities)
+
+	# Unit may have been freed during signal processing
+	if not is_instance_valid(unit):
+		return stat_increases
 
 	# Check if promotion is now available
 	if PromotionManager:

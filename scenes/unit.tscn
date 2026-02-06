@@ -4,6 +4,7 @@
 [ext_resource type="FontFile" uid="uid://cqlbwopye8b43" path="res://assets/fonts/monogram.ttf" id="2_font"]
 
 [node name="Unit" type="Node2D"]
+z_index = 10
 script = ExtResource("1_unit")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]

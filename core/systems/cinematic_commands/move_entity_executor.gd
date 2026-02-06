@@ -6,6 +6,8 @@ extends CinematicCommandExecutor
 
 ## Reference to active actor for interrupt cleanup
 var _active_actor: CinematicActor = null
+## Stored callback for explicit signal disconnection on interrupt
+var _movement_callback: Callable = Callable()
 
 
 func execute(command: Dictionary, manager: Node) -> bool:
@@ -53,7 +55,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	if GridManager.grid != null:
 		# Delegate waypoint expansion to GridManager
 		var current_pos: Vector2i = GridManager.world_to_cell(actor.parent_entity.global_position) if actor.parent_entity else Vector2i.ZERO
-		complete_path = GridManager.expand_waypoint_path(waypoints, 0, current_pos)
+		complete_path = GridManager.expand_waypoint_path(waypoints, 0, current_pos, true)
 
 		if complete_path.is_empty():
 			push_error("MoveEntityExecutor: Failed to expand waypoints for actor '%s'" % target)
@@ -61,10 +63,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 
 		# Connect to movement_completed signal if waiting
 		if should_wait:
-			actor.movement_completed.connect(
-				func() -> void: manager._command_completed = true,
-				CONNECT_ONE_SHOT
-			)
+			_movement_callback = func() -> void: manager._command_completed = true
+			actor.movement_completed.connect(_movement_callback, CONNECT_ONE_SHOT)
 
 		# Delegate movement to actor (which delegates to parent entity)
 		actor.move_along_path_direct(complete_path, speed, auto_face)
@@ -72,10 +72,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		# Fallback for test scenes without GridManager
 		# Use old waypoint-based movement (actor will expand internally or use simple movement)
 		if should_wait:
-			actor.movement_completed.connect(
-				func() -> void: manager._command_completed = true,
-				CONNECT_ONE_SHOT
-			)
+			_movement_callback = func() -> void: manager._command_completed = true
+			actor.movement_completed.connect(_movement_callback, CONNECT_ONE_SHOT)
 
 		# Convert waypoints to generic Array for old move_along_path signature
 		var path_array: Array = []
@@ -88,7 +86,10 @@ func execute(command: Dictionary, manager: Node) -> bool:
 
 
 func interrupt() -> void:
-	# Stop active actor movement
+	# Disconnect movement callback before stopping to prevent stale signal
 	if _active_actor and is_instance_valid(_active_actor):
+		if _movement_callback.is_valid() and _active_actor.movement_completed.is_connected(_movement_callback):
+			_active_actor.movement_completed.disconnect(_movement_callback)
 		_active_actor.stop()
 	_active_actor = null
+	_movement_callback = Callable()

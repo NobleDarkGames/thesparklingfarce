@@ -52,7 +52,5 @@ func execute(command: Dictionary, manager: Node) -> bool:
 func interrupt() -> void:
 	# Kill active camera movement tween
 	if _active_camera and is_instance_valid(_active_camera):
-		if _active_camera._movement_tween and _active_camera._movement_tween.is_valid():
-			_active_camera._movement_tween.kill()
-			_active_camera._movement_tween = null
+		_active_camera.stop_movement()
 	_active_camera = null

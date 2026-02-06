@@ -71,5 +71,6 @@ static func execute(context: CleanupContext) -> Dictionary:
 	# Clear manager state
 	TurnManager.clear_battle()
 	GridManager.clear_grid()
+	CombatCalculator.clear_active_formula()
 
 	return result

@@ -377,5 +377,7 @@ func test_clear_fade_with_null_overlay_does_not_crash() -> void:
 func test_get_current_scene_returns_node() -> void:
 	var current: Node = _scene_manager.get_current_scene()
 
-	# Should return some node (the current scene)
-	assert_object(current).is_not_null()
+	# get_current_scene() delegates to get_tree().current_scene which may be null
+	# in test environments where no scene file is loaded as the main scene.
+	# Verify it returns the same value as the engine API (no crash, correct delegation).
+	assert_object(current).is_equal(get_tree().current_scene)

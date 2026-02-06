@@ -152,6 +152,8 @@ func _reveal_characters(characters: Array) -> void:
 ## Add a reward line with fade-in animation
 func _add_reward_line(text: String, color: Color) -> void:
 	await get_tree().create_timer(REWARD_LINE_DELAY).timeout
+	if not is_instance_valid(self):
+		return
 
 	var label: Label = Label.new()
 	label.text = text

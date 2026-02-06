@@ -37,7 +37,7 @@ var support_actions_this_battle: Dictionary = {}
 var unit_tags: Array[String] = []
 
 ## Status effects: Array[Dictionary]
-## Each effect: {type: String, duration: int, power: int}
+## Each effect: {type: String, duration: int, potency: int}
 ## Types: "poison", "sleep", "stun", "attack_up", "defense_up", etc.
 var status_effects: Array[Dictionary] = []
 
@@ -380,14 +380,19 @@ func process_status_effects() -> bool:
 		# Process effect
 		match effect_type:
 			"poison":
-				# Take damage based on power
+				# Take damage based on potency
 				var damage: int = maxi(1, effect_potency)
 				current_hp -= damage
+				current_hp = maxi(current_hp, 0)
 
 			"regen":
-				# Heal based on power
+				# Heal based on potency
 				var heal: int = maxi(1, effect_potency)
 				current_hp = mini(current_hp + heal, get_effective_max_hp())
+
+		# Break early if unit died (prevents regen from resurrecting in same tick)
+		if current_hp <= 0:
+			break
 
 		# Decrement duration
 		effect_duration -= 1
@@ -547,6 +552,9 @@ func gain_xp(amount: int) -> void:
 		# Trigger level-up via ExperienceManager if we have owner reference
 		if owner_unit != null and is_instance_valid(owner_unit):
 			ExperienceManager._trigger_level_up(owner_unit)
+			# Re-check validity after level-up (unit may be freed during signal processing)
+			if not is_instance_valid(owner_unit):
+				return
 		else:
 			# Fallback: just increment level without stat growth
 			level += 1

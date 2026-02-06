@@ -59,7 +59,7 @@ func before() -> void:
 	_grid_resource = Grid.new()
 	_grid_resource.grid_size = Vector2i(20, 15)
 	_grid_resource.cell_size = 32
-	GridManager.setup_grid(_grid_resource, _tilemap_layer)
+	GridManager.setup_grid(_grid_resource, [_tilemap_layer])
 
 
 func after() -> void:

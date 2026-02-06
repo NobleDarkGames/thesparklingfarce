@@ -7,6 +7,8 @@ extends CinematicCommandExecutor
 
 
 func execute(command: Dictionary, manager: Node) -> bool:
+	# NOTE: Entity creation logic is duplicated in CinematicsManager._spawn_single_actor().
+	# Changes here should be mirrored there until consolidated.
 	var params: Dictionary = command.get("params", {})
 
 	var actor_id: String = params.get("actor_id", "")
@@ -134,7 +136,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 		entity_ref = entity_id
 		var interactable_data: InteractableData = ModLoader.registry.get_interactable(entity_id) as InteractableData
 		if interactable_data:
-			display_name = interactable_data.interactable_name if interactable_data.interactable_name else entity_id
+			display_name = interactable_data.display_name if interactable_data.display_name else entity_id
 
 	# Cache display data for dialog_line lookups
 	if not entity_ref.is_empty():

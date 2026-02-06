@@ -35,7 +35,7 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var params: Dictionary = command.get("params", {})
 
 	# Get scene path from various sources (priority order)
-	var scene_path: String = _resolve_scene_path(params)
+	var scene_path: String = CinematicCommandExecutor.resolve_scene_path(params)
 
 	if scene_path.is_empty():
 		push_error("SetBackdropExecutor: No valid scene_path, scene_id, or map_id provided")
@@ -66,30 +66,6 @@ func interrupt() -> void:
 	_interrupted = true
 	_active_manager = null
 	# Note: backdrop remains in scene - cleanup happens when cinematic stage is freed
-
-
-## Resolve scene path from params (priority: scene_path > scene_id > map_id)
-func _resolve_scene_path(params: Dictionary) -> String:
-	# Direct scene path takes priority
-	var scene_path: String = params.get("scene_path", "")
-	if not scene_path.is_empty():
-		return scene_path
-
-	# Try scene_id (registered scene)
-	var scene_id: String = params.get("scene_id", "")
-	if not scene_id.is_empty() and ModLoader and ModLoader.registry:
-		scene_path = ModLoader.registry.get_scene_path(scene_id)
-		if not scene_path.is_empty():
-			return scene_path
-
-	# Try map_id (get scene from map metadata)
-	var map_id: String = params.get("map_id", "")
-	if not map_id.is_empty() and ModLoader and ModLoader.registry:
-		var map_data: MapMetadata = ModLoader.registry.get_map(map_id)
-		if map_data and "scene_path" in map_data:
-			return map_data.scene_path
-
-	return ""
 
 
 ## Load backdrop instantly (no transition)

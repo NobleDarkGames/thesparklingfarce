@@ -101,6 +101,10 @@ var _combat_executor: CombatSessionExecutor = null
 var _pending_level_ups: Array[Dictionary] = []
 var _showing_level_up: bool = false
 
+## Re-entrancy guard for _on_battle_ended to prevent concurrent execution
+## during the long chain of player-controlled awaits (level-ups, dialog, victory screen)
+var _processing_battle_end: bool = false
+
 ## Early reinforcement spawning state
 ## When all visible enemies are killed while reinforcements are pending,
 ## the player gets one free prep turn, then ALL remaining reinforcements spawn.
@@ -321,7 +325,11 @@ func _spawn_units(unit_data: Array, faction: String) -> Array[Unit]:
 		var ai_behavior: AIBehaviorData = data.get("ai_behavior", null) as AIBehaviorData
 
 		# Instantiate unit
-		var unit: Unit = _get_cached_scene("unit_scene").instantiate() as Unit
+		var scene: PackedScene = _get_cached_scene("unit_scene")
+		if not scene:
+			push_error("BattleManager: Failed to load unit_scene")
+			continue
+		var unit: Unit = scene.instantiate() as Unit
 
 		# Initialize unit with character data, faction, and AI behavior
 		if unit.has_method("initialize"):
@@ -473,6 +481,30 @@ func _connect_signals() -> void:
 	# ExperienceManager signals
 	if not ExperienceManager.unit_leveled_up.is_connected(_on_unit_leveled_up):
 		ExperienceManager.unit_leveled_up.connect(_on_unit_leveled_up)
+
+
+## Disconnect battle signals to prevent stale handlers across battles
+func _disconnect_signals() -> void:
+	if TurnManager.battle_ended.is_connected(_on_battle_ended):
+		TurnManager.battle_ended.disconnect(_on_battle_ended)
+
+	if TurnManager.hero_died_in_battle.is_connected(_on_hero_died_in_battle):
+		TurnManager.hero_died_in_battle.disconnect(_on_hero_died_in_battle)
+
+	if InputManager.action_selected.is_connected(_on_action_selected):
+		InputManager.action_selected.disconnect(_on_action_selected)
+
+	if InputManager.target_selected.is_connected(_on_target_selected):
+		InputManager.target_selected.disconnect(_on_target_selected)
+
+	if InputManager.item_use_requested.is_connected(_on_item_use_requested):
+		InputManager.item_use_requested.disconnect(_on_item_use_requested)
+
+	if InputManager.spell_cast_requested.is_connected(_on_spell_cast_requested):
+		InputManager.spell_cast_requested.disconnect(_on_spell_cast_requested)
+
+	if ExperienceManager.unit_leveled_up.is_connected(_on_unit_leveled_up):
+		ExperienceManager.unit_leveled_up.disconnect(_on_unit_leveled_up)
 
 
 ## Handle action selection from InputManager
@@ -689,6 +721,9 @@ func _on_item_use_requested(unit: Unit, item_id: String, target: Unit) -> void:
 	# Execute the combat session (shows full battle overlay, applies effect)
 	await _execute_combat_session(unit, target, phases)
 
+	if not is_instance_valid(unit):
+		return
+
 	# Award XP for item usage AFTER the combat session (SF-authentic: healers get XP)
 	_award_item_use_xp(unit, target, item)
 
@@ -790,10 +825,16 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 		match ability.ability_type:
 			AbilityData.AbilityType.HEAL:
 				effect_applied = await _apply_spell_heal(caster, spell_target, ability)
+				if not is_instance_valid(caster):
+					return
 			AbilityData.AbilityType.ATTACK:
 				effect_applied = await _apply_spell_damage(caster, spell_target, ability)
+				if not is_instance_valid(caster):
+					return
 			AbilityData.AbilityType.SUPPORT, AbilityData.AbilityType.DEBUFF, AbilityData.AbilityType.STATUS:
 				effect_applied = await _apply_spell_status(caster, spell_target, ability)
+				if not is_instance_valid(caster):
+					return
 			AbilityData.AbilityType.SPECIAL:
 				# Handle special abilities like Egress
 				if ability.ability_id == "egress":
@@ -820,6 +861,9 @@ func _on_spell_cast_requested(caster: Unit, ability: AbilityData, target: Unit) 
 			# Award XP for each target hit (SF2-authentic: casters get XP per target)
 			_award_spell_xp(caster, spell_target, ability)
 			any_effect_applied = true
+
+	if not is_instance_valid(caster):
+		return
 
 	_finish_unit_turn(caster)
 
@@ -1067,8 +1111,12 @@ func execute_ai_spell(caster: Unit, ability_id: String, target: Unit) -> bool:
 		match ability.ability_type:
 			AbilityData.AbilityType.HEAL:
 				effect_applied = await _apply_spell_heal(caster, spell_target, ability)
+				if not is_instance_valid(caster):
+					return false
 			AbilityData.AbilityType.ATTACK:
 				effect_applied = await _apply_spell_damage(caster, spell_target, ability)
+				if not is_instance_valid(caster):
+					return false
 			_:
 				push_warning("BattleManager: AI spell type '%s' not yet supported" % ability.ability_type)
 
@@ -1142,6 +1190,9 @@ func _execute_attack(attacker: Unit, defender: Unit) -> void:
 
 	# Execute the combat session (single fade-in, all phases, single fade-out)
 	await _execute_combat_session(attacker, defender, phases)
+
+	if not is_instance_valid(attacker):
+		return
 
 	# Reset InputManager to waiting state ONLY if this unit is still the active unit
 	if TurnManager.active_unit == attacker:
@@ -1520,12 +1571,18 @@ func _persist_unit_death(unit: Unit) -> void:
 
 ## Handle battle end (victory only - defeat goes through hero_died_in_battle)
 func _on_battle_ended(victory: bool) -> void:
+	# Guard against concurrent re-entry during the long await chain
+	if _processing_battle_end:
+		return
+	_processing_battle_end = true
+
 	# Clear the battle grid to avoid polluting GridManager state for non-battle maps
 	GridManager.clear_grid()
 
 	# This handler is only for victory now - defeat goes through hero_died_in_battle
 	if not victory:
 		push_warning("BattleManager: _on_battle_ended(false) should not occur - defeat uses hero_died_in_battle")
+		_processing_battle_end = false
 		return
 
 	# Sync surviving units' HP/MP to save data (dead units already marked during battle)
@@ -1567,6 +1624,8 @@ func _on_battle_ended(victory: bool) -> void:
 
 			TriggerManager.return_to_map()
 
+	_processing_battle_end = false
+
 
 ## Show victory screen and wait for player to dismiss
 ## Returns false (victory never triggers retry)
@@ -1581,7 +1640,11 @@ func _show_victory_screen() -> bool:
 	# Distribute rewards before showing victory screen
 	var rewards: Dictionary = _distribute_battle_rewards()
 
-	var victory_screen: CanvasLayer = _get_cached_scene("victory_screen_scene").instantiate()
+	var victory_scene: PackedScene = _get_cached_scene("victory_screen_scene")
+	if not victory_scene:
+		push_error("BattleManager: Failed to load victory_screen_scene")
+		return false
+	var victory_screen: CanvasLayer = victory_scene.instantiate()
 	battle_scene_root.add_child(victory_screen)
 
 	victory_screen.show_victory(rewards)
@@ -1610,7 +1673,11 @@ func _show_defeat_screen() -> bool:
 		defeat_sfx = current_battle_data.defeat_music_id
 	AudioManager.play_sfx(defeat_sfx, AudioManager.SFXCategory.SYSTEM)
 
-	var defeat_screen: CanvasLayer = _get_cached_scene("defeat_screen_scene").instantiate()
+	var defeat_scene: PackedScene = _get_cached_scene("defeat_screen_scene")
+	if not defeat_scene:
+		push_error("BattleManager: Failed to load defeat_screen_scene")
+		return false
+	var defeat_screen: CanvasLayer = defeat_scene.instantiate()
 	battle_scene_root.add_child(defeat_screen)
 
 	# Get hero name for SF2-authentic flavor text
@@ -1631,13 +1698,14 @@ func _show_defeat_screen() -> bool:
 
 
 ## Handle unit level up
-func _on_unit_leveled_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary) -> void:
+func _on_unit_leveled_up(unit: Unit, old_level: int, new_level: int, stat_increases: Dictionary, learned_abilities: Array[AbilityData]) -> void:
 	# Queue the level-up for display
 	_pending_level_ups.append({
 		"unit": unit,
 		"old_level": old_level,
 		"new_level": new_level,
-		"stat_increases": stat_increases
+		"stat_increases": stat_increases,
+		"learned_abilities": learned_abilities
 	})
 
 	# Process queue if not already showing a level-up
@@ -1660,10 +1728,21 @@ func _process_level_up_queue() -> void:
 		return
 
 	# Instantiate and show level-up celebration
-	var celebration: CanvasLayer = _get_cached_scene("level_up_scene").instantiate()
+	var level_up_scene: PackedScene = _get_cached_scene("level_up_scene")
+	if not level_up_scene:
+		push_error("BattleManager: Failed to load level_up_scene")
+		_process_level_up_queue()
+		return
+	var celebration: CanvasLayer = level_up_scene.instantiate()
 	battle_scene_root.add_child(celebration)
 
-	celebration.show_level_up(data.unit, data.old_level, data.new_level, data.stat_increases)
+	var abilities: Array[AbilityData] = []
+	var abilities_val: Variant = data.get("learned_abilities", [])
+	if abilities_val is Array:
+		for ability: Variant in abilities_val:
+			if ability is AbilityData:
+				abilities.append(ability)
+	celebration.show_level_up(data.unit, data.old_level, data.new_level, data.stat_increases, abilities)
 	await celebration.celebration_dismissed
 
 	# HIGH-003: Validate state after await on UI signal
@@ -1694,6 +1773,9 @@ func _wait_for_level_ups() -> void:
 ## Clean up battle state and free all battle-related resources.
 ## Delegates to BattleCleanup for the actual cleanup operations.
 func end_battle() -> void:
+	# Disconnect battle signals to prevent stale handlers on singleton signals
+	_disconnect_signals()
+
 	# Build cleanup context with all references needed
 	var context: BattleCleanup.CleanupContext = BattleCleanup.CleanupContext.new()
 	context.combat_anim_instance = combat_anim_instance
@@ -1710,6 +1792,7 @@ func end_battle() -> void:
 	combat_anim_instance = null
 	map_instance = null
 	current_battle_data = null
+	_processing_battle_end = false
 	reset_reinforcement_state()
 
 

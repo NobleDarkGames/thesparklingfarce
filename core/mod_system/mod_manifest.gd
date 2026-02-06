@@ -179,6 +179,14 @@ static func load_from_file(json_path: String) -> ModManifest:
 		manifest.data_path = str(content_dict.get("data_path", "data/"))
 		manifest.assets_path = str(content_dict.get("assets_path", "assets/"))
 
+	# Security: Validate content paths against path traversal
+	if ".." in manifest.data_path or manifest.data_path.begins_with("/"):
+		push_error("ModManifest: Invalid data_path '%s' in %s" % [manifest.data_path, json_path])
+		return null
+	if ".." in manifest.assets_path or manifest.assets_path.begins_with("/"):
+		push_error("ModManifest: Invalid assets_path '%s' in %s" % [manifest.assets_path, json_path])
+		return null
+
 	# Parse scene mappings
 	if "scenes" in data and data.scenes is Dictionary:
 		for scene_id: String in data.scenes.keys():

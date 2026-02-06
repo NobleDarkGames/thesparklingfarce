@@ -985,8 +985,13 @@ func reload_mods() -> void:
 ##   2. Await the mods_loaded signal before accessing mod resources
 ## Failure to do so will result in missing resources during the reload window.
 func reload_mods_async() -> void:
+	if _is_loading:
+		push_warning("ModLoader: Reload already in progress, ignoring")
+		return
 	_clear_all_registries()
 	await _discover_and_load_mods_async()
+	if not is_instance_valid(self):
+		return
 	mods_loaded.emit()
 
 

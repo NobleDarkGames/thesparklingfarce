@@ -113,9 +113,13 @@ static func _build_cinematic_from_dict(data: Dictionary, source_path: String) ->
 					var command: Dictionary = _parse_command(cmd_data, source_path)
 					if not command.is_empty():
 						cinematic.commands.append(command)
+				else:
+					push_warning("CinematicLoader: Command entry is not a dictionary (got %s) in %s" % [typeof(cmd_data), source_path])
 		else:
 			push_warning("CinematicLoader: 'commands' should be an array in %s" % source_path)
 
+	if cinematic.commands.is_empty():
+		push_warning("CinematicLoader: Cinematic has no valid commands in %s" % source_path)
 	return cinematic
 
 
@@ -149,6 +153,9 @@ static func _parse_command(cmd_data: Dictionary, source_path: String) -> Diction
 	# Converted to:
 	#   {"type": "show_dialog", "params": {"lines": [{"speaker": "xyz", "text": "Hello!", "emotion": "happy"}], "auto_follow": true}}
 	if cmd_type == "dialog_line":
+		if "text" not in params or str(params.get("text", "")).is_empty():
+			push_warning("CinematicLoader: dialog_line command missing 'text' in %s" % source_path)
+			return {}
 		cmd_type = "show_dialog"
 		var line_data: Dictionary = {}
 		# Support both "speaker" (current) and "character_id" (legacy)
@@ -190,13 +197,6 @@ static func _convert_params(params: Dictionary, cmd_type: String) -> Dictionary:
 		converted[key] = _convert_value(value, key, cmd_type)
 
 	return converted
-
-
-## Resolve a character_id to a display name (convenience wrapper)
-static func _resolve_character_id(character_id: String) -> String:
-	var char_data: Dictionary = CinematicCommandExecutor.resolve_character_data(character_id)
-	var name_variant: Variant = char_data.get("name", "")
-	return str(name_variant)
 
 
 ## Convert a single value to appropriate GDScript type

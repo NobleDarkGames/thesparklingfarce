@@ -32,7 +32,7 @@ signal focus_exited_slot()
 const SLOT_SIZE: Vector2 = Vector2(32, 32)
 
 ## Visual colors - use centralized UIColors class (unique bg_selected stays local)
-const UIColors.SLOT_BACKGROUND_SELECTED: Color = Color(0.15, 0.15, 0.2, 0.95)  ## Unique to item slots
+const SLOT_BACKGROUND_SELECTED: Color = Color(0.15, 0.15, 0.2, 0.95)  ## Unique to item slots
 
 const BORDER_WIDTH: float = 1.0
 
@@ -240,7 +240,7 @@ func _update_visuals() -> void:
 	if _is_cursed:
 		_background_rect.color = UIColors.SLOT_BACKGROUND_CURSED
 	elif _is_selected:
-		_background_rect.color = UIColors.SLOT_BACKGROUND_SELECTED
+		_background_rect.color = SLOT_BACKGROUND_SELECTED
 	else:
 		_background_rect.color = UIColors.SLOT_BACKGROUND
 

@@ -120,6 +120,10 @@ func _evaluate_condition(condition: Dictionary) -> bool:
 	var has_any_condition: bool = false
 	var all_conditions_pass: bool = true
 
+	# Guard against GameState being unavailable (editor/test context)
+	if GameState == null:
+		return false
+
 	# Legacy single flag support (backward compatibility)
 	var single_flag: String = DictUtils.get_string(condition, "flag", "")
 	if not single_flag.is_empty():

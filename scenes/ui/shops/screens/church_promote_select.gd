@@ -21,7 +21,9 @@ func _on_initialized() -> void:
 
 	# If only one path, execute immediately (SF2 behavior)
 	if _available_paths.size() == 1:
-		_execute_promotion(_available_paths[0].target_class)
+		var target_class: ClassData = _available_paths[0].get("target_class") as ClassData
+		if target_class:
+			_execute_promotion(target_class)
 		return
 
 	_update_header()
@@ -30,6 +32,8 @@ func _on_initialized() -> void:
 	back_button.pressed.connect(_on_back_pressed)
 
 	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
 	if path_buttons.size() > 0:
 		path_buttons[0].grab_focus()
 		selected_index = 0

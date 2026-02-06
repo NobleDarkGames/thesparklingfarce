@@ -286,6 +286,8 @@ func hide_menu() -> void:
 		var tween: Tween = create_tween()
 		tween.tween_property(_panel, "modulate:a", 0.0, MENU_CLOSE_DURATION).set_ease(Tween.EASE_IN)
 		await tween.finished
+		if not is_instance_valid(self):
+			return
 
 	visible = false
 
@@ -401,7 +403,7 @@ func _update_selection_visual() -> void:
 func _position_menu() -> void:
 	# Wait a frame for panel size to be calculated
 	await get_tree().process_frame
-	if not is_instance_valid(self) or not visible:
+	if not is_instance_valid(self) or not visible or not _is_active:
 		return
 
 	var desired_pos: Vector2 = _hero_screen_position + MENU_OFFSET

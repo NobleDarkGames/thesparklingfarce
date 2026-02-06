@@ -85,8 +85,11 @@ static func get_instance() -> AIBrain:
 # =============================================================================
 
 ## Apply AI delay if conditions are met (unit in tree, delay > 0)
+## Callers MUST check is_instance_valid(unit) after awaiting this method
 func _apply_delay(unit: Unit, delay: float) -> void:
-	if delay > 0 and unit.get_tree():
+	if not is_instance_valid(unit) or not unit.is_inside_tree():
+		return
+	if delay > 0:
 		await unit.get_tree().create_timer(delay).timeout
 
 
@@ -124,15 +127,37 @@ func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehavior
 	if not behavior:
 		push_warning("ConfigurableAIBrain: No behavior data, using default aggressive")
 		await execute_async(unit, context)
-		return
+		return  # execute_async handles its own validity checks
 
 	var role: String = behavior.role
 	var mode: String = behavior.behavior_mode
 
 	# Add HP percent to context for phase evaluation
 	if unit.stats:
-		var hp_percent: float = (float(unit.stats.current_hp) / float(unit.stats.max_hp)) * 100.0
+		var hp_percent: float = _get_hp_percent(unit) * 100.0
 		context["unit_hp_percent"] = hp_percent
+
+	# Populate faction-aware counts for phase triggers
+	var allies: Array[Unit] = _get_allied_units(unit, context)
+	var opponents: Array[Unit] = _get_opponents(unit, context)
+	var living_allies: int = 0
+	var living_enemies: int = 0
+	var dead_ally_ids: Array[String] = []
+	for a: Unit in allies:
+		if a.is_alive():
+			living_allies += 1
+		elif _has_character_data(a):
+			dead_ally_ids.append(a.character_data.character_uid)
+	for o: Unit in opponents:
+		if o.is_alive():
+			living_enemies += 1
+	context["ally_count"] = living_allies
+	context["enemy_count"] = living_enemies
+	context["dead_ally_ids"] = dead_ally_ids
+
+	# Provide story flags for phase triggers (e.g. "flag_set" condition)
+	if GameState:
+		context["story_flags"] = GameState.story_flags.duplicate()
 
 	# Check for behavior phase changes
 	var phase_changes: Dictionary = behavior.evaluate_phase_changes(context)
@@ -146,6 +171,8 @@ func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehavior
 	# This happens before any movement or combat actions
 	if behavior.use_buff_items:
 		var buffed: bool = await _try_use_buff_item(unit, context, behavior)
+		if not is_instance_valid(unit):
+			return
 		if buffed:
 			return  # Turn consumed by item use
 
@@ -155,6 +182,8 @@ func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehavior
 		"support":
 			# Support role: prioritize healing allies before attacking
 			var healed: bool = await _execute_support_role(unit, context, behavior)
+			if not is_instance_valid(unit):
+				return
 			if healed:
 				return  # Successfully healed, turn done
 			# No healing needed/possible - fall through to mode-based attack
@@ -165,6 +194,8 @@ func execute_with_behavior(unit: Unit, context: Dictionary, behavior: AIBehavior
 		"tactical":
 			# Tactical role: prioritize debuffs and status effects
 			var debuffed: bool = await _execute_tactical_role(unit, context, behavior)
+			if not is_instance_valid(unit):
+				return
 			if debuffed:
 				return  # Successfully applied debuff, turn done
 			# No debuff possible - fall through to mode-based attack
@@ -204,6 +235,8 @@ func _execute_aggressive(unit: Unit, context: Dictionary, behavior: AIBehaviorDa
 	# If already in attack range, attack immediately
 	if is_in_attack_range(unit, target):
 		await _apply_delay(unit, _get_delay(context, "before_attack"))
+		if not is_instance_valid(unit) or not is_instance_valid(target):
+			return
 		await attack_target(unit, target)
 		return
 
@@ -211,11 +244,19 @@ func _execute_aggressive(unit: Unit, context: Dictionary, behavior: AIBehaviorDa
 	var moved: bool = move_into_attack_range(unit, target, behavior)
 	if moved:
 		await unit.await_movement_completion()
+		if not is_instance_valid(unit):
+			return
 		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
+		if not is_instance_valid(unit):
+			return
 
 	# Attack if now in range (verify target still alive after movement)
+	if not is_instance_valid(target):
+		return
 	if target.is_alive() and is_in_attack_range(unit, target):
 		await _apply_delay(unit, _get_delay(context, "before_attack"))
+		if not is_instance_valid(unit) or not is_instance_valid(target):
+			return
 		await attack_target(unit, target)
 
 
@@ -233,6 +274,8 @@ func _execute_cautious(unit: Unit, context: Dictionary, behavior: AIBehaviorData
 			continue
 		if is_in_attack_range(unit, target):
 			await _apply_delay(unit, _get_delay(context, "before_attack"))
+			if not is_instance_valid(unit) or not is_instance_valid(target):
+				return
 			await attack_target(unit, target)
 			return
 
@@ -253,17 +296,25 @@ func _execute_cautious(unit: Unit, context: Dictionary, behavior: AIBehaviorData
 	var moved: bool = move_into_attack_range(unit, nearest, behavior)
 	if moved:
 		await unit.await_movement_completion()
+		if not is_instance_valid(unit):
+			return
 		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
+		if not is_instance_valid(unit):
+			return
 
 	# Recalculate distance after movement to decide whether to attack
 	# - Only attack if enemy is now within engagement_range (committed engagement)
 	# - If still outside engagement_range, we were just approaching cautiously
+	if not is_instance_valid(nearest):
+		return
 	var new_distance: int = GridManager.grid.get_manhattan_distance(unit.grid_position, nearest.grid_position)
 	var should_attack: bool = new_distance <= engagement_range
 
 	# Attack if we're in engagement range and now in attack range (verify target still alive)
 	if should_attack and nearest.is_alive() and is_in_attack_range(unit, nearest):
 		await _apply_delay(unit, _get_delay(context, "before_attack"))
+		if not is_instance_valid(unit) or not is_instance_valid(nearest):
+			return
 		await attack_target(unit, nearest)
 
 
@@ -286,6 +337,8 @@ func _execute_opportunistic(unit: Unit, context: Dictionary, behavior: AIBehavio
 		if should_retreat:
 			# Try healing item first before retreating
 			var healed: bool = await _try_use_healing_item(unit, context, behavior)
+			if not is_instance_valid(unit):
+				return
 			if healed:
 				return  # Turn consumed by item use
 
@@ -300,6 +353,8 @@ func _execute_opportunistic(unit: Unit, context: Dictionary, behavior: AIBehavio
 	# Consider attack items for ranged damage
 	if behavior and behavior.use_attack_items:
 		var used_item: bool = await _try_use_attack_item(unit, target, context, behavior)
+		if not is_instance_valid(unit):
+			return
 		if used_item:
 			return
 
@@ -353,8 +408,13 @@ func _execute_retreat(unit: Unit, enemies: Array[Unit], context: Dictionary) -> 
 			best_cell = cell
 
 	if best_cell != unit.grid_position:
-		unit.move_along_path([unit.grid_position, best_cell])
-		await unit.await_movement_completion()
+		var movement_type: int = unit_class.movement_type
+		var path: Array[Vector2i] = GridManager.find_path(unit.grid_position, best_cell, movement_type, unit.faction)
+		if path.size() > 1:
+			unit.move_along_path(path)
+			await unit.await_movement_completion()
+			if not is_instance_valid(unit):
+				return
 
 
 ## Find best target based on threat weights and calculated unit threat
@@ -528,15 +588,23 @@ func _execute_support_role(unit: Unit, context: Dictionary, behavior: AIBehavior
 		var moved: bool = _move_into_spell_range(unit, heal_target.grid_position, ability_range)
 		if moved:
 			await unit.await_movement_completion()
+			if not is_instance_valid(unit):
+				return false
 			await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
+			if not is_instance_valid(unit):
+				return false
 
 		# Recalculate distance after moving
+		if not is_instance_valid(heal_target):
+			return false
 		distance = GridManager.grid.get_manhattan_distance(unit.grid_position, heal_target.grid_position)
 		if distance > ability_range:
 			return false  # Still out of range
 
 	# Cast the healing spell
 	await _apply_delay(unit, _get_delay(context, "before_attack"))
+	if not is_instance_valid(unit) or not is_instance_valid(heal_target):
+		return false
 	var success: bool = await BattleManager.execute_ai_spell(unit, ability_id, heal_target)
 	return success
 
@@ -620,6 +688,10 @@ func _get_unit_healing_abilities(unit: Unit) -> Array[Dictionary]:
 
 	# Get all abilities unlocked at current level using ClassData's helper method
 	var unlocked_abilities: Array[AbilityData] = unit_class.get_unlocked_class_abilities(unit.stats.level)
+
+	# Also include character's unique abilities
+	if _has_character_data(unit) and unit.character_data.unique_abilities:
+		unlocked_abilities.append_array(unit.character_data.unique_abilities)
 
 	for ability: AbilityData in unlocked_abilities:
 		if not ability:
@@ -868,6 +940,11 @@ func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
 	if not behavior or not _has_character_data(unit):
 		return false
 
+	# Enemy units don't use the player inventory system (PartyManager only tracks player party).
+	# A separate enemy inventory system would be needed for enemy item usage.
+	if not unit.is_player_unit():
+		return false
+
 	# Check behavior flags based on ability type
 	if not _is_item_type_enabled(behavior, ability_type):
 		return false
@@ -901,6 +978,8 @@ func _try_use_item(unit: Unit, context: Dictionary, behavior: AIBehaviorData,
 
 		# Found a matching item - use it via public API
 		await _apply_delay(unit, _get_delay(context, "before_attack"))
+		if not is_instance_valid(unit) or not is_instance_valid(target):
+			return false
 		var success: bool = await BattleManager.execute_ai_item_use(unit, item_id, target)
 		return success
 
@@ -1047,6 +1126,9 @@ func _find_nearest_allied_healer(unit: Unit, context: Dictionary) -> Unit:
 		var has_heal: bool = false
 		var level: int = ally.stats.level if ally.stats else 1
 		var abilities: Array[AbilityData] = ally_class.get_unlocked_class_abilities(level)
+		# Also include character's unique abilities
+		if _has_character_data(ally) and ally.character_data.unique_abilities:
+			abilities.append_array(ally.character_data.unique_abilities)
 		for ability: AbilityData in abilities:
 			if ability and ability.ability_type == AbilityData.AbilityType.HEAL:
 				has_heal = true
@@ -1153,14 +1235,22 @@ func _execute_tactical_role(unit: Unit, context: Dictionary, behavior: AIBehavio
 		var moved: bool = _move_into_spell_range(unit, best_target.grid_position, ability_range)
 		if moved:
 			await unit.await_movement_completion()
+			if not is_instance_valid(unit):
+				return false
 			await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
+			if not is_instance_valid(unit):
+				return false
 
+		if not is_instance_valid(best_target):
+			return false
 		distance = GridManager.grid.get_manhattan_distance(unit.grid_position, best_target.grid_position)
 		if distance > ability_range:
 			return false  # Still out of range
 
 	# Cast the debuff
 	await _apply_delay(unit, _get_delay(context, "before_attack"))
+	if not is_instance_valid(unit) or not is_instance_valid(best_target):
+		return false
 	var success: bool = await BattleManager.execute_ai_spell(unit, ability_id, best_target)
 	return success
 
@@ -1177,6 +1267,10 @@ func _get_unit_debuff_abilities(unit: Unit, behavior: AIBehaviorData) -> Array[D
 		return result
 
 	var unlocked_abilities: Array[AbilityData] = unit_class.get_unlocked_class_abilities(unit.stats.level)
+
+	# Also include character's unique abilities
+	if _has_character_data(unit) and unit.character_data.unique_abilities:
+		unlocked_abilities.append_array(unit.character_data.unique_abilities)
 
 	for ability: AbilityData in unlocked_abilities:
 		if not ability:
@@ -1274,6 +1368,8 @@ func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehavi
 			continue
 		if is_in_attack_range(unit, opponent):
 			await _apply_delay(unit, _get_delay(context, "before_attack"))
+			if not is_instance_valid(unit) or not is_instance_valid(opponent):
+				return
 			await attack_target(unit, opponent)
 			return
 
@@ -1290,6 +1386,8 @@ func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehavi
 				continue
 			if is_in_attack_range(unit, opponent):
 				await _apply_delay(unit, _get_delay(context, "before_attack"))
+				if not is_instance_valid(unit) or not is_instance_valid(opponent):
+					return
 				await attack_target(unit, opponent)
 				return
 		return  # No attack possible, stay in position
@@ -1298,7 +1396,11 @@ func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehavi
 	var moved: bool = move_toward_target(unit, best_target)
 	if moved:
 		await unit.await_movement_completion()
+		if not is_instance_valid(unit):
+			return
 		await _apply_delay(unit, _get_delay(context, "after_movement", 0.5))
+		if not is_instance_valid(unit):
+			return
 
 	# Attack if now in range of any opponent
 	for opponent: Unit in opponents:
@@ -1306,6 +1408,8 @@ func _execute_defensive_role(unit: Unit, context: Dictionary, behavior: AIBehavi
 			continue
 		if is_in_attack_range(unit, opponent):
 			await _apply_delay(unit, _get_delay(context, "before_attack"))
+			if not is_instance_valid(unit) or not is_instance_valid(opponent):
+				return
 			await attack_target(unit, opponent)
 			return
 
@@ -1359,22 +1463,26 @@ func _calculate_intercept_position(protector: Unit, vip: Unit, threat: Unit) -> 
 	var vip_pos: Vector2i = vip.grid_position
 	var threat_pos: Vector2i = threat.grid_position
 
-	# Target position is one step from VIP toward threat
-	var direction: Vector2i = Vector2i(
-		signi(threat_pos.x - vip_pos.x),
-		signi(threat_pos.y - vip_pos.y)
-	)
+	# Target position is one step from VIP toward threat (cardinal direction only)
+	var dx: int = threat_pos.x - vip_pos.x
+	var dy: int = threat_pos.y - vip_pos.y
+	var direction: Vector2i
+	if absi(dx) >= absi(dy):
+		direction = Vector2i(signi(dx), 0)
+	else:
+		direction = Vector2i(0, signi(dy))
 
 	var intercept: Vector2i = vip_pos + direction
 
 	# If intercept is occupied or invalid, try adjacent cells
 	if not GridManager.is_within_bounds(intercept) or GridManager.is_cell_occupied(intercept):
-		# Try orthogonal directions
+		# Try the other axis toward threat first, then perpendicular directions
+		var alt_dx: int = signi(dx) if direction.x == 0 else 0
+		var alt_dy: int = signi(dy) if direction.y == 0 else 0
 		var alternatives: Array[Vector2i] = [
-			vip_pos + Vector2i(direction.x, 0),
-			vip_pos + Vector2i(0, direction.y),
-			vip_pos + Vector2i(-direction.y, direction.x),  # Perpendicular
-			vip_pos + Vector2i(direction.y, -direction.x)   # Other perpendicular
+			vip_pos + Vector2i(alt_dx, alt_dy),              # Other axis toward threat
+			vip_pos + Vector2i(-direction.y, direction.x),   # Perpendicular
+			vip_pos + Vector2i(direction.y, -direction.x)    # Other perpendicular
 		]
 
 		for alt: Vector2i in alternatives:

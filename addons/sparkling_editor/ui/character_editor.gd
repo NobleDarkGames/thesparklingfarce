@@ -23,24 +23,11 @@ var is_boss_check: CheckBox
 var is_default_party_member_check: CheckBox
 var default_ai_option: OptionButton
 
-# AI Threat Configuration section
-var ai_threat_section: CollapseSection
-var ai_threat_modifier_slider: HSlider
-var ai_threat_modifier_value_label: Label
-var ai_threat_tags_container: HFlowContainer
-var ai_threat_custom_tag_edit: LineEdit
-var ai_threat_add_tag_button: Button
-var _current_threat_tags: Array[String] = []
-
-# Common threat tags with descriptions (for quick-add buttons)
-# Note: "boss" was removed - use the is_boss checkbox instead
-const COMMON_THREAT_TAGS: Dictionary = {
-	"priority_target": "AI focuses this unit first",
-	"avoid": "AI ignores this unit when targeting",
-	"vip": "High-value target for protection (non-boss)",
-	"healer": "Explicitly marks as healer (usually auto-detected)",
-	"tank": "Marks as a defensive unit"
-}
+# Extracted sections (see components/sections/)
+var _ai_threat_section: AIThreatConfigSection
+var _equipment_section: StartingEquipmentSection
+var _inventory_section: StartingInventorySection
+var _unique_abilities_section: UniqueAbilitiesSection
 
 # Stat editors
 var hp_spin: SpinBox
@@ -50,23 +37,6 @@ var def_spin: SpinBox
 var agi_spin: SpinBox
 var int_spin: SpinBox
 var luk_spin: SpinBox
-
-# Equipment section (collapsible)
-var equipment_section: CollapseSection
-var equipment_pickers: Dictionary = {}  # {slot_id: ResourcePicker}
-var equipment_warning_labels: Dictionary = {}  # {slot_id: Label}
-
-# Starting Inventory section (collapsible)
-var inventory_section: CollapseSection
-var inventory_list_container: VBoxContainer
-var inventory_add_button: Button
-var _current_inventory_items: Array[String] = []  # Item IDs
-
-# Unique Abilities section (collapsible)
-var unique_abilities_section: CollapseSection
-var unique_abilities_container: VBoxContainer
-var unique_abilities_add_button: Button
-var _current_unique_abilities: Array[Dictionary] = []
 
 var current_filter: String = "all"  # "all", "player", "enemy", "neutral"
 
@@ -126,7 +96,8 @@ func _on_dependencies_changed(changed_type: String) -> void:
 
 	elif changed_type == "ability":
 		# Refresh unique abilities display in case ability names/properties changed
-		_load_unique_abilities(character)
+		if _unique_abilities_section:
+			_unique_abilities_section.load_data()
 
 
 ## Override: Create the character-specific detail form
@@ -140,23 +111,32 @@ func _create_detail_form() -> void:
 	# Battle configuration section
 	_add_battle_configuration_section()
 
-	# AI Threat Configuration section (for advanced AI targeting)
-	_add_ai_threat_configuration_section()
+	# AI Threat Configuration section (extracted to component)
+	_ai_threat_section = AIThreatConfigSection.new(_mark_dirty, _get_current_resource)
+	_ai_threat_section.build_ui(detail_panel)
 
 	# Stats section
 	_add_stats_section()
 
-	# Equipment section (starting equipment for this character)
-	_add_equipment_section()
+	# Equipment section (extracted to component)
+	_equipment_section = StartingEquipmentSection.new(_mark_dirty, _get_current_resource)
+	_equipment_section.build_ui(detail_panel)
 
-	# Starting Inventory section (items character carries but doesn't equip)
-	_add_inventory_section()
+	# Starting Inventory section (extracted to component)
+	_inventory_section = StartingInventorySection.new(_mark_dirty, _get_current_resource, _show_resource_picker_dialog)
+	_inventory_section.build_ui(detail_panel)
 
-	# Unique Abilities section (character-specific abilities that bypass class restrictions)
-	_add_unique_abilities_section()
+	# Unique Abilities section (extracted to component)
+	_unique_abilities_section = UniqueAbilitiesSection.new(_mark_dirty, _get_current_resource, _show_resource_picker_dialog, _show_error_message)
+	_unique_abilities_section.build_ui(detail_panel)
 
 	# Add the button container at the end (with separator for visual clarity)
 	_add_button_container_to_detail_panel()
+
+
+## Helper to get the current resource (used by extracted sections)
+func _get_current_resource() -> Resource:
+	return current_resource
 
 
 ## Override: Load character data from resource into UI
@@ -216,20 +196,18 @@ func _load_resource_data() -> void:
 	int_spin.value = character.base_intelligence
 	luk_spin.value = character.base_luck
 
-	# Load starting equipment into pickers
-	_load_equipment_from_character(character)
-
-	# Load starting inventory items
-	_load_inventory_from_character(character)
-
-	# Load unique abilities
-	_load_unique_abilities(character)
-
 	# Load appearance assets
 	_load_appearance_from_character(character)
 
-	# Load AI threat configuration
-	_load_ai_threat_configuration(character)
+	# Load extracted sections
+	if _ai_threat_section:
+		_ai_threat_section.load_data()
+	if _equipment_section:
+		_equipment_section.load_data()
+	if _inventory_section:
+		_inventory_section.load_data()
+	if _unique_abilities_section:
+		_unique_abilities_section.load_data()
 
 
 ## Override: Save UI data to resource
@@ -273,20 +251,18 @@ func _save_resource_data() -> void:
 	character.base_intelligence = int(int_spin.value)
 	character.base_luck = int(luk_spin.value)
 
-	# Update starting equipment from pickers
-	_save_equipment_to_character(character)
-
-	# Update starting inventory from list
-	_save_inventory_to_character(character)
-
-	# Update unique abilities from list
-	_save_unique_abilities(character)
-
 	# Update appearance assets from pickers
 	_save_appearance_to_character(character)
 
-	# Update AI threat configuration
-	_save_ai_threat_configuration(character)
+	# Save extracted sections
+	if _ai_threat_section:
+		_ai_threat_section.save_data()
+	if _equipment_section:
+		_equipment_section.save_data()
+	if _inventory_section:
+		_inventory_section.save_data()
+	if _unique_abilities_section:
+		_unique_abilities_section.save_data()
 
 
 ## Override: Validate resource before saving
@@ -502,191 +478,6 @@ func _add_battle_configuration_section() -> void:
 	_load_available_ai_behaviors()
 
 
-func _add_ai_threat_configuration_section() -> void:
-	ai_threat_section = CollapseSection.new()
-	ai_threat_section.title = "AI Threat Configuration"
-	ai_threat_section.start_collapsed = true
-
-	var content: VBoxContainer = ai_threat_section.get_content_container()
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
-	form.on_change(_mark_dirty)
-	form.add_help_text("Advanced settings for AI targeting behavior")
-
-	# Threat Modifier with slider and preset buttons - needs custom layout
-	var modifier_container: VBoxContainer = VBoxContainer.new()
-
-	var modifier_header: HBoxContainer = HBoxContainer.new()
-	var modifier_label: Label = Label.new()
-	modifier_label.text = "Threat Modifier:"
-	modifier_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	modifier_label.tooltip_text = "Multiplier for AI threat calculations. Higher = AI prioritizes protecting/attacking this unit more."
-	modifier_header.add_child(modifier_label)
-
-	ai_threat_modifier_value_label = Label.new()
-	ai_threat_modifier_value_label.text = "1.0"
-	ai_threat_modifier_value_label.custom_minimum_size.x = 40
-	modifier_header.add_child(ai_threat_modifier_value_label)
-	modifier_container.add_child(modifier_header)
-
-	# Slider
-	var slider_container: HBoxContainer = HBoxContainer.new()
-	ai_threat_modifier_slider = HSlider.new()
-	ai_threat_modifier_slider.min_value = 0.0
-	ai_threat_modifier_slider.max_value = 5.0
-	ai_threat_modifier_slider.step = 0.1
-	ai_threat_modifier_slider.value = 1.0
-	ai_threat_modifier_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ai_threat_modifier_slider.custom_minimum_size.x = 200
-	ai_threat_modifier_slider.tooltip_text = "Multiplier for AI targeting priority. 0.5 = low priority, 1.0 = normal, 2.0+ = high priority target."
-	ai_threat_modifier_slider.value_changed.connect(_on_threat_modifier_changed)
-	slider_container.add_child(ai_threat_modifier_slider)
-	modifier_container.add_child(slider_container)
-
-	# Preset buttons
-	var preset_container: HBoxContainer = HBoxContainer.new()
-	preset_container.add_theme_constant_override("separation", 4)
-
-	var preset_label: Label = Label.new()
-	preset_label.text = "Presets:"
-	preset_label.add_theme_color_override("font_color", SparklingEditorUtils.get_help_color())
-	preset_container.add_child(preset_label)
-
-	var presets: Array[Dictionary] = [
-		{"label": "Fodder (0.5)", "value": 0.5, "tooltip": "Enemies deprioritize this unit"},
-		{"label": "Normal (1.0)", "value": 1.0, "tooltip": "Default threat level"},
-		{"label": "Elite (1.5)", "value": 1.5, "tooltip": "Slightly higher priority"},
-		{"label": "Boss (2.0)", "value": 2.0, "tooltip": "High priority protection/targeting"},
-		{"label": "VIP (3.0)", "value": 3.0, "tooltip": "Maximum priority"}
-	]
-
-	for preset: Dictionary in presets:
-		var btn: Button = Button.new()
-		btn.text = preset.label
-		btn.tooltip_text = preset.tooltip
-		btn.pressed.connect(_on_threat_modifier_preset.bind(preset.value))
-		preset_container.add_child(btn)
-
-	modifier_container.add_child(preset_container)
-	content.add_child(modifier_container)
-
-	form.add_separator()
-
-	# Threat Tags section
-	form.add_section_label("Threat Tags:")
-	form.add_help_text("Click to add common tags, or type custom tags below")
-
-	# Quick-add buttons for common tags
-	var quick_tags_container: HFlowContainer = HFlowContainer.new()
-	quick_tags_container.add_theme_constant_override("h_separation", 4)
-	quick_tags_container.add_theme_constant_override("v_separation", 4)
-
-	for tag: String in COMMON_THREAT_TAGS.keys():
-		var btn: Button = Button.new()
-		btn.text = "+ " + tag
-		btn.tooltip_text = COMMON_THREAT_TAGS[tag]
-		btn.pressed.connect(_on_add_threat_tag.bind(tag))
-		quick_tags_container.add_child(btn)
-
-	content.add_child(quick_tags_container)
-
-	# Current tags display
-	var current_tags_label: Label = Label.new()
-	current_tags_label.text = "Active Tags:"
-	content.add_child(current_tags_label)
-
-	ai_threat_tags_container = HFlowContainer.new()
-	ai_threat_tags_container.add_theme_constant_override("h_separation", 4)
-	ai_threat_tags_container.add_theme_constant_override("v_separation", 4)
-	content.add_child(ai_threat_tags_container)
-
-	# Custom tag input
-	ai_threat_custom_tag_edit = LineEdit.new()
-	ai_threat_custom_tag_edit.placeholder_text = "e.g., flanker, glass_cannon"
-	ai_threat_custom_tag_edit.tooltip_text = "Add custom tags for mod-specific AI behaviors. Use snake_case format."
-	ai_threat_custom_tag_edit.text_submitted.connect(_on_custom_tag_submitted)
-
-	var custom_tag_row: HBoxContainer = HBoxContainer.new()
-	custom_tag_row.add_theme_constant_override("separation", 8)
-
-	var custom_label: Label = Label.new()
-	custom_label.text = "Custom Tag:"
-	custom_label.custom_minimum_size.x = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-	custom_tag_row.add_child(custom_label)
-
-	ai_threat_custom_tag_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	custom_tag_row.add_child(ai_threat_custom_tag_edit)
-
-	ai_threat_add_tag_button = Button.new()
-	ai_threat_add_tag_button.text = "Add"
-	ai_threat_add_tag_button.pressed.connect(_on_add_custom_tag_pressed)
-	custom_tag_row.add_child(ai_threat_add_tag_button)
-
-	content.add_child(custom_tag_row)
-
-	detail_panel.add_child(ai_threat_section)
-
-
-func _on_threat_modifier_changed(value: float) -> void:
-	ai_threat_modifier_value_label.text = "%.1f" % value
-	_mark_dirty()
-
-
-func _on_threat_modifier_preset(value: float) -> void:
-	ai_threat_modifier_slider.value = value
-	ai_threat_modifier_value_label.text = "%.1f" % value
-	_mark_dirty()
-
-
-func _on_add_threat_tag(tag: String) -> void:
-	if tag not in _current_threat_tags:
-		_current_threat_tags.append(tag)
-		_refresh_threat_tags_display()
-		_mark_dirty()
-
-
-func _on_remove_threat_tag(tag: String) -> void:
-	_current_threat_tags.erase(tag)
-	_refresh_threat_tags_display()
-	_mark_dirty()
-
-
-func _on_custom_tag_submitted(tag: String) -> void:
-	_add_custom_tag(tag)
-
-
-func _on_add_custom_tag_pressed() -> void:
-	_add_custom_tag(ai_threat_custom_tag_edit.text)
-
-
-func _add_custom_tag(tag: String) -> void:
-	var clean_tag: String = tag.strip_edges().to_lower().replace(" ", "_")
-	if clean_tag.is_empty():
-		return
-	if clean_tag not in _current_threat_tags:
-		_current_threat_tags.append(clean_tag)
-		_refresh_threat_tags_display()
-		_mark_dirty()
-	ai_threat_custom_tag_edit.text = ""
-
-
-func _refresh_threat_tags_display() -> void:
-	# Clear existing tag buttons
-	for child: Node in ai_threat_tags_container.get_children():
-		child.queue_free()
-
-	if _current_threat_tags.is_empty():
-		SparklingEditorUtils.add_empty_placeholder(ai_threat_tags_container, "(No tags)")
-		return
-
-	# Create pill-style buttons for each tag
-	for tag: String in _current_threat_tags:
-		var tag_btn: Button = Button.new()
-		tag_btn.text = tag + " x"
-		tag_btn.tooltip_text = "Click to remove this tag"
-		if tag in COMMON_THREAT_TAGS:
-			tag_btn.tooltip_text = COMMON_THREAT_TAGS[tag] + "\nClick to remove"
-		tag_btn.pressed.connect(_on_remove_threat_tag.bind(tag))
-		ai_threat_tags_container.add_child(tag_btn)
 
 
 func _add_stats_section() -> void:
@@ -812,351 +603,8 @@ func _get_unit_categories_from_registry() -> Array[String]:
 	return ["player", "enemy", "neutral"]
 
 
-## Add the starting equipment section with pickers for each slot (collapsible)
-func _add_equipment_section() -> void:
-	equipment_section = CollapseSection.new()
-	equipment_section.title = "Starting Equipment"
-	equipment_section.start_collapsed = false
 
-	var content: VBoxContainer = equipment_section.get_content_container()
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
-	form.on_change(_mark_dirty)
-	form.add_help_text("Equipment the character starts with when recruited")
 
-	# Get available equipment slots from registry
-	var slots: Array[Dictionary] = _get_equipment_slots()
-
-	equipment_pickers.clear()
-	equipment_warning_labels.clear()
-
-	for slot: Dictionary in slots:
-		var slot_id: String = DictUtils.get_string(slot, "id", "")
-		var display_name: String = DictUtils.get_string(slot, "display_name", slot_id.capitalize())
-		var accepts_types: Array = DictUtils.get_array(slot, "accepts_types", [])
-
-		# Create a container for each slot
-		var slot_container: VBoxContainer = VBoxContainer.new()
-
-		# Create the picker
-		var picker: ResourcePicker = ResourcePicker.new()
-		picker.resource_type = "item"
-		picker.label_text = display_name + ":"
-		picker.label_min_width = SparklingEditorUtils.DEFAULT_LABEL_WIDTH
-		picker.allow_none = true
-		picker.none_text = "(Empty)"
-
-		# Filter items to only show compatible types for this slot
-		# Note: Use helper function to properly capture accepts_types by value
-		picker.filter_function = _create_equipment_filter(accepts_types)
-
-		picker.resource_selected.connect(_on_equipment_selected.bind(slot_id))
-		slot_container.add_child(picker)
-		equipment_pickers[slot_id] = picker
-
-		# Add warning label (hidden by default)
-		var warning: Label = Label.new()
-		warning.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
-		warning.add_theme_font_size_override("font_size", SparklingEditorUtils.HELP_FONT_SIZE)
-		warning.visible = false
-		slot_container.add_child(warning)
-		equipment_warning_labels[slot_id] = warning
-
-		content.add_child(slot_container)
-
-	detail_panel.add_child(equipment_section)
-
-
-## Create an equipment filter function that properly captures types by value
-## This avoids the closure capture-by-reference bug in GDScript
-func _create_equipment_filter(types: Array) -> Callable:
-	return func(resource: Resource) -> bool:
-		var item: ItemData = resource as ItemData
-		if not item:
-			return false
-		# Check if item type is compatible with this slot using wildcard matching
-		var eq_type: String = item.equipment_type.to_lower()
-		# Use EquipmentTypeRegistry for wildcard matching (e.g., "weapon:*" matches "sword")
-		if ModLoader and ModLoader.equipment_type_registry:
-			for accept_type: Variant in types:
-				if ModLoader.equipment_type_registry.matches_accept_type(eq_type, str(accept_type)):
-					return true
-			return false
-		# Fallback: direct match only
-		return eq_type in types
-
-
-## Get equipment slots from registry with fallback
-func _get_equipment_slots() -> Array[Dictionary]:
-	if ModLoader and ModLoader.equipment_slot_registry:
-		return ModLoader.equipment_slot_registry.get_slots()
-	# Fallback to default SF-style slots (should match EquipmentSlotRegistry.DEFAULT_SLOTS)
-	# Uses category wildcards - requires EquipmentTypeRegistry to be populated
-	return [
-		{"id": "weapon", "display_name": "Weapon", "accepts_types": ["weapon:*"]},
-		{"id": "ring_1", "display_name": "Ring 1", "accepts_types": ["accessory:*"]},
-		{"id": "ring_2", "display_name": "Ring 2", "accepts_types": ["accessory:*"]},
-		{"id": "accessory", "display_name": "Accessory", "accepts_types": ["accessory:*"]}
-	]
-
-
-## Load starting equipment from CharacterData into pickers
-func _load_equipment_from_character(character: CharacterData) -> void:
-	# Clear all pickers first
-	for slot_id: String in equipment_pickers.keys():
-		var picker: ResourcePicker = equipment_pickers[slot_id]
-		picker.select_none()
-		_clear_equipment_warning(slot_id)
-
-	if not character or character.starting_equipment.is_empty():
-		return
-
-	# Map items to their slots
-	for item: ItemData in character.starting_equipment:
-		if not item:
-			continue
-
-		var slot_id: String = item.equipment_slot
-		if slot_id.is_empty():
-			# Try to infer slot from equipment type
-			slot_id = _infer_slot_from_type(item.equipment_type)
-
-		if slot_id in equipment_pickers:
-			var picker: ResourcePicker = equipment_pickers[slot_id]
-			picker.select_resource(item)
-
-			# Validate class restrictions
-			_validate_equipment_for_class(slot_id, item, character)
-
-
-## Infer equipment slot from equipment type
-func _infer_slot_from_type(equipment_type: String) -> String:
-	var lower_type: String = equipment_type.to_lower()
-	# Check registry for category-based inference
-	if ModLoader and ModLoader.equipment_type_registry:
-		var category: String = ModLoader.equipment_type_registry.get_category(lower_type)
-		if category == "weapon":
-			return "weapon"
-		elif category == "accessory":
-			if lower_type == "ring":
-				return "ring_1"
-			return "accessory"
-	# Fallback matching EquipmentTypeRegistry.init_defaults()
-	match lower_type:
-		"sword", "axe", "spear", "bow", "staff", "knife":
-			return "weapon"
-		"ring":
-			return "ring_1"
-		"accessory":
-			return "accessory"
-		_:
-			return "weapon"
-
-
-## Save equipment from pickers to CharacterData
-func _save_equipment_to_character(character: CharacterData) -> void:
-	# Create a new array to avoid read-only state from duplicated resources
-	var new_equipment: Array[ItemData] = []
-
-	for slot_id: String in equipment_pickers.keys():
-		var picker: ResourcePicker = equipment_pickers[slot_id]
-		var item: ItemData = picker.get_selected_resource() as ItemData
-		if item:
-			new_equipment.append(item)
-
-	character.starting_equipment = new_equipment
-
-
-## Handle equipment selection change
-func _on_equipment_selected(metadata: Dictionary, slot_id: String) -> void:
-	var item: ItemData = metadata.get("resource", null) as ItemData
-
-	if item:
-		var character: CharacterData = current_resource as CharacterData
-		if character:
-			_validate_equipment_for_class(slot_id, item, character)
-	else:
-		_clear_equipment_warning(slot_id)
-
-
-## Validate that equipment can be used by the character's class
-func _validate_equipment_for_class(slot_id: String, item: ItemData, character: CharacterData) -> void:
-	_clear_equipment_warning(slot_id)
-
-	if not item or not character:
-		return
-
-	var class_data: ClassData = character.character_class
-	if not class_data:
-		return
-
-	# Check weapon type restrictions
-	if item.item_type == ItemData.ItemType.WEAPON:
-		if not class_data.equippable_weapon_types.is_empty():
-			var item_weapon_type: String = item.equipment_type.to_lower()
-			var can_equip: bool = false
-			for allowed_type: String in class_data.equippable_weapon_types:
-				if allowed_type.to_lower() == item_weapon_type:
-					can_equip = true
-					break
-			if not can_equip:
-				_show_equipment_warning(
-					slot_id,
-					"Warning: %s cannot equip %s weapons" % [class_data.display_name, item.equipment_type]
-				)
-				return
-
-	# Check if item is cursed
-	if item.is_cursed:
-		_show_equipment_warning(slot_id, "Note: This is a cursed item")
-
-
-## Show a warning message for an equipment slot
-func _show_equipment_warning(slot_id: String, message: String) -> void:
-	if slot_id in equipment_warning_labels:
-		var label: Label = equipment_warning_labels[slot_id]
-		label.text = message
-		label.visible = true
-
-
-## Clear the warning for an equipment slot
-func _clear_equipment_warning(slot_id: String) -> void:
-	if slot_id in equipment_warning_labels:
-		var label: Label = equipment_warning_labels[slot_id]
-		label.text = ""
-		label.visible = false
-
-
-# =============================================================================
-# STARTING INVENTORY SECTION
-# =============================================================================
-
-## Add the starting inventory section with an item list and add button
-func _add_inventory_section() -> void:
-	inventory_section = CollapseSection.new()
-	inventory_section.title = "Starting Inventory"
-	inventory_section.start_collapsed = true
-
-	var content: VBoxContainer = inventory_section.get_content_container()
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
-	form.on_change(_mark_dirty)
-	form.add_help_text("Items the character carries (not equipped) when recruited")
-
-	# Container for the list of inventory items
-	inventory_list_container = VBoxContainer.new()
-	inventory_list_container.add_theme_constant_override("separation", 4)
-	content.add_child(inventory_list_container)
-
-	# Add Item button
-	var button_container: HBoxContainer = HBoxContainer.new()
-	inventory_add_button = Button.new()
-	inventory_add_button.text = "+ Add Item"
-	inventory_add_button.tooltip_text = "Add an item to the character's starting inventory"
-	inventory_add_button.pressed.connect(_on_inventory_add_pressed)
-	button_container.add_child(inventory_add_button)
-	content.add_child(button_container)
-
-	detail_panel.add_child(inventory_section)
-
-
-## Load starting inventory from CharacterData into the list
-func _load_inventory_from_character(character: CharacterData) -> void:
-	_current_inventory_items.clear()
-
-	if character and not character.starting_inventory.is_empty():
-		for item_id: String in character.starting_inventory:
-			_current_inventory_items.append(item_id)
-
-	_refresh_inventory_list_display()
-
-
-## Save starting inventory from list to CharacterData
-func _save_inventory_to_character(character: CharacterData) -> void:
-	var new_inventory: Array[String] = []
-	for item_id: String in _current_inventory_items:
-		new_inventory.append(item_id)
-	character.starting_inventory = new_inventory
-
-
-## Handle Add Item button press - opens a ResourcePicker dialog
-func _on_inventory_add_pressed() -> void:
-	_show_resource_picker_dialog("Add Inventory Item", "item", "Item:", _on_inventory_item_selected)
-
-
-## Handle selection of an inventory item from the dialog
-func _on_inventory_item_selected(resource: Resource) -> void:
-	var item: ItemData = resource as ItemData
-	if not item:
-		return
-
-	# Extract item_id from resource path (filename without extension)
-	var item_id: String = item.resource_path.get_file().get_basename()
-	if item_id not in _current_inventory_items:
-		_current_inventory_items.append(item_id)
-		_refresh_inventory_list_display()
-		_mark_dirty()
-
-
-## Handle removing an item from the inventory list
-func _on_inventory_remove_item(item_id: String) -> void:
-	_current_inventory_items.erase(item_id)
-	_refresh_inventory_list_display()
-	_mark_dirty()
-
-
-## Refresh the visual display of the inventory item list
-func _refresh_inventory_list_display() -> void:
-	# Clear existing items
-	for child: Node in inventory_list_container.get_children():
-		child.queue_free()
-
-	if _current_inventory_items.is_empty():
-		SparklingEditorUtils.add_empty_placeholder(inventory_list_container, "(No items)")
-		return
-
-	# Create a row for each item
-	for item_id: String in _current_inventory_items:
-		var row: HBoxContainer = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-
-		# Try to get item display name from registry
-		var display_name: String = item_id
-		var item: ItemData = null
-		if ModLoader and ModLoader.registry:
-			item = ModLoader.registry.get_item(item_id)
-			if item:
-				display_name = item.item_name if not item.item_name.is_empty() else item_id
-
-		# Item icon (if available)
-		if item and item.icon:
-			var icon_rect: TextureRect = TextureRect.new()
-			icon_rect.texture = item.icon
-			icon_rect.custom_minimum_size = Vector2(24, 24)
-			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			row.add_child(icon_rect)
-
-		# Item name label
-		var name_label: Label = Label.new()
-		name_label.text = display_name
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if item:
-			# Add item type to tooltip
-			var type_name: String = ItemData.ItemType.keys()[item.item_type]
-			name_label.tooltip_text = "%s (%s)" % [item_id, type_name]
-		else:
-			name_label.tooltip_text = item_id
-			name_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))  # Orange for missing
-		row.add_child(name_label)
-
-		# Remove button
-		var remove_btn: Button = Button.new()
-		remove_btn.text = "x"
-		remove_btn.tooltip_text = "Remove from inventory"
-		remove_btn.custom_minimum_size.x = 24
-		remove_btn.pressed.connect(_on_inventory_remove_item.bind(item_id))
-		row.add_child(remove_btn)
-
-		inventory_list_container.add_child(row)
 
 
 # =============================================================================
@@ -1247,158 +695,3 @@ func _on_sprite_frames_generated(sprite_frames: SpriteFrames) -> void:
 		_show_success_message("SpriteFrames generated successfully")
 
 
-# =============================================================================
-# AI THREAT CONFIGURATION METHODS
-# =============================================================================
-
-## Load AI threat configuration from CharacterData into the UI
-func _load_ai_threat_configuration(character: CharacterData) -> void:
-	# Load threat modifier (with fallback for characters without the field)
-	var threat_modifier: float = 1.0
-	if "ai_threat_modifier" in character:
-		threat_modifier = character.ai_threat_modifier
-	ai_threat_modifier_slider.value = threat_modifier
-	ai_threat_modifier_value_label.text = "%.1f" % threat_modifier
-
-	# Load threat tags (with fallback for characters without the field)
-	_current_threat_tags.clear()
-	if "ai_threat_tags" in character:
-		for tag: String in character.ai_threat_tags:
-			_current_threat_tags.append(tag)
-
-	_refresh_threat_tags_display()
-
-
-## Save AI threat configuration from UI to CharacterData
-func _save_ai_threat_configuration(character: CharacterData) -> void:
-	# Save threat modifier
-	if "ai_threat_modifier" in character:
-		character.ai_threat_modifier = ai_threat_modifier_slider.value
-
-	# Save threat tags
-	if "ai_threat_tags" in character:
-		var new_tags: Array[String] = []
-		for tag: String in _current_threat_tags:
-			new_tags.append(tag)
-		character.ai_threat_tags = new_tags
-
-
-# =============================================================================
-# UNIQUE ABILITIES SECTION
-# =============================================================================
-
-## Add the unique abilities section with an ability list and add button
-func _add_unique_abilities_section() -> void:
-	unique_abilities_section = CollapseSection.new()
-	unique_abilities_section.title = "Unique Abilities"
-	unique_abilities_section.start_collapsed = true
-
-	var content: VBoxContainer = unique_abilities_section.get_content_container()
-	var form: SparklingEditorUtils.FormBuilder = SparklingEditorUtils.create_form(content)
-	form.on_change(_mark_dirty)
-	form.add_help_text("Character-specific abilities that bypass class restrictions")
-
-	# Container for the list of unique abilities
-	unique_abilities_container = VBoxContainer.new()
-	unique_abilities_container.add_theme_constant_override("separation", 4)
-	content.add_child(unique_abilities_container)
-
-	# Add Unique Ability button
-	var button_container: HBoxContainer = HBoxContainer.new()
-	unique_abilities_add_button = Button.new()
-	unique_abilities_add_button.text = "+ Add Unique Ability"
-	unique_abilities_add_button.tooltip_text = "Add a character-specific ability that bypasses class restrictions"
-	unique_abilities_add_button.pressed.connect(_on_add_unique_ability)
-	button_container.add_child(unique_abilities_add_button)
-	content.add_child(button_container)
-
-	detail_panel.add_child(unique_abilities_section)
-
-
-## Load unique abilities from CharacterData into the list
-func _load_unique_abilities(character: CharacterData) -> void:
-	_current_unique_abilities.clear()
-
-	if character and not character.unique_abilities.is_empty():
-		for ability: AbilityData in character.unique_abilities:
-			if ability:
-				_current_unique_abilities.append({"ability": ability})
-
-	_refresh_unique_abilities_display()
-
-
-## Save unique abilities from list to CharacterData
-func _save_unique_abilities(character: CharacterData) -> void:
-	var new_unique_abilities: Array[AbilityData] = []
-	for ability_dict: Dictionary in _current_unique_abilities:
-		var ability: AbilityData = ability_dict.get("ability", null) as AbilityData
-		if ability:
-			new_unique_abilities.append(ability)
-	character.unique_abilities = new_unique_abilities
-
-
-## Handle Add Unique Ability button press - opens a ResourcePicker dialog
-func _on_add_unique_ability() -> void:
-	_show_resource_picker_dialog("Add Unique Ability", "ability", "Ability:", _on_unique_ability_selected)
-
-
-## Handle selection of a unique ability from the dialog
-func _on_unique_ability_selected(resource: Resource) -> void:
-	var ability: AbilityData = resource as AbilityData
-	if not ability:
-		return
-
-	# Check if already added
-	for existing_dict: Dictionary in _current_unique_abilities:
-		var existing_ability: AbilityData = existing_dict.get("ability", null) as AbilityData
-		if existing_ability and existing_ability.ability_id == ability.ability_id:
-			_show_error_message("Ability already added")
-			return
-
-	# Add the ability
-	_current_unique_abilities.append({"ability": ability})
-	_refresh_unique_abilities_display()
-	_mark_dirty()
-
-
-## Remove a unique ability from the list
-func _on_remove_unique_ability(ability_dict: Dictionary) -> void:
-	_current_unique_abilities.erase(ability_dict)
-	_refresh_unique_abilities_display()
-	_mark_dirty()
-
-
-## Refresh the display of unique abilities
-func _refresh_unique_abilities_display() -> void:
-	# Clear existing rows
-	for child: Node in unique_abilities_container.get_children():
-		child.queue_free()
-
-	if _current_unique_abilities.is_empty():
-		SparklingEditorUtils.add_empty_placeholder(unique_abilities_container, "(No unique abilities)")
-		return
-
-	# Create a row for each ability
-	for ability_dict: Dictionary in _current_unique_abilities:
-		var ability: AbilityData = ability_dict.get("ability", null) as AbilityData
-		if not ability:
-			continue
-
-		var row: HBoxContainer = HBoxContainer.new()
-
-		# Ability name
-		var name_label: Label = Label.new()
-		name_label.text = ability.display_name if ability.display_name else ability.ability_id.capitalize()
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.tooltip_text = ability.ability_id
-		row.add_child(name_label)
-
-		# Remove button
-		var remove_btn: Button = Button.new()
-		remove_btn.text = "x"
-		remove_btn.tooltip_text = "Remove unique ability"
-		remove_btn.custom_minimum_size.x = 24
-		remove_btn.pressed.connect(_on_remove_unique_ability.bind(ability_dict))
-		row.add_child(remove_btn)
-
-		unique_abilities_container.add_child(row)

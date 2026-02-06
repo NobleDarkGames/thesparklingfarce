@@ -132,7 +132,13 @@ static func from_dict(data: Dictionary) -> TransitionContext:
 	context.has_caravan_position = DictUtils.get_bool(data, "has_caravan_position", false)
 
 	context.extra_data = DictUtils.get_dict(data, "extra_data", {})
-	context.battle_outcome = DictUtils.get_int(data, "battle_outcome", BattleOutcome.NONE)
+
+	var raw_outcome: int = DictUtils.get_int(data, "battle_outcome", BattleOutcome.NONE)
+	if raw_outcome < BattleOutcome.NONE or raw_outcome > BattleOutcome.RETREAT:
+		push_warning("TransitionContext: Invalid battle_outcome value %d, defaulting to NONE" % raw_outcome)
+		raw_outcome = BattleOutcome.NONE
+	context.battle_outcome = raw_outcome as BattleOutcome
+
 	context.completed_battle_id = DictUtils.get_string(data, "completed_battle_id", "")
 
 	return context

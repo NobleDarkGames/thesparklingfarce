@@ -218,9 +218,9 @@ func _update_health_bar(animate: bool = true) -> void:
 			duration = GameJuice.get_adjusted_duration(health_bar_tween_duration)
 
 		_health_bar_tween = create_tween()
-		_health_bar_tween.tween_property(health_bar, "value", float(stats.current_hp), duration)
 		_health_bar_tween.set_ease(Tween.EASE_OUT)
 		_health_bar_tween.set_trans(Tween.TRANS_CUBIC)
+		_health_bar_tween.tween_property(health_bar, "value", float(stats.current_hp), duration)
 	else:
 		health_bar.value = stats.current_hp
 
@@ -311,7 +311,7 @@ func _animate_movement_to(target_cell: Vector2i) -> Tween:
 
 	# Calculate distance and duration
 	var distance: float = position.distance_to(target_position)
-	var duration: float = distance / movement_speed
+	var duration: float = distance / maxf(movement_speed, 1.0)
 
 	# Update facing direction based on movement
 	_update_facing_from_movement(grid_position, target_cell)
@@ -367,7 +367,7 @@ func _animate_movement_along_path(path: Array[Vector2i]) -> Tween:
 		# Calculate duration for this step based on distance
 		var current_pos: Vector2 = GridManager.cell_to_world(prev_cell)
 		var distance: float = current_pos.distance_to(target_position)
-		var duration: float = distance / movement_speed
+		var duration: float = distance / maxf(movement_speed, 1.0)
 
 		# Chain the movement to this cell
 		_movement_tween.tween_property(self, "position", target_position, duration)
@@ -462,11 +462,11 @@ func heal(amount: int) -> void:
 
 
 ## Add status effect
-func add_status_effect(effect_type: String, duration: int, power: int = 0) -> void:
+func add_status_effect(effect_type: String, duration: int, potency: int = 0) -> void:
 	if stats == null:
 		return
 
-	stats.add_status_effect(effect_type, duration, power)
+	stats.add_status_effect(effect_type, duration, potency)
 	status_effect_applied.emit(effect_type)
 
 

@@ -75,7 +75,7 @@ enum TriggerTiming {
 ## Keys: "strength", "defense", "agility", "intelligence", "luck", "max_hp", "max_mp"
 ## Values: Integer bonus/penalty (positive = buff, negative = debuff)
 ## Example: {"strength": 5, "defense": -3}
-@export var stat_modifiers: Dictionary = {}
+@export var stat_modifiers: Dictionary[String, int] = {}
 
 
 # =============================================================================

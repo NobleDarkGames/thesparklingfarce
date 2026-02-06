@@ -38,6 +38,11 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 	# Get terrain data from GridManager
 	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit_cell)
 
+	if not terrain:
+		terrain_name_label.text = "Unknown"
+		terrain_effect_label.text = ""
+		return
+
 	# Update labels
 	terrain_name_label.text = terrain.display_name
 	terrain_effect_label.text = _format_terrain_effects(terrain)
@@ -63,6 +68,12 @@ func show_terrain_info(unit_cell: Vector2i) -> void:
 ## Update terrain info without animation (for rapid updates during movement)
 func update_terrain_info(unit_cell: Vector2i) -> void:
 	var terrain: TerrainData = GridManager.get_terrain_at_cell(unit_cell)
+
+	if not terrain:
+		terrain_name_label.text = "Unknown"
+		terrain_effect_label.text = ""
+		return
+
 	terrain_name_label.text = terrain.display_name
 	terrain_effect_label.text = _format_terrain_effects(terrain)
 
@@ -108,9 +119,13 @@ func _format_terrain_effects(terrain: TerrainData) -> String:
 	if terrain.healing_per_turn > 0:
 		effects.append("HEAL %d/turn" % terrain.healing_per_turn)
 
-	# Movement cost for ground units (only show if not standard cost 1)
-	if terrain.movement_cost_walking > 1:
-		effects.append("MOV x%d" % terrain.movement_cost_walking)
+	# Movement cost for ground units (always show)
+	if terrain.movement_cost_walking == 1.0:
+		effects.append("MOV x1")
+	elif terrain.movement_cost_walking < 1.0:
+		effects.append("MOV x%.1f" % terrain.movement_cost_walking)
+	else:
+		effects.append("MOV x%d" % int(terrain.movement_cost_walking))
 
 	# Impassable indicators
 	if terrain.impassable_walking and terrain.impassable_floating and terrain.impassable_flying:

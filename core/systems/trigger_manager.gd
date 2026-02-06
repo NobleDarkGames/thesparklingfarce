@@ -80,8 +80,10 @@ func _on_scene_changed(_scene_path: String) -> void:
 
 ## Find all MapTriggers in the current scene and connect to them
 func _connect_to_scene_triggers() -> void:
-	var root: Window = get_tree().root
-	var current_scene: Node = root.get_child(root.get_child_count() - 1)
+	var current_scene: Node = get_tree().current_scene
+	if not current_scene:
+		push_warning("TriggerManager: No current scene found when connecting triggers")
+		return
 
 	# Recursively find all MapTrigger nodes
 	var triggers: Array[Node] = _find_all_triggers(current_scene)
@@ -107,6 +109,9 @@ func _find_all_triggers(node: Node) -> Array[Node]:
 
 ## Connect to a single trigger
 func _connect_trigger(trigger: Node) -> void:
+	# Filter out any invalid (freed) references before checking membership
+	connected_triggers = connected_triggers.filter(func(t: Node) -> bool: return is_instance_valid(t))
+
 	if trigger in connected_triggers:
 		return  # Already connected
 
@@ -139,11 +144,11 @@ func _on_trigger_activated(trigger: Node, player: Node2D) -> void:
 	# LOW-001: Use constants for trigger type strings
 	match type_name:
 		TRIGGER_TYPE_BATTLE:
-			_handle_battle_trigger(trigger, player)
+			await _handle_battle_trigger(trigger, player)
 		TRIGGER_TYPE_DIALOG:
 			_handle_dialog_trigger(trigger, player)
 		TRIGGER_TYPE_DOOR:
-			_handle_door_trigger(trigger, player)
+			await _handle_door_trigger(trigger, player)
 		TRIGGER_TYPE_CUTSCENE:
 			_handle_cutscene_trigger(trigger, player)
 		TRIGGER_TYPE_TRANSITION:
@@ -220,7 +225,10 @@ func _handle_modded_trigger(trigger: Node, player: Node2D, type_name: String) ->
 
 ## Handle BATTLE trigger - transition to battle scene
 func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var trigger_data: Variant = trigger.get("trigger_data")
+	if not trigger_data is Dictionary:
+		push_error("TriggerManager: Missing or invalid trigger_data in battle trigger")
+		return
 	# LOW-002: Use .get() with default instead of ternary pattern
 	var battle_id: String = trigger_data.get("battle_id", "")
 
@@ -246,8 +254,9 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 		context.return_scene_path = ""
 	context.hero_world_position = player.global_position
 	context.hero_grid_position = player.get("grid_position") if player.get("grid_position") != null else Vector2i.ZERO
-	if player.get("facing_direction"):
-		context.hero_facing = player.facing_direction
+	var facing: Variant = player.get("facing_direction")
+	if facing is String and not (facing as String).is_empty():
+		context.hero_facing = facing as String
 
 	GameState.set_transition_context(context)
 
@@ -257,7 +266,7 @@ func _handle_battle_trigger(trigger: Node, player: Node2D) -> void:
 	_current_battle_data = battle_data
 
 	# Use the engine's battle_loader scene
-	SceneManager.change_scene("res://scenes/battle_loader.tscn")
+	await SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
 
 ## Temporary storage for battle data (will be picked up by battle scene)
@@ -284,7 +293,7 @@ func start_battle(battle_id: String) -> void:
 		push_error("  Available battles: %s" % available)
 		return
 
-	start_battle_with_data(battle_data)
+	await start_battle_with_data(battle_data)
 
 
 ## Start a battle with direct BattleData reference
@@ -296,7 +305,7 @@ func start_battle_with_data(battle_data: BattleData) -> void:
 
 	_capture_transition_context()
 	_current_battle_data = battle_data
-	SceneManager.change_scene("res://scenes/battle_loader.tscn")
+	await SceneManager.change_scene("res://scenes/battle_loader.tscn")
 
 
 ## Create and store transition context for battle return
@@ -314,8 +323,9 @@ func _capture_transition_context() -> void:
 		if hero:
 			context.hero_world_position = hero.global_position
 			context.hero_grid_position = hero.get("grid_position") if hero.get("grid_position") != null else Vector2i.ZERO
-			if hero.get("facing_direction"):
-				context.hero_facing = hero.facing_direction
+			var hero_facing: Variant = hero.get("facing_direction")
+			if hero_facing is String and not (hero_facing as String).is_empty():
+				context.hero_facing = hero_facing as String
 
 	GameState.set_transition_context(context)
 
@@ -344,11 +354,7 @@ func return_to_map() -> void:
 	clear_current_battle_data()
 
 	# Transition back to map and wait for completion
-	var transition_result: Variant = await SceneManager.change_scene(return_scene)
-
-	# CRIT-003: Verify transition succeeded before emitting signal
-	if transition_result == null or (transition_result is bool and not transition_result):
-		push_warning("TriggerManager: Scene transition may have failed")
+	await SceneManager.change_scene(return_scene)
 
 	# Signal that we've returned (map scene can connect to this if needed)
 	returned_from_battle.emit()
@@ -356,7 +362,10 @@ func return_to_map() -> void:
 
 ## Handle DIALOG trigger - show dialogue
 func _handle_dialog_trigger(trigger: Node, _player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var trigger_data: Variant = trigger.get("trigger_data")
+	if not trigger_data is Dictionary:
+		push_error("TriggerManager: Missing or invalid trigger_data in dialog trigger")
+		return
 	# LOW-002: Use .get() with default instead of ternary pattern
 	var dialog_id: String = trigger_data.get("dialog_id", "")
 
@@ -386,7 +395,10 @@ func _handle_dialog_trigger(trigger: Node, _player: Node2D) -> void:
 ##   transition_type: String - "fade", "instant", "scroll" (default: "fade")
 ##   requires_key: String - Item ID if door is locked
 func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var trigger_data: Variant = trigger.get("trigger_data")
+	if not trigger_data is Dictionary:
+		push_error("TriggerManager: Missing or invalid trigger_data in door trigger")
+		return
 	# LOW-002: Use .get() with default or str() for cleaner null handling
 	var trigger_id_val: Variant = trigger.get("trigger_id")
 	var trigger_id: String = str(trigger_id_val) if trigger_id_val else ""
@@ -446,14 +458,17 @@ func _handle_door_trigger(trigger: Node, player: Node2D) -> void:
 	# Transition to new scene
 	match transition_type:
 		"instant":
-			SceneManager.change_scene(destination_scene, false)  # No fade
+			await SceneManager.change_scene(destination_scene, false)  # No fade
 		_:  # Default: fade
-			SceneManager.change_scene(destination_scene)
+			await SceneManager.change_scene(destination_scene)
 
 
 ## Handle CUTSCENE trigger
 func _handle_cutscene_trigger(trigger: Node, player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
+	var trigger_data: Variant = trigger.get("trigger_data")
+	if not trigger_data is Dictionary:
+		push_error("TriggerManager: Missing or invalid trigger_data in cutscene trigger")
+		return
 	var cinematic_id: String = trigger_data["cinematic_id"] if "cinematic_id" in trigger_data else ""
 
 	if cinematic_id.is_empty():
@@ -476,12 +491,14 @@ func _handle_cutscene_trigger(trigger: Node, player: Node2D) -> void:
 
 ## Handle TRANSITION trigger - teleport within same scene
 func _handle_transition_trigger(trigger: Node, player: Node2D) -> void:
-	var trigger_data: Dictionary = trigger.get("trigger_data")
-	var target_position: Vector2i = trigger_data["target_position"] if "target_position" in trigger_data else Vector2i.ZERO
-
-	if target_position == Vector2i.ZERO:
+	var trigger_data: Variant = trigger.get("trigger_data")
+	if not trigger_data is Dictionary:
+		push_error("TriggerManager: Missing or invalid trigger_data in transition trigger")
+		return
+	if "target_position" not in trigger_data:
 		push_warning("TriggerManager: Transition trigger missing target_position")
 		return
+	var target_position: Vector2i = trigger_data["target_position"]
 
 
 	# Teleport player

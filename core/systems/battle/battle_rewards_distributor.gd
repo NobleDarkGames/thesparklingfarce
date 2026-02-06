@@ -41,10 +41,10 @@ static func distribute(battle_data: BattleData) -> Dictionary:
 	if rewards.gold > 0:
 		SaveManager.add_current_gold(rewards.gold)
 
-	# Distribute items to depot
-	if not rewards.items.is_empty() and SaveManager.current_save:
+	# Distribute items to depot via StorageManager
+	if not rewards.items.is_empty():
 		for item_id: String in rewards.items:
-			SaveManager.current_save.depot_items.append(item_id)
+			StorageManager.add_to_depot(item_id)
 
 	# Add characters to party (use character_uid lookup to avoid reference equality issues)
 	for character: CharacterData in rewards.characters:

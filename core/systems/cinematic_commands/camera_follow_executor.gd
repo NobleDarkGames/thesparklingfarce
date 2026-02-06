@@ -4,6 +4,11 @@
 class_name CameraFollowExecutor
 extends CinematicCommandExecutor
 
+## Reference to active camera for interrupt cleanup
+var _active_camera: CameraController = null
+## Stored callback for explicit signal disconnection on interrupt
+var _movement_callback: Callable = Callable()
+
 
 func execute(command: Dictionary, manager: Node) -> bool:
 	var target: String = command.get("target", "")
@@ -16,6 +21,9 @@ func execute(command: Dictionary, manager: Node) -> bool:
 	var camera: CameraController = manager.get_camera_controller()
 	if not camera:
 		return true  # Complete immediately - warning already logged
+
+	# Store camera reference for interrupt cleanup
+	_active_camera = camera
 
 	var actor: CinematicActor = manager.get_actor(target)
 	if actor == null:
@@ -44,10 +52,8 @@ func execute(command: Dictionary, manager: Node) -> bool:
 
 		# Connect to initial movement completion if waiting
 		if should_wait:
-			camera.movement_completed.connect(
-				func() -> void: manager._command_completed = true,
-				CONNECT_ONE_SHOT
-			)
+			_movement_callback = func() -> void: manager._command_completed = true
+			camera.movement_completed.connect(_movement_callback, CONNECT_ONE_SHOT)
 			return false  # Async - wait for initial movement
 
 		return true  # Sync - continue immediately
@@ -58,10 +64,17 @@ func execute(command: Dictionary, manager: Node) -> bool:
 
 		# Connect to completion signal if waiting
 		if should_wait:
-			camera.movement_completed.connect(
-				func() -> void: manager._command_completed = true,
-				CONNECT_ONE_SHOT
-			)
+			_movement_callback = func() -> void: manager._command_completed = true
+			camera.movement_completed.connect(_movement_callback, CONNECT_ONE_SHOT)
 			return false  # Async - wait for signal
 
 		return true  # Sync - continue immediately
+
+
+func interrupt() -> void:
+	# Disconnect movement callback to prevent stale signal on skip
+	if _active_camera and is_instance_valid(_active_camera):
+		if _movement_callback.is_valid() and _active_camera.movement_completed.is_connected(_movement_callback):
+			_active_camera.movement_completed.disconnect(_movement_callback)
+	_active_camera = null
+	_movement_callback = Callable()

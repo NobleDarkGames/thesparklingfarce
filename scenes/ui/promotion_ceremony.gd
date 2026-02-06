@@ -65,16 +65,6 @@ func _ready() -> void:
 	# Set layer above level-up celebration
 	layer = 102
 
-	# Connect to PromotionManager signals
-	if PromotionManager:
-		PromotionManager.promotion_completed.connect(_on_promotion_completed)
-
-
-func _exit_tree() -> void:
-	# Disconnect from PromotionManager to prevent stale references
-	if PromotionManager and PromotionManager.promotion_completed.is_connected(_on_promotion_completed):
-		PromotionManager.promotion_completed.disconnect(_on_promotion_completed)
-
 
 ## Show the promotion ceremony
 ## @param unit: Unit being promoted
@@ -101,21 +91,31 @@ func show_promotion(unit: Unit, old_class: ClassData, new_class: ClassData) -> v
 
 	# Phase 1: Entrance with fanfare
 	await _phase_entrance()
+	if not is_instance_valid(self):
+		return
 
 	# Phase 2: Anticipation (build tension)
 	await _phase_anticipation()
+	if not is_instance_valid(self):
+		return
 
 	# Phase 3: TRANSFORMATION (the moment!)
 	await _phase_transformation()
+	if not is_instance_valid(self):
+		return
 
 	# Phase 4: Revelation
 	await _phase_revelation()
+	if not is_instance_valid(self):
+		return
 
 	# Phase 5: Continue prompt
 	_phase_continue_prompt()
-	
+
 	# Wait for player to dismiss the ceremony
 	await ceremony_dismissed
+	if not is_instance_valid(self):
+		return
 
 
 func _setup_character_display(unit: Unit, old_class: ClassData, new_class: ClassData) -> void:
@@ -152,6 +152,8 @@ func _phase_entrance() -> void:
 	tween.tween_property(ceremony_vbox, "modulate:a", 1.0, duration)
 
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Phase 2: Anticipation (0.5 - 1.0s)
@@ -167,6 +169,8 @@ func _phase_anticipation() -> void:
 	tween.tween_property(character_sprite, "modulate", Color.WHITE, 0.2)
 
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Phase 3: TRANSFORMATION (1.0 - 1.5s) - THE MOMENT
@@ -180,6 +184,8 @@ func _phase_transformation() -> void:
 	var flash_duration: float = GameJuice.get_adjusted_duration(FLASH_IN_DURATION) if GameJuice else FLASH_IN_DURATION
 	flash_in_tween.tween_property(screen_flash, "modulate:a", 1.0, flash_duration)
 	await flash_in_tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# DURING FLASH PEAK: Swap sprite and reveal new class
 	if _new_class and _current_unit and _current_unit.character_data:
@@ -195,6 +201,8 @@ func _phase_transformation() -> void:
 	var flash_out_duration: float = GameJuice.get_adjusted_duration(FLASH_OUT_DURATION) if GameJuice else FLASH_OUT_DURATION
 	flash_out_tween.tween_property(screen_flash, "modulate:a", 0.0, flash_out_duration)
 	await flash_out_tween.finished
+	if not is_instance_valid(self):
+		return
 
 
 ## Phase 4: Revelation (1.5 - 2.5s)
@@ -204,10 +212,14 @@ func _phase_revelation() -> void:
 	flash_tween.tween_property(new_class_label, "modulate", Color(1.6, 1.6, 1.0, 1.0), 0.1)  # Golden flash
 	flash_tween.tween_property(new_class_label, "modulate", Color.WHITE, 0.15)
 	await flash_tween.finished
+	if not is_instance_valid(self):
+		return
 
 	# Reveal stat bonuses if any
 	if not _stat_changes.is_empty():
 		await _reveal_stat_bonuses()
+		if not is_instance_valid(self):
+			return
 
 
 func _reveal_stat_bonuses() -> void:
@@ -249,6 +261,8 @@ func _reveal_stat_bonuses() -> void:
 		reveal_tween.tween_property(lbl, "modulate:a", 1.0, 0.15)
 
 		await get_tree().create_timer(STAT_REVEAL_DELAY).timeout
+		if not is_instance_valid(self):
+			return
 
 
 ## Phase 5: Continue Prompt
@@ -287,17 +301,13 @@ func _dismiss() -> void:
 	tween.tween_property(background, "modulate:a", 0.0, duration)
 	tween.tween_property(ceremony_vbox, "modulate:a", 0.0, duration)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
 
 	ceremony_dismissed.emit()
 
 
-## Called when PromotionManager completes a promotion
-## Use this to get the stat changes
-func _on_promotion_completed(unit: Unit, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
-	_stat_changes = stat_changes
-
-
-## Utility method for external callers to trigger ceremony with stat changes
+## Entry point for triggering ceremony with stat changes
 func show_promotion_with_stats(unit: Unit, old_class: ClassData, new_class: ClassData, stat_changes: Dictionary) -> void:
 	_stat_changes = stat_changes
 	await show_promotion(unit, old_class, new_class)

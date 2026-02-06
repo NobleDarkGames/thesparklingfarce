@@ -52,13 +52,7 @@ enum ActionType {
 # CONSTANTS
 # =============================================================================
 
-const COLOR_PANEL_BG: Color = Color(0.1, 0.1, 0.15, 0.98)
-const COLOR_BORDER: Color = Color(0.6, 0.6, 0.7, 1.0)
-const COLOR_NORMAL: Color = Color(0.8, 0.8, 0.8, 1.0)
-const COLOR_DISABLED: Color = Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_SELECTED: Color = Color(1.0, 1.0, 0.3, 1.0)
-const COLOR_HOVER: Color = Color(0.95, 0.95, 0.85, 1.0)
-const COLOR_ITEM_NAME: Color = Color(1.0, 1.0, 0.9, 1.0)
+## Colors - use centralized UIColors class
 
 # Action display names (typed array indexed by ActionType enum values)
 const ACTION_NAMES: Array[String] = ["Use", "Equip", "Unequip", "Give", "Drop", "Info"]
@@ -107,7 +101,7 @@ func _ready() -> void:
 
 
 func _create_panel_style() -> StyleBoxFlat:
-	var style: StyleBoxFlat = UIUtils.create_panel_style(COLOR_PANEL_BG, COLOR_BORDER, 2)
+	var style: StyleBoxFlat = UIUtils.create_panel_style(UIColors.PANEL_BG, UIColors.PANEL_BORDER_LIGHT, 2)
 	style.set_content_margin_all(4)
 	style.content_margin_left = 8
 	style.content_margin_right = 8
@@ -131,7 +125,7 @@ func _build_ui() -> void:
 	_item_name_label = Label.new()
 	_item_name_label.name = "ItemNameLabel"
 	UIUtils.apply_monogram_style(_item_name_label, 16)
-	_item_name_label.modulate = COLOR_ITEM_NAME
+	_item_name_label.modulate = UIColors.NAME_HIGHLIGHT
 	vbox.add_child(_item_name_label)
 
 	# Separator
@@ -303,7 +297,7 @@ func _create_action_label(action_name: String) -> Label:
 	var label: Label = Label.new()
 	label.text = "  " + action_name
 	UIUtils.apply_monogram_style(label, 16)
-	label.modulate = COLOR_NORMAL
+	label.modulate = UIColors.MENU_NORMAL
 	return label
 
 
@@ -316,11 +310,11 @@ func _update_selection_visual() -> void:
 
 		label.text = ("> " if is_selected else "  ") + action_name
 		if is_selected:
-			label.modulate = COLOR_SELECTED
+			label.modulate = UIColors.MENU_SELECTED
 		elif is_hovered:
-			label.modulate = COLOR_HOVER
+			label.modulate = UIColors.MENU_HOVER
 		else:
-			label.modulate = COLOR_NORMAL
+			label.modulate = UIColors.MENU_NORMAL
 
 
 # =============================================================================

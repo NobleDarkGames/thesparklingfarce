@@ -26,6 +26,7 @@ var text_reveal_speed: float = BASE_TEXT_SPEED
 var current_portrait: Texture2D = null  ## Track current portrait for change detection
 var is_first_line: bool = true  ## Track if this is the first line of dialog
 var fade_tween: Tween = null  ## Track active fade animation to prevent conflicts
+var _punctuation_pausing: bool = false  ## Re-entrancy guard for punctuation pauses
 
 
 func _ready() -> void:
@@ -122,6 +123,8 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 		fade_tween = create_tween()
 		fade_tween.tween_property(self, "modulate:a", 1.0, DIALOG_FADE_DURATION)
 		await fade_tween.finished
+		if not is_instance_valid(self):
+			return
 		fade_tween = null
 		is_first_line = false
 	else:
@@ -140,6 +143,8 @@ func _on_line_changed(line_index: int, line_data: Dictionary) -> void:
 			new_portrait = _try_load_portrait_variant(portrait_speaker_name, emotion)
 
 	await _update_portrait(new_portrait)
+	if not is_instance_valid(self):
+		return
 
 	# Update speaker name with color modulation
 	var speaker_name: String = DictUtils.get_string(line_data, "speaker_name", "")
@@ -251,8 +256,7 @@ func _on_dialog_ended(dialogue_data: DialogueData) -> void:
 		fade_tween = null
 
 		_hide_and_clear()
-
-	_reset_dialog_state()
+		_reset_dialog_state()
 
 
 ## Called when dialog is cancelled (player backed out)
@@ -299,6 +303,9 @@ func _start_text_reveal() -> void:
 
 ## Update text reveal progress
 func _update_text_reveal(delta: float) -> void:
+	if _punctuation_pausing:
+		return
+
 	var chars_to_reveal: float = text_reveal_speed * delta
 	var old_visible: int = int(visible_characters)
 	visible_characters += chars_to_reveal
@@ -308,7 +315,9 @@ func _update_text_reveal(delta: float) -> void:
 	if new_visible > old_visible and new_visible < full_text.length():
 		var current_char: String = full_text[new_visible - 1]
 		if current_char in [".", "!", "?"]:
+			_punctuation_pausing = true
 			await get_tree().create_timer(PUNCTUATION_PAUSE).timeout
+			_punctuation_pausing = false
 			# Guard: if node freed or reveal was skipped/cancelled during await, don't continue
 			if not is_instance_valid(self) or not is_revealing_text:
 				return
