@@ -15,6 +15,10 @@ const FADE_IN_DURATION: float = 0.15
 const AUTO_DISMISS_DELAY: float = 2.5  ## Auto-dismiss if no input
 const ENTRY_STAGGER: float = 0.08  ## Delay between each XP entry appearing
 
+## XP brightness pulse settings
+const XP_PULSE_BRIGHTNESS: float = 1.3
+const XP_PULSE_DURATION: float = 0.2
+
 ## Colors - use centralized UIColors class
 
 ## UI References
@@ -150,6 +154,11 @@ func show_results() -> void:
 
 		var row_tween: Tween = create_tween()
 		row_tween.tween_property(row, "modulate:a", 1.0, 0.1)
+		# Brightness pulse on XP reveal
+		if SettingsManager.are_flash_effects_enabled():
+			var pulse_color: Color = Color(XP_PULSE_BRIGHTNESS, XP_PULSE_BRIGHTNESS, XP_PULSE_BRIGHTNESS, 1.0)
+			row_tween.tween_property(row, "modulate", pulse_color, 0.0)
+			row_tween.tween_property(row, "modulate", Color.WHITE, GameJuice.get_adjusted_duration(XP_PULSE_DURATION))
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(ENTRY_STAGGER).timeout
@@ -167,6 +176,11 @@ func show_results() -> void:
 
 		var row_tween: Tween = create_tween()
 		row_tween.tween_property(row, "modulate:a", 1.0, 0.1)
+		# Brightness pulse on formation XP reveal
+		if SettingsManager.are_flash_effects_enabled():
+			var pulse_color: Color = Color(XP_PULSE_BRIGHTNESS, XP_PULSE_BRIGHTNESS, XP_PULSE_BRIGHTNESS, 1.0)
+			row_tween.tween_property(row, "modulate", pulse_color, 0.0)
+			row_tween.tween_property(row, "modulate", Color.WHITE, GameJuice.get_adjusted_duration(XP_PULSE_DURATION))
 		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
 
 		await get_tree().create_timer(ENTRY_STAGGER).timeout

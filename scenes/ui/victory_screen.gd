@@ -13,6 +13,8 @@ const FADE_IN_DURATION: float = 0.5
 const TITLE_FLASH_COLOR: Color = Color(1.6, 1.6, 0.8, 1.0)  # Golden brightness flash
 const GOLD_REVEAL_DELAY: float = 0.5
 const REWARD_LINE_DELAY: float = 0.3
+const VICTORY_SLIDE_DURATION: float = 0.4
+const VICTORY_SLIDE_OFFSET: float = -200.0
 
 ## UI References
 @onready var background: ColorRect = $Background
@@ -67,12 +69,24 @@ func show_victory(rewards: Dictionary) -> void:
 	else:
 		gold_label.text = "Battle Complete!"
 
+	# Offset title for slide-in animation
+	title_label.position.x = VICTORY_SLIDE_OFFSET
+
 	# Fade in background
 	var tween: Tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(background, "modulate:a", 0.8, FADE_IN_DURATION)
 	tween.tween_property(panel, "modulate:a", 1.0, FADE_IN_DURATION)
 	await tween.finished
+	if not is_instance_valid(self):
+		return
+
+	# Slide title in with overshoot
+	var slide_duration: float = GameJuice.get_adjusted_duration(VICTORY_SLIDE_DURATION)
+	var slide_tween: Tween = create_tween()
+	slide_tween.tween_property(title_label, "position:x", 0.0, slide_duration) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await slide_tween.finished
 	if not is_instance_valid(self):
 		return
 
@@ -91,7 +105,7 @@ func show_victory(rewards: Dictionary) -> void:
 	gold_label.modulate.a = 0.0
 	var gold_tween: Tween = create_tween()
 	gold_tween.tween_property(gold_label, "modulate:a", 1.0, 0.3)
-	AudioManager.play_sfx("ui_confirm", AudioManager.SFXCategory.UI)
+	AudioManager.play_sfx("gold_earned", AudioManager.SFXCategory.UI)
 	await gold_tween.finished
 	if not is_instance_valid(self):
 		return
@@ -138,6 +152,7 @@ func _reveal_items(items: Array) -> void:
 		if count > 1:
 			text = "Received: %s x%d" % [item_name, count]
 
+		AudioManager.play_sfx("item_acquired", AudioManager.SFXCategory.UI)
 		await _add_reward_line(text, Color(0.6, 0.9, 1.0))  # Light blue for items
 
 

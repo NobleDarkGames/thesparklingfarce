@@ -12,6 +12,8 @@ signal celebration_dismissed
 const FADE_IN_DURATION: float = 0.3
 const STAT_REVEAL_DELAY: float = 0.12
 const LEVEL_FLASH_COLOR: Color = Color(1.6, 1.6, 0.8, 1.0)  # Golden brightness flash
+const ABILITY_PULSE_COLOR: Color = Color.CYAN
+const ABILITY_PULSE_DURATION: float = 0.3
 
 ## UI References
 @onready var background: ColorRect = $Background
@@ -146,7 +148,7 @@ func _reveal_stats(stat_increases: Dictionary) -> void:
 		stats_container.add_child(row)
 
 		# Play tick sound and flash in with gold glow
-		AudioManager.play_sfx("ui_select", AudioManager.SFXCategory.UI)
+		AudioManager.play_sfx("stat_increase", AudioManager.SFXCategory.UI)
 
 		var tween: Tween = create_tween()
 		tween.tween_property(row, "modulate", Color.WHITE, 0.15)  # Fade to normal white while appearing
@@ -199,6 +201,19 @@ func _reveal_abilities(abilities: Array[AbilityData]) -> void:
 
 		var tween: Tween = create_tween()
 		tween.tween_property(lbl, "modulate:a", 1.0, 0.2)
+		await tween.finished
+		if not is_instance_valid(self):
+			return
+
+		# Cyan shimmer pulse on the ability label (accessibility-guarded)
+		if SettingsManager.are_flash_effects_enabled():
+			var pulse_duration: float = GameJuice.get_adjusted_duration(ABILITY_PULSE_DURATION)
+			var pulse_tween: Tween = create_tween()
+			lbl.modulate = Color(ABILITY_PULSE_COLOR.r * 1.6, ABILITY_PULSE_COLOR.g * 1.6, ABILITY_PULSE_COLOR.b * 1.6, 1.0)
+			pulse_tween.tween_property(lbl, "modulate", Color.WHITE, pulse_duration)
+			await pulse_tween.finished
+			if not is_instance_valid(self):
+				return
 
 		await get_tree().create_timer(0.3).timeout
 		if not is_instance_valid(self):

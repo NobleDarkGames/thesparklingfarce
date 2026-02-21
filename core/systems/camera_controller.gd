@@ -107,6 +107,10 @@ func _ready() -> void:
 	# Calculate and set camera limits
 	_update_camera_limits()
 
+	# Connect screen shake signal from GameJuice
+	if GameJuice:
+		GameJuice.screen_shake_requested.connect(_on_screen_shake_requested)
+
 	# Clean up when scene is freed
 	tree_exiting.connect(_on_tree_exiting)
 
@@ -131,6 +135,13 @@ func _on_tree_exiting() -> void:
 
 	if CinematicsManager and CinematicsManager._active_camera == self:
 		CinematicsManager._active_camera = null
+
+
+## Handle screen shake requests from GameJuice (gated by accessibility setting)
+func _on_screen_shake_requested(intensity: float, duration: float) -> void:
+	if not SettingsManager.is_screen_shake_enabled():
+		return
+	shake(intensity, duration)
 
 
 ## Find the TileMapLayer in the scene tree

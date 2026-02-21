@@ -14,6 +14,10 @@ extends Area2D
 
 const EDITOR_TILE_SIZE: int = 32
 
+# Game Juice: Interaction confirmation flash
+const INTERACT_FLASH_COLOR: Color = Color(1.5, 1.5, 1.5)
+const INTERACT_FLASH_DURATION: float = 0.1
+
 @export var interactable_data: InteractableData:
 	set(value):
 		interactable_data = value
@@ -175,6 +179,7 @@ func interact(player: Node2D) -> void:
 			_show_dialog(cancel_reason)
 		return
 
+	_flash_on_interact()
 	interaction_started.emit(self, player)
 	CinematicsManager.set_interaction_context({"interactable_id": interactable_data.interactable_id})
 
@@ -230,6 +235,18 @@ func _show_dialog(text: String) -> void:
 func _connect_cinematic_end_signal() -> void:
 	if not CinematicsManager.cinematic_ended.is_connected(_on_cinematic_ended):
 		CinematicsManager.cinematic_ended.connect(_on_cinematic_ended, CONNECT_ONE_SHOT)
+
+
+## Flash sprite bright on interaction confirmation
+func _flash_on_interact() -> void:
+	if not SettingsManager.are_flash_effects_enabled():
+		return
+	if not is_instance_valid(sprite):
+		return
+	sprite.modulate = INTERACT_FLASH_COLOR
+	var duration: float = GameJuice.get_adjusted_duration(INTERACT_FLASH_DURATION)
+	var tween: Tween = sprite.create_tween()
+	tween.tween_property(sprite, "modulate", Color.WHITE, duration)
 
 
 func _complete_interaction() -> void:

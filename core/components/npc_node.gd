@@ -24,6 +24,10 @@ const EDITOR_TILE_SIZE: int = 32
 const ANIMATION_SPEED_STATIC: float = 4.0
 const ANIMATION_SPEED_SPRITESHEET: float = 6.0
 
+# Game Juice: Interaction confirmation flash
+const INTERACT_FLASH_COLOR: Color = Color(1.5, 1.5, 1.5)
+const INTERACT_FLASH_DURATION: float = 0.1
+
 ## The NPC data resource defining this NPC's behavior
 @export var npc_data: NPCData:
 	set(value):
@@ -291,6 +295,8 @@ func interact(player: Node2D) -> void:
 		push_warning("NPCNode: Cannot interact - no npc_data set")
 		return
 
+	_flash_on_interact()
+
 	if _is_patrolling:
 		pause_patrol()
 
@@ -324,6 +330,18 @@ func interact(player: Node2D) -> void:
 		push_error("NPCNode: Failed to play cinematic '%s' for NPC '%s'" % [cinematic_id, npc_data.npc_id])
 		_end_interaction_early()
 		return
+
+
+## Flash sprite bright on interaction confirmation
+func _flash_on_interact() -> void:
+	if not SettingsManager.are_flash_effects_enabled():
+		return
+	if not is_instance_valid(sprite):
+		return
+	sprite.modulate = INTERACT_FLASH_COLOR
+	var duration: float = GameJuice.get_adjusted_duration(INTERACT_FLASH_DURATION)
+	var tween: Tween = sprite.create_tween()
+	tween.tween_property(sprite, "modulate", Color.WHITE, duration)
 
 
 func _end_interaction_early() -> void:

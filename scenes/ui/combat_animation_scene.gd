@@ -667,6 +667,7 @@ func _play_hit_animation(damage: int, target: Unit) -> void:
 	_show_damage_number(damage, false)
 
 	# Update defender HP bar
+	AudioManager.play_sfx("hp_drain", AudioManager.SFXCategory.COMBAT)
 	var hp_tween: Tween = _get_pooled_tween()
 	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_NORMAL_DURATION))
 
@@ -702,6 +703,7 @@ func _play_critical_animation(damage: int, target: Unit) -> void:
 	_spawn_hit_particles(true)  # Critical hit particles (more dramatic)
 	_show_damage_number(damage, true)
 
+	AudioManager.play_sfx("hp_drain", AudioManager.SFXCategory.COMBAT)
 	var hp_tween: Tween = _get_pooled_tween()
 	hp_tween.tween_property(_get_defender_hp_bar(), "value", target.stats.current_hp, _get_duration(BASE_HP_BAR_CRIT_DURATION))
 

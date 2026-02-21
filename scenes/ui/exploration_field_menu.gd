@@ -56,6 +56,10 @@ enum MenuOption {
 # CONSTANTS - VISUAL SPECIFICATIONS (SF2-authentic with modern polish)
 # =============================================================================
 
+# Game Juice: Selection change brightness flash
+const SELECT_FLASH_BRIGHTNESS: float = 1.3
+const SELECT_FLASH_DURATION: float = 0.12
+
 const PANEL_MIN_SIZE: Vector2 = Vector2(100, 80)
 const PANEL_BG: Color = Color(0.1, 0.1, 0.15, 0.95)
 const PANEL_BORDER: Color = Color(0.5, 0.5, 0.6, 1.0)
@@ -495,6 +499,7 @@ func _move_selection(direction: int) -> void:
 	if new_index != _selected_index:
 		_selected_index = new_index
 		_update_selection_visual()
+		_flash_selected_label()
 		AudioManager.play_sfx("cursor_move", AudioManager.SFXCategory.UI)
 
 
@@ -527,6 +532,22 @@ func _confirm_selection() -> void:
 				member_requested.emit()
 
 	option_selected.emit(option_id)
+
+
+## Flash the currently selected label bright then back to normal
+func _flash_selected_label() -> void:
+	if not SettingsManager.are_flash_effects_enabled():
+		return
+	if _selected_index < 0 or _selected_index >= _option_labels.size():
+		return
+	var label: Label = _option_labels[_selected_index]
+	if not is_instance_valid(label):
+		return
+	var bright: float = SELECT_FLASH_BRIGHTNESS
+	label.modulate = Color(bright, bright, bright)
+	var duration: float = GameJuice.get_adjusted_duration(SELECT_FLASH_DURATION)
+	var tween: Tween = label.create_tween()
+	tween.tween_property(label, "modulate", Color.WHITE, duration)
 
 
 ## Cancel and close the menu

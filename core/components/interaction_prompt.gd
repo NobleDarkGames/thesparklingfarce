@@ -27,12 +27,15 @@ var can_interact_callback: Callable = Callable()
 var _label: Label = null
 var _time_elapsed: float = 0.0
 var _current_alpha: float = 0.0
+var _current_amplitude: float = 0.0  ## Current bob amplitude (ramps up on show)
+var _was_showing: bool = false  ## Track show transitions for amplitude ramp
 
 ## Animation constants
 const BOB_AMPLITUDE: float = 2.5  ## Pixels of vertical bob (2-3px per spec)
 const BOB_FREQUENCY: float = 3.0  ## Cycles per second
 const FADE_DURATION: float = 0.12  ## Seconds for fade in/out (0.1-0.15 per spec)
 const VERTICAL_OFFSET: float = -20.0  ## Base offset above parent center
+const PROMPT_RAMP_DURATION: float = 0.3  ## Seconds for bob amplitude to ramp up
 
 
 func _ready() -> void:
@@ -82,6 +85,11 @@ func _process(delta: float) -> void:
 	# Check if we should be showing
 	_update_visibility_state()
 
+	# Detect show transition and reset amplitude for ramp effect
+	if should_show and not _was_showing:
+		_current_amplitude = 0.0
+	_was_showing = should_show
+
 	# Animate alpha toward target
 	var target_alpha: float = 1.0 if should_show else 0.0
 	var fade_speed: float = 1.0 / FADE_DURATION
@@ -93,9 +101,16 @@ func _process(delta: float) -> void:
 
 	modulate.a = _current_alpha
 
+	# Ramp bob amplitude toward full when showing, decay when hiding
+	if should_show:
+		var ramp_speed: float = BOB_AMPLITUDE / PROMPT_RAMP_DURATION if PROMPT_RAMP_DURATION > 0.0 else BOB_AMPLITUDE
+		_current_amplitude = minf(_current_amplitude + ramp_speed * delta, BOB_AMPLITUDE)
+	else:
+		_current_amplitude = 0.0
+
 	# Apply bob animation when visible
 	if _current_alpha > 0.0 and _label:
-		var bob_offset: float = sin(_time_elapsed * BOB_FREQUENCY * TAU) * BOB_AMPLITUDE
+		var bob_offset: float = sin(_time_elapsed * BOB_FREQUENCY * TAU) * _current_amplitude
 		_label.position.y = VERTICAL_OFFSET + bob_offset
 
 

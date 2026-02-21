@@ -5,6 +5,10 @@ extends "res://scenes/ui/shops/screens/shop_screen_base.gd"
 ## Displays available services: Heal, Revive, Uncurse, Exit
 ## Uses ActionMenu-style patterns for consistent UI behavior.
 
+# Game Juice: Hover brightness boost
+const HOVER_BRIGHTNESS: float = 1.1
+const HOVER_TWEEN_DURATION: float = 0.1
+
 ## Menu items array for keyboard navigation
 var menu_items: Array[Button] = []
 var selected_index: int = 0
@@ -84,14 +88,25 @@ func _move_selection(delta: int) -> void:
 func _on_button_focus_entered(btn: Button) -> void:
 	selected_index = menu_items.find(btn)
 	_update_all_colors()
+	_tween_button_brightness(btn, HOVER_BRIGHTNESS)
 
 
 func _on_button_focus_exited(btn: Button) -> void:
 	_update_all_colors()
+	_tween_button_brightness(btn, 1.0)
 
 
 func _on_button_mouse_entered(btn: Button) -> void:
 	btn.grab_focus()
+
+
+## Tween button modulate brightness for hover feedback
+func _tween_button_brightness(btn: Button, brightness: float) -> void:
+	if not is_instance_valid(btn):
+		return
+	var duration: float = GameJuice.get_adjusted_duration(HOVER_TWEEN_DURATION)
+	var tween: Tween = btn.create_tween()
+	tween.tween_property(btn, "modulate", Color(brightness, brightness, brightness), duration)
 
 
 func _update_all_colors() -> void:

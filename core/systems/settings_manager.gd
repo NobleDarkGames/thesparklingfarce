@@ -448,6 +448,8 @@ func _apply_all_settings() -> void:
 	# Display
 	set_fullscreen(is_fullscreen())
 	set_vsync(is_vsync_enabled())
+	if not is_fullscreen():
+		set_window_scale(get_window_scale())
 
 	# Master volume
 	set_master_volume(get_master_volume())

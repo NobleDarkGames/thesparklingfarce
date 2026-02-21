@@ -7,6 +7,17 @@ extends PanelContainer
 
 const UnitUtils = preload("res://core/utils/unit_utils.gd")
 
+## Color coding for advantage/disadvantage display
+const COLOR_ADVANTAGE: Color = Color.GREEN
+const COLOR_DISADVANTAGE: Color = Color.RED
+const COLOR_NEUTRAL: Color = Color.WHITE
+
+## Thresholds for color coding (percentage-based)
+const HIT_ADVANTAGE_THRESHOLD: int = 70
+const HIT_DISADVANTAGE_THRESHOLD: int = 40
+const DAMAGE_ADVANTAGE_THRESHOLD: float = 0.20  ## 20% of defender max HP
+const DAMAGE_DISADVANTAGE_THRESHOLD: float = 0.05  ## 5% of defender max HP
+
 @onready var target_name_label: Label = %TargetNameLabel
 @onready var hit_label: Label = %HitLabel
 @onready var damage_label: Label = %DamageLabel
@@ -83,6 +94,10 @@ func show_forecast(attacker: Unit, defender: Unit) -> void:
 
 	crit_label.text = "Crit: %d%%" % crit_chance
 
+	# Apply color coding based on advantage/disadvantage
+	hit_label.add_theme_color_override("font_color", _get_advantage_color_hit(hit_chance))
+	damage_label.add_theme_color_override("font_color", _get_advantage_color_damage(damage, defender))
+
 	# Show counter chance (0% if out of range, otherwise class-based rate)
 	if counter_chance > 0:
 		counter_label.text = "Counter: %d%%" % counter_chance
@@ -147,3 +162,24 @@ func hide_forecast() -> void:
 		visible = false
 		position = _original_position
 	)
+
+
+## Get color for hit chance display based on advantage thresholds
+func _get_advantage_color_hit(hit_chance: int) -> Color:
+	if hit_chance >= HIT_ADVANTAGE_THRESHOLD:
+		return COLOR_ADVANTAGE
+	elif hit_chance <= HIT_DISADVANTAGE_THRESHOLD:
+		return COLOR_DISADVANTAGE
+	return COLOR_NEUTRAL
+
+
+## Get color for damage display based on percentage of defender max HP
+func _get_advantage_color_damage(damage: int, defender: Unit) -> Color:
+	if not defender or not defender.stats or defender.stats.max_hp <= 0:
+		return COLOR_NEUTRAL
+	var damage_ratio: float = float(damage) / float(defender.stats.max_hp)
+	if damage_ratio >= DAMAGE_ADVANTAGE_THRESHOLD:
+		return COLOR_ADVANTAGE
+	elif damage_ratio <= DAMAGE_DISADVANTAGE_THRESHOLD:
+		return COLOR_DISADVANTAGE
+	return COLOR_NEUTRAL

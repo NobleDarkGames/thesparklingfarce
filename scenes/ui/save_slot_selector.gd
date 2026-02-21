@@ -11,6 +11,10 @@ const DialogBoxScene: PackedScene = preload("res://scenes/ui/dialog_box.tscn")
 const CinematicLoader = preload("res://core/systems/cinematic_loader.gd")
 const NO_CAMPAIGN_ERROR_CINEMATIC: String = "res://core/defaults/cinematics/no_campaign_error.json"
 
+# Game Juice: Hover brightness boost
+const HOVER_BRIGHTNESS: float = 1.1
+const HOVER_TWEEN_DURATION: float = 0.1
+
 # Node references
 var _title_label: Label
 var _slot_container: VBoxContainer
@@ -98,6 +102,15 @@ func _setup_ui() -> void:
 	if not _slot_buttons.is_empty():
 		_slot_buttons[_slot_buttons.size() - 1].focus_neighbor_bottom = _back_button.get_path()
 		_back_button.focus_neighbor_top = _slot_buttons[_slot_buttons.size() - 1].get_path()
+
+	# Connect hover/focus signals for brightness boost on all buttons
+	var all_buttons: Array[Button] = _slot_buttons.duplicate()
+	all_buttons.append(_back_button)
+	for btn: Button in all_buttons:
+		btn.focus_entered.connect(_on_button_hover.bind(btn))
+		btn.focus_exited.connect(_on_button_unhover.bind(btn))
+		btn.mouse_entered.connect(_on_button_hover.bind(btn))
+		btn.mouse_exited.connect(_on_button_unhover.bind(btn))
 
 
 func _update_title() -> void:
@@ -308,3 +321,21 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(_event: InputEvent) -> void:
 	if visible:
 		get_viewport().set_input_as_handled()
+
+
+## Tween button brightness up on hover/focus
+func _on_button_hover(btn: Button) -> void:
+	if not is_instance_valid(btn):
+		return
+	var duration: float = GameJuice.get_adjusted_duration(HOVER_TWEEN_DURATION)
+	var tween: Tween = btn.create_tween()
+	tween.tween_property(btn, "modulate", Color(HOVER_BRIGHTNESS, HOVER_BRIGHTNESS, HOVER_BRIGHTNESS), duration)
+
+
+## Tween button brightness back to normal on unhover/unfocus
+func _on_button_unhover(btn: Button) -> void:
+	if not is_instance_valid(btn):
+		return
+	var duration: float = GameJuice.get_adjusted_duration(HOVER_TWEEN_DURATION)
+	var tween: Tween = btn.create_tween()
+	tween.tween_property(btn, "modulate", Color.WHITE, duration)

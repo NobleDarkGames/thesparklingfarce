@@ -21,6 +21,10 @@ const SLIDE_IN_DURATION: float = 0.3
 const TRANSITION_DURATION: float = 0.2
 const SLIDE_OFFSET: float = -120.0  # Slides in from left
 
+## Turn flash settings (brightness pulse on active slot)
+const TURN_FLASH_BRIGHTNESS: float = 1.3
+const TURN_FLASH_DURATION: float = 0.15
+
 ## UI node references (set up dynamically)
 var _slots: Array[Control] = []
 var _faction_bars: Array[ColorRect] = []
@@ -167,6 +171,15 @@ func _update_slot(slot_index: int, unit: Unit, is_current: bool) -> void:
 	# Apply brightness to both faction bar and label
 	faction_bar.modulate.a = brightness
 	name_label.modulate = Color(brightness, brightness, brightness, 1.0)
+
+	# Flash active slot with brightness pulse
+	if is_current and SettingsManager.are_flash_effects_enabled():
+		var slot: Control = _slots[slot_index]
+		var flash_color: Color = Color(TURN_FLASH_BRIGHTNESS, TURN_FLASH_BRIGHTNESS, TURN_FLASH_BRIGHTNESS)
+		slot.modulate = flash_color
+		var flash_duration: float = GameJuice.get_adjusted_duration(TURN_FLASH_DURATION)
+		var flash_tween: Tween = create_tween()
+		flash_tween.tween_property(slot, "modulate", Color(1, 1, 1), flash_duration)
 
 
 ## Get the faction color for a unit
